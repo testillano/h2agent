@@ -7,7 +7,7 @@ WORKDIR /code/build
 
 ARG make_procs=4
 ARG build_type=Release
-ARG ert_http2comm_ver=v0.0.5
+ARG ert_http2comm_ver=v0.0.9
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 

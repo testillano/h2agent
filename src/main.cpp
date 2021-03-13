@@ -59,44 +59,6 @@ h2agent::http2server::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2server::MyHttp2Server* myHttp2Server = nullptr;
 const char* AdminApiName = "provision";
 const char* AdminApiVersion = "v1";
-const nlohmann::json AdminApiSchema = R"(
-{
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "requestMethod": {
-      "type": "string",
-        "enum": ["POST", "GET", "PUT", "DELETE"]
-    },
-    "requestUri": {
-      "type": "string"
-    },
-    "responseHeader": {
-      "additionalProperties": {
-        "type": "string"
-       },
-       "type": "object"
-    },
-    "responseCode": {
-      "type": "integer"
-    },
-    "responseBody": {
-      "type": "object"
-    },
-    "responseDelayMs": {
-      "type": "integer"
-    },
-    "replaceRules": {
-      "type": "object"
-    },
-    "queueId":{
-      "type": "integer"
-    }
-  },
-  "required": [ "requestMethod", "requestUri", "responseCode" ]
-}
-)"_json;
-
 }
 
 
@@ -161,10 +123,13 @@ void usage(int rc)
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
-    ss << "usage: " << progname << " [options]\n\nOptions:\n\n"
+    ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
+
+       << "[--verbose]\n"
+       << "  Output log traces on console.\n\n"
 
        << "[-a|--admin-port <port>]\n"
        << "  Admin <port>; defaults to 8074\n\n"
@@ -189,6 +154,9 @@ void usage(int rc)
 
        << "[-c|--server-crt <path file>]\n"
        << "  Path file for server crt to enable SSL/TLS; defaults to empty\n\n"
+
+       << "[--server-request-schema <path file>]\n"
+       << "  Path file for the server schema to validate requests received\n\n"
 
        << "[-v|--version]\n"
        << "  Program version\n\n"
@@ -249,6 +217,8 @@ int main(int argc, char* argv[])
     int server_threads = 1;
     std::string server_key_file = "";
     std::string server_crt_file = "";
+    std::string server_req_schema_file = "";
+    bool verbose = false;
 
     std::string value;
 
@@ -258,13 +228,6 @@ int main(int argc, char* argv[])
         usage(EXIT_SUCCESS);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-v", value)
-            || cmdOptionExists(argv, argv + argc, "--version", value))
-    {
-        std::cout << h2agent::GIT_VERSION << '\n';
-        _exit(EXIT_SUCCESS);
-    }
-
     if (cmdOptionExists(argv, argv + argc, "-l", value)
             || cmdOptionExists(argv, argv + argc, "--log-level", value))
     {
@@ -272,6 +235,11 @@ int main(int argc, char* argv[])
         {
             usage(EXIT_FAILURE);
         }
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--verbose", value))
+    {
+        verbose = true;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-a", value)
@@ -322,6 +290,18 @@ int main(int argc, char* argv[])
         server_crt_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--server-request-schema", value))
+    {
+        server_req_schema_file = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-v", value)
+            || cmdOptionExists(argv, argv + argc, "--version", value))
+    {
+        std::cout << h2agent::GIT_VERSION << '\n';
+        _exit(EXIT_SUCCESS);
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << "[" << getLocaltime().c_str() << "] Starting " << progname <<
               " (version " << h2agent::GIT_VERSION << ") ..." << '\n';
@@ -358,6 +338,7 @@ int main(int argc, char* argv[])
     }
 
     ert::tracing::Logger::initialize(progname);
+    ert::tracing::Logger::verbose(verbose);
 
     /*
         LOGDEBUG(
@@ -368,7 +349,7 @@ int main(int argc, char* argv[])
     */
 
 
-    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(AdminApiSchema, max_worker_threads);
+    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(max_worker_threads);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
 
