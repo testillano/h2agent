@@ -73,6 +73,7 @@ You could also change the compilers used:
 ```bash
 $ cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
 ```
+
 or
 
 ```bash
@@ -152,16 +153,40 @@ TODO
 
 ## How it works
 
-`h2agent` listens on a specific management port for incoming requests, implementing an REST API to manage the process operation. Through the API we could program the agent behaviour:
+### Executing h2agent
 
-### initialize-server
+#### Command line
 
-Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
+You may take a look to `h2agent` command line by just typing `./h2agent -h|--help`:
+
+```
+<todo>
+```
+
+#### Traces and printouts
+
+Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned:
+
+```
+<todo>
+```
+
+### Management interface
+
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing an REST API to manage the process operation. Through the API we could program the agent behaviour. The following subsections **name** the operations which would be commanded by a *POST* request with *URI* `provision/v1/<operation>`. The general procedure is to retrieve the corresponding provision which stores information of "how to answer" the reception.
+
+**Current development phase is 1**, see [Implementation Strategy](#implementation-strategy).
+
+#### server-initialize
+
+Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy). This information is now passed through [command line](command-line).
 
 `POST` request must comply the following schema:
 
 ```json
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -174,29 +199,158 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
         {"type": "string"}
       ]
     }
-  }
+  },
   "required": [ "serverPort" ]
 }
 ```
 
 Initializes the server endpoint for the provided listen port (mandatory).
 
-The json schema provided through `requestSchema` field object, will be used to validate requests received by `h2agent` server endpoint. This schema is optional, so it is possible to accept incoming requests without any kind of contraint for them.
+The `json` schema provided through `requestSchema` field object, will be used to validate requests received by `h2agent` server endpoint (you could constraint specific values with `"const"` from `json` schema [draft 6](http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.1.3)). This schema is optional, so it is possible to accept incoming requests without any kind of restriction for them.
 
-### provision-server
+#### server-matching
 
-Defines the response behaviour for an incoming request matching some basic conditions (method, uri) and programming the response (header, code, body). The request uri will be interpreted as a regular expression. It is possible to program a response delay in milliseconds.
-
-Also, replace rules can be provided for dynamic response adaptation:
+Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm. This is the operation request body schema:
 
 ```json
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "algorithm": {
+      "type": "string",
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex"]
+    },
+    "rgx": {
+      "type": "string"
+    },
+    "fmt": {
+      "type": "string"
+    },
+    "sortUriPathQueryParameters": {
+      "type": "boolean"
+    }
+  }
+}
+```
+
+##### sortUriPathQueryParameters
+
+Optional boolean argument used to sort query parameters received in the *URI* path. It is `true` by default to ensure a kind of normalization which makes things more predictable from provision point of view.
+
+##### rgx & fmt
+
+Optional arguments used in `FullMatchingRegexReplace` algorithm.
+
+##### algorithm
+
+###### FullMatching
+
+No additional arguments are expected. The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
+
+This is the default algorithm. Internal provision is stored in a map indexed with real requests information to compose an aggregated key (normally containing the requests *method* and *URI*, but as future proof, we could add `expected request` fingerprint). Then, when a request is received, the map key is calculated and retrieved directly to be processed. 
+
+This algorithm is very good and easy to use for predictable functional tests (as it is accurate), also giving internally  better performance for provision selection.
+
+###### FullMatchingRegexReplace
+
+Both arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. For example, you could trim an *URI* received in different ways:
+
+`URI` example:
+
+```
+uri = "ctrl/v2/id-555112233/ts-1615562841"
+```
+
+* Remove last *timestamp* path part (`ctrl/v2/id-555112233/`):
+
+```
+rgx = "(ctrl/v2/id-[0-9]+/)(ts-[0-9]+)"
+fmt = "$1"
+```
+
+* Trim last four digits (`ctrl/v2/id-555112233/ts-161556`):
+
+```
+rgx = "(ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
+fmt = "$1"
+```
+
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even tokenize path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
+
+The previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation.
+
+###### PriorityMatchingRegex
+
+No additional arguments are expected. This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
+
+1. `ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
+2. `ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
+3. `ctrl/v2/id-555112244/ts-[0-9]{10}`
+
+If the `URI` "ctrl/v2/id-555112244/ts-1615562841" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
+
+#### server-provision
+
+Defines the response behavior for an incoming request matching some basic conditions (*method*, *uri*) and programming the response (*header*, *code*, *body*).
+
+This is the body request schema supported:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "definitions": {
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {"required": ["RegexCapture"]},
+        {"required": ["RegexReplace"]},
+        {"required": ["Append"]},
+        {"required": ["ToUpper"]},
+        {"required": ["ToLower"]},
+        {"required": ["Ipv4"]},
+        {"required": ["Padded"]}
+      ],
+      "properties": {
+        "RegexCapture": { "type": "string" },
+        "RegexReplace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rgx": {
+              "type": "string"
+            },
+            "fmt": {
+              "type": "string"
+            }
+          },
+          "required": [ "rgx", "fmt" ]       
+        },
+        "Append": { "type": "string" },
+        "ToUpper": { "type": "string" },
+        "ToLower": { "type": "string" },
+        "Ipv4": { "type": "string" },
+        "Padded": { "type": "integer" }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+    
+  "properties": {
+    "inState":{
+      "type": "string"
+    },
+    "outState":{
+      "type": "string"
+    },
     "requestMethod": {
       "type": "string",
-        "enum": ["POST", "GET", "PUT", "DELETE"]
+        "enum": ["POST", "GET", "PUT", "DELETE" ]
     },
     "requestUri": {
       "type": "string"
@@ -216,80 +370,214 @@ Also, replace rules can be provided for dynamic response adaptation:
     "responseDelayMs": {
       "type": "integer"
     },
-    "replaceRules": {
-      "type": "object"
-    },
-    "queueId":{
-      "type": "integer"
+    "transform" : { 
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^id\\..+|^request\\.uri\\..+$"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^id\\..+|^response\\.data\\..+$"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
     }
-  }
+  },
   "required": [ "requestMethod", "requestUri", "responseCode" ]
 }
 ```
 
-#### Replace rules
+##### inState and outState
 
-These rules are used to modify the `responseBody` dynamically in order to adapt provisioned templates for different sources. It is an optional field which will be ignored in case that `responseBody` is not present.
+We could label a provision specification to take advantage of internal *FSM* (finite state machine) for matched occurrences. When a reception matches a provision specification, the real context is searched internally to get the current state ("**initial**" if missing) and then get the  `inState` provision for that value. Then, the specific provision is processed and the new state will get the `outState` provided value. This makes possible to program complex flows which depends on some conditions, not only related to matching keys, but also consequence from [transformation filters](#transform) which could manipulate those states.
 
-This field is a json object with multiple key/value pairs where keys are reserved for specific purposes:
+These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed.
 
-##### keys `uriCapture` and `bodyCapture`
+Let's see an example to clarify:
 
-We could access URI parts by mean providing the position number (1..N) and also negative numbers to back access the path. Also, query parts can be accesed with `query.<parameter name>`.
+* Provision *X* (match m, `inState`="*initial*"): `outState`="*second*", `response` *XX*
+* Provision *Y* (match m, `inState`="*second*"): `outState`="*initial*", `response` *YY*
+* Reception matches *m* and internal context map is empty: as we assume state "*initial*", we look for this  `inState` value for match *m*, which is provision *X*.
+* Response *XX* is sent. Internal state will take the provision *X* `outState`, which is "*second*".
+* Reception matches *m* and internal context map stores state "*second*", we look for this  `inState` value for match *m*, which is provision Y.
+* Response *YY* is sent. Internal state will take the provision *Y* `outState`, which is "*initial*".
 
-The URI capture value associated will have the format: `<label>=<capture>`.
-So, the label will be used later to replace json paths within the response body:
+Further similar matches (*m*), will repeat the cycle again and again.
 
-Imagine the URL `path/to/nirvana/level-1234?param1=22&param2=23`:
+##### requestMethod
 
-```
-"uriCapture":"var1=1",              var1 will be 'path'
-"uriCapture":"var3=3",              var3 will be 'nirvana'
-"uriCapture":"varLast=-1",          varLast will be 'level-1234'
-"uriCapture":"param1=query.param1", param1 will be '22'
-```
+Expected request method (*POST*, *GET*, *PUT*, *DELETE*).
 
-Also, we could capture received requests body nodes by mean a dot separated string notation:
+##### requestUri
+
+Request *URI* path to match depending on the algorithm selected.
+
+##### responseHeader
+
+Header fields for the response.
+
+##### responseCode
+
+Response status code.
+
+##### responseBody
+
+Response body.
+
+##### responseDelayMs
+
+Optional response delay simulation in milliseconds.
+
+##### transform
+
+Sorted list of transformations to modify incoming information and build the dynamic response to be sent.
+
+Each transformation has a `source`, a `target` and an optional `filter`algorithm.
+
+The source of information is always a string representation, and could be one of the following:
+
+- request.uri: whole request *URI*  path, including the possible query parameters.
+
+- request.uri.path: request *URI* path part.
+
+- request.uri.param.<name>: request URI specific parameter `<name>`.
+
+- request.body: request body document.
+
+- request.body.<node1>..<nodeN>: request body node path.
+
+- request.header.<hname>: request header component (i.e. *content-type*).
+
+- general.random.<range>: integer number up to `<range>` value.
+
+- general.timestamp.ns: UNIX epoch time in nanoseconds.
+
+- general.unique: sequence id increased for every mock reception.
+
+- var.<id>: general purpose variable.
+
+  
+
+The target of information is always a string representation, and could be one of the following:
+
+- response.body: response body document.
+- response.body.<node1>..<nodeN>: response body node path.
+- response.header.<hname>: response header component (i.e. *location*).
+- response.statusCode: response status code.
+- var.<id>: general purpose variable.
+
+
+
+There are several filter methods:
+
+
+
+- RegexCapture: this filter provides a regular expression with capture groups which will be applied over the source and stored in the target with the keys = `<target>.N`, being *N* each captured group. This filter only work with general purpose variables. For example:
 
 ```json
 {
-  "node1": {
-    "node2": "blue"
-  }
+  "source": "request.uri.path",
+  "target": "var.id_cat",
+  "filter": { "RegexCapture" : "api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+    "filter": { "RegexReplace" : { "rgx" : "344", "fmt" : "4" } }
 }
 ```
 
-```
-"bodyCapture":"var1=node1.node2"    var1 will be 'blue'
-```
+For example, if the source received is *"api/v2/id-28/category-animal/"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*.
 
-Now, we need to specify the target within answered body to update the captured data:
 
-##### key `bodyUpdate`
 
-The value associated will have the format: `<body path>=<label>`.
-The body path points to specific body response path by mean dot separated string, for example:
-
-```
-"bodyUpdate":"node1.node2.node3=var1"
-```
+- RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure. We provide `rgx` and `fmt` to transform the source into the target:
 
 ```json
-{
-  "node1": {
-    "node2": {
-      "node3":"green"
+{ 
+  "source": "request.uri.path",
+  "target": "response.body.data.timestamp",
+  "filter": {
+    "RegexReplace" : {
+      "rgx" : "(ctrl/v2/id-[0-9]+/)(ts-[0-9]+)",
+      "fmt" : "$2"
     }
   }
 }
 ```
 
-In the example, 'green' will be updated to the value for 'var1'.
+For example, if the source received is "*ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *ts-1615562841*.
 
-### initialize-client
+Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. A simple algorithm could consists in getting the 8 less significant digits (as they are also valid hexadecimal signs) and build the *IPv4* representation in this way:
+
+```json
+{ 
+  "source": "request.body.phone",
+  "target": "var.ipv4",
+  "filter": {
+    "RegexReplace" : {
+      "rgx" : "[0-9]+([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})",
+      "fmt" : "$1.$2.$3.$4"
+    }
+  }
+}
+```
+
+Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* or whatever), we don't consider at the moment that the probably better performance of such implementations, justify abandon the flexibility in the current abstraction that we achieve thanks to the *RegexReplace* filter.
+
+
+
+- Append: this appends the provided information to the source:
 
 ```json
 {
+  "source": "var.subdomain",
+  "target": "var.site",
+  "filter": { "Append" : "@teslayout.com" }
+}
+```
+
+For example, if the source received is "*telegram*", then we will will have *var.site="telegram.teslayout.com"*.
+
+This could be done also with the `RegexReplace` filter, but this has better performance.
+
+
+
+- ToUpper: transforms the source into upper case.
+
+  
+
+- ToLower: transforms the source into lower case.
+
+  
+
+- Padded: transforms the source with leading (positive input) or trailing (negative input) zeros to complete the provided absolute value as the whole string size.
+
+```json
+{
+  "source": "var.sequence",
+  "target": "var.paddedSequence",
+  "filter": { "Padded" : 9 }
+}
+```
+
+For example, if the source received is "55511", then we will will have *var.paddedSequence="555110000"*. In case that the value provided is negative (*-9*), then this would be the result: "*000055511*".
+
+
+
+#### client-initialize
+
+Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -305,7 +593,7 @@ In the example, 'green' will be updated to the value for 'var1'.
         {"type": "string"}
       ]
     }
-  }
+  },
   "required": [ "targetAddress", "targetPort" ]
 }
 ```
@@ -314,10 +602,14 @@ Initializes the client connection to the target server endpoint.
 
 The json schema provided through `responseSchema` field object, will be used to validate responses received by `h2agent` client endpoint. This schema is optional, so it is possible to accept incoming responses without any kind of contraint for them.
 
-### send-message
+#### send-message
+
+Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
 
 ```json
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -349,7 +641,7 @@ The json schema provided through `responseSchema` field object, will be used to 
     "responseBody": {
       "type": "object"
     }
-  }
+  },
   "required": [ "requestMethod", "requestUri" ]
 }
 ```
@@ -396,20 +688,6 @@ TODO
 
 TODO
 
-## Executing h2agent
-
-You may take a look to h2agent command-line by just typing `./h2agent -h|--help`:
-
-TODO
-
-```
-here command-line output
-```
-
-### Traces and printouts
-
-TODO
-
 ## Implementation strategy
 
 ### Phase 1: standalone & memory cached
@@ -427,14 +705,18 @@ Repeated provisions over the same key, although not usual, will overwrite the ex
 
 #### Queue system
 
-It could be a case of use that subsequent requests for a given URI could respond differently. For this case, we will have a queue of responses in a given order.
-Provision operation described had a field named 'queueId', which is an integer natural number (0 by default when not provided via REST API).
-The incoming requests will trigger the corresponding sequence in a monotonically increased way until last available. Queue will be automatically rotated until provisions are removed.
+It could be a case of use that subsequent requests for a given URI could respond differently. For this case, we will have a queue of responses in a given order. This is solved with the `inState` and `outState` mechanism [described](#instate-and-outstate) in this draft.
+
+#### Add metrics
+
+Use [Prometheus](https://prometheus.io/) scrapping system.
 
 ### Phase 2: provide scalability
 
 This is intented to be used to manage high load rates.
-In order to have scalability, we will use a shared filesystem between replicas.
+In order to have scalability, we will use a shared file system between replicas.
+
+Consider extended attributes to store metadata if the file system support it.
 
 #### Cache system
 
@@ -452,7 +734,7 @@ The cache system will always be enabled (not configurable), and although only on
 
 #### Queue system
 
-Queued items will be persisted as:
+Queued states could be persisted in the file system or extended attributes.
 
 `/shared/<base64 of method + uri>/provision.<queueId>.json`
 
@@ -467,28 +749,27 @@ By default, a unique queue element would be created on provision (queueId = 0), 
 
 We will activate the `initialize` administration operation to support N server endpoints as well as client endpoints (although this use case could be not so useful as many test frameworks, like pytest with hyper, provide easy ways to initiate test flows).
 
-### Phase 4: database cache/queue
+### Phase 4: Improve scalability design
 
-Consider key/value database instead of filesystem to cache and queue provision within scalable test system.
+Consider a key/value database (i.e. [apache geode](https://geode.apache.org/)) instead of file system to cache and queue provision within scalable test system.
 
-# Contributing
+## Contributing
 
 You must follow these steps:
 
-## Fork
+### Fork
 
-Fork the project and create a new branch.
-Please describe commit messages in imperative form and follow common-sense conventions [here](https://chris.beams.io/posts/git-commit/).
+Fork the project and create a new branch. Check [here](https://chris.beams.io/posts/git-commit/) for a good reference of universal conventions regarding how to describe commit messages and make changes.
 
-## Run unit tests
+### Run unit tests
 
-TODO
+See [unit test](unit-test).
 
-## Run component tests
+### Run component tests
 
-TODO
+See [component test](component-test).
 
-## Check formatting
+### Check formatting
 
 Please, execute `astyle` formatting (using [frankwolf image](https://hub.docker.com/r/frankwolf/astyle)) before any pull request:
 
@@ -497,7 +778,7 @@ $ sources=$(find . -name "*.hpp" -o -name "*.cpp")
 $ docker run -it --rm -v $PWD:/data frankwolf/astyle ${sources}
 ```
 
-## Pull request
+### Pull request
 
 Rebase to update and then make a `pull request`.
 
