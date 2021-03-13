@@ -14,7 +14,7 @@ When developing a network service, one often needs to integrate it with other se
 
 ### Builder image
 
-You shall need the `h2agent_build` docker image to build the project. This image is already available at `docker hub` for every repository `tag` (tagged by mean leading 'v' removal), and also for `master` (tagged as `latest`), so you could skip this step and go directly to the [next](#build-executable), as docker will pull it automatically when needed.
+You shall need the `h2agent_build` docker image to build the project. This image is already available at `docker hub` for every repository `tag` (tagged by mean leading 'v' removal), and also for `master` (tagged as `latest`), so you could skip this step and go directly to the [next](#usage), as docker will pull it automatically when needed.
 
 Anyway, builder image could be created using `./docker/h2agent_build/Dockerfile`:
 
@@ -24,7 +24,7 @@ $ bargs="--build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
 $ docker build --rm ${bargs} -f ${dck_dn}/Dockerfile -t testillano/h2agent_build ${dck_dn}
 ```
 
-### Build executable
+### Usage
 
 With the previous image, we can now build the executable:
 
@@ -34,7 +34,15 @@ $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
          testillano/h2agent_build
 ```
 
-Environment variables `BUILD_TYPE` (for `cmake`) and `MAKE_PROCS` (for `make`) are inherited from base image (`http2comm_build` -> `nghttp2_build`).
+Environment variables `BUILD_TYPE` (for `cmake`) and `MAKE_PROCS` (for `make`) are inherited from base image (`http2comm_build` -> `nghttp2_build`):
+You could generate documentation understanding the builder script behind ([nghttp2 build entrypoint](https://github.com/testillano/nghttp2_build/blob/master/deps/build.sh)):
+
+```bash
+$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+         testillano/h2agent_build "" doc
+```
+
+You could use the script `./build_all.sh` to automate all those operations.
 
 ## Docker-executable image
 
@@ -160,7 +168,49 @@ TODO
 You may take a look to `h2agent` command line by just typing `./h2agent -h|--help`:
 
 ```
-<todo>
+Usage: h2agent [options]                                                                                                                                             [3/7755]
+
+Options:
+
+[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
+  Set the logging level; defaults to warning.
+
+[--verbose]
+  Output log traces on console.
+
+[-a|--admin-port <port>]
+  Admin <port>; defaults to 8074
+
+[-p|--server-port <port>]
+  Server <port>; defaults to 8000
+
+[-m|--server-api-name <name>]
+  Server API name; defaults to empty
+
+[-n|--server-api-version <version>]
+  Server API version; defaults to empty
+
+[-w|--max-worker-threads <threads>]
+  Maximum worker threads; defaults to -1 (no limit)
+
+[-t|--server-threads <threads>]
+  Number of nghttp2 server threads; defaults to 1 (1 connection)
+
+[-k|--server-key <path file>]
+  Path file for server key to enable SSL/TLS; defaults to empty
+
+[-c|--server-crt <path file>]
+  Path file for server crt to enable SSL/TLS; defaults to empty
+
+[--server-request-schema <path file>]
+  Path file for the server schema to validate requests received
+
+[-v|--version]
+  Program version
+
+[-h|--help]
+  This help
+
 ```
 
 #### Traces and printouts
@@ -173,13 +223,13 @@ Traces are managed by `syslog` by default, but could be shown verbosely at stand
 
 ### Management interface
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing an REST API to manage the process operation. Through the API we could program the agent behaviour. The following subsections **name** the operations which would be commanded by a *POST* request with *URI* `provision/v1/<operation>`. The general procedure is to retrieve the corresponding provision which stores information of "how to answer" the reception.
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following subsections **name** the operations which would be commanded by a *POST* request with *URI* `provision/v1/<operation>`. The general procedure is to retrieve the corresponding provision which stores information of "how to answer" the reception.
 
 **Current development phase is 1**, see [Implementation Strategy](#implementation-strategy).
 
 #### server-initialize
 
-Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy). This information is now passed through [command line](command-line).
+Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
 
 `POST` request must comply the following schema:
 
@@ -207,6 +257,8 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
 Initializes the server endpoint for the provided listen port (mandatory).
 
 The `json` schema provided through `requestSchema` field object, will be used to validate requests received by `h2agent` server endpoint (you could constraint specific values with `"const"` from `json` schema [draft 6](http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.1.3)). This schema is optional, so it is possible to accept incoming requests without any kind of restriction for them.
+
+During *Phase 1* the request schema is passed through [command line](#command-line) by mean `--server-request-schema` option.
 
 #### server-matching
 
@@ -250,13 +302,13 @@ Optional arguments used in `FullMatchingRegexReplace` algorithm.
 
 No additional arguments are expected. The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
 
-This is the default algorithm. Internal provision is stored in a map indexed with real requests information to compose an aggregated key (normally containing the requests *method* and *URI*, but as future proof, we could add `expected request` fingerprint). Then, when a request is received, the map key is calculated and retrieved directly to be processed. 
+This is the default algorithm. Internal provision is stored in a map indexed with real requests information to compose an aggregated key (normally containing the requests *method* and *URI*, but as future proof, we could add `expected request` fingerprint). Then, when a request is received, the map key is calculated and retrieved directly to be processed.
 
 This algorithm is very good and easy to use for predictable functional tests (as it is accurate), also giving internally  better performance for provision selection.
 
 ###### FullMatchingRegexReplace
 
-Both arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. For example, you could trim an *URI* received in different ways:
+Both `rgx` and `fmt` arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. For example, you could trim an *URI* received in different ways:
 
 `URI` example:
 
@@ -278,19 +330,19 @@ rgx = "(ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
-So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even tokenize path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
 
 The previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation.
 
 ###### PriorityMatchingRegex
 
-No additional arguments are expected. This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
+No additional arguments are required. This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
 
 1. `ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
 2. `ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
 3. `ctrl/v2/id-555112244/ts-[0-9]{10}`
 
-If the `URI` "ctrl/v2/id-555112244/ts-1615562841" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
+If the `URI` "*ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
 
 #### server-provision
 
@@ -312,7 +364,6 @@ This is the body request schema supported:
         {"required": ["Append"]},
         {"required": ["ToUpper"]},
         {"required": ["ToLower"]},
-        {"required": ["Ipv4"]},
         {"required": ["Padded"]}
       ],
       "properties": {
@@ -328,19 +379,18 @@ This is the body request schema supported:
               "type": "string"
             }
           },
-          "required": [ "rgx", "fmt" ]       
+          "required": [ "rgx", "fmt" ]
         },
         "Append": { "type": "string" },
         "ToUpper": { "type": "string" },
         "ToLower": { "type": "string" },
-        "Ipv4": { "type": "string" },
         "Padded": { "type": "integer" }
       }
     }
   },
   "type": "object",
   "additionalProperties": false,
-    
+
   "properties": {
     "inState":{
       "type": "string"
@@ -370,7 +420,7 @@ This is the body request schema supported:
     "responseDelayMs": {
       "type": "integer"
     },
-    "transform" : { 
+    "transform" : {
       "type" : "array",
       "minItems": 1,
       "items" : {
@@ -378,11 +428,11 @@ This is the body request schema supported:
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^id\\..+|^request\\.uri\\..+$"
+            "pattern": "^var\\..+|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..+|^request\\.body$|^request\\.body\\..+|^request\\.header\\..+|^general\\.random\\..+|^general\\.timestamp\\.ns$|^general\\.unique$|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^id\\..+|^response\\.data\\..+$"
+            "pattern": "^var\\..+|^response\\.body$|^response\\.body\\..+|^response\\.header\\..+|^response\\.statusCode$|^outState$"
           }
         },
         "additionalProperties" : {
@@ -400,7 +450,7 @@ This is the body request schema supported:
 
 We could label a provision specification to take advantage of internal *FSM* (finite state machine) for matched occurrences. When a reception matches a provision specification, the real context is searched internally to get the current state ("**initial**" if missing) and then get the  `inState` provision for that value. Then, the specific provision is processed and the new state will get the `outState` provided value. This makes possible to program complex flows which depends on some conditions, not only related to matching keys, but also consequence from [transformation filters](#transform) which could manipulate those states.
 
-These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed.
+These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed. Also, if the next state configured (`outState` provisioned or transformed) has not a corresponding `inState` value, the flow will be broken/stopped.
 
 Let's see an example to clarify:
 
@@ -441,7 +491,7 @@ Optional response delay simulation in milliseconds.
 
 Sorted list of transformations to modify incoming information and build the dynamic response to be sent.
 
-Each transformation has a `source`, a `target` and an optional `filter`algorithm.
+Each transformation has a `source`, a `target` and an optional `filter` algorithm.
 
 The source of information is always a string representation, and could be one of the following:
 
@@ -465,7 +515,9 @@ The source of information is always a string representation, and could be one of
 
 - var.<id>: general purpose variable.
 
-  
+- inState: current processing state.
+
+
 
 The target of information is always a string representation, and could be one of the following:
 
@@ -474,6 +526,7 @@ The target of information is always a string representation, and could be one of
 - response.header.<hname>: response header component (i.e. *location*).
 - response.statusCode: response status code.
 - var.<id>: general purpose variable.
+- outState: next processing state. This overrides the default provisioned one.
 
 
 
@@ -481,14 +534,13 @@ There are several filter methods:
 
 
 
-- RegexCapture: this filter provides a regular expression with capture groups which will be applied over the source and stored in the target with the keys = `<target>.N`, being *N* each captured group. This filter only work with general purpose variables. For example:
+- RegexCapture: this filter provides a regular expression with capture groups which will be applied to the source and stored in the target with the keys = `<target>.N`, being *N* each captured group. This filter only work with general purpose variables as target. For example:
 
 ```json
 {
   "source": "request.uri.path",
   "target": "var.id_cat",
   "filter": { "RegexCapture" : "api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
-    "filter": { "RegexReplace" : { "rgx" : "344", "fmt" : "4" } }
 }
 ```
 
@@ -499,24 +551,24 @@ For example, if the source received is *"api/v2/id-28/category-animal/"*, then w
 - RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure. We provide `rgx` and `fmt` to transform the source into the target:
 
 ```json
-{ 
+{
   "source": "request.uri.path",
   "target": "response.body.data.timestamp",
   "filter": {
     "RegexReplace" : {
-      "rgx" : "(ctrl/v2/id-[0-9]+/)(ts-[0-9]+)",
+      "rgx" : "(ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
       "fmt" : "$2"
     }
   }
 }
 ```
 
-For example, if the source received is "*ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *ts-1615562841*.
+For example, if the source received is "*ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *1615562841*.
 
 Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. A simple algorithm could consists in getting the 8 less significant digits (as they are also valid hexadecimal signs) and build the *IPv4* representation in this way:
 
 ```json
-{ 
+{
   "source": "request.body.phone",
   "target": "var.ipv4",
   "filter": {
@@ -538,7 +590,7 @@ Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* o
 {
   "source": "var.subdomain",
   "target": "var.site",
-  "filter": { "Append" : "@teslayout.com" }
+  "filter": { "Append" : ".teslayout.com" }
 }
 ```
 
@@ -550,11 +602,11 @@ This could be done also with the `RegexReplace` filter, but this has better perf
 
 - ToUpper: transforms the source into upper case.
 
-  
+
 
 - ToLower: transforms the source into lower case.
 
-  
+
 
 - Padded: transforms the source with leading (positive input) or trailing (negative input) zeros to complete the provided absolute value as the whole string size.
 

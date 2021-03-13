@@ -43,6 +43,7 @@ SOFTWARE.
 #include <ert/http2comm/Http2Server.hpp>
 
 #include <JsonSchema.hpp>
+#include <AdminSchemas.hpp>
 
 namespace h2agent
 {
@@ -51,13 +52,15 @@ namespace http2server
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
-    h2agent::jsonschema::JsonSchema schema_;
+    h2agent::jsonschema::JsonSchema server_matching_schema_;
+    h2agent::jsonschema::JsonSchema server_provision_schema_;
 
 public:
     //schema_(schema),
-    MyAdminHttp2Server(const nlohmann::json & jsonSchema, size_t maxWorkerThreads = -1) :
+    MyAdminHttp2Server(size_t maxWorkerThreads = -1) :
         ert::http2comm::Http2Server("AdminHttp2Server", maxWorkerThreads),
-        schema_(jsonSchema) {};
+        server_matching_schema_(h2agent::adminSchemas::server_matching),
+        server_provision_schema_(h2agent::adminSchemas::server_provision) {};
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
