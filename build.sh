@@ -50,7 +50,7 @@ read pboettch_jsonschemavalidator_ver
 bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
 
 dck_dn=./docker/h2agent_build
-docker build --rm ${bargs} -t testillano/h2agent_build ${dck_dn}
+docker build --rm ${bargs} -t testillano/h2agent_build ${dck_dn} || exit 1
 
 echo
 echo "-------------"
@@ -59,8 +59,8 @@ echo "-------------"
 echo
 rm -f CMakeCache.txt
 envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type}"
-docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_build
-docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_build "" doc
+docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_build || exit 1
+docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_build "" doc || exit 1
 
 echo
 echo "-----------------------------"
