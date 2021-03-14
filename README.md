@@ -12,21 +12,23 @@ When developing a network service, one often needs to integrate it with other se
 
 ## Build project with docker
 
+You could use the automation script `./build.sh` located at project root to cover all the build stages needed. To better understand, read the following:
+
 ### Builder image
 
 You shall need the `h2agent_build` docker image to build the project. This image is already available at `docker hub` for every repository `tag` (tagged by mean leading 'v' removal), and also for `master` (tagged as `latest`), so you could skip this step and go directly to the [next](#usage), as docker will pull it automatically when needed.
 
-Anyway, builder image could be created using `./docker/h2agent_build/Dockerfile`:
+Anyway, you could type something like this to build the image:
 
 ```bash
 $ dck_dn=./docker/h2agent_build
 $ bargs="--build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
-$ docker build --rm ${bargs} -f ${dck_dn}/Dockerfile -t testillano/h2agent_build ${dck_dn}
+$ docker build --rm ${bargs} -f ${dck_dn}/Dockerfile -t testillano/h2agent_build:<your tag> ${dck_dn}
 ```
 
 ### Usage
 
-With the previous image, we can now build the executable:
+Builder image is used to build this project executable:
 
 ```bash
 $ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
@@ -42,8 +44,6 @@ $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
          testillano/h2agent_build "" doc
 ```
 
-You could use the script `./build_all.sh` to automate all those operations.
-
 ## Docker-executable image
 
 To build an static-autonomous executable docker image, you shall need to build the project docker image, which is located at project root:
@@ -54,6 +54,8 @@ $ docker build --rm ${bargs} -t testillano/h2agent .
 ```
 
 Again, this image is uploaded for every `tag` and also for `master` branch, to be available for corresponding `helm charts` (normally packaged into releases) which will be described in following [sections](#how-it-is-delivered).
+
+And also, you could use the automation script `./build.sh` located at project root to build the docker-executable image.
 
 ## Build project natively
 
