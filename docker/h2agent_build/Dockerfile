@@ -1,4 +1,5 @@
-FROM testillano/http2comm_build:latest
+ARG base_ver=latest
+FROM testillano/http2comm_build:${base_ver}
 MAINTAINER testillano
 
 LABEL testillano.h2agent_build.description="Docker image to build h2agent executable"
