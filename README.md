@@ -62,7 +62,7 @@ You could generate documentation passing extra arguments to the [entry point](ht
 
 ```bash
 $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         testillano/h2agent_builder::<tag>-build "" doc
+         testillano/h2agent_builder::<tag> "" doc
 ```
 
 You could also build the library using the script `./build.sh` located at project root:
