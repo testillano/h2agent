@@ -1,5 +1,3 @@
-[TOC]
-
 # C++ HTTP/2 Agent Service - WORK IN PROGRESS
 
 `h2agent` is a network service that enables mocking other network services.
@@ -10,52 +8,69 @@ When developing a network service, one often needs to integrate it with other se
 
 `h2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
 
-## Build project with docker
+## Project image
 
-You could use the automation script `./build.sh` located at project root to cover all the build stages needed. To better understand, read the following:
+This image is already available at `docker hub` for every repository `tag`, and also for master as `latest`:
+
+```bash
+$ docker pull testillano/h2agent:<tag>
+```
+
+You could also build it using the script `./build.sh` located at project root:
+
+
+```bash
+$ ./build.sh --project-image
+```
+
+This image is built with `./Dockerfile`.
+
+## Usage
+
+The static-autonomous executable docker image, will be also available through corresponding `helm charts` (normally packaged into releases) which will be described in following [sections](#how-it-is-delivered).
+
+## Build project with docker
 
 ### Builder image
 
-You shall need the `h2agent_build` docker image to build the project. This image is already available at `docker hub` for every repository `tag` (tagged by mean leading 'v' removal), and also for `master` (tagged as `latest`), so you could skip this step and go directly to the [next](#usage), as docker will pull it automatically when needed.
-
-Anyway, you could type something like this to build the image:
+This image is already available at `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ dck_dn=./docker/h2agent_build
-$ bargs="--build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
-$ docker build --rm ${bargs} -f ${dck_dn}/Dockerfile -t testillano/h2agent_build:<your tag> ${dck_dn}
+$ docker pull testillano/h2agent_builder:<tag>
 ```
+
+You could also build it using the script `./build.sh` located at project root:
+
+
+```bash
+$ ./build.sh --builder-image
+```
+
+This image is built with `./Dockerfile.build`.
 
 ### Usage
 
-Builder image is used to build this project executable:
+Builder image is used to build the executable. To run compilation over this image, again, just run with `docker`:
 
 ```bash
 $ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
 $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         testillano/h2agent_build
+         testillano/h2agent_builder:<tag>
 ```
 
-Environment variables `BUILD_TYPE` (for `cmake`) and `MAKE_PROCS` (for `make`) are inherited from base image (`http2comm_build` -> `nghttp2_build`):
-You could generate documentation understanding the builder script behind ([nghttp2 build entrypoint](https://github.com/testillano/nghttp2_build/blob/master/deps/build.sh)):
+You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
 
 ```bash
 $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         testillano/h2agent_build "" doc
+         testillano/http2comm_builder::<tag>-build "" doc
 ```
 
-## Docker-executable image
+You could also build the library using the script `./build.sh` located at project root:
 
-To build an static-autonomous executable docker image, you shall need to build the project docker image, which is located at project root:
 
 ```bash
-$ bargs+=" --build-arg build_type=Release" # make_procs & build_type
-$ docker build --rm ${bargs} -t testillano/h2agent .
+$ ./build.sh --process
 ```
-
-Again, this image is uploaded for every `tag` and also for `master` branch, to be available for corresponding `helm charts` (normally packaged into releases) which will be described in following [sections](#how-it-is-delivered).
-
-And also, you could use the automation script `./build.sh` located at project root to build the docker-executable image.
 
 ## Build project natively
 
@@ -92,14 +107,14 @@ $ cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
 
 ### Requirements
 
-Check the requirements described at building `dockerfile` (`./docker/h2agent_build/Dockerfile`) as well as all the ascendant docker images which are inherited:
+Check the requirements described at building `dockerfile` (`./Dockerfile.build`) as well as all the ascendant docker images which are inherited:
 
 ```
-h2agent_build (./docker/h2agent_build/Dockerfile)
+h2agent builder (./Dockerfile.build)
    |
-http2comm_build (https://github.com/testillano/http2comm_build)
+http2comm (https://github.com/testillano/http2comm)
    |
-nghttp2_build (https://github.com/testillano/nghttp2_build)
+nghttp2 (https://github.com/testillano/nghttp2)
 ```
 
 ### Build
