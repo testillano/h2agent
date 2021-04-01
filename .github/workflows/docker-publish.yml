@@ -61,16 +61,15 @@ jobs:
           file: Dockerfile
           context: .
           #push: true
-          build-args:
-            - base_tag: local
-
-        name: Image digest
+          build-args: base_tag=local
+      -
+        name: Image2 digest
         run: echo ${{ steps.docker_build2.outputs.digest }}
       -
         name: Push images manually
         run: |
-          IMAGE_ID1=docker.io/testillano/h2agent_builder:local
-          IMAGE_ID2=docker.io/testillano/h2agent:local
+          IMAGE_ID1=docker.io/testillano/h2agent_builder
+          IMAGE_ID2=docker.io/testillano/h2agent
 
           # workflow dispatch event:
           image_tag=${{ github.event.inputs.tag }}
@@ -92,4 +91,3 @@ jobs:
 
           docker push $IMAGE_ID1:$image_tag
           docker push $IMAGE_ID2:$image_tag
-
