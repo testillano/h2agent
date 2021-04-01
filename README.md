@@ -69,7 +69,7 @@ You could also build the library using the script `./build.sh` located at projec
 
 
 ```bash
-$ ./build.sh --process
+$ ./build.sh --project
 ```
 
 ## Build project natively
