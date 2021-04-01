@@ -1,5 +1,5 @@
-ARG base_ver=latest
-FROM testillano/http2comm_build:${base_ver}
+ARG base_tag=latest
+FROM testillano/http2comm:${base_tag}
 MAINTAINER testillano
 
 LABEL testillano.h2agent_build.description="Docker image to build h2agent executable"
@@ -7,17 +7,8 @@ LABEL testillano.h2agent_build.description="Docker image to build h2agent execut
 WORKDIR /code/build
 
 ARG make_procs=4
-ARG build_type=Release
-ARG ert_http2comm_ver=v0.0.9
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
-
-# ert_http2comm
-RUN set -x && \
-    wget https://github.com/testillano/http2comm/archive/${ert_http2comm_ver}.tar.gz && tar xvf ${ert_http2comm_ver}.tar.gz && cd http2comm-*/ && \
-    cmake -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && make install && \
-    cd .. && rm -rf * && \
-    set +x
 
 # nlohmann json
 RUN set -x && \

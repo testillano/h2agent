@@ -3,89 +3,128 @@
 #############
 # VARIABLES #
 #############
-base_ver__dflt=latest # http2comm_build
+image_tag__dflt=latest
+base_tag__dflt=latest
+scratch_img__dflt=alpine
+scratch_img_tag__dflt=latest
 make_procs__dflt=$(grep processor /proc/cpuinfo -c)
 build_type__dflt=Release
-ert_http2comm_ver__dflt=v0.0.10
+ert_http2comm_tag__dflt=v0.0.10
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 
 #############
+# FUNCTIONS #
+#############
+usage() {
+  cat << EOF
+
+  Usage: $0 [--project-image|--builder-image|--process]
+
+         --project-image: builds project image from './Dockerfile'.
+         --builder-image: builds base image from './Dockerfile.build'.
+         --process:       builds the project process using builder image.
+
+         For headless mode, prepend/export asked variables:
+
+         --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
+         --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver
+
+         or environment variables towards docker run:
+
+         --process:       make_procs, build_type
+
+EOF
+}
+
+# $1: variable by reference; $2: default value
+_read() {
+  local -n varname=$1
+  local default=$2
+
+  local s_default="<null>"
+  [ -n "${default}" ] && s_default="${default}"
+  echo "Input '$1' value [${s_default}]:"
+
+  if [ -n "${varname}" ]
+  then
+    echo "${varname}"
+  else
+    read varname
+    [ -z "${varname}" ] && varname=${default}
+  fi
+}
+
+build_project_image() {
+  echo
+  echo "=== Build http2comm image ==="
+  echo
+  _read image_tag ${image_tag__dflt}
+  _read base_tag ${base_tag__dflt}
+  _read scratch_img ${scratch_img__dflt}
+  _read scratch_img_tag ${scratch_img_tag__dflt}
+  _read make_procs ${make_procs__dflt}
+  _read build_type ${build_type__dflt}
+
+  bargs="--build-arg base_tag=${base_tag}"
+  bargs+=" --build-arg scratch_img=${scratch_img}"
+  bargs+=" --build-arg scratch_img_tag=${scratch_img_tag}"
+  bargs+=" --build-arg make_procs=${make_procs}"
+  bargs+=" --build-arg build_type=${build_type}"
+
+  set -x
+  docker build --rm ${bargs} -t testillano/h2agent:${image_tag} . || return 1
+  set +x
+}
+
+build_builder_image() {
+  echo
+  echo "=== Build http2comm_builder image ==="
+  echo
+  _read image_tag ${image_tag__dflt}
+  _read base_tag ${base_tag__dflt}
+  _read make_procs ${make_procs__dflt}
+  _read build_type ${build_type__dflt}
+  _read nlohmann_json_ver ${nlohmann_json_ver__dflt}
+  _read pboettch_jsonschemavalidator_ver ${pboettch_jsonschemavalidator_ver__dflt}
+
+  bargs="--build-arg base_tag=${base_tag}"
+  bargs+=" --build-arg make_procs=${make_procs}"
+  bargs+=" --build-arg build_type=${build_type}"
+  bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
+  bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
+
+  set -x
+  docker build --rm ${bargs} -f Dockerfile.build -t testillano/h2agent_builder:${image_tag} . || return 1
+  set +x
+}
+
+build_process() {
+  echo
+  echo "=== Build h2agent process ==="
+  echo
+  _read make_procs ${make_procs__dflt}
+  _read build_type ${build_type__dflt}
+
+  rm -f CMakeCache.txt
+  envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type}"
+
+  set -x
+  docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_builder || return 1
+  docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_builder "" doc || return 1
+  set +x
+}
+#############
 # EXECUTION #
 #############
 cd $(dirname $0)
-echo
-echo "---------------------"
-echo "Build 'builder image'"
-echo "---------------------"
-echo
-echo "Input 'make_procs' [${make_procs__dflt}]:"
-read make_procs
-[ -z "${make_procs}" ] && make_procs=${make_procs__dflt}
-bargs="--build-arg make_procs=${make_procs}"
 
-echo "Input build type (Release|Debug) [${build_type__dflt}]:"
-read build_type
-[ -z "${build_type}" ] && build_type=${build_type__dflt}
-bargs+=" --build-arg build_type=${build_type}"
+case "$1" in
+  --project-image) build_project_image ;;
+  --builder-image) build_builder_image ;;
+  --process) build_process ;;
+  *) usage && exit 1 ;;
+esac
 
-echo "Input http2comm_build 'base_ver' [${base_ver__dflt}]:"
-read base_ver
-[ -z "${base_ver}" ] && base_ver=${base_ver__dflt}
-bargs+=" --build-arg base_ver=${base_ver}"
-
-echo "Input ert_http2comm version [${ert_http2comm_ver__dflt}]:"
-read ert_http2comm_ver
-[ -z "${ert_http2comm_ver}" ] && ert_http2comm_ver=${ert_http2comm_ver__dflt}
-bargs+=" --build-arg ert_http2comm_ver=${ert_http2comm_ver}"
-
-echo "Input nlohmann_json version [${nlohmann_json_ver__dflt}]:"
-read nlohmann_json_ver
-[ -z "${nlohmann_json_ver}" ] && nlohmann_json_ver=${nlohmann_json_ver__dflt}
-bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
-
-echo "Input pboettch_jsonschemavalidator version [${pboettch_jsonschemavalidator_ver__dflt}]:"
-read pboettch_jsonschemavalidator_ver
-[ -z "${pboettch_jsonschemavalidator_ver}" ] && pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver__dflt}
-bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
-
-dck_dn=./docker/h2agent_build
-docker build --rm ${bargs} -t testillano/h2agent_build ${dck_dn} || exit 1
-
-echo
-echo "-------------"
-echo "Build project"
-echo "-------------"
-echo
-rm -f CMakeCache.txt
-envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type}"
-docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_build || exit 1
-docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_build "" doc || exit 1
-
-echo
-echo "-----------------------------"
-echo "Build docker executable-image"
-echo "-----------------------------"
-echo
-base_ver__dflt=latest # h2agent_build
-scratch_img__dflt=alpine
-scratch_img_ver__dflt=latest
-bargs="--build-arg make_procs=${make_procs} --build-arg build_type=${build_type}"
-
-echo "Input h2agent_build 'base_ver' [${base_ver__dflt}]:"
-read base_ver
-[ -z "${base_ver}" ] && base_ver=${base_ver__dflt}
-bargs+=" --build-arg base_ver=${base_ver}"
-
-echo "Input scratch image base [${scratch_img__dflt}]:"
-read scratch_img
-[ -z "${scratch_img}" ] && scratch_img=${scratch_img__dflt}
-bargs+=" --build-arg scratch_img=${scratch_img}"
-
-echo "Input scratch image base version [${scratch_img_ver__dflt}]:"
-read scratch_img_ver
-[ -z "${scratch_img_ver}" ] && scratch_img_ver=${scratch_img_ver__dflt}
-bargs+=" --build-arg scratch_img_ver=${scratch_img_ver}"
-
-docker build --rm ${bargs} -t testillano/h2agent .
+exit $?
 
