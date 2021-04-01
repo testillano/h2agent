@@ -1,0 +1,95 @@
+name: Build docker image and publish to Docker Hub
+on:
+  # Build on demand:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker images tag'
+        required: true
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      # Push events on master branch
+      - master
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - v*.*.*             # Push events to vx.y.z
+
+  pull_request:
+    branches:
+      - master
+
+  # Publish `vx.y.z` tags as releases:
+  #release:
+  #  types: [published]
+
+jobs:
+  build_and_push:
+    name: Build and push docker images to Docker Hub
+    runs-on: ubuntu-latest
+    #if: github.event_name == 'push'
+    steps:
+      -
+        name: Check out the repo
+        uses: actions/checkout@v2
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          # logout at job end:
+          logout: true
+      -
+        name: Build (but not push) builder image
+        id: docker_build1
+        uses: docker/build-push-action@v2
+        with:
+          tags: testillano/h2agent_builder:local
+          file: Dockerfile.build
+          context: .
+          #push: true
+      -
+        name: Image digest
+        run: echo ${{ steps.docker_build1.outputs.digest }}
+      -
+        name: Build (but not push) project image
+        id: docker_build2
+        uses: docker/build-push-action@v2
+        with:
+          tags: testillano/h2agent:local
+          file: Dockerfile
+          context: .
+          #push: true
+          build-args:
+            - base_tag: local
+
+        name: Image digest
+        run: echo ${{ steps.docker_build2.outputs.digest }}
+      -
+        name: Push images manually
+        run: |
+          IMAGE_ID1=docker.io/testillano/h2agent_builder:local
+          IMAGE_ID2=docker.io/testillano/h2agent:local
+
+          # workflow dispatch event:
+          image_tag=${{ github.event.inputs.tag }}
+          echo Workflow dispatch image_tag=$image_tag
+
+          # Strip git ref prefix from version
+          [ -z "${image_tag}" ] && image_tag=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && image_tag=$(echo $image_tag | sed -e 's/^v//')
+
+          # Use Docker `latest` tag convention
+          [ "$image_tag" == "master" ] && image_tag=latest
+
+          echo Processed image_tag=$image_tag
+
+          docker tag testillano/h2agent_builder:local $IMAGE_ID1:$image_tag
+          docker tag testillano/h2agent:local $IMAGE_ID2:$image_tag
+
+          docker push $IMAGE_ID1:$image_tag
+          docker push $IMAGE_ID2:$image_tag
+

@@ -1,7 +1,7 @@
-ARG base_ver=latest
+ARG base_tag=latest
 ARG scratch_img=alpine
-ARG scratch_img_ver=latest
-FROM testillano/h2agent_build:${base_ver} as builder
+ARG scratch_img_tag=latest
+FROM testillano/h2agent_builder:${base_tag} as builder
 
 COPY . /code
 WORKDIR /code
@@ -12,7 +12,7 @@ ARG build_type=Release
 # We could duplicate from local build directory, but prefer to build from scratch:
 RUN cmake -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs}
 
-FROM ${scratch_img}:${scratch_img_ver}
+FROM ${scratch_img}:${scratch_img_tag}
 ARG build_type=Release
 COPY --from=builder /code/build/${build_type}/bin/h2agent /opt/h2agent
 
