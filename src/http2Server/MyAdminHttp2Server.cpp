@@ -124,7 +124,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     //std::string method = req.method();
     //
     // DELAY EXAMPLE ///////////////////////////////////////////////////////////
-    //std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     statusCode = 200;
     responseBody = requestBody;

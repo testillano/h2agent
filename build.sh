@@ -28,13 +28,18 @@ usage() {
                           you may prepend or export asked/environment variables for the corresponding
                           docker procedure:
 
-                             --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver
-                             --project:       make_procs, build_type
-                             --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
+         For headless mode you may prepend or export asked/environment variables for the corresponding
+         docker procedure:
 
-                          For example:
+         --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver
+         --project:       make_procs, build_type
+         --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
+         --auto:          any of the variables above
 
-                             build_type=Debug $0 --builder-image
+         Example:
+
+         build_type=Debug $0 --builder-image
+         image_tag=test1 $0 --auto
 
 EOF
 }
@@ -120,7 +125,8 @@ build_project_image() {
 }
 
 build_auto() {
-  source <(grep -E '^[a-z_]+__dflt' $0 | sed 's/^/export /' | sed 's/__dflt//') # export defaults to automate
+  # export defaults to automate, but allow possible environment values:
+  source <(grep -E '^[a-z_]+__dflt' $0 | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
   build_builder_image && build_project && build_project_image
 }
 

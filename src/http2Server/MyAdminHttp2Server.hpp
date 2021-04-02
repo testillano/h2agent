@@ -57,8 +57,8 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 
 public:
     //schema_(schema),
-    MyAdminHttp2Server(size_t maxWorkerThreads = -1) :
-        ert::http2comm::Http2Server("AdminHttp2Server", maxWorkerThreads),
+    MyAdminHttp2Server(size_t workerThreads) :
+        ert::http2comm::Http2Server("AdminHttp2Server", workerThreads),
         server_matching_schema_(h2agent::adminSchemas::server_matching),
         server_provision_schema_(h2agent::adminSchemas::server_provision) {};
 

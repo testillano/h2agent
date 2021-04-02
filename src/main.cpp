@@ -143,8 +143,10 @@ void usage(int rc)
        << "[-n|--server-api-version <version>]\n"
        << "  Server API version; defaults to empty\n\n"
 
-       << "[-w|--max-worker-threads <threads>]\n"
-       << "  Maximum worker threads; defaults to -1 (no limit)\n\n"
+       << "[-w|--worker-threads <threads>]\n"
+       << "  Number of worker threads; defaults to -1 which means 'dynamically created'.\n"
+       << "  For high loads, a queue of pre-initialized threads could improve performance\n"
+       << "  and its pool size corresponds quite a lot with the client concurrent streams.\n\n"
 
        << "[-t|--server-threads <threads>]\n"
        << "  Number of nghttp2 server threads; defaults to 1 (1 connection)\n\n"
@@ -213,7 +215,7 @@ int main(int argc, char* argv[])
     std::string server_port = "8000";
     std::string server_api_name = "";
     std::string server_api_version = "";
-    int max_worker_threads = -1;
+    int worker_threads = -1;
     int server_threads = 1;
     std::string server_key_file = "";
     std::string server_crt_file = "";
@@ -267,9 +269,9 @@ int main(int argc, char* argv[])
     }
 
     if (cmdOptionExists(argv, argv + argc, "-w", value)
-            || cmdOptionExists(argv, argv + argc, "--max-worker-threads", value))
+            || cmdOptionExists(argv, argv + argc, "--worker-threads", value))
     {
-        max_worker_threads = toNumber(value);
+        worker_threads = toNumber(value);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-t", value)
@@ -313,18 +315,19 @@ int main(int argc, char* argv[])
     std::cout << "Server api version: " << ((server_api_version != "") ?
                                             server_api_version :
                                             "<none>") << '\n';
-    std::cout << "Max worker threads: ";
+    std::cout << "Worker threads: ";
 
-    if (max_worker_threads != -1)
+    if (worker_threads != -1)
     {
-        std::cout << max_worker_threads;
+        std::cout << worker_threads;
     }
     else
     {
-        std::cout << "unlimited";
+        std::cout << "dynamically created";
     }
 
     std::cout << '\n';
+
     std::cout << "Server threads: " << server_threads << '\n';
     std::cout << "Server key file: " << ((server_key_file != "") ? server_key_file :
                                          "<not provided>") << '\n';
@@ -349,11 +352,11 @@ int main(int argc, char* argv[])
     */
 
 
-    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(max_worker_threads);
+    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(worker_threads);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
 
-    myHttp2Server = new h2agent::http2server::MyHttp2Server(max_worker_threads);
+    myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads);
     myHttp2Server->setApiName(server_api_name);
     myHttp2Server->setApiVersion(server_api_version);
 
