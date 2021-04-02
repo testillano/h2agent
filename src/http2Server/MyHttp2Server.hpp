@@ -53,8 +53,8 @@ class MyHttp2Server: public ert::http2comm::Http2Server
 {
 
 public:
-    MyHttp2Server(size_t maxWorkerThreads = -1) :
-        ert::http2comm::Http2Server("Http2Server", maxWorkerThreads) {};
+    MyHttp2Server(size_t workerThreads) :
+        ert::http2comm::Http2Server("Http2Server", workerThreads) {};
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
