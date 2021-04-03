@@ -12,6 +12,7 @@ build_type__dflt=Release
 ert_http2comm_tag__dflt=v0.0.10
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
+google_test_ver__dflt=v1.10.0
 
 #############
 # FUNCTIONS #
@@ -29,19 +30,26 @@ usage() {
                           you may prepend or export asked/environment variables for the corresponding
                           docker procedure:
 
+         Environment variables:
+
          For headless mode you may prepend or export asked/environment variables for the corresponding
          docker procedure:
 
-         --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver
+         --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
          --project:       make_procs, build_type
          --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
          --ct-image:      image_tag, base_tag (alpine)
          --auto:          any of the variables above
 
-         Example:
+         Other prepend variables:
+
+         DBUILD_XTRA_OPTS: extra options to docker build.
+
+         Examples:
 
          build_type=Debug $0 --builder-image
          image_tag=test1 $0 --auto
+         DBUILD_XTRA_OPTS=--no-cache $0 --builder-image
 
 EOF
 }
@@ -74,16 +82,18 @@ build_builder_image() {
   _read build_type ${build_type__dflt}
   _read nlohmann_json_ver ${nlohmann_json_ver__dflt}
   _read pboettch_jsonschemavalidator_ver ${pboettch_jsonschemavalidator_ver__dflt}
+  _read google_test_ver ${google_test_ver__dflt}
 
   bargs="--build-arg base_tag=${base_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
   bargs+=" --build-arg build_type=${build_type}"
   bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
   bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
+  bargs+=" --build-arg google_test_ver=${google_test_ver}"
 
   set -x
   rm -f CMakeCache.txt
-  docker build --rm ${bargs} -f Dockerfile.build -t testillano/h2agent_builder:${image_tag} . || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f Dockerfile.build -t testillano/h2agent_builder:${image_tag} . || return 1
   set +x
 }
 
@@ -122,7 +132,7 @@ build_project_image() {
 
   set -x
   rm -f CMakeCache.txt
-  docker build --rm ${bargs} -t testillano/h2agent:${image_tag} . || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t testillano/h2agent:${image_tag} . || return 1
   set +x
 }
 
@@ -136,7 +146,7 @@ build_ct_image() {
   bargs="--build-arg base_tag=${base_tag}"
 
   set -x
-  docker build --rm ${bargs} -f ct/Dockerfile -t testillano/ct-h2agent:${image_tag} ct || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f ct/Dockerfile -t testillano/ct-h2agent:${image_tag} ct || return 1
   set +x
 }
 

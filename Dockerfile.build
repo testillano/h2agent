@@ -9,6 +9,7 @@ WORKDIR /code/build
 ARG make_procs=4
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
+ARG google_test_ver=v1.10.0
 
 RUN apk update && apk add \
     git
@@ -27,3 +28,9 @@ RUN set -x && \
     cd .. && rm -rf * && \
     set +x
 
+# google test framework
+RUN set -x && \
+    wget https://github.com/google/googletest/archive/refs/tags/release-${google_test_ver:1}.tar.gz && \
+    tar xvf release-${google_test_ver:1}.tar.gz && cd googletest-release*/ && cmake . && make -j${make_procs} install && \
+    cd .. && rm -rf * && \
+    set +x
