@@ -24,6 +24,7 @@ usage() {
          --builder-image: builds base image from './Dockerfile.build'.
          --project:       builds the project process using builder image.
          --project-image: builds project image from './Dockerfile'.
+         --ct-image:      builds component test image from './ct/Dockerfile'.
          --auto:          builds everything using defaults. For headless mode with no default values,
                           you may prepend or export asked/environment variables for the corresponding
                           docker procedure:
@@ -34,6 +35,7 @@ usage() {
          --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver
          --project:       make_procs, build_type
          --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
+         --ct-image:      image_tag, base_tag (alpine)
          --auto:          any of the variables above
 
          Example:
@@ -124,10 +126,24 @@ build_project_image() {
   set +x
 }
 
+build_ct_image() {
+  echo
+  echo "=== Build component test image ==="
+  echo
+  _read image_tag ${image_tag__dflt}
+  _read base_tag ${base_tag__dflt}
+
+  bargs="--build-arg base_tag=${base_tag}"
+
+  set -x
+  docker build --rm ${bargs} -f ct/Dockerfile -t testillano/ct-h2agent:${image_tag} ct || return 1
+  set +x
+}
+
 build_auto() {
   # export defaults to automate, but allow possible environment values:
   source <(grep -E '^[a-z_]+__dflt' $0 | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
-  build_builder_image && build_project && build_project_image
+  build_builder_image && build_project && build_project_image && build_ct_image
 }
 
 #############
@@ -139,6 +155,7 @@ case "$1" in
   --builder-image) build_builder_image ;;
   --project) build_project ;;
   --project-image) build_project_image ;;
+  --ct-image) build_ct_image ;;
   --auto) build_auto ;;
   *) usage && exit 1 ;;
 esac

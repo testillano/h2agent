@@ -1,0 +1,12 @@
+apiVersion: v2
+name: ct-h2agent
+description: Component test chart for h2agent
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+
+dependencies:
+  - name: h2agent
+    version: 0.0.1
+    repository: file://../h2agent
+    alias: h2agent

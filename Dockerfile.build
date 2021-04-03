@@ -10,6 +10,9 @@ ARG make_procs=4
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 
+RUN apk update && apk add \
+    git
+
 # nlohmann json
 RUN set -x && \
     wget https://github.com/nlohmann/json/releases/download/${nlohmann_json_ver}/json.hpp && \

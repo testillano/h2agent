@@ -1,0 +1,4 @@
+hyper
+pytest-ordering
+pytest-xdist
+xmltodict

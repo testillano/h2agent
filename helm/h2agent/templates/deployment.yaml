@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.h2agent.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.h2agent.name }}
+    helm.sh/chart: {{ template "h2agent.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "h2agent.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "h2agent.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        sidecar.istio.io/inject: {{ .Values.global.istio.sidecar.inject | default false | quote }}
+
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.h2agent.resources | nindent 12 }}
+          args:
+            - "--log-level"
+            - {{ .Values.h2agent.cl.log_level | quote }}
+            - "--verbose"
+            - "--admin-port"
+            - {{ .Values.h2agent.cl.admin_port | quote }}
+            - "--server-port"
+            - {{ .Values.h2agent.cl.server_port | quote }}
+            - "--server-api-name"
+            - {{ .Values.h2agent.cl.server_api_name | quote }}
+            - "--server-api-version"
+            - {{ .Values.h2agent.cl.server_api_version | quote }}
+            - "--worker-threads"
+            - {{ .Values.h2agent.cl.worker_threads | quote }}
+            - "--server-threads"
+            - {{ .Values.h2agent.cl.server_threads | quote }}
+            - "--server-key"
+            - {{ .Values.h2agent.cl.server_key | quote }}
+            - "--server-crt"
+            - {{ .Values.h2agent.cl.server_crt | quote }}
+            - "--server-request-schema"
+            - {{ .Values.h2agent.cl.server_request_schema | quote }}

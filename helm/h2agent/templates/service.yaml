@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.h2agent.name }}
+  labels:
+    {{- include "h2agent.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.h2agent.service.type }}
+  ports:
+    - port: {{ .Values.h2agent.service.port }}
+      targetPort: {{ .Values.h2agent.service.port }}
+      protocol: TCP
+      name: http2-rest
+  selector:
+    {{- include "h2agent.selectorLabels" . | nindent 4 }}

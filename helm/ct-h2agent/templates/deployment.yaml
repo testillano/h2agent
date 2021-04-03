@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.test.name }}
+  labels:
+    {{- include "ct-h2agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.test.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ct-h2agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ct-h2agent.selectorLabels" . | nindent 8 }}
+    spec:
+      initContainers:
+        - name: {{ .Values.test.name }}-init
+          image: "{{ .Values.initContainer.image.repository }}:{{ .Values.initContainer.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.initContainer.image.pullPolicy }}
+          command: ["sh", "-c"]
+          args: [ "until nslookup {{ .Values.h2agent.h2agent.name }} ; do sleep 2; done; nc -w 1 -z {{ .Values.h2agent.h2agent.name }} {{ .Values.h2agent.h2agent.service.port }} "]
+
+      containers:
+        - name: test
+          image: "{{ .Values.test.image.repository }}:{{ .Values.test.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.test.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.test.resources | nindent 12 }}
+

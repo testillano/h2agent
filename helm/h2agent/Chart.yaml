@@ -1,0 +1,5 @@
+apiVersion: v2
+appVersion: "1.0"
+description: h2agent helm chart for Kubernetes
+name: h2agent
+version: 0.0.1

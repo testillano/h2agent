@@ -60,8 +60,8 @@ bool MyAdminHttp2Server::checkMethodIsAllowed(
     const nghttp2::asio_http2::server::request& req,
     std::vector<std::string>& allowedMethods)
 {
-    allowedMethods = {"POST"};
-    return (req.method() == "POST");
+    allowedMethods = {"POST", "GET"};
+    return (req.method() == "POST" || req.method() == "GET");
 }
 
 bool MyAdminHttp2Server::checkMethodIsImplemented(

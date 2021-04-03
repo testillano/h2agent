@@ -1,0 +1,42 @@
+# Default values for h2agent.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+global:
+  istio:
+    sidecar:
+      inject: false
+h2agent:
+  name: h2agent
+  resources: {}
+  #  requests:
+  #    cpu: 20000m
+  #    memory: 10Mi
+  #  limits:
+  #    cpu: 3000m
+  #    memory: 100Mi
+
+  # command-line
+  cl:
+    log_level: Debug
+    admin_port: 8074
+    server_port: 8000
+    server_api_name: testapp
+    server_api_version: v1
+    worker_threads: -1
+    server_threads: 1
+    server_key: ""
+    server_crt: ""
+    server_request_schema: ""
+
+  service:
+    type: ClusterIP
+    port: 8074
+
+image:
+  repository: testillano/h2agent
+  tag: latest
+  pullPolicy: IfNotPresent
+

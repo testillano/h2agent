@@ -340,6 +340,12 @@ int main(int argc, char* argv[])
                   '\n';
     }
 
+    std::cout << "Server request schema: " << ((server_req_schema_file != "") ? server_req_schema_file :
+                                         "<not provided>") << '\n';
+
+    // Flush:
+    std::cout << std::endl;
+
     ert::tracing::Logger::initialize(progname);
     ert::tracing::Logger::verbose(verbose);
 

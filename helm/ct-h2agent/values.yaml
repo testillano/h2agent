@@ -1,0 +1,21 @@
+test:
+  name: test
+  replicaCount: 1
+  image:
+    repository: testillano/ct-h2agent
+    pullPolicy: Never
+    tag: latest
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+  resources: {}
+
+initContainer:
+  image:
+    repository: busybox
+    pullPolicy: IfNotPresent
+    tag: latest
+
+h2agent:
+  image:
+    repository: testillano/h2agent
+    tag: latest
