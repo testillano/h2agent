@@ -166,16 +166,55 @@ $ cat install_manifest.txt | sudo xargs rm
 
 ## Testing
 
-TODO
-
 ### Unit test
 
 TODO
 
 ### Component test
 
-TODO
+Component test is based in `pytest` framework. Just execute `ct/test.sh` to deploy the component test chart. Some cloud-native technologies are required: `docker`, `kubectl`, `minikube` and `helm`, for example:
 
+```bash
+$ docker version
+Client: Docker Engine - Community
+ Version:           19.03.11
+ API version:       1.40
+ Go version:        go1.13.10
+ Git commit:        42e35e61f3
+ Built:             Mon Jun  1 09:12:22 2020
+ OS/Arch:           linux/amd64
+ Experimental:      false
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          19.03.11
+  API version:      1.40 (minimum version 1.12)
+  Go version:       go1.13.10
+  Git commit:       42e35e61f3
+  Built:            Mon Jun  1 09:10:54 2020
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          1.4.3
+  GitCommit:        269548fa27e0089a8b8278fc4fc781d7f65a939b
+ runc:
+  Version:          1.0.0-rc92
+  GitCommit:        ff819c7e9184c13b7c2607fe6c30ae19403a7aff
+ docker-init:
+  Version:          0.18.0
+  GitCommit:        fec3683
+
+$ kubectl version
+Client Version: version.Info{Major:"1", Minor:"18", GitVersion:"v1.18.9", GitCommit:"94f372e501c973a7fa9eb40ec9ebd2fe7ca69848", GitTreeState:"clean", BuildDate:"2020-09-16T13:56:40Z", GoVersion:"go1.13.15", Compiler:"gc", Platform:"linux/amd64"}
+Server Version: version.Info{Major:"1", Minor:"18", GitVersion:"v1.18.9", GitCommit:"94f372e501c973a7fa9eb40ec9ebd2fe7ca69848", GitTreeState:"clean", BuildDate:"2020-09-16T13:47:43Z", GoVersion:"go1.13.15", Compiler:"gc", Platform:"linux/amd64"}
+
+$ minikube version
+minikube version: v1.12.3
+commit: 2243b4b97c131e3244c5f014faedca0d846599f5-dirty
+
+$ helm version
+version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b2a68ce0", GitTreeState:"clean", GoVersion:"go1.14.9"}
+```
 ## How it works
 
 ### Executing h2agent
@@ -232,10 +271,29 @@ Options:
 
 #### Traces and printouts
 
-Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned:
+Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
-```
-<todo>
+```bash
+$ ./h2agent --verbose &
+[1] 27407
+[03/04/21 20:49:35 CEST] Starting h2agent (version v0.0.1-12-gce5771c) ...
+Admin port: 8074
+Server port: 8000
+Server api name: <none>
+Server api version: <none>
+Worker threads: dynamically created
+Server threads: 1
+Server key file: <not provided>
+Server crt file: <not provided>
+SSL/TLS disabled: both key & certificate must be provided
+Server request schema: <not provided>
+
+$ kill $!
+[Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15
+[Warning]|/code/src/main.cpp:104(_exit)|Terminating with exit code 1
+[Warning]|/code/src/main.cpp:90(stopServers)|Stopping h2agent admin service at 03/04/21 20:49:40 CEST
+[Warning]|/code/src/main.cpp:97(stopServers)|Stopping h2agent mock service at 03/04/21 20:49:40 CEST
+[1]+  Exit 1                  h2agent -l Debug --verbose
 ```
 
 ### Management interface
@@ -717,45 +775,39 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
 
 ## How it is delivered
 
-`h2agent` is delivered in a Helm chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular helm chart deployments by just adding a few artifacts.
-Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a requirement:
+`h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
+Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a file requirement but could also be added from helm repository:
 
 ## How it integrates in a service
 
-1. Make sure that the "erthelm" Helm repository (where the `h2agent` helm chart is stored) is defined with `helm repo list`:
+1. Add the project's helm repository with alias `erthelm`:
 
-   TODO
+   ```bash
+    helm repo add erthelm https://testillano.github.io/helm
+   ```
+
+   TODO: when this project is public, the helm repository will be hosted here and work flows for helm publish on `gh-pages` branch will be moved too (https://testillano.github.io/h2agent).
 
 2. Add one dependency to your `Chart.yaml` file per each service you want to mock with `h2agent` service (use alias when two or more dependencies are included).
 
-```yaml
-dependencies:
-  - name: h2agent
-    version: 1.0.0
-    repository: alias:erthelm
-    alias: h2server
+   ```yaml
+   dependencies:
+     - name: h2agent
+       version: 1.0.0
+       repository: alias:erthelm
+       alias: h2server
 
-  - name: h2agent
-    version: 1.0.0
-    repository: alias:erthelm
-    alias: h2server2
-```
+     - name: h2agent
+       version: 1.0.0
+       repository: alias:erthelm
+       alias: h2server2
+   ```
 
-3. Reference `h2agent` in your chart under `.Values.h2agent.image` repository and tag.
-
-4. Define a config map for the agent configuration and reference it in your values with the name you gave it under `.Values.h2agent.config.cm`.
+3. Refer to `h2agent` values through the corresponding dependency alias, for example `.Values.h2server.image` to access process repository and tag.
 
 ### Agent configuration
 
-The config map mentioned above contains the agent configuration. It must be in json format, and compliant with its schema definition. You may ask for the schema just by executing `./h2agent --conf-schema`.
-
-#### Schema definition
-
-TODO
-
-#### Example
-
-TODO
+At the moment, the server request schema is the only configuration file used by the `h2agent` process and could be added by mean a `config map`. The rest of parameters are passed through [command line](#command-line).
 
 ## Implementation strategy
 
