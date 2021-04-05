@@ -55,6 +55,10 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     h2agent::jsonschema::JsonSchema server_matching_schema_;
     h2agent::jsonschema::JsonSchema server_provision_schema_;
 
+    std::string getOperation(const std::string &uriPath) const;
+    void buildJsonResponse(bool result, const std::string &response, std::string &jsonResponse) const;
+
+
 public:
     //schema_(schema),
     MyAdminHttp2Server(size_t workerThreads) :

@@ -38,6 +38,7 @@ SOFTWARE.
 
 // Project
 #include <JsonSchema.hpp>
+#include <ert/tracing/Logger.hpp>
 
 // External
 //#include <nlohmann/json.hpp>
@@ -60,7 +61,7 @@ void JsonSchema::set_schema_(const nlohmann::json& schema)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Schema configuration failed, here is why: " << e.what() << "\n";
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Schema configuration failed: %s", e.what()), ERT_FILE_LOCATION);
     }
 }
 
@@ -84,7 +85,7 @@ bool JsonSchema::validate(const nlohmann::json& json) const
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Validation failed, here is why: " << e.what() << "\n";
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Validation failed: %s", e.what()), ERT_FILE_LOCATION);
         return false;
     }
 

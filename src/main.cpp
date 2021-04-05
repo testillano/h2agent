@@ -87,14 +87,14 @@ void stopServers()
     if (myAdminHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
-              "Stopping h2agent admin service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+                       "Stopping h2agent admin service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         myAdminHttp2Server->stop();
     }
 
     if (myHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
-              "Stopping h2agent mock service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+                       "Stopping h2agent mock service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         myHttp2Server->stop();
     }
 }
@@ -341,7 +341,7 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "Server request schema: " << ((server_req_schema_file != "") ? server_req_schema_file :
-                                         "<not provided>") << '\n';
+              "<not provided>") << '\n';
 
     // Flush:
     std::cout << std::endl;

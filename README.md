@@ -215,11 +215,9 @@ commit: 2243b4b97c131e3244c5f014faedca0d846599f5-dirty
 $ helm version
 version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b2a68ce0", GitTreeState:"clean", GoVersion:"go1.14.9"}
 ```
-## How it works
+## Execution
 
-### Executing h2agent
-
-#### Command line
+### Command line
 
 You may take a look to `h2agent` command line by just typing `./h2agent -h|--help`:
 
@@ -269,7 +267,7 @@ Options:
 
 ```
 
-#### Traces and printouts
+### Traces and printouts
 
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
@@ -296,15 +294,18 @@ $ kill $!
 [1]+  Exit 1                  h2agent -l Debug --verbose
 ```
 
-### Management interface
+## Management interface
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following subsections **name** the operations which would be commanded by a *POST* request with *URI* `provision/v1/<operation>`. The general procedure is to retrieve the corresponding provision which stores information of "how to answer" the reception.
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/provision/v1`/:
 
 **Current development phase is 1**, see [Implementation Strategy](#implementation-strategy).
 
-#### server-initialize
+### POST /provision/v1/server-initialize
 
+Initializes the server endpoint for the provided listen port (mandatory).
 Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
+
+#### Request body schema
 
 `POST` request must comply the following schema:
 
@@ -329,15 +330,30 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
 }
 ```
 
-Initializes the server endpoint for the provided listen port (mandatory).
-
 The `json` schema provided through `requestSchema` field object, will be used to validate requests received by `h2agent` server endpoint (you could constraint specific values with `"const"` from `json` schema [draft 6](http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.1.3)). This schema is optional, so it is possible to accept incoming requests without any kind of restriction for them.
 
 During *Phase 1* the request schema is passed through [command line](#command-line) by mean `--server-request-schema` option.
 
-#### server-matching
+#### Response status code
 
-Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm. This is the operation request body schema:
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /provision/v1/server-matching
+
+Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
 
 ```json
 {
@@ -359,7 +375,8 @@ Defines the server matching procedure for incoming receptions on mock service. E
     "sortUriPathQueryParameters": {
       "type": "boolean"
     }
-  }
+  },
+  "required": [ "algorithm" ]
 }
 ```
 
@@ -419,11 +436,26 @@ No additional arguments are required. This identification algorithm relies in th
 
 If the `URI` "*ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
 
-#### server-provision
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /provision/v1/server-provision
 
 Defines the response behavior for an incoming request matching some basic conditions (*method*, *uri*) and programming the response (*header*, *code*, *body*).
 
-This is the body request schema supported:
+#### Request body schema
+
+`POST` request must comply the following schema:
 
 ```json
 {
@@ -695,11 +727,27 @@ This could be done also with the `RegexReplace` filter, but this has better perf
 
 For example, if the source received is "55511", then we will will have *var.paddedSequence="555110000"*. In case that the value provided is negative (*-9*), then this would be the result: "*000055511*".
 
+#### Response status code
 
+**201** (Created) or **400** (Bad Request).
 
-#### client-initialize
+#### Response body
 
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /provision/v1/client-initialize
+
+Initializes the client connection to the target server endpoint.
 Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
+
+#### Request body schema
+
+`POST` request must comply the following schema:
 
 ```json
 {
@@ -725,13 +773,29 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
 }
 ```
 
-Initializes the client connection to the target server endpoint.
-
 The json schema provided through `responseSchema` field object, will be used to validate responses received by `h2agent` client endpoint. This schema is optional, so it is possible to accept incoming responses without any kind of contraint for them.
 
-#### send-message
+#### Response status code
 
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /provision/v1/send-message
+
+Sends a message to the server endpoint established in the `client-initialize` operation.
 Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
+
+#### Request body schema
+
+`POST` request must comply the following schema:
 
 ```json
 {
@@ -770,6 +834,19 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
     }
   },
   "required": [ "requestMethod", "requestUri" ]
+}
+```
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
 }
 ```
 

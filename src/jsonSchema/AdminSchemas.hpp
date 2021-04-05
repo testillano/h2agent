@@ -67,7 +67,8 @@ const nlohmann::json server_matching = R"(
     "sortUriPathQueryParameters": {
       "type": "boolean"
     }
-  }
+  },
+  "required": [ "algorithm" ]
 }
 )"_json;
 

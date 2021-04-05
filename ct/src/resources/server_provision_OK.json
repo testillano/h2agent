@@ -1,0 +1,5 @@
+{
+  "requestMethod":"GET",
+  "requestUri":"/foo/bar",
+  "responseCode":200
+}

@@ -36,9 +36,11 @@ SOFTWARE.
 #include <boost/optional.hpp>
 
 #include <chrono>
-
 #include <sstream>
+#include <iomanip>
 #include <errno.h>
+
+#include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/ResponseHeader.hpp>
@@ -94,6 +96,21 @@ bool MyAdminHttp2Server::checkHeaders(const
 }
 
 
+std::string MyAdminHttp2Server::getOperation(const std::string &uriPath) const
+{
+    std::string result = uriPath.substr(getApiPath().size() + 2 /* surrounding slashes */);
+    if (result.back() == '/') result.pop_back(); // normalize by mean removing last slash (if exists)
+
+    return result;
+}
+
+void MyAdminHttp2Server::buildJsonResponse(bool result, const std::string &response, std::string &jsonResponse) const
+{
+    std::stringstream ss;
+    ss << R"({ "result":")" << (result ? "true":"false") << R"(", "response": )" << std::quoted(response) << R"( })";
+    jsonResponse = ss.str();
+}
+
 void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
                                  req,
                                  const std::string& requestBody,
@@ -102,33 +119,94 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 {
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
 
-    // Check Path Prefix:
-    /*
-    struct uri_ref {
-      std::string scheme;
-      std::string host;
-      // form after percent-encoding decoded
-      std::string path;
-      // original path, percent-encoded
-      std::string raw_path;
-      // original query, percent-encoded
-      std::string raw_query;
-      std::string fragment;
-    };
-    */
+    // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
+    std::string method = req.method();
+    std::string uriPath = req.uri().path;
+    std::string queryParams = req.uri().raw_query;
+
+    LOGDEBUG(
+      std::string msg;
+      msg = ert::tracing::Logger::asString("Method: %s; Uri Path: %s; Query parameters: %s; Request Body: %s",
+                                           method.c_str(),
+                                           uriPath.c_str(),
+                                           (queryParams != "") ? queryParams.c_str():"<null>",
+                                           requestBody.c_str());
+      ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+    );
+
+    // Response document:
+    // {
+    //   "result":"<true or false>",
+    //   "response":"<additional information>"
+    // }
+    bool jsonResponse_result = false;
+    std::string jsonResponse_response;
 
     // Admin schema validation:
-    // JSON_SCHEMA_VALIDATION
-    //
+    bool schemaIsValid = false;
+    nlohmann::json requestJson;
+    try {
+        requestJson = nlohmann::json::parse(requestBody);
+        LOGDEBUG(
+            std::string msg("Json body received:\n\n");
+            msg += requestJson.dump(4); // pretty print json body
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
 
-    //std::string method = req.method();
+        // Extract operation from received URI path:
+        std::string operation = getOperation(uriPath);
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Operation: %s", operation.c_str()), ERT_FILE_LOCATION));
+
+        if( operation == "server_matching") {
+            bool schemaIsValid = server_matching_schema_.validate(requestJson);
+
+            // Store information
+            //
+
+            statusCode = schemaIsValid ? 201:400;
+            jsonResponse_result = schemaIsValid;
+            jsonResponse_response = "server_matching operation;";
+            jsonResponse_response += schemaIsValid ? " valid":" invalid";
+            jsonResponse_response += " schema";
+        }
+        else if (operation == "server_provision") {
+            bool schemaIsValid = server_provision_schema_.validate(requestJson);
+
+            // Store information
+            //
+
+            statusCode = schemaIsValid ? 201:400;
+            jsonResponse_result = schemaIsValid;
+            jsonResponse_response = "server_provision operation;";
+            jsonResponse_response += schemaIsValid ? " valid":" invalid";
+            jsonResponse_response += " schema";
+        }
+        else {
+            statusCode = 501;
+            jsonResponse_response = "unsupported operation";
+        }
+    }
+    catch (nlohmann::json::parse_error& e)
+    {
+        /*
+        std::stringstream ss;
+        ss << "Json body parse error: " << e.what() << '\n'
+           << "exception id: " << e.id << '\n'
+           << "byte position of error: " << e.byte << std::endl;
+        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+        */
+
+        // Response data:
+        statusCode = 400;
+        jsonResponse_response = "failed to parse json from body request";
+    }
+
+    // Build json response body:
+    buildJsonResponse(jsonResponse_result, jsonResponse_response, responseBody);
+
     //
     // DELAY EXAMPLE ///////////////////////////////////////////////////////////
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-
-    statusCode = 200;
-    responseBody = requestBody;
-
+    //std::this_thread::sleep_for(std::chrono::milliseconds(20));
 }
 
 }
