@@ -1,8 +1,8 @@
 apiVersion: v2
-appVersion: "0.0.1"
+appVersion: "1.0"
 description: Component test chart for h2agent
 name: ct-h2agent
-version: "1.0"
+version: 1.0.0
 
 dependencies:
   - name: h2agent
