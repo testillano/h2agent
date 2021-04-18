@@ -1,3 +1,5 @@
+[![Publish docker images and helm charts](https://github.com/testillano/h2agent/actions/workflows/publish.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/publish.yml)
+
 # C++ HTTP/2 Agent Service - WORK IN PROGRESS
 
 `h2agent` is a network service that enables mocking other network services.
