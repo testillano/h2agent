@@ -1,16 +1,21 @@
-name: Build docker image and publish to Docker Hub
+name: Publish docker images and helm charts
 on:
   # Build on demand:
   workflow_dispatch:
     inputs:
-      tag:
+      dtag:
         description: 'Docker images tag'
+        required: true
+      hversion:
+        description: 'Helm charts version'
         required: true
   push:
     # Sequence of patterns matched against refs/heads
     branches:
       # Push events on master branch
       - master
+      # And also in workflow test branch
+      - wf-test
     # Sequence of patterns matched against refs/tags
     tags:
       - v*.*.*             # Push events to vx.y.z
@@ -24,7 +29,7 @@ on:
   #  types: [published]
 
 jobs:
-  build_and_push:
+  docker_build_and_push:
     name: Build and push docker images to Docker Hub
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
@@ -91,3 +96,17 @@ jobs:
 
           docker push $IMAGE_ID1:$image_tag
           docker push $IMAGE_ID2:$image_tag
+
+  helm_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Publish Helm charts
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN_REPO_FULL }}
+          charts_dir: helm
+          repository: helm
+          branch: gh-pages
+          chart_version: ${{ github.event.inputs.hversion }}
+

@@ -1,0 +1,5 @@
+{
+  "algorithm":"PriorityMatchingRegex",
+  "rgx":"whatever",
+  "fmt":"whatever"
+}

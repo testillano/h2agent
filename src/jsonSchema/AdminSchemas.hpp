@@ -33,8 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef H2AGENT_JSONSCHEMA_ADMINSCHEMAS_H_
-#define H2AGENT_JSONSCHEMA_ADMINSCHEMAS_H_
+#pragma once
 
 // Standard
 #include <string>
@@ -127,7 +126,7 @@ const nlohmann::json server_provision = R"(
     "requestUri": {
       "type": "string"
     },
-    "responseHeader": {
+    "responseHeaders": {
       "additionalProperties": {
         "type": "string"
        },
@@ -147,6 +146,8 @@ const nlohmann::json server_provision = R"(
       "minItems": 1,
       "items" : {
         "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
         "properties": {
           "source": {
             "type": "string",
@@ -171,4 +172,3 @@ const nlohmann::json server_provision = R"(
 }
 }
 
-#endif

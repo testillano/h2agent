@@ -33,71 +33,83 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-// Standard
 #include <string>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <nlohmann/json.hpp>
+
+#include <ert/tracing/Logger.hpp>
+
+#include <AdminProvisionData.hpp>
 
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
-{
+AdminProvisionData::AdminProvisionData() {
+}
 
-    nlohmann::json schema_;
-    nlohmann::json_schema::json_validator validator_;
+bool AdminProvisionData::load(const nlohmann::json &j) {
+    bool result = true;
+    return result;
 
-    void set_schema_(const nlohmann::json& schema);
+    write_guard_t guard(rw_mutex_);
 
-public:
-    /**
-    * Default constructor
-    */
-    JsonSchema(const nlohmann::json& schema);
-    ~JsonSchema() {;}
+    // Provision object to fill:
+    auto provision = std::make_shared<AdminProvision>();
 
-    // setters
+    // Mandatory
+    auto requestMethod_it = j.find("requestMethod");
+    provision->setRequestMethod(*requestMethod_it);
 
-    /**
-    * Set json document schema
-    *
-    * @param jsonSchema Json document schema
-    */
-    void setSchema(const nlohmann::json& schema);
+    auto requestUri_it = j.find("requestUri");
+    provision->setRequestUri(*requestUri_it);
 
-    // getters
+    auto it = j.find("responseCode");
+    provision->setResponseCode(*it);
 
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getSchema() const
-    {
-        return schema_;
+    // Optional
+    it = j.find("inState");
+    if (it != j.end() && it->is_string()) {
+        provision->setInState(*it);
     }
 
-    /**
-    * Validates json document agains schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& json) const;
+    it = j.find("outState");
+    if (it != j.end() && it->is_string()) {
+        provision->setOutState(*it);
+    }
 
-    /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
-};
+    it = j.find("responseHeaders");
+    if (it != j.end() && it->is_object()) {
+        provision->loadResponseHeaders(*it);
+    }
+
+    it = j.find("responseBody");
+    if (it != j.end() && it->is_object()) {
+        provision->setResponseBody(*it);
+    }
+
+    it = j.find("responseDelayMs");
+    if (it != j.end() && it->is_number()) {
+        provision->setResponseDelayMs(*it);
+    }
+
+    auto transform_it = j.find("transform");
+    if (transform_it != j.end() && transform_it->is_object()) {
+        provision->loadTransform(*transform_it);
+    }
+
+    // Push the key in the map:
+    std::string key = std::string(*requestMethod_it) + std::string(*requestUri_it);
+    add(key, provision);
+
+    // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex':
+    ordered_keys_.push_back(key);
+
+
+    return result;
+}
 
 }
 }

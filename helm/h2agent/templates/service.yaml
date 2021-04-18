@@ -7,9 +7,14 @@ metadata:
 spec:
   type: {{ .Values.h2agent.service.type }}
   ports:
-    - port: {{ .Values.h2agent.service.port }}
-      targetPort: {{ .Values.h2agent.service.port }}
+    - port: {{ .Values.h2agent.service.admin_port }}
+      targetPort: {{ .Values.h2agent.service.admin_port }}
+      protocol: TCP
+      name: http2-admin
+    - port: {{ .Values.h2agent.service.server_port }}
+      targetPort: {{ .Values.h2agent.service.server_port }}
       protocol: TCP
       name: http2-rest
   selector:
     {{- include "h2agent.selectorLabels" . | nindent 4 }}
+  publishNotReadyAddresses: true

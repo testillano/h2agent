@@ -43,10 +43,19 @@ SOFTWARE.
 
 #include <MyHttp2Server.hpp>
 
+#include <MockData.hpp>
+
 namespace h2agent
 {
 namespace http2server
 {
+
+MyHttp2Server::MyHttp2Server(size_t workerThreads):
+    ert::http2comm::Http2Server("MockHttp2Server", workerThreads),
+    admin_data_(nullptr) {
+
+    data_ = new model::MockData();
+}
 
 bool MyHttp2Server::checkMethodIsAllowed(
     const nghttp2::asio_http2::server::request& req,

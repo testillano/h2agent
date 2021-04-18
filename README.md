@@ -392,7 +392,7 @@ Optional arguments used in `FullMatchingRegexReplace` algorithm.
 
 ###### FullMatching
 
-No additional arguments are expected. The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
+Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
 
 This is the default algorithm. Internal provision is stored in a map indexed with real requests information to compose an aggregated key (normally containing the requests *method* and *URI*, but as future proof, we could add `expected request` fingerprint). Then, when a request is received, the map key is calculated and retrieved directly to be processed.
 
@@ -428,7 +428,7 @@ The previous *full matching* algorithm could be simulated here using empty strin
 
 ###### PriorityMatchingRegex
 
-No additional arguments are required. This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
+Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
 
 1. `ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
 2. `ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
@@ -512,7 +512,7 @@ Defines the response behavior for an incoming request matching some basic condit
     "requestUri": {
       "type": "string"
     },
-    "responseHeader": {
+    "responseHeaders": {
       "additionalProperties": {
         "type": "string"
        },
@@ -532,6 +532,8 @@ Defines the response behavior for an incoming request matching some basic condit
       "minItems": 1,
       "items" : {
         "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
         "properties": {
           "source": {
             "type": "string",
@@ -578,9 +580,18 @@ Expected request method (*POST*, *GET*, *PUT*, *DELETE*).
 
 Request *URI* path to match depending on the algorithm selected.
 
-##### responseHeader
+##### responseHeaders
 
-Header fields for the response.
+Header fields for the response. For example:
+
+```json
+"responseHeaders":
+{
+  "content-type": "application/json"
+}
+```
+
+
 
 ##### responseCode
 
@@ -740,6 +751,18 @@ For example, if the source received is "55511", then we will will have *var.padd
 }
 ```
 
+### DELETE /provision/v1/server-provision
+
+Deletes the current provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
+
+#### Response status code
+
+**204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+No response body.
+
 ### POST /provision/v1/client-initialize
 
 Initializes the client connection to the target server endpoint.
@@ -820,7 +843,7 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
     "requestBody": {
       "type": "object"
     },
-    "responseHeader": {
+    "responseHeaders": {
       "additionalProperties": {
         "type": "string"
        },

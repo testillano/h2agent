@@ -366,6 +366,10 @@ int main(int argc, char* argv[])
     myHttp2Server->setApiName(server_api_name);
     myHttp2Server->setApiVersion(server_api_version);
 
+    // Associate data containers:
+    myHttp2Server->setAdminData(myAdminHttp2Server->getData()); // to retrieve mock behaviour configuration
+    myAdminHttp2Server->setMockData(myHttp2Server->getData()); // to allow GET resources (location headers) or similar operations which need mocked/dynamic data
+
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);
     signal(SIGINT, sighndl);

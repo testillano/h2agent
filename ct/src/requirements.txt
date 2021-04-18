@@ -1,4 +1,7 @@
 hyper
-pytest-ordering
-pytest-xdist
 xmltodict
+pytest-ordering
+# parallelism:
+pytest-xdist
+# parallelism & concurrency:
+pytest-parallel

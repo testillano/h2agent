@@ -33,9 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef H2AGENT_HTTP2SERVER_MYHTTP2SERVER_H_
-#define H2AGENT_HTTP2SERVER_MYHTTP2SERVER_H_
-
+#pragma once
 
 #include <vector>
 #include <string>
@@ -46,15 +44,23 @@ SOFTWARE.
 
 namespace h2agent
 {
+namespace model
+{
+class MockData;
+class AdminData;
+}
+
 namespace http2server
 {
 
 class MyHttp2Server: public ert::http2comm::Http2Server
 {
 
+    model::MockData *data_;
+    model::AdminData *admin_data_;
+
 public:
-    MyHttp2Server(size_t workerThreads) :
-        ert::http2comm::Http2Server("Http2Server", workerThreads) {};
+    MyHttp2Server(size_t workerThreads);
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -69,9 +75,19 @@ public:
                  const std::string& requestBody,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody);
+
+
+    model::MockData *getData() const {
+        return data_;
+    }
+    void setAdminData(model::AdminData *p) {
+        admin_data_ = p;
+    }
+    model::AdminData *getAdminData() const {
+        return admin_data_;
+    }
 };
 
 }
 }
 
-#endif

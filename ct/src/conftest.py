@@ -256,6 +256,9 @@ class RestClient(object):
         if requestBody: requestBodyJson = json.dumps(requestBody, indent=None, separators=(',', ':'))
         return self.request('POST', requestUrl, requestBodyJson, requestHeaders)
 
+    def delete(self, requestUrl):
+        return self.request('DELETE', requestUrl)
+
     def __assert_received_expected(self, received, expected, what):
         match = (received == expected)
         log = "Received {what}: {received} | Expected {what}: {expected}".format(received=received, expected=expected, what=what)

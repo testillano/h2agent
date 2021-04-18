@@ -19,3 +19,9 @@ h2agent:
   image:
     repository: testillano/h2agent
     tag: latest
+
+  h2agent:
+    cl:
+      log_level: Debug
+      verbose:
+        enabled: true

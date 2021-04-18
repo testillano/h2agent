@@ -1,5 +1,6 @@
 add_subdirectory(http2Server)
 add_subdirectory(jsonSchema)
+add_subdirectory(model)
 
 add_executable( ${H2AGENT_TARGET_NAME}
         # Keep the list of files sorted.
@@ -20,6 +21,7 @@ PRIVATE
 -static
         h2agent-http2Server
         h2agent-jsonSchema
+        h2agent-model
         ert_logger
         ert_http2comm
 

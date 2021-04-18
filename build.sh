@@ -9,7 +9,6 @@ scratch_img__dflt=alpine
 scratch_img_tag__dflt=latest
 make_procs__dflt=$(grep processor /proc/cpuinfo -c)
 build_type__dflt=Release
-ert_http2comm_tag__dflt=v0.0.10
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.10.0
@@ -67,7 +66,7 @@ _read() {
   then
     echo "${varname}"
   else
-    read varname
+    read -r varname
     [ -z "${varname}" ] && varname=${default}
   fi
 }
@@ -76,13 +75,13 @@ build_builder_image() {
   echo
   echo "=== Build http2comm_builder image ==="
   echo
-  _read image_tag ${image_tag__dflt}
-  _read base_tag ${base_tag__dflt}
-  _read make_procs ${make_procs__dflt}
-  _read build_type ${build_type__dflt}
-  _read nlohmann_json_ver ${nlohmann_json_ver__dflt}
-  _read pboettch_jsonschemavalidator_ver ${pboettch_jsonschemavalidator_ver__dflt}
-  _read google_test_ver ${google_test_ver__dflt}
+  _read image_tag "${image_tag__dflt}"
+  _read base_tag "${base_tag__dflt}"
+  _read make_procs "${make_procs__dflt}"
+  _read build_type "${build_type__dflt}"
+  _read nlohmann_json_ver "${nlohmann_json_ver__dflt}"
+  _read pboettch_jsonschemavalidator_ver "${pboettch_jsonschemavalidator_ver__dflt}"
+  _read google_test_ver "${google_test_ver__dflt}"
 
   bargs="--build-arg base_tag=${base_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
@@ -93,7 +92,8 @@ build_builder_image() {
 
   set -x
   rm -f CMakeCache.txt
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f Dockerfile.build -t testillano/h2agent_builder:${image_tag} . || return 1
+  # shellcheck disable=SC2086
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f Dockerfile.build -t testillano/h2agent_builder:"${image_tag}" . || return 1
   set +x
 }
 
@@ -101,15 +101,17 @@ build_project() {
   echo
   echo "=== Build h2agent project ==="
   echo
-  _read make_procs ${make_procs__dflt}
-  _read build_type ${build_type__dflt}
+  _read make_procs "${make_procs__dflt}"
+  _read build_type "${build_type__dflt}"
 
   envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type}"
 
   set -x
   rm -f CMakeCache.txt
-  docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_builder || return 1
-  docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code testillano/h2agent_builder "" doc || return 1
+  # shellcheck disable=SC2086
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder || return 1
+  # shellcheck disable=SC2086
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder "" doc || return 1
   set +x
 }
 
@@ -117,12 +119,12 @@ build_project_image() {
   echo
   echo "=== Build http2comm image ==="
   echo
-  _read image_tag ${image_tag__dflt}
-  _read base_tag ${base_tag__dflt}
-  _read scratch_img ${scratch_img__dflt}
-  _read scratch_img_tag ${scratch_img_tag__dflt}
-  _read make_procs ${make_procs__dflt}
-  _read build_type ${build_type__dflt}
+  _read image_tag "${image_tag__dflt}"
+  _read base_tag "${base_tag__dflt}"
+  _read scratch_img "${scratch_img__dflt}"
+  _read scratch_img_tag "${scratch_img_tag__dflt}"
+  _read make_procs "${make_procs__dflt}"
+  _read build_type "${build_type__dflt}"
 
   bargs="--build-arg base_tag=${base_tag}"
   bargs+=" --build-arg scratch_img=${scratch_img}"
@@ -132,7 +134,8 @@ build_project_image() {
 
   set -x
   rm -f CMakeCache.txt
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t testillano/h2agent:${image_tag} . || return 1
+  # shellcheck disable=SC2086
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t testillano/h2agent:"${image_tag}" . || return 1
   set +x
 }
 
@@ -140,26 +143,29 @@ build_ct_image() {
   echo
   echo "=== Build component test image ==="
   echo
-  _read image_tag ${image_tag__dflt}
-  _read base_tag ${base_tag__dflt}
+  _read image_tag "${image_tag__dflt}"
+  _read base_tag "${base_tag__dflt}"
 
   bargs="--build-arg base_tag=${base_tag}"
 
   set -x
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f ct/Dockerfile -t testillano/ct-h2agent:${image_tag} ct || return 1
+  # shellcheck disable=SC2086
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f ct/Dockerfile -t testillano/ct-h2agent:"${image_tag}" ct || return 1
   set +x
 }
 
 build_auto() {
   # export defaults to automate, but allow possible environment values:
-  source <(grep -E '^[a-z_]+__dflt' $0 | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
+  # shellcheck disable=SC1090
+  source <(grep -E '^[a-z_]+__dflt' "$0" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
   build_builder_image && build_project && build_project_image && build_ct_image
 }
 
 #############
 # EXECUTION #
 #############
-cd $(dirname $0)
+# shellcheck disable=SC2164
+cd "$(dirname "$0")"
 
 case "$1" in
   --builder-image) build_builder_image ;;

@@ -35,68 +35,72 @@ SOFTWARE.
 
 #pragma once
 
-// Standard
-#include <string>
+//#include <string>
+#include <mutex>
+#include <shared_mutex>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <nlohmann/json.hpp>
 
+#include <AdminMatchingData.hpp>
+#include <AdminProvisionData.hpp>
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+class AdminData
 {
-
-    nlohmann::json schema_;
-    nlohmann::json_schema::json_validator validator_;
-
-    void set_schema_(const nlohmann::json& schema);
+    AdminMatchingData matching_data_;
+    AdminProvisionData provision_data_;
 
 public:
-    /**
-    * Default constructor
-    */
-    JsonSchema(const nlohmann::json& schema);
-    ~JsonSchema() {;}
 
-    // setters
 
     /**
-    * Set json document schema
-    *
-    * @param jsonSchema Json document schema
-    */
-    void setSchema(const nlohmann::json& schema);
-
-    // getters
-
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getSchema() const
-    {
-        return schema_;
+     * Loads admin matching operation data
+     *
+     * @param j Json document from operation body request
+     *
+     * @return Boolean about success operation
+     */
+    bool loadMatching(const nlohmann::json &j) {
+        return matching_data_.load(j);
     }
 
     /**
-    * Validates json document agains schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& json) const;
+     * Loads admin provision operation data
+     *
+     * @param j Json document from operation body request
+     *
+     * @return Boolean about success operation
+     */
+    bool loadProvision(const nlohmann::json &j) {
+        return provision_data_.load(j);
+    }
 
     /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
+     * Clears admin provisions data
+     */
+    void clearProvisions() {
+        provision_data_.clear();
+    }
+
+    /**
+     * Gets admin matching data
+     */
+    const AdminMatchingData& getMatchingData() const {
+        return matching_data_;
+    }
+
+    /**
+     * Gets admin provision data
+     */
+    const AdminProvisionData& getProvisionData() const {
+        return provision_data_;
+    }
+
+
 };
 
 }

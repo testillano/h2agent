@@ -35,68 +35,17 @@ SOFTWARE.
 
 #pragma once
 
-// Standard
-#include <string>
-
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
-
-
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+class MockData
 {
-
-    nlohmann::json schema_;
-    nlohmann::json_schema::json_validator validator_;
-
-    void set_schema_(const nlohmann::json& schema);
-
 public:
-    /**
-    * Default constructor
-    */
-    JsonSchema(const nlohmann::json& schema);
-    ~JsonSchema() {;}
+    MockData() {};
+    ~MockData() = default;
 
-    // setters
-
-    /**
-    * Set json document schema
-    *
-    * @param jsonSchema Json document schema
-    */
-    void setSchema(const nlohmann::json& schema);
-
-    // getters
-
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getSchema() const
-    {
-        return schema_;
-    }
-
-    /**
-    * Validates json document agains schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& json) const;
-
-    /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
 };
 
 }

@@ -35,68 +35,67 @@ SOFTWARE.
 
 #pragma once
 
-// Standard
+#include <nghttp2/asio_http2_server.h>
+
 #include <string>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
-
+#include <nlohmann/json.hpp>
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+class AdminProvision
 {
-
-    nlohmann::json schema_;
-    nlohmann::json_schema::json_validator validator_;
-
-    void set_schema_(const nlohmann::json& schema);
+    std::string request_method_;
+    std::string request_uri_;
+    unsigned int response_code_;
+    std::string in_state_;
+    std::string out_state_;
+    nghttp2::asio_http2::header_map response_headers_{};
+    std::string response_body_;
+    unsigned int response_delay_ms_;
 
 public:
-    /**
-    * Default constructor
-    */
-    JsonSchema(const nlohmann::json& schema);
-    ~JsonSchema() {;}
 
-    // setters
+    // setters:
 
-    /**
-    * Set json document schema
-    *
-    * @param jsonSchema Json document schema
-    */
-    void setSchema(const nlohmann::json& schema);
-
-    // getters
-
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getSchema() const
-    {
-        return schema_;
+    void setRequestMethod(const std::string& rm) {
+        request_method_ = rm;
+    }
+    void setRequestUri(const std::string& ru) {
+        request_uri_ = ru;
+    }
+    void setResponseCode(unsigned int rc) {
+        response_code_ = rc;
+    }
+    void setInState(const std::string& is) {
+        in_state_ = is;
+    }
+    void setOutState(const std::string& os) {
+        out_state_ = os;
+    }
+    void setResponseBody(const nlohmann::json &j) {
+        response_body_ = j.dump();
+    }
+    void setResponseDelayMs(unsigned int delay) {
+        response_delay_ms_ = delay;
     }
 
     /**
-    * Validates json document agains schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& json) const;
+     * Loads admin provision response headers data
+     *
+     * @param j response headers json node
+     */
+    void loadResponseHeaders(const nlohmann::json &j);
 
     /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
+     * Loads admin provision transformation data
+     *
+     * @param j transformation json node
+     */
+    void loadTransform(const nlohmann::json &j);
 };
 
 }

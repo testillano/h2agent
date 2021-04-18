@@ -20,9 +20,11 @@ h2agent:
 
   # command-line
   cl:
-    log_level: Debug
-    admin_port: 8074
-    server_port: 8000
+    log_level: Warning
+    verbose:
+      enabled: false
+    #admin_port: 8074
+    #server_port: 8000
     server_api_name: testapp
     server_api_version: v1
     worker_threads: -1
@@ -33,7 +35,8 @@ h2agent:
 
   service:
     type: ClusterIP
-    port: 8074
+    admin_port: 8074
+    server_port: 8000
 
 image:
   repository: testillano/h2agent

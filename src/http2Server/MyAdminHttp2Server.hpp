@@ -33,8 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef H2AGENT_HTTP2SERVER_MYADMINHTTP2SERVER_H_
-#define H2AGENT_HTTP2SERVER_MYADMINHTTP2SERVER_H_
+#pragma once
 
 #include <vector>
 #include <string>
@@ -47,6 +46,12 @@ SOFTWARE.
 
 namespace h2agent
 {
+namespace model
+{
+class AdminData;
+class MockData;
+}
+
 namespace http2server
 {
 
@@ -55,16 +60,19 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     h2agent::jsonschema::JsonSchema server_matching_schema_;
     h2agent::jsonschema::JsonSchema server_provision_schema_;
 
-    std::string getOperation(const std::string &uriPath) const;
+    model::AdminData *data_;
+    model::MockData *mock_data_;
+
+    std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     void buildJsonResponse(bool result, const std::string &response, std::string &jsonResponse) const;
+
+    void receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const;
+    void receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const;
+    void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const;
 
 
 public:
-    //schema_(schema),
-    MyAdminHttp2Server(size_t workerThreads) :
-        ert::http2comm::Http2Server("AdminHttp2Server", workerThreads),
-        server_matching_schema_(h2agent::adminSchemas::server_matching),
-        server_provision_schema_(h2agent::adminSchemas::server_provision) {};
+    MyAdminHttp2Server(size_t workerThreads);
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -79,9 +87,18 @@ public:
                  const std::string& requestBody,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody);
+
+    model::AdminData *getData() const {
+        return data_;
+    }
+    void setMockData(model::MockData *p) {
+        mock_data_ = p;
+    }
+    model::MockData *getMockData() const {
+        return mock_data_;
+    }
 };
 
 }
 }
 
-#endif

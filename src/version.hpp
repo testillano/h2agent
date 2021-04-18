@@ -33,12 +33,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef H2AGENT_VERSION_H_
-#define H2AGENT_VERSION_H_
+#pragma once
 
 namespace h2agent
 {
 extern const char* GIT_VERSION;
 }
 
-#endif

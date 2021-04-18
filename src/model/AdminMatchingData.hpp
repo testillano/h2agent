@@ -35,68 +35,65 @@ SOFTWARE.
 
 #pragma once
 
-// Standard
-#include <string>
+//#include <string>
+#include <mutex>
+#include <shared_mutex>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <common.hpp>
 
+#include <nlohmann/json.hpp>
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+class AdminMatchingData
 {
-
-    nlohmann::json schema_;
-    nlohmann::json_schema::json_validator validator_;
-
-    void set_schema_(const nlohmann::json& schema);
-
 public:
-    /**
-    * Default constructor
-    */
-    JsonSchema(const nlohmann::json& schema);
-    ~JsonSchema() {;}
+    AdminMatchingData();
+    ~AdminMatchingData() = default;
 
-    // setters
-
-    /**
-    * Set json document schema
-    *
-    * @param jsonSchema Json document schema
-    */
-    void setSchema(const nlohmann::json& schema);
+    // Algorithm type
+    enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex };
 
     // getters
+    AlgorithmType getAlgorithm() const {
+        read_guard_t guard(rw_mutex_);
+        return algorithm_;
+    }
 
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getSchema() const
-    {
-        return schema_;
+    const std::string& getRgx() const {
+        read_guard_t guard(rw_mutex_);
+        return rgx_;
+    }
+
+    const std::string& getFmt() const {
+        read_guard_t guard(rw_mutex_);
+        return fmt_;
+    }
+
+    bool getSortUriPathQueryParameters() const {
+        read_guard_t guard(rw_mutex_);
+        return sort_uri_path_query_parameters_;
     }
 
     /**
-    * Validates json document agains schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& json) const;
+     * Loads server matching operation data
+     *
+     * @param j Json document from operation body request
+     *
+     * @return Boolean about success operation
+     */
+    bool load(const nlohmann::json &j);
 
-    /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
+private:
+    mutable mutex_t rw_mutex_;
+
+    AlgorithmType algorithm_;
+    std::string rgx_;
+    std::string fmt_;
+    bool sort_uri_path_query_parameters_;
 };
 
 }

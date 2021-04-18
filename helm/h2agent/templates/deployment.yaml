@@ -32,11 +32,13 @@ spec:
           args:
             - "--log-level"
             - {{ .Values.h2agent.cl.log_level | quote }}
+            {{- if .Values.h2agent.cl.verbose.enabled }}
             - "--verbose"
+            {{- end }}
             - "--admin-port"
-            - {{ .Values.h2agent.cl.admin_port | quote }}
+            - {{ .Values.h2agent.service.admin_port | quote }}
             - "--server-port"
-            - {{ .Values.h2agent.cl.server_port | quote }}
+            - {{ .Values.h2agent.service.server_port | quote }}
             - "--server-api-name"
             - {{ .Values.h2agent.cl.server_api_name | quote }}
             - "--server-api-version"
@@ -45,9 +47,15 @@ spec:
             - {{ .Values.h2agent.cl.worker_threads | quote }}
             - "--server-threads"
             - {{ .Values.h2agent.cl.server_threads | quote }}
+            {{- if ne .Values.h2agent.cl.server_key ""  }}
             - "--server-key"
             - {{ .Values.h2agent.cl.server_key | quote }}
+            {{- end }}
+            {{- if ne .Values.h2agent.cl.server_crt ""  }}
             - "--server-crt"
             - {{ .Values.h2agent.cl.server_crt | quote }}
+            {{- end }}
+            {{- if ne .Values.h2agent.cl.server_request_schema ""  }}
             - "--server-request-schema"
             - {{ .Values.h2agent.cl.server_request_schema | quote }}
+            {{- end }}

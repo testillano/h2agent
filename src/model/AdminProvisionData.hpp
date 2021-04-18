@@ -35,68 +35,57 @@ SOFTWARE.
 
 #pragma once
 
-// Standard
 #include <string>
+#include <mutex>
+#include <shared_mutex>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <nlohmann/json.hpp>
 
+#include <Map.hpp>
+#include <AdminProvision.hpp>
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+// Provision key:
+typedef std::string provision_key_t;
+// Future proof: instead of using a key = <method><uri>, we could agreggate them:
+// typedef std::pair<std::string, std::string> provision_key_t;
+// But in order to compile, we need to define a hash function for the unordered map:
+// https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
+// https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
+//
+
+// Map key will be string which has a hash function.
+// We will agregate method and uri in a single string for that.
+class AdminProvisionData : public Map<provision_key_t, AdminProvision>
 {
-
-    nlohmann::json schema_;
-    nlohmann::json_schema::json_validator validator_;
-
-    void set_schema_(const nlohmann::json& schema);
+    std::vector<provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
 
 public:
-    /**
-    * Default constructor
-    */
-    JsonSchema(const nlohmann::json& schema);
-    ~JsonSchema() {;}
-
-    // setters
+    AdminProvisionData();
+    ~AdminProvisionData() = default;
 
     /**
-    * Set json document schema
-    *
-    * @param jsonSchema Json document schema
-    */
-    void setSchema(const nlohmann::json& schema);
+     * Loads server provision operation data
+     *
+     * @param j Json document from operation body request
+     *
+     * @return Boolean about success operation
+     */
+    bool load(const nlohmann::json &j);
 
-    // getters
-
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getSchema() const
+    /** Clear internal data (map and ordered keys vector) */
+    void clear()
     {
-        return schema_;
+        Map::clear();
+
+        write_guard_t guard(rw_mutex_);
+        ordered_keys_.clear();
     }
 
-    /**
-    * Validates json document agains schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& json) const;
-
-    /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
 };
 
 }
