@@ -38,7 +38,6 @@ SOFTWARE.
 #include <errno.h>
 
 #include <ert/tracing/Logger.hpp>
-#include <ert/http2comm/ResponseHeader.hpp>
 #include <ert/http2comm/Http.hpp>
 
 #include <MyHttp2Server.hpp>
