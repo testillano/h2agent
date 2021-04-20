@@ -38,7 +38,7 @@ spec:
             - "--admin-port"
             - {{ .Values.h2agent.service.admin_port | quote }}
             - "--server-port"
-            - {{ .Values.h2agent.service.server_port | quote }}
+            - {{ .Values.h2agent.service.traffic_port | quote }}
             - "--server-api-name"
             - {{ .Values.h2agent.cl.server_api_name | quote }}
             - "--server-api-version"

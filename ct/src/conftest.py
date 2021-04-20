@@ -15,10 +15,11 @@ import xmltodict
 # CONSTANTS #
 #############
 
-# Endpoint
-H2AGENT_HOST = os.environ['H2AGENT_SERVICE_HOST']
-H2AGENT_PORT = os.environ['H2AGENT_SERVICE_PORT']
-H2AGENT_ENDPOINT = H2AGENT_HOST + ':' + H2AGENT_PORT
+# Endpoints
+H2AGENT_ENDPOINT__admin = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ['H2AGENT_SERVICE_PORT_HTTP2_ADMIN']
+H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ['H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC']
+
+# Api Path
 H2AGENT_URI_PREFIX = 'provision/v1'
 
 # Headers
@@ -327,13 +328,21 @@ class RestClient(object):
       self._connection.close()
 
 
-# H2AGENT Client simple fixture
+# H2AGENT Clients fixtures #####################
 @pytest.fixture(scope='session')
-def h2ac():
-  h2ac = RestClient(H2AGENT_ENDPOINT)
+def h2ac_admin():
+  h2ac = RestClient(H2AGENT_ENDPOINT__admin)
   yield h2ac
   h2ac.close()
-  print("H2AGENTC Teardown")
+  print("H2AGENT-admin Teardown")
+
+@pytest.fixture(scope='session')
+def h2ac_traffic():
+  h2ac = RestClient(H2AGENT_ENDPOINT__traffic)
+  yield h2ac
+  h2ac.close()
+  print("H2AGENT-traffic Teardown")
+################################################
 
 @pytest.fixture(scope='session')
 def resources():
@@ -357,36 +366,4 @@ def resources():
     return resource
 
   yield get_resources
-
-################
-# Experimental #
-################
-
-REQUEST_BODY_TEMPLATE_HEX = '''
-{{
-   "hexString":"{hexString}"
-}}'''
-
-PARAMS = [
-  (H2AGENT_URI_PREFIX, '/decode', REQUEST_BODY_TEMPLATE_HEX, H2AGENT_ENDPOINT),
-]
-
-# Share RestClient connection for all the tests: session-scoped fixture
-@pytest.fixture(scope="session", params=PARAMS)
-def request_data(request):
-  h2ac = RestClient(request.param[3])
-  def get_request_data(**kwargs):
-    args = defaultdict (str, kwargs)
-    uri_prefix = request.param[0]
-    request_uri_suffix=request.param[1]
-    formatted_uri=uri_prefix + request_uri_suffix.format_map(args)
-    request_body=request.param[2]
-    formatted_request_body=request_body.format_map(args)
-    return formatted_uri,formatted_request_body,h2ac
-
-  yield get_request_data
-  h2ac.close()
-  print("RestClient Teardown")
-
-# Fixture usage example: requestUrl,requestBody,h2ac = request_data(diameterHex="<hex content>")
 

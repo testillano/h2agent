@@ -150,7 +150,7 @@ fi
 
 echo -e "\nExecuting tests ..."
 test_pod="$(get_pod "${NAMESPACE}" ct-h2agent)"
-[ -z "${test_pod}" ] && echo "Missing target pod to test" && exit 1
+[ -z "${test_pod}" ] && echo "Missing target pod for test" && exit 1
 
 if [ -n "${INTERACT}" ]
 then

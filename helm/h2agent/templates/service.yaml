@@ -11,10 +11,10 @@ spec:
       targetPort: {{ .Values.h2agent.service.admin_port }}
       protocol: TCP
       name: http2-admin
-    - port: {{ .Values.h2agent.service.server_port }}
-      targetPort: {{ .Values.h2agent.service.server_port }}
+    - port: {{ .Values.h2agent.service.traffic_port }}
+      targetPort: {{ .Values.h2agent.service.traffic_port }}
       protocol: TCP
-      name: http2-rest
+      name: http2-traffic
   selector:
     {{- include "h2agent.selectorLabels" . | nindent 4 }}
   publishNotReadyAddresses: true

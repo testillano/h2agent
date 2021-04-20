@@ -23,7 +23,7 @@ spec:
           image: "{{ .Values.initContainer.image.repository }}:{{ .Values.initContainer.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.initContainer.image.pullPolicy }}
           command: ["sh", "-c"]
-          args: [ "until nslookup {{ .Values.h2agent.h2agent.name }} ; do sleep 2; done && until nc -w 1 -z {{ .Values.h2agent.h2agent.name }} {{ .Values.h2agent.h2agent.service.server_port }} ; do sleep 2; done && until nc -w 1 -z {{ .Values.h2agent.h2agent.name }} {{ .Values.h2agent.h2agent.service.admin_port }} ; do sleep 2; done"]
+          args: [ "until nslookup {{ .Values.h2agent.h2agent.name }} ; do sleep 2; done && until nc -w 1 -z {{ .Values.h2agent.h2agent.name }} {{ .Values.h2agent.h2agent.service.traffic_port }} ; do sleep 2; done && until nc -w 1 -z {{ .Values.h2agent.h2agent.name }} {{ .Values.h2agent.h2agent.service.admin_port }} ; do sleep 2; done"]
 
       containers:
         - name: test

@@ -46,7 +46,7 @@ jobs:
           # logout at job end:
           logout: true
       -
-        name: Build (but not push) builder image
+        name: Build (but not push) builder image (h2agent_builder)
         id: docker_build1
         uses: docker/build-push-action@v2
         with:
@@ -54,11 +54,12 @@ jobs:
           file: Dockerfile.build
           context: .
           #push: true
+          build-args: base_tag=local
       -
         name: Image digest
         run: echo ${{ steps.docker_build1.outputs.digest }}
       -
-        name: Build (but not push) project image
+        name: Build (but not push) project image (h2agent)
         id: docker_build2
         uses: docker/build-push-action@v2
         with:
@@ -71,10 +72,24 @@ jobs:
         name: Image2 digest
         run: echo ${{ steps.docker_build2.outputs.digest }}
       -
+        name: Build (but not push) ct image (ct-h2agent)
+        id: docker_build3
+        uses: docker/build-push-action@v2
+        with:
+          tags: testillano/ct-h2agent:local
+          file: ct/Dockerfile
+          context: ct
+          #push: true
+          build-args: base_tag=local
+      -
+        name: Image3 digest
+        run: echo ${{ steps.docker_build3.outputs.digest }}
+      -
         name: Push images manually
         run: |
           IMAGE_ID1=docker.io/testillano/h2agent_builder
           IMAGE_ID2=docker.io/testillano/h2agent
+          IMAGE_ID3=docker.io/testillano/ct-h2agent
 
           # workflow dispatch event:
           image_tag=${{ github.event.inputs.tag }}
@@ -93,9 +108,11 @@ jobs:
 
           docker tag testillano/h2agent_builder:local $IMAGE_ID1:$image_tag
           docker tag testillano/h2agent:local $IMAGE_ID2:$image_tag
+          docker tag testillano/ct-h2agent:local $IMAGE_ID3:$image_tag
 
           docker push $IMAGE_ID1:$image_tag
           docker push $IMAGE_ID2:$image_tag
+          docker push $IMAGE_ID3:$image_tag
 
   helm_publish:
     runs-on: ubuntu-latest
