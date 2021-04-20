@@ -54,7 +54,6 @@ jobs:
           file: Dockerfile.build
           context: .
           #push: true
-          build-args: base_tag=local
       -
         name: Image digest
         run: echo ${{ steps.docker_build1.outputs.digest }}
@@ -80,7 +79,6 @@ jobs:
           file: ct/Dockerfile
           context: ct
           #push: true
-          build-args: base_tag=local
       -
         name: Image3 digest
         run: echo ${{ steps.docker_build3.outputs.digest }}
