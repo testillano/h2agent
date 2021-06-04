@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.h2agent.name }}
+  name: {{ include "h2agent.name" . }}
   labels:
-    app.kubernetes.io/name: {{ .Values.h2agent.name }}
+    app.kubernetes.io/name: {{ .Values.name }}
     helm.sh/chart: {{ template "h2agent.chart" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
@@ -28,34 +28,34 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           resources:
-            {{- toYaml .Values.h2agent.resources | nindent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
           args:
             - "--log-level"
-            - {{ .Values.h2agent.cl.log_level | quote }}
-            {{- if .Values.h2agent.cl.verbose.enabled }}
+            - {{ .Values.h2agent_cl.log_level | quote }}
+            {{- if .Values.h2agent_cl.verbose.enabled }}
             - "--verbose"
             {{- end }}
             - "--admin-port"
-            - {{ .Values.h2agent.service.admin_port | quote }}
+            - {{ .Values.service.admin_port | quote }}
             - "--server-port"
-            - {{ .Values.h2agent.service.traffic_port | quote }}
+            - {{ .Values.service.traffic_port | quote }}
             - "--server-api-name"
-            - {{ .Values.h2agent.cl.server_api_name | quote }}
+            - {{ .Values.h2agent_cl.server_api_name | quote }}
             - "--server-api-version"
-            - {{ .Values.h2agent.cl.server_api_version | quote }}
+            - {{ .Values.h2agent_cl.server_api_version | quote }}
             - "--worker-threads"
-            - {{ .Values.h2agent.cl.worker_threads | quote }}
+            - {{ .Values.h2agent_cl.worker_threads | quote }}
             - "--server-threads"
-            - {{ .Values.h2agent.cl.server_threads | quote }}
-            {{- if ne .Values.h2agent.cl.server_key ""  }}
+            - {{ .Values.h2agent_cl.server_threads | quote }}
+            {{- if ne .Values.h2agent_cl.server_key ""  }}
             - "--server-key"
-            - {{ .Values.h2agent.cl.server_key | quote }}
+            - {{ .Values.h2agent_cl.server_key | quote }}
             {{- end }}
-            {{- if ne .Values.h2agent.cl.server_crt ""  }}
+            {{- if ne .Values.h2agent_cl.server_crt ""  }}
             - "--server-crt"
-            - {{ .Values.h2agent.cl.server_crt | quote }}
+            - {{ .Values.h2agent_cl.server_crt | quote }}
             {{- end }}
-            {{- if ne .Values.h2agent.cl.server_request_schema ""  }}
+            {{- if ne .Values.h2agent_cl.server_request_schema ""  }}
             - "--server-request-schema"
-            - {{ .Values.h2agent.cl.server_request_schema | quote }}
+            - {{ .Values.h2agent_cl.server_request_schema | quote }}
             {{- end }}

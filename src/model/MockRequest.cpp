@@ -33,13 +33,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <string>
-
-#include <nlohmann/json.hpp>
-
 #include <ert/tracing/Logger.hpp>
 
-#include <MockData.hpp>
+#include <MockRequest.hpp>
+
 
 
 namespace h2agent
@@ -47,6 +44,63 @@ namespace h2agent
 namespace model
 {
 
+void calculateMockRequestKey(mock_request_key_t &key, const std::string &method, const std::string &uri) {
+    // key <request-method>#<request-uri>
+    key += method;
+    key += "#";
+    key += uri;
+}
+
+mock_request_key_t MockRequest::getKey() const {
+
+    mock_request_key_t result;
+    calculateMockRequestKey(result, method_, uri_);
+    return result;
+}
+
+bool MockRequest::load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+    state_ = state;
+    method_ = method;
+    uri_ = uri;
+    headers_ = headers;
+    body_ = body;
+
+    return true;
+}
+
+nlohmann::json MockRequest::getJson() const {
+    nlohmann::json result;
+
+    result["state"] = state_;
+    result["method"] = method_;
+    result["uri"] = uri_;
+
+    if (headers_.size()) {
+        nlohmann::json hdrs;
+        for(const auto &x: headers_)
+            hdrs[x.first] = x.second.value;
+        result["headers"] = hdrs;
+    }
+
+    try {
+        result["body"] = nlohmann::json::parse(body_);
+    }
+    catch (nlohmann::json::parse_error& e)
+    {
+        /*
+        std::stringstream ss;
+        ss << "Json body parse error: " << e.what() << '\n'
+           << "exception id: " << e.id << '\n'
+           << "byte position of error: " << e.byte << std::endl;
+        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+        */
+
+        // Response data:
+        result["body"] = e.what();
+    }
+
+    return result;
+}
 
 }
 }

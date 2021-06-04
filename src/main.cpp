@@ -123,6 +123,10 @@ void usage(int rc)
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
+    // TODO:
+    // Implement asynchronous pool for work processing. So, we should have as much worker threads (-w|--worker-threads) as the number of CPU cores (and probably a little more):
+    // unsigned int availableCPUCores = std::thread::hardware_concurrency();
+
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
@@ -146,7 +150,7 @@ void usage(int rc)
        << "[-w|--worker-threads <threads>]\n"
        << "  Number of worker threads; defaults to -1 which means 'dynamically created'.\n"
        << "  For high loads, a queue of pre-initialized threads could improve performance\n"
-       << "  and its pool size corresponds quite a lot with the client concurrent streams.\n\n"
+       << "  and its pool size corresponds quite a lot with the client concurrent streams.\n"
 
        << "[-t|--server-threads <threads>]\n"
        << "  Number of nghttp2 server threads; defaults to 1 (1 connection)\n\n"
@@ -367,8 +371,8 @@ int main(int argc, char* argv[])
     myHttp2Server->setApiVersion(server_api_version);
 
     // Associate data containers:
-    myHttp2Server->setAdminData(myAdminHttp2Server->getData()); // to retrieve mock behaviour configuration
-    myAdminHttp2Server->setMockData(myHttp2Server->getData()); // to allow GET resources (location headers) or similar operations which need mocked/dynamic data
+    myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
+    myAdminHttp2Server->setMockRequestData(myHttp2Server->getMockRequestData()); // to allow GET resources (location headers) or similar operations which need mocked/dynamic data
 
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);

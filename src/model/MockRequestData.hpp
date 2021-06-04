@@ -35,17 +35,59 @@ SOFTWARE.
 
 #pragma once
 
+#include <Map.hpp>
+#include <MockRequest.hpp>
+
 namespace h2agent
 {
 namespace model
 {
 
-class MockData
+class MockRequestData : public Map<mock_request_key_t, MockRequest>
 {
 public:
-    MockData() {};
-    ~MockData() = default;
+    MockRequestData() {};
+    ~MockRequestData() = default;
 
+    /**
+     * Loads request data
+     *
+     * @param state Request state
+     * @param method Request method
+     * @param uri Request URI path
+     * @param headers Request headers
+     * @param body Request body
+     *
+     * @return Boolean about success operation
+     */
+    bool load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body);
+
+    /** Clears internal data
+     *
+     * @return True if something was removed, false if already empty
+     */
+    bool clear();
+
+    /**
+     * Json string representation for class information
+     *
+     * @param requestMethod Request method to filter selection
+     * @param requestUri Request URI path to filter selection
+     *
+     * @return Json string representation
+     */
+    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri) const;
+
+    /**
+     * Finds mock context entry.
+     *
+     * @param method Request method which was received
+     * @param uri Request URI path which was rreceived
+     * @param state Request current state filled by reference. If nothing found, 'initial' will be set
+     *
+     * @return Boolean about if the request is found or not
+     */
+    bool find(const std::string &method, const std::string &uri, std::string &state) const;
 };
 
 }

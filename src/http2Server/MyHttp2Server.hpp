@@ -46,7 +46,7 @@ namespace h2agent
 {
 namespace model
 {
-class MockData;
+class MockRequestData;
 class AdminData;
 }
 
@@ -56,7 +56,7 @@ namespace http2server
 class MyHttp2Server: public ert::http2comm::Http2Server
 {
 
-    model::MockData *data_;
+    model::MockRequestData *mock_request_data_;
     model::AdminData *admin_data_;
 
 public:
@@ -77,8 +77,8 @@ public:
                  std::string& responseBody);
 
 
-    model::MockData *getData() const {
-        return data_;
+    model::MockRequestData *getMockRequestData() const {
+        return mock_request_data_;
     }
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;

@@ -84,7 +84,29 @@ public:
      * @param key key to find
      * @return no const iterator for provided key
      */
-    map_it find(const Key& key)
+    map_it find(const Key& key) const
+    {
+        read_guard_t guard(rw_mutex_);
+        return map_.find(key);
+    }
+
+    /** begin iterator */
+    map_it begin() const
+    {
+        read_guard_t guard(rw_mutex_);
+        return map_.begin();
+    }
+
+    /** end iterator */
+    map_it end() const
+    {
+        read_guard_t guard(rw_mutex_);
+        return map_.end();
+    }
+
+
+    /** find (no const) */
+    map_ncit find(const Key& key)
     {
         read_guard_t guard(rw_mutex_);
         return map_.find(key);

@@ -8,35 +8,36 @@ global:
   istio:
     sidecar:
       inject: false
-h2agent:
-  name: h2agent
-  resources: {}
-  #  requests:
-  #    cpu: 20000m
-  #    memory: 10Mi
-  #  limits:
-  #    cpu: 3000m
-  #    memory: 100Mi
 
-  # command-line
-  cl:
-    log_level: Warning
-    verbose:
-      enabled: false
-    #admin_port: 8074
-    #traffic_port: 8000
-    server_api_name: testapp
-    server_api_version: v1
-    worker_threads: -1
-    server_threads: 1
-    server_key: ""
-    server_crt: ""
-    server_request_schema: ""
+name: h2agent
 
-  service:
-    type: ClusterIP
-    admin_port: 8074
-    traffic_port: 8000
+resources: {}
+#  requests:
+#    cpu: 20000m
+#    memory: 10Mi
+#  limits:
+#    cpu: 3000m
+#    memory: 100Mi
+
+# command-line
+h2agent_cl:
+  log_level: Warning
+  verbose:
+    enabled: false
+  #admin_port: 8074
+  #traffic_port: 8000
+  server_api_name: app
+  server_api_version: v1
+  worker_threads: -1
+  server_threads: 1
+  server_key: ""
+  server_crt: ""
+  server_request_schema: ""
+
+service:
+  type: ClusterIP
+  admin_port: 8074
+  traffic_port: 8000
 
 image:
   repository: testillano/h2agent

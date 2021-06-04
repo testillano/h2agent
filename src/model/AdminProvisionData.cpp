@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <string>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -50,65 +51,81 @@ namespace model
 AdminProvisionData::AdminProvisionData() {
 }
 
-bool AdminProvisionData::load(const nlohmann::json &j) {
-    bool result = true;
-    return result;
+std::string AdminProvisionData::asJsonString(bool ordered) const {
 
-    write_guard_t guard(rw_mutex_);
+    nlohmann::json result;
+
+    if (ordered) {
+        for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
+            auto element =  map_.find(*it);
+            result.push_back(element->second->getJson());
+        };
+    }
+    else {
+        for (auto it = map_.begin(); it != map_.end(); it++) {
+            result.push_back(it->second->getJson());
+        };
+    }
+
+    // guarantee "null" if empty (nlohmann could change):
+    return (result.empty() ? "null":result.dump());
+}
+
+bool AdminProvisionData::load(const nlohmann::json &j) {
 
     // Provision object to fill:
     auto provision = std::make_shared<AdminProvision>();
 
-    // Mandatory
-    auto requestMethod_it = j.find("requestMethod");
-    provision->setRequestMethod(*requestMethod_it);
+    if (provision->load(j)) {
 
-    auto requestUri_it = j.find("requestUri");
-    provision->setRequestUri(*requestUri_it);
+        // Push the key in the map:
+        admin_provision_key_t key = provision->getKey();
+        add(key, provision);
 
-    auto it = j.find("responseCode");
-    provision->setResponseCode(*it);
+        // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex':
+        write_guard_t guard(rw_mutex_);
+        ordered_keys_.push_back(key);
 
-    // Optional
-    it = j.find("inState");
-    if (it != j.end() && it->is_string()) {
-        provision->setInState(*it);
+        return true;
     }
 
-    it = j.find("outState");
-    if (it != j.end() && it->is_string()) {
-        provision->setOutState(*it);
-    }
+    return false;
+}
 
-    it = j.find("responseHeaders");
-    if (it != j.end() && it->is_object()) {
-        provision->loadResponseHeaders(*it);
-    }
+bool AdminProvisionData::clear()
+{
+    bool result = (size() != 0);
 
-    it = j.find("responseBody");
-    if (it != j.end() && it->is_object()) {
-        provision->setResponseBody(*it);
-    }
+    map_.clear();
 
-    it = j.find("responseDelayMs");
-    if (it != j.end() && it->is_number()) {
-        provision->setResponseDelayMs(*it);
-    }
-
-    auto transform_it = j.find("transform");
-    if (transform_it != j.end() && transform_it->is_object()) {
-        provision->loadTransform(*transform_it);
-    }
-
-    // Push the key in the map:
-    std::string key = std::string(*requestMethod_it) + std::string(*requestUri_it);
-    add(key, provision);
-
-    // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex':
-    ordered_keys_.push_back(key);
-
+    write_guard_t guard(rw_mutex_);
+    ordered_keys_.clear();
 
     return result;
+}
+
+std::shared_ptr<AdminProvision> AdminProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
+    admin_provision_key_t key;
+    calculateAdminProvisionKey(key, inState, method, uri);
+
+    auto it = map_.find(key);
+    if (it != end())
+        return it->second;
+
+    return nullptr;
+}
+
+std::shared_ptr<AdminProvision> AdminProvisionData::findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const {
+    admin_provision_key_t key;
+    calculateAdminProvisionKey(key, inState, method, uri);
+
+    for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
+        auto provision = map_.find(*it)->second;
+        if (std::regex_match(key, provision->getRegex()))
+            return provision;
+    };
+
+    return nullptr;
 }
 
 }

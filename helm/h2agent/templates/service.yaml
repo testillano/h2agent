@@ -1,18 +1,18 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.h2agent.name }}
+  name: {{ include "h2agent.name" . }}
   labels:
     {{- include "h2agent.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.h2agent.service.type }}
+  type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.h2agent.service.admin_port }}
-      targetPort: {{ .Values.h2agent.service.admin_port }}
+    - port: {{ .Values.service.admin_port }}
+      targetPort: {{ .Values.service.admin_port }}
       protocol: TCP
       name: http2-admin
-    - port: {{ .Values.h2agent.service.traffic_port }}
-      targetPort: {{ .Values.h2agent.service.traffic_port }}
+    - port: {{ .Values.service.traffic_port }}
+      targetPort: {{ .Values.service.traffic_port }}
       protocol: TCP
       name: http2-traffic
   selector:

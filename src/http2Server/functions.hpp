@@ -35,76 +35,32 @@ SOFTWARE.
 
 #pragma once
 
-//#include <string>
-#include <mutex>
-#include <shared_mutex>
+#include <map>
+#include <string>
 
-#include <nlohmann/json.hpp>
-
-#include <AdminMatchingData.hpp>
-#include <AdminProvisionData.hpp>
 
 namespace h2agent
 {
-namespace model
+namespace http2server
 {
 
-class AdminData
-{
-    AdminMatchingData matching_data_;
-    AdminProvisionData provision_data_;
+/**
+ * Tokenizes query parameters string into key/values
+ *
+ * @param queryParams query parameters URI part
+ * @param separator key/values separator, ampersand by default.
+ *
+ * @return Map of key/values for query parameters
+ */
+std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator = '&' /* maybe ';' */);
 
-public:
-
-
-    /**
-     * Loads admin matching operation data
-     *
-     * @param j Json document from operation body request
-     *
-     * @return Boolean about success operation
-     */
-    bool loadMatching(const nlohmann::json &j) {
-        return matching_data_.load(j);
-    }
-
-    /**
-     * Loads admin provision operation data
-     *
-     * @param j Json document from operation body request
-     *
-     * @return Boolean about success operation
-     */
-    bool loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j);
-    }
-
-    /**
-     * Clears admin provisions data
-     *
-     * @return True if something was removed, false if already empty
-     */
-    bool clearProvisions() {
-        return provision_data_.clear();
-    }
-
-    /**
-     * Gets admin matching data
-     */
-    const AdminMatchingData& getMatchingData() const {
-        return matching_data_;
-    }
-
-    /**
-     * Gets admin provision data
-     */
-    const AdminProvisionData& getProvisionData() const {
-        return provision_data_;
-    }
-
-
-};
+/**
+ * Sorts query parameters string
+ *
+ * @param queryParams query parameters URI part, modified by reference.
+ * @param separator key/values separator, ampersand by default.
+ */
+void sortQueryParameters(std::string &queryParams, char separator = '&' /* maybe ';' */);
 
 }
 }
-

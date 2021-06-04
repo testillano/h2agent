@@ -38,12 +38,8 @@ SOFTWARE.
 #include <nghttp2/asio_http2_server.h>
 
 #include <string>
-#include <regex>
 
 #include <nlohmann/json.hpp>
-
-
-#define DEFAULT_ADMIN_PROVISION_STATE "initial"
 
 
 namespace h2agent
@@ -51,123 +47,102 @@ namespace h2agent
 namespace model
 {
 
-// Provision key:
-typedef std::string admin_provision_key_t;
+
+// Mock key:
+typedef std::string mock_request_key_t;
 // Future proof: instead of using a key = <method><uri>, we could agreggate them:
-// typedef std::pair<std::string, std::string> admin_provision_key_t;
+// typedef std::pair<std::string, std::string> mock_key_t;
 // But in order to compile, we need to define a hash function for the unordered map:
 // https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
 // https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
 
-void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
+void calculateMockRequestKey(mock_request_key_t &key, const std::string &method, const std::string &uri);
 
 
-
-class AdminProvision
+class MockRequest
 {
-    nlohmann::json json_;
-    admin_provision_key_t key_; // calculated in every load()
-    std::regex regex_; // precompile key as possible regex for PriorityMatchingRegex algorithm
+    std::string state_;
 
-    // Cached information:
-    std::string request_method_;
-    std::string request_uri_;
-    std::string in_state_;
+    std::string method_;
+    std::string uri_;
 
-    std::string out_state_;
-    unsigned int response_code_;
-    nghttp2::asio_http2::header_map response_headers_{};
-    nlohmann::json response_body_;
-    unsigned int response_delay_ms_;
-
-
-    void loadResponseHeaders(const nlohmann::json &j);
-    void loadTransform(const nlohmann::json &j);
-
+    nghttp2::asio_http2::header_map headers_{};
+    std::string body_;
 
 public:
 
-    AdminProvision();
+    MockRequest() {;}
 
     // setters:
 
     /**
-     * Load provision information
+     * Load request information
      *
-     * @param j Json provision object
+     * @param state Request state
+     * @param method Request method
+     * @param uri Request URI path
+     * @param headers Request headers
+     * @param body Request body
      *
      * @return Operation success
      */
-    bool load(const nlohmann::json &j);
+    bool load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body);
 
     // getters:
 
     /**
-     * Gets the provision key as '<in-state>|<request-method>|<request-uri>'
+     * Gets the mock request key as '<request-method>|<request-uri>'
      *
-     * @return Provision key
+     * @return Mock request key
      */
-    const admin_provision_key_t &getKey() const {
-        return key_;
+    mock_request_key_t getKey() const;
+
+    /** Request state
+     *
+     * @return current state
+     */
+    const std::string &getState() const {
+        return state_;
+    }
+
+    /** Request method
+      *
+      * @return Request method
+      */
+    const std::string &getMethod() const {
+        return method_;
+    }
+
+    /** Request URI
+     *
+     * @return Request URI
+     */
+    const std::string &getUri() const {
+        return uri_;
+    }
+
+    /** Request headers
+     *
+     * @return Request headers
+     */
+    const nghttp2::asio_http2::header_map &getHeaders() const {
+        return headers_;
+    }
+
+    /** Request body
+     *
+     * @return Request body
+     */
+    const std::string &getBody() const {
+        return body_;
     }
 
     /**
-     * Json for class information
+     * Builds json document for class information
      *
      * @return Json object
      */
-    const nlohmann::json &getJson() const {
-        return json_;
-    }
-
-    /**
-     * Precompiled regex for provision key
-     *
-     * @return regex
-     */
-    const std::regex &getRegex() const {
-        return regex_;
-    }
-
-    /** Provisioned out state
-     *
-     * @return Out state
-     */
-    const std::string &getOutState() const {
-        return out_state_;
-    }
-
-    /** Provisioned response code
-     *
-     * @return Response code
-     */
-    unsigned int getResponseCode() const {
-        return response_code_;
-    }
-
-    /** Provisioned response headers
-     *
-     * @return Response headers
-     */
-    const nghttp2::asio_http2::header_map &getResponseHeaders() const {
-        return response_headers_;
-    }
-
-    /** Provisioned response body
-     *
-     * @return Response body
-     */
-    const nlohmann::json &getResponseBody() const {
-        return response_body_;
-    }
-
-    /** Provisioned response delay milliseconds
-     *
-     * @return Response delay milliseconds
-     */
-    unsigned int getResponseDelayMilliseconds() const {
-        return response_delay_ms_;
-    }
+    nlohmann::json getJson() const;
 };
 
 }

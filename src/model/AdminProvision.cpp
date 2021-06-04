@@ -38,19 +38,87 @@ SOFTWARE.
 #include <AdminProvision.hpp>
 
 
+
 namespace h2agent
 {
 namespace model
 {
 
-void AdminProvision::loadTransform(const nlohmann::json &j) {
-    // TODO
+void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri) {
+    // key: <in-state>#<request-method>#<request-uri>
+    // hash '#' separator eases regexp usage for stored key
+    key = inState;
+    key += "#";
+    key += method;
+    key += "#";
+    key += uri;
 }
 
+
+AdminProvision::AdminProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
+    out_state_(DEFAULT_ADMIN_PROVISION_STATE),
+    response_delay_ms_(0) {;}
+
+bool AdminProvision::load(const nlohmann::json &j) {
+
+    // Store whole document (useful for GET operation)
+    json_ = j;
+
+    // Mandatory
+    auto requestMethod_it = j.find("requestMethod");
+    request_method_ = *requestMethod_it;
+
+    auto requestUri_it = j.find("requestUri");
+    request_uri_ = *requestUri_it;
+
+    auto it = j.find("responseCode");
+    response_code_ = *it;
+
+    // Optional
+    it = j.find("inState");
+    if (it != j.end() && it->is_string()) {
+        in_state_ = *it;
+    }
+
+    it = j.find("outState");
+    if (it != j.end() && it->is_string()) {
+        out_state_ = *it;
+    }
+
+    it = j.find("responseHeaders");
+    if (it != j.end() && it->is_object()) {
+        loadResponseHeaders(*it);
+    }
+
+    it = j.find("responseBody");
+    if (it != j.end() && it->is_object()) {
+        response_body_ = *it;
+    }
+
+    it = j.find("responseDelayMs");
+    if (it != j.end() && it->is_number()) {
+        response_delay_ms_ = *it;
+    }
+
+    auto transform_it = j.find("transform");
+    if (transform_it != j.end() && transform_it->is_object()) {
+        loadTransform(*transform_it);
+    }
+
+    // Store key and precompile regex:
+    calculateAdminProvisionKey(key_, in_state_, request_method_, request_uri_);
+    regex_.assign(key_);
+
+    return true;
+}
 
 void AdminProvision::loadResponseHeaders(const nlohmann::json &j) {
     for (auto& [key, val] : j.items())
         response_headers_.emplace(key, nghttp2::asio_http2::header_value{val});
+}
+
+void AdminProvision::loadTransform(const nlohmann::json &j) {
+    // TODO
 }
 
 

@@ -1,9 +1,10 @@
 add_library (h2agent-model
+    ${CMAKE_CURRENT_LIST_DIR}/MockRequest.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AdminMatchingData.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AdminProvision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AdminProvisionData.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AdminData.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/MockData.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/MockRequestData.cpp
 )
 
 target_include_directories (h2agent-model

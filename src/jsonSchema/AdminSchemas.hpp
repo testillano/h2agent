@@ -63,8 +63,9 @@ const nlohmann::json server_matching = R"(
     "fmt": {
       "type": "string"
     },
-    "sortUriPathQueryParameters": {
-      "type": "boolean"
+    "uriPathQueryParametersFilter": {
+      "type": "string",
+        "enum": ["Sort", "SortSemicolon", "PassBy", "Ignore"]
     }
   },
   "required": [ "algorithm" ]

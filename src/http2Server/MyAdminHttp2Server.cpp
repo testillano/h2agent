@@ -48,6 +48,8 @@ SOFTWARE.
 #include <MyAdminHttp2Server.hpp>
 
 #include <AdminData.hpp>
+#include <MockRequestData.hpp>
+#include <functions.hpp>
 
 namespace h2agent
 {
@@ -58,28 +60,27 @@ MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads),
     server_matching_schema_(h2agent::adminSchemas::server_matching),
     server_provision_schema_(h2agent::adminSchemas::server_provision),
-    mock_data_(nullptr) {
+    mock_request_data_(nullptr) {
 
-    data_ = new model::AdminData();
+    admin_data_ = new model::AdminData();
 }
 
 //const std::pair<int, std::string> JSON_SCHEMA_VALIDATION(
 //    ert::http2comm::ResponseCode::BAD_REQUEST,
 //    "JSON_SCHEMA_VALIDATION");
 
-
 bool MyAdminHttp2Server::checkMethodIsAllowed(
     const nghttp2::asio_http2::server::request& req,
     std::vector<std::string>& allowedMethods)
 {
-    allowedMethods = {"POST", "GET"};
+    allowedMethods = {"POST", "GET", "DELETE"};
     return (req.method() == "POST" || req.method() == "GET" || req.method() == "DELETE");
 }
 
 bool MyAdminHttp2Server::checkMethodIsImplemented(
     const nghttp2::asio_http2::server::request& req)
 {
-    return (req.method() == "POST" || req.method() == "DELETE");
+    return (req.method() == "POST" || req.method() == "GET" || req.method() == "DELETE");
 }
 
 
@@ -117,15 +118,14 @@ std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 
     size_t apiPathSize = getApiPath().size(); // /provision/v1
     size_t uriPathSize = uriPath.size(); // /provision/v1<suffix>
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("apiPathSize %d uriPathSize %d", apiPathSize, uriPathSize),  ERT_FILE_LOCATION));
 
     // Special case
     if (uriPathSize <= apiPathSize) return result; // indeed, it should not be lesser, as API & VERSION is already checked
 
     result = uriPath.substr(apiPathSize + 1);
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("result1 %s", result.c_str()),  ERT_FILE_LOCATION));
 
     if (result.back() == '/') result.pop_back(); // normalize by mean removing last slash (if exists)
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("result2 %s", result.c_str()),  ERT_FILE_LOCATION));
 
     return result;
 }
@@ -135,6 +135,7 @@ void MyAdminHttp2Server::buildJsonResponse(bool result, const std::string &respo
     std::stringstream ss;
     ss << R"({ "result":")" << (result ? "true":"false") << R"(", "response": )" << std::quoted(response) << R"( })";
     jsonResponse = ss.str();
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse %s", jsonResponse.c_str()), ERT_FILE_LOCATION));
 }
 
 void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const
@@ -148,17 +149,6 @@ void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &res
     statusCode = 400;
 }
 
-void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const
-{
-    if (pathSuffix == "server_provision") {
-        data_->clearProvisions();
-        statusCode = 204;
-    }
-    else {
-        statusCode = 400;
-    }
-}
-
 void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const
 {
     bool jsonResponse_result = false;
@@ -170,20 +160,19 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
         requestJson = nlohmann::json::parse(requestBody);
         LOGDEBUG(
             std::string msg("Json body received:\n\n");
-            msg += requestJson.dump(4); // pretty print json body
+            //msg += requestJson.dump(4); // pretty print json body
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
 
+        if (pathSuffix == "server-matching") {
 
-        if (pathSuffix == "server_matching") {
-
-            jsonResponse_response = "server_matching operation; ";
+            jsonResponse_response = "server-matching operation; ";
 
             if (!server_matching_schema_.validate(requestJson)) {
                 statusCode = 400;
                 jsonResponse_response += "invalid schema";
             }
-            else if (!data_->loadMatching(requestJson)) {
+            else if (!admin_data_->loadMatching(requestJson)) {
                 statusCode = 400;
                 jsonResponse_response += "invalid matching data received";
             }
@@ -193,15 +182,14 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
                 jsonResponse_response += "valid schema and matching data received";
             }
         }
-        else if (pathSuffix == "server_provision") {
+        else if (pathSuffix == "server-provision") {
 
-            jsonResponse_response = "server_provision operation; ";
-
+            jsonResponse_response = "server-provision operation; ";
             if (!server_provision_schema_.validate(requestJson)) {
                 statusCode = 400;
                 jsonResponse_response += "invalid schema";
             }
-            else if (!data_->loadProvision(requestJson)) {
+            else if (!admin_data_->loadProvision(requestJson)) {
                 statusCode = 400;
                 jsonResponse_response += "invalid provision data received";
             }
@@ -210,6 +198,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
                 jsonResponse_result = true;
                 jsonResponse_response += "valid schema and provision data received";
             }
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
         }
         else {
             statusCode = 501;
@@ -235,6 +224,49 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     buildJsonResponse(jsonResponse_result, jsonResponse_response, responseBody);
 }
 
+void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
+{
+    if (pathSuffix == "server-provision") {
+        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
+        responseBody = admin_data_->getProvisionData().asJsonString(ordered);
+        statusCode = (responseBody == "null" ? 204:200);
+    }
+    else if (pathSuffix == "server-matching") {
+        responseBody = admin_data_->getMatchingData().getJson().dump();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "server-data") {
+        std::string requestMethod = "";
+        std::string requestUri = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            try {
+                requestMethod = qmap.at("requestMethod");
+                requestUri = qmap.at("requestUri");
+            }
+            catch(...) {;}
+        }
+
+        responseBody = mock_request_data_->asJsonString(requestMethod, requestUri);
+        statusCode = (responseBody == "null" ? 204:200);
+    }
+    else {
+        statusCode = 400;
+        buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)", responseBody);
+    }
+}
+
+void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const
+{
+    if (pathSuffix == "server-provision") {
+        statusCode = (admin_data_->clearProvisions() ? 200:204);
+        mock_request_data_->clear(); // also, internal data is invalidated
+    }
+    else {
+        statusCode = 400;
+    }
+}
+
 void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
                                  req,
                                  const std::string& requestBody,
@@ -245,14 +277,16 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
     std::string method = req.method();
-    std::string uriPath = req.uri().path;
-    //std::string queryParams = req.uri().raw_query;
+    //std::string uriPath = req.uri().raw_path; // percent-encoded
+    std::string uriPath = req.uri().path; // decoded
+    std::string uriRawQuery = req.uri().raw_query; // percent-encoded
 
     LOGDEBUG(
         std::string msg;
-        msg = ert::tracing::Logger::asString("Method: %s; Uri Path: %s; Request Body: %s",
+        msg = ert::tracing::Logger::asString("Method: %s; Decoded Uri Path: '%s'; Raw Query Params: '%s'; Request Body: %s",
                 method.c_str(),
                 uriPath.c_str(),
+                uriRawQuery.c_str(),
                 requestBody.c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
@@ -264,6 +298,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // Defaults
     responseBody.clear();
+    headers.emplace("Content-Type", nghttp2::asio_http2::header_value{"application/json"}); // except DELETE
 
     // No operation provided:
     if (noPathSuffix) {
@@ -274,6 +309,11 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     // Methods supported:
     if (method == "DELETE") {
         receiveDELETE(pathSuffix, statusCode);
+        headers.clear();
+        return;
+    }
+    else if (method == "GET") {
+        receiveGET(pathSuffix, uriRawQuery, statusCode, responseBody);
         return;
     }
     else if (method == "POST") {

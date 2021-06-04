@@ -49,9 +49,9 @@ namespace model
 
 AdminMatchingData::AdminMatchingData() {
     algorithm_ = FullMatching;
-    rgx_.clear();
+    //rgx_.clear();
     fmt_.clear();
-    sort_uri_path_query_parameters_ = true;
+    uri_path_query_parameters_filter_ = Sort;
 }
 
 bool AdminMatchingData::load(const nlohmann::json &j) {
@@ -59,6 +59,9 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
     bool result = true;
 
     write_guard_t guard(rw_mutex_);
+
+    // Store whole document (useful for GET operation)
+    json_ = j;
 
     // Mandatory
     auto algorithm_it = j.find("algorithm");
@@ -69,7 +72,7 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
     auto rgx_it = j.find("rgx");
     if (rgx_it != j.end() && rgx_it->is_string()) {
         hasRgx = true;
-        rgx_ = *rgx_it;
+        rgx_.assign(*rgx_it);
     }
 
     auto fmt_it = j.find("fmt");
@@ -78,9 +81,20 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
         fmt_ = *fmt_it;
     }
 
-    auto sortUriPathQueryParameters_it = j.find("sortUriPathQueryParameters");
-    if (sortUriPathQueryParameters_it != j.end() && sortUriPathQueryParameters_it->is_boolean()) {
-        sort_uri_path_query_parameters_ = *sortUriPathQueryParameters_it;
+    auto uriPathQueryParametersFilter_it = j.find("uriPathQueryParametersFilter");
+    if (uriPathQueryParametersFilter_it != j.end() && uriPathQueryParametersFilter_it->is_string()) {
+        if (*uriPathQueryParametersFilter_it == "Sort") {
+            uri_path_query_parameters_filter_ = Sort;
+        }
+        else if (*uriPathQueryParametersFilter_it == "SortSemicolon") {
+            uri_path_query_parameters_filter_ = SortSemicolon;
+        }
+        else if (*uriPathQueryParametersFilter_it == "PassBy") {
+            uri_path_query_parameters_filter_ = PassBy;
+        }
+        else if (*uriPathQueryParametersFilter_it == "Ignore") {
+            uri_path_query_parameters_filter_ = Ignore;
+        }
     }
 
     // Checkings

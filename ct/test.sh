@@ -30,19 +30,20 @@ Usage: $0 [-h|--help] [ pytest extra options ]
 
        XTRA_HELM_SETS: additional setters for helm install execution.
        SKIP_HELM_DEPS: non-empty value skip helm dependencies update.
-       CLEAN:          non-empty value forces re-deployment. By default,
-                       if a deployment exists, it will be reused.
-       TAG:            h2agent and ct-h2agent images tag for deployment (latest by default).
-                       Except when 'CLEAN' is provided, pod images will be updated.
-       INTERACT:       non-empty value enables interactive testing (by default, all the
-                       tests are executed).
+       TAG:            h2agent and ct-h2agent images tag for deployment
+                       (latest by default).
+       REUSE:          non-empty value reuses or updates (if new TAG
+                       is provided) the possible existing deployment
+                       (by default, a cleanup is done).
+       INTERACT:       non-empty value enables interactive testing
+                       (by default, all the tests are executed).
        NO_TEST:        non-empty value skips test stage (only deploys).
 
        Examples:
 
-       XTRA_HELM_SETS="--set h2agent.h2agent.cl.admin_port=8075 --set h2agent.h2agent.service.admin_port=8075" $0
-       XTRA_HELM_SETS="--set h2agent.h2agent.cl.verbose.enabled=false" $0
-       CLEAN=true $0 # deploys from scratch in case already deployed
+       XTRA_HELM_SETS="--set h2agent_cl.admin_port=8075 --set h2agent_cl.service.admin_port=8075" $0
+       XTRA_HELM_SETS="--set h2agent_cl.verbose.enabled=false" $0
+       REUSE=true $0 # reuses in case already deployed
        TAG=test1 $0
        $0 -n 4 # uses pytest-xdist
        $0 --workers auto --tests-per-worker auto # uses pytest-parallel (see more at https://github.com/browsertron/pytest-parallel#examples)
@@ -91,14 +92,14 @@ echo
 echo "Chart name:       ${CHART_NAME}"
 echo "Namespace:        ${NAMESPACE}"
 [ -n "${XTRA_HELM_SETS}" ] && echo "XTRA_HELM_SETS:   ${XTRA_HELM_SETS}"
-[ -n "${CLEAN}" ] && echo "CLEAN:            selected"
+[ -n "${REUSE}" ] && echo "REUSE:            selected"
 echo "TAG:              ${TAG}"
 [ -n "${INTERACT}" ] && echo "INTERACT:         selected"
 [ -n "${NO_TEST}" ] && echo "NO_TEST:          selected"
 [ $# -gt 0 ] && echo "Pytest arguments: $*"
 echo
 
-if [ -n "${CLEAN}" ]
+if [ -z "${REUSE}" ]
 then
   echo -e "\nCleaning up ..."
   helm delete "${CHART_NAME}" -n "${NAMESPACE}" &>/dev/null
@@ -108,7 +109,6 @@ fi
 list=$(helm list -q --deployed -n "${NAMESPACE}" | grep -w "${CHART_NAME}")
 if [ -n "${list}" ] # reuse
 then
-  echo -e "\nDetected deploment: reuse by default (provide 'CLEAN' to re-deploy)"
   echo -e "\nWaiting for upgrade to tag '${TAG}' ..."
   kubectl set image "deployment/h2agent" -n "${NAMESPACE}" h2agent=testillano/h2agent:"${TAG}" &>/dev/null
   kubectl set image "deployment/test" -n "${NAMESPACE}" test=testillano/ct-h2agent:"${TAG}" &>/dev/null
@@ -144,6 +144,7 @@ else
      --set test.image.tag="${TAG}" \
      --set h2agent.image.tag="${TAG}" \
      ${XTRA_HELM_SETS} || { echo "Error !"; exit 1 ; }
+#     --set h2agent_image.tag="${TAG}" \
 fi
 
 [ -n "${NO_TEST}" ] && echo -e "\nTests skipped !" && exit 0

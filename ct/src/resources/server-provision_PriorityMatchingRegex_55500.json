@@ -1,0 +1,12 @@
+{
+  "requestMethod":"GET",
+  "requestUri":"/app/v1/id-55500[0-9]{4}/ts-[0-9]{10}",
+  "responseCode":200,
+  "responseBody": {
+    "foo":"bar-55500"
+  },
+  "responseHeaders": {
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }
+}

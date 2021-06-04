@@ -86,6 +86,7 @@ bool JsonSchema::validate(const nlohmann::json& json) const
     catch (const std::exception& e)
     {
         ert::tracing::Logger::error(ert::tracing::Logger::asString("Validation failed: %s", e.what()), ERT_FILE_LOCATION);
+        std::cerr << "Validation FAILED against schema content:\n\n" << schema_.dump(4) << "\n";
         return false;
     }
 

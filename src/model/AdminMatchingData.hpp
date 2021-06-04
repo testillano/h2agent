@@ -35,7 +35,7 @@ SOFTWARE.
 
 #pragma once
 
-//#include <string>
+#include <regex>
 #include <mutex>
 #include <shared_mutex>
 
@@ -56,6 +56,8 @@ public:
 
     // Algorithm type
     enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex };
+    // UriPathQueryParametersFilter type
+    enum UriPathQueryParametersFilterType { Sort = 0, SortSemicolon, PassBy, Ignore };
 
     // getters
     AlgorithmType getAlgorithm() const {
@@ -63,7 +65,7 @@ public:
         return algorithm_;
     }
 
-    const std::string& getRgx() const {
+    const std::regex& getRgx() const {
         read_guard_t guard(rw_mutex_);
         return rgx_;
     }
@@ -73,9 +75,18 @@ public:
         return fmt_;
     }
 
-    bool getSortUriPathQueryParameters() const {
+    UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const {
         read_guard_t guard(rw_mutex_);
-        return sort_uri_path_query_parameters_;
+        return uri_path_query_parameters_filter_;
+    }
+
+    /**
+     * Json for class information
+     *
+     * @return Json object
+     */
+    const nlohmann::json &getJson() const {
+        return json_;
     }
 
     /**
@@ -90,10 +101,12 @@ public:
 private:
     mutable mutex_t rw_mutex_;
 
+    nlohmann::json json_;
+
     AlgorithmType algorithm_;
-    std::string rgx_;
+    std::regex rgx_;
     std::string fmt_;
-    bool sort_uri_path_query_parameters_;
+    UriPathQueryParametersFilterType uri_path_query_parameters_filter_;
 };
 
 }

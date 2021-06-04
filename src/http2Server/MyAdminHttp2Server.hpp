@@ -49,7 +49,7 @@ namespace h2agent
 namespace model
 {
 class AdminData;
-class MockData;
+class MockRequestData;
 }
 
 namespace http2server
@@ -60,15 +60,16 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     h2agent::jsonschema::JsonSchema server_matching_schema_;
     h2agent::jsonschema::JsonSchema server_provision_schema_;
 
-    model::AdminData *data_;
-    model::MockData *mock_data_;
+    model::AdminData *admin_data_;
+    model::MockRequestData *mock_request_data_;
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     void buildJsonResponse(bool result, const std::string &response, std::string &jsonResponse) const;
 
     void receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const;
-    void receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const;
+    void receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const;
+    void receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const;
 
 
 public:
@@ -88,14 +89,14 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody);
 
-    model::AdminData *getData() const {
-        return data_;
+    model::AdminData *getAdminData() const {
+        return admin_data_;
     }
-    void setMockData(model::MockData *p) {
-        mock_data_ = p;
+    void setMockRequestData(model::MockRequestData *d) {
+        mock_request_data_ = d;
     }
-    model::MockData *getMockData() const {
-        return mock_data_;
+    model::MockRequestData *getMockRequestData() const {
+        return mock_request_data_;
     }
 };
 

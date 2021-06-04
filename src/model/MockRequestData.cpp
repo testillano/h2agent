@@ -33,77 +33,85 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-//#include <string>
-#include <mutex>
-#include <shared_mutex>
+#include <string>
 
 #include <nlohmann/json.hpp>
 
-#include <AdminMatchingData.hpp>
-#include <AdminProvisionData.hpp>
+#include <ert/tracing/Logger.hpp>
+
+#include <MockRequestData.hpp>
+#include <AdminProvision.hpp>
+
 
 namespace h2agent
 {
 namespace model
 {
 
-class AdminData
+bool MockRequestData::load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+
+
+    // Event object to fill:
+    auto request = std::make_shared<MockRequest>();
+
+    if (request->load(state, method, uri, headers, body)) {
+
+        // Push the key in the map:
+        mock_request_key_t key = request->getKey();
+        add(key, request);
+
+        return true;
+    }
+
+    return false;
+}
+
+bool MockRequestData::clear()
 {
-    AdminMatchingData matching_data_;
-    AdminProvisionData provision_data_;
+    bool result = (size() != 0);
 
-public:
+    Map::clear();
 
+    return result;
+}
 
-    /**
-     * Loads admin matching operation data
-     *
-     * @param j Json document from operation body request
-     *
-     * @return Boolean about success operation
-     */
-    bool loadMatching(const nlohmann::json &j) {
-        return matching_data_.load(j);
+std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri) const {
+
+    nlohmann::json result;
+
+    if (!requestMethod.empty() && !requestUri.empty()) {
+        mock_request_key_t key;
+        calculateMockRequestKey(key, requestMethod, requestUri);
+
+        auto it = map_.find(key);
+        if (it != end()) {
+            result = it->second->getJson();
+        }
+    }
+    else {
+        for (auto it = map_.begin(); it != map_.end(); it++) {
+            result.push_back(it->second->getJson());
+        };
     }
 
-    /**
-     * Loads admin provision operation data
-     *
-     * @param j Json document from operation body request
-     *
-     * @return Boolean about success operation
-     */
-    bool loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j);
+    // guarantee "null" if empty (nlohmann could change):
+    return (result.empty() ? "null":result.dump());
+}
+
+bool MockRequestData::find(const std::string &method, const std::string &uri, std::string &state) const {
+
+    mock_request_key_t key;
+    calculateMockRequestKey(key, method, uri);
+
+    auto it = map_.find(key);
+    state = DEFAULT_ADMIN_PROVISION_STATE;
+    if (it != end()) {
+        state = it->second->getState();
+        return true;
     }
 
-    /**
-     * Clears admin provisions data
-     *
-     * @return True if something was removed, false if already empty
-     */
-    bool clearProvisions() {
-        return provision_data_.clear();
-    }
-
-    /**
-     * Gets admin matching data
-     */
-    const AdminMatchingData& getMatchingData() const {
-        return matching_data_;
-    }
-
-    /**
-     * Gets admin provision data
-     */
-    const AdminProvisionData& getProvisionData() const {
-        return provision_data_;
-    }
-
-
-};
+    return false;
+}
 
 }
 }

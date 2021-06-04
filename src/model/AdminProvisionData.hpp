@@ -35,6 +35,7 @@ SOFTWARE.
 
 #pragma once
 
+#include <vector>
 #include <string>
 #include <mutex>
 #include <shared_mutex>
@@ -49,24 +50,24 @@ namespace h2agent
 namespace model
 {
 
-// Provision key:
-typedef std::string provision_key_t;
-// Future proof: instead of using a key = <method><uri>, we could agreggate them:
-// typedef std::pair<std::string, std::string> provision_key_t;
-// But in order to compile, we need to define a hash function for the unordered map:
-// https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
-// https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
-//
-
 // Map key will be string which has a hash function.
 // We will agregate method and uri in a single string for that.
-class AdminProvisionData : public Map<provision_key_t, AdminProvision>
+class AdminProvisionData : public Map<admin_provision_key_t, AdminProvision>
 {
-    std::vector<provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
+    std::vector<admin_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
 
 public:
     AdminProvisionData();
     ~AdminProvisionData() = default;
+
+    /**
+     * Json string representation for class information
+     *
+     * @param ordered Print json array elements following the insertion order
+     *
+     * @return Json string representation
+     */
+    std::string asJsonString(bool ordered = false) const;
 
     /**
      * Loads server provision operation data
@@ -77,14 +78,37 @@ public:
      */
     bool load(const nlohmann::json &j);
 
-    /** Clear internal data (map and ordered keys vector) */
-    void clear()
-    {
-        Map::clear();
+    /** Clears internal data (map and ordered keys vector)
+     *
+     * @return True if something was removed, false if already empty
+     */
+    bool clear();
 
-        write_guard_t guard(rw_mutex_);
-        ordered_keys_.clear();
-    }
+    /**
+     * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
+     * know if current state exists for the reception.
+     *
+     * @param inState Request input state if proceeed
+     * @param method Request method received
+     * @param uri Request URI path received
+     *
+     * @return Provision information or null if missing
+     */
+    std::shared_ptr<AdminProvision> find(const std::string &inState, const std::string &method, const std::string &uri) const;
+
+    /**
+    * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
+    * know if current state exists for the reception.
+    * The algorithm is PriorityMatchingRegex, so ordered search is applied.
+    *
+    * @param inState Request input state if proceeed
+    * @param method Request method received
+    * @param uri Request URI path received
+    *
+    * @return Provision information or null if missing
+    */
+    std::shared_ptr<AdminProvision> findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const;
+
 
 };
 

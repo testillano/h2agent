@@ -378,17 +378,34 @@ Defines the server matching procedure for incoming receptions on mock service. E
     "fmt": {
       "type": "string"
     },
-    "sortUriPathQueryParameters": {
-      "type": "boolean"
+    "uriPathQueryParametersFilter": {
+      "type": "string",
+        "enum": ["Sort", "SortSemicolon", "PassBy", "Ignore"]
     }
   },
   "required": [ "algorithm" ]
 }
 ```
 
-##### sortUriPathQueryParameters
+##### uriPathQueryParametersFilter
 
-Optional boolean argument used to sort query parameters received in the *URI* path. It is `true` by default to ensure a kind of normalization which makes things more predictable from provision point of view.
+Optional argument used to specify the transformation for query parameters received in the *URI* path.
+
+###### Sort
+
+This is the default behavior and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
+
+###### SortSemicolon
+
+Same as Sort, but using *semicolon* (`';'`) as query parameters pairs separator.
+
+###### PassBy
+
+If received, query parameters are kept without modifying the received *URI* path.
+
+###### Ignore
+
+If received, query parameters are ignored (removed from *URI* path and not taken into account to match provisions).
 
 ##### rgx & fmt
 
@@ -442,6 +459,8 @@ Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user expe
 
 If the `URI` "*ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
 
+As provision key is built combining *inState*, *method* and *uri* fields, a regular expression could also be provided for *inState* (*method* is strictly checked), although this is not usual.
+
 #### Response status code
 
 **201** (Created) or **400** (Bad Request).
@@ -454,6 +473,18 @@ If the `URI` "*ctrl/v2/id-555112244/ts-1615562841*" is received, the second one 
   "response":"<additional information>"
 }
 ```
+
+### GET /provision/v1/server-matching
+
+Retrieves the current server matching configuration.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json document containing server matching information, '*null*' if nothing configured (working with defaults).
 
 ### POST /provision/v1/server-provision
 
@@ -584,7 +615,7 @@ Expected request method (*POST*, *GET*, *PUT*, *DELETE*).
 
 ##### requestUri
 
-Request *URI* path to match depending on the algorithm selected.
+Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
 
 ##### responseHeaders
 
@@ -757,17 +788,47 @@ For example, if the source received is "55511", then we will will have *var.padd
 }
 ```
 
+### GET /provision/v1/server-provision
+
+Retrieves the current provision map.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+Json array containing all provisioned items, '*null*' if nothing configured.
+
 ### DELETE /provision/v1/server-provision
 
 Deletes the current provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
 
+This operation also removes server mock internal data (requests and their states) as this only have sense for the provision which consolidated such information.
+
 #### Response status code
 
-**204** (No Content) or **400** (Bad Request).
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 
 No response body.
+
+### GET /provision/v1/server-data
+
+Retrieves the current server internal data (requests received and their states). You could retrieve an specific entry providing *requestMethod* and *requestUri* through query parameters (separator is `'&'`), for example:
+
+`/provision/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5`
+
+Both parameters shall be provided to select a single entry (they would be mandatory for that single selection), if not, all the entries available will be retrieved.
+
+#### Response status code
+
+**200** (OK), **204** (No Content).
+
+#### Response body
+
+Json document containing server internal data, '*null*' if nothing cached.
 
 ### POST /provision/v1/client-initialize
 
