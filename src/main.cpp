@@ -212,6 +212,8 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option,
 
 int main(int argc, char* argv[])
 {
+    srand(time(nullptr));
+
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////

@@ -48,22 +48,29 @@ namespace h2agent
 namespace model
 {
 
-bool MockRequestData::load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+bool MockRequestData::loadRequest(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
 
 
-    // Event object to fill:
-    auto request = std::make_shared<MockRequest>();
+    // Find MockRequests
+    std::shared_ptr<MockRequests> requests;
 
-    if (request->load(state, method, uri, headers, body)) {
-
-        // Push the key in the map:
-        mock_request_key_t key = request->getKey();
-        add(key, request);
-
-        return true;
+    mock_requests_key_t key;
+    calculateMockRequestsKey(key, method, uri);
+    auto it = map_.find(key);
+    if (it != end()) {
+        requests = it->second;
+    }
+    else {
+        requests = std::make_shared<MockRequests>();
     }
 
-    return false;
+    if (!requests->loadRequest(state, method, uri, headers, body)) {
+        return false;
+    }
+
+    if (it == end()) add(key, requests); // push the key in the map:
+
+    return true;
 }
 
 bool MockRequestData::clear()
@@ -75,38 +82,66 @@ bool MockRequestData::clear()
     return result;
 }
 
-std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri) const {
+std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const {
 
     nlohmann::json result;
+    success = false;
 
-    if (!requestMethod.empty() && !requestUri.empty()) {
-        mock_request_key_t key;
-        calculateMockRequestKey(key, requestMethod, requestUri);
+    // Bad request checkings:
+    if (requestMethod.empty() != requestUri.empty()) {
+        ert::tracing::Logger::error("If query parameter 'requestMethod' is provided, 'requestUri' shall be, and the opposite", ERT_FILE_LOCATION);
+        return "";
+    }
+
+    if (!requestNumber.empty() && requestMethod.empty()) {
+        ert::tracing::Logger::error("Query parameter 'requestNumber' cannot be provided alone: requestMethod and requestUri are also needed", ERT_FILE_LOCATION);
+        return "";
+    }
+
+    if (!requestMethod.empty()) {
+
+        // Check request number:
+        std::uint64_t u_requestNumber = 0;
+        if (!requestNumber.empty()) {
+            try {
+                u_requestNumber = std::stoull(requestNumber);
+            }
+            catch(std::exception &e)
+            {
+                std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer: %s", requestNumber.c_str(), e.what());
+                ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+                return "";
+            }
+        }
+
+        mock_requests_key_t key;
+        calculateMockRequestsKey(key, requestMethod, requestUri);
 
         auto it = map_.find(key);
         if (it != end()) {
-            result = it->second->getJson();
+            result = it->second->getJson(u_requestNumber);
         }
     }
     else {
         for (auto it = map_.begin(); it != map_.end(); it++) {
-            result.push_back(it->second->getJson());
+            result.push_back(it->second->getJson(0 /* while history */));
         };
     }
 
     // guarantee "null" if empty (nlohmann could change):
+    success = true;
     return (result.empty() ? "null":result.dump());
 }
 
-bool MockRequestData::find(const std::string &method, const std::string &uri, std::string &state) const {
+bool MockRequestData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
 
-    mock_request_key_t key;
-    calculateMockRequestKey(key, method, uri);
+    mock_requests_key_t key;
+    calculateMockRequestsKey(key, method, uri);
 
     auto it = map_.find(key);
     state = DEFAULT_ADMIN_PROVISION_STATE;
     if (it != end()) {
-        state = it->second->getState();
+        state = it->second->getLastRegisteredRequestState();
         return true;
     }
 

@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <MockRequest.hpp>
 
+#include <chrono>
 
 
 namespace h2agent
@@ -44,26 +45,15 @@ namespace h2agent
 namespace model
 {
 
-void calculateMockRequestKey(mock_request_key_t &key, const std::string &method, const std::string &uri) {
-    // key <request-method>#<request-uri>
-    key += method;
-    key += "#";
-    key += uri;
-}
 
-mock_request_key_t MockRequest::getKey() const {
+bool MockRequest::load(const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
 
-    mock_request_key_t result;
-    calculateMockRequestKey(result, method_, uri_);
-    return result;
-}
+    reception_timestamp_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
-bool MockRequest::load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
     state_ = state;
-    method_ = method;
-    uri_ = uri;
     headers_ = headers;
     body_ = body;
+
 
     return true;
 }
@@ -71,9 +61,9 @@ bool MockRequest::load(const std::string &state, const std::string &method, cons
 nlohmann::json MockRequest::getJson() const {
     nlohmann::json result;
 
+    result["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
+
     result["state"] = state_;
-    result["method"] = method_;
-    result["uri"] = uri_;
 
     if (headers_.size()) {
         nlohmann::json hdrs;

@@ -506,9 +506,9 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["RegexCapture"]},
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
-        {"required": ["ToUpper"]},
-        {"required": ["ToLower"]},
-        {"required": ["Padded"]}
+        {"required": ["Prepend"]},
+        {"required": ["Sum"]},
+        {"required": ["Multiply"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -526,9 +526,9 @@ Defines the response behavior for an incoming request matching some basic condit
           "required": [ "rgx", "fmt" ]
         },
         "Append": { "type": "string" },
-        "ToUpper": { "type": "string" },
-        "ToLower": { "type": "string" },
-        "Padded": { "type": "integer" }
+        "Prepend": { "type": "string" },
+        "Sum": { "type": "number" },
+        "Multiply": { "type": "number" }
       }
     }
   },
@@ -574,11 +574,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^var\\..+|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..+|^request\\.body$|^request\\.body\\..+|^request\\.header\\..+|^general\\.random\\..+|^general\\.timestamp\\.ns$|^general\\.unique$|^inState$"
+            "pattern": "^var\\..+|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..+|^request\\.body$|^request\\.body\\..+|^request\\.header\\..+|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body$|^response\\.body\\..+|^response\\.header\\..+|^response\\.statusCode$|^outState$"
+            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
           }
         },
         "additionalProperties" : {
@@ -646,134 +646,207 @@ Optional response delay simulation in milliseconds.
 
 Sorted list of transformations to modify incoming information and build the dynamic response to be sent.
 
-Each transformation has a `source`, a `target` and an optional `filter` algorithm.
+Each transformation has a `source`, a `target` and an optional `filter` algorithm. <u>The filters are applied over sources and sent to targets</u> (all the available filters at the moment act over sources in string format, so they need to be converted if they are not strings in origin).
 
-The source of information is always a string representation, and could be one of the following:
+A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped to move to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
+
+Let's start describing the available sources of data: regardless the native or normal representation for every kind of target, the fact is that conversions may be done to almost every other type:
+
+- *string* to *number* and *boolean* (true if non empty).
+
+- *number* to *string* and *boolean* (true if different than zero).
+
+- *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (only response body nodes could include a boolean).
+
+- *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body node.
+
+
+
+The **source** of information is classified after parsing the following possible expressions:
 
 - request.uri: whole request *URI*  path, including the possible query parameters.
-
 - request.uri.path: request *URI* path part.
-
 - request.uri.param.<name>: request URI specific parameter `<name>`.
-
-- request.body: request body document.
-
+- request.body: request body document from root.
 - request.body.<node1>..<nodeN>: request body node path.
-
 - request.header.<hname>: request header component (i.e. *content-type*).
-
-- general.random.<range>: integer number up to `<range>` value.
-
-- general.timestamp.ns: UNIX epoch time in nanoseconds.
-
-- general.unique: sequence id increased for every mock reception.
-
-- var.<id>: general purpose variable.
-
+- general.random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+- general.timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+- general.strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
+- general.recvseq: sequence id number increased for every mock reception (starts on *0* when the *h2agent*  is started).
+- var.<id>: general purpose variable. Cannot refer json objects.
+- value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`.
 - inState: current processing state.
 
 
 
-The target of information is always a string representation, and could be one of the following:
+The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
 
-- response.body: response body document.
-- response.body.<node1>..<nodeN>: response body node path.
-- response.header.<hname>: response header component (i.e. *location*).
-- response.statusCode: response status code.
-- var.<id>: general purpose variable.
-- outState: next processing state. This overrides the default provisioned one.
+- response.body.string *[string]*: response body document storing expected string.
+- response.body.integer *[integer]*: response body document storing expected integer.
+- response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer.
+- response.body.float *[float number]*: response body document storing expected float number.
+- response.body.boolean *[boolean]*: response body document storing expected boolean.
+- response.body.object *[json object]*: response body document storing expected object as root node.
+- response.body.string.<node1>..<nodeN> *[string]*: response body node path storing expected string.
+- response.body.integer.<node1>..<nodeN> *[integer]*: response body node path storing expected integer.
+- response.body.unsigned.<node1>..<nodeN> *[unsigned integer]*: response body node path storing expected unsigned integer.
+- response.body.float.<node1>..<nodeN> *[float number]*: response body node path storing expected float number.
+- response.body.boolean.<node1>..<nodeN> *[boolean]*: response body node path storing expected booblean.
+- response.body.object.<node1>..<nodeN> *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order.
+- response.header.<hname> *[string (or number as string)]*: response header component (i.e. *location*).
+- response.statusCode *[unsigned integer]*: response status code.
+- response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- var.<id> *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects.
+- outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
 
 
-There are several filter methods:
-
-
-
-- RegexCapture: this filter provides a regular expression with capture groups which will be applied to the source and stored in the target with the keys = `<target>.N`, being *N* each captured group. This filter only work with general purpose variables as target. For example:
+There are several **filter** methods, but remember that filter node is optional, so you could directly transfer source to target without modification, just omitting filter, for example:
 
 ```json
 {
-  "source": "request.uri.path",
-  "target": "var.id_cat",
-  "filter": { "RegexCapture" : "api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+  "source": "general.random.25.35",
+  "target": "response.delayMs"
 }
 ```
 
-For example, if the source received is *"api/v2/id-28/category-animal/"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*.
+In the case above, *delay* will take the absolute value for the random generated (just in case the user configures a range with possible negative result).
+
+Filters give you the chance to make complex transformations:
+
+
+
+- RegexCapture: this filter provides a regular expression, including optionally capture groups which will be applied to the source and stored in the target. This filter is designed specially for general purpose variables, because each captured group *k* will be mapped to a new variable named `<id>.k` where `<id>` is the original source variable name. Also, the variable "as is" will store the entire match, same for any other type of target (used together with boolean target it is useful to write the match condition). Let's see some examples:
+
+   ```json
+   {
+     "source": "request.uri.path",
+     "target": "var.id_cat",
+     "filter": { "RegexCapture" : "api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+   }
+   ```
+
+   In this case, if the source received is *"api/v2/id-28/category-animal/"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="api/v2/id-28/category-animal/"*.
+
+   Other example:
+
+  ```json
+  {
+    "source": "request.uri.path",
+    "target": "response.body.string.category",
+    "filter": { "RegexCapture" : "api\/v2\/id-[0-9]+\/category-([a-z]+)" }
+  }
+  ```
+
+  In this example, it is not important to notice that we only have 1 captured group (we removed the brackets of the first one from the previous example). This is because the target is a path within the response body, not a variable, so, only the entire match (if proceed) will be transferred. Assuming we receive the same source from previous example, that value will be the entire *URI* path. If we would use a variable as target, such variable would store the same entire match, and also we would have *animal* as `<variable name>.1`.
+
+  If you want to move directly the captured group (`animal`) to a non-variable target, you may use the next filter:
 
 
 
 - RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure. We provide `rgx` and `fmt` to transform the source into the target:
 
-```json
-{
-  "source": "request.uri.path",
-  "target": "response.body.data.timestamp",
-  "filter": {
-    "RegexReplace" : {
-      "rgx" : "(ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
-      "fmt" : "$2"
+  ```json
+  {
+    "source": "request.uri.path",
+    "target": "response.body.unsigned.data.timestamp",
+    "filter": {
+      "RegexReplace" : {
+        "rgx" : "(ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
+        "fmt" : "$2"
+      }
     }
   }
-}
-```
+  ```
 
-For example, if the source received is "*ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *1615562841*.
+  For example, if the source received is "*ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *1615562841*.
 
-Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. A simple algorithm could consists in getting the 8 less significant digits (as they are also valid hexadecimal signs) and build the *IPv4* representation in this way:
+  In this algorithm, the obtained value will be a string.
 
-```json
-{
-  "source": "request.body.phone",
-  "target": "var.ipv4",
-  "filter": {
-    "RegexReplace" : {
-      "rgx" : "[0-9]+([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})",
-      "fmt" : "$1.$2.$3.$4"
+  Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. A simple algorithm could consists in getting the 8 less significant digits (as they are also valid hexadecimal signs) and build the *IPv4* representation in this way:
+
+  ```json
+  {
+    "source": "request.body.phone",
+    "target": "var.ipv4",
+    "filter": {
+      "RegexReplace" : {
+        "rgx" : "[0-9]+([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})",
+        "fmt" : "$1.$2.$3.$4"
+      }
     }
   }
-}
-```
+  ```
 
-Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* or whatever), we don't consider at the moment that the probably better performance of such implementations, justify abandon the flexibility in the current abstraction that we achieve thanks to the *RegexReplace* filter.
+  Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* or whatever), we don't consider at the moment that the probably better performance of such implementations, justify abandon the flexibility in the current abstraction that we achieve thanks to the *RegexReplace* filter.
+
 
 
 
 - Append: this appends the provided information to the source:
 
-```json
-{
-  "source": "var.subdomain",
-  "target": "var.site",
-  "filter": { "Append" : ".teslayout.com" }
-}
-```
+  ```json
+  {
+    "source": "value.telegram",
+    "target": "var.site",
+    "filter": { "Append" : ".teslayout.com" }
+  }
+  ```
 
-For example, if the source received is "*telegram*", then we will will have *var.site="telegram.teslayout.com"*.
+  In the example above we will have *var.site="telegram.teslayout.com"*.
 
-This could be done also with the `RegexReplace` filter, but this has better performance.
+  This could be done also with the `RegexReplace` filter, but this has better performance.
 
-
-
-- ToUpper: transforms the source into upper case.
+  In this algorithm, the obtained value will be a string.
 
 
 
-- ToLower: transforms the source into lower case.
+- Prepend: this prepends the provided information to the source:
+
+  ```json
+  {
+    "source": "value.teslayout.com",
+    "target": "var.site",
+    "filter": { "Prepend" : "www." }
+  }
+  ```
+
+  In the example above we will have *var.site="telegram.teslayout.com"*.
+
+  This could be done also with the `RegexReplace` filter, but this has better performance.
+
+  In this algorithm, the obtained value will be a string.
 
 
 
-- Padded: transforms the source with leading (positive input) or trailing (negative input) zeros to complete the provided absolute value as the whole string size.
+- Sum: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
 
-```json
-{
-  "source": "var.sequence",
-  "target": "var.paddedSequence",
-  "filter": { "Padded" : 9 }
-}
-```
+  ```json
+  {
+    "source": "general.random.0.99999999",
+    "target": "var.mysum",
+    "filter": { "Sum" : 123456789012345 }
+  }
+  ```
 
-For example, if the source received is "55511", then we will will have *var.paddedSequence="555110000"*. In case that the value provided is negative (*-9*), then this would be the result: "*000055511*".
+  In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs.
+
+
+
+- Multiply: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):
+
+  ```json
+  {
+    "source": "value.integer.-10",
+    "target": "var.value-of-one",
+    "filter": { "Multiply" : -0.1 }
+  }
+  ```
+
+  In this example, we operate `-10 * -0.1 = 1`.
+
+
 
 #### Response status code
 
@@ -816,15 +889,21 @@ No response body.
 
 ### GET /provision/v1/server-data
 
-Retrieves the current server internal data (requests received and their states). You could retrieve an specific entry providing *requestMethod* and *requestUri* through query parameters (separator is `'&'`), for example:
+Retrieves the current server internal data (requests received and their states and other useful information like timing). Be careful with large contexts due to long-term testing (or load testing) as this is not limited by any configuration maximum (not considered).
 
-`/provision/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5`
+You could retrieve a specific entry providing *requestMethod*, *requestUri* and *requestNumber* through query parameters (separator is `'&'`), for example:
 
-Both parameters shall be provided to select a single entry (they would be mandatory for that single selection), if not, all the entries available will be retrieved.
+`/provision/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+
+If case that *requestNumber* is omitted, the whole requests history for the *method/uri* provided will be retrieved. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order).  To get the latest one provide -1, to retrieve all of them, omit this query parameter.
+
+Both *method*  and *uri*  shall be provided together to select a single entry history (if one is missing and the other is provided, bad request is obtained).
+
+This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface).
 
 #### Response status code
 
-**200** (OK), **204** (No Content).
+**200** (OK), **204** (No Content), **400** (Bad Request).
 
 #### Response body
 
@@ -999,6 +1078,8 @@ It could be a case of use that subsequent requests for a given URI could respond
 
 Use [Prometheus](https://prometheus.io/) scrapping system.
 
+[Jun,12 2021] This is the only thing pending in Phase 1
+
 ### Phase 2: provide scalability
 
 This is intented to be used to manage high load rates.
@@ -1036,6 +1117,8 @@ By default, a unique queue element would be created on provision (queueId = 0), 
 ### Phase 3: multiple endpoints
 
 We will activate the `initialize` administration operation to support N server endpoints as well as client endpoints (although this use case could be not so useful as many test frameworks, like pytest with hyper, provide easy ways to initiate test flows).
+
+This will be probably discarded, as kubernetes allow to separate functionalities on different micro services for a given process.
 
 ### Phase 4: Improve scalability design
 

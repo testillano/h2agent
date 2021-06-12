@@ -37,11 +37,15 @@ SOFTWARE.
 
 #include <nghttp2/asio_http2_server.h>
 
+#include <memory>
 #include <string>
+#include <vector>
 #include <regex>
+#include <cstdint>
 
 #include <nlohmann/json.hpp>
 
+#include <Transformation.hpp>
 
 #define DEFAULT_ADMIN_PROVISION_STATE "initial"
 
@@ -65,7 +69,8 @@ void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &i
 
 class AdminProvision
 {
-    nlohmann::json json_;
+    nlohmann::json json_; // provision reference
+
     admin_provision_key_t key_; // calculated in every load()
     std::regex regex_; // precompile key as possible regex for PriorityMatchingRegex algorithm
 
@@ -82,12 +87,45 @@ class AdminProvision
 
 
     void loadResponseHeaders(const nlohmann::json &j);
-    void loadTransform(const nlohmann::json &j);
+    void loadTransformation(const nlohmann::json &j);
 
+    std::vector<std::shared_ptr<Transformation>> transformations_;
 
 public:
 
     AdminProvision();
+
+    // transform logic
+
+    /**
+     * Applies transformations vector over request received and ongoing reponse built
+     *
+     * @param requestUri Request URI
+     * @param requestUriPath Request URI path part
+     * @param queryParametersMap Query Parameters Map (if exists)
+     * @param requestBody Request Body received
+     * @param requestHeaders Request Headers Received
+     * @param generalUniqueServerSequence HTTP/2 server monotonically increased sequence for every reception (unique)
+     *
+     * @param statusCode Response status code filled by reference (if any transformation applies)
+     * @param headers Response headers filled by reference (if any transformation applies)
+     * @param responseBody Response body filled by reference (if any transformation applies)
+     * @param delayMs Response delay milliseconds filled by reference (if any transformation applies)
+     * @param outState out-state for request context created, filled by reference (if any transformation applies)
+     */
+    void transform( const std::string &requestUri,
+                    const std::string &requestUriPath,
+                    const std::map<std::string, std::string> &queryParametersMap,
+                    const std::string &requestBody,
+                    const nghttp2::asio_http2::header_map &requestHeaders,
+                    const std::uint64_t &generalUniqueServerSequence,
+
+                    unsigned int &statusCode,
+                    nghttp2::asio_http2::header_map &headers,
+                    std::string &responseBody,
+                    unsigned int &delayMs,
+                    std::string &outState
+                  ) const;
 
     // setters:
 
@@ -135,6 +173,14 @@ public:
      */
     const std::string &getOutState() const {
         return out_state_;
+    }
+
+    /** Provisioned in state
+     *
+     * @return In state
+     */
+    const std::string &getInState() const {
+        return in_state_;
     }
 
     /** Provisioned response code

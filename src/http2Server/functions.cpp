@@ -81,20 +81,34 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
     return result;
 }
 
-void sortQueryParameters(std::string &queryParams, char separator) {
+std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator) {
 
-    std::map<std::string, std::string> qmap = extractQueryParameters(queryParams, separator);
+    std::string result = "";
 
-    // Build sort string:
-    queryParams = "";
     for(auto it = qmap.begin(); it != qmap.end(); it ++) {
-        if (it != qmap.begin()) queryParams += separator;
-        queryParams += it->first; // key
+        if (it != qmap.begin()) result += separator;
+        result += it->first; // key
         if (!it->second.empty()) {
-            queryParams += "=";
-            queryParams += it->second; // value
+            result += "=";
+            result += it->second; // value
         }
     }
+
+    return result;
+}
+
+std::string headersAsString(const nghttp2::asio_http2::header_map &headers) {
+    std::string result = "";
+
+    for(auto it = headers.begin(); it != headers.end(); it ++) {
+        result += "[";
+        result += it->first;
+        result += ": ";
+        result += it->second.value;
+        result += "]";
+    }
+
+    return result;
 }
 
 }

@@ -159,8 +159,8 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     try {
         requestJson = nlohmann::json::parse(requestBody);
         LOGDEBUG(
-            std::string msg("Json body received:\n\n");
-            //msg += requestJson.dump(4); // pretty print json body
+            std::string msg("Json body received (admin interface):\n\n");
+            msg += requestJson.dump(4); // pretty print json body
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
 
@@ -238,17 +238,20 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     else if (pathSuffix == "server-data") {
         std::string requestMethod = "";
         std::string requestUri = "";
+        std::string requestNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
-            try {
-                requestMethod = qmap.at("requestMethod");
-                requestUri = qmap.at("requestUri");
-            }
-            catch(...) {;}
+            auto it = qmap.find("requestMethod");
+            if (it != qmap.end()) requestMethod = it->second;
+            it = qmap.find("requestUri");
+            if (it != qmap.end()) requestUri = it->second;
+            it = qmap.find("requestNumber");
+            if (it != qmap.end()) requestNumber = it->second;
         }
 
-        responseBody = mock_request_data_->asJsonString(requestMethod, requestUri);
-        statusCode = (responseBody == "null" ? 204:200);
+        bool success;
+        responseBody = mock_request_data_->asJsonString(requestMethod, requestUri, requestNumber, success);
+        statusCode = success ? (responseBody == "null" ? 204:200):400;
     }
     else {
         statusCode = 400;
@@ -281,20 +284,25 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     std::string uriPath = req.uri().path; // decoded
     std::string uriRawQuery = req.uri().raw_query; // percent-encoded
 
-    LOGDEBUG(
-        std::string msg;
-        msg = ert::tracing::Logger::asString("Method: %s; Decoded Uri Path: '%s'; Raw Query Params: '%s'; Request Body: %s",
-                method.c_str(),
-                uriPath.c_str(),
-                uriRawQuery.c_str(),
-                requestBody.c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-    );
-
     // Get path suffix normalized:
     std::string pathSuffix = getPathSuffix(uriPath);
     bool noPathSuffix = pathSuffix.empty();
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("URI Path Suffix: %s", (noPathSuffix ? "<null>" : pathSuffix.c_str())), ERT_FILE_LOCATION));
+    LOGDEBUG(
+    if (noPathSuffix) {
+    ert::tracing::Logger::debug("URI Path Suffix: <null>", ERT_FILE_LOCATION);
+    }
+    else {
+        std::stringstream ss;
+        ss << "ADMIN REQUEST RECEIVED [" << pathSuffix << "]| Method: " << method << " | Headers: " << h2agent::http2server::headersAsString(req.header()) << " | Decoded Uri Path: " << uriPath;
+        if (!uriRawQuery.empty()) {
+            ss << " | Raw Query Params: " << uriRawQuery;
+        }
+        if (!requestBody.empty()) {
+            ss << " | Body: " << requestBody;
+        }
+        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+    }
+    );
 
     // Defaults
     responseBody.clear();

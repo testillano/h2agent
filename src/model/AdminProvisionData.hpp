@@ -52,7 +52,7 @@ namespace model
 
 // Map key will be string which has a hash function.
 // We will agregate method and uri in a single string for that.
-class AdminProvisionData : public Map<admin_provision_key_t, AdminProvision>
+class AdminProvisionData : public Map<admin_provision_key_t, std::shared_ptr<AdminProvision>>
 {
     std::vector<admin_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
 

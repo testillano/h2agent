@@ -38,6 +38,7 @@ SOFTWARE.
 #include <map>
 #include <string>
 
+#include <nghttp2/asio_http2_server.h>
 
 namespace h2agent
 {
@@ -57,10 +58,22 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
 /**
  * Sorts query parameters string
  *
- * @param queryParams query parameters URI part, modified by reference.
+ * @param qmap of key/values for query parameters
  * @param separator key/values separator, ampersand by default.
+ *
+ * @return sorted query parameters URI part.
  */
-void sortQueryParameters(std::string &queryParams, char separator = '&' /* maybe ';' */);
+std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator = '&' /* maybe ';' */);
+
+
+/**
+ * Prints headers list for traces
+ *
+ * @param headers nghttp2 headers map
+ *
+ * @return sorted query parameters URI part.
+ */
+std::string headersAsString(const nghttp2::asio_http2::header_map &headers);
 
 }
 }

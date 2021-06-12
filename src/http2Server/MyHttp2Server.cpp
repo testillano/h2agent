@@ -55,7 +55,8 @@ namespace http2server
 
 MyHttp2Server::MyHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("MockHttp2Server", workerThreads),
-    admin_data_(nullptr) {
+    admin_data_(nullptr),
+    general_unique_server_sequence_(0) {
 
     mock_request_data_ = new model::MockRequestData();
 }
@@ -95,6 +96,9 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 {
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
 
+    // Initial timestamp for delay correction
+    auto initTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
     std::string method = req.method();
     std::string uriPath = req.uri().raw_path; // percent-encoded; ('req.uri().path' is decoded)
@@ -103,15 +107,19 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     // Query parameters transformation:
     h2agent::model::AdminMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getMatchingData(). getUriPathQueryParametersFilter();
+    std::map<std::string, std::string> qmap; // query parameters map
 
     if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Ignore) {
         uriRawQuery = "";
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Sort) {
-        h2agent::http2server::sortQueryParameters(uriRawQuery);
+
+        qmap = h2agent::http2server::extractQueryParameters(uriRawQuery);
+        uriRawQuery = h2agent::http2server::sortQueryParameters(qmap);
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::SortSemicolon) {
-        h2agent::http2server::sortQueryParameters(uriRawQuery, ';');
+        qmap = h2agent::http2server::extractQueryParameters(uriRawQuery, ';');
+        uriRawQuery = h2agent::http2server::sortQueryParameters(qmap, ';');
     }
 
     if (uriRawQuery != "") {
@@ -120,23 +128,23 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     }
 
     LOGDEBUG(
-        std::string msg;
-        msg = ert::tracing::Logger::asString("Method: %s; Uri Path (and query parameters if not ignored): '%s'; Request Body: %s",
-                method.c_str(),
-                uriPath.c_str(),
-                requestBody.c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::stringstream ss;
+        ss << "REQUEST RECEIVED| Method: " << method
+        << " | Headers: " << h2agent::http2server::headersAsString(req.header())
+        << " | Uri Path (and query parameters if not ignored): " << uriPath;
+        if (!requestBody.empty()) ss << " | Body: " << requestBody;
+        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
-    // Admin provision & matching configuration:
+// Admin provision & matching configuration:
     const h2agent::model::AdminProvisionData & provisionData = getAdminData()->getProvisionData();
     const h2agent::model::AdminMatchingData & matchingData = getAdminData()->getMatchingData();
 
-    // Find mock context:
+// Find mock context:
     std::string inState;
-    bool requestFound = getMockRequestData()->find(method, uriPath, inState); // if not found, inState will be 'initial'
+    bool requestFound = getMockRequestData()->findLastRegisteredRequest(method, uriPath, inState); // if not found, inState will be 'initial'
 
-    // Matching algorithm:
+// Matching algorithm:
     h2agent::model::AdminMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
     std::shared_ptr<h2agent::model::AdminProvision> provision;
 
@@ -160,22 +168,50 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     }
 
     if (provision) {
-        statusCode = provision->getResponseCode();
-        headers = provision->getResponseHeaders();
-        responseBody = provision->getResponseBody().dump();
-        unsigned int delayMs = provision->getResponseDelayMilliseconds();
 
-        // Prepare next request state, with URI path before transformed with matching algorithms:
+        unsigned int delayMs;
+        std::string outState;
+
+// PREPARE & TRANSFORM
+        provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
+                              statusCode, headers, responseBody, delayMs, outState);
+
+        // Store request event context information
         //if (!requestFound)
-        getMockRequestData()->load(provision->getOutState(), method, uriPath, req.header(), responseBody);
+        getMockRequestData()->loadRequest(outState, method, uriPath, req.header(), responseBody);
 
-        if (delayMs != 0)
+        if (delayMs != 0) {
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Waiting for planned delay: %d ms", delayMs);
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+
+            // Final timestamp for delay correction
+            // This correction is only noticeable with huge transformations, but this is not usual.
+            auto finalTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            delayMs-=(finalTimestamp-initTimestamp);
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Corrected delay: %d ms", delayMs);
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+
             std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+        }
     }
     else {
         statusCode = 501; // not implemented
     }
 
+
+    LOGDEBUG(
+        std::stringstream ss;
+        ss << "RESPONSE TO SENT| StatusCode: " << statusCode << " | Headers: " << h2agent::http2server::headersAsString(headers);
+        if (!responseBody.empty()) ss << " | Body: " << responseBody;
+        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+    );
+
+// Move to next sequence value:
+    general_unique_server_sequence_++;
 }
 
 }

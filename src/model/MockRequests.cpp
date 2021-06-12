@@ -35,7 +35,8 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <AdminData.hpp>
+#include <MockRequests.hpp>
+
 
 
 namespace h2agent
@@ -43,6 +44,59 @@ namespace h2agent
 namespace model
 {
 
+void calculateMockRequestsKey(mock_requests_key_t &key, const std::string &method, const std::string &uri) {
+    // key <request-method>#<request-uri>
+    key += method;
+    key += "#";
+    key += uri;
+}
+
+mock_requests_key_t MockRequests::getKey() const {
+
+    mock_requests_key_t result;
+    calculateMockRequestsKey(result, method_, uri_);
+    return result;
+}
+
+bool MockRequests::loadRequest(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+    method_ = method;
+    uri_ = uri;
+
+    auto request = std::make_shared<MockRequest>();
+    if (!request->load(state, headers, body)) {
+        return false;
+    }
+
+    write_guard_t wr_lock(rw_mutex_);
+    requests_.push_back(request);
+
+    return true;
+}
+
+nlohmann::json MockRequests::getJson(std::uint64_t requestNumber) const {
+    nlohmann::json result;
+
+    result["method"] = method_;
+    result["uri"] = uri_;
+
+    if (requests_.size() == 0) return result;
+
+    if (requestNumber == 0) {
+        for (auto it = requests_.begin(); it != requests_.end(); it ++) {
+            result["requests"].push_back((*it)->getJson());
+        }
+    }
+    else if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
+        result["requests"].push_back(requests_.back()->getJson());
+    }
+    else {
+        if (requestNumber <= requests_.size()) {
+            result["requests"].push_back((*(requests_.begin()+requestNumber-1))->getJson());
+        }
+    }
+
+    return result;
+}
 
 }
 }

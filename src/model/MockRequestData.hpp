@@ -35,15 +35,25 @@ SOFTWARE.
 
 #pragma once
 
+#include <vector>
+
+
 #include <Map.hpp>
-#include <MockRequest.hpp>
+#include <MockRequests.hpp>
 
 namespace h2agent
 {
 namespace model
 {
 
-class MockRequestData : public Map<mock_request_key_t, MockRequest>
+/**
+ * This class stores the requests history.
+ *
+ * This is useful to post-verify the internal data (content and schema validation) on testing system.
+ * Also, the last request for an specific key, is used to know the state which is used to get the
+ * corresponding provision information.
+ */
+class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequests>>
 {
 public:
     MockRequestData() {};
@@ -60,7 +70,7 @@ public:
      *
      * @return Boolean about success operation
      */
-    bool load(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body);
+    bool loadRequest(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body);
 
     /** Clears internal data
      *
@@ -73,21 +83,25 @@ public:
      *
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection
+     * @param requestNumber Request history number (1..N) to filter selection.
+     * If empty, whole history is provided for method/uri provided.
+     * If provided '-1', the latest event is filtered.
+     * @param success Boolean result passed by reference.
      *
      * @return Json string representation
      */
-    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri) const;
+    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const;
 
     /**
-     * Finds mock context entry.
+     * Finds most recent mock context entry.
      *
      * @param method Request method which was received
-     * @param uri Request URI path which was rreceived
+     * @param uri Request URI path which was received
      * @param state Request current state filled by reference. If nothing found, 'initial' will be set
      *
      * @return Boolean about if the request is found or not
      */
-    bool find(const std::string &method, const std::string &uri, std::string &state) const;
+    bool findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const;
 };
 
 }

@@ -35,7 +35,6 @@ SOFTWARE.
 
 #pragma once
 
-#include <memory>
 #include <unordered_map>
 
 #include <common.hpp>
@@ -50,9 +49,9 @@ template<typename Key, typename Value>
 class Map {
 public:
 
-    typedef typename std::unordered_map<Key, std::shared_ptr<Value>> map_t;
-    typedef typename std::unordered_map<Key, std::shared_ptr<Value>>::const_iterator map_it;
-    typedef typename std::unordered_map<Key, std::shared_ptr<Value>>::iterator map_ncit;
+    typedef typename std::unordered_map<Key, Value> map_t;
+    typedef typename std::unordered_map<Key, Value>::const_iterator map_it;
+    typedef typename std::unordered_map<Key, Value>::iterator map_ncit;
 
     Map() {};
 
@@ -141,7 +140,7 @@ public:
      * @param key key to add
      * @param value stored
      */
-    void add(const Key& key, std::shared_ptr<Value> value)
+    void add(const Key& key, const Value &value)
     {
         write_guard_t wr_lock(rw_mutex_);
         map_[key] = value;

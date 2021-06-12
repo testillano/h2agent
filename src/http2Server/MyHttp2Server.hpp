@@ -38,6 +38,8 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <memory>
+#include <cstdint>
+#include <atomic>
 
 #include <ert/http2comm/Http2Server.hpp>
 
@@ -58,6 +60,7 @@ class MyHttp2Server: public ert::http2comm::Http2Server
 
     model::MockRequestData *mock_request_data_;
     model::AdminData *admin_data_;
+    std::atomic<std::uint64_t> general_unique_server_sequence_;
 
 public:
     MyHttp2Server(size_t workerThreads);
@@ -85,6 +88,10 @@ public:
     }
     model::AdminData *getAdminData() const {
         return admin_data_;
+    }
+
+    const std::atomic<std::uint64_t> &getGeneralUniqueServerSequence() const {
+        return general_unique_server_sequence_;
     }
 };
 
