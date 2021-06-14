@@ -41,6 +41,8 @@ SOFTWARE.
 #include <cstdint>
 #include <atomic>
 
+#include <JsonSchema.hpp>
+
 #include <ert/http2comm/Http2Server.hpp>
 
 namespace h2agent
@@ -56,6 +58,8 @@ namespace http2server
 
 class MyHttp2Server: public ert::http2comm::Http2Server
 {
+    h2agent::jsonschema::JsonSchema *requests_schema_;
+    bool requests_history_;
 
     model::MockRequestData *mock_request_data_;
     model::AdminData *admin_data_;
@@ -92,6 +96,14 @@ public:
     const std::atomic<std::uint64_t> &getGeneralUniqueServerSequence() const {
         return general_unique_server_sequence_;
     }
+
+    // return success to load schema
+    bool setRequestsSchema(const std::string &schemaFile);
+
+    void setRequestsHistory(bool enable = true) {
+        requests_history_ = enable;
+    }
+
 };
 
 }

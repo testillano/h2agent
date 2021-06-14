@@ -38,6 +38,8 @@ SOFTWARE.
 #include <map>
 #include <chrono>
 #include <errno.h>
+#include <fstream>
+#include <sstream>
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
@@ -59,6 +61,9 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads):
     general_unique_server_sequence_(0) {
 
     mock_request_data_ = new model::MockRequestData();
+
+    requests_schema_ = nullptr;
+    requests_history_ = true;
 }
 
 bool MyHttp2Server::checkMethodIsAllowed(
@@ -87,6 +92,49 @@ bool MyHttp2Server::checkHeaders(const nghttp2::asio_http2::server::request&
         return ((ctype != ctype_end) ? (ctype->second.value == "application/json") :
                 false);
     */
+}
+
+bool MyHttp2Server::setRequestsSchema(const std::string &schemaFile) {
+
+    bool result = false;
+
+    std::ifstream f(schemaFile);
+    std::stringstream buffer;
+    buffer << f.rdbuf();
+
+    nlohmann::json schema;
+    try {
+        schema = nlohmann::json::parse(buffer.str());
+        LOGDEBUG(
+            std::string msg("Json string parsed successfully for requests schema provided");
+            //msg += ":\n\n" ; msg += schema.dump(4); // pretty print
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
+    }
+    catch (nlohmann::json::parse_error& e)
+    {
+        std::stringstream ss;
+        ss << "Json body parse error: " << e.what() << '\n'
+           << "exception id: " << e.id << '\n'
+           << "byte position of error: " << e.byte << std::endl;
+        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+
+        return false;
+    }
+
+    requests_schema_ = new h2agent::jsonschema::JsonSchema(schema);
+    result = requests_schema_->isValid();
+
+    if (!result) {
+        LOGWARNING(
+            ert::tracing::Logger::warning("Requests won't be validated (schema will be ignored)", ERT_FILE_LOCATION);
+        );
+
+        delete(requests_schema_);
+        requests_schema_ = nullptr;
+    }
+
+    return result;
 }
 
 void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
@@ -136,6 +184,44 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
+    // Possible schema validation:
+    if (requests_schema_) {
+        nlohmann::json requestJson;
+        try {
+            requestJson = nlohmann::json::parse(requestBody);
+            LOGDEBUG(
+                std::string msg("Json body received (traffic interface):\n\n");
+                msg += requestJson.dump(4); // pretty print json body
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+
+            if (!requests_schema_->validate(requestJson)) {
+                statusCode = 400;
+                LOGINFORMATIONAL(
+                    ert::tracing::Logger::informational("Invalid schema for traffic request received", ERT_FILE_LOCATION);
+                );
+                return;
+            }
+        }
+        catch (nlohmann::json::parse_error& e)
+        {
+            /*
+            std::stringstream ss;
+            ss << "Json body parse error: " << e.what() << '\n'
+            << "exception id: " << e.id << '\n'
+            << "byte position of error: " << e.byte << std::endl;
+            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+            */
+
+            // Response data:
+            statusCode = 400;
+            LOGINFORMATIONAL(
+                ert::tracing::Logger::informational("Failed validation schema (parsing request body) for traffic request received", ERT_FILE_LOCATION);
+            );
+            return;
+        }
+    }
+
 // Admin provision & matching configuration:
     const h2agent::model::AdminProvisionData & provisionData = getAdminData()->getProvisionData();
     const h2agent::model::AdminMatchingData & matchingData = getAdminData()->getMatchingData();
@@ -178,7 +264,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
         // Store request event context information
         //if (!requestFound)
-        getMockRequestData()->loadRequest(inState, outState, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs);
+        getMockRequestData()->loadRequest(inState, outState, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
 
         if (delayMs != 0) {
             LOGDEBUG(

@@ -228,7 +228,8 @@ version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b
 You may take a look to `h2agent` command line by just typing `./h2agent -h|--help`:
 
 ```
-Usage: h2agent [options]                                                                                                                                             [3/7755]
+./h2agent -h
+Usage: h2agent [options]
 
 Options:
 
@@ -239,38 +240,47 @@ Options:
   Output log traces on console.
 
 [-a|--admin-port <port>]
-  Admin <port>; defaults to 8074
+  Admin <port>; defaults to 8074.
 
 [-p|--server-port <port>]
-  Server <port>; defaults to 8000
+  Server <port>; defaults to 8000.
 
 [-m|--server-api-name <name>]
-  Server API name; defaults to empty
+  Server API name; defaults to empty.
 
 [-n|--server-api-version <version>]
-  Server API version; defaults to empty
+  Server API version; defaults to empty.
 
-[-w|--max-worker-threads <threads>]
-  Maximum worker threads; defaults to -1 (no limit)
+[-w|--worker-threads <threads>]
+  Number of worker threads; defaults to -1 which means 'dynamically created'.
+  For high loads, a queue of pre-initialized threads could improve performance
+   and its pool size corresponds quite a lot with the client concurrent streams.
 
 [-t|--server-threads <threads>]
-  Number of nghttp2 server threads; defaults to 1 (1 connection)
+  Number of nghttp2 server threads; defaults to 1 (1 connection).
 
 [-k|--server-key <path file>]
-  Path file for server key to enable SSL/TLS; defaults to empty
+  Path file for server key to enable SSL/TLS; defaults to empty.
+  Only mock server shall be secured (does not apply to admin interface).
 
 [-c|--server-crt <path file>]
-  Path file for server crt to enable SSL/TLS; defaults to empty
+  Path file for server crt to enable SSL/TLS; defaults to empty.
+  Only mock server shall be secured (does not apply to admin interface).
 
 [--server-request-schema <path file>]
-  Path file for the server schema to validate requests received
+  Path file for the server schema to validate requests received.
+
+[--disable-server-requests-history]
+  Disables full history storage for requests received (enabled by default).
+  Only latest request (for each key 'method/uri') will be stored and will
+   be accessible for further analysis. To be considered if really makes an
+   improvement in huge long-term stabilities.
 
 [-v|--version]
-  Program version
+  Program version.
 
 [-h|--help]
-  This help
-
+  This help.
 ```
 
 ### Traces and printouts
@@ -280,7 +290,9 @@ Traces are managed by `syslog` by default, but could be shown verbosely at stand
 ```bash
 $ ./h2agent --verbose &
 [1] 27407
-[03/04/21 20:49:35 CEST] Starting h2agent (version v0.0.1-12-gce5771c) ...
+[03/04/21 20:49:35 CEST] Starting h2agent (version v0.0.1-27-g04c11e9) ...
+Log level: Warning
+Verbose (stdout): true
 Admin port: 8074
 Server port: 8000
 Server api name: <none>
@@ -291,6 +303,7 @@ Server key file: <not provided>
 Server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
 Server request schema: <not provided>
+Server request history: true
 
 $ kill $!
 [Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15
@@ -899,7 +912,7 @@ If case that *requestNumber* is omitted, the whole requests history for the *met
 
 Both *method*  and *uri*  shall be provided together to select a single entry history (if one is missing and the other is provided, bad request is obtained).
 
-This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface).
+This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemes (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
 #### Response status code
 

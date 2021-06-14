@@ -48,11 +48,17 @@ namespace h2agent
 namespace jsonschema
 {
 
+JsonSchema::JsonSchema(const nlohmann::json& schema)
+{
+    set_schema_(schema);
+}
+
 void JsonSchema::set_schema_(const nlohmann::json& schema)
 {
 
     // assign private member
     schema_ = schema;
+    valid_ = true;
 
     // json-parse the schema
     try
@@ -62,6 +68,7 @@ void JsonSchema::set_schema_(const nlohmann::json& schema)
     catch (const std::exception& e)
     {
         ert::tracing::Logger::error(ert::tracing::Logger::asString("Schema configuration failed: %s", e.what()), ERT_FILE_LOCATION);
+        valid_ = false;
     }
 }
 
@@ -69,12 +76,6 @@ void JsonSchema::setSchema(const nlohmann::json& schema)
 {
     set_schema_(schema);
 }
-
-JsonSchema::JsonSchema(const nlohmann::json& schema)
-{
-    set_schema_(schema);
-}
-
 
 bool JsonSchema::validate(const nlohmann::json& json) const
 {

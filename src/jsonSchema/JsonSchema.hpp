@@ -53,6 +53,7 @@ class JsonSchema
 
     nlohmann::json schema_;
     nlohmann::json_schema::json_validator validator_;
+    bool valid_; // used when loading schema files "out of our control"
 
     void set_schema_(const nlohmann::json& schema);
 
@@ -73,6 +74,16 @@ public:
     void setSchema(const nlohmann::json& schema);
 
     // getters
+
+    /**
+    * Returns successful load of the schema provided in the constructor
+    *
+    * @return Boolean about successful schema load
+    */
+    bool isValid() const
+    {
+        return valid_;
+    }
 
     /**
     * Get json document schema

@@ -49,7 +49,8 @@ namespace model
 {
 
 bool MockRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                                  unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs) {
+                                  unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+                                  bool historyEnabled) {
 
 
     // Find MockRequests
@@ -65,7 +66,7 @@ bool MockRequestData::loadRequest(const std::string &pstate, const std::string &
         requests = std::make_shared<MockRequests>();
     }
 
-    if (!requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs)) {
+    if (!requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled)) {
         return false;
     }
 

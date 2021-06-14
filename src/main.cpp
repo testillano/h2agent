@@ -137,24 +137,24 @@ void usage(int rc)
        << "  Output log traces on console.\n\n"
 
        << "[-a|--admin-port <port>]\n"
-       << "  Admin <port>; defaults to 8074\n\n"
+       << "  Admin <port>; defaults to 8074.\n\n"
 
        << "[-p|--server-port <port>]\n"
-       << "  Server <port>; defaults to 8000\n\n"
+       << "  Server <port>; defaults to 8000.\n\n"
 
        << "[-m|--server-api-name <name>]\n"
-       << "  Server API name; defaults to empty\n\n"
+       << "  Server API name; defaults to empty.\n\n"
 
        << "[-n|--server-api-version <version>]\n"
-       << "  Server API version; defaults to empty\n\n"
+       << "  Server API version; defaults to empty.\n\n"
 
        << "[-w|--worker-threads <threads>]\n"
        << "  Number of worker threads; defaults to -1 which means 'dynamically created'.\n"
        << "  For high loads, a queue of pre-initialized threads could improve performance\n"
-       << "  and its pool size corresponds quite a lot with the client concurrent streams.\n"
+       << "   and its pool size corresponds quite a lot with the client concurrent streams.\n\n"
 
        << "[-t|--server-threads <threads>]\n"
-       << "  Number of nghttp2 server threads; defaults to 1 (1 connection)\n\n"
+       << "  Number of nghttp2 server threads; defaults to 1 (1 connection).\n\n"
 
        << "[-k|--server-key <path file>]\n"
        << "  Path file for server key to enable SSL/TLS; defaults to empty.\n"
@@ -165,13 +165,19 @@ void usage(int rc)
        << "  Only mock server shall be secured (does not apply to admin interface).\n\n"
 
        << "[--server-request-schema <path file>]\n"
-       << "  Path file for the server schema to validate requests received\n\n"
+       << "  Path file for the server schema to validate requests received.\n\n"
+
+       << "[--disable-server-request-history]\n"
+       << "  Disables full history storage for requests received (enabled by default).\n"
+       << "  Only latest request (for each key 'method/uri') will be stored and will\n"
+       << "   be accessible for further analysis. To be considered if really makes an\n"
+       << "   improvement in huge long-term stabilities.\n\n"
 
        << "[-v|--version]\n"
-       << "  Program version\n\n"
+       << "  Program version.\n\n"
 
        << "[-h|--help]\n"
-       << "  This help\n\n"
+       << "  This help.\n\n"
 
        << '\n';
 
@@ -229,6 +235,7 @@ int main(int argc, char* argv[])
     std::string server_key_file = "";
     std::string server_crt_file = "";
     std::string server_req_schema_file = "";
+    bool disable_server_request_history = false;
     bool verbose = false;
 
     std::string value;
@@ -306,6 +313,11 @@ int main(int argc, char* argv[])
         server_req_schema_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--disable-server-request-history", value))
+    {
+        disable_server_request_history = true;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
@@ -316,6 +328,8 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << "[" << getLocaltime().c_str() << "] Starting " << progname <<
               " (version " << h2agent::GIT_VERSION << ") ..." << '\n';
+    std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
+    std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "Admin port: " << admin_port << '\n';
     std::cout << "Server port: " << server_port << '\n';
     std::cout << "Server api name: " << ((server_api_name != "") ?
@@ -351,6 +365,7 @@ int main(int argc, char* argv[])
 
     std::cout << "Server request schema: " << ((server_req_schema_file != "") ? server_req_schema_file :
               "<not provided>") << '\n';
+    std::cout << "Server request history: " << (!disable_server_request_history ? "true":"false") << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -373,6 +388,12 @@ int main(int argc, char* argv[])
     myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads);
     myHttp2Server->setApiName(server_api_name);
     myHttp2Server->setApiVersion(server_api_version);
+    if (server_req_schema_file != "") {
+        if (!myHttp2Server->setRequestsSchema(server_req_schema_file)) {
+            std::cerr << "Requests schema load failed: will be ignored" << std::endl;
+        }
+    }
+    myHttp2Server->setRequestsHistory(!disable_server_request_history);
 
     // Associate data containers:
     myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration

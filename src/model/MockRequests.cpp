@@ -59,7 +59,8 @@ mock_requests_key_t MockRequests::getKey() const {
 }
 
 bool MockRequests::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                               unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs) {
+                               unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+                               bool historyEnabled) {
 
     method_ = method;
     uri_ = uri;
@@ -70,6 +71,12 @@ bool MockRequests::loadRequest(const std::string &pstate, const std::string &sta
     }
 
     write_guard_t wr_lock(rw_mutex_);
+
+    if (!historyEnabled && requests_.size() != 0) {
+        requests_[0] = request; // overwrite with this latest reception
+        return true;
+    }
+
     requests_.push_back(request);
 
     return true;

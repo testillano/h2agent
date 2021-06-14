@@ -85,7 +85,7 @@ public:
     // setters:
 
     /**
-     * Loads request information
+     * Loads requests information
      *
      * @param pstate Previous request state
      * @param state Request state
@@ -94,16 +94,19 @@ public:
      * @param headers Request headers
      * @param body Request body
      *
-     * @param responseStatusCode
-     * @param responseHeaders
-     * @param responseBody
-     * @param serverSequence
-     * @param responseDelayMs
+     * @param responseStatusCode Response status code
+     * @param responseHeaders Response headers
+     * @param responseBody Response body
+     * @param serverSequence Server sequence
+     * @param responseDelayMs Response delay in milliseconds
+     *
+     * @param historyEnabled Requests complete history storage
      *
      * @return Boolean about success operation
      */
     bool loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                     unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs);
+                     unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+                     bool historyEnabled);
 
 
     // getters:
