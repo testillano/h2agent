@@ -52,6 +52,7 @@ AdminMatchingData::AdminMatchingData() {
     //rgx_.clear();
     fmt_.clear();
     uri_path_query_parameters_filter_ = Sort;
+    json_["algorithm"] = "FullMatching";
 }
 
 bool AdminMatchingData::load(const nlohmann::json &j) {

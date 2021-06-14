@@ -56,6 +56,8 @@ class AdminData
 
 public:
 
+    /** Empty constructor */
+    AdminData() {;}
 
     /**
      * Loads admin matching operation data

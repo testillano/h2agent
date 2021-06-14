@@ -7,7 +7,7 @@ LABEL testillano.ct_h2agent.description="Docker image for h2agent component test
 RUN apk update && apk add \
     python3 \
     py3-pip \
-    vim
+    vim curl jq
 
 COPY src /pytest
 WORKDIR /pytest

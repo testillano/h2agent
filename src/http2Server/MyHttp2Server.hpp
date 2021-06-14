@@ -43,7 +43,6 @@ SOFTWARE.
 
 #include <ert/http2comm/Http2Server.hpp>
 
-
 namespace h2agent
 {
 namespace model

@@ -1,8 +1,14 @@
 import pytest
 import json
 
+
 @pytest.mark.admin
-def test_001_i_want_to_identify_wrong_schema_for_server_provision_operation_on_admin_interface(resources, h2ac_admin):
+def test_001_cleanup_provisions(resources, h2ac_admin):
+  response = h2ac_admin.delete("/provision/v1/server-provision")
+
+
+@pytest.mark.admin
+def test_002_i_want_to_identify_wrong_schema_for_server_provision_operation_on_admin_interface(resources, h2ac_admin):
 
   requestBody = resources("server-provision_SCHEMA_NOK.json")
   responseBodyRef = { "result":"false", "response":"server-provision operation; invalid schema" }
@@ -17,7 +23,7 @@ def test_001_i_want_to_identify_wrong_schema_for_server_provision_operation_on_a
   #assert response["body"]["response"] == "server-provision operation; invalid schema"
 
 @pytest.mark.admin
-def test_002_i_want_to_identify_valid_server_provision_operation_on_admin_interface(resources, h2ac_admin):
+def test_003_i_want_to_identify_valid_server_provision_operation_on_admin_interface(resources, h2ac_admin):
 
   requestBody = resources("server-provision_OK.json.in").format(id="1")
   responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
@@ -29,7 +35,7 @@ def test_002_i_want_to_identify_valid_server_provision_operation_on_admin_interf
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
 @pytest.mark.admin
-def test_003_i_want_to_send_get_for_unsupported_operation_on_admin_interface(resources, h2ac_admin):
+def test_004_i_want_to_send_get_for_unsupported_operation_on_admin_interface(resources, h2ac_admin):
 
   # Send GET
   response = h2ac_admin.get("/provision/v1/foo")
@@ -38,7 +44,7 @@ def test_003_i_want_to_send_get_for_unsupported_operation_on_admin_interface(res
   assert response["status"] == 400
 
 @pytest.mark.server
-def test_004_i_want_to_send_get_request_for_provisioned_data_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
+def test_005_i_want_to_send_get_request_for_provisioned_data_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
 
   # Send POST to configure FullMatching algorithm
   requestBody = resources("server-matching_OK1.json")
@@ -54,7 +60,7 @@ def test_004_i_want_to_send_get_request_for_provisioned_data_on_traffic_interfac
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 @pytest.mark.server
-def test_005_i_want_to_send_get_request_for_non_provisioned_data_on_traffic_interface(resources, h2ac_traffic):
+def test_006_i_want_to_send_get_request_for_non_provisioned_data_on_traffic_interface(resources, h2ac_traffic):
 
   # Send GET
   response = h2ac_traffic.get("/app/v1/foo/bar/2")
@@ -63,7 +69,7 @@ def test_005_i_want_to_send_get_request_for_non_provisioned_data_on_traffic_inte
   h2ac_traffic.assert_response__status_body_headers(response, 501, "")
 
 @pytest.mark.admin
-def test_006_i_want_to_send_delete_server_provision_operations_on_admin_interface(resources, h2ac_admin):
+def test_007_i_want_to_send_delete_server_provision_operations_on_admin_interface(resources, h2ac_admin):
 
   # Send DELETE
   response = h2ac_admin.delete("/provision/v1/server-provision")
@@ -78,7 +84,7 @@ def test_006_i_want_to_send_delete_server_provision_operations_on_admin_interfac
   assert response["status"] == 204 # no content as was removed at first DELETE
 
 @pytest.mark.admin
-def test_007_i_want_to_send_delete_for_unsupported_operation_on_admin_interface(resources, h2ac_admin):
+def test_008_i_want_to_send_delete_for_unsupported_operation_on_admin_interface(resources, h2ac_admin):
 
   # Send DELETE
   response = h2ac_admin.delete("/provision/v1/foo")
@@ -87,7 +93,7 @@ def test_007_i_want_to_send_delete_for_unsupported_operation_on_admin_interface(
   assert response["status"] == 400
 
 @pytest.mark.server
-def test_008_i_want_to_check_fullmatchingregexreplace_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
+def test_009_i_want_to_check_fullmatchingregexreplace_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
 
   # Send POST to configure FullMatchingRegexReplace algorithm
   requestBody = resources("server-matching_FullMatchingRegexReplace.json")
@@ -107,7 +113,7 @@ def test_008_i_want_to_check_fullmatchingregexreplace_on_traffic_interface(resou
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 @pytest.mark.server
-def test_008_i_want_to_check_prioritymatchingregex_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
+def test_010_i_want_to_check_prioritymatchingregex_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
 
   # Send POST to configure PriorityMatchingRegex algorithm
   requestBody = resources("server-matching_PriorityMatchingRegex.json")

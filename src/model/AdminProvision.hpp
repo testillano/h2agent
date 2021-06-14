@@ -118,7 +118,7 @@ public:
                     const std::map<std::string, std::string> &queryParametersMap,
                     const std::string &requestBody,
                     const nghttp2::asio_http2::header_map &requestHeaders,
-                    const std::uint64_t &generalUniqueServerSequence,
+                    std::uint64_t generalUniqueServerSequence,
 
                     unsigned int &statusCode,
                     nghttp2::asio_http2::header_map &headers,

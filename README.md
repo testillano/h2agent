@@ -1,4 +1,4 @@
-# C++ HTTP/2 Agent Service - WORK IN PROGRESS
+# C++ HTTP/2 Agent Service
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://codedocs.xyz/testillano/h2agent.svg)](https://codedocs.xyz/testillano/h2agent/index.html)

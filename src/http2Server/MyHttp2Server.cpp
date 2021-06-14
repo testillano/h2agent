@@ -172,13 +172,13 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         unsigned int delayMs;
         std::string outState;
 
-// PREPARE & TRANSFORM
+        // PREPARE & TRANSFORM
         provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                               statusCode, headers, responseBody, delayMs, outState);
 
         // Store request event context information
         //if (!requestFound)
-        getMockRequestData()->loadRequest(outState, method, uriPath, req.header(), responseBody);
+        getMockRequestData()->loadRequest(inState, outState, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs);
 
         if (delayMs != 0) {
             LOGDEBUG(

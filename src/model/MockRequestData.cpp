@@ -48,7 +48,8 @@ namespace h2agent
 namespace model
 {
 
-bool MockRequestData::loadRequest(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+bool MockRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                                  unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs) {
 
 
     // Find MockRequests
@@ -64,7 +65,7 @@ bool MockRequestData::loadRequest(const std::string &state, const std::string &m
         requests = std::make_shared<MockRequests>();
     }
 
-    if (!requests->loadRequest(state, method, uri, headers, body)) {
+    if (!requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs)) {
         return false;
     }
 
@@ -124,13 +125,13 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
     }
     else {
         for (auto it = map_.begin(); it != map_.end(); it++) {
-            result.push_back(it->second->getJson(0 /* while history */));
+            result.push_back(it->second->getJson(0 /* whole history */));
         };
     }
 
     // guarantee "null" if empty (nlohmann could change):
     success = true;
-    return (result.empty() ? "null":result.dump());
+    return ((map_.size() != 0) ? result.dump():"null");
 }
 
 bool MockRequestData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {

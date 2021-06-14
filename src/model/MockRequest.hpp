@@ -50,10 +50,18 @@ namespace model
 
 class MockRequest
 {
+    std::string pstate_;
+
     std::uint64_t reception_timestamp_ms_{};
     std::string state_;
     nghttp2::asio_http2::header_map headers_{};
     std::string body_;
+
+    unsigned int response_status_code_;
+    nghttp2::asio_http2::header_map response_headers_{};
+    std::string response_body_;
+    std::uint64_t server_sequence_;
+    unsigned int response_delay_ms_{};
 
 public:
 
@@ -62,15 +70,24 @@ public:
     // setters:
 
     /**
-     * Load request information
+     * Loads request information
      *
+     * @param pstate Previous request state
      * @param state Request state
      * @param headers Request headers
      * @param body Request body
      *
+     * @param responseStatusCode
+     * @param responseHeaders
+     * @param responseBody
+     * @param serverSequence
+     * @param responseDelayMs
+     *
      * @return Operation success
      */
-    bool load(const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body);
+    bool load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+              unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs);
+
 
     // getters:
 

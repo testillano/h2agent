@@ -143,6 +143,8 @@ menu() {
     set -x
     curl -v -X${method} --http2-prior-knowledge ${curlDataOpt} ${headers} http://${H2AGENT_TRAFFIC_ENDPOINT}${uri}
     set +x
+    echo "Press ENTER to continue ..."
+    read -r dummy
   else
     echo
     echo "Press ENTER to confirm, CTRL-C to abort ..."

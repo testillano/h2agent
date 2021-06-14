@@ -1,8 +1,14 @@
 import pytest
 import json
 
+
 @pytest.mark.admin
-def test_001_i_want_to_provision_a_set_of_requests_on_admin_interface(resources, h2ac_admin):
+def test_001_cleanup_provisions(resources, h2ac_admin):
+  response = h2ac_admin.delete("/provision/v1/server-provision")
+
+
+@pytest.mark.admin
+def test_002_i_want_to_provision_a_set_of_requests_on_admin_interface(resources, h2ac_admin):
 
   for id in range(5):
     requestBody = resources("server-provision_OK.json.in").format(id=id)
@@ -31,13 +37,4 @@ def test_003_i_want_to_retrieve_current_provisions_on_admin_interface(resources,
     response_dict = response["body"][id]
     ref_dict = json.loads(resources("server-provision_OK.json.in").format(id=id))
     assert response_dict == ref_dict
-
-@pytest.mark.admin
-def test_006_cleanup_provisions(resources, h2ac_admin):
-
-  # Send DELETE
-  response = h2ac_admin.delete("/provision/v1/server-provision")
-
-  # Verify response
-  assert response["status"] == 200
 

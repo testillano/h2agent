@@ -1,0 +1,5 @@
+{
+  "node1": {
+    "node2": "value-of-node1-node2"
+  }
+}

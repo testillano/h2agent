@@ -46,14 +46,22 @@ namespace model
 {
 
 
-bool MockRequest::load(const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+bool MockRequest::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                       unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs) {
 
     reception_timestamp_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+    pstate_ = pstate;
 
     state_ = state;
     headers_ = headers;
     body_ = body;
 
+    response_status_code_ = responseStatusCode;
+    response_headers_ = responseHeaders;
+    response_body_ = responseBody;
+    server_sequence_ = serverSequence;
+    response_delay_ms_ = responseDelayMs;
 
     return true;
 }
@@ -72,22 +80,56 @@ nlohmann::json MockRequest::getJson() const {
         result["headers"] = hdrs;
     }
 
-    try {
-        result["body"] = nlohmann::json::parse(body_);
-    }
-    catch (nlohmann::json::parse_error& e)
-    {
-        /*
-        std::stringstream ss;
-        ss << "Json body parse error: " << e.what() << '\n'
-           << "exception id: " << e.id << '\n'
-           << "byte position of error: " << e.byte << std::endl;
-        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-        */
+    if (!body_.empty()) {
+        try {
+            result["body"] = nlohmann::json::parse(body_);
+        }
+        catch (nlohmann::json::parse_error& e)
+        {
+            /*
+            std::stringstream ss;
+            ss << "Json body parse error: " << e.what() << '\n'
+            << "exception id: " << e.id << '\n'
+            << "byte position of error: " << e.byte << std::endl;
+            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+            */
 
-        // Response data:
-        result["body"] = e.what();
+            // Response data:
+            result["body"] = e.what();
+        }
     }
+
+    // Additional information
+    result["previousState"] = pstate_;
+    if (!response_body_.empty()) {
+        try {
+            result["responseBody"] = nlohmann::json::parse(response_body_);
+        }
+        catch (nlohmann::json::parse_error& e)
+        {
+            /*
+            std::stringstream ss;
+            ss << "Json body parse error: " << e.what() << '\n'
+            << "exception id: " << e.id << '\n'
+            << "byte position of error: " << e.byte << std::endl;
+            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+            */
+
+            // Response data:
+            result["responseBody"] = e.what();
+        }
+    }
+
+    result["responseDelayMs"] = (unsigned int)response_delay_ms_;
+    result["responseStatusCode"] = (unsigned int)response_status_code_;
+    if (response_headers_.size()) {
+        nlohmann::json hdrs;
+        for(const auto &x: response_headers_)
+            hdrs[x.first] = x.second.value;
+        result["responseHeaders"] = hdrs;
+    }
+    result["serverSequence"] = (unsigned int)server_sequence_;
+
 
     return result;
 }

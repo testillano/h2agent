@@ -86,6 +86,8 @@ public:
      * @return Json object
      */
     const nlohmann::json &getJson() const {
+        read_guard_t guard(rw_mutex_);
+
         return json_;
     }
 

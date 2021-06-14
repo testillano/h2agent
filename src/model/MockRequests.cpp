@@ -58,12 +58,14 @@ mock_requests_key_t MockRequests::getKey() const {
     return result;
 }
 
-bool MockRequests::loadRequest(const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body) {
+bool MockRequests::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                               unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs) {
+
     method_ = method;
     uri_ = uri;
 
     auto request = std::make_shared<MockRequest>();
-    if (!request->load(state, headers, body)) {
+    if (!request->load(pstate, state, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs)) {
         return false;
     }
 

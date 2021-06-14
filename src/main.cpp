@@ -51,6 +51,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 
+
 const char* progname;
 
 namespace
@@ -156,10 +157,12 @@ void usage(int rc)
        << "  Number of nghttp2 server threads; defaults to 1 (1 connection)\n\n"
 
        << "[-k|--server-key <path file>]\n"
-       << "  Path file for server key to enable SSL/TLS; defaults to empty\n\n"
+       << "  Path file for server key to enable SSL/TLS; defaults to empty.\n"
+       << "  Only mock server shall be secured (does not apply to admin interface).\n\n"
 
        << "[-c|--server-crt <path file>]\n"
-       << "  Path file for server crt to enable SSL/TLS; defaults to empty\n\n"
+       << "  Path file for server crt to enable SSL/TLS; defaults to empty.\n"
+       << "  Only mock server shall be secured (does not apply to admin interface).\n\n"
 
        << "[--server-request-schema <path file>]\n"
        << "  Path file for the server schema to validate requests received\n\n"
@@ -363,7 +366,6 @@ int main(int argc, char* argv[])
         );
     */
 
-
     myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(worker_threads);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -385,7 +387,7 @@ int main(int argc, char* argv[])
     //std::thread t1(&h2agent::http2server::MyAdminHttp2Server::serve, myAdminHttp2Server, bind_address, admin_port, server_key_file, server_crt_file, server_threads);
     //std::thread t2(&h2agent::http2server::MyHttp2Server::serve, myHttp2Server, bind_address, server_port, server_key_file, server_crt_file, server_threads);
     int rc1, rc2;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, server_key_file, server_crt_file, server_threads);});
+    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, "" /* server_key_file*/, "" /*server_crt_file*/, server_threads);});
     std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
     t1.join();
     t2.join();

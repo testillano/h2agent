@@ -74,7 +74,7 @@ void AdminProvision::transform( const std::string &requestUri,
                                 const std::map<std::string, std::string> &queryParametersMap,
                                 const std::string &requestBody,
                                 const nghttp2::asio_http2::header_map &requestHeaders,
-                                const std::uint64_t &generalUniqueServerSequence,
+                                std::uint64_t generalUniqueServerSequence,
 
                                 /* OUTPUT PARAMETERS WHICH ALREADY HAVE DEFAULT VALUES BEFORE TRANSFORMATIONS: */
                                 unsigned int &statusCode,
@@ -99,19 +99,25 @@ void AdminProvision::transform( const std::string &requestUri,
         }
     }
     nlohmann::json requestBodyJson;
+    bool requestBodyJsonParseable = false;
     if (usesRequestBodyAsTransformationSource) {
-        try {
-            requestBodyJson = nlohmann::json::parse(requestBody);
-        }
-        catch (nlohmann::json::parse_error& e)
-        {
+        if (!requestBody.empty()) {
+            try {
+                requestBodyJson = nlohmann::json::parse(requestBody);
+                requestBodyJsonParseable = true;
+            }
+            catch (nlohmann::json::parse_error& e)
+            {
 
-            std::stringstream ss;
-            ss << "TRANSFORMATIONS ABORTED due to json body parse error for request body received: " << e.what() << '\n'
-               << "exception id: " << e.id << '\n'
-               << "byte position of error: " << e.byte << std::endl;
-            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-            return;
+                std::stringstream ss;
+                ss << "Json body parse error for request body received (some transformations will be ignored): " << e.what() << '\n'
+                   << "exception id: " << e.id << '\n'
+                   << "byte position of error: " << e.byte << std::endl;
+                ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+            }
+        }
+        else {
+            LOGINFORMATIONAL(ert::tracing::Logger::informational("No request body received: some transformations will be ignored", ERT_FILE_LOCATION));
         }
     }
 
@@ -167,6 +173,7 @@ void AdminProvision::transform( const std::string &requestUri,
             }
         }
         else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
+            if(!requestBodyJsonParseable) continue;
             if (!sourceVault.setObject(requestBodyJson, transformation->getSource() /* document path (empty or not to be whole or node) */)) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
@@ -432,12 +439,14 @@ void AdminProvision::transform( const std::string &requestUri,
             else if (transformation->getTargetType() == Transformation::TargetType::TVar) {
                 if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                     std::string varname;
-                    variables[transformation->getTarget()] = matches[0]; // variable "as is" stores the entire match
-                    for(size_t i=1; i < matches.size(); ++i) {
-                        varname = transformation->getTarget();
-                        varname += ".";
-                        varname += std::to_string(i);
-                        variables[varname] = matches[i];
+                    if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
+                        variables[transformation->getTarget()] = matches[0]; // variable "as is" stores the entire match
+                        for(size_t i=1; i < matches.size(); ++i) {
+                            varname = transformation->getTarget();
+                            varname += ".";
+                            varname += std::to_string(i);
+                            variables[varname] = matches[i];
+                        }
                     }
                 }
                 else {
