@@ -37,9 +37,11 @@ SOFTWARE.
 
 #include <vector>
 
-
 #include <Map.hpp>
 #include <MockRequests.hpp>
+
+#include <JsonSchema.hpp>
+
 
 namespace h2agent
 {
@@ -55,6 +57,8 @@ namespace model
  */
 class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequests>>
 {
+    h2agent::jsonschema::JsonSchema requests_schema_;
+
 public:
     MockRequestData() {};
     ~MockRequestData() = default;
@@ -113,6 +117,25 @@ public:
      * @return Boolean about if the request is found or not
      */
     bool findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const;
+
+
+    /**
+     * Loads requests schema for optional validation
+     *
+     * @param schema Json schema document
+     *
+     * @return Sucessful operaiton
+     */
+    bool loadRequestsSchema(const nlohmann::json& schema);
+
+    /**
+     * Gets requests schema for optional validation
+     *
+     * @return Json schema reference
+     */
+    const h2agent::jsonschema::JsonSchema &getRequestsSchema() const {
+        return requests_schema_;
+    }
 };
 
 }

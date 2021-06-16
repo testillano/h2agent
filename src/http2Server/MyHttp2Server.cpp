@@ -39,7 +39,7 @@ SOFTWARE.
 #include <chrono>
 #include <errno.h>
 #include <fstream>
-#include <sstream>
+
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
@@ -62,7 +62,6 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads):
 
     mock_request_data_ = new model::MockRequestData();
 
-    requests_schema_ = nullptr;
     requests_history_ = true;
 }
 
@@ -96,8 +95,6 @@ bool MyHttp2Server::checkHeaders(const nghttp2::asio_http2::server::request&
 
 bool MyHttp2Server::setRequestsSchema(const std::string &schemaFile) {
 
-    bool result = false;
-
     std::ifstream f(schemaFile);
     std::stringstream buffer;
     buffer << f.rdbuf();
@@ -122,19 +119,15 @@ bool MyHttp2Server::setRequestsSchema(const std::string &schemaFile) {
         return false;
     }
 
-    requests_schema_ = new h2agent::jsonschema::JsonSchema(schema);
-    result = requests_schema_->isValid();
-
-    if (!result) {
+    if (!getMockRequestData()->loadRequestsSchema(schema)) {
         LOGWARNING(
             ert::tracing::Logger::warning("Requests won't be validated (schema will be ignored)", ERT_FILE_LOCATION);
         );
 
-        delete(requests_schema_);
-        requests_schema_ = nullptr;
+        return false;
     }
 
-    return result;
+    return true;
 }
 
 void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
@@ -185,17 +178,19 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     );
 
     // Possible schema validation:
-    if (requests_schema_) {
+    if(getMockRequestData()->getRequestsSchema().isAvailable()) {
+        // TODO: take advantage of this parsing for transformation and request storage below
+
         nlohmann::json requestJson;
         try {
             requestJson = nlohmann::json::parse(requestBody);
             LOGDEBUG(
                 std::string msg("Json body received (traffic interface):\n\n");
-                msg += requestJson.dump(4); // pretty print json body
+                msg += requestJson.dump();
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
 
-            if (!requests_schema_->validate(requestJson)) {
+            if (!getMockRequestData()->getRequestsSchema().validate(requestJson)) {
                 statusCode = 400;
                 LOGINFORMATIONAL(
                     ert::tracing::Logger::informational("Invalid schema for traffic request received", ERT_FILE_LOCATION);

@@ -50,18 +50,16 @@ namespace jsonschema
 
 class JsonSchema
 {
+    bool available_;
 
     nlohmann::json schema_;
     nlohmann::json_schema::json_validator validator_;
-    bool valid_; // used when loading schema files "out of our control"
-
-    void set_schema_(const nlohmann::json& schema);
 
 public:
     /**
     * Default constructor
     */
-    JsonSchema(const nlohmann::json& schema);
+    JsonSchema() : available_(false) {;}
     ~JsonSchema() {;}
 
     // setters
@@ -70,19 +68,20 @@ public:
     * Set json document schema
     *
     * @param jsonSchema Json document schema
+    *
+    * @return Successful if a valid schema was configured
     */
-    void setSchema(const nlohmann::json& schema);
+    bool setSchema(const nlohmann::json& schema);
 
     // getters
 
     /**
-    * Returns successful load of the schema provided in the constructor
+    * Returns successful if a valid schema was configured
     *
     * @return Boolean about successful schema load
     */
-    bool isValid() const
-    {
-        return valid_;
+    bool isAvailable() const {
+        return available_;
     }
 
     /**
@@ -101,13 +100,6 @@ public:
     * @return boolean about if json document is valid against json schema
     */
     bool validate(const nlohmann::json& json) const;
-
-    /**
-    * Class string representation
-    *
-    * @return String with class representation
-    */
-    std::string asString() const;
 };
 
 }

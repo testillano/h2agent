@@ -58,11 +58,11 @@ namespace http2server
 
 MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads),
-    server_matching_schema_(h2agent::adminSchemas::server_matching),
-    server_provision_schema_(h2agent::adminSchemas::server_provision),
-    mock_request_data_(nullptr), requests_schema_(nullptr) {
+    mock_request_data_(nullptr) {
 
     admin_data_ = new model::AdminData();
+    server_matching_schema_.setSchema(h2agent::adminSchemas::server_matching); // won't fail
+    server_provision_schema_.setSchema(h2agent::adminSchemas::server_provision); // won't fail
 }
 
 //const std::pair<int, std::string> JSON_SCHEMA_VALIDATION(
@@ -200,6 +200,20 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             }
             LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
         }
+        else if (pathSuffix == "server-data/schema") {
+
+            jsonResponse_response = "server-data/schema operation; ";
+            if (!getMockRequestData()->loadRequestsSchema(requestJson)) {
+                statusCode = 400;
+                jsonResponse_response += "load failed";
+            }
+            else {
+                statusCode = 201;
+                jsonResponse_result = true;
+                jsonResponse_response += "valid schema loaded to validate traffic requests";
+            }
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
+        }
         else {
             statusCode = 501;
             jsonResponse_response = "unsupported operation";
@@ -229,15 +243,15 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
 
 
     if (pathSuffix == "server-provision/schema") {
-        responseBody = server_provision_schema_.getSchema().dump();
+        responseBody = server_provision_schema_.getSchema().dump(4);
         statusCode = 200;
     }
     else if (pathSuffix == "server-matching/schema") {
-        responseBody = server_matching_schema_.getSchema().dump();
+        responseBody = server_matching_schema_.getSchema().dump(4);
         statusCode = 200;
     }
     else if (pathSuffix == "server-data/schema") {
-        responseBody = (requests_schema_ ? requests_schema_->getSchema().dump():"null");
+        responseBody = (getMockRequestData()->getRequestsSchema().isAvailable() ? getMockRequestData()->getRequestsSchema().getSchema().dump(4):"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
     else if (pathSuffix == "server-provision") {

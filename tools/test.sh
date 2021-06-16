@@ -15,7 +15,7 @@ list_matching() {
   echo "====================================="
   echo "Current server matching configuration"
   echo "====================================="
-  curl -s -XGET --http2-prior-knowledge http://localhost:8074/provision/v1/server-matching | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-matching | jq '.'
   echo
 }
 
@@ -24,7 +24,7 @@ list_provisions() {
   echo "======================================"
   echo "Current server provision configuration"
   echo "======================================"
-  curl -s -XGET --http2-prior-knowledge http://localhost:8074/provision/v1/server-provision | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision | jq '.'
   echo
 }
 
@@ -33,7 +33,7 @@ list_data() {
   echo "==================="
   echo "Current server data"
   echo "==================="
-  curl -s -XGET --http2-prior-knowledge http://localhost:8074/provision/v1/server-data | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-data | jq '.'
   echo
 }
 

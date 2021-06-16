@@ -150,6 +150,21 @@ bool MockRequestData::findLastRegisteredRequest(const std::string &method, const
     return false;
 }
 
+bool MockRequestData::loadRequestsSchema(const nlohmann::json& schema) {
+
+    requests_schema_.setSchema(schema);
+
+    if (!requests_schema_.isAvailable()) {
+        LOGWARNING(
+            ert::tracing::Logger::warning("Requests won't be validated (schema will be ignored)", ERT_FILE_LOCATION);
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
 }
 }
 

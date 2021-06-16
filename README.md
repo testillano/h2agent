@@ -924,6 +924,18 @@ This operation also removes server mock internal data (requests and their states
 
 No response body.
 
+### POST provision/v1/server-data/schema
+
+Loads a requests schema for validation of traffic receptions.
+
+#### Request body
+
+Request body will be the `json` schema for the requests.
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
 ### GET /provision/v1/server-data/schema
 
 Retrieves the server requests schema if configured (at command-line).

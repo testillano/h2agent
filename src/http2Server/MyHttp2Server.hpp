@@ -58,7 +58,6 @@ namespace http2server
 
 class MyHttp2Server: public ert::http2comm::Http2Server
 {
-    h2agent::jsonschema::JsonSchema *requests_schema_;
     bool requests_history_;
 
     model::MockRequestData *mock_request_data_;
@@ -99,9 +98,6 @@ public:
 
     // return success to load schema
     bool setRequestsSchema(const std::string &schemaFile);
-    h2agent::jsonschema::JsonSchema *getRequestsJsonSchema() const {
-        return requests_schema_;
-    }
 
     void setRequestsHistory(bool enable = true) {
         requests_history_ = enable;

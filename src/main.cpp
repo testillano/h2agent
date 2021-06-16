@@ -392,10 +392,6 @@ int main(int argc, char* argv[])
         if (!myHttp2Server->setRequestsSchema(server_req_schema_file)) {
             std::cerr << "Requests schema load failed: will be ignored" << std::endl;
         }
-        else {
-            // to enable admin operation to get the requests schema
-            myAdminHttp2Server->setRequestsJsonSchema(myHttp2Server->getRequestsJsonSchema());
-        }
     }
     myHttp2Server->setRequestsHistory(!disable_server_request_history);
 
