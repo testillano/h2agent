@@ -60,7 +60,7 @@ MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads),
     server_matching_schema_(h2agent::adminSchemas::server_matching),
     server_provision_schema_(h2agent::adminSchemas::server_provision),
-    mock_request_data_(nullptr) {
+    mock_request_data_(nullptr), requests_schema_(nullptr) {
 
     admin_data_ = new model::AdminData();
 }
@@ -226,7 +226,21 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 
 void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
-    if (pathSuffix == "server-provision") {
+
+
+    if (pathSuffix == "server-provision/schema") {
+        responseBody = server_provision_schema_.getSchema().dump();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "server-matching/schema") {
+        responseBody = server_matching_schema_.getSchema().dump();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "server-data/schema") {
+        responseBody = (requests_schema_ ? requests_schema_->getSchema().dump():"null");
+        statusCode = (responseBody == "null" ? 204:200);
+    }
+    else if (pathSuffix == "server-provision") {
         bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
         statusCode = (responseBody == "null" ? 204:200);

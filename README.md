@@ -487,6 +487,18 @@ As provision key is built combining *inState*, *method* and *uri* fields, a regu
 }
 ```
 
+### GET /provision/v1/server-matching/schema
+
+Retrieves the server matching schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json document containing server matching schema.
+
 ### GET /provision/v1/server-matching
 
 Retrieves the current server matching configuration.
@@ -874,6 +886,18 @@ Filters give you the chance to make complex transformations:
 }
 ```
 
+### GET /provision/v1/server-provision/schema
+
+Retrieves the server provision schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json document containing server provision schema.
+
 ### GET /provision/v1/server-provision
 
 Retrieves the current provision map.
@@ -899,6 +923,18 @@ This operation also removes server mock internal data (requests and their states
 #### Response body
 
 No response body.
+
+### GET /provision/v1/server-data/schema
+
+Retrieves the server requests schema if configured (at command-line).
+
+#### Response status code
+
+**200** (OK), **204** (No Content).
+
+#### Response body
+
+Json document containing server requests schema if configured, or empty if not.
 
 ### GET /provision/v1/server-data
 

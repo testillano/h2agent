@@ -99,6 +99,9 @@ public:
 
     // return success to load schema
     bool setRequestsSchema(const std::string &schemaFile);
+    h2agent::jsonschema::JsonSchema *getRequestsJsonSchema() const {
+        return requests_schema_;
+    }
 
     void setRequestsHistory(bool enable = true) {
         requests_history_ = enable;

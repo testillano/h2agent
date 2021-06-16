@@ -59,6 +59,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     h2agent::jsonschema::JsonSchema server_matching_schema_;
     h2agent::jsonschema::JsonSchema server_provision_schema_;
+    h2agent::jsonschema::JsonSchema *requests_schema_;
 
     model::AdminData *admin_data_;
     model::MockRequestData *mock_request_data_;
@@ -97,6 +98,10 @@ public:
     }
     model::MockRequestData *getMockRequestData() const {
         return mock_request_data_;
+    }
+
+    void setRequestsJsonSchema(h2agent::jsonschema::JsonSchema *schema)  {
+        requests_schema_ = schema;
     }
 };
 
