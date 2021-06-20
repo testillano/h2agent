@@ -41,7 +41,6 @@ SOFTWARE.
 #include <string>
 #include <algorithm>
 #include <thread>
-#include <boost/exception/diagnostic_information.hpp>
 
 // Project
 #include "version.hpp"
@@ -160,6 +159,10 @@ void usage(int rc)
        << "[-k|--server-key <path file>]\n"
        << "  Path file for server key to enable SSL/TLS; unsecured by default.\n\n"
 
+       << "[--server-key-password <password>]\n"
+       << "  When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process\n"
+       << "   start.\n\n"
+
        << "[-c|--server-crt <path file>]\n"
        << "  Path file for server crt to enable SSL/TLS; unsecured by default.\n\n"
 
@@ -237,6 +240,7 @@ int main(int argc, char* argv[])
     int worker_threads = -1;
     int server_threads = 1;
     std::string server_key_file = "";
+    std::string server_key_password = "";
     std::string server_crt_file = "";
     bool admin_secured = false;
     std::string server_req_schema_file = "";
@@ -307,6 +311,11 @@ int main(int argc, char* argv[])
         server_key_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--server-key-password", value))
+    {
+        server_key_password = value;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "-c", value)
             || cmdOptionExists(argv, argv + argc, "--server-crt", value))
     {
@@ -336,6 +345,10 @@ int main(int argc, char* argv[])
         _exit(EXIT_SUCCESS);
     }
 
+    // Secure options
+    bool traffic_secured = (!server_key_file.empty() && !server_crt_file.empty());
+    bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && server_key_password.empty());
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << "[" << getLocaltime().c_str() << "] Starting " << progname <<
               " (version " << h2agent::GIT_VERSION << ") ..." << '\n';
@@ -363,14 +376,18 @@ int main(int argc, char* argv[])
     std::cout << '\n';
 
     std::cout << "Server threads: " << server_threads << '\n';
+    std::cout << "Server key password: " << ((server_key_password != "") ? "***" :
+              "<not provided>") << '\n';
     std::cout << "Server key file: " << ((server_key_file != "") ? server_key_file :
                                          "<not provided>") << '\n';
     std::cout << "Server crt file: " << ((server_crt_file != "") ? server_crt_file :
                                          "<not provided>") << '\n';
-
-    bool traffic_secured = (!server_key_file.empty() && !server_crt_file.empty());
-    if (!traffic_secured)
+    if (!traffic_secured) {
         std::cout << "SSL/TLS disabled: both key & certificate must be provided" << '\n';
+        if (!server_key_password.empty()) {
+            std::cout << "Server key password was provided but will be ignored !" << '\n';
+        }
+    }
 
     std::cout << "Traffic secured: " << (traffic_secured ? "yes":"no") << '\n';
     std::cout << "Admin secured: " << (traffic_secured ? (admin_secured ? "yes":"no"):(admin_secured ? "ignored":"no")) << '\n';
@@ -411,43 +428,41 @@ int main(int argc, char* argv[])
     myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
     myAdminHttp2Server->setMockRequestData(myHttp2Server->getMockRequestData()); // to allow GET resources (location headers) or similar operations which need mocked/dynamic data
 
+    // Server key password:
+    if (!server_key_password.empty()) {
+        if (traffic_secured) myHttp2Server->setServerKeyPassword(server_key_password);
+        if (admin_secured) myAdminHttp2Server->setServerKeyPassword(server_key_password);
+    }
+
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);
     signal(SIGINT, sighndl);
 
     std::string bind_address = "0.0.0.0";
 
+    if (hasPEMpasswordPrompt) {
+        std::cout << "You MUST wait for both 'PEM pass phrase' prompts (10 seconds between them) ..." << '\n';
+        std::cout << "To avoid these prompts, you may provide '--server-key-password':" << '\n';
+    }
+
     //std::thread t1(&h2agent::http2server::MyAdminHttp2Server::serve, myAdminHttp2Server, bind_address, admin_port, server_key_file, server_crt_file, server_threads);
     //std::thread t2(&h2agent::http2server::MyHttp2Server::serve, myHttp2Server, bind_address, server_port, server_key_file, server_crt_file, server_threads);
     int rc1, rc2;
+    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? server_key_file:"", admin_secured ? server_crt_file:"", server_threads);});
 
-    try {
-      std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? server_key_file:"", admin_secured ? server_crt_file:"", server_threads);});
-      if (rc1 == EXIT_FAILURE) {
-        std::cerr << "Management interface initialization failure. Exiting ..." << '\n';
-        t1.join();
-        _exit(rc1);
-      }
+    if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
+    // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
 
-      std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
-      if (rc2 == EXIT_FAILURE) {
-        std::cerr << "Traffic interface initialization failure. Exiting ..." << '\n';
-        t2.join();
-        _exit(rc2);
-      }
+    std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
+    t1.join();
+    t2.join();
 
-      t1.join();
-      t2.join();
-    }
-    catch (const boost::exception& e) {
-       std::cerr << boost::diagnostic_information(e) << '\n';
-       _exit(EXIT_FAILURE);
-    }
-    catch (...) {
-       std::cerr << "Initialization exception" << '\n';
-       _exit(EXIT_FAILURE);
+    if (rc1 == EXIT_SUCCESS && rc2 == EXIT_SUCCESS)
+    {
+        _exit(EXIT_SUCCESS);
     }
 
-    _exit(EXIT_SUCCESS);
+    std::cerr << "Initialization failure. Exiting ..." << '\n';
+    _exit(EXIT_FAILURE);
 }
 
