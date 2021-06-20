@@ -41,6 +41,7 @@ SOFTWARE.
 #include <string>
 #include <algorithm>
 #include <thread>
+#include <boost/exception/diagnostic_information.hpp>
 
 // Project
 #include "version.hpp"
@@ -157,12 +158,15 @@ void usage(int rc)
        << "  Number of nghttp2 server threads; defaults to 1 (1 connection).\n\n"
 
        << "[-k|--server-key <path file>]\n"
-       << "  Path file for server key to enable SSL/TLS; defaults to empty.\n"
-       << "  Only mock server shall be secured (does not apply to admin interface).\n\n"
+       << "  Path file for server key to enable SSL/TLS; unsecured by default.\n\n"
 
        << "[-c|--server-crt <path file>]\n"
-       << "  Path file for server crt to enable SSL/TLS; defaults to empty.\n"
-       << "  Only mock server shall be secured (does not apply to admin interface).\n\n"
+       << "  Path file for server crt to enable SSL/TLS; unsecured by default.\n\n"
+
+       << "[-s|--secure-admin]\n"
+       << "  When key (-k|--server-key) and crt (-c|--server-crt) are provided, only the traffic\n"
+       << "   interface is secured by default. To include management interface, this option must\n"
+       << "   be also provided.\n\n"
 
        << "[--server-request-schema <path file>]\n"
        << "  Path file for the server schema to validate requests received.\n\n"
@@ -234,6 +238,7 @@ int main(int argc, char* argv[])
     int server_threads = 1;
     std::string server_key_file = "";
     std::string server_crt_file = "";
+    bool admin_secured = false;
     std::string server_req_schema_file = "";
     bool disable_server_request_history = false;
     bool verbose = false;
@@ -308,6 +313,12 @@ int main(int argc, char* argv[])
         server_crt_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "-s", value)
+            || cmdOptionExists(argv, argv + argc, "--secure-admin", value))
+    {
+        admin_secured = true;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--server-request-schema", value))
     {
         server_req_schema_file = value;
@@ -357,11 +368,12 @@ int main(int argc, char* argv[])
     std::cout << "Server crt file: " << ((server_crt_file != "") ? server_crt_file :
                                          "<not provided>") << '\n';
 
-    if (server_key_file == "" || server_crt_file == "")
-    {
-        std::cout << "SSL/TLS disabled: both key & certificate must be provided" <<
-                  '\n';
-    }
+    bool traffic_secured = (!server_key_file.empty() && !server_crt_file.empty());
+    if (!traffic_secured)
+        std::cout << "SSL/TLS disabled: both key & certificate must be provided" << '\n';
+
+    std::cout << "Traffic secured: " << (traffic_secured ? "yes":"no") << '\n';
+    std::cout << "Admin secured: " << (traffic_secured ? (admin_secured ? "yes":"no"):(admin_secured ? "ignored":"no")) << '\n';
 
     std::cout << "Server request schema: " << ((server_req_schema_file != "") ? server_req_schema_file :
               "<not provided>") << '\n';
@@ -408,17 +420,34 @@ int main(int argc, char* argv[])
     //std::thread t1(&h2agent::http2server::MyAdminHttp2Server::serve, myAdminHttp2Server, bind_address, admin_port, server_key_file, server_crt_file, server_threads);
     //std::thread t2(&h2agent::http2server::MyHttp2Server::serve, myHttp2Server, bind_address, server_port, server_key_file, server_crt_file, server_threads);
     int rc1, rc2;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, "" /* server_key_file*/, "" /*server_crt_file*/, server_threads);});
-    std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
-    t1.join();
-    t2.join();
 
-    if (rc1 == EXIT_SUCCESS && rc2 == EXIT_SUCCESS)
-    {
-        _exit(EXIT_SUCCESS);
+    try {
+      std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? server_key_file:"", admin_secured ? server_crt_file:"", server_threads);});
+      if (rc1 == EXIT_FAILURE) {
+        std::cerr << "Management interface initialization failure. Exiting ..." << '\n';
+        t1.join();
+        _exit(rc1);
+      }
+
+      std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
+      if (rc2 == EXIT_FAILURE) {
+        std::cerr << "Traffic interface initialization failure. Exiting ..." << '\n';
+        t2.join();
+        _exit(rc2);
+      }
+
+      t1.join();
+      t2.join();
+    }
+    catch (const boost::exception& e) {
+       std::cerr << boost::diagnostic_information(e) << '\n';
+       _exit(EXIT_FAILURE);
+    }
+    catch (...) {
+       std::cerr << "Initialization exception" << '\n';
+       _exit(EXIT_FAILURE);
     }
 
-    std::cerr << "Initialization failure. Exiting ..." << '\n';
-    _exit(EXIT_FAILURE);
+    _exit(EXIT_SUCCESS);
 }
 

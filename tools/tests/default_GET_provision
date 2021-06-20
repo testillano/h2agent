@@ -1,0 +1,14 @@
+PROVISION
+{
+  "requestMethod": "GET",
+  "requestUri": "",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "default",
+    "bar": "default"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  }
+}

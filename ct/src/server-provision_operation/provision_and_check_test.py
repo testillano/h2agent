@@ -133,3 +133,19 @@ def test_010_i_want_to_check_prioritymatchingregex_on_traffic_interface(resource
   responseBodyRef = { "foo":"bar-5551122" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+@pytest.mark.server
+def test_011_i_want_to_get_answer_for_default_provision_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
+
+  # Provision
+  requestBody = resources("default_GET_provision.json")
+  responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
+  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
+
+  # Send GET
+  response = h2ac_traffic.get("/app/v1/foo/bar/this-is-not-provisioned")
+
+  # Verify response
+  responseBodyRef = { "foo":"default", "bar":"default" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+

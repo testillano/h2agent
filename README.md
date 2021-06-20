@@ -260,12 +260,15 @@ Options:
   Number of nghttp2 server threads; defaults to 1 (1 connection).
 
 [-k|--server-key <path file>]
-  Path file for server key to enable SSL/TLS; defaults to empty.
-  Only mock server shall be secured (does not apply to admin interface).
+  Path file for server key to enable SSL/TLS; unsecured by default.
 
 [-c|--server-crt <path file>]
-  Path file for server crt to enable SSL/TLS; defaults to empty.
-  Only mock server shall be secured (does not apply to admin interface).
+  Path file for server crt to enable SSL/TLS; unsecured by default.
+
+[-s|--secure-admin]
+  When key (-k|--server-key) and crt (-c|--server-crt) are provided, only the traffic
+   interface is secured by default. To include management interface, this option must
+   be also provided.
 
 [--server-request-schema <path file>]
   Path file for the server schema to validate requests received.
@@ -302,6 +305,8 @@ Server threads: 1
 Server key file: <not provided>
 Server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
+Traffic secured: no
+Admin secured: no
 Server request schema: <not provided>
 Server request history: true
 
@@ -310,12 +315,12 @@ $ kill $!
 [Warning]|/code/src/main.cpp:104(_exit)|Terminating with exit code 1
 [Warning]|/code/src/main.cpp:90(stopServers)|Stopping h2agent admin service at 03/04/21 20:49:40 CEST
 [Warning]|/code/src/main.cpp:97(stopServers)|Stopping h2agent mock service at 03/04/21 20:49:40 CEST
-[1]+  Exit 1                  h2agent -l Debug --verbose
+[1]+  Exit 1                  h2agent --verbose
 ```
 
 ## Management interface
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/provision/v1`/:
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/provision/v1/`:
 
 **Current development phase is 1**, see [Implementation Strategy](#implementation-strategy).
 
@@ -569,7 +574,7 @@ Defines the response behavior for an incoming request matching some basic condit
     },
     "requestMethod": {
       "type": "string",
-        "enum": ["POST", "GET", "PUT", "DELETE" ]
+        "enum": ["POST", "GET", "PUT", "DELETE", "HEAD"]
     },
     "requestUri": {
       "type": "string"
@@ -613,7 +618,7 @@ Defines the response behavior for an incoming request matching some basic condit
       }
     }
   },
-  "required": [ "requestMethod", "requestUri", "responseCode" ]
+  "required": [ "requestMethod", "responseCode" ]
 }
 ```
 
@@ -636,11 +641,13 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 ##### requestMethod
 
-Expected request method (*POST*, *GET*, *PUT*, *DELETE*).
+Expected request method (*POST*, *GET*, *PUT*, *DELETE, HEAD*).
 
 ##### requestUri
 
 Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
+
+<u>*Empty string is accepted*</u>, and is reserved to configure an optional default provision, something which could be specially useful to define the fall back provision if no matching entry is found. So, you could configure defaults for any method received, just putting an empty *request URI* or omitting this optional field.
 
 ##### responseHeaders
 

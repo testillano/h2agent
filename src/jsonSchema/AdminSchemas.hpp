@@ -166,7 +166,7 @@ const nlohmann::json server_provision = R"(
       }
     }
   },
-  "required": [ "requestMethod", "requestUri", "responseCode" ]
+  "required": [ "requestMethod", "responseCode" ]
 }
 )"_json;
 

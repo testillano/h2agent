@@ -485,13 +485,15 @@ bool AdminProvision::load(const nlohmann::json &j) {
     auto requestMethod_it = j.find("requestMethod");
     request_method_ = *requestMethod_it;
 
-    auto requestUri_it = j.find("requestUri");
-    request_uri_ = *requestUri_it;
-
     auto it = j.find("responseCode");
     response_code_ = *it;
 
     // Optional
+    it = j.find("requestUri");
+    if (it != j.end() && it->is_string()) {
+        request_uri_ = *it;
+    }
+
     it = j.find("inState");
     if (it != j.end() && it->is_string()) {
         in_state_ = *it;

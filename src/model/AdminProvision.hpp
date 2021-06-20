@@ -75,12 +75,12 @@ class AdminProvision
     std::regex regex_; // precompile key as possible regex for PriorityMatchingRegex algorithm
 
     // Cached information:
-    std::string request_method_;
-    std::string request_uri_;
+    std::string request_method_{};
+    std::string request_uri_{};
     std::string in_state_;
 
     std::string out_state_;
-    unsigned int response_code_;
+    unsigned int response_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
     nlohmann::json response_body_;
     unsigned int response_delay_ms_;

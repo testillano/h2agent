@@ -248,6 +248,16 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         provision = provisionData.findWithPriorityMatchingRegex(inState, method, uriPath);
     }
 
+    // Fall back to possible default provision (empty URI):
+    if (!provision) {
+        LOGDEBUG(
+            std::string msg = ert::tracing::Logger::asString("Trying with default provision for '%s'", method.c_str());
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
+
+        provision = provisionData.find(inState, method, "");
+    }
+
     if (provision) {
 
         unsigned int delayMs;
