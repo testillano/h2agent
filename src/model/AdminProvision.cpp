@@ -81,7 +81,8 @@ void AdminProvision::transform( const std::string &requestUri,
                                 nghttp2::asio_http2::header_map &headers,
                                 std::string &responseBody,
                                 unsigned int &delayMs,
-                                std::string &outState
+                                std::string &outState,
+                                std::string &outStateMethod
                               ) const {
 
     // Default values without transformations:
@@ -494,6 +495,7 @@ void AdminProvision::transform( const std::string &requestUri,
                 if (!success) continue;
                 // assignment
                 outState = target;
+                outStateMethod = transformation->getTarget(); // if empty, means current method
             }
         }
         catch (std::exception& e)

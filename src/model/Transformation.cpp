@@ -241,6 +241,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // - response.delayMs *[unsigned integer]*: simulated delay to respond.
     // + var.<id> *[string (or number as string)]*: general purpose variable.
     // - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
+    // + outState.[POST|GET|PUT|DELETE|HEAD] *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This overrides the default provisioned one.
 
     // Regex needed:
     static std::regex responseBodyStringNode("^response.body.string.(.*)");
@@ -251,6 +252,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseBodyObjectNode("^response.body.object.(.*)");
     static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)");
     static std::regex responseHeader("^response.header.(.*)");
+    static std::regex outStateMethod("^outState.(POST|GET|PUT|DELETE|HEAD)");
     bool convertTargetToJsonPointerPath = false;
 
     try {
@@ -327,6 +329,10 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (targetSpec == "outState") {
             target_type_ = TargetType::OutState;
         }
+        else if (std::regex_match(targetSpec, matches, outStateMethod)) { // method
+            target_ = matches[1];
+            target_type_ = TargetType::OutState;
+        }
     }
     catch (std::regex_error &e) {
         ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
@@ -347,7 +353,7 @@ bool Transformation::load(const nlohmann::json &j) {
         << " | source_i1_ (GeneralRandom min): " << source_i1_
         << " | source_i2_ (GeneralRandom max): " << source_i2_
         << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_
-        << " | target_ (ResponseBodyString/Number/Unsigned/FloatBoolean/Object(empty: whole, path: node), ResponseHeader, TVar): " << target_;
+        << " | target_ (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, OutState(empty: current method, method: another)): " << target_;
 
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );

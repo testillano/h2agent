@@ -112,6 +112,7 @@ public:
      * @param responseBody Response body filled by reference (if any transformation applies)
      * @param delayMs Response delay milliseconds filled by reference (if any transformation applies)
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
+     * @param outStateMethod out-state for request context created in foreign method (virtual server data entry created), filled by reference (if any transformation applies)
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -124,7 +125,8 @@ public:
                     nghttp2::asio_http2::header_map &headers,
                     std::string &responseBody,
                     unsigned int &delayMs,
-                    std::string &outState
+                    std::string &outState,
+                    std::string &outStateMethod
                   ) const;
 
     // setters:

@@ -122,7 +122,7 @@ const nlohmann::json server_provision = R"(
     },
     "requestMethod": {
       "type": "string",
-        "enum": ["POST", "GET", "PUT", "DELETE" ]
+        "enum": ["POST", "GET", "PUT", "DELETE", "HEAD" ]
     },
     "requestUri": {
       "type": "string"
@@ -156,7 +156,7 @@ const nlohmann::json server_provision = R"(
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.jsonstring$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.jsonstring\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
+            "pattern": "^var\\..+|^response\\.body(\\.object$|\\.jsonstring$|\\.string$|\\.integer$|\\.unsigned$|\\.float$|\\.boolean$)?(\\..)+|^response\\.header\\..+|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
           }
         },
         "additionalProperties" : {

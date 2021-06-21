@@ -615,7 +615,7 @@ Defines the response behavior for an incoming request matching some basic condit
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.jsonstring$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.jsonstring\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
+            "pattern": "^var\\..+|^response\\.body(\\.object$|\\.jsonstring$|\\.string$|\\.integer$|\\.unsigned$|\\.float$|\\.boolean$)?(\\..)+|^response\\.header\\..+|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
           }
         },
         "additionalProperties" : {
@@ -648,7 +648,7 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 ##### requestMethod
 
-Expected request method (*POST*, *GET*, *PUT*, *DELETE, HEAD*).
+Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
 
 ##### requestUri
 
@@ -722,24 +722,48 @@ The **source** of information is classified after parsing the following possible
 The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
 
 - response.body.string *[string]*: response body document storing expected string.
+
 - response.body.integer *[integer]*: response body document storing expected integer.
+
 - response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer.
+
 - response.body.float *[float number]*: response body document storing expected float number.
+
 - response.body.boolean *[boolean]*: response body document storing expected boolean.
+
 - response.body.object *[json object]*: response body document storing expected object as root node.
+
 - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
+
 - response.body.string.<node1>..<nodeN> *[string]*: response body node path storing expected string.
+
 - response.body.integer.<node1>..<nodeN> *[integer]*: response body node path storing expected integer.
+
 - response.body.unsigned.<node1>..<nodeN> *[unsigned integer]*: response body node path storing expected unsigned integer.
+
 - response.body.float.<node1>..<nodeN> *[float number]*: response body node path storing expected float number.
+
 - response.body.boolean.<node1>..<nodeN> *[boolean]*: response body node path storing expected booblean.
+
 - response.body.object.<node1>..<nodeN> *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order.
+
 - response.body.jsonstring.<node1>..<nodeN> *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
+
 - response.header.<hname> *[string (or number as string)]*: response header component (i.e. *location*).
+
 - response.statusCode *[unsigned integer]*: response status code.
+
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+
 - var.<id> *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects.
+
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
+
+- outState.[POST|GET|PUT|DELETE|HEAD] *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision).
+
+  You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted").
+
+  This overrides the default provisioned one.
 
 
 
@@ -986,6 +1010,20 @@ This operation is useful for testing post verification stages (validate content 
 
 Json document containing server internal data, '*null*' if nothing cached.
 
+The information collected is:
+
+* `virtualOriginComingFromMethod`: optional, special field for virtual entries coming from provisions which established an *out-state* for a foreign method. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible.
+* `receptionTimestampMs`: event reception *timestamp*.
+* `state`: working/current state for the event.
+* `headers`: object containing the list of request headers.
+* `body`: object containing the request body.
+* `previousSate`: original provision state which managed this request.
+* `responseBody`: response which was sent.
+* `responseDelayMs`: delay which was processed.
+* `responseStatusCode`: status code which was sent.
+* `responseHeaders`: object containing the list of response headers which were sent.
+* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence was actually not increased for the server data entry shown, only for the original event which caused this one.
+
 ### POST /provision/v1/client-initialize
 
 Initializes the client connection to the target server endpoint.
@@ -1158,8 +1196,6 @@ Use [Prometheus](https://prometheus.io/) scrapping system.
 [Jun,12 2021] This is the only thing pending in Phase 1
 
 #### Advanced transformations
-
-Allow to update provisions from provisions transformations themselves.
 
 Add conditional transform filters.
 

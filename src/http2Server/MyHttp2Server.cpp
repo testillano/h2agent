@@ -69,14 +69,16 @@ bool MyHttp2Server::checkMethodIsAllowed(
     const nghttp2::asio_http2::server::request& req,
     std::vector<std::string>& allowedMethods)
 {
-    allowedMethods = {"POST", "GET"};
-    return (req.method() == "POST" || req.method() == "GET");
+    // NO RESTRICTIONS FOR SIMULATED NODE
+    allowedMethods = {"POST", "GET", "PUT", "DELETE", "HEAD"};
+    return (req.method() == "POST" || req.method() == "GET" || req.method() == "PUT" || req.method() == "DELETE" || req.method() == "HEAD");
 }
 
 bool MyHttp2Server::checkMethodIsImplemented(
     const nghttp2::asio_http2::server::request& req)
 {
-    return (req.method() == "POST" || req.method() == "GET");
+    // NO RESTRICTIONS FOR SIMULATED NODE
+    return (req.method() == "POST" || req.method() == "GET" || req.method() == "PUT" || req.method() == "DELETE" || req.method() == "HEAD");
 }
 
 
@@ -262,14 +264,22 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
         unsigned int delayMs;
         std::string outState;
+        std::string outStateMethod;
 
         // PREPARE & TRANSFORM
         provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
-                              statusCode, headers, responseBody, delayMs, outState);
+                              statusCode, headers, responseBody, delayMs, outState, outStateMethod);
 
         // Store request event context information
         //if (!requestFound)
         getMockRequestData()->loadRequest(inState, outState, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
+
+        // Virtual storage:
+        if (!outStateMethod.empty()) {
+            if (outStateMethod != method) {
+                getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+            }
+        }
 
         if (delayMs != 0) {
             LOGDEBUG(

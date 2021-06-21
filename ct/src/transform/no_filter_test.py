@@ -291,7 +291,6 @@ def test_018_requestUriPathToResponseBodyStringPath(resources, h2ac_admin, h2ac_
 
 
 @pytest.mark.transform
-@pytest.mark.xfail(strict=True, reason="to be investigated: standalone it works")
 def test_019_recvseqThroughVariableToResponseBodyUnsignedPath(resources, h2ac_admin, h2ac_traffic):
 
   # Provision
@@ -351,4 +350,36 @@ def test_022_valueToResponseBodyJsonStringPath(resources, h2ac_admin, h2ac_traff
   response = h2ac_traffic.post("/app/v1/foo/bar/1", requestBody)
   responseBodyRef = { "foo":"bar-1", "array": [ { "id": "2000" }, { "id": "2001" } ] }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_023_virtualOutStateToSimulateRealDeletion(resources, h2ac_admin, h2ac_traffic):
+
+  # Provisions
+  requestBody = resources("server-provision_OK.json.in").format(id="13")
+  responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
+  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
+
+  requestBody = resources("server-provision_transform_no_filter_delete13.json")
+  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
+
+  requestBody = resources("server-provision_transform_no_filter_get13afterDeletion.json")
+  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
+
+  # Traffic
+  # Firstly, exists:
+  response = h2ac_traffic.get("/app/v1/foo/bar/13")
+  responseBodyRef = { 'foo': 'bar-13' }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Now remove:
+  response = h2ac_traffic.delete("/app/v1/foo/bar/13")
+  assert response["status"] == 200
+
+  # Now try to get, but get 404:
+  response = h2ac_traffic.get("/app/v1/foo/bar/13")
+  assert response["status"] == 404
 

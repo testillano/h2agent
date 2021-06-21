@@ -33,7 +33,7 @@ if ! type jq &>/dev/null; then echo "ERROR: tool 'jq' must be installed (sudo ap
 # PriorityMatchingRegex:
 press_enter "to configure matching algorithm"
 curl --http2-prior-knowledge -d @matching/server-matching.json -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-matching
-press_enter "to enter to check matching algorithm"
+press_enter "to check matching algorithm"
 curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-matching
 
 # Provisions:
@@ -41,7 +41,7 @@ press_enter "to clear previous provisions" # important for our matching algorith
 curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision
 echo "Done!"
 
-press_enter "to enter the demo provisions"
+press_enter "to launch demo provisions"
 PROVISIONS=( $(ls ./provisions/*) )
 echo
 for json in ${PROVISIONS[*]}
@@ -50,21 +50,27 @@ do
   curl --http2-prior-knowledge -d @${json} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision
 done
 
-press_enter "to enter to check provisions"
+press_enter "to check provisions"
 curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision | jq '.'
 
 for n in 1 2 3
 do
-  press_enter "to enter to request id-${n}"
+  press_enter "to request id-${n}"
   curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-${n}")
 done
 
-press_enter "to enter to request unassigned id-74"
+press_enter "to request unassigned id-74"
 curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-74")
 
-press_enter "to enter to request invalid id-112"
+press_enter "to request invalid id-112"
 curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-112")
 
-press_enter "to enter to request invalid id-xyz"
+press_enter "to request invalid id-xyz"
 curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-xyz")
+
+press_enter "to delete id-2"
+curl -i -XDELETE --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-2")
+
+press_enter "to request id-2 and confirm deletion obtaining 404 (Not Found)"
+curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-2")
 

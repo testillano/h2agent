@@ -47,7 +47,8 @@ namespace model
 
 
 bool MockRequest::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                       unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs) {
+                       unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+                       const std::string &virtualOriginComingFromMethod) {
 
     reception_timestamp_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
@@ -63,11 +64,16 @@ bool MockRequest::load(const std::string &pstate, const std::string &state, cons
     server_sequence_ = serverSequence;
     response_delay_ms_ = responseDelayMs;
 
+    virtual_origin_coming_from_method_ = virtualOriginComingFromMethod;
+
     return true;
 }
 
 nlohmann::json MockRequest::getJson() const {
     nlohmann::json result;
+
+    if (!virtual_origin_coming_from_method_.empty())
+        result["virtualOriginComingFromMethod"] = virtual_origin_coming_from_method_;
 
     result["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
 

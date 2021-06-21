@@ -142,6 +142,35 @@ And finally, we will configure the default provision:
 }
 ```
 
+
+
+Additionally we will use the **out-state* for foreign method** feature to simulate the deletion of an specific register, for example the *id-2*: we will provision the *DELETE* for it, with an out-state for *GET*, and then we will provision a *404* for such *GET*:
+
+```json
+{
+  "requestMethod": "DELETE",
+  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "value.id-2-deleted",
+      "target": "outState.GET"
+    }
+  ]
+}
+```
+
+```json
+{
+  "inState": "id-2-deleted",
+  "outState": "id-2-deleted",
+  "requestMethod": "GET",
+  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
+  "responseCode": 404
+}
+```
+
 ## Run the demo
 
 Execute the script `./run.sh` once the process has been started.
+
