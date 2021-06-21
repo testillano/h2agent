@@ -125,7 +125,9 @@ As we need to identify bad *URI's*, we will use the matching algorithm *Priority
 
 Note that *URI's* are regular expressions, and slashes and question marks **MUST BE ESCAPED**, so you can't put the specified *URI's* directly.
 
-And the default provision:
+This way is also valid: `"requestUri": "(/office/v2/workplace)\\?id=id-1"`.
+
+And finally, we will configure the default provision:
 
 ```json
 {

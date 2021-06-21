@@ -73,7 +73,13 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
     auto rgx_it = j.find("rgx");
     if (rgx_it != j.end() && rgx_it->is_string()) {
         hasRgx = true;
-        rgx_.assign(*rgx_it);
+        try {
+            rgx_.assign(*rgx_it);
+        }
+        catch (std::regex_error &e) {
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     auto fmt_it = j.find("fmt");
