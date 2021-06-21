@@ -5,7 +5,7 @@ import json
 @pytest.mark.transform
 @pytest.mark.filter
 def test_001_cleanup_provisions(resources, h2ac_admin):
-  response = h2ac_admin.delete("/provision/v1/server-provision")
+  response = h2ac_admin.delete("/provision/v1/server-provisions")
 
 
 @pytest.mark.transform

@@ -963,9 +963,9 @@ Retrieves the server provision schema.
 
 Json document containing server provision schema.
 
-### GET /provision/v1/server-provision
+### GET /provision/v1/server-provisions
 
-Retrieves the current provision map.
+Retrieves all the provisions configured.
 
 #### Response status code
 
@@ -975,9 +975,9 @@ Retrieves the current provision map.
 
 Json array containing all provisioned items, '*null*' if nothing configured.
 
-### DELETE /provision/v1/server-provision
+### DELETE /provision/v1/server-provisions
 
-Deletes the current provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
+Deletes the process provisions. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
 
 This operation also removes server mock internal data (requests and their states) as this only have sense for the provision which consolidated such information.
 

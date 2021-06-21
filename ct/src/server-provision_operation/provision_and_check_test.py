@@ -4,7 +4,7 @@ import json
 
 @pytest.mark.admin
 def test_001_cleanup_provisions(resources, h2ac_admin):
-  response = h2ac_admin.delete("/provision/v1/server-provision")
+  response = h2ac_admin.delete("/provision/v1/server-provisions")
 
 
 @pytest.mark.admin
@@ -72,13 +72,13 @@ def test_006_i_want_to_send_get_request_for_non_provisioned_data_on_traffic_inte
 def test_007_i_want_to_send_delete_server_provision_operations_on_admin_interface(resources, h2ac_admin):
 
   # Send DELETE
-  response = h2ac_admin.delete("/provision/v1/server-provision")
+  response = h2ac_admin.delete("/provision/v1/server-provisions")
 
   # Verify response
   assert response["status"] == 200
 
   # Send DELETE again
-  response = h2ac_admin.delete("/provision/v1/server-provision")
+  response = h2ac_admin.delete("/provision/v1/server-provisions")
 
   # Verify response
   assert response["status"] == 204 # no content as was removed at first DELETE

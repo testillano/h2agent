@@ -21,10 +21,10 @@ list_matching() {
 
 list_provisions() {
   echo
-  echo "======================================"
-  echo "Current server provision configuration"
-  echo "======================================"
-  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision | jq '.'
+  echo "======================================="
+  echo "Current server provisions configuration"
+  echo "======================================="
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provisions | jq '.'
   echo
 }
 
@@ -80,7 +80,9 @@ menu() {
   echo " s. Skip"
   echo " 0. Exit"
   echo
-  [ "${MENU_STATE}" = "ConfigureMatching" ] && OPT__DFLT=s;
+  [ "${MENU_STATE}" = "ConfigureMatching" ] && OPT__DFLT=2 # all the tests here are designed for this option (at the moment)
+                                                           # (FullMatching_passby_qparams.json is the second alphabetically)
+  [ "${MENU_STATE}" = "ConfigureProvision" ] && OPT__DFLT=s
   echo "Input option to${action} [${OPT__DFLT}]:"
   read opt
   [ -z "${opt}" ] && opt=${OPT__DFLT}
@@ -91,7 +93,7 @@ menu() {
   then
     echo "Press ENTER to confirm deletion for provisions and internal data ..."
     read -r dummy
-    curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/${operation}
+    curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/${operation}s
     echo "Done !"
     return 0
   fi

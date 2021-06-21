@@ -254,7 +254,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         responseBody = (getMockRequestData()->getRequestsSchema().isAvailable() ? getMockRequestData()->getRequestsSchema().getSchema().dump(4):"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
-    else if (pathSuffix == "server-provision") {
+    else if (pathSuffix == "server-provisions") {
         bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
         statusCode = (responseBody == "null" ? 204:200);
@@ -283,13 +283,13 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
     else {
         statusCode = 400;
-        buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)", responseBody);
+        buildJsonResponse(false, "invalid operation (allowed: server-provisions|server-matching|server-data)", responseBody);
     }
 }
 
 void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const
 {
-    if (pathSuffix == "server-provision") {
+    if (pathSuffix == "server-provisions") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
         mock_request_data_->clear(); // also, internal data is invalidated
     }

@@ -38,7 +38,7 @@ curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/serve
 
 # Provisions:
 press_enter "to clear previous provisions" # important for our matching algorithm
-curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision
+curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provisions
 echo "Done!"
 
 press_enter "to launch demo provisions"
@@ -51,7 +51,7 @@ do
 done
 
 press_enter "to check provisions"
-curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision | jq '.'
+curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provisions | jq '.'
 
 for n in 1 2 3
 do
