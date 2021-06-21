@@ -200,6 +200,33 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             }
             LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
         }
+        else if (pathSuffix == "server-provisions") { // MULTIPLE PROVISIONS (array of provisions provided)
+
+            jsonResponse_response = "server-provisions operation; ";
+            statusCode = 201;
+            jsonResponse_result = true;
+            for (auto it : requestJson) // "it" is of type json::reference and has no key() member
+            {
+                if (!server_provision_schema_.validate(it)) {
+                    statusCode = 400;
+                    jsonResponse_response += "detected one invalid schema";
+                    jsonResponse_result = false;
+                    break;
+                }
+                else if (!admin_data_->loadProvision(it)) {
+                    statusCode = 400;
+                    jsonResponse_response += "detected one invalid provision data received";
+                    jsonResponse_result = false;
+                    break;
+                }
+            }
+
+            if (jsonResponse_result) {
+                jsonResponse_response += "valid schemas and provisions data received";
+            }
+
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
+        }
         else if (pathSuffix == "server-data/schema") {
 
             jsonResponse_response = "server-data/schema operation; ";

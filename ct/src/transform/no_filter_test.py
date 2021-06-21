@@ -291,7 +291,6 @@ def test_018_requestUriPathToResponseBodyStringPath(resources, h2ac_admin, h2ac_
 
 
 @pytest.mark.transform
-@pytest.mark.xfail(strict=True, reason="to be investigated: standalone it works")
 def test_019_recvseqThroughVariableToResponseBodyUnsignedPath(resources, h2ac_admin, h2ac_traffic):
 
   # Provision

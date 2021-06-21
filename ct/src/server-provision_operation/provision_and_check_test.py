@@ -149,3 +149,20 @@ def test_011_i_want_to_get_answer_for_default_provision_on_traffic_interface(res
   responseBodyRef = { "foo":"default", "bar":"default" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+@pytest.mark.admin
+def test_012_multiple_provisions_operation(resources, h2ac_admin):
+
+  # Provisions after initial cleanup
+  response = h2ac_admin.delete("/provision/v1/server-provisions")
+  requestBody = resources("server-provision_two_provisions_array.json")
+  responseBodyRef = { "result":"true", "response":"server-provisions operation; valid schemas and provisions data received" }
+  response = h2ac_admin.post("/provision/v1/server-provisions", requestBody)
+  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
+
+  # Send GET
+  response = h2ac_admin.get("/provision/v1/server-provisions")
+
+  # Verify response
+  responseBodyRef = [{"requestMethod":"GET","requestUri":"/app/v1/foo/bar/1","responseBody":{"foo":"bar-1"},"responseCode":200,"responseHeaders":{"content-type":"text/html","x-version":"1.0.0"}},{"requestMethod":"GET","requestUri":"/app/v1/foo/bar/2","responseBody":{"foo":"bar-2"},"responseCode":200,"responseHeaders":{"content-type":"text/html","x-version":"1.0.0"}}]
+  h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
+
