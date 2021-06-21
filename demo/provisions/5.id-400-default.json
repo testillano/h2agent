@@ -1,0 +1,10 @@
+{
+  "requestMethod": "GET",
+  "responseCode": 400,
+  "responseBody": {
+    "cause": "invalid workplace id provided, must be in format id-<2-digit number>"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  }
+}

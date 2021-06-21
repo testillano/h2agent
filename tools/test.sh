@@ -141,7 +141,7 @@ menu() {
     echo "Press ENTER to test traffic, CTRL-C to abort ..."
     read -r dummy
     set -x
-    curl -v -X${method} --http2-prior-knowledge ${curlDataOpt} ${headers} http://${H2AGENT_TRAFFIC_ENDPOINT}${uri}
+    curl -i -X${method} --http2-prior-knowledge ${curlDataOpt} ${headers} http://${H2AGENT_TRAFFIC_ENDPOINT}${uri}
     set +x
     echo "Press ENTER to continue ..."
     read -r dummy
@@ -151,7 +151,7 @@ menu() {
     read -r dummy
     # -XPOST not necessary (already inferred)
     set -x
-    curl -v --http2-prior-knowledge -d @${dataFile} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/${operation}
+    curl -i --http2-prior-knowledge -d @${dataFile} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/${operation}
     set +x
   fi
 

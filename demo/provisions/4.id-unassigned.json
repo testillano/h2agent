@@ -1,0 +1,25 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
+  "responseCode": 200,
+  "responseBody": {
+    "name": "unassigned"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "request.uri.param.id",
+      "target": "response.body.string.id"
+    },
+    {
+      "source": "general.random.30000.69999",
+      "target": "response.body.integer.phone"
+    },
+    {
+      "source": "general.strftime.%F %H:%M:%S",
+      "target": "response.body.string.time"
+    }
+  ]
+}

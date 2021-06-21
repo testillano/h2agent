@@ -1,0 +1,19 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-3",
+  "responseCode": 200,
+  "responseBody": {
+    "id": "id-3",
+    "phone": 32459,
+    "name": "Juan Ignacio Martin"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "general.strftime.%F %H:%M:%S",
+      "target": "response.body.string.time"
+    }
+  ]
+}

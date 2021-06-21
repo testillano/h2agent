@@ -14,6 +14,8 @@ When developing a network service, one often needs to integrate it with other se
 
 `h2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
 
+There is a *Prezi* presentation [here](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/).
+
 ## Project image
 
 This image is already available at `docker hub` for every repository `tag`, and also for master as `latest`:
@@ -262,6 +264,10 @@ Options:
 [-k|--server-key <path file>]
   Path file for server key to enable SSL/TLS; unsecured by default.
 
+[--server-key-password <password>]
+  When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process
+   start.
+
 [-c|--server-crt <path file>]
   Path file for server crt to enable SSL/TLS; unsecured by default.
 
@@ -302,6 +308,7 @@ Server api name: <none>
 Server api version: <none>
 Worker threads: dynamically created
 Server threads: 1
+Server key password: <not provided>
 Server key file: <not provided>
 Server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
@@ -1148,6 +1155,12 @@ Use [Prometheus](https://prometheus.io/) scrapping system.
 
 [Jun,12 2021] This is the only thing pending in Phase 1
 
+#### Advanced transformations
+
+Allow to update provisions from provisions transformations themselves.
+
+Add conditional transform filters.
+
 ### Phase 2: provide scalability
 
 This is intented to be used to manage high load rates.
@@ -1221,4 +1234,3 @@ $ docker run -it --rm -v $PWD:/data frankwolf/astyle ${sources}
 
 Rebase to update and then make a `pull request`.
 
-                                                                                                                                                                      
