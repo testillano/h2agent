@@ -94,6 +94,15 @@ PROVISION
       "filter": {
         "Sum": 5
       }
+    },
+    {
+      "source": "request.body.forceErrors.internalServerError",
+      "target": "var.transfer-500-to-status-code"
+    },
+    {
+      "source": "value.500",
+      "target": "response.statusCode",
+      "filter": { "ConditionVar" : "transfer-500-to-status-code" }
     }
   ]
 }

@@ -5,7 +5,8 @@
   "responseBody": {
     "id": "id-2",
     "phone": 55643,
-    "name": "Ernesto Aranda"
+    "name": "Ernesto Aranda",
+    "developer": true
   },
   "responseHeaders": {
     "content-type": "application/json"

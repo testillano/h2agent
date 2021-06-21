@@ -27,6 +27,8 @@ As still we can't update provisions through transformation filters, we will igno
 
 What we can do, is validate the workplace identifiers to be named as `id-<2-digit number>`. If this is not true, an status code 400 (Bad Request) will be answered, with a response body explaining the reason: "invalid workplace id provided, must be in format id-<2-digit number>".
 
+Also, workplaces with even identifiers are designed for developers and an extra field must be included in the response body root indicating this situation: `"developer": true`. This is manually configured for `id-2` but automated through condition variable for unassigned ones.
+
 As we need to identify bad *URI's*, we will use the matching algorithm *PriorityMatchingRegex*, following the next provision sequence:
 
 ```json
@@ -59,7 +61,8 @@ As we need to identify bad *URI's*, we will use the matching algorithm *Priority
   "responseBody": {
     "id": "id-2",
     "phone": 55643,
-    "name": "Ernesto Aranda"
+    "name": "Ernesto Aranda",
+    "developer": true
   },
   "responseHeaders": {
     "content-type": "application/json"
@@ -118,6 +121,16 @@ As we need to identify bad *URI's*, we will use the matching algorithm *Priority
     {
       "source": "general.strftime.%F %H:%M:%S",
       "target": "response.body.string.time"
+    },
+    {
+      "source": "request.uri.param.id",
+      "target": "var.isDeveloper",
+      "filter": { "RegexCapture" : "id-[0-9]{0,1}[02468]{1}" }
+    },
+    {
+      "source": "value.non-empty-string-is-true",
+      "target": "response.body.boolean.developer",
+      "filter": { "ConditionVar" : "isDeveloper" }
     }
   ]
 }
@@ -144,7 +157,7 @@ And finally, we will configure the default provision:
 
 
 
-Additionally we will use the **out-state* for foreign method** feature to simulate the deletion of an specific register, for example the *id-2*: we will provision the *DELETE* for it, with an out-state for *GET*, and then we will provision a *404* for such *GET*:
+Additionally we will use the **out-state for foreign method** feature to simulate the deletion of an specific register, for example the *id-2*: we will provision the *DELETE* for it, with an out-state for *GET*, and then we will provision a *404* for such *GET*:
 
 ```json
 {

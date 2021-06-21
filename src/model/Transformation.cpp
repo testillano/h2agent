@@ -70,6 +70,7 @@ bool Transformation::load(const nlohmann::json &j) {
         //   Prepend             prefix value -> [filter_]
         //   Sum                 amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   Multiply            amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
+        //   ConditionVar        variable name -> [filter_]
 
         auto f_it = it->find("RegexCapture");
 
@@ -121,6 +122,10 @@ bool Transformation::load(const nlohmann::json &j) {
                     filter_number_type_ = 2 ;
                 }
                 filter_type_ = FilterType::Multiply;
+            }
+            else if ((f_it = it->find("ConditionVar")) != it->end()) {
+                filter_ = *f_it;
+                filter_type_ = FilterType::ConditionVar;
             }
         }
         catch (std::regex_error &e) {
@@ -363,9 +368,9 @@ bool Transformation::load(const nlohmann::json &j) {
 
     if (has_filter_) {
 
-    ss << " |FILTER| filter_type_ (RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply): " << filter_type_
+    ss << " |FILTER| filter_type_ (RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar): " << filter_type_
        /*<< " | filter_rgx_: ?"*/
-       << " | filter_ (RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend): " << filter_
+       << " | filter_ (RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar): " << filter_
        << " | filter_number_type_ for Sum/Multiply (0: integer, 1: unsigned, 2: float): " << filter_number_type_
        << " | filter_i_ (Sum, Multiply): " << filter_i_
        << " | filter_u_ (Sum, Multiply): " << filter_u_

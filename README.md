@@ -545,7 +545,8 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["Append"]},
         {"required": ["Prepend"]},
         {"required": ["Sum"]},
-        {"required": ["Multiply"]}
+        {"required": ["Multiply"]},
+        {"required": ["ConditionVar"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -565,7 +566,8 @@ Defines the response behavior for an incoming request matching some basic condit
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
         "Sum": { "type": "number" },
-        "Multiply": { "type": "number" }
+        "Multiply": { "type": "number" },
+        "ConditionVar": { "type": "string" }
       }
     }
   },
@@ -903,13 +905,36 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "value.integer.-10",
+    "source": "value.-10",
     "target": "var.value-of-one",
     "filter": { "Multiply" : -0.1 }
   }
   ```
 
   In this example, we operate `-10 * -0.1 = 1`.
+
+
+
+- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. If the variable is not defined, the condition is false. All the variables are strings in origin, and are converted to target selected types, but in this case the variable value is adapted as string to the boolean result following this procedure: empty string means *false*, any other situation is *true* (note that a variable containing the literal "false" would be interpreted as *true*). This decision allows to use, directly, regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter).
+
+  ```json
+  {
+    "source": "value.500",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "transfer-500-to-status-code" }
+  }
+  ```
+
+  The variable used for the condition should be defined in a previous transformation, for example:
+
+  ```json
+  {
+    "source": "request.body.forceErrors.internalServerError",
+    "target": "var.transfer-500-to-status-code"
+  }
+  ```
+
+  In this example, the request body dictates the responses' status code to receive in the node path "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
 
 
 

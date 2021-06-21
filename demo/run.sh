@@ -59,8 +59,11 @@ do
   curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-${n}")
 done
 
-press_enter "to request unassigned id-74"
+press_enter "to request unassigned id-74 (even identifier must carry 'developer': true)"
 curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-74")
+
+press_enter "to request unassigned id-75 (odd identifier must omit 'developer' field in response)"
+curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-75")
 
 press_enter "to request invalid id-112"
 curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-112")

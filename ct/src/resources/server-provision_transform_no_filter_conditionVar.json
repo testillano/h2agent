@@ -1,0 +1,32 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody":  {
+    "foo": "bar-1"
+  },
+  "responseHeaders":  {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.",
+      "target": "var.falseVar"
+    },
+    {
+      "source": "value.xxx",
+      "target": "var.trueVar"
+    },
+    {
+      "source": "value.foo",
+      "target": "response.body.string.must-be-missing-in-response",
+      "filter": { "ConditionVar" : "falseVar" }
+    },
+    {
+      "source": "value.foo",
+      "target": "response.body.string.must-be-in-response",
+      "filter": { "ConditionVar" : "trueVar" }
+    }
+  ]
+}

@@ -86,7 +86,8 @@ const nlohmann::json server_provision = R"(
         {"required": ["Append"]},
         {"required": ["Prepend"]},
         {"required": ["Sum"]},
-        {"required": ["Multiply"]}
+        {"required": ["Multiply"]},
+        {"required": ["ConditionVar"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -106,7 +107,8 @@ const nlohmann::json server_provision = R"(
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
         "Sum": { "type": "number" },
-        "Multiply": { "type": "number" }
+        "Multiply": { "type": "number" },
+        "ConditionVar": { "type": "string" }
       }
     }
   },

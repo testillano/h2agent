@@ -253,7 +253,7 @@ void AdminProvision::transform( const std::string &requestUri,
         bool success;
         std::smatch matches;
 
-        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply
+        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
             std::string source;
@@ -338,6 +338,14 @@ void AdminProvision::transform( const std::string &requestUri,
                         else continue;
                         sourceVault.setFloat(targetF);
                     }
+                }
+                else if (transformation->getFilterType() == Transformation::FilterType::ConditionVar) {
+                    // Get variable value for the variable name 'transformation->getFilter()':
+                    auto it = variables.find(transformation->getFilter());
+                    if ((it != variables.end()) && !(it->second.empty()))
+                        sourceVault.setString(source);
+                    else
+                        continue;
                 }
             }
             catch (std::exception& e)

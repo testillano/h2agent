@@ -20,6 +20,16 @@
     {
       "source": "general.strftime.%F %H:%M:%S",
       "target": "response.body.string.time"
+    },
+    {
+      "source": "request.uri.param.id",
+      "target": "var.isDeveloper",
+      "filter": { "RegexCapture" : "id-[0-9]{0,1}[02468]{1}" }
+    },
+    {
+      "source": "value.non-empty-string-is-true",
+      "target": "response.body.boolean.developer",
+      "filter": { "ConditionVar" : "isDeveloper" }
     }
   ]
 }
