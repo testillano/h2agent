@@ -615,7 +615,7 @@ Defines the response behavior for an incoming request matching some basic condit
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
+            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.jsonstring$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.jsonstring\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
           }
         },
         "additionalProperties" : {
@@ -727,12 +727,14 @@ The **target** of information is classified after parsing the following possible
 - response.body.float *[float number]*: response body document storing expected float number.
 - response.body.boolean *[boolean]*: response body document storing expected boolean.
 - response.body.object *[json object]*: response body document storing expected object as root node.
+- response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
 - response.body.string.<node1>..<nodeN> *[string]*: response body node path storing expected string.
 - response.body.integer.<node1>..<nodeN> *[integer]*: response body node path storing expected integer.
 - response.body.unsigned.<node1>..<nodeN> *[unsigned integer]*: response body node path storing expected unsigned integer.
 - response.body.float.<node1>..<nodeN> *[float number]*: response body node path storing expected float number.
 - response.body.boolean.<node1>..<nodeN> *[boolean]*: response body node path storing expected booblean.
 - response.body.object.<node1>..<nodeN> *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order.
+- response.body.jsonstring.<node1>..<nodeN> *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
 - response.header.<hname> *[string (or number as string)]*: response header component (i.e. *location*).
 - response.statusCode *[unsigned integer]*: response status code.
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.

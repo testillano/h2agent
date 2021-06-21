@@ -336,3 +336,19 @@ def test_021_emptyValueToResponseBodyStringPath(resources, h2ac_admin, h2ac_traf
   responseBodyRef = { "foo":"bar-1", "value":"" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
+@pytest.mark.transform
+def test_022_valueToResponseBodyJsonStringPath(resources, h2ac_admin, h2ac_traffic):
+
+  # Provision
+  requestBody = resources("server-provision_transform_no_filter.json.in").format(source="value.[{\\\"id\\\":\\\"2000\\\"},{\\\"id\\\":\\\"2001\\\"}]", target="response.body.jsonstring.array")
+  responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
+  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
+
+  # Traffic
+  requestBody = resources("request.json")
+  response = h2ac_traffic.post("/app/v1/foo/bar/1", requestBody)
+  responseBodyRef = { "foo":"bar-1", "array": [ { "id": "2000" }, { "id": "2001" } ] }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+

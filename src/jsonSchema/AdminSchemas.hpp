@@ -156,7 +156,7 @@ const nlohmann::json server_provision = R"(
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
+            "pattern": "^var\\..+|^response\\.body\\.object$|^response\\.body\\.jsonstring$|^response\\.body\\.string$|^response\\.body\\.integer$|^response\\.body\\.unsigned$|^response\\.body\\.float$|^response\\.body\\.boolean$|^response\\.body\\.object\\..+|^response\\.body\\.jsonstring\\..+|^response\\.body\\.string\\..+|^response\\.body\\.integer\\..+|^response\\.body\\.unsigned\\..+|^response\\.body\\.float\\..+|^response\\.body\\.boolean\\..+|^response\\.header\\..+|^response\\.statusCode$|^response\\.delayMs$|^outState$"
           }
         },
         "additionalProperties" : {

@@ -60,7 +60,7 @@ public:
     // Source type
     enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, InState };
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };
     // Filter type
     enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply };
 
@@ -83,7 +83,7 @@ private:
     int source_i1_, source_i2_; // GeneralRandom
 
     TargetType target_type_;
-    std::string target_; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar
+    std::string target_; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node), ResponseHeader, TVar
 
     bool has_filter_;
     FilterType filter_type_;

@@ -218,7 +218,7 @@ bool Transformation::load(const nlohmann::json &j) {
         return false;
     }
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Target specifications:
@@ -228,12 +228,14 @@ bool Transformation::load(const nlohmann::json &j) {
     // - response.body.float *[float number]*: response body document storing expected float number.
     // - response.body.boolean *[boolean]*: response body document storing expected booolean.
     // - response.body.object *[json object]*: response body document storing expected object.
+    // - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
     // + response.body.string.<n1>..<nN> *[string]*: response body node path storing expected string.
     // + response.body.integer.<n1>..<nN> *[number]*: response body node path storing expected integer.
     // + response.body.unsigned.<n1>..<nN> *[unsigned number]*: response body node path storing expected unsigned integer.
     // + response.body.float.<n1>..<nN> *[float number]*: response body node path storing expected float number.
     // + response.body.boolean.<n1>..<nN> *[boolean]*: response body node path storing expected booblean.
     // + response.body.object.<n1>..<nN> *[json object]*: response body node path storing expected object.
+    // + response.body.jsonstring.<node1>..<nodeN> *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
     // + response.header.<hname> *[string (or number as string)]*: response header component (i.e. *location*).
     // - response.statusCode *[unsigned integer]*: response status code.
     // - response.delayMs *[unsigned integer]*: simulated delay to respond.
@@ -247,6 +249,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseBodyFloatNode("^response.body.float.(.*)");
     static std::regex responseBodyBooleanNode("^response.body.boolean.(.*)");
     static std::regex responseBodyObjectNode("^response.body.object.(.*)");
+    static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)");
     static std::regex responseHeader("^response.header.(.*)");
     bool convertTargetToJsonPointerPath = false;
 
@@ -294,10 +297,18 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (targetSpec == "response.body.object") { // whole document
             target_type_ = TargetType::ResponseBodyObject;
         }
+        else if (targetSpec == "response.body.jsonstring") { // whole document
+            target_type_ = TargetType::ResponseBodyJsonString;
+        }
         else if (std::regex_match(targetSpec, matches, responseBodyObjectNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
             target_ = matches[1];
             target_type_ = TargetType::ResponseBodyObject;
+        }
+        else if (std::regex_match(targetSpec, matches, responseBodyJsonStringNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
+            convertTargetToJsonPointerPath = true;
+            target_ = matches[1];
+            target_type_ = TargetType::ResponseBodyJsonString;
         }
         else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
             target_ = matches[1];
@@ -335,7 +346,7 @@ bool Transformation::load(const nlohmann::json &j) {
         << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, Value): " << source_
         << " | source_i1_ (GeneralRandom min): " << source_i1_
         << " | source_i2_ (GeneralRandom max): " << source_i2_
-        << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_
+        << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_
         << " | target_ (ResponseBodyString/Number/Unsigned/FloatBoolean/Object(empty: whole, path: node), ResponseHeader, TVar): " << target_;
 
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);

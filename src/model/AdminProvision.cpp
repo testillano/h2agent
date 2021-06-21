@@ -129,7 +129,8 @@ void AdminProvision::transform( const std::string &requestUri,
                 (*it)->getTargetType() == Transformation::TargetType::ResponseBodyUnsigned ||
                 (*it)->getTargetType() == Transformation::TargetType::ResponseBodyFloat ||
                 (*it)->getTargetType() == Transformation::TargetType::ResponseBodyBoolean ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyObject) {
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyObject ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
             usesResponseBodyAsTransformationTarget = true;
             break;
         }
@@ -344,7 +345,7 @@ void AdminProvision::transform( const std::string &requestUri,
             }
         }
 
-        // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState
+        // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState
         try { // nlohmann::json exceptions
             if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyString) {
                 // extraction
@@ -414,6 +415,36 @@ void AdminProvision::transform( const std::string &requestUri,
                     else responseBodyJson[j_ptr] = target;
                 }
                 else responseBodyJson[j_ptr] = obj;
+            }
+            else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
+                // assignment for valid extraction
+                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+
+                // extraction
+                target = sourceVault.getString(success);
+                if (!success) continue;
+                try {
+                    obj = nlohmann::json::parse(target);
+                    // temporary log:
+                    LOGDEBUG(
+                        std::string msg("Json string parsed:\n\n");
+                        msg += obj.dump(4); // pretty print json body
+                        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                    );
+                }
+                catch (nlohmann::json::parse_error& e)
+                {
+                    /*
+                    std::stringstream ss;
+                    ss << "Json body parse error: " << e.what() << '\n'
+                    << "exception id: " << e.id << '\n'
+                    << "byte position of error: " << e.byte << std::endl;
+                    ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+                    */
+                    continue;
+                }
+                // assignment
+                responseBodyJson[j_ptr] = obj;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseHeader) {
                 // extraction
