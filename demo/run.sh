@@ -46,8 +46,11 @@ PROVISIONS=( $(ls ./provisions/*) )
 echo
 for json in ${PROVISIONS[*]}
 do
-  echo -ne "\nSending '${json}' ... "
+  echo -e "\n\nSending '${json}':"
+  cat ${json}
   curl --http2-prior-knowledge -d @${json} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provision
+  echo -e "\n\nPress ENTER to continue ..."
+  read -r dummy
 done
 
 press_enter "to check provisions"

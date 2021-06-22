@@ -10,15 +10,15 @@ There are three non-telework employees currently:
 ```{
 id = id-1
 phone = 66453
-name = Javier Mieres
+name = Jess Glynne
 ______________________________
 id = id-2
 phone = 55643
-name = Ernesto Aranda
+name = Bryan Adams
 ______________________________
 id = id-3
 phone = 32459
-name = Juan Ignacio Martin
+name = Phil Collins
 ```
 
 So, we will respond with the corresponding register except if the *id* is not in the database, when we will generate a document with the *id* provided, a random phone extension (between 30000 and 69999), and the name '*unassigned*'.
@@ -39,7 +39,7 @@ As we need to identify bad *URI's*, we will use the matching algorithm *Priority
   "responseBody": {
     "id": "id-1",
     "phone": 66453,
-    "name": "Javier Mieres"
+    "name": "Jess Glynne"
   },
   "responseHeaders": {
     "content-type": "application/json"
@@ -61,7 +61,7 @@ As we need to identify bad *URI's*, we will use the matching algorithm *Priority
   "responseBody": {
     "id": "id-2",
     "phone": 55643,
-    "name": "Ernesto Aranda",
+    "name": "Bryan Adams",
     "developer": true
   },
   "responseHeaders": {
@@ -84,7 +84,7 @@ As we need to identify bad *URI's*, we will use the matching algorithm *Priority
   "responseBody": {
     "id": "id-3",
     "phone": 32459,
-    "name": "Juan Ignacio Martin"
+    "name": "Phil Collins"
   },
   "responseHeaders": {
     "content-type": "application/json"
