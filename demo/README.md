@@ -2,188 +2,81 @@
 
 ## Case of use
 
-Our use case consists in a corporate office with a series of workplaces that can be assigned to an employee or be empty. Each position has an *ID* and a 5-digit telephone extension.
-We will simulate the server serving GET requests with URI `office/v2/workplace?id=<id>`, obtaining the information associated to the workplace: *id* itself, telephone number, employee complete name or `unassigned`, and date/time when the query have been done.
+Our use case consists in a corporate office with a series of workplaces that can be assigned to an employee or be empty. We will simulate the database having each entry the workplace *ID*, a 5-digit phone extension, the assigned employee name and also an optional root node `developer` to indicate this job role if proceed.
 
-There are three non-telework employees currently:
+These are the **requirements**:
 
-```{
-id = id-1
-phone = 66453
-name = Jess Glynne
-______________________________
-id = id-2
-phone = 55643
-name = Bryan Adams
-______________________________
-id = id-3
-phone = 32459
-name = Phil Collins
-```
+* Serve *GET* requests with URI `office/v2/workplace?id=<id>`, obtaining the information associated to the workplace. Additionally, the date/time of the query received must be added to the response (`time`: "<free date format>"). We will configure the following entries:
 
-So, we will respond with the corresponding register except if the *id* is not in the database, when we will generate a document with the *id* provided, a random phone extension (between 30000 and 69999), and the name '*unassigned*'.
+  ```{
+  id = id-1
+  phone = 66453
+  name = Jess Glynne
+  ______________________________
+  id = id-2
+  phone = 55643
+  name = Bryan Adams
+  ______________________________
+  id = id-3
+  phone = 32459
+  name = Phil Collins
+  ```
 
-As still we can't update provisions through transformation filters, we will ignore the fact that subsequent queries won't be coherent with regarding the phone number for a unassigned register. Also, we can't simulate deletion of registers and expect them to be missing after that operation.
+* If requested *id* is not in the database, we will return a document with the unknown *id* requested, a random phone extension between 30000 and 69999, and the employee name `unassigned`. We will ignore the fact that subsequent queries won't be coherent with regarding the phone number for this unassigned registers (assumed just for simplification).
 
-What we can do, is validate the workplace identifiers to be named as `id-<2-digit number>`. If this is not true, an status code 400 (Bad Request) will be answered, with a response body explaining the reason: "invalid workplace id provided, must be in format id-<2-digit number>".
+* Identifiers must be validated as `id-<2-digit number>`. If this is not true, an status code *400 (Bad Request)* will be answered, with this response body explaining the reason:
 
-Also, workplaces with even identifiers are designed for developers and an extra field must be included in the response body root indicating this situation: `"developer": true`. This is manually configured for `id-2` but automated through condition variable for unassigned ones.
-
-As we need to identify bad *URI's*, we will use the matching algorithm *PriorityMatchingRegex*, following the next provision sequence:
-
-```json
-{
-  "requestMethod": "GET",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-1",
-  "responseCode": 200,
-  "responseBody": {
-    "id": "id-1",
-    "phone": 66453,
-    "name": "Jess Glynne"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
-  "transform": [
-    {
-      "source": "general.strftime.%F %H:%M:%S",
-      "target": "response.body.string.time"
-    }
-  ]
-}
-```
-
-```json
-{
-  "requestMethod": "GET",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
-  "responseCode": 200,
-  "responseBody": {
-    "id": "id-2",
-    "phone": 55643,
-    "name": "Bryan Adams",
-    "developer": true
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
-  "transform": [
-    {
-      "source": "general.strftime.%F %H:%M:%S",
-      "target": "response.body.string.time"
-    }
-  ]
-}
-```
-
-```json
-{
-  "requestMethod": "GET",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-3",
-  "responseCode": 200,
-  "responseBody": {
-    "id": "id-3",
-    "phone": 32459,
-    "name": "Phil Collins"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
-  "transform": [
-    {
-      "source": "general.strftime.%F %H:%M:%S",
-      "target": "response.body.string.time"
-    }
-  ]
-}
-```
-
-```json
-{
-  "requestMethod": "GET",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
-  "responseCode": 200,
-  "responseBody": {
-    "name": "unassigned"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
-  "transform": [
-    {
-      "source": "request.uri.param.id",
-      "target": "response.body.string.id"
-    },
-    {
-      "source": "general.random.30000.69999",
-      "target": "response.body.integer.phone"
-    },
-    {
-      "source": "general.strftime.%F %H:%M:%S",
-      "target": "response.body.string.time"
-    },
-    {
-      "source": "request.uri.param.id",
-      "target": "var.isDeveloper",
-      "filter": { "RegexCapture" : "id-[0-9]{0,1}[02468]{1}" }
-    },
-    {
-      "source": "value.non-empty-string-is-true",
-      "target": "response.body.boolean.developer",
-      "filter": { "ConditionVar" : "isDeveloper" }
-    }
-  ]
-}
-```
-
-Note that *URI's* are regular expressions, and slashes and question marks **MUST BE ESCAPED**, so you can't put the specified *URI's* directly.
-
-This way is also valid: `"requestUri": "(/office/v2/workplace)\\?id=id-1"`.
-
-And finally, we will configure the default provision:
-
-```json
-{
-  "requestMethod": "GET",
-  "responseCode": 400,
-  "responseBody": {
+  ```json
+  {
     "cause": "invalid workplace id provided, must be in format id-<2-digit number>"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
   }
-}
-```
+  ```
+
+* Workplaces with **even** identifiers are reserved for developers, so the extra field commented above must be included in the response body root. This will be manually configured for `id-2` but shall be automated for unassigned ones which are even numbers.
+
+* Finally, we will simulate the deletion for existing identifiers (`id-1`, `id-2` and `id-3`), so when *DELETE* request for them are received, subsequent *GET's* must obtain a *404 (Not Found)* status code from then on. No need to protect *DELETE* against invalid or unassigned `id's`.
 
 
 
-Additionally we will use the **out-state for foreign method** feature to simulate the deletion of an specific register, for example the *id-2*: we will provision the *DELETE* for it, with an out-state for *GET*, and then we will provision a *404* for such *GET*:
+## Analysis
 
-```json
-{
-  "requestMethod": "DELETE",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
-  "responseCode": 200,
-  "transform": [
-    {
-      "source": "value.id-2-deleted",
-      "target": "outState.GET"
-    }
-  ]
-}
-```
+As we need to identify bad *URI's*, we will use the matching algorithm <u>*PriorityMatchingRegex*</u>, including firstly the known registers, then the "valid but unassigned" ones, and finally a fall back default provision for `GET` method with the *bad request (400)* configuration.
 
-```json
-{
-  "inState": "id-2-deleted",
-  "outState": "id-2-deleted",
-  "requestMethod": "GET",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
-  "responseCode": 404
-}
-```
+Note that regular expression *URI's*, <u>MUST ESCAPE</u> slashes and question marks:
+
+​	`"\\/office\\/v2\\/workplace\\?id=id-1"`.
+
+This way is also valid:
+
+​	 `(/office/v2/workplace)\\?id=id-1"`.
+
+The optional `developer` node will be implemented through a <u>condition variable transformation filter</u>.
+
+Finally we will use the <u>out-state for foreign method</u> feature to simulate the registers deletion.
+
+
+
+## Solution
+
+Check the file [./demo/provisions.json](./provisions.json).
+
+For further understanding you may read the project [README.md](https://github.com/testillano/h2agent/blob/master/README.md) file.
+
+
 
 ## Run the demo
 
-Execute the script `./run.sh` once the process has been started.
+Build and start the process:
 
+```bash
+$> ./build.sh --auto
+$> build/Release/bin/h2agent -l Debug --verbose
+```
+
+Run the demo in another terminal:
+
+```bash
+$> demo/run.sh
+```
+
+The demo script is interactive to follow the use case step by step.

@@ -65,9 +65,17 @@ curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_ur
 press_enter "to request invalid id-xyz"
 curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-xyz")
 
-press_enter "to delete id-2"
-curl -i -XDELETE --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-2")
+for n in 1 2 3
+do
+  press_enter "to delete id-${n}"
+  curl -I -XDELETE --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-${n}")
 
-press_enter "to request id-2 and confirm deletion obtaining 404 (Not Found)"
-curl -i -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-2")
+  press_enter "to request id-${n} and confirm deletion obtaining 404 (Not Found) for it"
+  curl -I -XGET --http2-prior-knowledge http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-${n}")
+done
+
+echo
+echo
+echo "Demo finished !"
+echo
 

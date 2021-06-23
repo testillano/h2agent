@@ -108,7 +108,7 @@
   },
   {
     "requestMethod": "DELETE",
-    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
     "responseCode": 200,
     "transform": [
       {
@@ -118,10 +118,10 @@
     ]
   },
   {
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
     "inState": "id-2-deleted",
     "outState": "id-2-deleted",
     "requestMethod": "GET",
-    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
     "responseCode": 404
   }
 ]
