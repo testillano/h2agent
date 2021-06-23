@@ -1,7 +1,0 @@
-{
-  "inState": "id-2-deleted",
-  "outState": "id-2-deleted",
-  "requestMethod": "GET",
-  "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
-  "responseCode": 404
-}

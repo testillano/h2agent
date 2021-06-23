@@ -32,7 +32,7 @@ if ! type jq &>/dev/null; then echo "ERROR: tool 'jq' must be installed (sudo ap
 
 # PriorityMatchingRegex:
 press_enter "to configure matching algorithm"
-curl --http2-prior-knowledge -d @matching/server-matching.json -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching
+curl --http2-prior-knowledge -d'{ "algorithm":"PriorityMatchingRegex" }' -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching
 press_enter "to check matching algorithm"
 curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching
 
@@ -41,17 +41,8 @@ press_enter "to clear previous provisions" # important for our matching algorith
 curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions
 echo "Done!"
 
-press_enter "to launch demo provisions"
-PROVISIONS=( $(ls ./provisions/*) )
-echo
-for json in ${PROVISIONS[*]}
-do
-  echo -e "\n\nSending '${json}':"
-  cat ${json}
-  curl --http2-prior-knowledge -d @${json} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision
-  echo -e "\n\nPress ENTER to continue ..."
-  read -r dummy
-done
+press_enter "to configure demo provisions"
+curl --http2-prior-knowledge -d @./provisions.json -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions
 
 press_enter "to check provisions"
 curl --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions | jq '.'

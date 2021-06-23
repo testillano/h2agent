@@ -951,6 +951,43 @@ Filters give you the chance to make complex transformations:
 }
 ```
 
+### POST /admin/v1/server-provisions
+
+Provision of a set of provisions through an array object (note the plural 's' in the *URI*).
+
+For example, you could launch two provisions separately (to `/admin/v1/server-provision`), or do it as a whole, putting them inside an array *json* object:
+
+```json
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/1",
+    "responseCode": 200,
+    "responseBody": {
+      "foo": "bar-1"
+    },
+    "responseHeaders": {
+      "content-type": "application/json",
+      "x-version": "1.0.0"
+    }
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/2",
+    "responseCode": 200,
+    "responseBody": {
+      "foo": "bar-2"
+    },
+    "responseHeaders": {
+      "content-type": "application/json",
+      "x-version": "1.0.0"
+    }
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message.
+
 ### GET /admin/v1/server-provision/schema
 
 Retrieves the server provision schema.
@@ -989,7 +1026,7 @@ This operation also removes server mock internal data (requests and their states
 
 No response body.
 
-### POST admin/v1/server-data/schema
+### POST /admin/v1/server-data/schema
 
 Loads a requests schema for validation of traffic receptions.
 

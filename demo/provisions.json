@@ -1,0 +1,127 @@
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-1",
+    "responseCode": 200,
+    "responseBody": {
+      "id": "id-1",
+      "phone": 66453,
+      "name": "Jess Glynne"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "general.strftime.%F %H:%M:%S",
+        "target": "response.body.string.time"
+      }
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
+    "responseCode": 200,
+    "responseBody": {
+      "id": "id-2",
+      "phone": 55643,
+      "name": "Bryan Adams",
+      "developer": true
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "general.strftime.%F %H:%M:%S",
+        "target": "response.body.string.time"
+      }
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-3",
+    "responseCode": 200,
+    "responseBody": {
+      "id": "id-3",
+      "phone": 32459,
+      "name": "Phil Collins"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "general.strftime.%F %H:%M:%S",
+        "target": "response.body.string.time"
+      }
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
+    "responseCode": 200,
+    "responseBody": {
+      "name": "unassigned"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "request.uri.param.id",
+        "target": "response.body.string.id"
+      },
+      {
+        "source": "general.random.30000.69999",
+        "target": "response.body.integer.phone"
+      },
+      {
+        "source": "general.strftime.%F %H:%M:%S",
+        "target": "response.body.string.time"
+      },
+      {
+        "source": "request.uri.param.id",
+        "target": "var.isDeveloper",
+        "filter": {
+          "RegexCapture": "id-[0-9]{0,1}[02468]{1}"
+        }
+      },
+      {
+        "source": "value.non-empty-string-is-true",
+        "target": "response.body.boolean.developer",
+        "filter": {
+          "ConditionVar": "isDeveloper"
+        }
+      }
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "responseCode": 400,
+    "responseBody": {
+      "cause": "invalid workplace id provided, must be in format id-<2-digit number>"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    }
+  },
+  {
+    "requestMethod": "DELETE",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.id-2-deleted",
+        "target": "outState.GET"
+      }
+    ]
+  },
+  {
+    "inState": "id-2-deleted",
+    "outState": "id-2-deleted",
+    "requestMethod": "GET",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
+    "responseCode": 404
+  }
+]
