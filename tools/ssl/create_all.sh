@@ -39,5 +39,5 @@ openssl verify -purpose sslclient -CAfile ca.crt client.crt
 #   ./h2agent --secure-admin -k client.key -c client.crt --server-key-password <password>
 #
 # Check server-matching insecurely:
-#   curl --insecure --http2-prior-knowledge https://localhost:8074/provision/v1/server-matching
+#   curl --insecure --http2-prior-knowledge https://localhost:8074/admin/v1/server-matching
 

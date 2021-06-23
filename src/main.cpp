@@ -58,7 +58,7 @@ namespace
 {
 h2agent::http2server::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2server::MyHttp2Server* myHttp2Server = nullptr;
-const char* AdminApiName = "provision";
+const char* AdminApiName = "admin";
 const char* AdminApiVersion = "v1";
 }
 

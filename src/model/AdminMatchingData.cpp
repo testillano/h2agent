@@ -51,7 +51,7 @@ AdminMatchingData::AdminMatchingData() {
     algorithm_ = FullMatching;
     //rgx_.clear();
     fmt_.clear();
-    uri_path_query_parameters_filter_ = Sort;
+    uri_path_query_parameters_filter_ = SortAmpersand;
     json_["algorithm"] = "FullMatching";
 }
 
@@ -90,8 +90,8 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
 
     auto uriPathQueryParametersFilter_it = j.find("uriPathQueryParametersFilter");
     if (uriPathQueryParametersFilter_it != j.end() && uriPathQueryParametersFilter_it->is_string()) {
-        if (*uriPathQueryParametersFilter_it == "Sort") {
-            uri_path_query_parameters_filter_ = Sort;
+        if (*uriPathQueryParametersFilter_it == "SortAmpersand") {
+            uri_path_query_parameters_filter_ = SortAmpersand;
         }
         else if (*uriPathQueryParametersFilter_it == "SortSemicolon") {
             uri_path_query_parameters_filter_ = SortSemicolon;

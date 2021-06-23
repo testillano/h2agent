@@ -155,7 +155,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Ignore) {
         uriRawQuery = "";
     }
-    else if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Sort) {
+    else if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::SortAmpersand) {
 
         qmap = h2agent::http2server::extractQueryParameters(uriRawQuery);
         uriRawQuery = h2agent::http2server::sortQueryParameters(qmap);

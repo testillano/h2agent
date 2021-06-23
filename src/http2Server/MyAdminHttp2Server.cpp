@@ -116,8 +116,8 @@ std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 {
     std::string result{};
 
-    size_t apiPathSize = getApiPath().size(); // /provision/v1
-    size_t uriPathSize = uriPath.size(); // /provision/v1<suffix>
+    size_t apiPathSize = getApiPath().size(); // /admin/v1
+    size_t uriPathSize = uriPath.size(); // /admin/v1<suffix>
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("apiPathSize %d uriPathSize %d", apiPathSize, uriPathSize),  ERT_FILE_LOCATION));
 
     // Special case

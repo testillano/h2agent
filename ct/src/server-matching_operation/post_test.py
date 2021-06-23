@@ -4,7 +4,7 @@ import json
 
 @pytest.mark.admin
 def test_001_cleanup_provisions(resources, h2ac_admin):
-  response = h2ac_admin.delete("/provision/v1/server-provisions")
+  response = h2ac_admin.delete("/admin/v1/server-provisions")
 
 
 @pytest.mark.admin
@@ -14,7 +14,7 @@ def test_002_i_want_to_identify_wrong_schema_for_server_matching_operation_on_ad
   responseBodyRef = { "result":"false", "response":"server-matching operation; invalid schema" }
 
   # Send POST
-  response = h2ac_admin.post("/provision/v1/server-matching", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-matching", requestBody)
 
   # Verify response
   h2ac_admin.assert_response__status_body_headers(response, 400, responseBodyRef)
@@ -33,7 +33,7 @@ def test_003_i_want_to_identify_wrong_content_for_server_matching_operation_on_a
   for requestBody in requestBody1, requestBody2, requestBody3:
 
     # Send POST
-    response = h2ac_admin.post("/provision/v1/server-matching", requestBody)
+    response = h2ac_admin.post("/admin/v1/server-matching", requestBody)
 
     # Verify response
     h2ac_admin.assert_response__status_body_headers(response, 400, responseBodyRef)
@@ -48,22 +48,22 @@ def test_004_i_want_to_send_valid_server_matching_operations_on_admin_interface(
 
   # Send POST to configure
   requestBody = resources("server-matching_OK1.json")
-  response = h2ac_admin.post("/provision/v1/server-matching", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-matching", requestBody)
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
   # Send GET to check configuration
-  response = h2ac_admin.get("/provision/v1/server-matching")
+  response = h2ac_admin.get("/admin/v1/server-matching")
   h2ac_admin.assert_response__status_body_headers(response, 200, { "algorithm":"FullMatching", "uriPathQueryParametersFilter":"PassBy" })
 
   # FullMatchingRegexReplace:
 
   # Send POST to configure
   requestBody = resources("server-matching_OK2.json")
-  response = h2ac_admin.post("/provision/v1/server-matching", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-matching", requestBody)
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
   # Send GET to check configuration
-  response = h2ac_admin.get("/provision/v1/server-matching")
+  response = h2ac_admin.get("/admin/v1/server-matching")
   h2ac_admin.assert_response__status_body_headers(response, 200, { "algorithm":"FullMatchingRegexReplace", "rgx":"", "fmt":"" })
 
 
@@ -77,10 +77,10 @@ def test_005_i_set_default_server_matching_on_admin_interface(resources, h2ac_ad
 
   # Send POST to configure
   requestBody = { "algorithm":"FullMatching" }
-  response = h2ac_admin.postDict("/provision/v1/server-matching", requestBody)
+  response = h2ac_admin.postDict("/admin/v1/server-matching", requestBody)
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
   # Send GET to check configuration
-  response = h2ac_admin.get("/provision/v1/server-matching")
+  response = h2ac_admin.get("/admin/v1/server-matching")
   h2ac_admin.assert_response__status_body_headers(response, 200, requestBody)
 

@@ -15,7 +15,7 @@ list_matching() {
   echo "====================================="
   echo "Current server matching configuration"
   echo "====================================="
-  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-matching | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching | jq '.'
   echo
 }
 
@@ -24,7 +24,7 @@ list_provisions() {
   echo "======================================="
   echo "Current server provisions configuration"
   echo "======================================="
-  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-provisions | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions | jq '.'
   echo
 }
 
@@ -33,7 +33,7 @@ list_data() {
   echo "==================="
   echo "Current server data"
   echo "==================="
-  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/server-data | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data | jq '.'
   echo
 }
 
@@ -93,7 +93,7 @@ menu() {
   then
     echo "Press ENTER to confirm deletion for provisions and internal data ..."
     read -r dummy
-    curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/${operation}s
+    curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}s
     echo "Done !"
     return 0
   fi
@@ -153,7 +153,7 @@ menu() {
     read -r dummy
     # -XPOST not necessary (already inferred)
     set -x
-    curl -i --http2-prior-knowledge -d @${dataFile} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/provision/v1/${operation}
+    curl -i --http2-prior-knowledge -d @${dataFile} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}
     set +x
   fi
 

@@ -20,7 +20,7 @@ H2AGENT_ENDPOINT__admin = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ[
 H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ['H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC']
 
 # Api Path
-H2AGENT_URI_PREFIX = 'provision/v1'
+H2AGENT_URI_PREFIX = 'admin/v1'
 
 # Headers
 CONTENT_LENGTH = 'content-length'

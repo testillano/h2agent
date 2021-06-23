@@ -327,11 +327,11 @@ $ kill $!
 
 ## Management interface
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/provision/v1/`:
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`:
 
 **Current development phase is 1**, see [Implementation Strategy](#implementation-strategy).
 
-### POST /provision/v1/server-initialize
+### POST /admin/v1/server-initialize
 
 Initializes the server endpoint for the provided listen port (mandatory).
 Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
@@ -378,7 +378,7 @@ During *Phase 1* the request schema is passed through [command line](#command-li
 }
 ```
 
-### POST /provision/v1/server-matching
+### POST /admin/v1/server-matching
 
 Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm.
 
@@ -405,7 +405,7 @@ Defines the server matching procedure for incoming receptions on mock service. E
     },
     "uriPathQueryParametersFilter": {
       "type": "string",
-        "enum": ["Sort", "SortSemicolon", "PassBy", "Ignore"]
+        "enum": ["SortAmpersand", "SortSemicolon", "PassBy", "Ignore"]
     }
   },
   "required": [ "algorithm" ]
@@ -416,13 +416,13 @@ Defines the server matching procedure for incoming receptions on mock service. E
 
 Optional argument used to specify the transformation for query parameters received in the *URI* path.
 
-###### Sort
+###### SortAmpersand
 
 This is the default behavior and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
 
 ###### SortSemicolon
 
-Same as Sort, but using *semicolon* (`';'`) as query parameters pairs separator.
+Same as SortAmpersand, but using *semicolon* (`';'`) as query parameters pairs separator.
 
 ###### PassBy
 
@@ -499,7 +499,7 @@ As provision key is built combining *inState*, *method* and *uri* fields, a regu
 }
 ```
 
-### GET /provision/v1/server-matching/schema
+### GET /admin/v1/server-matching/schema
 
 Retrieves the server matching schema.
 
@@ -511,7 +511,7 @@ Retrieves the server matching schema.
 
 Json document containing server matching schema.
 
-### GET /provision/v1/server-matching
+### GET /admin/v1/server-matching
 
 Retrieves the current server matching configuration.
 
@@ -523,7 +523,7 @@ Retrieves the current server matching configuration.
 
 Json document containing server matching information, '*null*' if nothing configured (working with defaults).
 
-### POST /provision/v1/server-provision
+### POST /admin/v1/server-provision
 
 Defines the response behavior for an incoming request matching some basic conditions (*method*, *uri*) and programming the response (*header*, *code*, *body*).
 
@@ -641,7 +641,7 @@ Let's see an example to clarify:
 
 * Provision *X* (match m, `inState`="*initial*"): `outState`="*second*", `response` *XX*
 * Provision *Y* (match m, `inState`="*second*"): `outState`="*initial*", `response` *YY*
-* Reception matches *m* and internal context map is empty: as we assume state "*initial*", we look for this  `inState` value for match *m*, which is provision *X*.
+* Reception matches *m* and internal context map (server data) is empty: as we assume state "*initial*", we look for this  `inState` value for match *m*, which is provision *X*.
 * Response *XX* is sent. Internal state will take the provision *X* `outState`, which is "*second*".
 * Reception matches *m* and internal context map stores state "*second*", we look for this  `inState` value for match *m*, which is provision Y.
 * Response *YY* is sent. Internal state will take the provision *Y* `outState`, which is "*initial*".
@@ -656,7 +656,7 @@ Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
 
 Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
 
-<u>*Empty string is accepted*</u>, and is reserved to configure an optional default provision, something which could be specially useful to define the fall back provision if no matching entry is found. So, you could configure defaults for any method received, just putting an empty *request URI* or omitting this optional field.
+<u>*Empty string is accepted*</u>, and is reserved to configure an optional default provision, something which could be specially useful to define the fall back provision if no matching entry is found. So, you could configure defaults for each method, just putting an empty *request URI* or omitting this optional field. Default provisions could evolve through states (in/out) but at least "initial" is again mandatory to be processed.
 
 ##### responseHeaders
 
@@ -951,7 +951,7 @@ Filters give you the chance to make complex transformations:
 }
 ```
 
-### GET /provision/v1/server-provision/schema
+### GET /admin/v1/server-provision/schema
 
 Retrieves the server provision schema.
 
@@ -963,7 +963,7 @@ Retrieves the server provision schema.
 
 Json document containing server provision schema.
 
-### GET /provision/v1/server-provisions
+### GET /admin/v1/server-provisions
 
 Retrieves all the provisions configured.
 
@@ -975,7 +975,7 @@ Retrieves all the provisions configured.
 
 Json array containing all provisioned items, '*null*' if nothing configured.
 
-### DELETE /provision/v1/server-provisions
+### DELETE /admin/v1/server-provisions
 
 Deletes the process provisions. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
 
@@ -989,7 +989,7 @@ This operation also removes server mock internal data (requests and their states
 
 No response body.
 
-### POST provision/v1/server-data/schema
+### POST admin/v1/server-data/schema
 
 Loads a requests schema for validation of traffic receptions.
 
@@ -1001,7 +1001,7 @@ Request body will be the `json` schema for the requests.
 
 **201** (Created) or **400** (Bad Request).
 
-### GET /provision/v1/server-data/schema
+### GET /admin/v1/server-data/schema
 
 Retrieves the server requests schema if configured (at command-line).
 
@@ -1013,13 +1013,13 @@ Retrieves the server requests schema if configured (at command-line).
 
 Json document containing server requests schema if configured, or empty if not.
 
-### GET /provision/v1/server-data
+### GET /admin/v1/server-data
 
 Retrieves the current server internal data (requests received and their states and other useful information like timing). Be careful with large contexts due to long-term testing (or load testing) as this is not limited by any configuration maximum (not considered).
 
 You could retrieve a specific entry providing *requestMethod*, *requestUri* and *requestNumber* through query parameters (separator is `'&'`), for example:
 
-`/provision/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
 If case that *requestNumber* is omitted, the whole requests history for the *method/uri* provided will be retrieved. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order).  To get the latest one provide -1, to retrieve all of them, omit this query parameter.
 
@@ -1049,7 +1049,7 @@ The information collected is:
 * `responseHeaders`: object containing the list of response headers which were sent.
 * `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence was actually not increased for the server data entry shown, only for the original event which caused this one.
 
-### POST /provision/v1/client-initialize
+### POST /admin/v1/client-initialize
 
 Initializes the client connection to the target server endpoint.
 Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
@@ -1097,7 +1097,7 @@ The json schema provided through `responseSchema` field object, will be used to 
 }
 ```
 
-### POST /provision/v1/send-message
+### POST /admin/v1/send-message
 
 Sends a message to the server endpoint established in the `client-initialize` operation.
 Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).

@@ -4,7 +4,7 @@ import json
 
 @pytest.mark.admin
 def test_001_cleanup_provisions(resources, h2ac_admin):
-  response = h2ac_admin.delete("/provision/v1/server-provisions")
+  response = h2ac_admin.delete("/admin/v1/server-provisions")
 
 
 @pytest.mark.admin
@@ -14,11 +14,11 @@ def test_002_i_want_to_provision_two_uris_with_different_states_on_admin_interfa
 
   # Send POST
   requestBody = resources("server-provision_STATE-initial.json")
-  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
   requestBody = resources("server-provision_STATE-another.json")
-  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
 @pytest.mark.server

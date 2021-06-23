@@ -57,7 +57,7 @@ public:
     // Algorithm type
     enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex };
     // UriPathQueryParametersFilter type
-    enum UriPathQueryParametersFilterType { Sort = 0, SortSemicolon, PassBy, Ignore };
+    enum UriPathQueryParametersFilterType { SortAmpersand = 0, SortSemicolon, PassBy, Ignore };
 
     // getters
     AlgorithmType getAlgorithm() const {

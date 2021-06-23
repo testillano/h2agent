@@ -4,20 +4,20 @@ import json
 
 @pytest.mark.admin
 def test_001_cleanup_provisions(resources, h2ac_admin):
-  response = h2ac_admin.delete("/provision/v1/server-provisions")
+  response = h2ac_admin.delete("/admin/v1/server-provisions")
 
 
 @pytest.mark.admin
 def test_002_i_want_to_get_internal_data_on_admin_interface(resources, h2ac_admin, h2ac_traffic):
 
   # Send GET
-  response = h2ac_admin.get("/provision/v1/server-data")
+  response = h2ac_admin.get("/admin/v1/server-data")
   assert response["status"] == 204
 
   # Now we provision and send request for that provision (if no provision is
   # processed, then no internal data is stored for the request received):
   requestBody = resources("server-provision_OK.json.in").format(id=1)
-  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
   # Verify response (status code is enough)
   assert response["status"] == 201
 
@@ -27,7 +27,7 @@ def test_002_i_want_to_get_internal_data_on_admin_interface(resources, h2ac_admi
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
   # Send GET
-  response = h2ac_admin.get("/provision/v1/server-data")
+  response = h2ac_admin.get("/admin/v1/server-data")
   responseBodyRef = [{'method': 'GET', 'requests': [{'previousState': 'initial', 'receptionTimestampMs': 1623552535012, 'responseBody': {'foo': 'bar-1'}, 'responseDelayMs': 0, 'responseHeaders': {'content-type': 'text/html', 'x-version': '1.0.0'}, 'responseStatusCode': 200, 'serverSequence': 32, 'state': 'initial'}], 'uri': '/app/v1/foo/bar/1'}]
 
   # Response will be something like: [{"method":"GET","requests":[{"body":{"foo":"bar-1"},"receptionTimestampMs":1623439423163,"state":"initial"}],"uri":"/app/v1/foo/bar/1"}]
@@ -46,7 +46,7 @@ def test_003_i_want_to_get_speficic_internal_data_on_admin_interface(resources, 
 
   # Do a second provision:
   requestBody = resources("server-provision_OK.json.in").format(id=5)
-  response = h2ac_admin.post("/provision/v1/server-provision", requestBody)
+  response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
   # Verify response (status code is enough)
   assert response["status"] == 201
 
@@ -56,7 +56,7 @@ def test_003_i_want_to_get_speficic_internal_data_on_admin_interface(resources, 
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
   # Send GET
-  response = h2ac_admin.get("/provision/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5")
+  response = h2ac_admin.get("/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5")
   responseBodyRef = {'method': 'GET', 'requests': [{'previousState': 'initial', 'receptionTimestampMs': 1623552779114, 'responseBody': {'foo': 'bar-5'}, 'responseDelayMs': 0, 'responseHeaders': {'content-type': 'text/html', 'x-version': '1.0.0'}, 'responseStatusCode': 200, 'serverSequence': 35, 'state': 'initial'}], 'uri': '/app/v1/foo/bar/5'}
 
   # Response will be something like: {"method":"GET","requests":[{"body":{"foo":"bar-5"},"receptionTimestampMs":1623439631262,"state":"initial"}

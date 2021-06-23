@@ -8,7 +8,7 @@ def test_001_i_want_to_force_bad_request_error_towards_h2agent_admin_api(h2ac_ad
   #responseBodyRef = { "cause":"INVALID_API" }
 
   # Send POST
-  response = h2ac_admin.postDict("/proviXion/v1", requestBody)
+  response = h2ac_admin.postDict("/addMiinn/v1", requestBody)
 
   # Verify response
   #h2ac_admin.assert_response__status_body_headers(response, 400, responseBodyRef)
