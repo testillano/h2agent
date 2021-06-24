@@ -99,7 +99,7 @@ So, focus in the provisions designed for that deletion requirement:
 
 Such provisions, in summary say: the first *DELETE* for a valid *URI* will evolve the *DELETE* inner state from "initial" to "delete-not-found". And the second provision defines the behavior for that situation: so, subsequent *DELETES* of the same *URI* will return a *404 (Not Found)*.
 
-But the first provision says another important thing through its unique transformation item: the state for *GET* requests from then on, will be "get-obtains-not-found". The third provision listed above, defines the way to behave in that case: response a *404 (Not Found)*.
+But the first provision says another important thing through its unique transformation item: the state for *GET* requests from then on, will be "get-obtains-not-found". The third provision listed above, defines the way to behave in that case: answer *404 (Not Found)* status code.
 
 The key thing to have in mind is the events map, were working states are stored. And it is important to understand that the foreign method transformation generates a virtual event (something that actually never happened through the traffic interface) to force a new state for a supposed *GET*  request in the same *URI* which was deleted: that virtual event is distinguishable thanks to `virtualOriginComingFromMethod`, a node field which could be skipped on possible test validations.
 
