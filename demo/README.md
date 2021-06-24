@@ -226,7 +226,7 @@ Server data map now:
 ]
 ```
 
-Look for `"state"` and `"previousState"` to follow the events, and take into account the server data is organized in groups of requests for specific `method + URI` keys. In the last snapshot, we have two events for *GET* (the first one is virtual), and then one event for *DELETE*. Subsequent requests will fill that context dump and we will not show here again:
+Look for `"state"` and `"previousState"` to follow the events, and take into account that the server data is organized in groups of requests for specific `method + URI` keys. In the last snapshot, we have two events for *GET* (the first one is virtual), and then one event for *DELETE*. Subsequent requests will fill that context dump and we will not show here again:
 
 ```bash
 curl -I -XDELETE --http2-prior-knowledge http://localhost:8000/office/v2/workplace?id=id-2
