@@ -109,7 +109,7 @@
   {
     "requestMethod": "DELETE",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
-    "responseCode": 200,
+    "responseCode": 204,
     "transform": [
       {
         "source": "value.get-obtains-not-found",

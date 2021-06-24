@@ -70,7 +70,7 @@ So, focus in the provisions designed for that deletion requirement:
   {
     "requestMethod": "DELETE",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
-    "responseCode": 200,
+    "responseCode": 204,
     "transform": [
       {
         "source": "value.get-obtains-not-found",
@@ -109,7 +109,7 @@ Send *DELETE*:
 
 ```bash
 curl -I -XDELETE --http2-prior-knowledge http://localhost:8000/office/v2/workplace?id=id-2
-HTTP/2 200
+HTTP/2 204
 ```
 
 Dump the server data map, just executing the corresponding management interface operation:
@@ -130,7 +130,7 @@ Dump the server data map, just executing the corresponding management interface 
         "receptionTimestampMs": 1624564332404,
         "responseBody": null,
         "responseDelayMs": 0,
-        "responseStatusCode": 200,
+        "responseStatusCode": 204,
         "serverSequence": 0,
         "state": "get-obtains-not-found",
         "virtualOriginComingFromMethod": "DELETE"
@@ -150,7 +150,7 @@ Dump the server data map, just executing the corresponding management interface 
         "receptionTimestampMs": 1624564332404,
         "responseBody": null,
         "responseDelayMs": 0,
-        "responseStatusCode": 200,
+        "responseStatusCode": 204,
         "serverSequence": 0,
         "state": "delete-not-found"
       }
@@ -183,7 +183,7 @@ Server data map now:
         "receptionTimestampMs": 1624564332404,
         "responseBody": null,
         "responseDelayMs": 0,
-        "responseStatusCode": 200,
+        "responseStatusCode": 204,
         "serverSequence": 0,
         "state": "get-obtains-not-found",
         "virtualOriginComingFromMethod": "DELETE"
@@ -216,7 +216,7 @@ Server data map now:
         "receptionTimestampMs": 1624564332404,
         "responseBody": null,
         "responseDelayMs": 0,
-        "responseStatusCode": 200,
+        "responseStatusCode": 204,
         "serverSequence": 0,
         "state": "delete-not-found"
       }
@@ -230,16 +230,16 @@ Look for `"state"` and `"previousState"` to follow the events, and take into acc
 
 ```bash
 curl -I -XDELETE --http2-prior-knowledge http://localhost:8000/office/v2/workplace?id=id-2
-HTTP/2 404 
+HTTP/2 404
 
 curl -I -XGET --http2-prior-knowledge http://localhost:8000/office/v2/workplace?id=id-2
-HTTP/2 404 
+HTTP/2 404
 
 curl -I -XDELETE --http2-prior-knowledge http://localhost:8000/office/v2/workplace?id=id-2
-HTTP/2 404 
+HTTP/2 404
 
 curl -I -XGET --http2-prior-knowledge http://localhost:8000/office/v2/workplace?id=id-2
-HTTP/2 404 
+HTTP/2 404
 
 ...
 ```
