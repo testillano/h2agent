@@ -112,16 +112,24 @@
     "responseCode": 200,
     "transform": [
       {
-        "source": "value.id-2-deleted",
+        "source": "value.get-obtains-not-found",
         "target": "outState.GET"
       }
-    ]
+    ],
+    "outState": "delete-not-found"
   },
   {
+    "inState": "delete-not-found",
+    "requestMethod": "DELETE",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
-    "inState": "id-2-deleted",
-    "outState": "id-2-deleted",
+    "responseCode": 404,
+    "outState": "delete-not-found"
+  },
+  {
     "requestMethod": "GET",
+    "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
+    "inState": "get-obtains-not-found",
+    "outState": "get-obtains-not-found",
     "responseCode": 404
   }
 ]

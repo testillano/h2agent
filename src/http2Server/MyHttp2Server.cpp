@@ -270,15 +270,15 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                               statusCode, headers, responseBody, delayMs, outState, outStateMethod);
 
+        bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);
+
         // Store request event context information
         //if (!requestFound)
-        getMockRequestData()->loadRequest(inState, outState, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
+        getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
 
         // Virtual storage:
-        if (!outStateMethod.empty()) {
-            if (outStateMethod != method) {
-                getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */, method /* virtual origin coming from method */);
-            }
+        if (hasVirtualMethod) {
+            getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */, method /* virtual origin coming from method */);
         }
 
         if (delayMs != 0) {
