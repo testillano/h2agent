@@ -154,7 +154,7 @@ test_query "Step 10. Request invalid id-xyz" GET http://${H2AGENT_TRAFFIC_ENDPOI
 
 for n in 1 2 3
 do
-  EXPECTED_STATUS_CODE=200
+  EXPECTED_STATUS_CODE=204
   test_query "Step 11. Delete id-${n}" DELETE http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-${n}")
 done
 
