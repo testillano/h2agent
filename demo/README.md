@@ -60,7 +60,7 @@ Finally we will use the <u>out-state for foreign method</u> feature to simulate 
 
 Check the file [./demo/provisions.json](./provisions.json).
 
-For further understanding you may read the project [README.md](https://github.com/testillano/h2agent/blob/master/README.md) file, but we will explain here with more detail the **state machine for the last requirement** (consistent deletion of registries) because it is an special case of *FSM* (finite state machine) with foreign methods (using the target `outState.GET`) and it is not normally needed to fulfill most of the testing requirements in the real world because test cases should be restricted to very well known states and limited scopes to have good testing granularity.
+For further understanding you may read the project [README.md](https://github.com/testillano/h2agent/blob/master/README.md) file, but we will explain here with more detail the state machine for the last requirement (consistent deletion of registries) because it is an special case of *FSM* (finite state machine) with **foreign methods** (as uses target `outState.GET` within a *DELETE* provision) and it is not normally needed to fulfill most of the testing requirements in the real world because test cases should be restricted to very well known states and limited scopes to have good testing granularity.
 
 Normally `h2agent` is powerful enough using provision in/out states because on regular testing we will mock an specific node and the states are predictable for an specific scenario, that is to say: normally, there is no need to simulate a node in such a deep and reliable way that we do here with deletion use case.
 
@@ -97,9 +97,11 @@ So, focus in the provisions designed for that deletion requirement:
 
 *Note*: first item has indeed `inSate: "initial"` (default when this field is missing in the provision object).
 
-Such provisions, in summary say: the first *DELETE* for a valid *URI* will evolve the *DELETE* inner state from "initial" to "delete-not-found". And the second provision defines the behavior for that situation: so, subsequent *DELETES* of the same *URI* will return a *404 (Not Found)*.
+Such provisions, in summary say: the first *DELETE* for a valid *URI* will evolve the *DELETE* inner state from "initial" to "delete-not-found". And the second provision defines the behavior for that situation: so, subsequent *DELETES* of the same *URI* will return a *404 (Not Found)*. This is the normal way to play with states and provisions: evolve the state for events related to the same *HTTP* method.
 
-But the first provision says another important thing through its unique transformation item: the state for *GET* requests from then on, will be "get-obtains-not-found". The third provision listed above, defines the way to behave in that case: answer *404 (Not Found)* status code.
+But the first provision says another important thing through its unique transformation item: the state for *GET* requests from then on, will be "get-obtains-not-found". And this is the commented foreign state transition type, which is not so usual, but also useful to simulate complex use cases.
+
+The third provision listed above, defines the way to behave with that new *GET* state: answer *404 (Not Found)* status code.
 
 The key thing to have in mind is the events map, where working states are stored. And it is important to understand that the foreign method transformation generates a virtual event (something that actually never happened through the traffic interface) to force a new state for a supposed *GET*  request in the same *URI* which was deleted: that virtual event is distinguishable thanks to `virtualOriginComingFromMethod`, a node field which could be used as indicator to skip the whole event during test validations.
 
