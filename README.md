@@ -951,11 +951,9 @@ Filters give you the chance to make complex transformations:
 }
 ```
 
-### POST /admin/v1/server-provisions
+### POST /admin/v1/server-provision [multiple provisions]
 
-Provision of a set of provisions through an array object (note the plural 's' in the *URI*).
-
-For example, you could launch two provisions separately (to `/admin/v1/server-provision`), or do it as a whole, putting them inside an array *json* object:
+Provision of a set of provisions through an array object is allowed. So, instead of launching *N* provisions separately, you could group them as in the following example:
 
 ```json
 [
@@ -1000,7 +998,7 @@ Retrieves the server provision schema.
 
 Json document containing server provision schema.
 
-### GET /admin/v1/server-provisions
+### GET /admin/v1/server-provision
 
 Retrieves all the provisions configured.
 
@@ -1012,9 +1010,9 @@ Retrieves all the provisions configured.
 
 Json array containing all provisioned items, '*null*' if nothing configured.
 
-### DELETE /admin/v1/server-provisions
+### DELETE /admin/v1/server-provision
 
-Deletes the process provisions. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
+Deletes the whole process provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
 
 This operation also removes server mock internal data (requests and their states) as this only have sense for the provision which consolidated such information.
 

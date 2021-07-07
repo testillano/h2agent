@@ -44,6 +44,7 @@ SOFTWARE.
 
 // Project
 #include "version.hpp"
+#include <functions.hpp>
 #include "MyAdminHttp2Server.hpp"
 #include "MyHttp2Server.hpp"
 #include <nlohmann/json.hpp>
@@ -174,6 +175,12 @@ void usage(int rc)
        << "[--server-request-schema <path file>]\n"
        << "  Path file for the server schema to validate requests received.\n\n"
 
+       << "[--server-matching <path file>]\n"
+       << "  Path file for optional startup server matching configuration.\n\n"
+
+       << "[--server-provision <path file>]\n"
+       << "  Path file for optional startup server provision configuration.\n\n"
+
        << "[--disable-server-request-history]\n"
        << "  Disables full history storage for requests received (enabled by default).\n"
        << "  Only latest request (for each key 'method/uri') will be stored and will\n"
@@ -246,6 +253,8 @@ int main(int argc, char* argv[])
     std::string server_req_schema_file = "";
     bool disable_server_request_history = false;
     bool verbose = false;
+    std::string server_matching_file = "";
+    std::string server_provision_file = "";
 
     std::string value;
 
@@ -333,6 +342,16 @@ int main(int argc, char* argv[])
         server_req_schema_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--server-matching", value))
+    {
+        server_matching_file = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--server-provision", value))
+    {
+        server_provision_file = value;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--disable-server-request-history", value))
     {
         disable_server_request_history = true;
@@ -394,6 +413,10 @@ int main(int argc, char* argv[])
 
     std::cout << "Server request schema: " << ((server_req_schema_file != "") ? server_req_schema_file :
               "<not provided>") << '\n';
+    std::cout << "Server matching configuration file: " << ((server_matching_file != "") ? server_matching_file :
+              "<not provided>") << '\n';
+    std::cout << "Server provision configuration file: " << ((server_provision_file != "") ? server_provision_file :
+              "<not provided>") << '\n';
     std::cout << "Server request history: " << (!disable_server_request_history ? "true":"false") << '\n';
 
     // Flush:
@@ -417,11 +440,53 @@ int main(int argc, char* argv[])
     myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads);
     myHttp2Server->setApiName(server_api_name);
     myHttp2Server->setApiVersion(server_api_version);
+
+    std::string fileContent;
+    nlohmann::json jsonObject;
+    bool success;
+
     if (server_req_schema_file != "") {
-        if (!myHttp2Server->setRequestsSchema(server_req_schema_file)) {
+        success = h2agent::http2server::getFileContent(server_req_schema_file, fileContent);
+        if (success)
+            success = myHttp2Server->setRequestsSchema(fileContent);
+
+        if (!success) {
             std::cerr << "Requests schema load failed: will be ignored" << std::endl;
         }
     }
+
+    if (server_matching_file != "") {
+        success = h2agent::http2server::getFileContent(server_matching_file, fileContent);
+        std::string log = "Server matching configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            success = myAdminHttp2Server->serverMatching(jsonObject, log);
+        }
+
+        if (!success) {
+            std::cerr << log << std::endl;
+        }
+    }
+
+    if (server_provision_file != "") {
+        success = h2agent::http2server::getFileContent(server_provision_file, fileContent);
+        std::string log = "Server provsision configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            success = myAdminHttp2Server->serverProvision(jsonObject, log);
+        }
+
+        if (!success) {
+            std::cerr << log << std::endl;
+        }
+    }
+
     myHttp2Server->setRequestsHistory(!disable_server_request_history);
 
     // Associate data containers:

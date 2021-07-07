@@ -98,6 +98,9 @@ public:
     model::MockRequestData *getMockRequestData() const {
         return mock_request_data_;
     }
+
+    bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
+    bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }
