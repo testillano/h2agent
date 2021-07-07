@@ -97,7 +97,7 @@ public:
     }
 
     // return success to load schema
-    bool setRequestsSchema(const std::string &schemaFile);
+    bool setRequestsSchema(const std::string &schemaContent);
 
     void setRequestsHistory(bool enable = true) {
         requests_history_ = enable;

@@ -33,6 +33,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <fstream>
+
 #include <functions.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -109,6 +111,51 @@ std::string headersAsString(const nghttp2::asio_http2::header_map &headers) {
     }
 
     return result;
+}
+
+bool getFileContent(const std::string &filePath, std::string &content)
+{
+    std::ifstream ifs(filePath);
+
+    if (!ifs.is_open()) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot open file '%s' !", filePath.c_str()), ERT_FILE_LOCATION);
+        return false;
+    }
+
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Reading content from file '%s'", filePath.c_str()), ERT_FILE_LOCATION));
+    std::stringstream buffer;
+    buffer << ifs.rdbuf();
+    ifs.close();
+    content = buffer.str();
+
+    return true;
+}
+
+bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bool writeException) {
+
+    try {
+        jsonObject = nlohmann::json::parse(content);
+        LOGDEBUG(
+            std::string msg("Json body parsed:\n\n");
+            msg += jsonObject.dump(4); // pretty print json body
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
+    }
+    catch (nlohmann::json::parse_error& e)
+    {
+        std::stringstream ss;
+        ss << "Json content parse error: " << e.what() << '\n'
+           << "exception id: " << e.id << '\n'
+           << "byte position of error: " << e.byte << std::endl;
+        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
+
+        if (writeException)
+            jsonObject =  ss.str();
+
+        return false;
+    }
+
+    return true;
 }
 
 

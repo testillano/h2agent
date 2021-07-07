@@ -112,15 +112,15 @@ EXPECTED_BODY="{\"algorithm\":\"PriorityMatchingRegex\"}"
 EXPECTED_STATUS_CODE=200
 test_query "Step 2. Check server matching configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching
 
-test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions
+test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision
 
-EXPECTED_BODY="{ \"result\":\"true\", \"response\": \"server-provisions operation; valid schemas and provisions data received\" }"
+EXPECTED_BODY="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and provisions data received\" }"
 EXPECTED_STATUS_CODE=201
 CURL_OPTS="-d@./provisions.json -H \"Content-Type: application/json\""
-test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions
+test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision
 
 EXPECTED_STATUS_CODE=200
-test_query "Step 5. Check server provisions configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions
+test_query "Step 5. Check server provisions configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision
 
 KNOWN_BODY_REGISTERS=()
 KNOWN_BODY_REGISTERS+=( "{\"id\":\"id-1\",\"name\":\"Jess Glynne\",\"phone\":66453}" )

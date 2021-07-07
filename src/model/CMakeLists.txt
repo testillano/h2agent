@@ -13,6 +13,7 @@ target_include_directories (h2agent-model
 PRIVATE
     ${CMAKE_SOURCE_DIR}/src/model
     ${CMAKE_SOURCE_DIR}/src/jsonSchema
+    ${CMAKE_SOURCE_DIR}/src/http2Server
 
 INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}

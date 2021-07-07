@@ -35,6 +35,8 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
+#include <functions.hpp>
+
 #include <MockRequest.hpp>
 
 #include <chrono>
@@ -87,43 +89,13 @@ nlohmann::json MockRequest::getJson() const {
     }
 
     if (!body_.empty()) {
-        try {
-            result["body"] = nlohmann::json::parse(body_);
-        }
-        catch (nlohmann::json::parse_error& e)
-        {
-            /*
-            std::stringstream ss;
-            ss << "Json body parse error: " << e.what() << '\n'
-            << "exception id: " << e.id << '\n'
-            << "byte position of error: " << e.byte << std::endl;
-            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-            */
-
-            // Response data:
-            result["body"] = e.what();
-        }
+        h2agent::http2server::parseJsonContent(body_, result["body"], true /* write exception */);
     }
 
     // Additional information
     result["previousState"] = pstate_;
     if (!response_body_.empty()) {
-        try {
-            result["responseBody"] = nlohmann::json::parse(response_body_);
-        }
-        catch (nlohmann::json::parse_error& e)
-        {
-            /*
-            std::stringstream ss;
-            ss << "Json body parse error: " << e.what() << '\n'
-            << "exception id: " << e.id << '\n'
-            << "byte position of error: " << e.byte << std::endl;
-            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-            */
-
-            // Response data:
-            result["responseBody"] = e.what();
-        }
+        h2agent::http2server::parseJsonContent(response_body_, result["responseBody"], true /* write exception */);
     }
 
     result["responseDelayMs"] = (unsigned int)response_delay_ms_;

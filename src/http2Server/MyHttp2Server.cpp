@@ -38,7 +38,6 @@ SOFTWARE.
 #include <map>
 #include <chrono>
 #include <errno.h>
-#include <fstream>
 
 
 #include <ert/tracing/Logger.hpp>
@@ -95,31 +94,13 @@ bool MyHttp2Server::checkHeaders(const nghttp2::asio_http2::server::request&
     */
 }
 
-bool MyHttp2Server::setRequestsSchema(const std::string &schemaFile) {
+bool MyHttp2Server::setRequestsSchema(const std::string &schemaContent) {
 
-    std::ifstream f(schemaFile);
-    std::stringstream buffer;
-    buffer << f.rdbuf();
+    LOGDEBUG(ert::tracing::Logger::debug("Json string provided for requests schema", ERT_FILE_LOCATION));
 
     nlohmann::json schema;
-    try {
-        schema = nlohmann::json::parse(buffer.str());
-        LOGDEBUG(
-            std::string msg("Json string parsed successfully for requests schema provided");
-            //msg += ":\n\n" ; msg += schema.dump(4); // pretty print
-            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-        );
-    }
-    catch (nlohmann::json::parse_error& e)
-    {
-        std::stringstream ss;
-        ss << "Json body parse error: " << e.what() << '\n'
-           << "exception id: " << e.id << '\n'
-           << "byte position of error: " << e.byte << std::endl;
-        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-
+    if(!h2agent::http2server::parseJsonContent(schemaContent, schema))
         return false;
-    }
 
     if (!getMockRequestData()->loadRequestsSchema(schema)) {
         LOGWARNING(
@@ -172,7 +153,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "REQUEST RECEIVED| Method: " << method
+        ss << "REQUEST RECEIVED (traffic interface)| Method: " << method
         << " | Headers: " << h2agent::http2server::headersAsString(req.header())
         << " | Uri Path (and query parameters if not ignored): " << uriPath;
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
@@ -184,14 +165,9 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         // TODO: take advantage of this parsing for transformation and request storage below
 
         nlohmann::json requestJson;
-        try {
-            requestJson = nlohmann::json::parse(requestBody);
-            LOGDEBUG(
-                std::string msg("Json body received (traffic interface):\n\n");
-                msg += requestJson.dump();
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
+        bool success = h2agent::http2server::parseJsonContent(requestBody, requestJson);
 
+        if (success) {
             if (!getMockRequestData()->getRequestsSchema().validate(requestJson)) {
                 statusCode = 400;
                 LOGINFORMATIONAL(
@@ -200,16 +176,8 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                 return;
             }
         }
-        catch (nlohmann::json::parse_error& e)
+        else
         {
-            /*
-            std::stringstream ss;
-            ss << "Json body parse error: " << e.what() << '\n'
-            << "exception id: " << e.id << '\n'
-            << "byte position of error: " << e.byte << std::endl;
-            ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-            */
-
             // Response data:
             statusCode = 400;
             LOGINFORMATIONAL(

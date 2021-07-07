@@ -24,7 +24,7 @@ list_provisions() {
   echo "======================================="
   echo "Current server provisions configuration"
   echo "======================================="
-  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provisions | jq '.'
+  curl -s -XGET --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision | jq '.'
   echo
 }
 

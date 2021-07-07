@@ -46,6 +46,7 @@ SOFTWARE.
 #include <AdminProvision.hpp>
 #include <TypeConverter.hpp>
 
+#include <functions.hpp>
 
 
 namespace h2agent
@@ -103,19 +104,7 @@ void AdminProvision::transform( const std::string &requestUri,
     bool requestBodyJsonParseable = false;
     if (usesRequestBodyAsTransformationSource) {
         if (!requestBody.empty()) {
-            try {
-                requestBodyJson = nlohmann::json::parse(requestBody);
-                requestBodyJsonParseable = true;
-            }
-            catch (nlohmann::json::parse_error& e)
-            {
-
-                std::stringstream ss;
-                ss << "Json body parse error for request body received (some transformations will be ignored): " << e.what() << '\n'
-                   << "exception id: " << e.id << '\n'
-                   << "byte position of error: " << e.byte << std::endl;
-                ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-            }
+            requestBodyJsonParseable = h2agent::http2server::parseJsonContent(requestBody, requestBodyJson);
         }
         else {
             LOGINFORMATIONAL(ert::tracing::Logger::informational("No request body received: some transformations will be ignored", ERT_FILE_LOCATION));
@@ -432,26 +421,9 @@ void AdminProvision::transform( const std::string &requestUri,
                 // extraction
                 target = sourceVault.getString(success);
                 if (!success) continue;
-                try {
-                    obj = nlohmann::json::parse(target);
-                    // temporary log:
-                    LOGDEBUG(
-                        std::string msg("Json string parsed:\n\n");
-                        msg += obj.dump(4); // pretty print json body
-                        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-                    );
-                }
-                catch (nlohmann::json::parse_error& e)
-                {
-                    /*
-                    std::stringstream ss;
-                    ss << "Json body parse error: " << e.what() << '\n'
-                    << "exception id: " << e.id << '\n'
-                    << "byte position of error: " << e.byte << std::endl;
-                    ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-                    */
+                if (!h2agent::http2server::parseJsonContent(target, obj))
                     continue;
-                }
+
                 // assignment
                 responseBodyJson[j_ptr] = obj;
             }

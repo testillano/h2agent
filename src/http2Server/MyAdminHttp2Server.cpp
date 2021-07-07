@@ -149,86 +149,90 @@ void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &res
     statusCode = 400;
 }
 
+bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject, std::string& log) const
+{
+    bool result = false;
+
+    log += "server-matching operation; ";
+
+    if (!server_matching_schema_.validate(configurationObject)) {
+        log += "invalid schema";
+    }
+    else if (!admin_data_->loadMatching(configurationObject)) {
+        log += "invalid matching data received";
+    }
+    else {
+        result = true;
+        log += "valid schema and matching data received";
+    }
+
+    return result;
+}
+
+bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log) const
+{
+    bool result = false;
+
+    log += "server-provision operation; ";
+
+    if (configurationObject.is_array()) {
+        result = true;
+        for (auto it : configurationObject) // "it" is of type json::reference and has no key() member
+        {
+            if (!server_provision_schema_.validate(it)) {
+                log += "detected one invalid schema";
+                result = false;
+                break;
+            }
+            else if (!admin_data_->loadProvision(it)) {
+                log += "detected one invalid provision data received";
+                result = false;
+                break;
+            }
+        }
+
+        if (result) {
+            log += "valid schemas and provisions data received";
+        }
+    }
+    else {
+        if (!server_provision_schema_.validate(configurationObject)) {
+            log += "invalid schema";
+        }
+        else if (!admin_data_->loadProvision(configurationObject)) {
+            log += "invalid provision data received";
+        }
+        else {
+            result = true;
+            log += "valid schema and provision data received";
+        }
+    }
+
+    return result;
+}
+
 void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const
 {
-    bool jsonResponse_result = false;
-    std::string jsonResponse_response;
+    LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
+
+    bool jsonResponse_result{};
+    std::string jsonResponse_response{};
 
     // Admin schema validation:
     nlohmann::json requestJson;
-    try {
-        requestJson = nlohmann::json::parse(requestBody);
-        LOGDEBUG(
-            std::string msg("Json body received (admin interface):\n\n");
-            msg += requestJson.dump(4); // pretty print json body
-            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-        );
+    bool success = h2agent::http2server::parseJsonContent(requestBody, requestJson);
+
+    if (success) {
 
         if (pathSuffix == "server-matching") {
-
-            jsonResponse_response = "server-matching operation; ";
-
-            if (!server_matching_schema_.validate(requestJson)) {
-                statusCode = 400;
-                jsonResponse_response += "invalid schema";
-            }
-            else if (!admin_data_->loadMatching(requestJson)) {
-                statusCode = 400;
-                jsonResponse_response += "invalid matching data received";
-            }
-            else {
-                statusCode = 201;
-                jsonResponse_result = true;
-                jsonResponse_response += "valid schema and matching data received";
-            }
+            jsonResponse_result = serverMatching(requestJson, jsonResponse_response);
+            statusCode = jsonResponse_result ? 201:400;
         }
         else if (pathSuffix == "server-provision") {
-
-            jsonResponse_response = "server-provision operation; ";
-            if (!server_provision_schema_.validate(requestJson)) {
-                statusCode = 400;
-                jsonResponse_response += "invalid schema";
-            }
-            else if (!admin_data_->loadProvision(requestJson)) {
-                statusCode = 400;
-                jsonResponse_response += "invalid provision data received";
-            }
-            else {
-                statusCode = 201;
-                jsonResponse_result = true;
-                jsonResponse_response += "valid schema and provision data received";
-            }
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
-        }
-        else if (pathSuffix == "server-provisions") { // MULTIPLE PROVISIONS (array of provisions provided)
-
-            jsonResponse_response = "server-provisions operation; ";
-            statusCode = 201;
-            jsonResponse_result = true;
-            for (auto it : requestJson) // "it" is of type json::reference and has no key() member
-            {
-                if (!server_provision_schema_.validate(it)) {
-                    statusCode = 400;
-                    jsonResponse_response += "detected one invalid schema";
-                    jsonResponse_result = false;
-                    break;
-                }
-                else if (!admin_data_->loadProvision(it)) {
-                    statusCode = 400;
-                    jsonResponse_response += "detected one invalid provision data received";
-                    jsonResponse_result = false;
-                    break;
-                }
-            }
-
-            if (jsonResponse_result) {
-                jsonResponse_response += "valid schemas and provisions data received";
-            }
-
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
+            jsonResponse_result = serverProvision(requestJson, jsonResponse_response);
+            statusCode = jsonResponse_result ? 201:400;
         }
         else if (pathSuffix == "server-data/schema") {
-
             jsonResponse_response = "server-data/schema operation; ";
             if (!getMockRequestData()->loadRequestsSchema(requestJson)) {
                 statusCode = 400;
@@ -239,23 +243,14 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
                 jsonResponse_result = true;
                 jsonResponse_response += "valid schema loaded to validate traffic requests";
             }
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse_response %s", jsonResponse_response.c_str()), ERT_FILE_LOCATION));
         }
         else {
             statusCode = 501;
             jsonResponse_response = "unsupported operation";
         }
     }
-    catch (nlohmann::json::parse_error& e)
+    else
     {
-        /*
-        std::stringstream ss;
-        ss << "Json body parse error: " << e.what() << '\n'
-           << "exception id: " << e.id << '\n'
-           << "byte position of error: " << e.byte << std::endl;
-        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
-        */
-
         // Response data:
         statusCode = 400;
         jsonResponse_response = "failed to parse json from body request";
@@ -281,7 +276,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         responseBody = (getMockRequestData()->getRequestsSchema().isAvailable() ? getMockRequestData()->getRequestsSchema().getSchema().dump(4):"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
-    else if (pathSuffix == "server-provisions") {
+    else if (pathSuffix == "server-provision") {
         bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
         statusCode = (responseBody == "null" ? 204:200);
@@ -310,13 +305,13 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
     else {
         statusCode = 400;
-        buildJsonResponse(false, "invalid operation (allowed: server-provisions|server-matching|server-data)", responseBody);
+        buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)", responseBody);
     }
 }
 
 void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const
 {
-    if (pathSuffix == "server-provisions") {
+    if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
         mock_request_data_->clear(); // also, internal data is invalidated
     }
