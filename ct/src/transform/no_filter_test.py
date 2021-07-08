@@ -294,7 +294,7 @@ def test_018_requestUriPathToResponseBodyStringPath(resources, h2ac_admin, h2ac_
 def test_019_recvseqThroughVariableToResponseBodyUnsignedPath(resources, h2ac_admin, h2ac_traffic):
 
   # Provision
-  requestBody = resources("server-provision_transform_no_filter.intermediateVar.json.in")
+  requestBody = resources("server-provision_transform_no_filter.intermediateVar.json")
   responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
   response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
   h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
@@ -388,6 +388,8 @@ def test_023_virtualOutStateToSimulateRealDeletion(resources, h2ac_admin, h2ac_t
 def test_024_conditionVariable(resources, h2ac_admin, h2ac_traffic):
 
   # Provision
+  # PREVIOUS DELETION (TODO: fixture with prev-cleanup in every test):
+  response = h2ac_admin.delete("/admin/v1/server-provision")
   requestBody = resources("server-provision_transform_no_filter_conditionVar.json")
   responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
   response = h2ac_admin.post("/admin/v1/server-provision", requestBody)

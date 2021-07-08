@@ -62,7 +62,7 @@ public:
     // Target type
     enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar };
 
     // setters:
 
@@ -87,7 +87,7 @@ private:
 
     bool has_filter_;
     FilterType filter_type_;
-    std::string filter_; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar
+    std::string filter_; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar
     std::regex filter_rgx_; // RegexCapture, RegexReplace
     int filter_number_type_; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
     std::int64_t filter_i_; // Sum, Multiply

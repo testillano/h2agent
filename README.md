@@ -279,6 +279,12 @@ Options:
 [--server-request-schema <path file>]
   Path file for the server schema to validate requests received.
 
+[--server-matching <path file>]
+  Path file for optional startup server matching configuration.
+
+[--server-provision <path file>]
+  Path file for optional startup server provision configuration.
+
 [--disable-server-requests-history]
   Disables full history storage for requests received (enabled by default).
   Only latest request (for each key 'method/uri') will be stored and will
@@ -315,6 +321,8 @@ SSL/TLS disabled: both key & certificate must be provided
 Traffic secured: no
 Admin secured: no
 Server request schema: <not provided>
+Server matching configuration file: <not provided>
+Server provision configuration file: <not provided>
 Server request history: true
 
 $ kill $!
@@ -544,6 +552,8 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
         {"required": ["Prepend"]},
+        {"required": ["AppendVar"]},
+        {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]}
@@ -565,6 +575,8 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
+        "AppendVar": { "type": "string" },
+        "PrependVar": { "type": "string" },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string" }
@@ -887,6 +899,33 @@ Filters give you the chance to make complex transformations:
 
 
 
+
+- AppendVar: this appends a variable value to the source:
+
+  ```json
+  {
+    "source": "value.I am engineer and my name is ",
+    "target": "var.biography",
+    "filter": { "AppendVar" : "name" }
+  }
+  ```
+
+  In the example above we append the value of variable *name* to a constant-value source, so will have *var.biography="I am engineer and my name is  <value of variable 'name'>"*.
+
+  
+
+- PrependVar: this prepends a variable value to the source:
+
+  ```json
+  {
+    "source": "value.. I'm currently working with C++",
+    "target": "var.biography2",
+    "filter": { "PrependVar" : "biography" }
+  }
+  ```
+
+  Taking as reference the previous example variable *biography*, we will prepend it to a new constant-value source, so will have *var.biography2="I am engineer and my name is  <value of variable 'name'>. I'm currently working with C++"*.
+  
 - Sum: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
 
   ```json

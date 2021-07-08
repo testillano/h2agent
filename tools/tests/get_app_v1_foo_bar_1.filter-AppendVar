@@ -1,0 +1,26 @@
+PROVISION
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.-suffix",
+      "target": "var.suffix"
+    },
+    {
+      "source": "request.uri",
+      "target": "response.body.string.uri-appended",
+      "filter": {
+        "AppendVar": "suffix"
+      }
+    }
+  ]
+}
