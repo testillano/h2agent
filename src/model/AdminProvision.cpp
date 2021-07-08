@@ -242,7 +242,7 @@ void AdminProvision::transform( const std::string &requestUri,
         bool success;
         std::smatch matches;
 
-        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar
+        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
             std::string source;
@@ -286,6 +286,30 @@ void AdminProvision::transform( const std::string &requestUri,
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::Prepend) {
                     target = transformation->getFilter() + source;
+                    sourceVault.setString(target);
+                }
+                else if (transformation->getFilterType() == Transformation::FilterType::AppendVar) {
+                    auto it = variables.find(transformation->getFilter());
+                    if (it != variables.end()) target = source + (it->second);
+                    else {
+                        target = source;
+                        LOGDEBUG(
+                            std::string msg = ert::tracing::Logger::asString("Unable to extract variable '%s' in transformation item (empty value assumed)", transformation->getFilter().c_str());
+                            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                        );
+                    }
+                    sourceVault.setString(target);
+                }
+                else if (transformation->getFilterType() == Transformation::FilterType::PrependVar) {
+                    auto it = variables.find(transformation->getFilter());
+                    if (it != variables.end()) target = (it->second) + source;
+                    else {
+                        target = source;
+                        LOGDEBUG(
+                            std::string msg = ert::tracing::Logger::asString("Unable to extract variable '%s' in transformation item (empty value assumed)", transformation->getFilter().c_str());
+                            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                        );
+                    }
                     sourceVault.setString(target);
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::Sum) {

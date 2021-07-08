@@ -206,6 +206,7 @@ void TypeConverter::clear() {
     f_value_ = 0;
     b_value_ = false;
     j_value_.clear();
+    native_type_ = NativeType::String;
 }
 
 bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::string &path) {
