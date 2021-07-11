@@ -110,15 +110,31 @@ public:
                      bool historyEnabled, const std::string virtualOriginComingFromMethod = "");
 
 
+    /**
+     * Removes vector item for a given position (1..N)
+     * Value '-1' (unsigned long long max): the latest event is selected.
+
+     * @param requestNumber Request history number (1..N) to filter selection.
+     *
+     * @return Boolean about if something was deleted
+     */
+    bool removeNumber(std::uint64_t requestNumber);
+
     // getters:
 
+    /** vector size */
+    size_t size()
+    {
+        read_guard_t guard(rw_mutex_);
+        return requests_.size();
+    }
 
     /**
      * Builds json document for class information
      *
      * @param requestNumber Request history number (1..N) to filter selection.
-     * Value '0':  whole history is provided for method/uri provided.
-     * Value '-1' (unsigned long long max): the latest event is filtered.
+     * Value '0':  whole history is selected for method/uri provided.
+     * Value '-1' (unsigned long long max): the latest event is selected.
      *
      * @return Json object
      */

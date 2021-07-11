@@ -69,7 +69,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const;
     void receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const;
-    void receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const;
+    void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
 
 
 public:

@@ -59,6 +59,8 @@ class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequ
 {
     h2agent::jsonschema::JsonSchema requests_schema_;
 
+    bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+
 public:
     MockRequestData() {};
     ~MockRequestData() = default;
@@ -90,9 +92,16 @@ public:
 
     /** Clears internal data
      *
-     * @return True if something was removed, false if already empty
+     * @param somethingDeleted boolean to know if something was deleted, by reference
+     * @param requestMethod Request method to filter selection
+     * @param requestUri Request URI path to filter selection
+     * @param requestNumber Request history number (1..N) to filter selection.
+     * If empty, whole history is removed for method/uri provided.
+     * If provided '-1', the latest event is selected.
+     *
+     * @return Boolean about success of operation (not related to the number of events removed)
      */
-    bool clear();
+    bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &requestNumber = "");
 
     /**
      * Json string representation for class information
@@ -100,8 +109,8 @@ public:
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection
      * @param requestNumber Request history number (1..N) to filter selection.
-     * If empty, whole history is provided for method/uri provided.
-     * If provided '-1', the latest event is filtered.
+     * If empty, whole history is selected for method/uri provided.
+     * If provided '-1', the latest event is selected.
      * @param success Boolean result passed by reference.
      *
      * @return Json string representation

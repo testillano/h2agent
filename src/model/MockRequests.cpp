@@ -51,6 +51,28 @@ void calculateMockRequestsKey(mock_requests_key_t &key, const std::string &metho
     key += uri;
 }
 
+bool MockRequests::removeNumber(std::uint64_t requestNumber) {
+
+    bool result{};
+
+    write_guard_t wr_lock(rw_mutex_);
+
+    if (requests_.size() == 0 || requestNumber == 0) return false;
+
+    if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
+        result = (requests_.size() > 0);
+        requests_.pop_back();
+    }
+    else {
+        if (requestNumber <= requests_.size()) {
+            result = true;
+            requests_.erase(requests_.begin() + requestNumber - 1);
+        }
+    }
+
+    return result;
+}
+
 mock_requests_key_t MockRequests::getKey() const {
 
     mock_requests_key_t result;

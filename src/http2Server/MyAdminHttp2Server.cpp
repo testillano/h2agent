@@ -328,11 +328,29 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
 }
 
-void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, unsigned int& statusCode) const
+void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
 {
+    bool somethingDeleted;
+
     if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
-        mock_request_data_->clear(); // also, internal data is invalidated
+    }
+    else if (pathSuffix == "server-data") {
+        std::string requestMethod = "";
+        std::string requestUri = "";
+        std::string requestNumber = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            auto it = qmap.find("requestMethod");
+            if (it != qmap.end()) requestMethod = it->second;
+            it = qmap.find("requestUri");
+            if (it != qmap.end()) requestUri = it->second;
+            it = qmap.find("requestNumber");
+            if (it != qmap.end()) requestNumber = it->second;
+        }
+
+        bool success = mock_request_data_->clear(somethingDeleted, requestMethod, requestUri, requestNumber);
+        statusCode = success ? (somethingDeleted ? 200:204):400;
     }
     else {
         statusCode = 400;
@@ -385,7 +403,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // Methods supported:
     if (method == "DELETE") {
-        receiveDELETE(pathSuffix, statusCode);
+        receiveDELETE(pathSuffix, uriRawQuery, statusCode);
         headers.clear();
         return;
     }
