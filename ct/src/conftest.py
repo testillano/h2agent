@@ -516,3 +516,23 @@ def string2dict(content, **kwargs):
     if kwargs: content = content.format(**kwargs)
     return json.loads(content)
 
+# Assert event which had no provision
+def assertUnprovisioned(serverDataEvent, body = None, serverSequence = None):
+  assert serverDataEvent["previousState"] == ""
+  assert serverDataEvent["responseDelayMs"] == 0
+  assert serverDataEvent["responseStatusCode"] == 501
+  assert serverDataEvent["state"] == ""
+  if body: assert serverDataEvent["body"] == body
+  if serverSequence: assert serverDataEvent["serverSequence"] == serverSequence
+
+  with pytest.raises(KeyError): val = serverDataEvent["virtualOriginComingFromMethod"]
+  with pytest.raises(KeyError): val = serverDataEvent["responseHeaders"]
+  with pytest.raises(KeyError): val = serverDataEvent["responseBody"]
+  if not body:
+      with pytest.raises(KeyError): val = serverDataEvent["body"]
+
+def assertUnprovisionedServerDataItemRequestsIndex(serverDataItem, expectedMethod, expectedUri, requestsIndex, body = None):
+  assert serverDataItem["method"] == expectedMethod
+  assert serverDataItem["uri"] == expectedUri
+  assertUnprovisioned(serverDataItem["requests"][requestsIndex], body)
+

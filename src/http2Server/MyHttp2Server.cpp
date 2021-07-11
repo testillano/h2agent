@@ -228,9 +228,9 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         provision = provisionData.find(inState, method, "");
     }
 
+    unsigned int delayMs{};
     if (provision) {
 
-        unsigned int delayMs;
         std::string outState;
         std::string outStateMethod;
 
@@ -269,6 +269,8 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     }
     else {
         statusCode = 501; // not implemented
+        // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
+        getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
     }
 
 

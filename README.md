@@ -718,17 +718,29 @@ Let's start describing the available sources of data: regardless the native or n
 The **source** of information is classified after parsing the following possible expressions:
 
 - request.uri: whole request *URI*  path, including the possible query parameters.
+
 - request.uri.path: request *URI* path part.
+
 - request.uri.param.<name>: request URI specific parameter `<name>`.
+
 - request.body: request body document from root.
+
 - request.body.<node1>..<nodeN>: request body node path.
+
 - request.header.<hname>: request header component (i.e. *content-type*).
+
 - general.random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+
 - general.timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+
 - general.strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
+
 - general.recvseq: sequence id number increased for every mock reception (starts on *0* when the *h2agent*  is started).
+
 - var.<id>: general purpose variable. Cannot refer json objects.
+
 - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`.
+
 - inState: current processing state.
 
 
@@ -912,7 +924,7 @@ Filters give you the chance to make complex transformations:
 
   In the example above we append the value of variable *name* to a constant-value source, so will have *var.biography="I am engineer and my name is  <value of variable 'name'>"*.
 
-  
+
 
 - PrependVar: this prepends a variable value to the source:
 
@@ -925,7 +937,7 @@ Filters give you the chance to make complex transformations:
   ```
 
   Taking as reference the previous example variable *biography*, we will prepend it to a new constant-value source, so will have *var.biography2="I am engineer and my name is  <value of variable 'name'>. I'm currently working with C++"*.
-  
+
 - Sum: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
 
   ```json
@@ -1053,8 +1065,6 @@ Json array containing all provisioned items, '*null*' if nothing configured.
 
 Deletes the whole process provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
 
-This operation also removes server mock internal data (requests and their states) as this only have sense for the provision which consolidated such information.
-
 #### Response status code
 
 **200** (OK), **204** (No Content) or **400** (Bad Request).
@@ -1095,11 +1105,13 @@ You could retrieve a specific entry providing *requestMethod*, *requestUri* and 
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-If case that *requestNumber* is omitted, the whole requests history for the *method/uri* provided will be retrieved. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order).  To get the latest one provide -1, to retrieve all of them, omit this query parameter.
+If case that *requestNumber* is omitted, the whole requests history for the *method/uri* provided will be retrieved. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order).  To get the latest one provide -1, to retrieve all of them, omit this query parameter or provide 0.
 
 Both *method*  and *uri*  shall be provided together to select a single entry history (if one is missing and the other is provided, bad request is obtained).
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemes (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
+
+Events received are stored <u>even if no provisions were found</u> for them, so no response fields will be added to their registers and state fields will be empty. This is useful to troubleshoot possible problems in testing configuration/design.
 
 #### Response status code
 
@@ -1122,6 +1134,22 @@ The information collected is:
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
 * `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence was actually not increased for the server data entry shown, only for the original event which caused this one.
+
+### DELETE /admin/v1/server-data
+
+Deletes the server data given by query parameters defined in the same way as former *GET* operation defined. For example:
+
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together, and *number* is optional.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+No response body.
 
 ### POST /admin/v1/client-initialize
 
