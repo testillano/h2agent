@@ -64,7 +64,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     model::MockRequestData *mock_request_data_;
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
-    void buildJsonResponse(bool result, const std::string &response, std::string &jsonResponse) const;
+    std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
 
     void receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const;

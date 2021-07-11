@@ -1,28 +1,23 @@
 import pytest
 import json
+from conftest import VALID_PROVISIONS__RESPONSE_BODY
 
 
 @pytest.mark.admin
-def test_001_cleanup_provisions(resources, h2ac_admin):
-  response = h2ac_admin.delete("/admin/v1/server-provision")
+def test_000_cleanup(admin_cleanup):
+
+  admin_cleanup()
 
 
 @pytest.mark.admin
-def test_002_i_want_to_provision_two_uris_with_different_states_on_admin_interface(resources, h2ac_admin):
+def test_001_i_want_to_provision_two_uris_with_different_states_on_admin_interface(admin_provision):
 
-  responseBodyRef = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
+  # Provision
+  admin_provision("provision.state_flow.same_uri_different_state_test.json", responseBodyRef=VALID_PROVISIONS__RESPONSE_BODY)
 
-  # Send POST
-  requestBody = resources("server-provision_STATE-initial.json")
-  response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
-  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
-
-  requestBody = resources("server-provision_STATE-another.json")
-  response = h2ac_admin.post("/admin/v1/server-provision", requestBody)
-  h2ac_admin.assert_response__status_body_headers(response, 201, responseBodyRef)
 
 @pytest.mark.server
-def test_003_i_want_to_send_get_requests_for_provisioned_data_on_traffic_interface(resources, h2ac_admin, h2ac_traffic):
+def test_002_i_want_to_send_get_requests_for_provisioned_data_on_traffic_interface(h2ac_traffic):
 
   # Send GET
   response = h2ac_traffic.get("/app/v1/foo/bar/1")

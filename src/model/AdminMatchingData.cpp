@@ -89,11 +89,9 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
     }
 
     auto uriPathQueryParametersFilter_it = j.find("uriPathQueryParametersFilter");
+    uri_path_query_parameters_filter_ = SortAmpersand; // default
     if (uriPathQueryParametersFilter_it != j.end() && uriPathQueryParametersFilter_it->is_string()) {
-        if (*uriPathQueryParametersFilter_it == "SortAmpersand") {
-            uri_path_query_parameters_filter_ = SortAmpersand;
-        }
-        else if (*uriPathQueryParametersFilter_it == "SortSemicolon") {
+        if (*uriPathQueryParametersFilter_it == "SortSemicolon") {
             uri_path_query_parameters_filter_ = SortSemicolon;
         }
         else if (*uriPathQueryParametersFilter_it == "PassBy") {

@@ -2,6 +2,9 @@ import pytest
 import json
 
 
+# No need for cleanup
+
+
 @pytest.mark.admin
 def test_001_i_want_to_force_method_not_allowed_error_towards_h2agent_admin_api(h2ac_admin):
 

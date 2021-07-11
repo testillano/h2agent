@@ -20,7 +20,10 @@ H2AGENT_ENDPOINT__admin = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ[
 H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ['H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC']
 
 # Api Path
-H2AGENT_URI_PREFIX = 'admin/v1'
+ADMIN_URI_PREFIX = '/admin/v1/'
+ADMIN_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
+ADMIN_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
+ADMIN_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
 
 # Headers
 CONTENT_LENGTH = 'content-length'
@@ -366,4 +369,150 @@ def resources():
     return resource
 
   yield get_resources
+
+@pytest.fixture(scope='session')
+def admin_cleanup(h2ac_admin):
+  def cleanup(matchingFile = None, matchingContent = { "algorithm": "FullMatching" }):
+    response = h2ac_admin.delete(ADMIN_PROVISION_URI)
+    response = h2ac_admin.delete(ADMIN_DATA_URI)
+
+    if matchingFile:
+      response = h2ac_admin.post(ADMIN_MATCHING_URI, resources(matchingFile))
+    elif matchingContent:
+      response = h2ac_admin.postDict(ADMIN_MATCHING_URI, matchingContent)
+
+  yield cleanup
+
+# PROVISION
+VALID_PROVISION__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
+VALID_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schemas and provisions data received" }
+INVALID_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid schema" }
+INVALID_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid provision data received" }
+@pytest.fixture(scope='session')
+def admin_provision(h2ac_admin, resources):
+  """
+  content: provide string or dictionary/list. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid provision assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_PROVISION__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = resources(content)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_PROVISION_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_PROVISION_URI, request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
+
+
+# MATCHING
+VALID_MATCHING__RESPONSE_BODY = { "result":"true", "response":"server-matching operation; valid schema and matching data received" }
+INVALID_MATCHING_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid schema" }
+INVALID_MATCHING_DATA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid matching data received" }
+@pytest.fixture(scope='session')
+def admin_matching(h2ac_admin, resources):
+  """
+  content: provide string or dictionary. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid provision assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_MATCHING__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = resources(content)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_MATCHING_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_MATCHING_URI, request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
+
+
+# JSON TEMPLATES ###############################################
+
+NESTED_NODE1_NODE2_REQUEST='''
+{
+  "node1": {
+    "node2": "value-of-node1-node2"
+  }
+}
+'''
+
+BASIC_FOO_BAR_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"GET",
+  "requestUri":"/app/v1/foo/bar/{id}",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar-{id}"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }}
+}}
+'''
+
+# Transform better provision POST to give versatility
+TRANSFORM_FOO_BAR_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar/{id}{queryp}",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar-{id}"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "{source}",
+      "target": "{target}"
+    }}
+  ]
+}}
+'''
+
+REGEX_FOO_BAR_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"GET",
+  "requestUri":"/app/v1/id-{id}[0-9]{{{trailing}}}/ts-[0-9]{{10}}",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar-{id}"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }}
+}}
+'''
+
+FALLBACK_DEFAULT_PROVISION='''
+{
+  "requestMethod": "GET",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "default",
+    "bar": "default"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  }
+}
+'''
+
+# Convert to dictionary a string with format arguments
+def string2dict(content, **kwargs):
+    if kwargs: content = content.format(**kwargs)
+    return json.loads(content)
 

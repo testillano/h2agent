@@ -1,23 +1,27 @@
 [
   {
+    "inState": "initial",
+    "outState": "another",
     "requestMethod": "GET",
     "requestUri": "/app/v1/foo/bar/1",
-    "responseCode": 200,
     "responseBody": {
-      "foo": "bar-1"
+      "foo": "bar-1-state-initial"
     },
+    "responseCode": 200,
     "responseHeaders": {
       "content-type": "text/html",
       "x-version": "1.0.0"
     }
   },
   {
+    "inState": "another",
+    "outState": "initial",
     "requestMethod": "GET",
-    "requestUri": "/app/v1/foo/bar/2",
-    "responseCode": 200,
+    "requestUri": "/app/v1/foo/bar/1",
     "responseBody": {
-      "foo": "bar-2"
+      "foo": "bar-1-state-another"
     },
+    "responseCode": 200,
     "responseHeaders": {
       "content-type": "text/html",
       "x-version": "1.0.0"

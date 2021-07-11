@@ -473,7 +473,7 @@ void AdminProvision::transform( const std::string &requestUri,
                 delayMs = targetU;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::TVar) {
-                if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
+                if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                     std::string varname;
                     if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
                         variables[transformation->getTarget()] = matches[0]; // variable "as is" stores the entire match

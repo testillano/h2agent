@@ -1,6 +1,9 @@
 import pytest
 
 
+# No need for cleanup
+
+
 @pytest.mark.admin
 def test_001_i_want_to_force_bad_request_error_due_to_json_parse_error(h2ac_admin):
 
@@ -13,8 +16,11 @@ def test_001_i_want_to_force_bad_request_error_due_to_json_parse_error(h2ac_admi
   # Verify response
   h2ac_admin.assert_response__status_body_headers(response, 400, responseBodyRef)
 
+
 @pytest.mark.admin
 def test_002_i_want_to_force_bad_request_error_due_to_no_uri_operation_provided(h2ac_admin):
+
+  # No need for cleanup
 
   requestBody = "foo"
   responseBodyRef = { "result":"false", "response":"no operation provided" }
