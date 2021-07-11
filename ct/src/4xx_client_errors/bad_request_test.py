@@ -1,6 +1,9 @@
 import pytest
 
 
+# No need for cleanup
+
+
 @pytest.mark.admin
 def test_001_i_want_to_force_bad_request_error_towards_h2agent_admin_api(h2ac_admin):
 
@@ -15,3 +18,4 @@ def test_001_i_want_to_force_bad_request_error_towards_h2agent_admin_api(h2ac_ad
   assert response["status"] == 400
   assert response["body"]["cause"] == "INVALID_API"
   assert response["headers"]["content-type"] == [b'application/problem+json']
+

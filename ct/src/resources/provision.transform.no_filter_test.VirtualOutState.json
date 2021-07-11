@@ -1,0 +1,32 @@
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/13",
+    "responseCode": 200,
+    "responseBody": {
+      "foo": "bar-13"
+    },
+    "responseHeaders": {
+      "content-type": "text/html",
+      "x-version": "1.0.0"
+    }
+  },
+  {
+    "requestMethod": "DELETE",
+    "requestUri": "/app/v1/foo/bar/13",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.13-deleted",
+        "target": "outState.GET"
+      }
+    ]
+  },
+  {
+    "inState": "13-deleted",
+    "outState": "13-deleted",
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/13",
+    "responseCode": 404
+  }
+]

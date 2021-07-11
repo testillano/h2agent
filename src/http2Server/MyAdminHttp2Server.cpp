@@ -37,7 +37,6 @@ SOFTWARE.
 
 #include <chrono>
 #include <sstream>
-#include <iomanip>
 #include <errno.h>
 
 #include <nlohmann/json.hpp>
@@ -130,12 +129,32 @@ std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
     return result;
 }
 
+/*
+#include <iomanip>
+
 void MyAdminHttp2Server::buildJsonResponse(bool result, const std::string &response, std::string &jsonResponse) const
 {
     std::stringstream ss;
     ss << R"({ "result":")" << (result ? "true":"false") << R"(", "response": )" << std::quoted(response) << R"( })";
     jsonResponse = ss.str();
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("jsonResponse %s", jsonResponse.c_str()), ERT_FILE_LOCATION));
+}
+
+THIS WAS REPLACED TEMPORARILY BY A SLIGHTLY LESS EFFICIENT VERSION, TO AVOID VALGRIND COMPLAIN:
+*/
+
+std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody) const
+{
+    std::string result{};
+    result = R"({ "result":")";
+    result += (responseResult ? "true":"false");
+    result += R"(", "response": )";
+    result += R"(")";
+    result += responseBody;
+    result += R"(" })";
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Json Response %s", result.c_str()), ERT_FILE_LOCATION));
+
+    return result;
 }
 
 void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const
@@ -145,7 +164,7 @@ void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &res
     //   "result":"<true or false>",
     //   "response":"<additional information>"
     // }
-    buildJsonResponse(false, "no operation provided", responseBody);
+    responseBody = buildJsonResponse(false, "no operation provided");
     statusCode = 400;
 }
 
@@ -257,7 +276,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     }
 
     // Build json response body:
-    buildJsonResponse(jsonResponse_result, jsonResponse_response, responseBody);
+    responseBody = buildJsonResponse(jsonResponse_result, jsonResponse_response);
 }
 
 void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
@@ -305,7 +324,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
     else {
         statusCode = 400;
-        buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)", responseBody);
+        responseBody = buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)");
     }
 }
 

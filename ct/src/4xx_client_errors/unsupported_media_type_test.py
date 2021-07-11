@@ -1,6 +1,9 @@
 import pytest
 
 
+# No need for cleanup
+
+
 @pytest.mark.admin
 def test_001_i_want_to_force_unsupported_media_type_error_towards_h2agent_admin_api(h2ac_admin):
 
@@ -17,3 +20,4 @@ def test_001_i_want_to_force_unsupported_media_type_error_towards_h2agent_admin_
   assert response["headers"]["content-type"] == [b'application/problem+json']
 
   #mylogger.debug("\nRESPONSE: \n\n" + str(response))
+
