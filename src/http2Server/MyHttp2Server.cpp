@@ -235,6 +235,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         std::string outStateMethod;
 
         // PREPARE & TRANSFORM
+        provision->setMockRequestData(mock_request_data_); // could be used by event source
         provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                               statusCode, headers, responseBody, delayMs, outState, outStateMethod);
 

@@ -158,11 +158,11 @@ const nlohmann::json server_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^var\\..+|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..+|^request\\.body$|^request\\.body\\..+|^request\\.header\\..+|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^inState$"
+            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^request\\.header\\..|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body(\\.object$|\\.jsonstring$|\\.string$|\\.integer$|\\.unsigned$|\\.float$|\\.boolean$)?(\\..)+|^response\\.header\\..+|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
+            "pattern": "^var\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
           }
         },
         "additionalProperties" : {
