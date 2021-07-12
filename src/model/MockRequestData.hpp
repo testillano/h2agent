@@ -36,6 +36,7 @@ SOFTWARE.
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 #include <nlohmann/json.hpp>
 
@@ -62,6 +63,7 @@ class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequ
     h2agent::jsonschema::JsonSchema requests_schema_;
 
     bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+    bool string2uint64(const std::string &input, std::uint64_t &output) const;
 
 public:
     MockRequestData() {};
@@ -106,31 +108,42 @@ public:
     bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &requestNumber = "");
 
     /**
-     * Json object for class information filtered
-     *
-     * @param requestMethod Request method to filter selection
-     * @param requestUri Request URI path to filter selection
-     * @param requestNumber Request history number (1..N) to filter selection.
-     * If empty, whole history is selected for method/uri provided.
-     * If provided '-1', the latest event is selected.
-     * @param success Boolean result passed by reference.
-     * @param object Json object built by reference.
-     */
-    void asJson(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success, nlohmann::json &object) const;
-
-    /**
      * Json string representation for class information filtered
      *
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection
      * @param requestNumber Request history number (1..N) to filter selection.
      * If empty, whole history is selected for method/uri provided.
-     * If provided '-1', the latest event is selected.
+     * If provided '-1' (unsigned long long max), the latest event is selected.
      * @param success Boolean result passed by reference.
      *
      * @return Json string representation
      */
     std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const;
+
+    /**
+     * Gets the mock request in specific position
+     *
+     * @param requestMethod Request method to filter selection
+     * @param requestUri Request URI path to filter selection
+     * @param requestNumber Request history number (1..N) to filter selection.
+     * Value '-1' (unsigned long long max) selects the latest event.
+     * Value '0' is not accepted, and null will be returned in this case.
+     *
+     * All the parameters are mandatory to select the single request event.
+     * If any is missing, nullptr is returned.
+     *
+     * @return mock request pointer
+     * @see size()
+     */
+    std::shared_ptr<MockRequest> getMockRequest(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+
+    /**
+     * Builds json document for class information
+     *
+     * @return Json object
+     */
+    nlohmann::json asJson() const;
 
     /**
      * Finds most recent mock context entry.

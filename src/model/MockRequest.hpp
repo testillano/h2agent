@@ -65,6 +65,11 @@ class MockRequest
 
     std::string virtual_origin_coming_from_method_{};
 
+
+    nlohmann::json json_{}; // kept synchronized on load()
+
+    void saveJson();
+
 public:
 
     MockRequest() {;}
@@ -121,11 +126,13 @@ public:
     }
 
     /**
-     * Builds json document for class information
+     * Gets json document
      *
      * @return Json object
      */
-    nlohmann::json getJson() const;
+    const nlohmann::json &getJson() const {
+        return json_;
+    }
 };
 
 }

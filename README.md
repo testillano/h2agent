@@ -748,7 +748,7 @@ The **source** of information is classified after parsing the following possible
   - <var id prefix>.number: position selected (*1..N*) within events requests list.
   - <var id prefix>.path: `json` document path within selection.
 
-  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `body` field which transports the original body which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result).
+  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `body` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
 
   <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
 
@@ -790,7 +790,7 @@ The **source** of information is classified after parsing the following possible
 
   ​	`ev1.uri` = "/app/v1/stock/madrid?loc=123"
 
-  ​	`ev1.number` = 0
+  ​	`ev1.number` = -1 (means "the last")
 
   ​	`ev1.path` = "/body"
 
@@ -1168,9 +1168,9 @@ You could retrieve a specific entry providing *requestMethod*, *requestUri* and 
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-If case that *requestNumber* is omitted, the whole requests history for the *method/uri* provided will be retrieved. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order).  To get the latest one provide -1, to retrieve all of them, omit this query parameter or provide 0.
+If case that *requestNumber* is provided, the single event (request object) will be retrieved if found, if omitted, the document built will contain the key (*method* and *uri*) and a `requests` node with the full history of events for such key. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order). To get the latest one provide -1 (value of 0 is not accepted).
 
-Both *method*  and *uri*  shall be provided together to select a single entry history (if one is missing and the other is provided, bad request is obtained).
+If used, both *method* and *uri* shall be provided together (if one is missing and the other is provided, bad request is obtained).
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemes (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
@@ -1182,7 +1182,7 @@ Events received are stored <u>even if no provisions were found</u> for them, so 
 
 #### Response body
 
-When provided *method* and *uri*, requests array will be returned, if request number is provided too, the single event, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
+When provided *method* and *uri*, server data will be filtered with that key. If request number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
 Example of whole struct for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*')
 
