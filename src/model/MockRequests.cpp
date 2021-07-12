@@ -51,7 +51,7 @@ void calculateMockRequestsKey(mock_requests_key_t &key, const std::string &metho
     key += uri;
 }
 
-bool MockRequests::removeNumber(std::uint64_t requestNumber) {
+bool MockRequests::removeMockRequest(std::uint64_t requestNumber) {
 
     bool result{};
 
@@ -104,34 +104,34 @@ bool MockRequests::loadRequest(const std::string &pstate, const std::string &sta
     return true;
 }
 
-nlohmann::json MockRequests::getRequestsJson(std::uint64_t requestNumber) const {
-    nlohmann::json result;
+std::shared_ptr<MockRequest> MockRequests::getMockRequest(std::uint64_t requestNumber) const {
 
-    if (requests_.size() == 0) return result;
+    if (requests_.size() == 0) return nullptr;
+    if (requestNumber == 0) return nullptr;
 
-    if (requestNumber == 0) {
-        for (auto it = requests_.begin(); it != requests_.end(); it ++) {
-            result.push_back((*it)->getJson());
-        }
-    }
-    else if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
-        result = requests_.back()->getJson();
+    if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
+        //return *(requests_.back());
+        return *(std::prev(requests_.end()));
     }
     else {
         if (requestNumber <= requests_.size()) {
-            result = (*(requests_.begin()+requestNumber-1))->getJson();
+            return *(requests_.begin() + requestNumber - 1);
         }
     }
 
-    return result;
+    return nullptr;
 }
 
-nlohmann::json MockRequests::getJson() const {
+
+nlohmann::json MockRequests::asJson() const {
     nlohmann::json result;
 
     result["method"] = method_;
     result["uri"] = uri_;
-    result["requests"] = getRequestsJson(0);
+
+    for (auto it = requests_.begin(); it != requests_.end(); it ++) {
+        result["requests"].push_back((*it)->getJson());
+    }
 
     return result;
 }

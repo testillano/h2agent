@@ -118,7 +118,7 @@ public:
      *
      * @return Boolean about if something was deleted
      */
-    bool removeNumber(std::uint64_t requestNumber);
+    bool removeMockRequest(std::uint64_t requestNumber);
 
     // getters:
 
@@ -130,25 +130,23 @@ public:
     }
 
     /**
-     * Builds json document for requests node
+     * Gets the mock request in specific position
      *
-     * @param requestNumber Request history number (1..N) to filter selection.
-     * Value '0':  whole requests array is selected for method/uri provided.
-     * Value '-1' (unsigned long long max): the latest event is selected.
+     * @param requestNumber Request history number (1..N) to filter selection. Last one by default.
+     * Value '-1' (unsigned long long max) selects the latest event.
+     * Value '0' is not accepted, and null will be returned in this case.
      *
-     * When a single event is selected, the corresponding object is returned.
-     * If '0' is provided, an array object (requests array) is returned.
-     *
-     * @return Json object
+     * @return mock request pointer
+     * @see size()
      */
-    nlohmann::json getRequestsJson(std::uint64_t requestNumber) const;
+    std::shared_ptr<MockRequest> getMockRequest(std::uint64_t requestNumber = std::numeric_limits<uint64_t>::max()) const;
 
     /**
      * Builds json document for class information
      *
      * @return Json object
      */
-    nlohmann::json getJson() const;
+    nlohmann::json asJson() const;
 
     /**
      * Gets the mock requests key as '<request-method>|<request-uri>'

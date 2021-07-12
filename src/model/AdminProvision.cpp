@@ -248,8 +248,8 @@ void AdminProvision::transform( const std::string &requestUri,
             // Now, access the server data for the former selection values:
             bool success;
             nlohmann::json object;
-            mock_request_data_->asJson(event_method, event_uri, event_number, success, object);
-            if (!success) {
+            auto mockRequest = mock_request_data_->getMockRequest(event_method, event_uri, event_number);
+            if (!mockRequest) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());
                     ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -257,10 +257,7 @@ void AdminProvision::transform( const std::string &requestUri,
                 continue;
             }
 
-            if (object.empty())
-                continue;
-
-            if (!sourceVault.setObject(object, event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
+            if (!sourceVault.setObject(mockRequest->getJson(), event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unexpected error extracting event for variable '%s' in transformation item", transformation->getSource().c_str());
                     ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);

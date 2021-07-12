@@ -68,48 +68,46 @@ bool MockRequest::load(const std::string &pstate, const std::string &state, cons
 
     virtual_origin_coming_from_method_ = virtualOriginComingFromMethod;
 
+    saveJson();
+
     return true;
 }
 
-nlohmann::json MockRequest::getJson() const {
-    nlohmann::json result;
+void MockRequest::saveJson() {
 
     if (!virtual_origin_coming_from_method_.empty())
-        result["virtualOriginComingFromMethod"] = virtual_origin_coming_from_method_;
+        json_["virtualOriginComingFromMethod"] = virtual_origin_coming_from_method_;
 
-    result["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
+    json_["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
 
-    result["state"] = state_;
+    json_["state"] = state_;
 
     if (headers_.size()) {
         nlohmann::json hdrs;
         for(const auto &x: headers_)
             hdrs[x.first] = x.second.value;
-        result["headers"] = hdrs;
+        json_["headers"] = hdrs;
     }
 
     if (!body_.empty()) {
-        h2agent::http2server::parseJsonContent(body_, result["body"], true /* write exception */);
+        h2agent::http2server::parseJsonContent(body_, json_["body"], true /* write exception */);
     }
 
     // Additional information
-    result["previousState"] = pstate_;
+    json_["previousState"] = pstate_;
     if (!response_body_.empty()) {
-        h2agent::http2server::parseJsonContent(response_body_, result["responseBody"], true /* write exception */);
+        h2agent::http2server::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
     }
 
-    result["responseDelayMs"] = (unsigned int)response_delay_ms_;
-    result["responseStatusCode"] = (unsigned int)response_status_code_;
+    json_["responseDelayMs"] = (unsigned int)response_delay_ms_;
+    json_["responseStatusCode"] = (unsigned int)response_status_code_;
     if (response_headers_.size()) {
         nlohmann::json hdrs;
         for(const auto &x: response_headers_)
             hdrs[x.first] = x.second.value;
-        result["responseHeaders"] = hdrs;
+        json_["responseHeaders"] = hdrs;
     }
-    result["serverSequence"] = (unsigned int)server_sequence_;
-
-
-    return result;
+    json_["serverSequence"] = (unsigned int)server_sequence_;
 }
 
 }

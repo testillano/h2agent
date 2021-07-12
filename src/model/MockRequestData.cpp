@@ -46,6 +46,25 @@ namespace h2agent
 namespace model
 {
 
+bool MockRequestData::string2uint64(const std::string &input, std::uint64_t &output) const {
+
+    bool result = false;
+
+    if (!input.empty()) {
+        try {
+            output = std::stoull(input);
+            result = true;
+        }
+        catch(std::exception &e)
+        {
+            std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer: %s", input.c_str(), e.what());
+            ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+        }
+    }
+
+    return result;
+}
+
 bool MockRequestData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const {
 
     // Bad request checkings:
@@ -111,25 +130,13 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
         return true; // nothing found to be removed
 
     // Check request number:
-    std::uint64_t u_requestNumber = 0;
     if (!requestNumber.empty()) {
-        try {
-            u_requestNumber = std::stoull(requestNumber);
-        }
-        catch(std::exception &e)
-        {
-            std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer: %s", requestNumber.c_str(), e.what());
-            ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
-            return false;
-        }
 
-        if (u_requestNumber == 0) {
-            somethingDeleted = true;
-            Map::remove(it); // remove whole history (requests list)
-        }
-        else {
-            somethingDeleted = it->second->removeNumber(u_requestNumber);
-        }
+        std::uint64_t u_requestNumber{};
+        if (!string2uint64(requestNumber, u_requestNumber))
+            return false;
+
+        somethingDeleted = it->second->removeMockRequest(u_requestNumber);
     }
     else {
         somethingDeleted = true;
@@ -139,51 +146,79 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     return result;
 }
 
-void MockRequestData::asJson(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success, nlohmann::json &object) const {
+std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const {
 
     success = false;
 
+    if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
+        success = true;
+        return ((map_.size() != 0) ? asJson().dump() : "null");
+    }
+
     if (!checkSelection(requestMethod, requestUri, requestNumber))
-        return;
+        return "null";
 
-    if (!requestMethod.empty()) {
+    mock_requests_key_t key;
+    calculateMockRequestsKey(key, requestMethod, requestUri);
 
-        // Check request number:
-        std::uint64_t u_requestNumber = 0;
-        if (!requestNumber.empty()) {
-            try {
-                u_requestNumber = std::stoull(requestNumber);
-            }
-            catch(std::exception &e)
-            {
-                std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer: %s", requestNumber.c_str(), e.what());
-                ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
-                return;
-            }
+    auto it = map_.find(key);
+    if (it == end())
+        return "null"; // nothing found to be built
+
+    // Check request number:
+    if (!requestNumber.empty()) {
+
+        std::uint64_t u_requestNumber{};
+        if (!string2uint64(requestNumber, u_requestNumber))
+            return "null";
+
+        auto ptr = it->second->getMockRequest(u_requestNumber);
+        if (ptr) {
+            success = true;
+            return ptr->getJson().dump();
         }
-
-        mock_requests_key_t key;
-        calculateMockRequestsKey(key, requestMethod, requestUri);
-
-        auto it = map_.find(key);
-        if (it != end()) {
-            object = it->second->getRequestsJson(u_requestNumber); // request method and uri are provided (and perhaps request number), we retrieve the requests array (documented)
-        }
+        else return "null";
     }
     else {
-        for (auto it = map_.begin(); it != map_.end(); it++) {
-            object.push_back(it->second->getJson(/* whole server internal data including method and uri, as no query parameters are provided */));
-        };
+        success = true;
+        return it->second->asJson().dump();
     }
 
-    success = true;
+    return "null";
 }
 
-std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const {
+std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {
 
-    nlohmann::json object;
-    asJson(requestMethod, requestUri, requestNumber, success, object);
-    return ((map_.size() != 0) ? object.dump():"null"); // guarantee "null" if empty (nlohmann could change):
+    if (requestMethod.empty())
+        return nullptr;
+
+    if (requestMethod.empty() || requestUri.empty() || requestNumber.empty())
+        return nullptr;
+
+    mock_requests_key_t key;
+    calculateMockRequestsKey(key, requestMethod, requestUri);
+
+    auto it = map_.find(key);
+    if (it == end())
+        return nullptr; // nothing found
+
+    // Check request number:
+    std::uint64_t u_requestNumber{};
+    if (!string2uint64(requestNumber, u_requestNumber))
+        return nullptr;
+
+    return (it->second->getMockRequest(u_requestNumber));
+}
+
+nlohmann::json MockRequestData::asJson() const {
+
+    nlohmann::json result;
+
+    for (auto it = map_.begin(); it != map_.end(); it++) {
+        result.push_back(it->second->asJson());
+    };
+
+    return result;
 }
 
 bool MockRequestData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
