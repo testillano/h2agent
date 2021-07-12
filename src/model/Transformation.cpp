@@ -146,7 +146,7 @@ bool Transformation::load(const nlohmann::json &j) {
 
     // Interpret source/target:
 
-    // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, InState };)
+    // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
@@ -173,6 +173,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex generalStrftime("general.strftime.(.*)"); // free format, errors captured
     static std::regex varId("var.(.*)");
     static std::regex value("value.(.*)");
+    static std::regex event("event.(.*)");
 
     std::smatch matches; // to capture regex group(s)
 
@@ -223,6 +224,10 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (std::regex_match(sourceSpec, matches, value)) { // value content
             source_ = matches[1];
             source_type_ = SourceType::Value;
+        }
+        else if (std::regex_match(sourceSpec, matches, event)) { // value content
+            source_ = matches[1];
+            source_type_ = SourceType::Event;
         }
         else if (sourceSpec == "inState") {
             source_type_ = SourceType::InState;
@@ -363,8 +368,8 @@ bool Transformation::load(const nlohmann::json &j) {
     LOGDEBUG(
         std::stringstream ss;
 
-        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, InState): " << source_type_
-        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, Value): " << source_
+        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState): " << source_type_
+        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, Value, Event): " << source_
         << " | source_i1_ (GeneralRandom min): " << source_i1_
         << " | source_i2_ (GeneralRandom max): " << source_i2_
         << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_

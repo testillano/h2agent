@@ -45,6 +45,7 @@ SOFTWARE.
 
 #include <AdminProvision.hpp>
 #include <TypeConverter.hpp>
+#include <MockRequestData.hpp>
 
 #include <functions.hpp>
 
@@ -67,7 +68,7 @@ void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &i
 
 AdminProvision::AdminProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_PROVISION_STATE),
-    response_delay_ms_(0) {;}
+    response_delay_ms_(0), mock_request_data_(nullptr) {;}
 
 
 void AdminProvision::transform( const std::string &requestUri,
@@ -145,7 +146,7 @@ void AdminProvision::transform( const std::string &requestUri,
 
         auto transformation = (*it);
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState
         if (transformation->getSourceType() == Transformation::SourceType::RequestUri) {
             sourceVault.setString(requestUri);
         }
@@ -228,6 +229,49 @@ void AdminProvision::transform( const std::string &requestUri,
         }
         else if (transformation->getSourceType() == Transformation::SourceType::Value) {
             sourceVault.setString(transformation->getSource());
+        }
+        else if (transformation->getSourceType() == Transformation::SourceType::Event) {
+            std::string var_id_prefix = transformation->getSource();
+
+            auto it = variables.find(var_id_prefix + ".method");
+            std::string event_method = (it != variables.end()) ? (it->second):"";
+
+            it = variables.find(var_id_prefix + ".uri");
+            std::string event_uri = (it != variables.end()) ? (it->second):"";
+
+            it = variables.find(var_id_prefix + ".number");
+            std::string event_number = (it != variables.end()) ? (it->second):"";
+
+            it = variables.find(var_id_prefix + ".path");
+            std::string event_path = (it != variables.end()) ? (it->second):"";
+
+            // Now, access the server data for the former selection values:
+            bool success;
+            nlohmann::json object;
+            mock_request_data_->asJson(event_method, event_uri, event_number, success, object);
+            if (!success) {
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+                continue;
+            }
+
+            if (object.empty())
+                continue;
+
+            if (!sourceVault.setObject(object, event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Unexpected error extracting event for variable '%s' in transformation item", transformation->getSource().c_str());
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+                continue;
+            }
+
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Extracted object from event:\n%s", sourceVault.asString().c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
         }
         else if (transformation->getSourceType() == Transformation::SourceType::InState) {
             sourceVault.setString(getInState());

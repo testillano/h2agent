@@ -625,11 +625,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^var\\..+|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..+|^request\\.body$|^request\\.body\\..+|^request\\.header\\..+|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^inState$"
+            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^request\\.header\\..|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..+|^response\\.body(\\.object$|\\.jsonstring$|\\.string$|\\.integer$|\\.unsigned$|\\.float$|\\.boolean$)?(\\..)+|^response\\.header\\..+|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
+            "pattern": "^var\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
           }
         },
         "additionalProperties" : {
@@ -740,6 +740,69 @@ The **source** of information is classified after parsing the following possible
 - var.<id>: general purpose variable. Cannot refer json objects.
 
 - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`.
+
+- event.<var id prefix>: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
+
+  - <var id prefix>.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
+  - <var id prefix>.uri: event *URI* selected.
+  - <var id prefix>.number: position selected (*1..N*) within events requests list.
+  - <var id prefix>.path: `json` document path within selection.
+
+  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `body` field which transports the original body which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result).
+
+  <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
+
+  Let's see an example. Imagine the following current server data map:
+
+  ```json
+  [
+    {
+      "method": "POST",
+      "requests": [
+        {
+          "body": {
+            "engine": "tdi",
+            "model": "audi",
+            "year": 2021
+          },
+          "headers": {
+            "accept": "*/*",
+            "content-length": "52",
+            "content-type": "application/x-www-form-urlencoded",
+            "user-agent": "curl/7.77.0"
+          },
+          "previousState": "initial",
+          "receptionTimestampMs": 1626039610709,
+          "responseDelayMs": 0,
+          "responseStatusCode": 201,
+          "serverSequence": 116,
+          "state": "initial"
+        }
+      ],
+      "uri": "/app/v1/stock/madrid?loc=123"
+    }
+  ]
+  ```
+
+  Then, you could define an event source like `event.ev1`. Assuming that the following variables are available when this source is processed:
+
+  ​	`ev1.method` = "POST"
+
+  ​	`ev1.uri` = "/app/v1/stock/madrid?loc=123"
+
+  ​	`ev1.number` = 0
+
+  ​	`ev1.path` = "/body"
+
+  Then, the event source would store this `json` object:
+
+  ```json
+  {
+    "engine": "tdi",
+    "model": "audi",
+    "year": 2021
+  }
+  ```
 
 - inState: current processing state.
 
@@ -1119,9 +1182,80 @@ Events received are stored <u>even if no provisions were found</u> for them, so 
 
 #### Response body
 
-Json document containing server internal data, '*null*' if nothing cached.
+When provided *method* and *uri*, requests array will be returned, if request number is provided too, the single event, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
-The information collected is:
+Example of whole struct for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*')
+
+```json
+[
+  {
+    "method": "GET",
+    "requests": [
+      {
+        "body": {
+          "node1": {
+            "node2": "value-of-node1-node2"
+          }
+        },
+        "headers": {
+          "accept": "*/*",
+          "category-id": "testing",
+          "content-length": "52",
+          "content-type": "application/x-www-form-urlencoded",
+          "user-agent": "curl/7.58.0"
+        },
+        "previousState": "initial",
+        "receptionTimestampMs": 1626047915716,
+        "responseBody": {
+          "foo": "bar-1",
+          "generalRandomBetween10and30": 27
+        },
+        "responseDelayMs": 0,
+        "responseHeaders": {
+          "content-type": "text/html",
+          "x-version": "1.0.0"
+        },
+        "responseStatusCode": 200,
+        "serverSequence": 0,
+        "state": "initial"
+      },
+      {
+        "body": {
+          "node1": {
+            "node2": "value-of-node1-node2"
+          }
+        },
+        "headers": {
+          "accept": "*/*",
+          "category-id": "testing",
+          "content-length": "52",
+          "content-type": "application/x-www-form-urlencoded",
+          "user-agent": "curl/7.58.0"
+        },
+        "previousState": "initial",
+        "receptionTimestampMs": 1626047921641,
+        "responseBody": {
+          "foo": "bar-1",
+          "generalRandomBetween10and30": 24
+        },
+        "responseDelayMs": 0,
+        "responseHeaders": {
+          "content-type": "text/html",
+          "x-version": "1.0.0"
+        },
+        "responseStatusCode": 200,
+        "serverSequence": 1,
+        "state": "initial"
+      }
+    ],
+    "uri": "/app/v1/foo/bar/1?name=test"
+  }
+]
+```
+
+
+
+The information collected for a requests item is:
 
 * `virtualOriginComingFromMethod`: optional, special field for virtual entries coming from provisions which established an *out-state* for a foreign method. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible.
 * `receptionTimestampMs`: event reception *timestamp*.

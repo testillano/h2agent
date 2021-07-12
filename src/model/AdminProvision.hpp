@@ -65,6 +65,7 @@ typedef std::string admin_provision_key_t;
 
 void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
+class MockRequestData;
 
 
 class AdminProvision
@@ -85,6 +86,7 @@ class AdminProvision
     nlohmann::json response_body_;
     unsigned int response_delay_ms_;
 
+    model::MockRequestData *mock_request_data_; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
@@ -139,6 +141,14 @@ public:
      * @return Operation success
      */
     bool load(const nlohmann::json &j);
+
+    /**
+     * Sets the internal mock request data,
+     * just in case it is used in event source
+     */
+    void setMockRequestData(model::MockRequestData *p) {
+        mock_request_data_ = p;
+    }
 
     // getters:
 

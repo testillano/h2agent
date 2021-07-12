@@ -37,6 +37,8 @@ SOFTWARE.
 
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include <Map.hpp>
 #include <MockRequests.hpp>
 
@@ -104,7 +106,20 @@ public:
     bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &requestNumber = "");
 
     /**
-     * Json string representation for class information
+     * Json object for class information filtered
+     *
+     * @param requestMethod Request method to filter selection
+     * @param requestUri Request URI path to filter selection
+     * @param requestNumber Request history number (1..N) to filter selection.
+     * If empty, whole history is selected for method/uri provided.
+     * If provided '-1', the latest event is selected.
+     * @param success Boolean result passed by reference.
+     * @param object Json object built by reference.
+     */
+    void asJson(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success, nlohmann::json &object) const;
+
+    /**
+     * Json string representation for class information filtered
      *
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection

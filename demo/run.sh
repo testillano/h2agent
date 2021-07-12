@@ -78,6 +78,7 @@ test_query() {
     echo
   else
     echo "Response is invalid !! Exiting ..."
+    echo "Check if the program is started !!"
     exit 1
   fi
   echo "Press ENTER to continue with the next step ... "
@@ -165,8 +166,8 @@ do
 done
 
 echo
-echo "============="
-echo "Demo finished"
-echo "============="
+echo "================"
+echo "Demo finished OK"
+echo "================"
 echo
 

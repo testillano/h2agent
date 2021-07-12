@@ -127,7 +127,7 @@ menu() {
     [ -s "${dataFile}" ] && curlDataOpt="-d@${dataFile}"
 
     # headers
-    local headers='-H "Content-Type: application/json" '
+    local headers="-H Content-Type:application/json "
     [ "${method}" = "GET" ] && headers=
     for hdr in $(sed -n '/^REQUEST_HDRS/,//p' ${file} | grep -vE '^REQUEST')
     do

@@ -291,3 +291,27 @@ def test_022_virtualOutStateToSimulateRealDeletion(admin_provision, h2ac_traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/13")
   assert response["status"] == 404
 
+
+@pytest.mark.transform
+def test_023_eventBodyToResponseBodyPath(admin_cleanup, admin_provision, h2ac_traffic):
+
+  # Cleanup
+  admin_cleanup()
+
+  # Provision
+  admin_provision("provision.transform.no_filter_test.EventBody.json")
+
+  # Traffic
+
+  # First time, there is nothing (no request number 0 exists), so, responseBody won't add event information:
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  responseBodyRef = { "foo":"bar-1" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Second time, we will have the previous traffic event as reference (number 0), and responseBody will add
+  # the request body which was received. We will send now another different request body to make safer the test:
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", { "anotherRequest": "foo" })
+  responseBodyRef["firstRequestBody"] = string2dict(NESTED_NODE1_NODE2_REQUEST)
+  responseBodyRef["foo"] = "bar-1"
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+

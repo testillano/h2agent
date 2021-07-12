@@ -130,15 +130,25 @@ public:
     }
 
     /**
-     * Builds json document for class information
+     * Builds json document for requests node
      *
      * @param requestNumber Request history number (1..N) to filter selection.
-     * Value '0':  whole history is selected for method/uri provided.
+     * Value '0':  whole requests array is selected for method/uri provided.
      * Value '-1' (unsigned long long max): the latest event is selected.
+     *
+     * When a single event is selected, the corresponding object is returned.
+     * If '0' is provided, an array object (requests array) is returned.
      *
      * @return Json object
      */
-    nlohmann::json getJson(std::uint64_t requestNumber) const;
+    nlohmann::json getRequestsJson(std::uint64_t requestNumber) const;
+
+    /**
+     * Builds json document for class information
+     *
+     * @return Json object
+     */
+    nlohmann::json getJson() const;
 
     /**
      * Gets the mock requests key as '<request-method>|<request-uri>'

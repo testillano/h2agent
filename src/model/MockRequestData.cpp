@@ -35,8 +35,6 @@ SOFTWARE.
 
 #include <string>
 
-#include <nlohmann/json.hpp>
-
 #include <ert/tracing/Logger.hpp>
 
 #include <MockRequestData.hpp>
@@ -141,13 +139,12 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     return result;
 }
 
-std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const {
+void MockRequestData::asJson(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success, nlohmann::json &object) const {
 
-    nlohmann::json result;
     success = false;
 
     if (!checkSelection(requestMethod, requestUri, requestNumber))
-        return "";
+        return;
 
     if (!requestMethod.empty()) {
 
@@ -161,7 +158,7 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
             {
                 std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer: %s", requestNumber.c_str(), e.what());
                 ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
-                return "";
+                return;
             }
         }
 
@@ -170,18 +167,23 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
         auto it = map_.find(key);
         if (it != end()) {
-            result = it->second->getJson(u_requestNumber);
+            object = it->second->getRequestsJson(u_requestNumber); // request method and uri are provided (and perhaps request number), we retrieve the requests array (documented)
         }
     }
     else {
         for (auto it = map_.begin(); it != map_.end(); it++) {
-            result.push_back(it->second->getJson(0 /* whole history */));
+            object.push_back(it->second->getJson(/* whole server internal data including method and uri, as no query parameters are provided */));
         };
     }
 
-    // guarantee "null" if empty (nlohmann could change):
     success = true;
-    return ((map_.size() != 0) ? result.dump():"null");
+}
+
+std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const {
+
+    nlohmann::json object;
+    asJson(requestMethod, requestUri, requestNumber, success, object);
+    return ((map_.size() != 0) ? object.dump():"null"); // guarantee "null" if empty (nlohmann could change):
 }
 
 bool MockRequestData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {

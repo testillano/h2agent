@@ -104,27 +104,34 @@ bool MockRequests::loadRequest(const std::string &pstate, const std::string &sta
     return true;
 }
 
-nlohmann::json MockRequests::getJson(std::uint64_t requestNumber) const {
+nlohmann::json MockRequests::getRequestsJson(std::uint64_t requestNumber) const {
     nlohmann::json result;
-
-    result["method"] = method_;
-    result["uri"] = uri_;
 
     if (requests_.size() == 0) return result;
 
     if (requestNumber == 0) {
         for (auto it = requests_.begin(); it != requests_.end(); it ++) {
-            result["requests"].push_back((*it)->getJson());
+            result.push_back((*it)->getJson());
         }
     }
     else if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
-        result["requests"].push_back(requests_.back()->getJson());
+        result = requests_.back()->getJson();
     }
     else {
         if (requestNumber <= requests_.size()) {
-            result["requests"].push_back((*(requests_.begin()+requestNumber-1))->getJson());
+            result = (*(requests_.begin()+requestNumber-1))->getJson();
         }
     }
+
+    return result;
+}
+
+nlohmann::json MockRequests::getJson() const {
+    nlohmann::json result;
+
+    result["method"] = method_;
+    result["uri"] = uri_;
+    result["requests"] = getRequestsJson(0);
 
     return result;
 }
