@@ -61,7 +61,8 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads):
 
     mock_request_data_ = new model::MockRequestData();
 
-    requests_history_ = true;
+    server_data_ = true;
+    server_data_requests_history_ = true;
 }
 
 bool MyHttp2Server::checkMethodIsAllowed(
@@ -242,12 +243,13 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);
 
         // Store request event context information
-        //if (!requestFound)
-        getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
+        if (server_data_) {
+            getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */);
 
-        // Virtual storage:
-        if (hasVirtualMethod) {
-            getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+            // Virtual storage:
+            if (hasVirtualMethod) {
+                getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+            }
         }
 
         if (delayMs != 0) {
@@ -271,7 +273,9 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     else {
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
-        getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, requests_history_ /* history enabled */);
+        if (server_data_) {
+            getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */);
+        }
     }
 
 

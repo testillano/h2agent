@@ -58,7 +58,8 @@ namespace http2server
 
 class MyHttp2Server: public ert::http2comm::Http2Server
 {
-    bool requests_history_;
+    bool server_data_;
+    bool server_data_requests_history_;
 
     model::MockRequestData *mock_request_data_;
     model::AdminData *admin_data_;
@@ -99,8 +100,12 @@ public:
     // return success to load schema
     bool setRequestsSchema(const std::string &schemaContent);
 
-    void setRequestsHistory(bool enable = true) {
-        requests_history_ = enable;
+    void discardServerData(bool discard = true) {
+        server_data_ = !discard;
+    }
+
+    void discardServerDataRequestsHistory(bool discard = true) {
+        server_data_requests_history_ = !discard;
     }
 
 };

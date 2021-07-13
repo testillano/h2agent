@@ -285,11 +285,18 @@ Options:
 [--server-provision <path file>]
   Path file for optional startup server provision configuration.
 
-[--disable-server-requests-history]
-  Disables full history storage for requests received (enabled by default).
+[--discard-server-data]
+  Disables server data storage for events received (enabled by default).
+  This invalidates some features like FSM related ones (in-state, out-state)
+   or event-source transformations.
+
+[--discard-server-data-requests-history]
+  Disables server data requests history storage (enabled by default).
   Only latest request (for each key 'method/uri') will be stored and will
-   be accessible for further analysis. To be considered if really makes an
-   improvement in huge long-term stabilities.
+   be accessible for further analysis.
+  This limits some features like FSM related ones (in-state, out-state)
+   or event-source transformations.
+  Implicitly disabled by option '--discard-server-data'.
 
 [-v|--version]
   Program version.
@@ -323,7 +330,8 @@ Admin secured: no
 Server request schema: <not provided>
 Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
-Server request history: true
+Server data storage: enabled
+Server data requests history storage: enabled
 
 $ kill $!
 [Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15

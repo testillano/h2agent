@@ -181,11 +181,18 @@ void usage(int rc)
        << "[--server-provision <path file>]\n"
        << "  Path file for optional startup server provision configuration.\n\n"
 
-       << "[--disable-server-request-history]\n"
-       << "  Disables full history storage for requests received (enabled by default).\n"
+       << "[--discard-server-data]\n"
+       << "  Disables server data storage for events received (enabled by default).\n"
+       << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
+       << "   or event-source transformations.\n\n"
+
+       << "[--discard-server-data-requests-history]\n"
+       << "  Disables server data requests history storage (enabled by default).\n"
        << "  Only latest request (for each key 'method/uri') will be stored and will\n"
-       << "   be accessible for further analysis. To be considered if really makes an\n"
-       << "   improvement in huge long-term stabilities.\n\n"
+       << "   be accessible for further analysis.\n"
+       << "  This limits some features like FSM related ones (in-state, out-state)\n"
+       << "   or event-source transformations.\n"
+       << "  Implicitly disabled by option '--discard-server-data'.\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -251,7 +258,8 @@ int main(int argc, char* argv[])
     std::string server_crt_file = "";
     bool admin_secured = false;
     std::string server_req_schema_file = "";
-    bool disable_server_request_history = false;
+    bool discard_server_data = false;
+    bool discard_server_data_requests_history = false;
     bool verbose = false;
     std::string server_matching_file = "";
     std::string server_provision_file = "";
@@ -352,9 +360,15 @@ int main(int argc, char* argv[])
         server_provision_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--disable-server-request-history", value))
+    if (cmdOptionExists(argv, argv + argc, "--discard-server-data", value))
     {
-        disable_server_request_history = true;
+        discard_server_data = true;
+        discard_server_data_requests_history = true; // implicitly
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--discard-server-data-requests-history", value))
+    {
+        discard_server_data_requests_history = true;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-v", value)
@@ -417,7 +431,8 @@ int main(int argc, char* argv[])
               "<not provided>") << '\n';
     std::cout << "Server provision configuration file: " << ((server_provision_file != "") ? server_provision_file :
               "<not provided>") << '\n';
-    std::cout << "Server request history: " << (!disable_server_request_history ? "true":"false") << '\n';
+    std::cout << "Server data storage: " << (!discard_server_data ? "enabled":"disabled") << '\n';
+    std::cout << "Server data requests history storage: " << (!discard_server_data_requests_history ? "enabled":"disabled") << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -487,7 +502,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    myHttp2Server->setRequestsHistory(!disable_server_request_history);
+    // Server data configuration:
+    myHttp2Server->discardServerData(discard_server_data);
+    myHttp2Server->discardServerDataRequestsHistory(discard_server_data_requests_history);
 
     // Associate data containers:
     myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
