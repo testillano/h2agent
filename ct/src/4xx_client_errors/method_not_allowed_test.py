@@ -6,6 +6,7 @@ import json
 
 
 @pytest.mark.admin
+@pytest.mark.skip(reason="PUT /admin/v1/logging?level=<level> is already implemented")
 def test_001_i_want_to_force_method_not_allowed_error_towards_h2agent_admin_api(h2ac_admin):
 
   requestBody = { "foo": "bar" }

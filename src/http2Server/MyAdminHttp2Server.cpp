@@ -72,14 +72,14 @@ bool MyAdminHttp2Server::checkMethodIsAllowed(
     const nghttp2::asio_http2::server::request& req,
     std::vector<std::string>& allowedMethods)
 {
-    allowedMethods = {"POST", "GET", "DELETE"};
-    return (req.method() == "POST" || req.method() == "GET" || req.method() == "DELETE");
+    allowedMethods = {"POST", "GET", "DELETE", "PUT"};
+    return (req.method() == "POST" || req.method() == "GET" || req.method() == "DELETE" || req.method() == "PUT");
 }
 
 bool MyAdminHttp2Server::checkMethodIsImplemented(
     const nghttp2::asio_http2::server::request& req)
 {
-    return (req.method() == "POST" || req.method() == "GET" || req.method() == "DELETE");
+    return (req.method() == "POST" || req.method() == "GET" || req.method() == "DELETE" || req.method() == "PUT");
 }
 
 
@@ -87,7 +87,7 @@ bool MyAdminHttp2Server::checkHeaders(const
                                       nghttp2::asio_http2::server::request& req)
 {
     // Don't check headers for GET and DELETE:
-    if (req.method() == "GET" || req.method() == "DELETE") {
+    if (req.method() == "GET" || req.method() == "DELETE" || req.method() == "PUT") {
         return true;
     }
 
@@ -357,6 +357,36 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     }
 }
 
+void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
+{
+    bool success = false;
+
+    if (pathSuffix == "logging") {
+        std::string level = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            auto it = qmap.find("level");
+            if (it != qmap.end()) level = it->second;
+        }
+
+        std::string previousLevel = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
+        success = ert::tracing::Logger::setLevel(level);
+        //LOGWARNING(
+        if (success) {
+            if (level != previousLevel)
+                ert::tracing::Logger::warning(ert::tracing::Logger::asString("Log level changed: %s -> %s", previousLevel.c_str(), level.c_str()), ERT_FILE_LOCATION);
+            else
+                ert::tracing::Logger::warning(ert::tracing::Logger::asString("Log level unchanged (already %s)", previousLevel.c_str()), ERT_FILE_LOCATION);
+        }
+        else {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid log level provided (%s). Keeping current (%s)", level.c_str(), previousLevel.c_str()), ERT_FILE_LOCATION);
+        }
+        //);
+    }
+
+    statusCode = success ? 200:400;
+}
+
 void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
                                  req,
                                  const std::string& requestBody,
@@ -413,6 +443,11 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     }
     else if (method == "POST") {
         receivePOST(pathSuffix, requestBody, statusCode, responseBody);
+        return;
+    }
+    else if (method == "PUT") {
+        receivePUT(pathSuffix, uriRawQuery, statusCode);
+        headers.clear();
         return;
     }
 }
