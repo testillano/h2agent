@@ -68,9 +68,9 @@ spec:
             - {{ .Values.h2agent_cl.server_provision | quote }}
             {{- end }}
             {{- if not .Values.h2agent_cl.server_data.enabled }}
-            - "--disable-server-data"
+            - "--discard-server-data"
             {{- end }}
             {{- if not .Values.h2agent_cl.server_data_requests_history.enabled }}
-            - "--disable-server-data-requests-history"
+            - "--discard-server-data-requests-history"
             {{- end }}
 
