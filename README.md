@@ -1395,6 +1395,16 @@ Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-stra
 }
 ```
 
+### PUT /admin/v1/logging?level=`<level>`
+
+Changes the log level of the `h2agent` process to any of the levels described in [command line](#command-line) section: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+
+
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
