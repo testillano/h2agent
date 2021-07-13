@@ -33,6 +33,12 @@ h2agent_cl:
   server_key: ""
   server_crt: ""
   server_request_schema: ""
+  server_matching: ""
+  server_provision: ""
+  server_data:
+    enabled: true
+  server_data_requests_history:
+    enabled: true
 
 service:
   type: ClusterIP
