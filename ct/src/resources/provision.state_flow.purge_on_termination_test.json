@@ -1,0 +1,30 @@
+[
+  {
+    "inState": "initial",
+    "outState": "final",
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/1",
+    "responseBody": {
+      "foo": "bar-1-state-initial"
+    },
+    "responseCode": 200,
+    "responseHeaders": {
+      "content-type": "text/html",
+      "x-version": "1.0.0"
+    }
+  },
+  {
+    "inState": "final",
+    "outState": "purge",
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/1",
+    "responseBody": {
+      "foo": "bar-1-state-final"
+    },
+    "responseCode": 200,
+    "responseHeaders": {
+      "content-type": "text/html",
+      "x-version": "1.0.0"
+    }
+  }
+]

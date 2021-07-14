@@ -140,7 +140,7 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     }
     else {
         somethingDeleted = true;
-        Map::remove(it); // remove whole history (requests list)
+        Map::remove(it); // remove key
     }
 
     return result;
