@@ -54,6 +54,7 @@ namespace h2agent
 namespace http2server
 {
 
+
 MyHttp2Server::MyHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("MockHttp2Server", workerThreads),
     admin_data_(nullptr),
@@ -240,15 +241,27 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                               statusCode, headers, responseBody, delayMs, outState, outStateMethod);
 
-        bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);
+        // Special out-states:
+        // purge //
+        if (outState == "purge") {
+            bool somethingDeleted;
+            bool success = getMockRequestData()->clear(somethingDeleted, method, uriPath);
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+        }
+        else {
+            bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);
 
-        // Store request event context information
-        if (server_data_) {
-            getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */);
+            // Store request event context information
+            if (server_data_) {
+                getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */);
 
-            // Virtual storage:
-            if (hasVirtualMethod) {
-                getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+                // Virtual storage:
+                if (hasVirtualMethod) {
+                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+                }
             }
         }
 

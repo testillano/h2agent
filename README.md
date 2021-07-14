@@ -668,6 +668,8 @@ Let's see an example to clarify:
 
 Further similar matches (*m*), will repeat the cycle again and again.
 
+<u>Dynamic server data purge</u>:  the keyword '**purge**' is a reserved out-state used to indicate that server data related to an event history must be dropped. This mechanism is useful in long-term load tests to avoid high memory consumption removing those scenarios which have been possibly successfully completed (if not,  post-verification or troubleshooting based on server data information will be obviously limited: as future proof, a purge dump file could be configured on command line to store the information on file system before removal).
+
 ##### requestMethod
 
 Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
