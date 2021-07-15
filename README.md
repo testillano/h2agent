@@ -731,32 +731,32 @@ The **source** of information is classified after parsing the following possible
 
 - request.uri.path: request *URI* path part.
 
-- request.uri.param.<name>: request URI specific parameter `<name>`.
+- request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
 - request.body: request body document from root.
 
-- request.body.<node1>..<nodeN>: request body node path.
+- request.body.`<node1>..<nodeN>`: request body node path.
 
-- request.header.<hname>: request header component (i.e. *content-type*).
+- request.header.`<hname>`: request header component (i.e. *content-type*).
 
-- general.random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
-- general.timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+- general.timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
 
-- general.strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
+- general.strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
 
 - general.recvseq: sequence id number increased for every mock reception (starts on *0* when the *h2agent*  is started).
 
-- var.<id>: general purpose variable. Cannot refer json objects.
+- var.`<id>`: general purpose variable. Cannot refer json objects.
 
-- value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`.
+- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`.
 
-- event.<var id prefix>: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
+- event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 
-  - <var id prefix>.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
-  - <var id prefix>.uri: event *URI* selected.
-  - <var id prefix>.number: position selected (*1..N*) within events requests list.
-  - <var id prefix>.path: `json` document path within selection.
+  - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
+  - `<var id prefix>`.uri: event *URI* selected.
+  - `<var id prefix>`.number: position selected (*1..N*) within events requests list.
+  - `<var id prefix>`.path: `json` document path within selection.
 
   All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `body` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
 
@@ -834,31 +834,31 @@ The **target** of information is classified after parsing the following possible
 
 - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
 
-- response.body.string.<node1>..<nodeN> *[string]*: response body node path storing expected string.
+- response.body.string.`<node1>..<nodeN>` *[string]*: response body node path storing expected string.
 
-- response.body.integer.<node1>..<nodeN> *[integer]*: response body node path storing expected integer.
+- response.body.integer.`<node1>..<nodeN>` *[integer]*: response body node path storing expected integer.
 
-- response.body.unsigned.<node1>..<nodeN> *[unsigned integer]*: response body node path storing expected unsigned integer.
+- response.body.unsigned.`<node1>..<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer.
 
-- response.body.float.<node1>..<nodeN> *[float number]*: response body node path storing expected float number.
+- response.body.float.`<node1>..<nodeN>` *[float number]*: response body node path storing expected float number.
 
-- response.body.boolean.<node1>..<nodeN> *[boolean]*: response body node path storing expected booblean.
+- response.body.boolean.`<node1>..<nodeN>` *[boolean]*: response body node path storing expected booblean.
 
-- response.body.object.<node1>..<nodeN> *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order.
+- response.body.object.`<node1>..<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order.
 
-- response.body.jsonstring.<node1>..<nodeN> *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
+- response.body.jsonstring.`<node1>..<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
 
-- response.header.<hname> *[string (or number as string)]*: response header component (i.e. *location*).
+- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*).
 
 - response.statusCode *[unsigned integer]*: response status code.
 
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- var.<id> *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects.
+- var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
-- outState.[POST|GET|PUT|DELETE|HEAD] *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision).
+- outState.`[POST|GET|PUT|DELETE|HEAD]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision).
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted").
 
