@@ -96,6 +96,15 @@ bool MyHttp2Server::checkHeaders(const nghttp2::asio_http2::server::request&
     */
 }
 
+std::string MyHttp2Server::serverDataConfigurationAsJsonString() const {
+    nlohmann::json result;
+
+    result["storeEvents"] = server_data_ ? "true":"false";
+    result["storeEventsRequestsHistory"] = server_data_requests_history_ ? "true":"false";
+
+    return result.dump(4);
+}
+
 bool MyHttp2Server::setRequestsSchema(const std::string &schemaContent) {
 
     LOGDEBUG(ert::tracing::Logger::debug("Json string provided for requests schema", ERT_FILE_LOCATION));

@@ -249,6 +249,9 @@ class RestClient(object):
     def get(self, requestUrl):
         return self.request('GET', requestUrl)
 
+    def put(self, requestUrl, requestBody = None, requestHeaders={'content-type': 'application/json'}):
+        return self.request('PUT', requestUrl, requestBody, requestHeaders)
+
     def post(self, requestUrl, requestBody = None, requestHeaders={'content-type': 'application/json'}):
         return self.request('POST', requestUrl, requestBody, requestHeaders)
 

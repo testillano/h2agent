@@ -1146,6 +1146,43 @@ Deletes the whole process provision. It is useful to clear the configuration if 
 
 No response body.
 
+### PUT /admin/v1/server-data/configuration?discard=`<true|false>`&discardRequestsHistory=`<true|false>`
+
+There are three valid configurations, depending on the query parameters provided:
+
+* `discard=true&discardRequestsHistory=true`: nothing is stored.
+*  `discard=false&discardRequestsHistory=true`: no requests history stored (only the last received).
+* `discard=false&discardRequestsHistory=false`: everything is stored: events and requests history.
+
+The combination `discard=true&discardRequestsHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
+
+Be careful using this operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/server-data/configuration
+
+Retrieve the server data configuration regarding storage behavior for general events and requests history.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "storeEvents": "true",
+    "storeEventsRequestsHistory": "true"
+}
+```
+
+By default, the `h2agent` enables both kinds of storage types, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
+
 ### POST /admin/v1/server-data/schema
 
 Loads a requests schema for validation of traffic receptions.

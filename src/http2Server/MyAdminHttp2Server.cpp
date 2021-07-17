@@ -45,6 +45,7 @@ SOFTWARE.
 #include <ert/http2comm/Http.hpp>
 
 #include <MyAdminHttp2Server.hpp>
+#include <MyHttp2Server.hpp>
 
 #include <AdminData.hpp>
 #include <MockRequestData.hpp>
@@ -56,8 +57,7 @@ namespace http2server
 {
 
 MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
-    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads),
-    mock_request_data_(nullptr) {
+    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads) {
 
     admin_data_ = new model::AdminData();
     server_matching_schema_.setSchema(h2agent::adminSchemas::server_matching); // won't fail
@@ -253,7 +253,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
         }
         else if (pathSuffix == "server-data/schema") {
             jsonResponse_response = "server-data/schema operation; ";
-            if (!getMockRequestData()->loadRequestsSchema(requestJson)) {
+            if (!getHttp2Server()->getMockRequestData()->loadRequestsSchema(requestJson)) {
                 statusCode = 400;
                 jsonResponse_response += "load failed";
             }
@@ -292,7 +292,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         statusCode = 200;
     }
     else if (pathSuffix == "server-data/schema") {
-        responseBody = (getMockRequestData()->getRequestsSchema().isAvailable() ? getMockRequestData()->getRequestsSchema().getSchema().dump(4):"null");
+        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getSchema().dump(4):"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
     else if (pathSuffix == "server-provision") {
@@ -319,8 +319,12 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         }
 
         bool success;
-        responseBody = mock_request_data_->asJsonString(requestMethod, requestUri, requestNumber, success);
+        responseBody = getHttp2Server()->getMockRequestData()->asJsonString(requestMethod, requestUri, requestNumber, success);
         statusCode = success ? (responseBody == "null" ? 204:200):400;
+    }
+    else if (pathSuffix == "server-data/configuration") {
+        responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
+        statusCode = 200;
     }
     else {
         statusCode = 400;
@@ -349,7 +353,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) requestNumber = it->second;
         }
 
-        bool success = mock_request_data_->clear(somethingDeleted, requestMethod, requestUri, requestNumber);
+        bool success = getHttp2Server()->getMockRequestData()->clear(somethingDeleted, requestMethod, requestUri, requestNumber);
         statusCode = success ? (somethingDeleted ? 200:204):400;
     }
     else {
@@ -382,6 +386,40 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid log level provided (%s). Keeping current (%s)", level.c_str(), previousLevel.c_str()), ERT_FILE_LOCATION);
         }
         //);
+    }
+    else if (pathSuffix == "server-data/configuration") {
+
+        std::string discard{};
+        std::string discardRequestsHistory{};
+
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            auto it = qmap.find("discard");
+            if (it != qmap.end()) discard = it->second;
+            it = qmap.find("discardRequestsHistory");
+            if (it != qmap.end()) discardRequestsHistory = it->second;
+        }
+
+        bool b_discard = (discard == "true");
+        bool b_discardRequestsHistory = (discardRequestsHistory == "true");
+
+        success = true;
+        if (!discard.empty() && !discardRequestsHistory.empty())
+            success = !(b_discard && !b_discardRequestsHistory); // it has no sense to try to keep history if whole server data is discarded
+
+        if (success) {
+            if (!discard.empty()) {
+                getHttp2Server()->discardServerData(b_discard);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard server data: %s", b_discard ? "true":"false"), ERT_FILE_LOCATION));
+            }
+            if (!discardRequestsHistory.empty()) {
+                getHttp2Server()->discardServerDataRequestsHistory(b_discardRequestsHistory);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard server data requests history: %s", b_discardRequestsHistory ? "true":"false"), ERT_FILE_LOCATION));
+            }
+        }
+        else {
+            ert::tracing::Logger::error("Cannot keep requests history if whole server data is discarded", ERT_FILE_LOCATION);
+        }
     }
 
     statusCode = success ? 200:400;

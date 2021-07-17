@@ -93,6 +93,8 @@ public:
         return admin_data_;
     }
 
+    std::string serverDataConfigurationAsJsonString() const;
+
     const std::atomic<std::uint64_t> &getGeneralUniqueServerSequence() const {
         return general_unique_server_sequence_;
     }
