@@ -55,13 +55,15 @@ class MockRequestData;
 namespace http2server
 {
 
+class MyHttp2Server;
+
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     h2agent::jsonschema::JsonSchema server_matching_schema_;
     h2agent::jsonschema::JsonSchema server_provision_schema_;
 
     model::AdminData *admin_data_;
-    model::MockRequestData *mock_request_data_;
+    h2agent::http2server::MyHttp2Server *http2_server_; // used to set server-data configuration (discard contexts and/or history)
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
@@ -93,11 +95,12 @@ public:
     model::AdminData *getAdminData() const {
         return admin_data_;
     }
-    void setMockRequestData(model::MockRequestData *d) {
-        mock_request_data_ = d;
+
+    void setHttp2Server(h2agent::http2server::MyHttp2Server* ptr) {
+        http2_server_ = ptr;
     }
-    model::MockRequestData *getMockRequestData() const {
-        return mock_request_data_;
+    h2agent::http2server::MyHttp2Server *getHttp2Server(void) const {
+        return http2_server_;
     }
 
     bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;

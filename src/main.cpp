@@ -505,10 +505,10 @@ int main(int argc, char* argv[])
     // Server data configuration:
     myHttp2Server->discardServerData(discard_server_data);
     myHttp2Server->discardServerDataRequestsHistory(discard_server_data_requests_history);
+    myAdminHttp2Server->setHttp2Server(myHttp2Server);
 
     // Associate data containers:
     myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
-    myAdminHttp2Server->setMockRequestData(myHttp2Server->getMockRequestData()); // to allow GET resources (location headers) or similar operations which need mocked/dynamic data
 
     // Server key password:
     if (!server_key_password.empty()) {
