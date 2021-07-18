@@ -79,11 +79,11 @@ bool Transformation::load(const nlohmann::json &j) {
         try {
             if (f_it != it->end()) {
                 filter_ = *f_it;
-                filter_rgx_.assign(*f_it);
+                filter_rgx_.assign(filter_, std::regex::optimize);
                 filter_type_ = FilterType::RegexCapture;
             }
             else if ((f_it = it->find("RegexReplace")) != it->end()) {
-                filter_rgx_.assign(*(f_it->find("rgx")));
+                filter_rgx_.assign(std::string(*(f_it->find("rgx"))), std::regex::optimize);
                 filter_ = *(f_it->find("fmt"));
                 filter_type_ = FilterType::RegexReplace;
             }
@@ -165,15 +165,15 @@ bool Transformation::load(const nlohmann::json &j) {
     // - inState: current processing state.
 
     // Regex needed:
-    static std::regex requestUriParam("^request.uri.param.(.*)"); // no need to escape dots as this is validated in schema
-    static std::regex requestBodyNode("^request.body.(.*)");
-    static std::regex requestHeader("^request.header.(.*)");
-    static std::regex generalRandom("^general\\.random\\.([-+]{0,1}[0-9]+)\\.([-+]{0,1}[0-9]+)$"); // no need to validate min/max as it was done at schema
-    static std::regex generalTimestamp("general.timestamp.(.*)"); // no need to validate s/ms/ns as it was done at schema
-    static std::regex generalStrftime("general.strftime.(.*)"); // free format, errors captured
-    static std::regex varId("var.(.*)");
-    static std::regex value("value.(.*)");
-    static std::regex event("event.(.*)");
+    static std::regex requestUriParam("^request.uri.param.(.*)", std::regex::optimize); // no need to escape dots as this is validated in schema
+    static std::regex requestBodyNode("^request.body.(.*)", std::regex::optimize);
+    static std::regex requestHeader("^request.header.(.*)", std::regex::optimize);
+    static std::regex generalRandom("^general\\.random\\.([-+]{0,1}[0-9]+)\\.([-+]{0,1}[0-9]+)$", std::regex::optimize); // no need to validate min/max as it was done at schema
+    static std::regex generalTimestamp("general.timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/ns as it was done at schema
+    static std::regex generalStrftime("general.strftime.(.*)", std::regex::optimize); // free format, errors captured
+    static std::regex varId("var.(.*)", std::regex::optimize);
+    static std::regex value("value.(.*)", std::regex::optimize);
+    static std::regex event("event.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
 
@@ -264,15 +264,15 @@ bool Transformation::load(const nlohmann::json &j) {
     // + outState.[POST|GET|PUT|DELETE|HEAD] *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This overrides the default provisioned one.
 
     // Regex needed:
-    static std::regex responseBodyStringNode("^response.body.string.(.*)");
-    static std::regex responseBodyIntegerNode("^response.body.integer.(.*)");
-    static std::regex responseBodyUnsignedNode("^response.body.unsigned.(.*)");
-    static std::regex responseBodyFloatNode("^response.body.float.(.*)");
-    static std::regex responseBodyBooleanNode("^response.body.boolean.(.*)");
-    static std::regex responseBodyObjectNode("^response.body.object.(.*)");
-    static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)");
-    static std::regex responseHeader("^response.header.(.*)");
-    static std::regex outStateMethod("^outState.(POST|GET|PUT|DELETE|HEAD)");
+    static std::regex responseBodyStringNode("^response.body.string.(.*)", std::regex::optimize);
+    static std::regex responseBodyIntegerNode("^response.body.integer.(.*)", std::regex::optimize);
+    static std::regex responseBodyUnsignedNode("^response.body.unsigned.(.*)", std::regex::optimize);
+    static std::regex responseBodyFloatNode("^response.body.float.(.*)", std::regex::optimize);
+    static std::regex responseBodyBooleanNode("^response.body.boolean.(.*)", std::regex::optimize);
+    static std::regex responseBodyObjectNode("^response.body.object.(.*)", std::regex::optimize);
+    static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)", std::regex::optimize);
+    static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
+    static std::regex outStateMethod("^outState.(POST|GET|PUT|DELETE|HEAD)", std::regex::optimize);
     bool convertTargetToJsonPointerPath = false;
 
     try {
