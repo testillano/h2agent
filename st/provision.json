@@ -1,0 +1,67 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/load-test/v1/id-21",
+    "responseCode": 200,
+    "responseBody": {
+      "_id": "60f478ce78bbbad86e05d4f9",
+      "index": 0,
+      "guid": "9fd9b8f7-e33f-4d86-b9db-7fd879207ce2",
+      "isActive": false,
+      "balance": "$3,748.87",
+      "picture": "http://placehold.it/32x32",
+      "age": 23,
+      "eyeColor": "blue",
+      "name": "Joseph Norton",
+      "gender": "male",
+      "company": "TERRAGO",
+      "email": "josephnorton@terrago.com",
+      "phone": "+1 (830) 543-3984",
+      "address": "346 Hanson Place, Interlochen, American Samoa, 7538",
+      "about": "Esse labore tempor nisi non nisi eiusmod mollit ad ipsum dolore tempor commodo id. Veniam nisi fugiat adipisicing anim exercitation do amet nostrud. In incididunt ea tempor est deserunt irure consectetur qui magna in commodo ullamco ullamco. Incididunt deserunt do duis in laboris quis velit.\r\n",
+      "registered": "2021-02-24T01:05:41 -01:00",
+      "latitude": -76.273677,
+      "longitude": -48.788879,
+      "tags": [
+        "nostrud",
+        "tempor",
+        "ea",
+        "duis",
+        "ut",
+        "veniam",
+        "cupidatat"
+      ],
+      "friends": [
+        {
+          "id": 0,
+          "name": "Frances Floyd"
+        },
+        {
+          "id": 1,
+          "name": "Duke Cohen"
+        },
+        {
+          "id": 2,
+          "name": "Deborah Burton"
+        }
+      ],
+      "greeting": "Hello, Joseph Norton! You have 1 unread messages.",
+      "favoriteFruit": "banana"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "request.uri.path",
+        "filter": {
+          "RegexReplace": {
+            "rgx": "(/load-test/v1/id-)([0-9]{2})",
+            "fmt": "[{\"favouriteNumer\":$2}]"
+          }
+        },
+        "target": "response.body.jsonstring.favouriteNumber"
+      }
+    ]
+  }
+]

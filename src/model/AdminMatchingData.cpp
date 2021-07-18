@@ -41,7 +41,6 @@ SOFTWARE.
 
 #include <AdminMatchingData.hpp>
 
-
 namespace h2agent
 {
 namespace model

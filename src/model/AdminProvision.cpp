@@ -607,7 +607,7 @@ bool AdminProvision::load(const nlohmann::json &j) {
     // Store key and precompile regex:
     calculateAdminProvisionKey(key_, in_state_, request_method_, request_uri_);
     try {
-        regex_.assign(key_);
+        regex_.assign(key_, std::regex::optimize);
     }
     catch (std::regex_error &e) {
         ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
