@@ -223,6 +223,62 @@ commit: 2243b4b97c131e3244c5f014faedca0d846599f5-dirty
 $ helm version
 version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b2a68ce0", GitTreeState:"clean", GoVersion:"go1.14.9"}
 ```
+
+### Benchmarking test
+
+Under `./st` directory, there is a simple script to do load testing with random provision and requests:
+
+```bash
+$ st/start.sh
+HTTP/2 201
+date: Sun, 18 Jul 2021 21:47:07 GMT
+content-type: application/json
+
+{ "result":"true", "response": "server-provision operation; valid schemas and provisions data received" }
+HTTP/2 200
+date: Sun, 18 Jul 2021 21:47:07 GMT
+
+
+HTTP/2 200
+date: Sun, 18 Jul 2021 21:47:07 GMT
+content-type: application/json
+
+{
+    "storeEvents": "false",
+    "storeEventsRequestsHistory": "false"
+}
+
+Press ENTER to start, CTRL-C to abort ...
+
+starting benchmark...
+spawning thread #0: 1 total client(s). 100000 total requests
+Application protocol: h2c
+progress: 10% done
+progress: 20% done
+progress: 30% done
+progress: 40% done
+progress: 50% done
+progress: 60% done
+progress: 70% done
+progress: 80% done
+progress: 90% done
+progress: 100% done
+
+finished in 13.62s, 7342.80 req/s, 7.68MB/s
+requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
+status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
+traffic: 104.63MB (109709468) total, 293.32KB (300357) headers (space savings 95.77%), 102.62MB (107600000) data
+                     min         max         mean         sd        +/- sd
+time for request:      293us     21.84ms      1.08ms       503us    88.66%
+time for connect:      145us       145us       145us         0us   100.00%
+time to 1st byte:     1.93ms      1.93ms      1.93ms         0us   100.00%
+req/s           :    7342.90     7342.90     7342.90        0.00   100.00%
+
+real    0m13.629s
+user    0m0.827s
+sys     0m3.635s
+```
+
 ## Execution
 
 ### Command line
