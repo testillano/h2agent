@@ -315,3 +315,15 @@ def test_023_eventBodyToResponseBodyPath(admin_cleanup, admin_provision, h2ac_tr
   responseBodyRef["foo"] = "bar-1"
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
+@pytest.mark.transform
+def test_024_valueWithVariables(admin_provision, h2ac_traffic):
+
+  # Provision
+  admin_provision("provision.transform.no_filter_test.ReplaceValueVariables.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { 'foo': 'bar-1', "whoAreYou": "My name is Phil Collins" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+

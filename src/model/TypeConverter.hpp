@@ -98,6 +98,15 @@ public:
     }
 
     /**
+    * Sets string to vault replacing variables in form @{varname}
+    * This is done here to avoid a string copy
+    *
+    * @param str String assigned
+    * @param variables Variables map
+    */
+    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables);
+
+    /**
     * Sets integer to vault
     *
     * @param i Number assigned
