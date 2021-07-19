@@ -228,7 +228,7 @@ void AdminProvision::transform( const std::string &requestUri,
             }
         }
         else if (transformation->getSourceType() == Transformation::SourceType::Value) {
-            sourceVault.setString(transformation->getSource());
+            sourceVault.setStringReplacingVariables(transformation->getSource(), variables); // replace variables if they exist
         }
         else if (transformation->getSourceType() == Transformation::SourceType::Event) {
             std::string var_id_prefix = transformation->getSource();

@@ -805,7 +805,7 @@ The **source** of information is classified after parsing the following possible
 
 - var.`<id>`: general purpose variable. Cannot refer json objects.
 
-- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`.
+- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. Also, this source admit the insertion of variables in the form `@{var id}` which will be replaced if exist.
 
 - event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 

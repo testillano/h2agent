@@ -44,6 +44,34 @@ namespace h2agent
 namespace model
 {
 
+void searchReplaceAll(std::string& str,
+                      const std::string& from,
+                      const std::string& to)
+{
+    std::string::size_type pos = 0u;
+    while((pos = str.find(from, pos)) != std::string::npos) {
+        str.replace(pos, from.length(), to);
+        pos += to.length();
+    }
+}
+
+void searchReplaceValueVariables(const std::map<std::string, std::string> &varmap, std::string &source) {
+
+    static std::string token_op("@{");
+    static std::string token_cl("}");
+
+    if (source.find(token_op) == std::string::npos) return;
+
+    for(auto it = varmap.begin(); it != varmap.end(); it++) {
+        searchReplaceAll(source, token_op + it->first + token_cl, it->second);
+    }
+}
+
+void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables) {
+
+    setString(str);
+    searchReplaceValueVariables(variables, s_value_);
+}
 
 const std::string &TypeConverter::getString(bool &success) {
 
