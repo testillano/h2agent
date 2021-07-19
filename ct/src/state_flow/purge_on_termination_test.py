@@ -13,7 +13,7 @@ def test_000_cleanup(admin_cleanup):
 def test_001_i_want_to_provision_two_uris_with_different_states_and_final_purge_on_admin_interface(admin_provision):
 
   # Provision
-  admin_provision("provision.state_flow.purge_on_termination_test.json", responseBodyRef=VALID_PROVISIONS__RESPONSE_BODY)
+  admin_provision("state_flow/purge_on_termination_test/provision.json", responseBodyRef=VALID_PROVISIONS__RESPONSE_BODY)
 
 
 @pytest.mark.server

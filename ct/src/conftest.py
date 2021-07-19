@@ -353,12 +353,14 @@ def h2ac_traffic():
 @pytest.fixture(scope='session')
 def resources():
   resourcesDict={}
-  MyLogger.info("Gathering test suite resources ...")
-  for resource in glob.glob('resources/*'):
+  pattern='**/*.json*'
+  MyLogger.info("Gathering test suite resources ({}) ...".format(pattern))
+  os.chdir('resources')
+  for resource in glob.glob(pattern, recursive = True):
     f = open(resource, "r")
-    name = os.path.basename(resource)
-    resourcesDict[name] = f.read()
+    resourcesDict[resource] = f.read()
     f.close()
+  os.chdir('..')
 
   def get_resources(key, **kwargs):
     # Be careful with templates containing curly braces:

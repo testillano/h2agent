@@ -228,7 +228,7 @@ def test_017_requestUriPathToResponseBodyStringPath(admin_provision, h2ac_traffi
 def test_018_recvseqThroughVariableToResponseBodyUnsignedPath(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("provision.transform.no_filter_test.IntermediateVar.json")
+  admin_provision("transform/no_filter_test/provision.IntermediateVar.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -277,7 +277,7 @@ def test_021_valueToResponseBodyJsonStringPath(admin_provision, h2ac_traffic):
 def test_022_virtualOutStateToSimulateRealDeletion(admin_provision, h2ac_traffic):
 
   # Provisions
-  admin_provision("provision.transform.no_filter_test.VirtualOutState.json", responseBodyRef = VALID_PROVISIONS__RESPONSE_BODY)
+  admin_provision("transform/no_filter_test/provision.VirtualOutState.json", responseBodyRef = VALID_PROVISIONS__RESPONSE_BODY)
 
   # Firstly, exists:
   response = h2ac_traffic.get("/app/v1/foo/bar/13")
@@ -299,7 +299,7 @@ def test_023_eventBodyToResponseBodyPath(admin_cleanup, admin_provision, h2ac_tr
   admin_cleanup()
 
   # Provision
-  admin_provision("provision.transform.no_filter_test.EventBody.json")
+  admin_provision("transform/no_filter_test/provision.EventBody.json")
 
   # Traffic
 
@@ -320,7 +320,7 @@ def test_023_eventBodyToResponseBodyPath(admin_cleanup, admin_provision, h2ac_tr
 def test_024_valueWithVariables(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("provision.transform.no_filter_test.ReplaceValueVariables.json")
+  admin_provision("transform/no_filter_test/provision.ReplaceValueVariables.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
