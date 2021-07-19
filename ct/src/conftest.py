@@ -353,13 +353,14 @@ def h2ac_traffic():
 @pytest.fixture(scope='session')
 def resources():
   resourcesDict={}
-  pattern='**/*.json*'
-  MyLogger.info("Gathering test suite resources ({}) ...".format(pattern))
+  filetypes = {'*.json'} # tuple of file types
+  MyLogger.info("Gathering test suite resources ...")
   os.chdir('resources')
-  for resource in glob.glob(pattern, recursive = True):
-    f = open(resource, "r")
-    resourcesDict[resource] = f.read()
-    f.close()
+  for filetype in filetypes:
+    for resource in glob.glob("**/" + filetype, recursive = True):
+      f = open(resource, "r")
+      resourcesDict[resource] = f.read()
+      f.close()
   os.chdir('..')
 
   def get_resources(key, **kwargs):
