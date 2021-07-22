@@ -189,6 +189,11 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
 std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {
 
+    LOGDEBUG(
+        std::string msg = ert::tracing::Logger::asString("requestMethod: %s | requestUri: %s | requestNumber: %s", requestMethod.c_str(), requestUri.c_str(), requestNumber.c_str());
+        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+    );
+
     if (requestMethod.empty())
         return nullptr;
 

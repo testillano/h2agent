@@ -55,6 +55,18 @@ namespace h2agent
 namespace model
 {
 
+/*
+void printVariables(const  std::map<std::string, std::string> &variables) {
+
+  for (auto it = variables.begin(); it != variables.end(); it++) {
+      LOGDEBUG(
+         std::string msg = ert::tracing::Logger::asString("Var '%s' = '%s'", it->first.c_str(), it->second.c_str());
+         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+      );
+  }
+}
+*/
+
 void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri) {
     // key: <in-state>#<request-method>#<request-uri>
     // hash '#' separator eases regexp usage for stored key
@@ -554,7 +566,7 @@ void AdminProvision::transform( const std::string &requestUri,
     if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump();
 }
 
-bool AdminProvision::load(const nlohmann::json &j) {
+bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
 
     // Store whole document (useful for GET operation)
     json_ = j;
@@ -604,14 +616,19 @@ bool AdminProvision::load(const nlohmann::json &j) {
         }
     }
 
-    // Store key and precompile regex:
+    // Store key:
     calculateAdminProvisionKey(key_, in_state_, request_method_, request_uri_);
-    try {
-        regex_.assign(key_, std::regex::optimize);
-    }
-    catch (std::regex_error &e) {
-        ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-        return false;
+
+    if (priorityMatchingRegexConfigured) {
+        // Precompile regex with key, only for 'PriorityMatchingRegex' algorithm:
+        try {
+            regex_.assign(key_, std::regex::optimize);
+        }
+        catch (std::regex_error &e) {
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+            ert::tracing::Logger::error("Invalid regular expression (detected when joining 'inState' and/or 'requestUri' from provision) for current 'PriorityMatchingRegex' server matching algorithm", ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     return true;

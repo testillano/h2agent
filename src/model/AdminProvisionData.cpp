@@ -71,12 +71,12 @@ std::string AdminProvisionData::asJsonString(bool ordered) const {
     return (result.empty() ? "null":result.dump());
 }
 
-bool AdminProvisionData::load(const nlohmann::json &j) {
+bool AdminProvisionData::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
 
     // Provision object to fill:
     auto provision = std::make_shared<AdminProvision>();
 
-    if (provision->load(j)) {
+    if (provision->load(j, priorityMatchingRegexConfigured)) {
 
         // Push the key in the map:
         admin_provision_key_t key = provision->getKey();

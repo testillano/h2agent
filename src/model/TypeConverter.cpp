@@ -48,6 +48,10 @@ void searchReplaceAll(std::string& str,
                       const std::string& from,
                       const std::string& to)
 {
+    LOGDEBUG(
+        std::string msg = ert::tracing::Logger::asString("String to replace all: %s | from: %s | to: %s", str.c_str(), from.c_str(), to.c_str());
+        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+    );
     std::string::size_type pos = 0u;
     while((pos = str.find(from, pos)) != std::string::npos) {
         str.replace(pos, from.length(), to);
