@@ -76,7 +76,7 @@ public:
      *
      * @return Boolean about success operation
      */
-    bool load(const nlohmann::json &j);
+    bool load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
 
     /** Clears internal data (map and ordered keys vector)
      *

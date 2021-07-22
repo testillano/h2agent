@@ -488,7 +488,7 @@ int main(int argc, char* argv[])
 
     if (server_provision_file != "") {
         success = h2agent::http2server::getFileContent(server_provision_file, fileContent);
-        std::string log = "Server provsision configuration load failed and will be ignored";
+        std::string log = "Server provision configuration load failed and will be ignored";
         if (success)
             success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
 

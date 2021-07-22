@@ -140,7 +140,7 @@ public:
      *
      * @return Operation success
      */
-    bool load(const nlohmann::json &j);
+    bool load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
 
     /**
      * Sets the internal mock request data,

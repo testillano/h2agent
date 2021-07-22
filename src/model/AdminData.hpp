@@ -78,7 +78,7 @@ public:
      * @return Boolean about success operation
      */
     bool loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j);
+        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminMatchingData::AlgorithmType::PriorityMatchingRegex));
     }
 
     /**
