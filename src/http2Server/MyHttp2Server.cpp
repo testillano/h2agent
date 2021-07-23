@@ -296,7 +296,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */);
+            getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
     }
 

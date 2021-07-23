@@ -192,7 +192,8 @@ void usage(int rc)
        << "   be accessible for further analysis.\n"
        << "  This limits some features like FSM related ones (in-state, out-state)\n"
        << "   or event-source transformations.\n"
-       << "  Implicitly disabled by option '--discard-server-data'.\n\n"
+       << "  Implicitly disabled by option '--discard-server-data'.\n"
+       << "  Ignored for unprovisioned events (for troubleshooting purposes).\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"

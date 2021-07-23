@@ -353,6 +353,7 @@ Options:
   This limits some features like FSM related ones (in-state, out-state)
    or event-source transformations.
   Implicitly disabled by option '--discard-server-data'.
+  Ignored for unprovisioned events (for troubleshooting purposes).
 
 [-v|--version]
   Program version.
@@ -1207,7 +1208,7 @@ No response body.
 There are three valid configurations, depending on the query parameters provided:
 
 * `discard=true&discardRequestsHistory=true`: nothing is stored.
-*  `discard=false&discardRequestsHistory=true`: no requests history stored (only the last received).
+*  `discard=false&discardRequestsHistory=true`: no requests history stored (only the last received, except for unprovisioned events, which history is always respected for troubleshooting purposes).
 * `discard=false&discardRequestsHistory=false`: everything is stored: events and requests history.
 
 The combination `discard=true&discardRequestsHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
