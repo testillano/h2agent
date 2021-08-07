@@ -42,6 +42,8 @@ SOFTWARE.
 #include <algorithm>
 #include <thread>
 
+#include <boost/bind.hpp>
+
 // Project
 #include "version.hpp"
 #include <functions.hpp>
@@ -59,14 +61,38 @@ namespace
 {
 h2agent::http2server::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2server::MyHttp2Server* myHttp2Server = nullptr;
+boost::asio::io_service *timersIoService = nullptr;
+
 const char* AdminApiName = "admin";
 const char* AdminApiVersion = "v1";
 }
 
-
 /////////////////////////
 // Auxiliary functions //
 /////////////////////////
+
+/*
+int getThreadCount() {
+    char buf[512];
+    int fd = open("/proc/self/stat", O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    int thread_count = 0;
+    if (read(fd, buf, sizeof(buf)) > 0) {
+        char* s = strchr(buf, ')');
+        if (s != NULL) {
+            // Read 18th integer field after the command name
+            for (int field = 0; *s != ' ' || ++field < 18; s++) ;
+            thread_count = atoi(s + 1);
+        }
+    }
+
+    close(fd);
+    return thread_count;
+}
+*/
 
 std::string getLocaltime()
 {
@@ -84,8 +110,15 @@ std::string getLocaltime()
     return result;
 }
 
-void stopServers()
+void stopAgent()
 {
+    if (timersIoService)
+    {
+        LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
+                       "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+        timersIoService->stop();
+    }
+
     if (myAdminHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
@@ -105,7 +138,7 @@ void _exit(int rc)
 {
     LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Terminating with exit code %d", rc), ERT_FILE_LOCATION));
 
-    stopServers();
+    stopAgent();
 
     ert::tracing::Logger::terminate();
     exit(rc);
@@ -150,9 +183,9 @@ void usage(int rc)
        << "  Server API version; defaults to empty.\n\n"
 
        << "[-w|--worker-threads <threads>]\n"
-       << "  Number of worker threads; defaults to -1 which means 'dynamically created'.\n"
-       << "  For high loads, a queue of pre-initialized threads could improve performance\n"
-       << "   and its pool size corresponds quite a lot with the client concurrent streams.\n\n"
+       << "  Number of worker threads; defaults to a mimimum of 2 threads except if hardware\n"
+       << "   concurrency permits a greater margin taking into account other process threads.\n"
+       << "  Normally, 1 thread should be enough even for complex logic provisioned.\n\n"
 
        << "[-t|--server-threads <threads>]\n"
        << "  Number of nghttp2 server threads; defaults to 1 (1 connection).\n\n"
@@ -396,20 +429,19 @@ int main(int argc, char* argv[])
     std::cout << "Server api version: " << ((server_api_version != "") ?
                                             server_api_version :
                                             "<none>") << '\n';
-    std::cout << "Worker threads: ";
 
-    if (worker_threads != -1)
-    {
-        std::cout << worker_threads;
+    unsigned int hardwareConcurrency = std::thread::hardware_concurrency();
+    std::cout << "Hardware concurrency: " << hardwareConcurrency << '\n';
+
+    if (worker_threads < 1) {
+        // Calculate traffic server threads:
+        // * Miminum assignment = 2 threads
+        // * Maximum assignment = CPUs - rest of threads count
+        int maxWorkerThreadsAssignment = hardwareConcurrency - 7 /* main(1) + admin server(workers=1) + timers io(tt=1) + admin(t1->2) + traffic (t2->2) */;
+        worker_threads = (maxWorkerThreadsAssignment > 2) ? maxWorkerThreadsAssignment : 2;
     }
-    else
-    {
-        std::cout << "dynamically created";
-    }
-
-    std::cout << '\n';
-
-    std::cout << "Server threads: " << server_threads << '\n';
+    std::cout << "Traffic server worker threads: " << worker_threads << '\n';
+    std::cout << "Server threads (exploited by multiple clients): " << server_threads << '\n';
     std::cout << "Server key password: " << ((server_key_password != "") ? "***" :
               "<not provided>") << '\n';
     std::cout << "Server key file: " << ((server_key_file != "") ? server_key_file :
@@ -449,11 +481,21 @@ int main(int argc, char* argv[])
         );
     */
 
-    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(worker_threads);
+    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(1);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
 
-    myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads);
+    // Capture TERM/INT signals for graceful exit:
+    signal(SIGTERM, sighndl);
+    signal(SIGINT, sighndl);
+
+    timersIoService = new boost::asio::io_service();
+    std::thread tt([&] {
+        boost::asio::io_service::work work(*timersIoService);
+        timersIoService->run();
+    });
+
+    myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads, timersIoService);
     myHttp2Server->setApiName(server_api_name);
     myHttp2Server->setApiVersion(server_api_version);
 
@@ -517,10 +559,6 @@ int main(int argc, char* argv[])
         if (admin_secured) myAdminHttp2Server->setServerKeyPassword(server_key_password);
     }
 
-    // Capture TERM/INT signals for graceful exit:
-    signal(SIGTERM, sighndl);
-    signal(SIGINT, sighndl);
-
     std::string bind_address = "0.0.0.0";
 
     if (hasPEMpasswordPrompt) {
@@ -537,6 +575,9 @@ int main(int argc, char* argv[])
     // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
 
     std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
+
+    // Join threads
+    tt.join();
     t1.join();
     t2.join();
 

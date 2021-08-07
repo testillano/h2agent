@@ -36,7 +36,6 @@ SOFTWARE.
 #include <boost/optional.hpp>
 #include <sstream>
 #include <map>
-#include <chrono>
 #include <errno.h>
 
 
@@ -55,8 +54,8 @@ namespace http2server
 {
 
 
-MyHttp2Server::MyHttp2Server(size_t workerThreads):
-    ert::http2comm::Http2Server("MockHttp2Server", workerThreads),
+MyHttp2Server::MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService):
+    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, timersIoService),
     admin_data_(nullptr),
     general_unique_server_sequence_(0) {
 
@@ -127,12 +126,9 @@ bool MyHttp2Server::setRequestsSchema(const std::string &schemaContent) {
 void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                             const std::string& requestBody,
                             unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
-                            std::string& responseBody)
+                            std::string& responseBody, unsigned int &responseDelayMs)
 {
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
-
-    // Initial timestamp for delay correction
-    auto initTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
     std::string method = req.method();
@@ -239,7 +235,6 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         provision = provisionData.find(inState, method, "");
     }
 
-    unsigned int delayMs{};
     if (provision) {
 
         std::string outState;
@@ -248,7 +243,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         // PREPARE & TRANSFORM
         provision->setMockRequestData(mock_request_data_); // could be used by event source
         provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
-                              statusCode, headers, responseBody, delayMs, outState, outStateMethod);
+                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod);
 
         // Special out-states:
         // purge //
@@ -265,38 +260,20 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
             // Store request event context information
             if (server_data_) {
-                getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */);
+                getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
-                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
                 }
             }
-        }
-
-        if (delayMs != 0) {
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Waiting for planned delay: %d ms", delayMs);
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
-
-            // Final timestamp for delay correction
-            // This correction is only noticeable with huge transformations, but this is not usual.
-            auto finalTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            delayMs-=(finalTimestamp-initTimestamp);
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Corrected delay: %d ms", delayMs);
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
         }
     }
     else {
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, delayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
     }
 
