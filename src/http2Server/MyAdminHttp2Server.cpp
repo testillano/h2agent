@@ -57,7 +57,7 @@ namespace http2server
 {
 
 MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
-    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads) {
+    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
     server_matching_schema_.setSchema(h2agent::adminSchemas::server_matching); // won't fail
@@ -429,7 +429,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
                                  req,
                                  const std::string& requestBody,
                                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
-                                 std::string& responseBody)
+                                 std::string& responseBody, unsigned int &responseDelayMs)
 {
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
 

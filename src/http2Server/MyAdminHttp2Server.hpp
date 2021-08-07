@@ -90,7 +90,7 @@ public:
     void receive(const nghttp2::asio_http2::server::request& req,
                  const std::string& requestBody,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
-                 std::string& responseBody);
+                 std::string& responseBody, unsigned int &responseDelayMs);
 
     model::AdminData *getAdminData() const {
         return admin_data_;

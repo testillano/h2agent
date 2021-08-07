@@ -41,6 +41,8 @@ SOFTWARE.
 #include <cstdint>
 #include <atomic>
 
+#include <boost/asio.hpp>
+
 #include <JsonSchema.hpp>
 
 #include <ert/http2comm/Http2Server.hpp>
@@ -66,7 +68,7 @@ class MyHttp2Server: public ert::http2comm::Http2Server
     std::atomic<std::uint64_t> general_unique_server_sequence_;
 
 public:
-    MyHttp2Server(size_t workerThreads);
+    MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -80,7 +82,7 @@ public:
     void receive(const nghttp2::asio_http2::server::request& req,
                  const std::string& requestBody,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
-                 std::string& responseBody);
+                 std::string& responseBody, unsigned int &responseDelayMs);
 
 
     model::MockRequestData *getMockRequestData() const {

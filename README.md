@@ -230,26 +230,31 @@ Under `./st` directory, there is a simple script to do load testing with random 
 
 ```bash
 $ st/start.sh
-HTTP/2 201
-date: Sun, 18 Jul 2021 21:47:07 GMT
-content-type: application/json
-
-{ "result":"true", "response": "server-provision operation; valid schemas and provisions data received" }
-HTTP/2 200
-date: Sun, 18 Jul 2021 21:47:07 GMT
 
 
-HTTP/2 200
-date: Sun, 18 Jul 2021 21:47:07 GMT
-content-type: application/json
+Input h2agent response delay in milliseconds
+ (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 
+0
 
-{
-    "storeEvents": "false",
-    "storeEventsRequestsHistory": "false"
-}
+Input number of h2load iterations
+ (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]: 
+100000
 
-Press ENTER to start, CTRL-C to abort ...
+Input number of h2load clients
+ (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]: 
+1
 
+Input number of h2load threads
+ (or set 'H2LOAD__THREADS' to be non-interactive) [1]: 
+1
+
+Input number of h2load concurrent streams
+ (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]: 
+100
+
+
++ h2load -t1 -n100000 -c1 -m100 http://localhost:8000/load-test/v1/id-21 -d ./request.json
++ tee -a ./report_delay0_iters100000_c1_t1_m100.txt
 starting benchmark...
 spawning thread #0: 1 total client(s). 100000 total requests
 Application protocol: h2c
@@ -264,19 +269,23 @@ progress: 80% done
 progress: 90% done
 progress: 100% done
 
-finished in 13.62s, 7342.80 req/s, 7.68MB/s
+finished in 6.82s, 14671.16 req/s, 15.36MB/s
 requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
 status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-traffic: 104.63MB (109709468) total, 293.32KB (300357) headers (space savings 95.77%), 102.62MB (107600000) data
+traffic: 104.72MB (109809307) total, 293.16KB (300196) headers (space savings 95.77%), 102.71MB (107700000) data
                      min         max         mean         sd        +/- sd
-time for request:      293us     21.84ms      1.08ms       503us    88.66%
-time for connect:      145us       145us       145us         0us   100.00%
-time to 1st byte:     1.93ms      1.93ms      1.93ms         0us   100.00%
-req/s           :    7342.90     7342.90     7342.90        0.00   100.00%
+time for request:     2.38ms     19.13ms      6.77ms      1.13ms    78.69%
+time for connect:      143us       143us       143us         0us   100.00%
+time to 1st byte:     9.00ms      9.00ms      9.00ms         0us   100.00%
+req/s           :   14671.66    14671.66    14671.66        0.00   100.00%
 
-real    0m13.629s
-user    0m0.827s
-sys     0m3.635s
+real    0m7.268s
+user    0m0.163s
+sys     0m2.824s
++ set +x
+
+Created test report:
+  last -> ./report_delay0_iters100000_c1_t1_m100.txt
 ```
 
 ## Execution
@@ -310,9 +319,9 @@ Options:
   Server API version; defaults to empty.
 
 [-w|--worker-threads <threads>]
-  Number of worker threads; defaults to -1 which means 'dynamically created'.
-  For high loads, a queue of pre-initialized threads could improve performance
-   and its pool size corresponds quite a lot with the client concurrent streams.
+  Number of worker threads; defaults to a mimimum of 2 threads except if hardware
+   concurrency permits a greater margin taking into account other process threads.
+  Normally, 1 thread should be enough even for complex logic provisioned.
 
 [-t|--server-threads <threads>]
   Number of nghttp2 server threads; defaults to 1 (1 connection).
@@ -376,8 +385,9 @@ Admin port: 8074
 Server port: 8000
 Server api name: <none>
 Server api version: <none>
-Worker threads: dynamically created
-Server threads: 1
+Hardware concurrency: 8
+Traffic server worker threads: 2
+Server threads (exploited by multiple clients): 1
 Server key password: <not provided>
 Server key file: <not provided>
 Server crt file: <not provided>
