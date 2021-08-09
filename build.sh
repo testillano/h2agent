@@ -12,6 +12,9 @@ build_type__dflt=Release
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.10.0
+jupp0r_prometheuscpp_ver__dflt=v0.12.3
+civetweb_civetweb_ver__dflt=v1.14 # 3rd party used by prometheus
+
 
 #############
 # FUNCTIONS #
@@ -48,16 +51,16 @@ usage() {
 
          build_type=Debug $0 --builder-image
          image_tag=test1 $0 --auto
-         DBUILD_XTRA_OPTS=--no-cache $0 --builder-image
+         DBUILD_XTRA_OPTS=--no-cache $0 --auto
 
 EOF
 }
 
-# $1: variable by reference; $2: default value
+# $1: variable by reference
 _read() {
   local -n varname=$1
-  local default=$2
 
+  local default=$(eval echo \$$1__dflt)
   local s_default="<null>"
   [ -n "${default}" ] && s_default="${default}"
   echo "Input '$1' value [${s_default}]:"
@@ -75,13 +78,15 @@ build_builder_image() {
   echo
   echo "=== Build http2comm_builder image ==="
   echo
-  _read image_tag "${image_tag__dflt}"
-  _read base_tag "${base_tag__dflt}"
-  _read make_procs "${make_procs__dflt}"
-  _read build_type "${build_type__dflt}"
-  _read nlohmann_json_ver "${nlohmann_json_ver__dflt}"
-  _read pboettch_jsonschemavalidator_ver "${pboettch_jsonschemavalidator_ver__dflt}"
-  _read google_test_ver "${google_test_ver__dflt}"
+  _read image_tag
+  _read base_tag
+  _read make_procs
+  _read build_type
+  _read nlohmann_json_ver
+  _read pboettch_jsonschemavalidator_ver
+  _read google_test_ver
+  _read jupp0r_prometheuscpp_ver
+  _read civetweb_civetweb_ver
 
   bargs="--build-arg base_tag=${base_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
@@ -89,6 +94,8 @@ build_builder_image() {
   bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
   bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
   bargs+=" --build-arg google_test_ver=${google_test_ver}"
+  bargs+=" --build-arg jupp0r_prometheuscpp_ver=${jupp0r_prometheuscpp_ver}"
+  bargs+=" --build-arg civetweb_civetweb_ver=${civetweb_civetweb_ver}"
 
   set -x
   rm -f CMakeCache.txt
@@ -101,8 +108,8 @@ build_project() {
   echo
   echo "=== Build h2agent project ==="
   echo
-  _read make_procs "${make_procs__dflt}"
-  _read build_type "${build_type__dflt}"
+  _read make_procs
+  _read build_type
 
   envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type}"
 
@@ -119,12 +126,12 @@ build_project_image() {
   echo
   echo "=== Build http2comm image ==="
   echo
-  _read image_tag "${image_tag__dflt}"
-  _read base_tag "${base_tag__dflt}"
-  _read scratch_img "${scratch_img__dflt}"
-  _read scratch_img_tag "${scratch_img_tag__dflt}"
-  _read make_procs "${make_procs__dflt}"
-  _read build_type "${build_type__dflt}"
+  _read image_tag
+  _read base_tag
+  _read scratch_img
+  _read scratch_img_tag
+  _read make_procs
+  _read build_type
 
   bargs="--build-arg base_tag=${base_tag}"
   bargs+=" --build-arg scratch_img=${scratch_img}"
@@ -143,8 +150,8 @@ build_ct_image() {
   echo
   echo "=== Build component test image ==="
   echo
-  _read image_tag "${image_tag__dflt}"
-  _read base_tag "${base_tag__dflt}"
+  _read image_tag
+  _read base_tag
 
   bargs="--build-arg base_tag=${base_tag}"
 

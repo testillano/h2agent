@@ -56,8 +56,8 @@ H2LOAD__CONCURRENT_STREAMS__dflt=100
 read_value() {
   local what=$1
   local -n output=$2
-  local default=$(eval echo \$$2__dflt)
 
+  local default=$(eval echo \$$2__dflt)
   echo
   [ -n "${output}" ] && echo "Prepended ${what}: ${output}" && return 0
   echo -en "Input ${what}\n (or set '$2' to be non-interactive) [${default}]: "
