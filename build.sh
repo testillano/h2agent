@@ -13,8 +13,8 @@ nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.10.0
 jupp0r_prometheuscpp_ver__dflt=v0.12.3
-civetweb_civetweb_ver__dflt=v1.14 # 3rd party used by prometheus
-
+# 3rd party used by prometheus:
+civetweb_civetweb_ver__dflt=v1.14
 
 #############
 # FUNCTIONS #
@@ -164,7 +164,7 @@ build_ct_image() {
 build_auto() {
   # export defaults to automate, but allow possible environment values:
   # shellcheck disable=SC1090
-  source <(grep -E '^[a-z_]+__dflt' "$0" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
+  source <(grep -E '^[0a-z_]+__dflt' "$0" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([0a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
   build_builder_image && build_project && build_project_image && build_ct_image
 }
 
