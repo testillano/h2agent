@@ -10,6 +10,8 @@ ARG make_procs=4
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 ARG google_test_ver=v1.10.0
+ARG jupp0r_prometheuscpp_ver=v0.12.3
+ARG civetweb_civetweb_ver=v1.14
 
 RUN apk update && apk add \
     git
@@ -34,3 +36,16 @@ RUN set -x && \
     tar xvf release-${google_test_ver:1}.tar.gz && cd googletest-release*/ && cmake . && make -j${make_procs} install && \
     cd .. && rm -rf * && \
     set +x
+
+# jupp0r prometheus-cpp
+RUN apk add zlib-dev curl-dev
+RUN set -x && \
+    wget https://github.com/jupp0r/prometheus-cpp/archive/refs/tags/${jupp0r_prometheuscpp_ver}.tar.gz && \
+    tar xvf ${jupp0r_prometheuscpp_ver}.tar.gz && cd prometheus-cpp*/3rdparty && \
+    wget https://github.com/civetweb/civetweb/archive/refs/tags/${civetweb_civetweb_ver}.tar.gz && \
+    tar xvf ${civetweb_civetweb_ver}.tar.gz && mv civetweb-*/* civetweb && cd .. && \
+    mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF -DENABLE_PUSH=OFF -DENABLE_PULL=OFF .. && \
+    make -j8 && make install && \
+    cd .. && rm -rf * && \
+    set +x
+
