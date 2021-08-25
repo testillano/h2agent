@@ -38,7 +38,7 @@ usage() {
          docker procedure:
 
          --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
-         --project:       make_procs, build_type
+         --project:       make_procs, build_type, base_tag (h2agent_builder)
          --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
          --ct-image:      image_tag, base_tag (alpine)
          --auto:          any of the variables above
@@ -108,6 +108,7 @@ build_project() {
   echo
   echo "=== Build h2agent project ==="
   echo
+  _read base_tag
   _read make_procs
   _read build_type
 
@@ -116,9 +117,9 @@ build_project() {
   set -x
   rm -f CMakeCache.txt
   # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder || return 1
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder:"${base_tag}" || return 1
   # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder "" doc || return 1
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder:"${base_tag}" "" doc || return 1
   set +x
 }
 
