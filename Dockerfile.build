@@ -7,6 +7,7 @@ LABEL testillano.h2agent_build.description="Docker image to build h2agent execut
 WORKDIR /code/build
 
 ARG make_procs=4
+ARG build_type=Release
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 ARG google_test_ver=v1.10.0
@@ -44,8 +45,8 @@ RUN set -x && \
     tar xvf ${jupp0r_prometheuscpp_ver}.tar.gz && cd prometheus-cpp*/3rdparty && \
     wget https://github.com/civetweb/civetweb/archive/refs/tags/${civetweb_civetweb_ver}.tar.gz && \
     tar xvf ${civetweb_civetweb_ver}.tar.gz && mv civetweb-*/* civetweb && cd .. && \
-    mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF -DENABLE_PUSH=OFF -DENABLE_PULL=OFF .. && \
-    make -j8 && make install && \
+    mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=${build_type} -DENABLE_TESTING=OFF -DENABLE_PUSH=OFF -DENABLE_PULL=OFF .. && \
+    make -j${make_procs} && make install && \
     cd .. && rm -rf * && \
     set +x
 
