@@ -49,10 +49,13 @@ H2LOAD__ITERATIONS__dflt=100000
 H2LOAD__CLIENTS__dflt=1
 H2LOAD__CONCURRENT_STREAMS__dflt=100
 
+DISCARD_SERVER_DATA=${DISCARD_SERVER_DATA:-true}
+DISCARD_SERVER_DATA_HISTORY=${DISCARD_SERVER_DATA_HISTORY:-true}
+
 #############
 # FUNCTIONS #
 #############
-# $1: what; $2: output; $3: default value
+# $1: what; $2: output
 read_value() {
   local what=$1
   local -n output=$2
@@ -93,8 +96,10 @@ H2LOAD__THREADS__dflt=${H2LOAD__CLIENTS} # $(nproc --all)
 read_value "number of h2load threads" H2LOAD__THREADS
 read_value "number of h2load concurrent streams" H2LOAD__CONCURRENT_STREAMS
 
-curl -s -o /dev/null --http2-prior-knowledge -XPUT "http://localhost:8074/admin/v1/server-data/configuration?discard=true&discardRequestsHistory=true"
-curl -s -o /dev/null --http2-prior-knowledge -XGET "http://localhost:8074/admin/v1/server-data/configuration"
+curl -s -o /dev/null --http2-prior-knowledge -XPUT "http://localhost:8074/admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}"
+curl -s -o /dev/null --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/server-data"
+echo -e "\nServer data configuration:"
+curl --http2-prior-knowledge -XGET "http://localhost:8074/admin/v1/server-data/configuration"
 
 REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_iters${H2LOAD__ITERATIONS}_c${H2LOAD__CLIENTS}_t${H2LOAD__THREADS}_m${H2LOAD__CONCURRENT_STREAMS}.txt
 REPORT=${REPORT__ref}

@@ -24,4 +24,5 @@ src/version.cpp
 
 # Test temporary files
 tools/*/.*
-st/report*
+st/*/report*
+st/*/last

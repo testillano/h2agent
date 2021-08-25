@@ -35,6 +35,13 @@ SOFTWARE.
 
 #pragma once
 
+// Better unordered_map than map:
+// Slighly more memory consumption (not significative in load tests) due to the hash map.
+// But order is not important for us, and the size is not very big (prune is normally
+//  applied in load test provisions), so the cache is not used.
+// As insertion and deletion are equally fast for both containers, we focus on search
+//  (O(log2(n)) for map as binary tree, O(1) constant as average (O(n) in worst case)
+//  for unordered map as hash table), so for our case, unordered_map seems to be the best choice.
 #include <unordered_map>
 
 #include <common.hpp>

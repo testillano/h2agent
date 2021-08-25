@@ -226,30 +226,31 @@ version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b
 
 ### Benchmarking test
 
-Under `./st` directory, there is a simple script to do load testing with random provision and requests:
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
+For example, for `h2load` just execute the `./st/h2load/start.sh` script which provisions an example and launch the test:
 
 ```bash
-$ st/start.sh
+$ st/h2load/start.sh
 
 
 Input h2agent response delay in milliseconds
- (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 
+ (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]:
 0
 
 Input number of h2load iterations
- (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]: 
+ (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]:
 100000
 
 Input number of h2load clients
- (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]: 
+ (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]:
 1
 
 Input number of h2load threads
- (or set 'H2LOAD__THREADS' to be non-interactive) [1]: 
+ (or set 'H2LOAD__THREADS' to be non-interactive) [1]:
 1
 
 Input number of h2load concurrent streams
- (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]: 
+ (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]:
 100
 
 
