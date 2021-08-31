@@ -117,6 +117,7 @@ void stopAgent()
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
                        "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         timersIoService->stop();
+        delete(timersIoService);
     }
 
     if (myAdminHttp2Server)
@@ -350,6 +351,8 @@ int main(int argc, char* argv[])
         worker_threads = toNumber(value);
     }
 
+    // Probably, this parameter is not useful as we release the server thread using our workers, so
+    //  no matter if you launch more server threads here, no difference should be detected ...
     if (cmdOptionExists(argv, argv + argc, "-t", value)
             || cmdOptionExists(argv, argv + argc, "--server-threads", value))
     {
