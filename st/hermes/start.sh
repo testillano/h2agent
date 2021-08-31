@@ -61,8 +61,10 @@ do
   echo -n "${var}=$(eval echo \$$var) "
 done > ${REPORT}
 echo -e "${PWD}/start.sh\n\n\n" >> ${REPORT}
-
 echo
+echo
+echo "To interrupt, execute:"
+echo "   sudo kill -SIGKILL \$(pgrep hermes)"
 echo
 set -x
 time docker run -it --network host -v ${PWD}/script:/etc/scripts --entrypoint /hermes/hermes jgomezselles/hermes:0.0.1 -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
