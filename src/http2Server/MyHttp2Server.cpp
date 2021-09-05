@@ -41,6 +41,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
+#include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyHttp2Server.hpp>
 
@@ -132,8 +133,10 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
     std::string method = req.method();
-    std::string uriPath = req.uri().raw_path; // percent-encoded; ('req.uri().path' is decoded)
+    //std::string uriRawPath = req.uri().raw_path; // percent-encoded
+    std::string uriPath = req.uri().path; // decoded
     std::string uriRawQuery = req.uri().raw_query; // percent-encoded
+    std::string uriQuery = ((uriRawQuery.empty()) ? "":ert::http2comm::URLFunctions::decode(uriRawQuery)); // now decoded
     //std::string reqUriFragment = req.uri().fragment; // https://stackoverflow.com/a/65198345/2576671
 
     // Query parameters transformation:
@@ -141,21 +144,21 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     std::map<std::string, std::string> qmap; // query parameters map
 
     if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Ignore) {
-        uriRawQuery = "";
+        uriQuery = "";
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::SortAmpersand) {
 
-        qmap = h2agent::http2server::extractQueryParameters(uriRawQuery);
-        uriRawQuery = h2agent::http2server::sortQueryParameters(qmap);
+        qmap = h2agent::http2server::extractQueryParameters(uriQuery);
+        uriQuery = h2agent::http2server::sortQueryParameters(qmap);
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::SortSemicolon) {
-        qmap = h2agent::http2server::extractQueryParameters(uriRawQuery, ';');
-        uriRawQuery = h2agent::http2server::sortQueryParameters(qmap, ';');
+        qmap = h2agent::http2server::extractQueryParameters(uriQuery, ';');
+        uriQuery = h2agent::http2server::sortQueryParameters(qmap, ';');
     }
 
-    if (uriRawQuery != "") {
+    if (uriQuery != "") {
         uriPath += "?";
-        uriPath += uriRawQuery;
+        uriPath += uriQuery;
     }
 
     LOGDEBUG(

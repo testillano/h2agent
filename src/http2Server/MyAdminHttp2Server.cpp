@@ -43,6 +43,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
+#include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyHttp2Server.hpp>
@@ -438,6 +439,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     //std::string uriPath = req.uri().raw_path; // percent-encoded
     std::string uriPath = req.uri().path; // decoded
     std::string uriRawQuery = req.uri().raw_query; // percent-encoded
+    std::string uriQuery = ((uriRawQuery.empty()) ? "":ert::http2comm::URLFunctions::decode(uriRawQuery)); // now decoded
 
     // Get path suffix normalized:
     std::string pathSuffix = getPathSuffix(uriPath);
@@ -448,9 +450,9 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     }
     else {
         std::stringstream ss;
-        ss << "ADMIN REQUEST RECEIVED [" << pathSuffix << "]| Method: " << method << " | Headers: " << h2agent::http2server::headersAsString(req.header()) << " | Decoded Uri Path: " << uriPath;
-        if (!uriRawQuery.empty()) {
-            ss << " | Raw Query Params: " << uriRawQuery;
+        ss << "ADMIN REQUEST RECEIVED [" << pathSuffix << "]| Method: " << method << " | Headers: " << h2agent::http2server::headersAsString(req.header()) << " | Uri Path: " << uriPath;
+        if (!uriQuery.empty()) {
+            ss << " | Query Params: " << uriQuery;
         }
         if (!requestBody.empty()) {
             ss << " | Body: " << requestBody;
@@ -471,12 +473,12 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // Methods supported:
     if (method == "DELETE") {
-        receiveDELETE(pathSuffix, uriRawQuery, statusCode);
+        receiveDELETE(pathSuffix, uriQuery, statusCode);
         headers.clear();
         return;
     }
     else if (method == "GET") {
-        receiveGET(pathSuffix, uriRawQuery, statusCode, responseBody);
+        receiveGET(pathSuffix, uriQuery, statusCode, responseBody);
         return;
     }
     else if (method == "POST") {
@@ -484,7 +486,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         return;
     }
     else if (method == "PUT") {
-        receivePUT(pathSuffix, uriRawQuery, statusCode);
+        receivePUT(pathSuffix, uriQuery, statusCode);
         headers.clear();
         return;
     }
