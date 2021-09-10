@@ -146,17 +146,19 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     return result;
 }
 
-std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const {
+std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const {
 
-    success = false;
+    validQuery = false;
 
     if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
-        success = true;
+        validQuery = true;
         return ((map_.size() != 0) ? asJson().dump() : "null");
     }
 
     if (!checkSelection(requestMethod, requestUri, requestNumber))
         return "null";
+
+    validQuery = true;
 
     mock_requests_key_t key;
     calculateMockRequestsKey(key, requestMethod, requestUri);
@@ -174,13 +176,11 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
         auto ptr = it->second->getMockRequest(u_requestNumber);
         if (ptr) {
-            success = true;
             return ptr->getJson().dump();
         }
         else return "null";
     }
     else {
-        success = true;
         return it->second->asJson().dump();
     }
 
