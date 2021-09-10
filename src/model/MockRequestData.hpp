@@ -110,16 +110,16 @@ public:
     /**
      * Json string representation for class information filtered
      *
-     * @param requestMethod Request method to filter selection
-     * @param requestUri Request URI path to filter selection
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param requestMethod Request method to filter selection. Mandatory if 'requestUri' is provided:
+     * @param requestUri Request URI path to filter selection. Mandatory if 'requestMethod' is provided.
+     * @param requestNumber Request history number (1..N) to filter selection. Optional, but cannot be provided alone (needs 'requestUri' and 'requestMethod').
      * If empty, whole history is selected for method/uri provided.
      * If provided '-1' (unsigned long long max), the latest event is selected.
-     * @param success Boolean result passed by reference.
+     * @param validQuery Boolean result passed by reference.
      *
-     * @return Json string representation
+     * @return Json string representation ('null' when nothing is found).
      */
-    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &success) const;
+    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const;
 
     /**
      * Gets the mock request in specific position

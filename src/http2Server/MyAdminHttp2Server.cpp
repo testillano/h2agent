@@ -319,9 +319,9 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
             if (it != qmap.end()) requestNumber = it->second;
         }
 
-        bool success;
-        responseBody = getHttp2Server()->getMockRequestData()->asJsonString(requestMethod, requestUri, requestNumber, success);
-        statusCode = success ? (responseBody == "null" ? 204:200):400;
+        bool validQuery;
+        responseBody = getHttp2Server()->getMockRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+        statusCode = validQuery ? (responseBody == "null" ? 204:200):400;
     }
     else if (pathSuffix == "server-data/configuration") {
         responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
