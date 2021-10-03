@@ -285,15 +285,15 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
 
 
     if (pathSuffix == "server-provision/schema") {
-        responseBody = server_provision_schema_.getSchema().dump(4);
+        responseBody = server_provision_schema_.getSchema().dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-matching/schema") {
-        responseBody = server_matching_schema_.getSchema().dump(4);
+        responseBody = server_matching_schema_.getSchema().dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-data/schema") {
-        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getSchema().dump(4):"null");
+        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getSchema().dump():"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
     else if (pathSuffix == "server-provision") {
