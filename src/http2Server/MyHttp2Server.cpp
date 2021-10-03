@@ -102,7 +102,7 @@ std::string MyHttp2Server::serverDataConfigurationAsJsonString() const {
     result["storeEvents"] = server_data_ ? "true":"false";
     result["storeEventsRequestsHistory"] = server_data_requests_history_ ? "true":"false";
 
-    return result.dump(4);
+    return result.dump();
 }
 
 bool MyHttp2Server::setRequestsSchema(const std::string &schemaContent) {

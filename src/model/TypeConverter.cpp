@@ -299,7 +299,7 @@ std::string TypeConverter::asString() {
        << " | Unsigned integer: " << u_value_
        << " | Float number: " << f_value_
        << " | Boolean: " << (b_value_ ? "true":"false")
-       << " | Object: " << j_value_.dump(4);
+       << " | Object: " << j_value_.dump();
 
     return ss.str();
 }
