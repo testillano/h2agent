@@ -136,10 +136,15 @@ bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bo
     try {
         jsonObject = nlohmann::json::parse(content);
         LOGDEBUG(
-            std::string msg("Json body parsed:\n\n");
-            msg += jsonObject.dump(4); // pretty print json body
+            std::string msg("Json body to parse: ");
+            msg += content;
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
+        //LOGDEBUG(
+        //    std::string msg("Json body parsed:\n\n");
+        //    msg += jsonObject.dump(4); // pretty print json body
+        //    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        //);
     }
     catch (nlohmann::json::parse_error& e)
     {

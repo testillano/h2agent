@@ -210,6 +210,10 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     std::shared_ptr<h2agent::model::AdminProvision> provision;
 
     if (algorithmType == h2agent::model::AdminMatchingData::FullMatching) {
+        LOGDEBUG(
+          std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
+          ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
         provision = provisionData.find(inState, method, uriPath);
     }
 
@@ -219,12 +223,17 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         LOGDEBUG(
             std::string msg = ert::tracing::Logger::asString("Uri Path after regex-replace transformation: '%s'", transformedUriPath.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            msg = ert::tracing::Logger::asString("Searching 'FullMatchingRegexReplace' provision for method '%s', uri '%s' and state '%s'", method.c_str(), transformedUriPath.c_str(), method.c_str());
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-
         provision = provisionData.find(inState, method, transformedUriPath);
     }
     else if (algorithmType == h2agent::model::AdminMatchingData::PriorityMatchingRegex) {
 
+        LOGDEBUG(
+          std::string msg = ert::tracing::Logger::asString("Searching 'PriorityMatchingRegex' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
+          ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
         provision = provisionData.findWithPriorityMatchingRegex(inState, method, uriPath);
     }
 
