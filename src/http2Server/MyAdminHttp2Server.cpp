@@ -118,7 +118,7 @@ std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 
     size_t apiPathSize = getApiPath().size(); // /admin/v1
     size_t uriPathSize = uriPath.size(); // /admin/v1<suffix>
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("apiPathSize %d uriPathSize %d", apiPathSize, uriPathSize),  ERT_FILE_LOCATION));
+    //LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("apiPathSize %d uriPathSize %d", apiPathSize, uriPathSize),  ERT_FILE_LOCATION));
 
     // Special case
     if (uriPathSize <= apiPathSize) return result; // indeed, it should not be lesser, as API & VERSION is already checked

@@ -642,7 +642,7 @@ void AdminProvision::loadResponseHeaders(const nlohmann::json &j) {
 void AdminProvision::loadTransformation(const nlohmann::json &j) {
 
     LOGDEBUG(
-        std::string msg = ert::tracing::Logger::asString("Loading transformation item:\n%s", j.dump(4).c_str());
+        std::string msg = ert::tracing::Logger::asString("Loading transformation item:\n%s", j.dump().c_str()); // avoid newlines in traces (dump(n) pretty print)
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
