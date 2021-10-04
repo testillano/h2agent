@@ -117,7 +117,7 @@ void stopAgent()
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
                        "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         timersIoService->stop();
-        delete(timersIoService);
+        //delete(timersIoService);
     }
 
     if (myAdminHttp2Server)
@@ -140,6 +140,8 @@ void _exit(int rc)
     LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Terminating with exit code %d", rc), ERT_FILE_LOCATION));
 
     stopAgent();
+
+    LOGWARNING(ert::tracing::Logger::warning("Stopping logger", ERT_FILE_LOCATION));
 
     ert::tracing::Logger::terminate();
     exit(rc);
