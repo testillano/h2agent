@@ -39,6 +39,7 @@ SOFTWARE.
 // Standard
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <algorithm>
 #include <thread>
 
@@ -52,7 +53,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
-
+#include <ert/metrics/Metrics.hpp>
 
 
 const char* progname;
@@ -70,6 +71,20 @@ const char* AdminApiVersion = "v1";
 /////////////////////////
 // Auxiliary functions //
 /////////////////////////
+
+// Transform input in the form "<double> <double> .. <double>" to bucket boundaries vector
+// Returns the final string ignoring non-double values scanned.
+std::string loadHistogramBoundaries(const std::string &input, ert::metrics::bucket_boundaries_t &boundaries) {
+    std::string result;
+    std::stringstream ss(input);
+    double value;
+    while (ss >> value) {
+        boundaries.push_back(value);
+        result += (std::to_string(value) + " ");
+    }
+
+    return result;
+}
 
 /*
 int getThreadCount() {
@@ -173,6 +188,9 @@ void usage(int rc)
        << "[--verbose]\n"
        << "  Output log traces on console.\n\n"
 
+       << "[--ipv6]\n"
+       << "  IP stack configured for IPv6. Defaults to IPv4.\n\n"
+
        << "[-a|--admin-port <port>]\n"
        << "  Admin <port>; defaults to 8074.\n\n"
 
@@ -231,6 +249,15 @@ void usage(int rc)
        << "  Implicitly disabled by option '--discard-server-data'.\n"
        << "  Ignored for unprovisioned events (for troubleshooting purposes).\n\n"
 
+       << "[--prometheus-port <port>]\n"
+       << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
+
+       << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
+       << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n\n"
+
+       << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
+       << "  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.\n\n"
+
        << "[-v|--version]\n"
        << "  Program version.\n\n"
 
@@ -284,6 +311,7 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
+    bool ipv6 = false; // ipv4 by default
     std::string admin_port = "8074";
     std::string server_port = "8000";
     std::string server_api_name = "";
@@ -300,6 +328,11 @@ int main(int argc, char* argv[])
     bool verbose = false;
     std::string server_matching_file = "";
     std::string server_provision_file = "";
+    std::string prometheus_port = "8080";
+    std::string prometheus_response_delay_seconds_histogram_boundaries = "";
+    std::string prometheus_message_size_bytes_histogram_boundaries = "";
+    ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries;
+    ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries;
 
     std::string value;
 
@@ -321,6 +354,11 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "--verbose", value))
     {
         verbose = true;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--ipv6", value))
+    {
+        ipv6 = true;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-a", value)
@@ -410,6 +448,21 @@ int main(int argc, char* argv[])
         discard_server_data_requests_history = true;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--prometheus-port", value))
+    {
+        prometheus_port = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--prometheus-response-delay-seconds-histogram-boundaries", value))
+    {
+        prometheus_response_delay_seconds_histogram_boundaries = loadHistogramBoundaries(value, responseDelaySecondsHistogramBucketBoundaries);
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--prometheus-message-size-bytes-histogram-boundaries", value))
+    {
+        prometheus_message_size_bytes_histogram_boundaries = loadHistogramBoundaries(value, messageSizeBytesHistogramBucketBoundaries);
+    }
+
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
@@ -426,6 +479,7 @@ int main(int argc, char* argv[])
               " (version " << h2agent::GIT_VERSION << ") ..." << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
+    std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
     std::cout << "Admin port: " << admin_port << '\n';
     std::cout << "Server port: " << server_port << '\n';
     std::cout << "Server api name: " << ((server_api_name != "") ?
@@ -471,6 +525,19 @@ int main(int argc, char* argv[])
               "<not provided>") << '\n';
     std::cout << "Server data storage: " << (!discard_server_data ? "enabled":"disabled") << '\n';
     std::cout << "Server data requests history storage: " << (!discard_server_data_requests_history ? "enabled":"disabled") << '\n';
+    if (prometheus_port != "-1") {
+
+        std::cout << "Prometheus port: " << prometheus_port << '\n';
+        if (!responseDelaySecondsHistogramBucketBoundaries.empty()) {
+            std::cout << "Prometheus 'response delay seconds' histogram boundaries: " << prometheus_response_delay_seconds_histogram_boundaries << '\n';
+        }
+        if (!messageSizeBytesHistogramBucketBoundaries.empty()) {
+            std::cout << "Prometheus 'message size bytes' histogram boundaries: " << prometheus_message_size_bytes_histogram_boundaries << '\n';
+        }
+    }
+    else {
+        std::cout << "Metrics disabled" << '\n';
+    }
 
     // Flush:
     std::cout << std::endl;
@@ -478,15 +545,23 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::initialize(progname);
     ert::tracing::Logger::verbose(verbose);
 
-    /*
-        LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Admin port: %s; Threads: %d",
-                              admin_port.c_str(), server_threads);
-            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-        );
-    */
+
+    // Process bin address for servers
+    std::string bind_address = (ipv6 ? "::" : "0.0.0.0");
+    std::string bind_address_prometheus_exposer = (ipv6 ? "[::]" : "0.0.0.0");
+
+    // Prometheus
+    ert::metrics::Metrics *p_metrics = ((prometheus_port != "-1") ? new ert::metrics::Metrics : nullptr);
+    if (p_metrics) {
+        std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
+        if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {
+            std::cerr << "Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
+            _exit(EXIT_FAILURE);
+        }
+    }
 
     myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(1);
+    myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
 
@@ -501,6 +576,8 @@ int main(int argc, char* argv[])
     });
 
     myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads, timersIoService);
+    myHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
+    myHttp2Server->enableMyMetrics(p_metrics);
     myHttp2Server->setApiName(server_api_name);
     myHttp2Server->setApiVersion(server_api_version);
 
@@ -564,16 +641,13 @@ int main(int argc, char* argv[])
         if (admin_secured) myAdminHttp2Server->setServerKeyPassword(server_key_password);
     }
 
-    std::string bind_address = "0.0.0.0";
-
     if (hasPEMpasswordPrompt) {
         std::cout << "You MUST wait for both 'PEM pass phrase' prompts (10 seconds between them) ..." << '\n';
         std::cout << "To avoid these prompts, you may provide '--server-key-password':" << '\n';
     }
 
-    //std::thread t1(&h2agent::http2server::MyAdminHttp2Server::serve, myAdminHttp2Server, bind_address, admin_port, server_key_file, server_crt_file, server_threads);
-    //std::thread t2(&h2agent::http2server::MyHttp2Server::serve, myHttp2Server, bind_address, server_port, server_key_file, server_crt_file, server_threads);
-    int rc1, rc2;
+    int rc1 = EXIT_SUCCESS;
+    int rc2 = EXIT_SUCCESS;
     std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? server_key_file:"", admin_secured ? server_crt_file:"", server_threads);});
 
     if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
@@ -581,17 +655,15 @@ int main(int argc, char* argv[])
 
     std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
 
+    std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for rc1/rc2 update from threads
+    if (rc1 != EXIT_SUCCESS) _exit(rc1);
+    if (rc2 != EXIT_SUCCESS) _exit(rc2);
+
     // Join threads
     tt.join();
     t1.join();
     t2.join();
 
-    if (rc1 == EXIT_SUCCESS && rc2 == EXIT_SUCCESS)
-    {
-        _exit(EXIT_SUCCESS);
-    }
-
-    std::cerr << "Initialization failure. Exiting ..." << '\n';
-    _exit(EXIT_FAILURE);
+    _exit(EXIT_SUCCESS);
 }
 

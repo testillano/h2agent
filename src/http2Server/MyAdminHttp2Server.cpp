@@ -52,6 +52,7 @@ SOFTWARE.
 #include <MockRequestData.hpp>
 #include <functions.hpp>
 
+
 namespace h2agent
 {
 namespace http2server
@@ -243,7 +244,6 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     bool success = h2agent::http2server::parseJsonContent(requestBody, requestJson);
 
     if (success) {
-
         if (pathSuffix == "server-matching") {
             jsonResponse_result = serverMatching(requestJson, jsonResponse_response);
             statusCode = jsonResponse_result ? 201:400;
@@ -282,8 +282,6 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 
 void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
-
-
     if (pathSuffix == "server-provision/schema") {
         responseBody = server_provision_schema_.getSchema().dump();
         statusCode = 200;

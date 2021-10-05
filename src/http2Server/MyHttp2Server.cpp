@@ -66,6 +66,18 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads, boost::asio::io_service *time
     server_data_requests_history_ = true;
 }
 
+void MyHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
+
+    metrics_ = metrics;
+
+    if (metrics_) {
+        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily(std::string("h2agent_observed_requests_total"), "Http2 total requests observed in h2agent");
+
+        observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
+        observed_requests_unprovisioned_counter_ = &(cf.Add({{"result", "unprovisioned"}}));
+    }
+}
+
 bool MyHttp2Server::checkMethodIsAllowed(
     const nghttp2::asio_http2::server::request& req,
     std::vector<std::string>& allowedMethods)
@@ -211,8 +223,8 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     if (algorithmType == h2agent::model::AdminMatchingData::FullMatching) {
         LOGDEBUG(
-          std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
-          ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
         provision = provisionData.find(inState, method, uriPath);
     }
@@ -231,8 +243,8 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
     else if (algorithmType == h2agent::model::AdminMatchingData::PriorityMatchingRegex) {
 
         LOGDEBUG(
-          std::string msg = ert::tracing::Logger::asString("Searching 'PriorityMatchingRegex' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
-          ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            std::string msg = ert::tracing::Logger::asString("Searching 'PriorityMatchingRegex' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
         provision = provisionData.findWithPriorityMatchingRegex(inState, method, uriPath);
     }
@@ -280,12 +292,21 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                 }
             }
         }
+
+        // metrics
+        if(metrics_) {
+            observed_requests_processed_counter_->Increment();
+        }
     }
     else {
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
             getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+        }
+        // metrics
+        if(metrics_) {
+            observed_requests_unprovisioned_counter_->Increment();
         }
     }
 

@@ -45,6 +45,8 @@ SOFTWARE.
 
 #include <JsonSchema.hpp>
 
+#include <ert/metrics/Metrics.hpp>
+
 #include <ert/http2comm/Http2Server.hpp>
 
 namespace h2agent
@@ -67,8 +69,21 @@ class MyHttp2Server: public ert::http2comm::Http2Server
     model::AdminData *admin_data_;
     std::atomic<std::uint64_t> general_unique_server_sequence_;
 
+    // metrics:
+    ert::metrics::Metrics *metrics_{};
+
+    ert::metrics::counter_t *observed_requests_processed_counter_{};
+    ert::metrics::counter_t *observed_requests_unprovisioned_counter_{};
+
 public:
     MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
+
+    /**
+    * Enable metrics
+    *
+    *  @param metrics Optional metrics object to compute counters
+    */
+    void enableMyMetrics(ert::metrics::Metrics *metrics);
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
