@@ -307,6 +307,9 @@ Options:
 [--verbose]
   Output log traces on console.
 
+[--ipv6]
+  IP stack configured for IPv6. Defaults to IPv4.
+
 [-a|--admin-port <port>]
   Admin <port>; defaults to 8074.
 
@@ -365,12 +368,25 @@ Options:
   Implicitly disabled by option '--discard-server-data'.
   Ignored for unprovisioned events (for troubleshooting purposes).
 
+[--prometheus-port <port>]
+  Prometheus <port>; defaults to 8080 (-1 to disable metrics).
+
+[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
+  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
+
+[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
+  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.
+
 [-v|--version]
   Program version.
 
 [-h|--help]
   This help.
 ```
+
+### Metrics
+
+Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
 ### Traces and printouts
 
@@ -382,6 +398,7 @@ $ ./h2agent --verbose &
 [03/04/21 20:49:35 CEST] Starting h2agent (version v0.0.1-27-g04c11e9) ...
 Log level: Warning
 Verbose (stdout): true
+IP stack: IPv4
 Admin port: 8074
 Server port: 8000
 Server api name: <none>
@@ -400,6 +417,7 @@ Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
 Server data storage: enabled
 Server data requests history storage: enabled
+Prometheus port: 8080
 
 $ kill $!
 [Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15

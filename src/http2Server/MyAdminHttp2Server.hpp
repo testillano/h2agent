@@ -39,6 +39,8 @@ SOFTWARE.
 #include <string>
 #include <memory>
 
+#include <ert/metrics/Metrics.hpp>
+
 #include <ert/http2comm/Http2Server.hpp>
 
 #include <JsonSchema.hpp>

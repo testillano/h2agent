@@ -12,9 +12,6 @@ build_type__dflt=Release
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.10.0
-jupp0r_prometheuscpp_ver__dflt=v0.12.3
-# 3rd party used by prometheus:
-civetweb_civetweb_ver__dflt=v1.14
 
 #############
 # FUNCTIONS #
@@ -76,7 +73,7 @@ _read() {
 
 build_builder_image() {
   echo
-  echo "=== Build http2comm_builder image ==="
+  echo "=== Build h2agent_builder image ==="
   echo
   _read image_tag
   _read base_tag
@@ -85,8 +82,6 @@ build_builder_image() {
   _read nlohmann_json_ver
   _read pboettch_jsonschemavalidator_ver
   _read google_test_ver
-  _read jupp0r_prometheuscpp_ver
-  _read civetweb_civetweb_ver
 
   bargs="--build-arg base_tag=${base_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
@@ -94,8 +89,6 @@ build_builder_image() {
   bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
   bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
   bargs+=" --build-arg google_test_ver=${google_test_ver}"
-  bargs+=" --build-arg jupp0r_prometheuscpp_ver=${jupp0r_prometheuscpp_ver}"
-  bargs+=" --build-arg civetweb_civetweb_ver=${civetweb_civetweb_ver}"
 
   set -x
   rm -f CMakeCache.txt
