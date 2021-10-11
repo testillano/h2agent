@@ -3,6 +3,7 @@
 #############
 # VARIABLES #
 #############
+H2AGENT__ENDPOINT__dflt=0.0.0.0
 H2AGENT__RESPONSE_DELAY_MS__dflt=0
 HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
@@ -33,11 +34,13 @@ echo
 
 cd $(dirname $0)
 
-read_value "h2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
+read_value "h2agent endpoint address" H2AGENT__ENDPOINT
+sed 's/@{H2AGENT__ENDPOINT}/'${H2AGENT__ENDPOINT}'/' scripts/traffic.json.in > scripts/traffic.json
 
+read_value "h2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
 sed 's/@{H2AGENT__RESPONSE_DELAY_MS}/'${H2AGENT__RESPONSE_DELAY_MS}'/' provision.json.in > provision.json
-trap "rm -f provision.json curl.output" EXIT
-status=$(curl -s -o curl.output -w "%{http_code}" --http2-prior-knowledge -XPOST -d@provision.json -H 'content-type: application/json' http://localhost:8074/admin/v1/server-provision)
+trap "rm -f provision.json scripts/traffic.json curl.output" EXIT
+status=$(curl -s -o curl.output -w "%{http_code}" --http2-prior-knowledge -XPOST -d@provision.json -H 'content-type: application/json' http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-provision)
 if [ "${status}" != "201" ]
 then
   cat curl.output 2>/dev/null
@@ -48,10 +51,10 @@ fi
 read_value "requests per second" HERMES__RPS
 read_value "test duration (seconds)" HERMES__DURATION
 
-curl -s -o /dev/null --http2-prior-knowledge -XPUT "http://localhost:8074/admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}"
-curl -s -o /dev/null --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/server-data"
+curl -s -o /dev/null --http2-prior-knowledge -XPUT "http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}"
+curl -s -o /dev/null --http2-prior-knowledge -XDELETE "http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-data"
 echo -e "\nServer data configuration:"
-curl --http2-prior-knowledge -XGET "http://localhost:8074/admin/v1/server-data/configuration"
+curl --http2-prior-knowledge -XGET "http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-data/configuration"
 
 REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_rps${HERMES__RPS}_t${HERMES__DURATION}.txt
 REPORT=${REPORT__ref}
@@ -67,7 +70,7 @@ echo "To interrupt, execute:"
 echo "   sudo kill -SIGKILL \$(pgrep hermes)"
 echo
 set -x
-time docker run -it --network host -v ${PWD}/script:/etc/scripts --entrypoint /hermes/hermes jgomezselles/hermes:0.0.1 -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
+time docker run -it --network host -v ${PWD}/scripts:/etc/scripts --entrypoint /hermes/hermes jgomezselles/hermes:0.0.1 -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
 set +x
 
 rm -f last

@@ -15,6 +15,10 @@ spec:
       targetPort: {{ .Values.service.traffic_port }}
       protocol: TCP
       name: http2-traffic
+    - port: {{ .Values.service.prometheus_port }}
+      targetPort: {{ .Values.service.prometheus_port }}
+      protocol: TCP
+      name: http-metrics
   selector:
     {{- include "h2agent.selectorLabels" . | nindent 4 }}
   publishNotReadyAddresses: true

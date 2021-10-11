@@ -103,6 +103,9 @@ if [ -z "${REUSE}" ]
 then
   echo -e "\nCleaning up ..."
   helm delete "${CHART_NAME}" -n "${NAMESPACE}" &>/dev/null
+  kubectl delete namespace ${NAMESPACE} &>/dev/null
+  #echo "Press ENTER to continue, CTRL-C to abort ..."
+  #read -r dummy
 fi
 
 # Check deployment existence:
@@ -128,6 +131,7 @@ else
   echo -e "\nPreparing to deploy chart '${CHART_NAME}' ..."
   # just in case, some failed deployment exists:
   helm delete "${CHART_NAME}" -n "${NAMESPACE}" &>/dev/null
+  kubectl delete namespace ${NAMESPACE} &>/dev/null
 
   echo -e "\nUpdating helm chart dependencies ..."
   if [ -n "${SKIP_HELM_DEPS}" ]
@@ -141,6 +145,8 @@ else
   kubectl create namespace "${NAMESPACE}" &>/dev/null
   # shellcheck disable=SC2086
   helm install "${CHART_NAME}" "${HELM_CHART}" -n "${NAMESPACE}" --wait \
+     --set h2agent.h2agent_cl.server_api_name="app" \
+     --set h2agent.h2agent_cl.server_api_version="v1" \
      --set test.image.tag="${TAG}" \
      --set h2agent.image.tag="${TAG}" \
      ${XTRA_HELM_SETS} || { echo "Error !"; exit 1 ; }

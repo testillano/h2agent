@@ -44,6 +44,7 @@
 #############
 # VARIABLES #
 #############
+H2AGENT__ENDPOINT__dflt=localhost
 H2AGENT__RESPONSE_DELAY_MS__dflt=0
 H2LOAD__ITERATIONS__dflt=100000
 H2LOAD__CLIENTS__dflt=1
@@ -76,11 +77,12 @@ which h2load &>/dev/null || { echo "Required 'h2load' tool (https://nghttp2.org/
 
 cd $(dirname $0)
 
-read_value "h2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
+read_value "h2agent endpoint address" H2AGENT__ENDPOINT
 
+read_value "h2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
 sed 's/@{H2AGENT__RESPONSE_DELAY_MS}/'${H2AGENT__RESPONSE_DELAY_MS}'/' provision.json.in > provision.json
 trap "rm -f provision.json curl.output" EXIT
-status=$(curl -s -o curl.output -w "%{http_code}" --http2-prior-knowledge -XPOST -d@provision.json -H 'content-type: application/json' http://localhost:8074/admin/v1/server-provision)
+status=$(curl -s -o curl.output -w "%{http_code}" --http2-prior-knowledge -XPOST -d@provision.json -H 'content-type: application/json' http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-provision)
 if [ "${status}" != "201" ]
 then
   cat curl.output 2>/dev/null
@@ -96,10 +98,10 @@ H2LOAD__THREADS__dflt=${H2LOAD__CLIENTS} # $(nproc --all)
 read_value "number of h2load threads" H2LOAD__THREADS
 read_value "number of h2load concurrent streams" H2LOAD__CONCURRENT_STREAMS
 
-curl -s -o /dev/null --http2-prior-knowledge -XPUT "http://localhost:8074/admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}"
-curl -s -o /dev/null --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/server-data"
+curl -s -o /dev/null --http2-prior-knowledge -XPUT "http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}"
+curl -s -o /dev/null --http2-prior-knowledge -XDELETE "http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-data"
 echo -e "\nServer data configuration:"
-curl --http2-prior-knowledge -XGET "http://localhost:8074/admin/v1/server-data/configuration"
+curl --http2-prior-knowledge -XGET "http://${H2AGENT__ENDPOINT}:8074/admin/v1/server-data/configuration"
 
 REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_iters${H2LOAD__ITERATIONS}_c${H2LOAD__CLIENTS}_t${H2LOAD__THREADS}_m${H2LOAD__CONCURRENT_STREAMS}.txt
 REPORT=${REPORT__ref}
@@ -113,7 +115,7 @@ echo -e "${PWD}/start.sh\n\n\n" >> ${REPORT}
 echo
 echo
 set -x
-time h2load -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://localhost:8000/load-test/v1/id-21 -d ./request.json | tee -a ${REPORT}
+time h2load -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__ENDPOINT}:8000/load-test/v1/id-21 -d ./request.json | tee -a ${REPORT}
 set +x
 
 rm -f last
