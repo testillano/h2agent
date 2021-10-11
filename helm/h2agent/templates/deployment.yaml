@@ -73,4 +73,14 @@ spec:
             {{- if not .Values.h2agent_cl.server_data_requests_history.enabled }}
             - "--discard-server-data-requests-history"
             {{- end }}
+            - "--prometheus-port"
+            - {{ .Values.service.prometheus_port | quote }}
+            {{- if ne .Values.h2agent_cl.prometheus_response_delay_seconds_histogram_boundaries "" }}
+            - "--prometheus-response-delay-seconds-histogram-boundaries"
+            - {{ .Values.h2agent_cl.prometheus_response_delay_seconds_histogram_boundaries | quote }}
+            {{- end }}
+            {{- if ne .Values.h2agent_cl.prometheus_message_size_bytes_histogram_boundaries "" }}
+            - "--prometheus-message-size-bytes-histogram-boundaries"
+            - {{ .Values.h2agent_cl.prometheus_message_size_bytes_histogram_boundaries | quote }}
+            {{- end }}
 

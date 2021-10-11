@@ -26,9 +26,9 @@ h2agent_cl:
     enabled: false
   #admin_port: 8074
   #traffic_port: 8000
-  server_api_name: app
-  server_api_version: v1
-  worker_threads: -1
+  server_api_name: ""
+  server_api_version: ""
+  worker_threads: 2
   server_threads: 1
   server_key: ""
   server_crt: ""
@@ -39,11 +39,14 @@ h2agent_cl:
     enabled: true
   server_data_requests_history:
     enabled: true
+  prometheus_response_delay_seconds_histogram_boundaries: ""
+  prometheus_message_size_bytes_histogram_boundaries: ""
 
 service:
   type: ClusterIP
   admin_port: 8074
   traffic_port: 8000
+  prometheus_port: 8080
 
 image:
   repository: testillano/h2agent
