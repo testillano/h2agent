@@ -27,14 +27,17 @@ kubectl delete namespace ${NAMESPACE} &>/dev/null
 #echo "Press ENTER to continue, CTRL-C to abort ..."
 #read -r dummy
 
+echo "Adding prometheus/grafana repositories ..."
+helm repo remove prometheus-community grafana &>/dev/null
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts &>/dev/null
+helm repo add grafana https://grafana.github.io/helm-charts &>/dev/null
+hlem repo update &>/dev/null
+
 # Deploy h2agent
 kubectl create namespace ${NAMESPACE} &>/dev/null
 helm install -n ${NAMESPACE} ${CHART_NAME} ${REPO_DIR}/helm/h2agent \
   --set h2agent_cl.prometheus_response_delay_seconds_histogram_boundaries="0.001 0.002 0.005 0.01 0.015 0.02 0.05 0.1" \
   --set h2agent_cl.prometheus_message_size_bytes_histogram_boundaries=""
-
-# Add prometheus repository
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 
 # Install prometheus
 helm delete -n ${NAMESPACE} prometheus &>/dev/null
@@ -51,12 +54,22 @@ helm install -n ${NAMESPACE} prometheus prometheus-community/prometheus -f /tmp/
 rm /tmp/values.yaml
 kubectl -n ${NAMESPACE} expose service prometheus-server --type=NodePort --target-port=${PM_PORT} --name=prometheus-server-np
 
-# Add grafana repository
-helm repo add grafana https://grafana.github.io/helm-charts
-
 # Install grafana
 helm delete -n ${NAMESPACE} grafana &>/dev/null
-helm install -n ${NAMESPACE} grafana grafana/grafana --set adminPassword="admin12345"
+cat << EOF > /tmp/values.yaml
+adminPassword: admin12345
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-server:80
+      access: proxy
+      isDefault: true
+EOF
+helm install -n ${NAMESPACE} grafana grafana/grafana -f /tmp/values.yaml
+rm /tmp/values.yaml
 kubectl -n ${NAMESPACE} expose service grafana --type=NodePort --target-port=${GF_PORT} --name=grafana-np
 
 echo
