@@ -6,8 +6,7 @@
 REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
 
-CHART_NAME=h2agent-grafana
-NAMESPACE="ns-${CHART_NAME}"
+NAMESPACE="ns-h2agent-grafana"
 SCRAPE_PORT=8080
 PM_PORT=9090
 GF_PORT=3000
@@ -22,10 +21,10 @@ read opt
 
 # Cleanups
 echo "Cleaning up ..."
-helm delete -n ${NAMESPACE} ${CHART_NAME} prometheus grafana &>/dev/null
+helm delete -n ${NAMESPACE} h2agent prometheus grafana &>/dev/null
 kubectl delete namespace ${NAMESPACE} &>/dev/null
-#echo "Press ENTER to continue, CTRL-C to abort ..."
-#read -r dummy
+echo "Press ENTER to continue, CTRL-C to abort ..."
+read -r dummy
 
 echo "Adding prometheus/grafana repositories ..."
 helm repo remove prometheus-community grafana &>/dev/null
@@ -35,7 +34,7 @@ hlem repo update &>/dev/null
 
 # Deploy h2agent
 kubectl create namespace ${NAMESPACE} &>/dev/null
-helm install -n ${NAMESPACE} ${CHART_NAME} ${REPO_DIR}/helm/h2agent \
+helm install -n ${NAMESPACE} h2agent ${REPO_DIR}/helm/h2agent \
   --set h2agent_cl.prometheus_response_delay_seconds_histogram_boundaries="0.001 0.002 0.005 0.01 0.015 0.02 0.05 0.1" \
   --set h2agent_cl.prometheus_message_size_bytes_histogram_boundaries=""
 
@@ -85,6 +84,5 @@ GF_USER=$(kubectl -n ${NAMESPACE} get secret grafana -o jsonpath="{.data.admin-u
 GF_PASSWORD=$(kubectl -n ${NAMESPACE} get secret grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
 echo "Type this to browse grafana (${GF_USER}/${GF_PASSWORD}):"
 echo "   minikube service grafana-np -n ${NAMESPACE}"
-echo "   Configure prometheus as data source from URL 'http://prometheus-server:80'"
 echo
 
