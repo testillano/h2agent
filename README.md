@@ -1541,6 +1541,7 @@ Changes the log level of the `h2agent` process to any of the levels described in
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
+This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions at `/opt/utils/helpers.src` (to be sourced on docker shell).
 Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a file requirement but could also be added from helm repository:
 
 ## How it integrates in a service
