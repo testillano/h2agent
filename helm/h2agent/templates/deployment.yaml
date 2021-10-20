@@ -21,14 +21,20 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
         sidecar.istio.io/inject: {{ .Values.global.istio.sidecar.inject | default false | quote }}
-
     spec:
+      volumes:
+        - name: {{ include "h2agent.name" . }}-helper-functions-cfg-vol
+          configMap:
+            name: {{  include "h2agent.name" . | lower | replace "_" "-" }}-helpers-config
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: {{ include "h2agent.name" . }}-helper-functions-cfg-vol
+              mountPath: /opt/utils
           args:
             - "--log-level"
             - {{ .Values.h2agent_cl.log_level | quote }}
