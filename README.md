@@ -1670,7 +1670,7 @@ Please, execute `astyle` formatting (using [frankwolf image](https://hub.docker.
 
 ```bash
 $ sources=$(find . -name "*.hpp" -o -name "*.cpp")
-$ docker run -it --rm -v $PWD:/data frankwolf/astyle ${sources}
+$ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 ```
 
 ### Pull request

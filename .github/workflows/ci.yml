@@ -1,0 +1,46 @@
+name: Main project workflow
+on:
+  # Build on demand:
+  workflow_dispatch:
+    inputs:
+      dtag:
+        description: 'Docker images tag'
+        required: true
+      hversion:
+        description: 'Helm charts version'
+        required: true
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      # Push events on master branch
+      - master
+      # And also in workflow test branch
+      - wf-test
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - v*.*.*             # Push events to vx.y.z
+
+  pull_request:
+    branches:
+      - master
+
+  # Publish `vx.y.z` tags as releases:
+  #release:
+  #  types: [published]
+
+jobs:
+
+  format_style:
+    name: Check source code format
+    runs-on: ubuntu-latest
+    steps:
+    -
+      name: Check out the repo
+      uses: actions/checkout@v2
+    -
+      name: Run frankwolf format
+      run: |
+          sources=$(find . -name "*.hpp" -o -name "*.cpp")
+          docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
+          git diff --exit-code
+
