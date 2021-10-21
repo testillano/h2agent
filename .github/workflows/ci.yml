@@ -44,3 +44,99 @@ jobs:
           docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
           git diff --exit-code
 
+  docker_build_and_push:
+    name: Build and push docker images to Docker Hub
+    runs-on: ubuntu-latest
+    #if: github.event_name == 'push'
+    steps:
+      -
+        name: Check out the repo
+        uses: actions/checkout@v2
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          # logout at job end:
+          logout: true
+      -
+        name: Build (but not push) builder image (h2agent_builder)
+        id: docker_build1
+        uses: docker/build-push-action@v2
+        with:
+          tags: testillano/h2agent_builder:local
+          file: Dockerfile.build
+          context: .
+          #push: true
+      -
+        name: Image digest
+        run: echo ${{ steps.docker_build1.outputs.digest }}
+      -
+        name: Build (but not push) project image (h2agent)
+        id: docker_build2
+        uses: docker/build-push-action@v2
+        with:
+          tags: testillano/h2agent:local
+          file: Dockerfile
+          context: .
+          #push: true
+          build-args: base_tag=local
+      -
+        name: Image2 digest
+        run: echo ${{ steps.docker_build2.outputs.digest }}
+      -
+        name: Build (but not push) ct image (ct-h2agent)
+        id: docker_build3
+        uses: docker/build-push-action@v2
+        with:
+          tags: testillano/ct-h2agent:local
+          file: ct/Dockerfile
+          context: ct
+          #push: true
+      -
+        name: Image3 digest
+        run: echo ${{ steps.docker_build3.outputs.digest }}
+      -
+        name: Push images manually
+        run: |
+          IMAGE_ID1=docker.io/testillano/h2agent_builder
+          IMAGE_ID2=docker.io/testillano/h2agent
+          IMAGE_ID3=docker.io/testillano/ct-h2agent
+
+          # workflow dispatch event:
+          image_tag=${{ github.event.inputs.tag }}
+          echo Workflow dispatch image_tag=$image_tag
+
+          # Strip git ref prefix from version
+          [ -z "${image_tag}" ] && image_tag=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && image_tag=$(echo $image_tag | sed -e 's/^v//')
+
+          # Use Docker `latest` tag convention
+          [ "$image_tag" == "master" ] && image_tag=latest
+
+          echo Processed image_tag=$image_tag
+
+          docker tag testillano/h2agent_builder:local $IMAGE_ID1:$image_tag
+          docker tag testillano/h2agent:local $IMAGE_ID2:$image_tag
+          docker tag testillano/ct-h2agent:local $IMAGE_ID3:$image_tag
+
+          docker push $IMAGE_ID1:$image_tag
+          docker push $IMAGE_ID2:$image_tag
+          docker push $IMAGE_ID3:$image_tag
+
+  helm_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Publish Helm charts
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN_REPO_FULL }}
+          charts_dir: helm
+          repository: helm
+          branch: gh-pages
+          chart_version: ${{ github.event.inputs.hversion }}
+
