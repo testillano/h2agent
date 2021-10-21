@@ -29,7 +29,6 @@ on:
   #  types: [published]
 
 jobs:
-
   format_style:
     name: Check source code format
     runs-on: ubuntu-latest
@@ -41,8 +40,10 @@ jobs:
       name: Run frankwolf format
       run: |
           sources=$(find . -name "*.hpp" -o -name "*.cpp")
-          docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
-          git diff --exit-code
+          #docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
+          #git diff --exit-code
+          # docker cannot write on host directory:
+          ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
 
   docker_build_and_push:
     name: Build and push docker images to Docker Hub
