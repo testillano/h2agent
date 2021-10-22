@@ -18,10 +18,10 @@ There is a *Prezi* presentation [here](https://prezi.com/view/RFaiKzv6K6GGoFq3tp
 
 ## Project image
 
-This image is already available at `docker hub` for every repository `tag`, and also for master as `latest`:
+This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull testillano/h2agent:<tag>
+$ docker pull ghcr.io/testillano/h2agent:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
@@ -41,10 +41,10 @@ The static-autonomous executable docker image, will be also available through co
 
 ### Builder image
 
-This image is already available at `docker hub` for every repository `tag`, and also for master as `latest`:
+This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull testillano/h2agent_builder:<tag>
+$ docker pull ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
@@ -63,14 +63,14 @@ Builder image is used to build the executable. To run compilation over this imag
 ```bash
 $ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
 $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         testillano/h2agent_builder:<tag>
+         ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
 
 ```bash
 $ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         testillano/h2agent_builder::<tag> "" doc
+         ghcr.io/testillano/h2agent_builder::<tag> "" doc
 ```
 
 You could also build the library using the script `./build.sh` located at project root:
