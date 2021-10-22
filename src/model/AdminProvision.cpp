@@ -217,7 +217,7 @@ void AdminProvision::transform( const std::string &requestUri,
             std::time_t unixTime;
             std::time (&unixTime);
             char buffer[100] = {0};
-            size_t size = strftime(buffer, sizeof(buffer), transformation->getSource().c_str(), localtime(&unixTime));
+            /*size_t size = */strftime(buffer, sizeof(buffer), transformation->getSource().c_str(), localtime(&unixTime));
             //if (size > 1) { // convert TZ offset to RFC3339 format
             //    char minute[] = { buffer[size-2], buffer[size-1], '\0' };
             //    sprintf(buffer + size - 2, ":%s", minute);
@@ -258,7 +258,6 @@ void AdminProvision::transform( const std::string &requestUri,
             std::string event_path = (it != variables.end()) ? (it->second):"";
 
             // Now, access the server data for the former selection values:
-            bool success;
             nlohmann::json object;
             auto mockRequest = mock_request_data_->getMockRequest(event_method, event_uri, event_number);
             if (!mockRequest) {
