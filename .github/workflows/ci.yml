@@ -3,7 +3,7 @@ on:
   # Build on demand:
   workflow_dispatch:
     inputs:
-      dtag:
+      tag:
         description: 'Docker images tag'
         required: true
       hversion:
@@ -45,7 +45,7 @@ jobs:
           # docker cannot write on host directory:
           ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
 
-  docker_build_and_push:
+  build_and_push:
     name: Build and push docker images to Docker Hub
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
@@ -62,7 +62,16 @@ jobs:
           # logout at job end:
           logout: true
       -
-        name: Build (but not push) builder image (h2agent_builder)
+        name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          # logout at job end:
+          logout: true
+      -
+        name: Build (but not push) builder image
         id: docker_build1
         uses: docker/build-push-action@v2
         with:
@@ -74,7 +83,7 @@ jobs:
         name: Image digest
         run: echo ${{ steps.docker_build1.outputs.digest }}
       -
-        name: Build (but not push) project image (h2agent)
+        name: Build (but not push) project image
         id: docker_build2
         uses: docker/build-push-action@v2
         with:
@@ -87,7 +96,7 @@ jobs:
         name: Image2 digest
         run: echo ${{ steps.docker_build2.outputs.digest }}
       -
-        name: Build (but not push) ct image (ct-h2agent)
+        name: Build (but not push) ct image
         id: docker_build3
         uses: docker/build-push-action@v2
         with:
@@ -101,10 +110,6 @@ jobs:
       -
         name: Push images manually
         run: |
-          IMAGE_ID1=docker.io/testillano/h2agent_builder
-          IMAGE_ID2=docker.io/testillano/h2agent
-          IMAGE_ID3=docker.io/testillano/ct-h2agent
-
           # workflow dispatch event:
           image_tag=${{ github.event.inputs.tag }}
           echo Workflow dispatch image_tag=$image_tag
@@ -120,13 +125,15 @@ jobs:
 
           echo Processed image_tag=$image_tag
 
-          docker tag testillano/h2agent_builder:local $IMAGE_ID1:$image_tag
-          docker tag testillano/h2agent:local $IMAGE_ID2:$image_tag
-          docker tag testillano/ct-h2agent:local $IMAGE_ID3:$image_tag
-
-          docker push $IMAGE_ID1:$image_tag
-          docker push $IMAGE_ID2:$image_tag
-          docker push $IMAGE_ID3:$image_tag
+          for hub in docker.io ghcr.io
+          do
+            for imgbn in h2agent_builder h2agent ct-h2agent
+            do
+              echo "Push '${imgbn}' image to '${hub}' hub"
+              docker tag testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
+              docker push ${hub}/testillano/${imgbn}:${image_tag}
+            done
+          done
 
   helm_publish:
     runs-on: ubuntu-latest

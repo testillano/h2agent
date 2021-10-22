@@ -12,6 +12,7 @@ build_type__dflt=Release
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.10.0
+registry=ghcr.io/testillano
 
 #############
 # FUNCTIONS #
@@ -93,7 +94,7 @@ build_builder_image() {
   set -x
   rm -f CMakeCache.txt
   # shellcheck disable=SC2086
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f Dockerfile.build -t testillano/h2agent_builder:"${image_tag}" . || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f Dockerfile.build -t ${registry}/h2agent_builder:"${image_tag}" . || return 1
   set +x
 }
 
@@ -110,9 +111,9 @@ build_project() {
   set -x
   rm -f CMakeCache.txt
   # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder:"${base_tag}" || return 1
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" || return 1
   # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code testillano/h2agent_builder:"${base_tag}" "" doc || return 1
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" "" doc || return 1
   set +x
 }
 
@@ -136,7 +137,7 @@ build_project_image() {
   set -x
   rm -f CMakeCache.txt
   # shellcheck disable=SC2086
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t testillano/h2agent:"${image_tag}" . || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t ${registry}/h2agent:"${image_tag}" . || return 1
   set +x
 }
 
@@ -151,7 +152,7 @@ build_ct_image() {
 
   set -x
   # shellcheck disable=SC2086
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f ct/Dockerfile -t testillano/ct-h2agent:"${image_tag}" ct || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f ct/Dockerfile -t ${registry}/ct-h2agent:"${image_tag}" ct || return 1
   set +x
 }
 
