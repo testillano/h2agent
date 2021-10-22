@@ -291,7 +291,6 @@ nlohmann::json j_value_; // json object
 
 std::string TypeConverter::asString() {
 
-    bool success;
     std::stringstream ss;
     ss << "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): " << getNativeType()
        << "|  String: " << s_value_
