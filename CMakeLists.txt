@@ -87,6 +87,7 @@ set_cmake_compiler_flags()
 # Subdirectories #
 ##################
 add_subdirectory( src )
+add_subdirectory( ut )
 
 ###########
 # Install #
