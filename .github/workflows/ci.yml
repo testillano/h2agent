@@ -61,27 +61,28 @@ jobs:
         file: Dockerfile.coverage
         context: .
 
-#  unit-tests-and-coverage:
-#    needs: build_coverage
-#    name: Run unit tests and upload coverage info
-#    runs-on: ubuntu-latest
-#    container:
-#      image: testillano/h2agent:local-cov
-#      options: "--entrypoint sh"
-#    steps:
-#    -
-#      name: Run coverage script
-#      run: /var/coverage.sh
-#    -
-#      name: Upload coverage report to codecov
-#      uses: codecov/codecov-action@v2
-#      with:
-#        #token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
-#        files: total-coverage.info
-#        #fail_ci_if_error: true # optional (default = false)
-#        verbose: true # optional (default = false)
+  unit-tests-and-coverage:
+    needs: build_coverage
+    name: Run unit tests and upload coverage info
+    runs-on: ubuntu-latest
+    container:
+      image: testillano/h2agent:local-cov
+      options: "--entrypoint sh"
+    steps:
+    -
+      name: Run coverage script
+      run: /var/coverage.sh
+    -
+      name: Upload coverage report to codecov
+      uses: codecov/codecov-action@v2
+      with:
+        #token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+        files: total-coverage.info
+        #fail_ci_if_error: true # optional (default = false)
+        verbose: true # optional (default = false)
 
   build_and_push:
+    needs: unit-tests-and-coverage
     name: Build and push docker images to Docker Hub
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
@@ -172,6 +173,7 @@ jobs:
         done
 
   helm_publish:
+    needs: build_and_push
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
