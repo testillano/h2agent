@@ -119,7 +119,7 @@ build_project() {
 
 build_project_image() {
   echo
-  echo "=== Build http2comm image ==="
+  echo "=== Build h2agent image ==="
   echo
   _read image_tag
   _read base_tag

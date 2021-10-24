@@ -1,0 +1,29 @@
+ARG base_tag=latest
+ARG scratch_img=alpine
+ARG scratch_img_tag=latest
+FROM testillano/h2agent_builder:${base_tag}
+MAINTAINER testillano
+
+LABEL testillano.h2agent.description="Docker image for h2agent coverage"
+
+RUN apk add lcov --update-cache --repository  http://dl-3.alpinelinux.org/alpine/edge/testing/
+
+COPY . /code
+WORKDIR /code
+
+ARG make_procs=4
+
+# We could duplicate from local build directory, but prefer to build from scratch:
+RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
+
+RUN printf %b "#!/bin/sh\n\
+lcov -i --capture --directory \"/code/src/\" --output-file base-coverage.info --no-external --directory \"./\" --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
+/code/build/Debug/bin/unit-test\n\
+lcov --capture --directory \"/code/src/\" --output-file test-coverage.info --no-external --directory \"./\" --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
+lcov -a base-coverage.info  -a test-coverage.info  -o total-coverage.info\n\
+genhtml total-coverage.info -o coverage" > /var/coverage.sh
+
+RUN chmod a+x /var/coverage.sh
+
+ENTRYPOINT ["sh", "/var/coverage.sh"]
+CMD []

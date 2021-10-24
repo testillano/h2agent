@@ -26,3 +26,6 @@ src/version.cpp
 tools/*/.*
 st/*/report*
 st/*/last
+
+# Coverage report
+coverage
