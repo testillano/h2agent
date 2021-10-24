@@ -29,13 +29,19 @@ on:
   #  types: [published]
 
 jobs:
-  format_style:
-    name: Check source code format
+  checkout:
+    name: Check out the repo
     runs-on: ubuntu-latest
     steps:
     -
       name: Check out the repo
       uses: actions/checkout@v2
+
+  format_style:
+    needs: checkout
+    name: Check source code format
+    runs-on: ubuntu-latest
+    steps:
     -
       name: Run frankwolf format
       run: |
@@ -46,12 +52,10 @@ jobs:
           ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
 
   build_coverage:
+    needs: checkout
     name: Build local coverage image
     runs-on: ubuntu-latest
     steps:
-    -
-      name: Check out the repo
-      uses: actions/checkout@v2
     -
       name: Build (but not push) coverage image
       id: docker_build0
@@ -62,6 +66,7 @@ jobs:
         context: .
 
   unit-tests-and-coverage:
+    needs: build_coverage
     name: Run unit tests and upload coverage info
     runs-on: ubuntu-latest
     container:
