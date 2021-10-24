@@ -60,6 +60,7 @@ jobs:
         tags: testillano/h2agent:local-cov
         file: Dockerfile.coverage
         context: .
+        push: true
 
   unit-tests-and-coverage:
     needs: build_coverage
