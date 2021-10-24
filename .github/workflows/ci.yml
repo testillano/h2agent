@@ -29,19 +29,13 @@ on:
   #  types: [published]
 
 jobs:
-  checkout:
-    name: Check out the repo
+  format_style:
+    name: Check source code format
     runs-on: ubuntu-latest
     steps:
     -
       name: Check out the repo
       uses: actions/checkout@v2
-
-  format_style:
-    needs: checkout
-    name: Check source code format
-    runs-on: ubuntu-latest
-    steps:
     -
       name: Run frankwolf format
       run: |
@@ -51,20 +45,22 @@ jobs:
           # docker cannot write on host directory:
           ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
 
-#  build_coverage:
-#    needs: checkout
-#    name: Build local coverage image
-#    runs-on: ubuntu-latest
-#    steps:
-#    -
-#      name: Build (but not push) coverage image
-#      id: docker_build0
-#      uses: docker/build-push-action@v2
-#      with:
-#        tags: testillano/h2agent:local-cov
-#        file: Dockerfile.coverage
-#        context: .
-#
+  build_coverage:
+    name: Build local coverage image
+    runs-on: ubuntu-latest
+    steps:
+    -
+      name: Check out the repo
+      uses: actions/checkout@v2
+    -
+      name: Build (but not push) coverage image
+      id: docker_build0
+      uses: docker/build-push-action@v2
+      with:
+        tags: testillano/h2agent:local-cov
+        file: Dockerfile.coverage
+        context: .
+
 #  unit-tests-and-coverage:
 #    needs: build_coverage
 #    name: Run unit tests and upload coverage info
@@ -86,11 +82,13 @@ jobs:
 #        verbose: true # optional (default = false)
 
   build_and_push:
-    needs: checkout
     name: Build and push docker images to Docker Hub
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
     steps:
+    -
+      name: Check out the repo
+      uses: actions/checkout@v2
     -
       name: Login to Docker Hub
       uses: docker/login-action@v1
