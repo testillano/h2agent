@@ -7,6 +7,7 @@
 
 const nlohmann::json ServerMatchingJson = R"({"algorithm":"FullMatching"})"_json;
 const nlohmann::json ServerProvisionJson = R"({"requestMethod": "GET", "requestUri": "/foo/bar", "responseCode": 200})"_json;
+const nlohmann::json ServerProvisionJson_nok = R"({"requestUri": "/foo/bar", "responseCode": 200})"_json; // mandatory missing: requestMethod
 
 class jsonSchema_test : public ::testing::Test
 {
@@ -28,6 +29,7 @@ TEST_F(jsonSchema_test, validSchema2)
     ASSERT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getSchema(), h2agent::adminSchemas::server_provision);
     ASSERT_TRUE(jsonSchema_test::json_schema_.validate(ServerProvisionJson));
+    ASSERT_FALSE(jsonSchema_test::json_schema_.validate(ServerProvisionJson_nok));
 }
 
 TEST_F(jsonSchema_test, invalidSchema)
