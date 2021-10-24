@@ -50,6 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     -
+      name: Check out the repo
+      uses: actions/checkout@v2
+    -
       name: Build (but not push) coverage image
       id: docker_build0
       uses: docker/build-push-action@v2
@@ -57,7 +60,6 @@ jobs:
         tags: testillano/h2agent:local-cov
         file: Dockerfile.coverage
         context: .
-        #push: true
 
   unit-tests-and-coverage:
     name: Run unit tests and upload coverage info

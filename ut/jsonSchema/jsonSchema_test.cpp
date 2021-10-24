@@ -10,7 +10,7 @@ const nlohmann::json ServerProvisionJson = R"({"requestMethod": "GET", "requestU
 
 class jsonSchema_test : public ::testing::Test
 {
-  public:
+public:
     h2agent::jsonschema::JsonSchema json_schema_;
 };
 
