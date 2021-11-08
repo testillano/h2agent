@@ -69,7 +69,7 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
 
         if (result.count(key) != 0)
         {
-            ert::tracing::Logger::error("Cannot normalize URI query parameters: bad key found", ERT_FILE_LOCATION);
+            ert::tracing::Logger::error("Cannot normalize URI query parameters: repeated key found", ERT_FILE_LOCATION);
             result.clear();
             return result;
         }
