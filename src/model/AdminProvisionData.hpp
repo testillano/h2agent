@@ -45,6 +45,10 @@ SOFTWARE.
 #include <Map.hpp>
 #include <AdminProvision.hpp>
 
+#include <JsonSchema.hpp>
+#include <AdminSchemas.hpp>
+
+
 namespace h2agent
 {
 namespace model
@@ -54,11 +58,12 @@ namespace model
 // We will agregate method and uri in a single string for that.
 class AdminProvisionData : public Map<admin_provision_key_t, std::shared_ptr<AdminProvision>>
 {
-    std::vector<admin_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
-
 public:
     AdminProvisionData();
     ~AdminProvisionData() = default;
+
+    // Load result
+    enum LoadResult { Success = 0, BadSchema, BadContent };
 
     /**
      * Json string representation for class information
@@ -73,10 +78,11 @@ public:
      * Loads server provision operation data
      *
      * @param j Json document from operation body request
+     * @param priorityMatchingRegexConfigured provision load depends on matching configuration (priority regexp)
      *
-     * @return Boolean about success operation
+     * @return Load operation result
      */
-    bool load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+    LoadResult load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
 
     /** Clears internal data (map and ordered keys vector)
      *
@@ -109,7 +115,19 @@ public:
     */
     std::shared_ptr<AdminProvision> findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const;
 
+    /**
+    * Gets provision schema
+    */
+    const h2agent::jsonschema::JsonSchema& getSchema() const {
+        return server_provision_schema_;
+    }
 
+private:
+
+    std::vector<admin_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
+    h2agent::jsonschema::JsonSchema server_provision_schema_;
+
+    LoadResult loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
 };
 
 }

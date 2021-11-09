@@ -43,6 +43,10 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <JsonSchema.hpp>
+#include <AdminSchemas.hpp>
+
+
 namespace h2agent
 {
 namespace model
@@ -58,6 +62,9 @@ public:
     enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex };
     // UriPathQueryParametersFilter type
     enum UriPathQueryParametersFilterType { SortAmpersand = 0, SortSemicolon, PassBy, Ignore };
+
+    // Load result
+    enum LoadResult { Success = 0, BadSchema, BadContent };
 
     // getters
     AlgorithmType getAlgorithm() const {
@@ -96,11 +103,20 @@ public:
      *
      * @param j Json document from operation body request
      *
-     * @return Boolean about success operation
+     * @return Load operation result
      */
-    bool load(const nlohmann::json &j);
+    LoadResult load(const nlohmann::json &j);
+
+    /**
+    * Gets matching schema
+    */
+    const h2agent::jsonschema::JsonSchema& getSchema() const {
+        return server_matching_schema_;
+    }
 
 private:
+    h2agent::jsonschema::JsonSchema server_matching_schema_;
+
     mutable mutex_t rw_mutex_;
 
     nlohmann::json json_;

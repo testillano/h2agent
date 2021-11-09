@@ -49,6 +49,7 @@ namespace model
 {
 
 AdminProvisionData::AdminProvisionData() {
+    server_provision_schema_.setJson(h2agent::adminSchemas::server_provision); // won't fail
 }
 
 std::string AdminProvisionData::asJsonString(bool ordered) const {
@@ -71,7 +72,11 @@ std::string AdminProvisionData::asJsonString(bool ordered) const {
     return (result.empty() ? "null":result.dump());
 }
 
-bool AdminProvisionData::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+AdminProvisionData::LoadResult AdminProvisionData::loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+
+    if (!server_provision_schema_.validate(j)) {
+        return BadSchema;
+    }
 
     // Provision object to fill:
     auto provision = std::make_shared<AdminProvision>();
@@ -86,10 +91,26 @@ bool AdminProvisionData::load(const nlohmann::json &j, bool priorityMatchingRege
         write_guard_t guard(rw_mutex_);
         ordered_keys_.push_back(key);
 
-        return true;
+        return Success;
     }
 
-    return false;
+    return BadContent;
+}
+
+AdminProvisionData::LoadResult AdminProvisionData::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+
+    if (j.is_array()) {
+        for (auto it : j) // "it" is of type json::reference and has no key() member
+        {
+            LoadResult result = loadSingle(j, priorityMatchingRegexConfigured);
+            if (result != Success)
+                return result;
+        }
+
+        return Success;
+    }
+
+    return loadSingle(j, priorityMatchingRegexConfigured);
 }
 
 bool AdminProvisionData::clear()

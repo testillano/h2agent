@@ -52,7 +52,7 @@ class JsonSchema
 {
     bool available_;
 
-    nlohmann::json schema_;
+    nlohmann::json json_;
     nlohmann::json_schema::json_validator validator_;
 
 public:
@@ -67,11 +67,11 @@ public:
     /**
     * Set json document schema
     *
-    * @param jsonSchema Json document schema
+    * @param j Json document schema
     *
     * @return Successful if a valid schema was configured
     */
-    bool setSchema(const nlohmann::json& schema);
+    bool setJson(const nlohmann::json& j);
 
     // getters
 
@@ -89,9 +89,9 @@ public:
     *
     * @return Json document schema
     */
-    const nlohmann::json& getSchema() const
+    const nlohmann::json& getJson() const
     {
-        return schema_;
+        return json_;
     }
 
     /**
@@ -99,7 +99,7 @@ public:
     *
     * @return boolean about if json document is valid against json schema
     */
-    bool validate(const nlohmann::json& json) const;
+    bool validate(const nlohmann::json& j) const;
 };
 
 }

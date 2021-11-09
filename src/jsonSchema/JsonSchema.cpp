@@ -49,17 +49,17 @@ namespace jsonschema
 {
 
 
-bool JsonSchema::setSchema(const nlohmann::json& schema)
+bool JsonSchema::setJson(const nlohmann::json& j)
 {
 
     // assign private member
-    schema_ = schema;
+    json_ = j;
     available_ = true;
 
     // json-parse the schema
     try
     {
-        validator_.set_root_schema(schema);
+        validator_.set_root_schema(j);
     }
     catch (const std::exception& e)
     {
@@ -70,17 +70,16 @@ bool JsonSchema::setSchema(const nlohmann::json& schema)
     return available_;
 }
 
-bool JsonSchema::validate(const nlohmann::json& json) const
+bool JsonSchema::validate(const nlohmann::json& j) const
 {
     try
     {
-        validator_.validate(
-            json); // validate the document - uses the default throwing error-handler
+        validator_.validate(j); // validate the document - uses the default throwing error-handler
     }
     catch (const std::exception& e)
     {
         ert::tracing::Logger::error(ert::tracing::Logger::asString("Validation failed: %s", e.what()), ERT_FILE_LOCATION);
-        std::cerr << "Validation FAILED against schema content:\n\n" << schema_.dump() << "\n";
+        std::cerr << "Validation FAILED against schema content:\n\n" << json_.dump() << "\n";
         return false;
     }
 

@@ -243,7 +243,7 @@ bool MockRequestData::findLastRegisteredRequest(const std::string &method, const
 
 bool MockRequestData::loadRequestsSchema(const nlohmann::json& schema) {
 
-    requests_schema_.setSchema(schema);
+    requests_schema_.setJson(schema);
 
     if (!requests_schema_.isAvailable()) {
         LOGWARNING(
