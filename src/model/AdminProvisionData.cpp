@@ -102,7 +102,7 @@ AdminProvisionData::LoadResult AdminProvisionData::load(const nlohmann::json &j,
     if (j.is_array()) {
         for (auto it : j) // "it" is of type json::reference and has no key() member
         {
-            LoadResult result = loadSingle(j, priorityMatchingRegexConfigured);
+            LoadResult result = loadSingle(it, priorityMatchingRegexConfigured);
             if (result != Success)
                 return result;
         }
