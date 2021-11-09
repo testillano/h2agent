@@ -43,9 +43,6 @@ SOFTWARE.
 
 #include <ert/http2comm/Http2Server.hpp>
 
-#include <JsonSchema.hpp>
-#include <AdminSchemas.hpp>
-
 namespace h2agent
 {
 namespace model
@@ -61,9 +58,6 @@ class MyHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
-    h2agent::jsonschema::JsonSchema server_matching_schema_;
-    h2agent::jsonschema::JsonSchema server_provision_schema_;
-
     model::AdminData *admin_data_;
     h2agent::http2server::MyHttp2Server *http2_server_; // used to set server-data configuration (discard contexts and/or history)
 

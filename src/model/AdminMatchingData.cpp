@@ -52,11 +52,15 @@ AdminMatchingData::AdminMatchingData() {
     fmt_.clear();
     uri_path_query_parameters_filter_ = SortAmpersand;
     json_["algorithm"] = "FullMatching";
+
+    server_matching_schema_.setJson(h2agent::adminSchemas::server_matching); // won't fail
 }
 
-bool AdminMatchingData::load(const nlohmann::json &j) {
+AdminMatchingData::LoadResult AdminMatchingData::load(const nlohmann::json &j) {
 
-    bool result = true;
+    if (!server_matching_schema_.validate(j)) {
+        return BadSchema;
+    }
 
     write_guard_t guard(rw_mutex_);
 
@@ -77,7 +81,7 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-            return false;
+            return BadContent;
         }
     }
 
@@ -105,27 +109,27 @@ bool AdminMatchingData::load(const nlohmann::json &j) {
     if (*algorithm_it == "FullMatching") {
         if (hasRgx || hasFmt) {
             ert::tracing::Logger::error("FullMatching does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
-            return false;
+            return BadContent;
         }
         algorithm_ = FullMatching;
     }
     else if (*algorithm_it == "FullMatchingRegexReplace") {
         if (!hasRgx || !hasFmt) {
             ert::tracing::Logger::error("FullMatchingRegexReplace requires rgx and fmt fields", ERT_FILE_LOCATION);
-            return false;
+            return BadContent;
         }
         algorithm_ = FullMatchingRegexReplace;
     }
     else if (*algorithm_it == "PriorityMatchingRegex") {
         if (hasRgx || hasFmt) {
             ert::tracing::Logger::error("PriorityMatchingRegex does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
-            return false;
+            return BadContent;
         }
         algorithm_ = PriorityMatchingRegex;
     }
 
 
-    return result;
+    return Success;
 }
 
 }

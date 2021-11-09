@@ -62,8 +62,6 @@ MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
-    server_matching_schema_.setSchema(h2agent::adminSchemas::server_matching); // won't fail
-    server_provision_schema_.setSchema(h2agent::adminSchemas::server_provision); // won't fail
 }
 
 //const std::pair<int, std::string> JSON_SCHEMA_VALIDATION(
@@ -172,19 +170,19 @@ void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &res
 
 bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject, std::string& log) const
 {
-    bool result = false;
+    log = "server-matching operation; ";
 
-    log += "server-matching operation; ";
+    h2agent::model::AdminMatchingData::LoadResult loadResult = admin_data_->loadMatching(configurationObject);
+    bool result = (loadResult == h2agent::model::AdminMatchingData::Success);
 
-    if (!server_matching_schema_.validate(configurationObject)) {
+    if (loadResult == h2agent::model::AdminMatchingData::Success) {
+        log += "valid schema and matching data received";
+    }
+    else if (loadResult == h2agent::model::AdminMatchingData::BadSchema) {
         log += "invalid schema";
     }
-    else if (!admin_data_->loadMatching(configurationObject)) {
+    else if (loadResult == h2agent::model::AdminMatchingData::BadContent) {
         log += "invalid matching data received";
-    }
-    else {
-        result = true;
-        log += "valid schema and matching data received";
     }
 
     return result;
@@ -192,41 +190,20 @@ bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObjec
 
 bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log) const
 {
-    bool result = false;
+    log = "server-provision operation; ";
 
-    log += "server-provision operation; ";
+    h2agent::model::AdminProvisionData::LoadResult loadResult = admin_data_->loadProvision(configurationObject);
+    bool result = (loadResult == h2agent::model::AdminProvisionData::Success);
 
-    if (configurationObject.is_array()) {
-        result = true;
-        for (auto it : configurationObject) // "it" is of type json::reference and has no key() member
-        {
-            if (!server_provision_schema_.validate(it)) {
-                log += "detected one invalid schema";
-                result = false;
-                break;
-            }
-            else if (!admin_data_->loadProvision(it)) {
-                log += "detected one invalid provision data received";
-                result = false;
-                break;
-            }
-        }
-
-        if (result) {
-            log += "valid schemas and provisions data received";
-        }
+    bool isArray = configurationObject.is_array();
+    if (loadResult == h2agent::model::AdminProvisionData::Success) {
+        log += (isArray ? "valid schemas and provisions data received":"valid schema and provision data received");
     }
-    else {
-        if (!server_provision_schema_.validate(configurationObject)) {
-            log += "invalid schema";
-        }
-        else if (!admin_data_->loadProvision(configurationObject)) {
-            log += "invalid provision data received";
-        }
-        else {
-            result = true;
-            log += "valid schema and provision data received";
-        }
+    else if (loadResult == h2agent::model::AdminProvisionData::BadSchema) {
+        log += (isArray ? "detected one invalid schema":"invalid schema");
+    }
+    else if (loadResult == h2agent::model::AdminProvisionData::BadContent) {
+        log += (isArray ? "detected one invalid provision data received":"invalid provision data received");
     }
 
     return result;
@@ -283,15 +260,15 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
     if (pathSuffix == "server-provision/schema") {
-        responseBody = server_provision_schema_.getSchema().dump();
+        responseBody = admin_data_->getProvisionData().getSchema().getJson().dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-matching/schema") {
-        responseBody = server_matching_schema_.getSchema().dump();
+        responseBody = admin_data_->getMatchingData().getSchema().getJson().dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-data/schema") {
-        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getSchema().dump():"null");
+        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getJson().dump():"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
     else if (pathSuffix == "server-provision") {

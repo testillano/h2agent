@@ -66,7 +66,7 @@ public:
      *
      * @return Boolean about success operation
      */
-    bool loadMatching(const nlohmann::json &j) {
+    AdminMatchingData::LoadResult loadMatching(const nlohmann::json &j) {
         return matching_data_.load(j);
     }
 
@@ -77,7 +77,7 @@ public:
      *
      * @return Boolean about success operation
      */
-    bool loadProvision(const nlohmann::json &j) {
+    AdminProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
         return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminMatchingData::AlgorithmType::PriorityMatchingRegex));
     }
 
