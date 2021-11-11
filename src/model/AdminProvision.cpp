@@ -148,7 +148,7 @@ void AdminProvision::transform( const std::string &requestUri,
     }
 
     // Dynamic variables map: inherited along the transformation chain
-    std::map<std::string, std::string> variables; // source & target variables (key=variable name/value=variable value)
+    std::map<std::string, std::string> variables{}; // source & target variables (key=variable name/value=variable value)
 
     // Type converter:
     TypeConverter sourceVault;
@@ -277,7 +277,7 @@ void AdminProvision::transform( const std::string &requestUri,
             }
 
             LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Extracted object from event:\n%s", sourceVault.asString().c_str());
+                std::string msg = ert::tracing::Logger::asString("Extracted object from event: %s", sourceVault.asString().c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
         }
@@ -292,12 +292,14 @@ void AdminProvision::transform( const std::string &requestUri,
         bool boolean;
         nlohmann::json obj;
         bool success;
-        std::smatch matches;
+        std::smatch matches; // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
+        // So, we can't use 'matches' as container because source may change: BUT, using that source exclusively, it will work (*)
+        std::string source; // Now, this never will be out of scope, and 'matches' will be valid.
 
         // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
-            std::string source;
+            //std::string source; // (*)
 
             // all the filters except Sum/Multiply, require a string target
             if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply) {
@@ -309,13 +311,13 @@ void AdminProvision::transform( const std::string &requestUri,
                 if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
 
                     if (std::regex_match(source, matches, transformation->getFilterRegex()) && matches.size() >=1) {
-                        target = matches[0];
+                        target = matches.str(0);
                         sourceVault.setString(target);
                         LOGDEBUG(
                             std::stringstream ss;
                             ss << "Regex matches: Size = " << matches.size();
-                        for(size_t i=0; i < matches.size(); ++i) {
-                        ss << " | [" << i << "] = " << matches[i];
+                        for(size_t i=0; i < matches.size(); i++) {
+                        ss << " | [" << i << "] = " << matches.str(i);
                         }
                         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
                         );
@@ -528,12 +530,17 @@ void AdminProvision::transform( const std::string &requestUri,
                 if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                     std::string varname;
                     if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
-                        variables[transformation->getTarget()] = matches[0]; // variable "as is" stores the entire match
-                        for(size_t i=1; i < matches.size(); ++i) {
+                        variables[transformation->getTarget()] = matches.str(0); // variable "as is" stores the entire match
+                        for(size_t i=1; i < matches.size(); i++) {
                             varname = transformation->getTarget();
                             varname += ".";
                             varname += std::to_string(i);
-                            variables[varname] = matches[i];
+                            variables[varname] = matches.str(i);
+                            LOGDEBUG(
+                                std::stringstream ss;
+                                ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
+                                ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+                            );
                         }
                     }
                 }
@@ -641,7 +648,7 @@ void AdminProvision::loadResponseHeaders(const nlohmann::json &j) {
 void AdminProvision::loadTransformation(const nlohmann::json &j) {
 
     LOGDEBUG(
-        std::string msg = ert::tracing::Logger::asString("Loading transformation item:\n%s", j.dump().c_str()); // avoid newlines in traces (dump(n) pretty print)
+        std::string msg = ert::tracing::Logger::asString("Loading transformation item: %s", j.dump().c_str()); // avoid newlines in traces (dump(n) pretty print)
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 

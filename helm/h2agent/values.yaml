@@ -49,7 +49,7 @@ service:
   prometheus_port: 8080
 
 image:
-  repository: testillano/h2agent
+  repository: ghcr.io/testillano/h2agent
   tag: latest
   pullPolicy: IfNotPresent
 

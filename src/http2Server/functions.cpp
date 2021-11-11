@@ -136,22 +136,17 @@ bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bo
     try {
         jsonObject = nlohmann::json::parse(content);
         LOGDEBUG(
-            std::string msg("Json body to parse: ");
-            msg += content;
+            std::string msg("Json body parsed: ");
+            msg += jsonObject.dump();
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-        //LOGDEBUG(
-        //    std::string msg("Json body parsed:\n\n");
-        //    msg += jsonObject.dump(4); // pretty print json body
-        //    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-        //);
     }
     catch (nlohmann::json::parse_error& e)
     {
         std::stringstream ss;
-        ss << "Json content parse error: " << e.what() << '\n'
-           << "exception id: " << e.id << '\n'
-           << "byte position of error: " << e.byte << std::endl;
+        ss << "Json content parse error: " << e.what()
+           << " | exception id: " << e.id
+           << " | byte position of error: " << e.byte;
         ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
 
         if (writeException)
