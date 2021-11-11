@@ -2,7 +2,7 @@ test:
   name: test
   replicaCount: 1
   image:
-    repository: testillano/ct-h2agent
+    repository: ghcr.io/testillano/ct-h2agent
     pullPolicy: Never
     tag: latest
   podAnnotations:

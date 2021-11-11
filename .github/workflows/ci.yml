@@ -65,7 +65,7 @@ jobs:
       id: docker_build0
       uses: docker/build-push-action@v2
       with:
-        tags: testillano/h2agent:latest-cov
+        tags: ghcr.io/testillano/h2agent:latest-cov
         file: Dockerfile.coverage
         context: .
         push: true
@@ -75,7 +75,7 @@ jobs:
     name: Run unit tests and upload coverage info
     runs-on: ubuntu-latest
     container:
-      image: testillano/h2agent:latest-cov
+      image: ghcr.io/testillano/h2agent:latest-cov
       options: "--entrypoint sh"
     steps:
     -
@@ -119,7 +119,7 @@ jobs:
       id: docker_build1
       uses: docker/build-push-action@v2
       with:
-        tags: testillano/h2agent_builder:local
+        tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
         context: .
         #push: true
@@ -131,7 +131,7 @@ jobs:
       id: docker_build2
       uses: docker/build-push-action@v2
       with:
-        tags: testillano/h2agent:local
+        tags: ghcr.io/testillano/h2agent:local
         file: Dockerfile
         context: .
         #push: true
@@ -144,7 +144,7 @@ jobs:
       id: docker_build3
       uses: docker/build-push-action@v2
       with:
-        tags: testillano/ct-h2agent:local
+        tags: ghcr.io/testillano/ct-h2agent:local
         file: ct/Dockerfile
         context: ct
         #push: true
@@ -174,7 +174,7 @@ jobs:
           for imgbn in h2agent_builder h2agent ct-h2agent
           do
             echo "Push '${imgbn}' image to '${hub}' hub"
-            docker tag testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
+            docker tag ghcr.io/testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
             docker push ${hub}/testillano/${imgbn}:${image_tag}
           done
         done

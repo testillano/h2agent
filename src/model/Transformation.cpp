@@ -176,6 +176,8 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex event("event.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
+    // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
+    // In this case, it is not a problem, as we store the match from sourceSpec or targetSpec before changing them.
 
     try {
         if (sourceSpec == "request.uri") {
@@ -185,48 +187,48 @@ bool Transformation::load(const nlohmann::json &j) {
             source_type_ = SourceType::RequestUriPath;
         }
         else if (std::regex_match(sourceSpec, matches, requestUriParam)) { // parameter name
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::RequestUriParam;
         }
         else if (sourceSpec == "request.body") { // whole document
             source_type_ = SourceType::RequestBody;
         }
         else if (std::regex_match(sourceSpec, matches, requestBodyNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "request.body.foo.bar" turns into "/foo/bar")
-            source_ = matches[1];
+            source_ = matches.str(1);
             std::replace(source_.begin(), source_.end(), '.', '/');
             source_.insert(source_.begin(), '/');
             source_type_ = SourceType::RequestBody;
         }
         else if (std::regex_match(sourceSpec, matches, requestHeader)) { // header name
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::RequestHeader;
         }
         else if (std::regex_match(sourceSpec, matches, generalRandom)) { // range "<min>.<max>", i.e.: "-3.8", "0.100", "-15.+2", etc. These go to -> [source_i1_] and [source_i2_]
-            source_i1_ = stoi(matches[1]);
-            source_i2_ = stoi(matches[2]);
+            source_i1_ = stoi(matches.str(1));
+            source_i2_ = stoi(matches.str(2));
             source_type_ = SourceType::GeneralRandom;
         }
         else if (std::regex_match(sourceSpec, matches, generalTimestamp)) { // unit (s: seconds, ms: milliseconds, ns: nanoseconds)
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::GeneralTimestamp;
         }
         else if (std::regex_match(sourceSpec, matches, generalStrftime)) { // current date/time formatted by as described in https://www.cplusplus.com/reference/ctime/strftime/
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::GeneralStrftime;
         }
         else if (sourceSpec == "general.recvseq") {
             source_type_ = SourceType::GeneralUnique;
         }
         else if (std::regex_match(sourceSpec, matches, varId)) { // variable id
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::SVar;
         }
         else if (std::regex_match(sourceSpec, matches, value)) { // value content
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::Value;
         }
         else if (std::regex_match(sourceSpec, matches, event)) { // value content
-            source_ = matches[1];
+            source_ = matches.str(1);
             source_type_ = SourceType::Event;
         }
         else if (sourceSpec == "inState") {
@@ -281,7 +283,7 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, responseBodyStringNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyString;
         }
         else if (targetSpec == "response.body.integer") { // whole document
@@ -289,7 +291,7 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, responseBodyIntegerNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyInteger;
         }
         else if (targetSpec == "response.body.unsigned") { // whole document
@@ -297,7 +299,7 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, responseBodyUnsignedNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyUnsigned;
         }
         else if (targetSpec == "response.body.float") { // whole document
@@ -305,7 +307,7 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, responseBodyFloatNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyFloat;
         }
         else if (targetSpec == "response.body.boolean") { // whole document
@@ -313,7 +315,7 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, responseBodyBooleanNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyBoolean;
         }
         else if (targetSpec == "response.body.object") { // whole document
@@ -324,16 +326,16 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, responseBodyObjectNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyObject;
         }
         else if (std::regex_match(targetSpec, matches, responseBodyJsonStringNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "response.body.foo.bar" turns into "/foo/bar")
             convertTargetToJsonPointerPath = true;
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseBodyJsonString;
         }
         else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::ResponseHeader;
         }
         else if (targetSpec == "response.statusCode") {
@@ -343,14 +345,14 @@ bool Transformation::load(const nlohmann::json &j) {
             target_type_ = TargetType::ResponseDelayMs;
         }
         else if (std::regex_match(targetSpec, matches, varId)) { // variable id
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::TVar;
         }
         else if (targetSpec == "outState") {
             target_type_ = TargetType::OutState;
         }
         else if (std::regex_match(targetSpec, matches, outStateMethod)) { // method
-            target_ = matches[1];
+            target_ = matches.str(1);
             target_type_ = TargetType::OutState;
         }
     }

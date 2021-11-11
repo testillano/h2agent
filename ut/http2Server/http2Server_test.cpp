@@ -82,7 +82,7 @@ TEST_F(http2Server_test, jsonContentSerialization)
 
     // Error cases:
     if (!h2agent::http2server::parseJsonContent("{\"not a json\":}", jsonDoc, true /* write exception */)) {
-        EXPECT_EQ(jsonDoc.dump(), "\"Json content parse error: [json.exception.parse_error.101] parse error at line 1, column 15: syntax error while parsing value - unexpected '}'; expected '[', '{', or a literal\\nexception id: 101\\nbyte position of error: 15\\n\"");
+        EXPECT_EQ(jsonDoc.dump(), "\"Json content parse error: [json.exception.parse_error.101] parse error at line 1, column 15: syntax error while parsing value - unexpected '}'; expected '[', '{', or a literal | exception id: 101 | byte position of error: 15\"");
     }
 
     ASSERT_FALSE(h2agent::http2server::getFileContent("/this/is/not/a/valid/file", content));

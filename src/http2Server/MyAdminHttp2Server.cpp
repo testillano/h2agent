@@ -430,7 +430,9 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
             ss << " | Query Params: " << uriQuery;
         }
         if (!requestBody.empty()) {
-            ss << " | Body: " << requestBody;
+            std::string requestBodyWithoutNewlines = requestBody; // administrative interface receives json bodies in POST requests, so we normalize for logging
+            requestBodyWithoutNewlines.erase(std::remove(requestBodyWithoutNewlines.begin(), requestBodyWithoutNewlines.end(), '\n'), requestBodyWithoutNewlines.end());
+            ss << " | Body: " << requestBodyWithoutNewlines;
         }
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     }

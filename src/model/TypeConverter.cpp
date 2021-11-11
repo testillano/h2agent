@@ -49,7 +49,7 @@ void searchReplaceAll(std::string& str,
                       const std::string& to)
 {
     LOGDEBUG(
-        std::string msg = ert::tracing::Logger::asString("String to replace all: %s | from: %s | to: %s", str.c_str(), from.c_str(), to.c_str());
+        std::string msg = ert::tracing::Logger::asString("String source to 'search/replace all': %s | from: %s | to: %s", str.c_str(), from.c_str(), to.c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
     std::string::size_type pos = 0u;
@@ -57,6 +57,11 @@ void searchReplaceAll(std::string& str,
         str.replace(pos, from.length(), to);
         pos += to.length();
     }
+
+    LOGDEBUG(
+        std::string msg = ert::tracing::Logger::asString("String result of 'search/replace all': %s", str.c_str());
+        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+    );
 }
 
 void searchReplaceValueVariables(const std::map<std::string, std::string> &varmap, std::string &source) {
@@ -91,7 +96,7 @@ const std::string &TypeConverter::getString(bool &success) {
 
     LOGDEBUG(
     if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get string representation for source:\n%s", asString().c_str());
+    std::string msg = ert::tracing::Logger::asString("Unable to get string representation for source: %s", asString().c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     }
     );
@@ -123,7 +128,7 @@ std::int64_t TypeConverter::getInteger(bool &success) {
 
     LOGDEBUG(
     if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get integer representation for source:\n%s", asString().c_str());
+    std::string msg = ert::tracing::Logger::asString("Unable to get integer representation for source: %s", asString().c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     }
     );
@@ -155,7 +160,7 @@ std::uint64_t TypeConverter::getUnsigned(bool &success) {
 
     LOGDEBUG(
     if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get unsigned integer representation for source:\n%s", asString().c_str());
+    std::string msg = ert::tracing::Logger::asString("Unable to get unsigned integer representation for source: %s", asString().c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     }
     );
@@ -187,7 +192,7 @@ double TypeConverter::getFloat(bool &success) {
 
     LOGDEBUG(
     if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get float number representation for source:\n%s", asString().c_str());
+    std::string msg = ert::tracing::Logger::asString("Unable to get float number representation for source: %s", asString().c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     }
     );
@@ -209,7 +214,7 @@ bool TypeConverter::getBoolean(bool &success) {
 
     LOGDEBUG(
     if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get boolean representation for source:\n%s", asString().c_str());
+    std::string msg = ert::tracing::Logger::asString("Unable to get boolean representation for source: %s", asString().c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     }
     );
@@ -223,7 +228,7 @@ const nlohmann::json &TypeConverter::getObject(bool &success) {
 
     LOGDEBUG(
     if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get json object from source:\n%s", asString().c_str());
+    std::string msg = ert::tracing::Logger::asString("Unable to get json object from source: %s", asString().c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     }
     );

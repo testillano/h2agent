@@ -1,7 +1,7 @@
 ARG base_tag=latest
 ARG scratch_img=alpine
 ARG scratch_img_tag=latest
-FROM testillano/h2agent_builder:${base_tag} as builder
+FROM ghcr.io/testillano/h2agent_builder:${base_tag} as builder
 MAINTAINER testillano
 
 LABEL testillano.h2agent.description="Docker image for h2agent service"
