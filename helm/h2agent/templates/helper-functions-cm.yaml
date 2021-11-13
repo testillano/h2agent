@@ -40,6 +40,17 @@ data:
         echo "            method: request method filter"
         echo "            uri:    request uri filter"
         echo "            number: request event position (-1: last)"
+        echo "       data --conf; Gets current server data configuration (${ADMIN_URL}/server-data/configuration)"
+        echo "       data --clean; Removes all the context information registered"
+        return 0
+      elif [ "$1" = "--conf" ]
+      then
+        ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee -a /tmp/curl.out
+        echo ; echo
+        return 0
+      elif [ "$1" = "--clean" ]
+      then
+        ${CURL} -XDELETE ${ADMIN_URL}/server-data 2>/dev/null | tee -a /tmp/curl.out
         return 0
       fi
 
@@ -56,12 +67,6 @@ data:
       [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
 
       ${CURL} "${ADMIN_URL}/server-data${queryParams}" 2>/dev/null | tee -a /tmp/curl.out
-      echo ; echo
-   }
-
-   dataconf() {
-      [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: dataconf; Gets current server data configuration (${ADMIN_URL}/server-data/configuration)" && return 0
-      ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee -a /tmp/curl.out
       echo ; echo
    }
 
@@ -92,7 +97,6 @@ data:
      provision -h
      matching -h
      data -h
-     dataconf -h
      json -h
      trace -h
      echo "Usage: metrics; Prometheus metrics"
