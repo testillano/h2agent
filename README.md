@@ -177,7 +177,7 @@ $ cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-TODO
+ONGOING
 
 ### Component test
 
@@ -290,14 +290,14 @@ Created test report:
   last -> ./report_delay0_iters100000_c1_t1_m100.txt
 ```
 
-## Execution
+## Execution of main agent
 
 ### Command line
 
-You may take a look to `h2agent` command line by just typing `./h2agent -h|--help`:
+You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/h2agent -h|--help`:
 
 ```
-./h2agent -h
+./build/Release/bin/h2agent -h
 Usage: h2agent [options]
 
 Options:
@@ -383,6 +383,32 @@ Options:
 
 [-h|--help]
   This help.
+```
+
+## Execution of matching helper utility
+
+This utility could be useful to test regular expressions before putting them at provision objects.
+
+### Command line
+
+You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/matching-helper -h|--help`:
+
+```
+./build/Release/bin/matching-helper -h
+Usage: matching-helper [options]
+
+Options:
+
+--regex <value>
+  Regex pattern value to match against.
+
+--uri <value>
+  URI value to be matched.
+
+[-h|--help]
+  This help.
+
+Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789"
 ```
 
 ### Metrics

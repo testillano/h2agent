@@ -176,10 +176,6 @@ void usage(int rc)
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
-    // TODO:
-    // Implement asynchronous pool for work processing. So, we should have as much worker threads (-w|--worker-threads) as the number of CPU cores (and probably a little more):
-    // unsigned int availableCPUCores = std::thread::hardware_concurrency();
-
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
