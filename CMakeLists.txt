@@ -88,6 +88,7 @@ set_cmake_compiler_flags()
 ##################
 add_subdirectory( src )
 add_subdirectory( ut )
+add_subdirectory( tools/matching-helper )
 
 ###########
 # Install #
