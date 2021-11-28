@@ -405,10 +405,13 @@ Options:
 --uri <value>
   URI value to be matched.
 
+[--fmt <value>]
+  Optional regex-replace output format.
+
 [-h|--help]
   This help.
 
-Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789"
+Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789" --fmt '$1'
 ```
 
 ### Metrics

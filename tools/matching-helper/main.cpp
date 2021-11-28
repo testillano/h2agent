@@ -59,10 +59,13 @@ void usage(int rc)
        << "--uri <value>\n"
        << "  URI value to be matched.\n\n"
 
+       << "[--fmt <value>]\n"
+       << "  Optional regex-replace output format.\n\n"
+
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
-       << "Example: " << progname << " --regex \"(a\\|b\\|)([0-9]{10})\" --uri \"a|b|0123456789\""
+       << "Example: " << progname << " --regex \"(a\\|b\\|)([0-9]{10})\" --uri \"a|b|0123456789\" --fmt '$1'"
 
        << '\n';
 
@@ -93,8 +96,9 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string regex;
-    std::string uri;
+    std::string regex{};
+    std::string uri{};
+    std::string fmt{};
 
     std::string value;
 
@@ -114,6 +118,11 @@ int main(int argc, char* argv[])
         uri = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--fmt", value))
+    {
+        fmt = value;
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << '\n';
 
@@ -122,6 +131,7 @@ int main(int argc, char* argv[])
 
     std::cout << "Regex: " << regex << '\n';
     std::cout << "Uri:   " << uri << '\n';
+    if (!fmt.empty()) std::cout << "Fmt:   " << fmt << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -136,9 +146,15 @@ int main(int argc, char* argv[])
     }
     catch (std::regex_error &e) {
         std::cerr << "Invalid regular expression: " << e.what() << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     std::cout << "Match result: " << (match ? "true":"false") << std::endl;
+
+    if (!fmt.empty()) {
+        std::cout << "Fmt result  : " << std::regex_replace (uri, re, fmt) << std::endl;
+        if (!match) std::cout << "              (output regex-replace format is a fallback for non-matched regular expression)" << std::endl;
+    }
 
     exit(match ? EXIT_SUCCESS:EXIT_FAILURE);
 }
