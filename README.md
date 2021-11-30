@@ -9,13 +9,13 @@
 
 `h2agent` is a network service that enables mocking other network services.
 
+**Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) *Prezi* presentation** for a complete and useful overview of this component.
+
 When developing a network service, one often needs to integrate it with other services. However, integrating full-blown versions of such services in a development setup is not always suitable, for instance when they are either heavyweight or not fully developed.
 
 `h2agent` can be used to replace one of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
 `h2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
-
-There is a *Prezi* presentation [here](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/).
 
 ## Project image
 
@@ -177,7 +177,7 @@ $ cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-ONGOING
+Still *ongoing*: check the badge above to know the current coverage level.
 
 ### Component test
 
@@ -460,55 +460,6 @@ $ kill $!
 ## Management interface
 
 `h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`:
-
-**Current development phase is 1**, see [Implementation Strategy](#implementation-strategy).
-
-### POST /admin/v1/server-initialize
-
-Initializes the server endpoint for the provided listen port (mandatory).
-Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
-
-#### Request body schema
-
-`POST` request must comply the following schema:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "serverPort": {
-      "type": "integer"
-    },
-    "requestSchema": {
-      "oneOf": [
-        {"type": "object"},
-        {"type": "string"}
-      ]
-    }
-  },
-  "required": [ "serverPort" ]
-}
-```
-
-The `json` schema provided through `requestSchema` field object, will be used to validate requests received by `h2agent` server endpoint (you could constraint specific values with `"const"` from `json` schema [draft 6](http://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.1.3)). This schema is optional, so it is possible to accept incoming requests without any kind of restriction for them.
-
-During *Phase 1* the request schema is passed through [command line](#command-line) by mean `--server-request-schema` option.
-
-#### Response status code
-
-**201** (Created) or **400** (Bad Request).
-
-#### Response body
-
-```json
-{
-  "result":"<true or false>",
-  "response":"<additional information>"
-}
-```
 
 ### POST /admin/v1/server-matching
 
@@ -1448,58 +1399,10 @@ Same restrictions apply here for deletion: query parameters could be omitted to 
 
 No response body.
 
-### POST /admin/v1/client-initialize
-
-Initializes the client connection to the target server endpoint.
-Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
-
-#### Request body schema
-
-`POST` request must comply the following schema:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "targetAddress": {
-      "type": "string"
-    },
-    "targetPort": {
-      "type": "integer"
-    },
-    "responseSchema": {
-      "oneOf": [
-        {"type": "object"},
-        {"type": "string"}
-      ]
-    }
-  },
-  "required": [ "targetAddress", "targetPort" ]
-}
-```
-
-The json schema provided through `responseSchema` field object, will be used to validate responses received by `h2agent` client endpoint. This schema is optional, so it is possible to accept incoming responses without any kind of contraint for them.
-
-#### Response status code
-
-**201** (Created) or **400** (Bad Request).
-
-#### Response body
-
-```json
-{
-  "result":"<true or false>",
-  "response":"<additional information>"
-}
-```
-
 ### POST /admin/v1/send-message
 
-Sends a message to the server endpoint established in the `client-initialize` operation.
-Not implemented in *Phase 1*, see [Implementation Strategy](#implementation-strategy).
+Sends a message to the server endpoint established in the `command line`.
+***TO BE IMPLEMENTED.***
 
 #### Request body schema
 
@@ -1604,79 +1507,6 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 ### Agent configuration
 
 At the moment, the server request schema is the only configuration file used by the `h2agent` process and could be added by mean a `config map`. The rest of parameters are passed through [command line](#command-line).
-
-## Implementation strategy
-
-### Phase 1: standalone & memory cached
-
-At a first phase, we will only support one server interface (apart from the administration one), in order to cover http2 server mock features. As future proof, the agent should support any amount of endpoints (clients or servers).
-So, the `initialize` operation which provides the server endpoint is not going to be implemented.
-
-The provision information will be stored at process memory, so there is a handycap with possible crashes.
-
-#### Provision
-
-Each time a provision is received, we will create a map key like `method + uri` saving the provision information. When a request is received, the process will search the key composed within the provision map and get the provision content to respond.
-
-Repeated provisions over the same key, although not usual, will overwrite the existing information.
-
-#### Queue system
-
-It could be a case of use that subsequent requests for a given URI could respond differently. For this case, we will have a queue of responses in a given order. This is solved with the `inState` and `outState` mechanism [described](#instate-and-outstate) in this draft.
-
-#### Add metrics
-
-Use [Prometheus](https://prometheus.io/) scrapping system.
-
-[Jun,12 2021] This is the only thing pending in Phase 1
-
-#### Advanced transformations
-
-Add conditional transform filters.
-
-### Phase 2: provide scalability
-
-This is intented to be used to manage high load rates.
-In order to have scalability, we will use a shared file system between replicas.
-
-Consider extended attributes to store metadata if the file system support it.
-
-#### Cache system
-
-Each time a provision is received by an specific replica, it will be stored in memory as described in `Phase 1`, and will create a new directory with the path:
-
-`/shared/<base64 of method + uri>/<provision>`
-
-The content (provision) inside that directory will be described later.
-
-The agent service will balance between replicas, so only one of them will cache the provision at the first time, but with the time, the traffic will force to cache the information along the replicas available through shared filesystem reads: when requests are received, the process will search the memory objects getting them from disk in case cache fails, saving the information for the next time.
-
-This cache based in file system is only for internal use, although it could be hacked manually just storing the needed information, for example, by mean a config map. Anyway that's not the purpose of this filesystem information, as the agent offers a REST API to do that.
-
-The cache system will always be enabled (not configurable), and although only one replica could be used with this implementation phase, the cache will improve step by step the processing time as all the provision will be at memory at the end.
-
-#### Queue system
-
-Queued states could be persisted in the file system or extended attributes.
-
-`/shared/<base64 of method + uri>/provision.<queueId>.json`
-
-The base64 encode is used to avoid forbiden characters on filesystem naming.
-
-By default, a unique queue element would be created on provision (queueId = 0), but you could provide any order number: queueId = 1, 2, etc. Every time a request is received, the corresponding provision is searched and evolved in the following way:
-
-* Symlink `provision.json` missing: it will be read, processed and then symlinked to the smallest queue identifier.
-* Symlink `provision.json` exists: it will be read, processed and then symlinked to the next queue id.
-
-### Phase 3: multiple endpoints
-
-We will activate the `initialize` administration operation to support N server endpoints as well as client endpoints (although this use case could be not so useful as many test frameworks, like pytest with hyper, provide easy ways to initiate test flows).
-
-This will be probably discarded, as kubernetes allow to separate functionalities on different micro services for a given process.
-
-### Phase 4: Improve scalability design
-
-Consider a key/value database (i.e. [apache geode](https://geode.apache.org/)) instead of file system to cache and queue provision within scalable test system.
 
 ## Contributing
 

@@ -90,3 +90,22 @@ spec:
             - {{ .Values.h2agent_cl.prometheus_message_size_bytes_histogram_boundaries | quote }}
             {{- end }}
 
+          # livenessProbe & readinessProbe look for admin port, as main app is
+          #  blocking on startup and will restart the container in case of crash.
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.service.traffic_port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            #httpGet:
+            #  path: /healthz
+            #  port: {{ .Values.service.admin_port }}
+            tcpSocket:
+              port: {{ .Values.service.admin_port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "if [ -f /config/init.sh ]; then sh /config/init.sh; fi"]

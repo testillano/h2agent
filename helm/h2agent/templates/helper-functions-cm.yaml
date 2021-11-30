@@ -41,6 +41,8 @@ data:
         echo "            uri:    request uri filter"
         echo "            number: request event position (-1: last)"
         echo "       data --conf; Gets current server data configuration (${ADMIN_URL}/server-data/configuration)"
+        echo "                    To update the configuration you may send a PUT request with these query parameters:"
+        echo "                    \${CURL} -XPUT \"\${ADMIN_URL}/server-data/configuration?discard=<true|false>&discardRequestsHistory=<true|false>\""
         echo "       data --clean; Removes all the context information registered"
         return 0
       elif [ "$1" = "--conf" ]
