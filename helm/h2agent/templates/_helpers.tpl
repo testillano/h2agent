@@ -49,5 +49,6 @@ Selector labels
 {{- define "h2agent.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "h2agent.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/pname: h2agent
 {{- end }}
 
