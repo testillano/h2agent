@@ -36,19 +36,29 @@ data:
    data() {
       if [ "$1" = "-h" -o "$1" = "--help" ]
       then
-        echo "Usage: data [method] [uri] [number]; Gets current server data events history (${ADMIN_URL}/server-data)"
-        echo "            method: request method filter"
-        echo "            uri:    request uri filter"
-        echo "            number: request event position (-1: last)"
-        echo "       data --conf; Gets current server data configuration (${ADMIN_URL}/server-data/configuration)"
-        echo "                    To update the configuration you may send a PUT request with these query parameters:"
-        echo "                    \${CURL} -XPUT \"\${ADMIN_URL}/server-data/configuration?discard=<true|false>&discardRequestsHistory=<true|false>\""
-        echo "       data --clean; Removes all the context information registered"
+        echo "Usage: data [method] [uri] [number (-1: last)]; Inspects server data events for given filters (${ADMIN_URL}/server-data)"
+        echo "            [--conf]                          ; Gets current server data configuration"
+        echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
+        echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
+        echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
+        echo "            [--clean]                         ; Removes all the context information registered"
         return 0
       elif [ "$1" = "--conf" ]
       then
         ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee -a /tmp/curl.out
         echo ; echo
+        return 0
+      elif [ "$1" = "--keep-all" ]
+      then
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee -a /tmp/curl.out
+        return 0
+      elif [ "$1" = "--discard-all" ]
+      then
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true" 2>/dev/null | tee -a /tmp/curl.out
+        return 0
+      elif [ "$1" = "--discard-history" ]
+      then
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true" 2>/dev/null | tee -a /tmp/curl.out
         return 0
       elif [ "$1" = "--clean" ]
       then
