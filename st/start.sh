@@ -181,8 +181,7 @@ read_value "Request url" ST_REQUEST_URL
 ST_REQUEST_URL=$(echo ${ST_REQUEST_URL} | sed -e 's/^\///') # normalize to not have leading slash
 
 TMP_DIR=$(mktemp -d)
-#trap "rm -rf ${TMP_DIR}" EXIT
-trap "echo xxx ${TMP_DIR}" EXIT
+trap "rm -rf ${TMP_DIR}" EXIT
 
 # build provision:
 jq --arg replace "${H2AGENT__RESPONSE_DELAY_MS}" '. |= map(if .responseDelayMs == 0 then (.responseDelayMs=($replace | tonumber)) else . end)' ${H2AGENT_PROVISION} | \
