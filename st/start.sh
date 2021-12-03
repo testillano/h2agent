@@ -150,7 +150,7 @@ init_report() {
   echo -e "\n----------------------------------------------------" > ${REPORT}
   for var in ${COMMON_VARS} $@
   do
-    echo "${var}=$(eval echo \$$var) \\"
+    echo "${var}=\"$(eval echo \$$var)\" \\"
   done >> ${REPORT}
   echo -e "${PWD}/start.sh" >> ${REPORT}
   echo -e "----------------------------------------------------\n" >> ${REPORT}
