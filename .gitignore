@@ -24,8 +24,8 @@ src/version.cpp
 
 # Test temporary files
 tools/*/.*
-st/*/report*
-st/*/last
+st/report*
+st/last
 
 # Coverage report
 coverage

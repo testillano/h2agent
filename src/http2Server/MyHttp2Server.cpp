@@ -223,7 +223,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     if (algorithmType == h2agent::model::AdminMatchingData::FullMatching) {
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), method.c_str());
+            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
         provision = provisionData.find(inState, method, uriPath);
