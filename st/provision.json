@@ -1,8 +1,8 @@
 [
   {
     "requestMethod": "POST",
-    "requestUri": "/load-test/v1/id-21",
-    "responseDelayMs": @{H2AGENT__RESPONSE_DELAY_MS},
+    "requestUri": "URI",
+    "responseDelayMs": 0,
     "responseCode": 200,
     "responseBody": {
       "_id": "60f478ce78bbbad86e05d4f9",
@@ -55,13 +55,7 @@
     "transform": [
       {
         "source": "request.uri.path",
-        "filter": {
-          "RegexReplace": {
-            "rgx": "(/load-test/v1/id-)([0-9]{2})",
-            "fmt": "[{\"favouriteNumber\":$2}]"
-          }
-        },
-        "target": "response.body.jsonstring.favouriteNumber"
+        "target": "response.body.string.uriPath"
       }
     ]
   }

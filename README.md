@@ -228,34 +228,55 @@ version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b
 ### Benchmarking test
 
 Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
-For example, for `h2load` just execute the `./st/h2load/start.sh` script which provisions an example and launch the test:
+Check `st/start.sh -h` for help.
 
 ```bash
-$ st/h2load/start.sh
+$ st/start.sh -y
 
+
+Input Provision configuration
+ (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
+
+Input Matching configuration
+ (or set 'H2AGENT_MATCHING' to be non-interactive) [matching.json]: matching.json
+
+Input Server data configuration (discard-all|discard-history|keep-all)
+ (or set 'H2AGENT__SERVER_DATA_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
+
+Input h2agent endpoint address
+ (or set 'H2AGENT__ENDPOINT' to be non-interactive) [0.0.0.0]: 0.0.0.0
 
 Input h2agent response delay in milliseconds
- (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]:
-0
+ (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 0
+
+Input Request method (PUT|DELETE|HEAD|POST|GET)
+ (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]: POST
+
+Input Request url
+ (or set 'ST_REQUEST_URL' to be non-interactive) [/load-test/v1/id-21]: /load-test/v1/id-21
+
+Server data configuration:
+{"storeEvents":"false","storeEventsRequestsHistory":"false"}
+
+Removing current server data information ... done !
+
+Input Launcher type (h2load|hermes)
+ (or set 'ST_LAUNCHER' to be non-interactive) [h2load]: h2load
 
 Input number of h2load iterations
- (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]:
-100000
+ (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]: 100000
 
 Input number of h2load clients
- (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]:
-1
+ (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]: 1
 
 Input number of h2load threads
- (or set 'H2LOAD__THREADS' to be non-interactive) [1]:
-1
+ (or set 'H2LOAD__THREADS' to be non-interactive) [1]: 1
 
 Input number of h2load concurrent streams
- (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]:
-100
+ (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]: 100
 
 
-+ h2load -t1 -n100000 -c1 -m100 http://localhost:8000/load-test/v1/id-21 -d ./request.json
++ h2load -t1 -n100000 -c1 -m100 http://0.0.0.0:8000/load-test/v1/id-21 -d /tmp/tmp.XoXUV1bvTB/request.json
 + tee -a ./report_delay0_iters100000_c1_t1_m100.txt
 starting benchmark...
 spawning thread #0: 1 total client(s). 100000 total requests
@@ -271,19 +292,19 @@ progress: 80% done
 progress: 90% done
 progress: 100% done
 
-finished in 6.82s, 14671.16 req/s, 15.36MB/s
+finished in 2.21s, 45272.65 req/s, 46.93MB/s
 requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
 status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-traffic: 104.72MB (109809307) total, 293.16KB (300196) headers (space savings 95.77%), 102.71MB (107700000) data
+traffic: 103.67MB (108707619) total, 293.05KB (300081) headers (space savings 95.77%), 101.66MB (106600000) data
                      min         max         mean         sd        +/- sd
-time for request:     2.38ms     19.13ms      6.77ms      1.13ms    78.69%
-time for connect:      143us       143us       143us         0us   100.00%
-time to 1st byte:     9.00ms      9.00ms      9.00ms         0us   100.00%
-req/s           :   14671.66    14671.66    14671.66        0.00   100.00%
+time for request:      961us      9.87ms      2.18ms       448us    75.86%
+time for connect:      146us       146us       146us         0us   100.00%
+time to 1st byte:     1.63ms      1.63ms      1.63ms         0us   100.00%
+req/s           :   45277.87    45277.87    45277.87        0.00   100.00%
 
-real    0m7.268s
-user    0m0.163s
-sys     0m2.824s
+real    0m2.217s
+user    0m0.245s
+sys     0m0.163s
 + set +x
 
 Created test report:
