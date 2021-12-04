@@ -58,7 +58,7 @@ std::string AdminProvisionData::asJsonString(bool ordered) const {
 
     if (ordered) {
         for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
-            auto element =  map_.find(*it);
+            auto element =  get(*it);
             result.push_back(element->second->getJson());
         };
     }
@@ -129,7 +129,7 @@ std::shared_ptr<AdminProvision> AdminProvisionData::find(const std::string &inSt
     admin_provision_key_t key;
     calculateAdminProvisionKey(key, inState, method, uri);
 
-    auto it = map_.find(key);
+    auto it = get(key);
     if (it != end())
         return it->second;
 
@@ -141,7 +141,7 @@ std::shared_ptr<AdminProvision> AdminProvisionData::findWithPriorityMatchingRege
     calculateAdminProvisionKey(key, inState, method, uri);
 
     for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
-        auto provision = map_.find(*it)->second;
+        auto provision = get(*it)->second;
         if (std::regex_match(key, provision->getRegex()))
             return provision;
     };

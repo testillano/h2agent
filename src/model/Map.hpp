@@ -89,7 +89,7 @@ public:
      * @param key key to find
      * @return no const iterator for provided key
      */
-    map_it find(const Key& key) const
+    map_it get(const Key& key) const
     {
         read_guard_t guard(rw_mutex_);
         return map_.find(key);
@@ -110,7 +110,7 @@ public:
     }
 
     /** map size */
-    size_t size()
+    size_t size() const
     {
         read_guard_t guard(rw_mutex_);
         return map_.size();

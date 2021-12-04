@@ -91,7 +91,7 @@ bool MockRequestData::loadRequest(const std::string &pstate, const std::string &
 
     mock_requests_key_t key;
     calculateMockRequestsKey(key, method, uri);
-    auto it = map_.find(key);
+    auto it = get(key);
     if (it != end()) {
         requests = it->second;
     }
@@ -125,7 +125,8 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     mock_requests_key_t key;
     calculateMockRequestsKey(key, requestMethod, requestUri);
 
-    auto it = map_.find(key);
+    write_guard_t guard(rw_mutex_);
+    auto it = get(key);
     if (it == end())
         return true; // nothing found to be removed
 
@@ -152,7 +153,7 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
     if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
         validQuery = true;
-        return ((map_.size() != 0) ? asJson().dump() : "null");
+        return ((size() != 0) ? asJson().dump() : "null");
     }
 
     if (!checkSelection(requestMethod, requestUri, requestNumber))
@@ -163,7 +164,7 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
     mock_requests_key_t key;
     calculateMockRequestsKey(key, requestMethod, requestUri);
 
-    auto it = map_.find(key);
+    auto it = get(key);
     if (it == end())
         return "null"; // nothing found to be built
 
@@ -203,7 +204,7 @@ std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &
     mock_requests_key_t key;
     calculateMockRequestsKey(key, requestMethod, requestUri);
 
-    auto it = map_.find(key);
+    auto it = get(key);
     if (it == end())
         return nullptr; // nothing found
 
@@ -219,7 +220,7 @@ nlohmann::json MockRequestData::asJson() const {
 
     nlohmann::json result;
 
-    for (auto it = map_.begin(); it != map_.end(); it++) {
+    for (auto it = begin(); it != end(); it++) {
         result.push_back(it->second->asJson());
     };
 
@@ -231,7 +232,7 @@ bool MockRequestData::findLastRegisteredRequest(const std::string &method, const
     mock_requests_key_t key;
     calculateMockRequestsKey(key, method, uri);
 
-    auto it = map_.find(key);
+    auto it = get(key);
     state = DEFAULT_ADMIN_PROVISION_STATE;
     if (it != end()) {
         state = it->second->getLastRegisteredRequestState();

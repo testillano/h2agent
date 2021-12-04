@@ -64,6 +64,7 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads, boost::asio::io_service *time
 
     server_data_ = true;
     server_data_requests_history_ = true;
+    purge_execution_ = true;
 }
 
 void MyHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
@@ -113,6 +114,7 @@ std::string MyHttp2Server::serverDataConfigurationAsJsonString() const {
 
     result["storeEvents"] = server_data_ ? "true":"false";
     result["storeEventsRequestsHistory"] = server_data_requests_history_ ? "true":"false";
+    result["purgeExecution"] = purge_execution_ ? "true":"false";
 
     return result.dump();
 }
@@ -272,12 +274,14 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         // Special out-states:
         // purge //
         if (outState == "purge") {
-            bool somethingDeleted;
-            bool success = getMockRequestData()->clear(somethingDeleted, method, uriPath);
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
+            if (purge_execution_) {
+                bool somethingDeleted;
+                bool success = getMockRequestData()->clear(somethingDeleted, method, uriPath);
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+            }
         }
         else {
             bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);

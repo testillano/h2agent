@@ -65,6 +65,8 @@ class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequ
     bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
     bool string2uint64(const std::string &input, std::uint64_t &output) const;
 
+    mutable mutex_t rw_mutex_;
+
 public:
     MockRequestData() {};
     ~MockRequestData() = default;

@@ -367,6 +367,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
 
         std::string discard{};
         std::string discardRequestsHistory{};
+        std::string disablePurge{};
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
@@ -374,10 +375,13 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             if (it != qmap.end()) discard = it->second;
             it = qmap.find("discardRequestsHistory");
             if (it != qmap.end()) discardRequestsHistory = it->second;
+            it = qmap.find("disablePurge");
+            if (it != qmap.end()) disablePurge = it->second;
         }
 
         bool b_discard = (discard == "true");
         bool b_discardRequestsHistory = (discardRequestsHistory == "true");
+        bool b_disablePurge = (disablePurge == "true");
 
         success = true;
         if (!discard.empty() && !discardRequestsHistory.empty())
@@ -391,6 +395,16 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             if (!discardRequestsHistory.empty()) {
                 getHttp2Server()->discardServerDataRequestsHistory(b_discardRequestsHistory);
                 LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard server data requests history: %s", b_discardRequestsHistory ? "true":"false"), ERT_FILE_LOCATION));
+            }
+            if (!disablePurge.empty()) {
+                getHttp2Server()->disablePurge(b_disablePurge);
+                LOGWARNING(
+                    ert::tracing::Logger::warning(ert::tracing::Logger::asString("Disable purge execution: %s", b_disablePurge ? "true":"false"), ERT_FILE_LOCATION);
+                    if (!b_disablePurge && b_discardRequestsHistory)
+                    ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution will be limited as history is discarded"), ERT_FILE_LOCATION);
+                    if (!b_disablePurge && b_discard)
+                        ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution has no sense as no events will be stored"), ERT_FILE_LOCATION);
+                    );
             }
         }
         else {

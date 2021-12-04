@@ -9,7 +9,8 @@ DEFAULTS=
 # Default values
 H2AGENT_PROVISION__dflt=provision.json
 H2AGENT_MATCHING__dflt=matching.json
-H2AGENT__SERVER_DATA_CONFIGURATION__dflt=discard-all
+H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION__dflt=discard-all
+H2AGENT__SERVER_DATA_PURGE_CONFIGURATION__dflt=disable-purge
 H2AGENT__ENDPOINT__dflt=0.0.0.0
 H2AGENT__RESPONSE_DELAY_MS__dflt=0
 
@@ -24,6 +25,7 @@ H2LOAD__CONCURRENT_STREAMS__dflt=100
 
 HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
+HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 
 # Fixed values
 ST_REQUEST_BODY='{ "id": "1a8b8863", "name": "Ada Lovelace", "email": "ada@geemail.com", "bio": "First programmer. No big deal.", "age": 198, "avatar": "http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg" }'
@@ -31,7 +33,7 @@ H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
 # Common variables
-COMMON_VARS="H2AGENT_PROVISION H2AGENT_MATCHING H2AGENT__SERVER_DATA_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_PROVISION H2AGENT_MATCHING H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION H2AGENT__SERVER_DATA_PURGE_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -170,9 +172,10 @@ read_value "Provision configuration" H2AGENT_PROVISION
 [ ! -f "${H2AGENT_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_PROVISION}' !" && exit 1
 read_value "Matching configuration" H2AGENT_MATCHING
 [ ! -f "${H2AGENT_MATCHING}" ] && echo "ERROR: missing file '${H2AGENT_MATCHING}' !" && exit 1
-read_value "Server data configuration" H2AGENT__SERVER_DATA_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
-read_value "h2agent endpoint address" H2AGENT__ENDPOINT
-read_value "h2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
+read_value "Server data storage configuration" H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
+read_value "Server data purge configuration" H2AGENT__SERVER_DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
+read_value "H2agent endpoint address" H2AGENT__ENDPOINT
+read_value "H2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
 [ ${H2AGENT__RESPONSE_DELAY_MS} -ne 0 ] && H2LOAD__ITERATIONS__dflt=$((H2LOAD__ITERATIONS__dflt/H2AGENT__RESPONSE_DELAY_MS)) # duration correction
 
 read_value "Request method" ST_REQUEST_METHOD "PUT|DELETE|HEAD|POST|GET" || exit 1
@@ -192,12 +195,16 @@ h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/provision.json || e
 h2a_admin_curl POST admin/v1/server-matching 201 ${H2AGENT_MATCHING} || exit 1
 
 # Server data configuration
-case ${H2AGENT__SERVER_DATA_CONFIGURATION} in
+case ${H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION} in
   discard-all) DISCARD_SERVER_DATA=true; DISCARD_SERVER_DATA_HISTORY=true ;;
   discard-history) DISCARD_SERVER_DATA=false; DISCARD_SERVER_DATA_HISTORY=true ;;
   keep-all) DISCARD_SERVER_DATA=false; DISCARD_SERVER_DATA_HISTORY=false ;;
 esac
-h2a_admin_curl PUT "admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}" 200 || exit 1
+case ${H2AGENT__SERVER_DATA_PURGE_CONFIGURATION} in
+  enable-purge) DISABLE_PURGE=false ;;
+  disable-purge) DISABLE_PURGE=true ;;
+esac
+h2a_admin_curl PUT "admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}&disablePurge=${DISABLE_PURGE}" 200 || exit 1
 echo -e "\nServer data configuration:"
 h2a_admin_curl GET "admin/v1/server-data/configuration" || exit 1
 cat ${TMP_DIR}/curl.output
@@ -212,6 +219,13 @@ if [ "${ST_LAUNCHER}" = "h2load" ] #############################################
 then
   which h2load &>/dev/null || { echo "Required 'h2load' tool (https://nghttp2.org/documentation/h2load-howto.html)" ; exit 1 ; }
 
+  # Input variables
+  read_value "Number of h2load iterations" H2LOAD__ITERATIONS
+  read_value "Number of h2load clients" H2LOAD__CLIENTS
+  H2LOAD__THREADS__dflt=${H2LOAD__CLIENTS} # $(nproc --all)
+  read_value "Number of h2load threads" H2LOAD__THREADS
+  read_value "Number of h2load concurrent streams" H2LOAD__CONCURRENT_STREAMS
+
   # Build request
   s_DATA_OPT=
   case ${ST_REQUEST_METHOD} in
@@ -220,11 +234,6 @@ then
     *) echo "ERROR: only POST|GET are supported by h2load" ; exit 1 ;;
   esac
   echo ${ST_REQUEST_BODY} > ${TMP_DIR}/request.json
-  read_value "number of h2load iterations" H2LOAD__ITERATIONS
-  read_value "number of h2load clients" H2LOAD__CLIENTS
-  H2LOAD__THREADS__dflt=${H2LOAD__CLIENTS} # $(nproc --all)
-  read_value "number of h2load threads" H2LOAD__THREADS
-  read_value "number of h2load concurrent streams" H2LOAD__CONCURRENT_STREAMS
 
   REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_iters${H2LOAD__ITERATIONS}_c${H2LOAD__CLIENTS}_t${H2LOAD__THREADS}_m${H2LOAD__CONCURRENT_STREAMS}.txt
   init_report H2LOAD__ITERATIONS H2LOAD__CLIENTS H2LOAD__THREADS H2LOAD__CONCURRENT_STREAMS
@@ -237,6 +246,11 @@ then
 
 elif [ "${ST_LAUNCHER}" = "hermes" ] ################################################# HERMES
 then
+  # Input variables
+  read_value "Requests per second" HERMES__RPS
+  read_value "Test duration (seconds)" HERMES__DURATION
+  read_value "Response code expected" HERMES__EXPECTED_RESPONSE_CODE
+
   # Build traffic profile
   mkdir ${TMP_DIR}/scripts
   cat << EOF > ${TMP_DIR}/scripts/traffic.json
@@ -252,7 +266,7 @@ then
       "method": "${ST_REQUEST_METHOD}",
       "url": "${ST_REQUEST_URL}",
       "response": {
-        "code": 200
+        "code": ${HERMES__EXPECTED_RESPONSE_CODE}
       },
       "body": ${ST_REQUEST_BODY}
     }
@@ -260,11 +274,8 @@ then
 }
 EOF
 
-  read_value "requests per second" HERMES__RPS
-  read_value "test duration (seconds)" HERMES__DURATION
-
   REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_rps${HERMES__RPS}_t${HERMES__DURATION}.txt
-  init_report HERMES__RPS HERMES__DURATION
+  init_report HERMES__RPS HERMES__DURATION HERMES__EXPECTED_RESPONSE_CODE
 
   echo
   echo
