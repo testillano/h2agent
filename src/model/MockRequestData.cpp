@@ -91,6 +91,9 @@ bool MockRequestData::loadRequest(const std::string &pstate, const std::string &
 
     mock_requests_key_t key;
     calculateMockRequestsKey(key, method, uri);
+
+    write_guard_t guard(rw_mutex_);
+
     auto it = get(key);
     if (it != end()) {
         requests = it->second;
@@ -126,6 +129,7 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     calculateMockRequestsKey(key, requestMethod, requestUri);
 
     write_guard_t guard(rw_mutex_);
+
     auto it = get(key);
     if (it == end())
         return true; // nothing found to be removed
@@ -163,6 +167,8 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
     mock_requests_key_t key;
     calculateMockRequestsKey(key, requestMethod, requestUri);
+
+    read_guard_t guard(rw_mutex_);
 
     auto it = get(key);
     if (it == end())
@@ -204,6 +210,8 @@ std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &
     mock_requests_key_t key;
     calculateMockRequestsKey(key, requestMethod, requestUri);
 
+    read_guard_t guard(rw_mutex_);
+
     auto it = get(key);
     if (it == end())
         return nullptr; // nothing found
@@ -220,6 +228,8 @@ nlohmann::json MockRequestData::asJson() const {
 
     nlohmann::json result;
 
+    read_guard_t guard(rw_mutex_);
+
     for (auto it = begin(); it != end(); it++) {
         result.push_back(it->second->asJson());
     };
@@ -231,6 +241,8 @@ bool MockRequestData::findLastRegisteredRequest(const std::string &method, const
 
     mock_requests_key_t key;
     calculateMockRequestsKey(key, method, uri);
+
+    read_guard_t guard(rw_mutex_);
 
     auto it = get(key);
     state = DEFAULT_ADMIN_PROVISION_STATE;
