@@ -64,6 +64,7 @@ class MyHttp2Server: public ert::http2comm::Http2Server
 {
     bool server_data_;
     bool server_data_requests_history_;
+    bool purge_execution_;
 
     model::MockRequestData *mock_request_data_;
     model::AdminData *admin_data_;
@@ -127,6 +128,9 @@ public:
         server_data_requests_history_ = !discard;
     }
 
+    void disablePurge(bool disable = true) {
+        purge_execution_ = !disable;
+    }
 };
 
 }

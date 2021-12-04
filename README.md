@@ -241,7 +241,11 @@ Input Matching configuration
  (or set 'H2AGENT_MATCHING' to be non-interactive) [matching.json]: matching.json
 
 Input Server data configuration (discard-all|discard-history|keep-all)
- (or set 'H2AGENT__SERVER_DATA_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
+ (or set 'H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
+
+Input Server data purge configuration (enable-purge|disable-purge)
+ (or set 'H2AGENT__SERVER_DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]:
+disable-purge
 
 Input h2agent endpoint address
  (or set 'H2AGENT__ENDPOINT' to be non-interactive) [0.0.0.0]: 0.0.0.0
@@ -256,7 +260,7 @@ Input Request url
  (or set 'ST_REQUEST_URL' to be non-interactive) [/load-test/v1/id-21]: /load-test/v1/id-21
 
 Server data configuration:
-{"storeEvents":"false","storeEventsRequestsHistory":"false"}
+{"purgeExecution":"false","storeEvents":"false","storeEventsRequestsHistory":"false"}
 
 Removing current server data information ... done !
 
@@ -276,7 +280,7 @@ Input number of h2load concurrent streams
  (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]: 100
 
 
-+ h2load -t1 -n100000 -c1 -m100 http://0.0.0.0:8000/load-test/v1/id-21 -d /tmp/tmp.XoXUV1bvTB/request.json
++ h2load -t1 -n100000 -c1 -m100 http://0.0.0.0:8000/load-test/v1/id-21 -d /tmp/tmp.lUiD7VLUHk/request.json
 + tee -a ./report_delay0_iters100000_c1_t1_m100.txt
 starting benchmark...
 spawning thread #0: 1 total client(s). 100000 total requests
@@ -292,19 +296,19 @@ progress: 80% done
 progress: 90% done
 progress: 100% done
 
-finished in 2.21s, 45272.65 req/s, 46.93MB/s
+finished in 2.18s, 45926.73 req/s, 47.61MB/s
 requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
 status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-traffic: 103.67MB (108707619) total, 293.05KB (300081) headers (space savings 95.77%), 101.66MB (106600000) data
+traffic: 103.67MB (108707642) total, 293.07KB (300104) headers (space savings 95.77%), 101.66MB (106600000) data
                      min         max         mean         sd        +/- sd
-time for request:      961us      9.87ms      2.18ms       448us    75.86%
-time for connect:      146us       146us       146us         0us   100.00%
-time to 1st byte:     1.63ms      1.63ms      1.63ms         0us   100.00%
-req/s           :   45277.87    45277.87    45277.87        0.00   100.00%
+time for request:      899us      6.65ms      2.15ms       434us    80.28%
+time for connect:      156us       156us       156us         0us   100.00%
+time to 1st byte:     4.91ms      4.91ms      4.91ms         0us   100.00%
+req/s           :   45933.22    45933.22    45933.22        0.00   100.00%
 
-real    0m2.217s
-user    0m0.245s
-sys     0m0.163s
+real    0m2.183s
+user    0m0.231s
+sys     0m0.175s
 + set +x
 
 Created test report:
@@ -390,6 +394,9 @@ Options:
   Implicitly disabled by option '--discard-server-data'.
   Ignored for unprovisioned events (for troubleshooting purposes).
 
+[--disable-purge]
+  Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
+
 [--prometheus-port <port>]
   Prometheus <port>; defaults to 8080 (-1 to disable metrics).
 
@@ -468,6 +475,7 @@ Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
 Server data storage: enabled
 Server data requests history storage: enabled
+Purge execution: enabled
 Prometheus port: 8080
 
 $ kill $!
@@ -1234,9 +1242,9 @@ Deletes the whole process provision. It is useful to clear the configuration if 
 
 No response body.
 
-### PUT /admin/v1/server-data/configuration?discard=`<true|false>`&discardRequestsHistory=`<true|false>`
+### PUT /admin/v1/server-data/configuration?discard=`<true|false>`&discardRequestsHistory=`<true|false>`&disablePurge=`<true|false>`
 
-There are three valid configurations, depending on the query parameters provided:
+There are three valid configurations for storage configuration behavior, depending on the query parameters provided:
 
 * `discard=true&discardRequestsHistory=true`: nothing is stored.
 *  `discard=false&discardRequestsHistory=true`: no requests history stored (only the last received, except for unprovisioned events, which history is always respected for troubleshooting purposes).
@@ -1244,7 +1252,14 @@ There are three valid configurations, depending on the query parameters provided
 
 The combination `discard=true&discardRequestsHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
 
-Be careful using this operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
+And regardless the previous combinations, you could enable or disable the purge execution when this reserved state is reached for a specific provision. Take into account that this stage has no sense if no data is stored but you could configure it anyway:
+
+* `disablePurge=true`: provisions with `purge` state will ignore post-removal operation when this state is reached.
+* `disablePurge=false`: provisions with `purge` state will process post-removal operation when this state is reached.
+
+The `h2agent` starts with purge stage enabled by default, but you could also change this through command-line (`--disable-purge`).
+
+Be careful using this `PUT`operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
 
 #### Response status code
 
@@ -1264,12 +1279,13 @@ For example:
 
 ```json
 {
+    "purgeExecution": "true",
     "storeEvents": "true",
     "storeEventsRequestsHistory": "true"
 }
 ```
 
-By default, the `h2agent` enables both kinds of storage types, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
+By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
 ### POST /admin/v1/server-data/schema
 
@@ -1557,4 +1573,3 @@ $ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 ### Pull request
 
 Rebase to update and then make a `pull request`.
-

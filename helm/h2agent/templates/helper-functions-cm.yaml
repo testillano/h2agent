@@ -38,19 +38,17 @@ data:
       then
         echo "Usage: data [method] [uri] [number (-1: last)]; Inspects server data events for given filters (${ADMIN_URL}/server-data)"
         echo "            [--conf]                          ; Gets current server data configuration"
-        echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
         echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
         echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
+        echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
+        echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
+        echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
         echo "            [--clean]                         ; Removes all the context information registered"
         return 0
       elif [ "$1" = "--conf" ]
       then
         ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee -a /tmp/curl.out
         echo ; echo
-        return 0
-      elif [ "$1" = "--keep-all" ]
-      then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee -a /tmp/curl.out
         return 0
       elif [ "$1" = "--discard-all" ]
       then
@@ -59,6 +57,18 @@ data:
       elif [ "$1" = "--discard-history" ]
       then
         ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true" 2>/dev/null | tee -a /tmp/curl.out
+        return 0
+      elif [ "$1" = "--keep-all" ]
+      then
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee -a /tmp/curl.out
+        return 0
+      elif [ "$1" = "--disable-purge" ]
+      then
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true" 2>/dev/null | tee -a /tmp/curl.out
+        return 0
+      elif [ "$1" = "--enable-purge" ]
+      then
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false" 2>/dev/null | tee -a /tmp/curl.out
         return 0
       elif [ "$1" = "--clean" ]
       then

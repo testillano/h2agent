@@ -245,6 +245,9 @@ void usage(int rc)
        << "  Implicitly disabled by option '--discard-server-data'.\n"
        << "  Ignored for unprovisioned events (for troubleshooting purposes).\n\n"
 
+       << "[--disable-purge]\n"
+       << "  Skips events post-removal when a provision on 'purge' state is reached (enabled by default).\n\n"
+
        << "[--prometheus-port <port>]\n"
        << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
 
@@ -321,6 +324,7 @@ int main(int argc, char* argv[])
     std::string server_req_schema_file = "";
     bool discard_server_data = false;
     bool discard_server_data_requests_history = false;
+    bool disable_purge = false;
     bool verbose = false;
     std::string server_matching_file = "";
     std::string server_provision_file = "";
@@ -444,6 +448,11 @@ int main(int argc, char* argv[])
         discard_server_data_requests_history = true;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--disable-purge", value))
+    {
+        disable_purge = true;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--prometheus-port", value))
     {
         prometheus_port = value;
@@ -521,6 +530,7 @@ int main(int argc, char* argv[])
               "<not provided>") << '\n';
     std::cout << "Server data storage: " << (!discard_server_data ? "enabled":"disabled") << '\n';
     std::cout << "Server data requests history storage: " << (!discard_server_data_requests_history ? "enabled":"disabled") << '\n';
+    std::cout << "Purge execution: " << (disable_purge ? "disabled":"enabled") << '\n';
     if (prometheus_port != "-1") {
 
         std::cout << "Prometheus port: " << prometheus_port << '\n';
@@ -626,6 +636,7 @@ int main(int argc, char* argv[])
     // Server data configuration:
     myHttp2Server->discardServerData(discard_server_data);
     myHttp2Server->discardServerDataRequestsHistory(discard_server_data_requests_history);
+    myHttp2Server->disablePurge(disable_purge);
     myAdminHttp2Server->setHttp2Server(myHttp2Server);
 
     // Associate data containers:
