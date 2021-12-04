@@ -23,13 +23,13 @@ data:
    #############
    provision() {
       [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision; Gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
-      ${CURL} ${ADMIN_URL}/server-provision 2>/dev/null | tee -a /tmp/curl.out
+      ${CURL} ${ADMIN_URL}/server-provision 2>/dev/null | tee /tmp/curl.out
       echo ; echo
    }
 
    matching() {
       [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
-      ${CURL} ${ADMIN_URL}/server-matching 2>/dev/null | tee -a /tmp/curl.out
+      ${CURL} ${ADMIN_URL}/server-matching 2>/dev/null | tee /tmp/curl.out
       echo ; echo
    }
 
@@ -47,32 +47,32 @@ data:
         return 0
       elif [ "$1" = "--conf" ]
       then
-        ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee /tmp/curl.out
         echo ; echo
         return 0
       elif [ "$1" = "--discard-all" ]
       then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true" 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true" 2>/dev/null | tee /tmp/curl.out
         return 0
       elif [ "$1" = "--discard-history" ]
       then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true" 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true" 2>/dev/null | tee /tmp/curl.out
         return 0
       elif [ "$1" = "--keep-all" ]
       then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee /tmp/curl.out
         return 0
       elif [ "$1" = "--disable-purge" ]
       then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true" 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true" 2>/dev/null | tee /tmp/curl.out
         return 0
       elif [ "$1" = "--enable-purge" ]
       then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false" 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false" 2>/dev/null | tee /tmp/curl.out
         return 0
       elif [ "$1" = "--clean" ]
       then
-        ${CURL} -XDELETE ${ADMIN_URL}/server-data 2>/dev/null | tee -a /tmp/curl.out
+        ${CURL} -XDELETE ${ADMIN_URL}/server-data 2>/dev/null | tee /tmp/curl.out
         return 0
       fi
 
@@ -88,7 +88,7 @@ data:
       [ -n "${requestMethod}" ] && queryParams="?requestUri=${requestUri}&requestMethod=${requestMethod}"
       [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
 
-      ${CURL} "${ADMIN_URL}/server-data${queryParams}" 2>/dev/null | tee -a /tmp/curl.out
+      ${CURL} "${ADMIN_URL}/server-data${queryParams}" 2>/dev/null | tee /tmp/curl.out
       echo ; echo
    }
 
