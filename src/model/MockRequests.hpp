@@ -72,15 +72,11 @@ class MockRequests
     std::string method_;
     std::string uri_;
 
-    std::string initial;
-
     std::vector<std::shared_ptr<MockRequest>> requests_;
 
 public:
 
-    MockRequests() {
-        initial = "initial";
-    }
+    MockRequests() {;}
 
     // setters:
 
@@ -122,13 +118,6 @@ public:
 
     // getters:
 
-    /** vector size */
-    size_t size()
-    {
-        read_guard_t guard(rw_mutex_);
-        return requests_.size();
-    }
-
     /**
      * Gets the mock request in specific position
      *
@@ -159,10 +148,7 @@ public:
     *
     * @return Last registered request state
     */
-    const std::string &getLastRegisteredRequestState() const {
-        read_guard_t guard(rw_mutex_);
-        return requests_.back()->getState(); // when invoked, always exists at least 1 request in the history
-    }
+    const std::string &getLastRegisteredRequestState() const;
 };
 
 }

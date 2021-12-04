@@ -257,7 +257,7 @@ then
 {
   "dns": "${H2AGENT__ENDPOINT}",
   "port": "${H2AGENT__TRAFFIC_PORT}",
-  "timeout": 2000,
+  "timeout": 20000,
   "flow": [
     "Request1"
   ],

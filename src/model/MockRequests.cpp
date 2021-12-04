@@ -38,7 +38,6 @@ SOFTWARE.
 #include <MockRequests.hpp>
 
 
-
 namespace h2agent
 {
 namespace model
@@ -55,7 +54,7 @@ bool MockRequests::removeMockRequest(std::uint64_t requestNumber) {
 
     bool result{};
 
-    write_guard_t wr_lock(rw_mutex_);
+    write_guard_t guard(rw_mutex_);
 
     if (requests_.size() == 0 || requestNumber == 0) return false;
 
@@ -92,7 +91,7 @@ bool MockRequests::loadRequest(const std::string &pstate, const std::string &sta
         return false;
     }
 
-    write_guard_t wr_lock(rw_mutex_);
+    write_guard_t guard(rw_mutex_);
 
     if (!historyEnabled && requests_.size() != 0) {
         requests_[0] = request; // overwrite with this latest reception
@@ -105,6 +104,8 @@ bool MockRequests::loadRequest(const std::string &pstate, const std::string &sta
 }
 
 std::shared_ptr<MockRequest> MockRequests::getMockRequest(std::uint64_t requestNumber) const {
+
+    read_guard_t guard(rw_mutex_);
 
     if (requests_.size() == 0) return nullptr;
     if (requestNumber == 0) return nullptr;
@@ -129,11 +130,17 @@ nlohmann::json MockRequests::asJson() const {
     result["method"] = method_;
     result["uri"] = uri_;
 
+    read_guard_t guard(rw_mutex_);
     for (auto it = requests_.begin(); it != requests_.end(); it ++) {
         result["requests"].push_back((*it)->getJson());
     }
 
     return result;
+}
+
+const std::string &MockRequests::getLastRegisteredRequestState() const {
+    read_guard_t guard(rw_mutex_);
+    return requests_.back()->getState(); // when invoked, always exists at least 1 request in the history
 }
 
 }
