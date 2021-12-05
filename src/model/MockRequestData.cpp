@@ -118,6 +118,7 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
 
     if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
         somethingDeleted = (Map::size() > 0);
+        write_guard_t guard(rw_mutex_);
         Map::clear();
         return result;
     }
