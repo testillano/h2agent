@@ -1712,22 +1712,22 @@ MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 5
 
 #### Counters
 
-Processed requests
-Non provisioned requests
-Purged contexts (successful/failed)
-POST requests
-GET requests
-PUT requests
-DELETE requests
-HEAD requests
-<other> requests
-Error-condition requests (POST/GET/PUT/DELETE/HEAD/other)
+- Processed requests
+- Non provisioned requests
+- Purged contexts (successful/failed)
+- POST requests
+- GET requests
+- PUT requests
+- DELETE requests
+- HEAD requests
+- <other> requests
+- Error-condition requests (POST/GET/PUT/DELETE/HEAD/other)
 
 #### Gauges and histograms
 
-Response delay seconds
-Message size bytes for receptions (Rx)
-Message size bytes for transmissions (Tx)
+- Response delay seconds
+- Message size bytes for receptions (Rx)
+- Message size bytes for transmissions (Tx)
 
 ## Contributing
 
