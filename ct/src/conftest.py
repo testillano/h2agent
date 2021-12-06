@@ -524,10 +524,10 @@ def string2dict(content, **kwargs):
 
 # Assert event which had no provision
 def assertUnprovisioned(serverDataEvent, body = None, serverSequence = None):
-  assert serverDataEvent["previousState"] == ""
+  #assert serverDataEvent["previousState"] == ""
   assert serverDataEvent["responseDelayMs"] == 0
   assert serverDataEvent["responseStatusCode"] == 501
-  assert serverDataEvent["state"] == ""
+  #assert serverDataEvent["state"] == ""
   if body: assert serverDataEvent["body"] == body
   if serverSequence: assert serverDataEvent["serverSequence"] == serverSequence
 

@@ -593,11 +593,13 @@ bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexCon
     it = j.find("inState");
     if (it != j.end() && it->is_string()) {
         in_state_ = *it;
+        if (in_state_.empty()) in_state_ = DEFAULT_ADMIN_PROVISION_STATE;
     }
 
     it = j.find("outState");
     if (it != j.end() && it->is_string()) {
         out_state_ = *it;
+        if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
     }
 
     it = j.find("responseHeaders");

@@ -98,6 +98,12 @@ data:
      tail -1 /tmp/curl.out | jq "${jq_expr}"
    }
 
+   sequence() {
+     [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: sequence <value>; Extract server sequence document from json retrieved in last data() call" && return 0
+     [ -z "$1" ] && echo "Error: missing numeric value. Check for help (-h|--help)" && return 1
+     json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
+   }
+
    trace() {
       local level=${1:-Debug}
       [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Sets h2agent tracing level" && return 0
@@ -120,6 +126,7 @@ data:
      matching -h
      data -h
      json -h
+     sequence -h
      trace -h
      echo "Usage: metrics; Prometheus metrics"
      echo "Usage: help; This help"
