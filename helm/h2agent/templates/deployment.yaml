@@ -16,19 +16,23 @@ spec:
       annotations:
         sidecar.istio.io/inject: {{ .Values.global.istio.sidecar.inject | default false | quote }}
     spec:
+      {{- if .Values.utilsMountPath }}
       volumes:
         - name: {{ include "h2agent.name" . }}-helper-functions-cfg-vol
           configMap:
-            name: {{  include "h2agent.name" . | lower | replace "_" "-" }}-helpers-config
+            name: {{ include "h2agent.name" . | lower | replace "_" "-" }}-helpers-config
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.utilsMountPath }}
           volumeMounts:
             - name: {{ include "h2agent.name" . }}-helper-functions-cfg-vol
-              mountPath: /opt/utils
+              mountPath: {{ .Values.utilsMountPath }}
+          {{- end }}
           args:
             - "--log-level"
             - {{ .Values.h2agent_cl.log_level | quote }}
