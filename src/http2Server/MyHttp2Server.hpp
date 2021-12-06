@@ -75,6 +75,8 @@ class MyHttp2Server: public ert::http2comm::Http2Server
 
     ert::metrics::counter_t *observed_requests_processed_counter_{};
     ert::metrics::counter_t *observed_requests_unprovisioned_counter_{};
+    ert::metrics::counter_t *purged_contexts_successful_counter_{};
+    ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
 public:
     MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);

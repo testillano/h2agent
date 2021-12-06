@@ -80,7 +80,7 @@ void MockRequest::saveJson() {
 
     json_["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
 
-    json_["state"] = state_;
+    if(!state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
 
     if (headers_.size()) {
         nlohmann::json hdrs;
@@ -94,7 +94,7 @@ void MockRequest::saveJson() {
     }
 
     // Additional information
-    json_["previousState"] = pstate_;
+    if (!pstate_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = pstate_;
     if (!response_body_.empty()) {
         h2agent::http2server::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
     }

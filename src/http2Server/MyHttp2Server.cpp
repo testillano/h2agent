@@ -76,6 +76,11 @@ void MyHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
 
         observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
         observed_requests_unprovisioned_counter_ = &(cf.Add({{"result", "unprovisioned"}}));
+
+        ert::metrics::counter_family_ref_t cf2 = metrics->addCounterFamily(std::string("h2agent_purged_contexts_total"), "Total contexts purged in h2agent");
+
+        purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
+        purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
     }
 }
 
@@ -272,15 +277,17 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                               statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod);
 
         // Special out-states:
-        // purge //
-        if (outState == "purge") {
-            if (purge_execution_) {
-                bool somethingDeleted;
-                bool success = getMockRequestData()->clear(somethingDeleted, method, uriPath);
-                LOGDEBUG(
-                    std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
-                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-                );
+        if (purge_execution_ && outState == "purge") {
+            bool somethingDeleted;
+            bool success = getMockRequestData()->clear(somethingDeleted, method, uriPath);
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            // metrics
+            if(metrics_) {
+                if (success) purged_contexts_successful_counter_->Increment();
+                else purged_contexts_failed_counter_->Increment();
             }
         }
         else {
@@ -306,7 +313,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockRequestData()->loadRequest(""/*inState*/, ""/*outState*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockRequestData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {
@@ -317,7 +324,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "RESPONSE TO SENT| StatusCode: " << statusCode << " | Headers: " << h2agent::http2server::headersAsString(headers);
+        ss << "RESPONSE TO SEND| StatusCode: " << statusCode << " | Headers: " << h2agent::http2server::headersAsString(headers);
         if (!responseBody.empty()) ss << " | Body: " << responseBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
