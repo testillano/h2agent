@@ -5,139 +5,30 @@ metadata:
   labels:
 {{ include "h2agent.labels" . | indent 4 }}
 data:
+{{ (.Files.Glob "native-helpers.src").AsConfig | indent 2 }}
+
   helpers.src: |
-   #!/bin/echo "source me!"
+    #!/bin/echo "source me!"
 
-   #############
-   # VARIABLES #
-   #############
-   TRAFFIC_URL="http://localhost:{{ .Values.service.traffic_port }}"
-   METRICS_URL="http://localhost:{{ .Values.service.prometheus_port }}/metrics"
-   SERVER_API="{{ .Values.h2agent_cl.server_api_name }}/{{ .Values.h2agent_cl.server_api_version }}"
-   [ "${SERVER_API}" != "/" ] && TRAFFIC_URL=${TRAFFIC_URL}/${SERVER_API}
-   ADMIN_URL="http://localhost:{{ .Values.service.admin_port }}/admin/v1"
-   CURL="curl -i --http2-prior-knowledge"
+    #######################
+    # VARIABLES FROM HELM #
+    #######################
+    PNAME="{{ .Values.name }}"
+    TRAFFIC_URL="http://localhost:{{ .Values.service.traffic_port }}"
+    METRICS_URL="http://localhost:{{ .Values.service.prometheus_port }}/metrics"
+    SERVER_API="{{ .Values.h2agent_cl.server_api_name }}/{{ .Values.h2agent_cl.server_api_version }}"
+    [ "${SERVER_API}" != "/" ] && TRAFFIC_URL=${TRAFFIC_URL}/${SERVER_API}
+    ADMIN_URL="http://localhost:{{ .Values.service.admin_port }}/admin/v1"
+    CURL="curl -i --http2-prior-knowledge"
 
-   #############
-   # FUNCTIONS #
-   #############
-   provision() {
-      [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision; Gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
-      ${CURL} ${ADMIN_URL}/server-provision 2>/dev/null | tee /tmp/curl.out
-      echo ; echo
-   }
+    #############
+    # EXECUTION #
+    #############
 
-   matching() {
-      [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
-      ${CURL} ${ADMIN_URL}/server-matching 2>/dev/null | tee /tmp/curl.out
-      echo ; echo
-   }
+    # Install container dependencies:
+    if ! type curl &>/dev/null; then echo "Installing missing dependency (curl) ..." ; apk add curl ; fi
+    if ! type jq &>/dev/null; then echo "Installing missing dependency (jq) ..." ; apk add jq ; fi
 
-   data() {
-      if [ "$1" = "-h" -o "$1" = "--help" ]
-      then
-        echo "Usage: data [method] [uri] [number (-1: last)]; Inspects server data events for given filters (${ADMIN_URL}/server-data)"
-        echo "            [--conf]                          ; Gets current server data configuration"
-        echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
-        echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
-        echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
-        echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
-        echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
-        echo "            [--clean]                         ; Removes all the context information registered"
-        return 0
-      elif [ "$1" = "--conf" ]
-      then
-        ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee /tmp/curl.out
-        echo ; echo
-        return 0
-      elif [ "$1" = "--discard-all" ]
-      then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true" 2>/dev/null | tee /tmp/curl.out
-        return 0
-      elif [ "$1" = "--discard-history" ]
-      then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true" 2>/dev/null | tee /tmp/curl.out
-        return 0
-      elif [ "$1" = "--keep-all" ]
-      then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee /tmp/curl.out
-        return 0
-      elif [ "$1" = "--disable-purge" ]
-      then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true" 2>/dev/null | tee /tmp/curl.out
-        return 0
-      elif [ "$1" = "--enable-purge" ]
-      then
-        ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false" 2>/dev/null | tee /tmp/curl.out
-        return 0
-      elif [ "$1" = "--clean" ]
-      then
-        ${CURL} -XDELETE ${ADMIN_URL}/server-data 2>/dev/null | tee /tmp/curl.out
-        return 0
-      fi
+    # Source native helpers:
+    source "{{ .Values.utilsMountPath }}/native-helpers.src"
 
-      local requestMethod=$1
-      local requestUri=$2
-      local requestNumber=$3
-
-      [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
-      [ -n "${requestNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
-      [ -n "${requestNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
-
-      local queryParams=
-      [ -n "${requestMethod}" ] && queryParams="?requestUri=${requestUri}&requestMethod=${requestMethod}"
-      [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
-
-      ${CURL} "${ADMIN_URL}/server-data${queryParams}" 2>/dev/null | tee /tmp/curl.out
-      echo ; echo
-   }
-
-   json() {
-     local jq_expr=${1:-.}
-     [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: json [jq expression, '.' by default]; Beautifies last operation json response content" && return 0
-     tail -1 /tmp/curl.out | jq "${jq_expr}"
-   }
-
-   sequence() {
-     [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: sequence <value>; Extract server sequence document from json retrieved in last data() call" && return 0
-     [ -z "$1" ] && echo "Error: missing numeric value. Check for help (-h|--help)" && return 1
-     json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
-   }
-
-   trace() {
-      local level=${1:-Debug}
-      [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Sets h2agent tracing level" && return 0
-      echo "Level selected: ${level}"
-      ${CURL} -XPUT ${ADMIN_URL}/logging?level=${level}
-   }
-
-   metrics() {
-      curl ${METRICS_URL}
-   }
-
-   help() {
-     echo -e "\n===== {{ .Values.name }} helpers ====="
-     echo -e "\nSourced variables:\n"
-     echo "TRAFFIC_URL=${TRAFFIC_URL}"
-     echo "ADMIN_URL=${ADMIN_URL}"
-     echo "CURL=\"${CURL}\""
-     echo -e "\nSourced functions:\n"
-     provision -h
-     matching -h
-     data -h
-     json -h
-     sequence -h
-     trace -h
-     echo "Usage: metrics; Prometheus metrics"
-     echo "Usage: help; This help"
-     echo -e "\nMore information about management interface: https://github.com/testillano/h2agent#management-interface\n"
-   }
-
-   #############
-   # EXECUTION #
-   #############
-   if ! type curl &>/dev/null; then echo "Installing missing dependency (curl) ..." ; apk add curl ; fi
-   if ! type jq &>/dev/null; then echo "Installing missing dependency (jq) ..." ; apk add jq ; fi
-
-   touch /tmp/curl.out
-   help

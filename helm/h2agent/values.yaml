@@ -42,6 +42,8 @@ h2agent_cl:
   prometheus_response_delay_seconds_histogram_boundaries: ""
   prometheus_message_size_bytes_histogram_boundaries: ""
 
+utilsMountPath: "/opt/utils"
+
 service:
   type: ClusterIP
   admin_port: 8074
