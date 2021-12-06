@@ -446,6 +446,8 @@ Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789" --
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
+More information about implemented counters [here](#OAM).
+
 ### Traces and printouts
 
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
@@ -1513,7 +1515,7 @@ Changes the log level of the `h2agent` process to any of the levels described in
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
-This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions at `/opt/utils/helpers.src` (to be sourced on docker shell).
+This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.src` (default directory path can be modified through `utilsMountPath` helm chart value).
 Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a file requirement but could also be added from helm repository:
 
 ## How it integrates in a service
@@ -1523,8 +1525,6 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
    ```bash
     helm repo add erthelm https://testillano.github.io/helm
    ```
-
-   TODO: when this project is public, the helm repository will be hosted here and work flows for helm publish on `gh-pages` branch will be moved too (https://testillano.github.io/h2agent).
 
 2. Add one dependency to your `Chart.yaml` file per each service you want to mock with `h2agent` service (use alias when two or more dependencies are included).
 
@@ -1546,6 +1546,188 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 ### Agent configuration
 
 At the moment, the server request schema is the only configuration file used by the `h2agent` process and could be added by mean a `config map`. The rest of parameters are passed through [command line](#command-line).
+
+## Troubleshooting
+
+### Helper functions
+
+As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
+
+```bash
+source tools/helpers.src 
+
+===== h2agent helpers =====
+
+Sourced variables:
+
+TRAFFIC_URL=http://localhost:8000/app/v1
+ADMIN_URL=http://localhost:8074/admin/v1
+CURL="curl -i --http2-prior-knowledge"
+
+Sourced functions:
+
+Usage: provision; Gets current provision configuration (http://localhost:8074/admin/v1/server-provision)
+Usage: matching; Gets current matching configuration (http://localhost:8074/admin/v1/server-matching)
+Usage: data [method] [uri] [number (-1: last)];
+                     Inspects server data events for given filters
+                     (http://localhost:8074/admin/v1/server-data)
+                     
+            [--conf]                          ; Gets current server data configuration
+            [--discard-all]                   ; Sets server data configuration to discard
+                                                all the events received
+            [--discard-history]               ; Sets server data configuration to keep
+                                                only the last request for events received
+            [--keep-all]                      ; Sets server data configuration to keep
+                                                all the events received
+            [--disable-purge]                 ; Sets server data configuration to skip
+                                                events post-removal when a provision on
+                                                'purge' state is reached
+            [--enable-purge]                  ; Sets server data configuration to process
+                                                events post-removal when a provision on
+                                                'purge' state is reached
+            [--clean]                         ; Removes all the context information
+                                                registered
+Usage: json [jq expression, '.' by default]   ; Beautifies last operation json response
+                                                content
+Usage: sequence [value (available values by default)]; Extract server sequence document
+                                                       from json retrieved in last data()
+                                                       call
+Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]
+                                              ; Sets h2agent tracing level
+Usage: metrics                                ; Prometheus metrics
+Usage: help                                   ; This help
+
+More information about management interface: https://github.com/testillano/h2agent#management-interface
+```
+
+### OAM
+
+You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions). For example, after *component test* execution this could be the metrics snapshot obtained:
+
+```bash
+$ kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "apk add curl && curl http://localhost:8080/metrics"
+
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.14/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.14/community/x86_64/APKINDEX.tar.gz
+(1/5) Installing ca-certificates (20191127-r5)
+(2/5) Installing brotli-libs (1.0.9-r5)
+(3/5) Installing nghttp2-libs (1.43.0-r0)
+(4/5) Installing libcurl (7.79.1-r0)
+(5/5) Installing curl (7.79.1-r0)
+Executing busybox-1.33.1-r3.trigger
+Executing ca-certificates-20191127-r5.trigger
+OK: 8 MiB in 19 packages
+# HELP exposer_transferred_bytes_total Transferred bytes to metrics services
+# TYPE exposer_transferred_bytes_total counter
+exposer_transferred_bytes_total 0
+# HELP exposer_scrapes_total Number of times metrics were scraped
+# TYPE exposer_scrapes_total counter
+exposer_scrapes_total 0
+# HELP exposer_request_latencies Latencies of serving scrape requests, in microseconds
+# TYPE exposer_request_latencies summary
+exposer_request_latencies_count 0
+exposer_request_latencies_sum 0
+exposer_request_latencies{quantile="0.5"} Nan
+exposer_request_latencies{quantile="0.9"} Nan
+exposer_request_latencies{quantile="0.99"} Nan
+# HELP AdminHttp2Server_observed_requests_total Http2 total requests observed in AdminHttp2Server
+# TYPE AdminHttp2Server_observed_requests_total counter
+AdminHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
+AdminHttp2Server_observed_requests_total{method="GET",success="false"} 0
+AdminHttp2Server_observed_requests_total{method="other",success="false"} 0
+AdminHttp2Server_observed_requests_total{method="PUT",success="false"} 0
+AdminHttp2Server_observed_requests_total{method="HEAD"} 0
+AdminHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
+AdminHttp2Server_observed_requests_total{method="POST",success="false"} 2
+AdminHttp2Server_observed_requests_total{method="other"} 0
+AdminHttp2Server_observed_requests_total{method="DELETE"} 31
+AdminHttp2Server_observed_requests_total{method="PUT"} 6
+AdminHttp2Server_observed_requests_total{method="GET"} 23
+AdminHttp2Server_observed_requests_total{method="POST"} 77
+# HELP MockHttp2Server_observed_requests_total Http2 total requests observed in MockHttp2Server
+# TYPE MockHttp2Server_observed_requests_total counter
+MockHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
+MockHttp2Server_observed_requests_total{method="GET",success="false"} 0
+MockHttp2Server_observed_requests_total{method="other",success="false"} 0
+MockHttp2Server_observed_requests_total{method="PUT",success="false"} 0
+MockHttp2Server_observed_requests_total{method="HEAD"} 0
+MockHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
+MockHttp2Server_observed_requests_total{method="POST",success="false"} 0
+MockHttp2Server_observed_requests_total{method="other"} 0
+MockHttp2Server_observed_requests_total{method="DELETE"} 1
+MockHttp2Server_observed_requests_total{method="PUT"} 0
+MockHttp2Server_observed_requests_total{method="GET"} 30
+MockHttp2Server_observed_requests_total{method="POST"} 25
+# HELP h2agent_observed_requests_total Http2 total requests observed in h2agent
+# TYPE h2agent_observed_requests_total counter
+h2agent_observed_requests_total{result="unprovisioned"} 7
+h2agent_observed_requests_total{result="processed"} 49
+# HELP h2agent_purged_contexts_total Total contexts purged in h2agent
+# TYPE h2agent_purged_contexts_total counter
+h2agent_purged_contexts_total{result="failed"} 0
+h2agent_purged_contexts_total{result="successful"} 1
+# HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
+# TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
+AdminHttp2Server_responses_delay_seconds_gauge 0.000581
+# HELP AdminHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in AdminHttp2Server
+# TYPE AdminHttp2Server_messages_size_bytes_gauge gauge
+AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 103
+AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 503
+# HELP MockHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in MockHttp2Server
+# TYPE MockHttp2Server_responses_delay_seconds_gauge gauge
+MockHttp2Server_responses_delay_seconds_gauge 0.000198
+# HELP MockHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in MockHttp2Server
+# TYPE MockHttp2Server_messages_size_bytes_gauge gauge
+MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 53
+MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 0
+# HELP AdminHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in AdminHttp2Server
+# TYPE AdminHttp2Server_responses_delay_seconds_histogram histogram
+AdminHttp2Server_responses_delay_seconds_histogram_count 137
+AdminHttp2Server_responses_delay_seconds_histogram_sum 0.09854099999999998
+AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 137
+# HELP AdminHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in AdminHttp2Server
+# TYPE AdminHttp2Server_messages_size_bytes_histogram histogram
+AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 137
+AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 11869
+AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 137
+AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 137
+AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17259
+AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 137
+# HELP MockHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in MockHttp2Server
+# TYPE MockHttp2Server_responses_delay_seconds_histogram histogram
+MockHttp2Server_responses_delay_seconds_histogram_count 56
+MockHttp2Server_responses_delay_seconds_histogram_sum 0.02644799999999999
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 56
+# HELP MockHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in MockHttp2Server
+# TYPE MockHttp2Server_messages_size_bytes_histogram histogram
+MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 56
+MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 1930
+MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 56
+MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 56
+MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 796
+MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 56
+```
+
+ So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
+
+#### Counters
+
+Processed requests
+Non provisioned requests
+Purged contexts (successful/failed)
+POST requests
+GET requests
+PUT requests
+DELETE requests
+HEAD requests
+<other> requests
+Error-condition requests (POST/GET/PUT/DELETE/HEAD/other)
+
+#### Gauges and histograms
+
+Response delay seconds
+Message size bytes for receptions (Rx)
+Message size bytes for transmissions (Tx)
 
 ## Contributing
 
