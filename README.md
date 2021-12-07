@@ -177,7 +177,11 @@ $ cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-Still *ongoing*: check the badge above to know the current coverage level.
+*Ongoing*: check the badge above to know the current coverage level.
+
+#### Coverage
+
+Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
 
 ### Component test
 
