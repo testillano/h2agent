@@ -1,4 +1,1 @@
-target_sources( unit-test
-PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/model_test.cpp
-)
+add_subdirectory(AdminData)
