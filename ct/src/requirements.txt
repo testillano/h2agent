@@ -1,6 +1,6 @@
 hyper
 xmltodict
-pytest-ordering
+# pytest-order
 # parallelism:
 pytest-xdist
 # parallelism & concurrency:
