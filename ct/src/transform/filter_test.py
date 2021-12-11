@@ -15,7 +15,7 @@ def test_000_cleanup(admin_cleanup):
 def test_001_append(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.Append.json")
+  admin_provision("filter_test.Append.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -28,7 +28,7 @@ def test_001_append(admin_provision, h2ac_traffic):
 def test_002_prepend(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.Prepend.json")
+  admin_provision("filter_test.Prepend.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -41,7 +41,7 @@ def test_002_prepend(admin_provision, h2ac_traffic):
 def test_003_appendVar(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.AppendVar.json")
+  admin_provision("filter_test.AppendVar.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -54,7 +54,7 @@ def test_003_appendVar(admin_provision, h2ac_traffic):
 def test_004_prependVar(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.PrependVar.json")
+  admin_provision("filter_test.PrependVar.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -67,8 +67,7 @@ def test_004_prependVar(admin_provision, h2ac_traffic):
 def test_005_multiply(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.Multiply.json")
-  #admin_provision("transform/filter_test/provision.Multiply.json")
+  admin_provision("filter_test.Multiply.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -82,7 +81,7 @@ def test_005_multiply(admin_provision, h2ac_traffic):
 def test_006_sum(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.Sum.json")
+  admin_provision("filter_test.Sum.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -96,7 +95,7 @@ def test_006_sum(admin_provision, h2ac_traffic):
 def test_007_regexcapture(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.RegexCapture.json")
+  admin_provision("filter_test.RegexCapture.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -109,7 +108,7 @@ def test_007_regexcapture(admin_provision, h2ac_traffic):
 def test_008_regexcapturemultiple(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.RegexCapture-Multiple.json")
+  admin_provision("filter_test.RegexCapture-Multiple.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -122,7 +121,7 @@ def test_008_regexcapturemultiple(admin_provision, h2ac_traffic):
 def test_009_regexreplace(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.RegexReplace.json")
+  admin_provision("filter_test.RegexReplace.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -134,7 +133,7 @@ def test_009_regexreplace(admin_provision, h2ac_traffic):
 def test_010_conditionVariable(admin_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("transform/filter_test/provision.ConditionVar.json")
+  admin_provision("filter_test.ConditionVar.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
