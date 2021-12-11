@@ -3,7 +3,7 @@ import base64
 from collections import defaultdict
 import glob
 from hyper import HTTP20Connection
-#import inspect
+import inspect
 import json
 import logging
 import os
@@ -36,6 +36,14 @@ ADMIN_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
 #    print("pytest_session start")
 #def pytest_sessionfinish(session):
 #    print("pytest_session finish")
+
+#############
+# FUNCTIONS #
+#############
+def currentDir(callerDistance = 2): # by default, we assume that this function will be called inside a fixture
+  frame = inspect.stack()[callerDistance]
+  module = inspect.getmodule(frame[0])
+  return os.path.dirname(os.path.realpath(module.__file__))
 
 ######################
 # CLASSES & FIXTURES #
@@ -294,31 +302,39 @@ def h2ac_traffic():
   print("H2AGENT-traffic Teardown")
 ################################################
 
+# Filesystem Resources
 @pytest.fixture(scope='session')
-def resources():
-  resourcesDict={}
+def files():
+  filesDict={}
   filetypes = {'*.json'} # tuple of file types
-  MyLogger.info("Gathering test suite resources ...")
-  os.chdir('resources')
+  MyLogger.info("Preloading test suite files content into files dictionary ...")
+  #os.chdir('tests')
   for filetype in filetypes:
-    for resource in glob.glob("**/" + filetype, recursive = True):
-      f = open(resource, "r")
-      resourcesDict[resource] = f.read()
+    for _file in glob.glob("**/" + filetype, recursive = True):
+      f = open(_file, "r")
+      key = os.path.abspath(_file)
+      filesDict[key] = f.read()
+      MyLogger.debug("Files dictionary key loaded: " + key)
       f.close()
-  os.chdir('..')
+  #os.chdir('..')
 
-  def get_resources(key, **kwargs):
+  def get_files(key, callerDistance = 2, **kwargs):
     # Be careful with templates containing curly braces:
     # https://stackoverflow.com/questions/5466451/how-can-i-print-literal-curly-brace-characters-in-python-string-and-also-use-fo
-    resource = resourcesDict[key]
+
+    MyLogger.info("Getting files dictionary content for key {}".format(key))
+    key = os.path.abspath(currentDir(callerDistance) + "/" + key)
+    MyLogger.info("Absolute path key is: {}".format(key))
+
+    _file = filesDict[key]
 
     if kwargs:
       args = defaultdict (str, kwargs)
-      resource = resource.format_map(args)
+      _file = _file.format_map(args)
 
-    return resource
+    return _file
 
-  yield get_resources
+  yield get_files
 
 @pytest.fixture(scope='session')
 def admin_cleanup(h2ac_admin):
@@ -327,7 +343,7 @@ def admin_cleanup(h2ac_admin):
     response = h2ac_admin.delete(ADMIN_DATA_URI)
 
     if matchingFile:
-      response = h2ac_admin.post(ADMIN_MATCHING_URI, resources(matchingFile))
+      response = h2ac_admin.post(ADMIN_MATCHING_URI, files(matchingFile, callerDistance = 3))
     elif matchingContent:
       response = h2ac_admin.postDict(ADMIN_MATCHING_URI, matchingContent)
 
@@ -339,7 +355,7 @@ VALID_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provisio
 INVALID_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid schema" }
 INVALID_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid provision data received" }
 @pytest.fixture(scope='session')
-def admin_provision(h2ac_admin, resources):
+def admin_provision(h2ac_admin, files):
   """
   content: provide string or dictionary/list. The string will be interpreted as resources file path.
   responseBodyRef: response body reference, valid provision assumed by default.
@@ -350,7 +366,7 @@ def admin_provision(h2ac_admin, resources):
 
     request = content # assume content as dictionary
     if isinstance(content, str):
-      request = resources(content)
+      request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
     response = h2ac_admin.post(ADMIN_PROVISION_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_PROVISION_URI, request)
@@ -364,7 +380,7 @@ VALID_MATCHING__RESPONSE_BODY = { "result":"true", "response":"server-matching o
 INVALID_MATCHING_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid schema" }
 INVALID_MATCHING_DATA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid matching data received" }
 @pytest.fixture(scope='session')
-def admin_matching(h2ac_admin, resources):
+def admin_matching(h2ac_admin, files):
   """
   content: provide string or dictionary. The string will be interpreted as resources file path.
   responseBodyRef: response body reference, valid provision assumed by default.
@@ -375,7 +391,7 @@ def admin_matching(h2ac_admin, resources):
 
     request = content # assume content as dictionary
     if isinstance(content, str):
-      request = resources(content)
+      request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
     response = h2ac_admin.post(ADMIN_MATCHING_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_MATCHING_URI, request)
