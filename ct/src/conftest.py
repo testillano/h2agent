@@ -25,21 +25,6 @@ ADMIN_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
 
-# Headers
-CONTENT_LENGTH = 'content-length'
-
-# Flow calculation throw h2af (H2AGENT Flow) fixture:
-#   flow = h2af.getId()
-#
-# For sequenced tests, the id is just a monotonically increased number from 1.
-# For parallel tests, this id is sequenced from 1 for every worker, then, globally,
-#  this is a handicap to manage flow ids (tests ids) for H2AGENT FSM (finite state machine).
-# We consider a base multiplier of 10000, so collisions would take place when workers
-#  reserves more than 10000 flows. With a 'worst-case' assumption of `5 flows per test case`,
-#  you should cover up to 5000 per worker. Anyway, feel free to increase this value,
-#  specially if you are thinking in use pytest and H2AGENT Agent for system tests.
-FLOW_BASE_MULTIPLIER = 10000
-
 #########
 # HOOKS #
 #########
@@ -55,47 +40,6 @@ FLOW_BASE_MULTIPLIER = 10000
 ######################
 # CLASSES & FIXTURES #
 ######################
-
-class Sequencer(object):
-    def __init__(self, request):
-        self.sequence = 0
-        self.request = request
-
-    def __wid(self):
-        """
-        Returns the worker id, or 'master' if not parallel execution is done
-        """
-        wid = 'master'
-        if hasattr(self.request.config, 'slaveinput'):
-          wid = self.request.config.slaveinput['slaveid']
-
-        return wid
-
-    def getId(self):
-        """
-        Returns the next identifier value (monotonically increased in every call)
-        """
-        self.sequence += 1
-
-        wid = self.__wid()
-        if wid == "master":
-          return self.sequence
-
-        # Workers are named: wd0, wd1, wd2, etc.
-        wid_number = int(re.findall(r'\d+', wid)[0])
-
-        return FLOW_BASE_MULTIPLIER * wid_number + self.sequence
-
-
-
-@pytest.fixture(scope='session')
-def h2af(request):
-  """
-  H2AGENT Flow
-  """
-  return Sequencer(request)
-
-
 
 # Logging
 class MyLogger:
@@ -240,7 +184,7 @@ class RestClient(object):
                              " its length ({})".format(len(requestBody)) +
                              " is multiple of 1024")
             requestBody += " "
-            content_length = CONTENT_LENGTH
+            content_length = "content-length"
             if requestHeaders and content_length in requestHeaders:
                 length = int(requestHeaders[content_length])
                 requestHeaders[content_length] = str(length+1)
