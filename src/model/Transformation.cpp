@@ -146,7 +146,7 @@ bool Transformation::load(const nlohmann::json &j) {
 
     // Interpret source/target:
 
-    // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };)
+    // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
@@ -169,11 +169,12 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex requestBodyNode("^request.body.(.*)", std::regex::optimize);
     static std::regex requestHeader("^request.header.(.*)", std::regex::optimize);
     static std::regex generalRandom("^general\\.random\\.([-+]{0,1}[0-9]+)\\.([-+]{0,1}[0-9]+)$", std::regex::optimize); // no need to validate min/max as it was done at schema
-    static std::regex generalTimestamp("general.timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/ns as it was done at schema
-    static std::regex generalStrftime("general.strftime.(.*)", std::regex::optimize); // free format, errors captured
-    static std::regex varId("var.(.*)", std::regex::optimize);
-    static std::regex value("value.(.*)", std::regex::optimize);
-    static std::regex event("event.(.*)", std::regex::optimize);
+    static std::regex generalRandomSet("^general\\.randomset.(.*)", std::regex::optimize);
+    static std::regex generalTimestamp("^general.timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/ns as it was done at schema
+    static std::regex generalStrftime("^general.strftime.(.*)", std::regex::optimize); // free format, errors captured
+    static std::regex varId("^var.(.*)", std::regex::optimize);
+    static std::regex value("^value.(.*)", std::regex::optimize);
+    static std::regex event("^event.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
     // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
@@ -207,6 +208,15 @@ bool Transformation::load(const nlohmann::json &j) {
             source_i1_ = stoi(matches.str(1));
             source_i2_ = stoi(matches.str(2));
             source_type_ = SourceType::GeneralRandom;
+        }
+        else if (std::regex_match(sourceSpec, matches, generalRandomSet)) { // random set given by tokenized pipe-separated list of values
+            source_ = matches.str(1);
+            static std::regex pipedRgx(R"(\|)", std::regex::optimize);
+            source_tokenized_ = std::vector<std::string>(
+                                    std::sregex_token_iterator{begin(source_), end(source_), pipedRgx, -1},
+                                    std::sregex_token_iterator{}
+                                );
+            source_type_ = SourceType::GeneralRandomSet;
         }
         else if (std::regex_match(sourceSpec, matches, generalTimestamp)) { // unit (s: seconds, ms: milliseconds, ns: nanoseconds)
             source_ = matches.str(1);
@@ -370,8 +380,8 @@ bool Transformation::load(const nlohmann::json &j) {
     LOGDEBUG(
         std::stringstream ss;
 
-        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState): " << source_type_
-        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, Value, Event): " << source_
+        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState): " << source_type_
+        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, Value, Event): " << source_
         << " | source_i1_ (GeneralRandom min): " << source_i1_
         << " | source_i2_ (GeneralRandom max): " << source_i2_
         << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_

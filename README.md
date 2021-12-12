@@ -735,7 +735,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^request\\.header\\..|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
+            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^request\\.header\\..|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
           },
           "target": {
             "type": "string",
@@ -844,6 +844,8 @@ The **source** of information is classified after parsing the following possible
 - request.header.`<hname>`: request header component (i.e. *content-type*).
 
 - general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+
+- general.randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided.
 
 - general.timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
 
@@ -1558,7 +1560,7 @@ At the moment, the server request schema is the only configuration file used by 
 As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
-source tools/helpers.src 
+source tools/helpers.src
 
 ===== h2agent helpers =====
 
@@ -1575,7 +1577,7 @@ Usage: matching; Gets current matching configuration (http://localhost:8074/admi
 Usage: data [method] [uri] [number (-1: last)];
                      Inspects server data events for given filters
                      (http://localhost:8074/admin/v1/server-data)
-                     
+
             [--conf]                          ; Gets current server data configuration
             [--discard-all]                   ; Sets server data configuration to discard
                                                 all the events received
