@@ -42,6 +42,7 @@ SOFTWARE.
 #include <sstream>
 #include <algorithm>
 #include <thread>
+#include <chrono>
 
 #include <boost/bind.hpp>
 
@@ -305,7 +306,7 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option,
 
 int main(int argc, char* argv[])
 {
-    srand(time(nullptr));
+    srand(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
 
     progname = basename(argv[0]);
 

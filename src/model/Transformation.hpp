@@ -37,6 +37,7 @@ SOFTWARE.
 
 
 #include <string>
+#include <vector>
 #include <regex>
 #include <cstdint>
 
@@ -58,7 +59,7 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };
     // Target type
     enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };
     // Filter type
@@ -80,6 +81,7 @@ private:
 
     SourceType source_type_;
     std::string source_; // RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, Value, Event
+    std::vector<std::string> source_tokenized_; // GeneralRandomSet
     int source_i1_, source_i2_; // GeneralRandom
 
     TargetType target_type_;
@@ -105,6 +107,10 @@ public:
     /** Gets source */
     const std::string &getSource() const {
         return source_;
+    }
+    /** Gets source tokenized */
+    const std::vector<std::string> &getSourceTokenized() const {
+        return source_tokenized_;
     }
     /** Gets source for random min */
     int getSourceI1() const {

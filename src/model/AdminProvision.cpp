@@ -202,6 +202,9 @@ void AdminProvision::transform( const std::string &requestUri,
             int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
             sourceVault.setInteger(transformation->getSourceI1() + (rand () % range));
         }
+        else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandomSet) {
+            sourceVault.setString(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()]);
+        }
         else if (transformation->getSourceType() == Transformation::SourceType::GeneralTimestamp) {
             if (transformation->getSource() == "s") {
                 sourceVault.setInteger(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
