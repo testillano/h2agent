@@ -45,6 +45,8 @@ namespace h2agent
 {
 namespace model
 {
+void searchReplaceAll(std::string& str, const std::string& from, const std::string& to);
+void searchReplaceValueVariables(const std::map<std::string, std::string> &varmap, std::string &source);
 
 class TypeConverter {
 
