@@ -735,7 +735,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^request\\.header\\..|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
+            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^response\\.body$|^response\\.body\\..|^request\\.header\\..|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
           },
           "target": {
             "type": "string",
@@ -829,6 +829,12 @@ Let's start describing the available sources of data: regardless the native or n
 
 
 
+*Variables substitution:*
+
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist. In that case we will add the comment "**admits variables substitution**". Some of them are not allowed because have no sense or they are rarely needed:
+
+
+
 The **source** of information is classified after parsing the following possible expressions:
 
 - request.uri: whole request *URI*  path, including the possible query parameters.
@@ -839,23 +845,29 @@ The **source** of information is classified after parsing the following possible
 
 - request.body: request body document from root.
 
-- request.body.`<node1>..<nodeN>`: request body node path.
+- request.body.`<node1>..<nodeN>`: request body node path. This source path **admits variables substitution**.
+
+- response.body: response body document from root. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+
+- response.body.`<node1>..<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 - request.header.`<hname>`: request header component (i.e. *content-type*).
 
-- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+- eraser: this is used to indicate that the *response node target* specified (next section) must be eliminated (avoid to remove nonexistent elements or new null nodes could appear). With other kind of targets, it acts like setting an empty string but this usage is not recommended. Eraser could be useful to adequate a response body reference based in some conditions. There is also a twisted use of the response body in which we insert auxiliary nodes that we process as if they were templates but that we do not want to finally send in the response. This should evolve in the future as a separated `templateBody` or similar in the provision schema, but it is perfectly supported while you don't forget to erase such temporary nodes after using them in that naughty way.
 
-- general.randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided.
+- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`. 
+
+- general.randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
 
 - general.timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
 
-- general.strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
+- general.strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
 
 - general.recvseq: sequence id number increased for every mock reception (starts on *0* when the *h2agent*  is started).
 
-- var.`<id>`: general purpose variable. Cannot refer json objects.
+- var.`<id>`: general purpose variable. Cannot refer json objects. This source variable identifier **admits variables substitution**.
 
-- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. Also, this source admit the insertion of variables in the form `@{var id}` which will be replaced if exist.
+- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**.
 
 - event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 
@@ -940,27 +952,27 @@ The **target** of information is classified after parsing the following possible
 
 - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
 
-- response.body.string.`<node1>..<nodeN>` *[string]*: response body node path storing expected string.
+- response.body.string.`<node1>..<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.integer.`<node1>..<nodeN>` *[integer]*: response body node path storing expected integer.
+- response.body.integer.`<node1>..<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.unsigned.`<node1>..<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer.
+- response.body.unsigned.`<node1>..<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.float.`<node1>..<nodeN>` *[float number]*: response body node path storing expected float number.
+- response.body.float.`<node1>..<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.boolean.`<node1>..<nodeN>` *[boolean]*: response body node path storing expected booblean.
+- response.body.boolean.`<node1>..<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
 
-- response.body.object.`<node1>..<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order.
+- response.body.object.`<node1>..<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
 
-- response.body.jsonstring.`<node1>..<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
+- response.body.jsonstring.`<node1>..<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
-- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*).
+- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**.
 
 - response.statusCode *[unsigned integer]*: response status code.
 
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects.
+- var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 

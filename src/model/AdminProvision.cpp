@@ -157,8 +157,9 @@ void AdminProvision::transform( const std::string &requestUri,
     for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
 
         auto transformation = (*it);
+        bool eraser = false;
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState
         if (transformation->getSourceType() == Transformation::SourceType::RequestUri) {
             sourceVault.setString(requestUri);
         }
@@ -178,14 +179,26 @@ void AdminProvision::transform( const std::string &requestUri,
         }
         else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
             if(!requestBodyJsonParseable) continue;
-            if (!sourceVault.setObject(requestBodyJson, transformation->getSource() /* document path (empty or not to be whole or node) */)) {
+            std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
+            searchReplaceValueVariables(variables, path);
+            if (!sourceVault.setObject(requestBodyJson, path)) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
                     ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
                 );
                 continue;
             }
-
+        }
+        else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
+            std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
+            searchReplaceValueVariables(variables, path);
+            if (!sourceVault.setObject(getResponseBody(), path)) {
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from response body (it is null) in transformation item", transformation->getSource().c_str());
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+                continue;
+            }
         }
         else if (transformation->getSourceType() == Transformation::SourceType::RequestHeader) {
             auto it = requestHeaders.find(transformation->getSource());
@@ -198,12 +211,16 @@ void AdminProvision::transform( const std::string &requestUri,
                 continue;
             }
         }
+        else if (transformation->getSourceType() == Transformation::SourceType::Eraser) {
+            sourceVault.setString(""); // with other than response body nodes, it acts like setting empty string
+            eraser = true;
+        }
         else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandom) {
             int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
             sourceVault.setInteger(transformation->getSourceI1() + (rand () % range));
         }
         else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandomSet) {
-            sourceVault.setString(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()]);
+            sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], variables); // replace variables if they exist
         }
         else if (transformation->getSourceType() == Transformation::SourceType::GeneralTimestamp) {
             if (transformation->getSource() == "s") {
@@ -226,17 +243,19 @@ void AdminProvision::transform( const std::string &requestUri,
             //    sprintf(buffer + size - 2, ":%s", minute);
             //}
 
-            sourceVault.setString(std::string(buffer));
+            sourceVault.setStringReplacingVariables(std::string(buffer), variables); // replace variables if they exist
         }
         else if (transformation->getSourceType() == Transformation::SourceType::GeneralUnique) {
             sourceVault.setUnsigned(generalUniqueServerSequence);
         }
         else if (transformation->getSourceType() == Transformation::SourceType::SVar) {
-            auto it = variables.find(transformation->getSource());
+            std::string varname = transformation->getSource();
+            searchReplaceValueVariables(variables, varname);
+            auto it = variables.find(varname);
             if (it != variables.end()) sourceVault.setString(it->second);
             else {
                 LOGDEBUG(
-                    std::string msg = ert::tracing::Logger::asString("Unable to extract source variable '%s' in transformation item", transformation->getSource().c_str());
+                    std::string msg = ert::tracing::Logger::asString("Unable to extract source variable '%s' in transformation item", varname.c_str());
                     ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
                 );
                 continue;
@@ -288,7 +307,7 @@ void AdminProvision::transform( const std::string &requestUri,
             sourceVault.setString(getInState());
         }
 
-        std::string target;
+        std::string targetS;
         std::int64_t targetI;
         std::uint64_t targetU;
         double targetF;
@@ -303,6 +322,10 @@ void AdminProvision::transform( const std::string &requestUri,
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
             //std::string source; // (*)
+            if (eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug("Filter is not allowed when using 'eraser' source type. This transformation will be ignored.", ERT_FILE_LOCATION));
+                continue;
+            }
 
             // all the filters except Sum/Multiply, require a string target
             if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply) {
@@ -314,8 +337,8 @@ void AdminProvision::transform( const std::string &requestUri,
                 if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
 
                     if (std::regex_match(source, matches, transformation->getFilterRegex()) && matches.size() >=1) {
-                        target = matches.str(0);
-                        sourceVault.setString(target);
+                        targetS = matches.str(0);
+                        sourceVault.setString(targetS);
                         LOGDEBUG(
                             std::stringstream ss;
                             ss << "Regex matches: Size = " << matches.size();
@@ -334,40 +357,40 @@ void AdminProvision::transform( const std::string &requestUri,
                     }
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::RegexReplace) {
-                    target = std::regex_replace (source, transformation->getFilterRegex(), transformation->getFilter() /* fmt */);
-                    sourceVault.setString(target);
+                    targetS = std::regex_replace (source, transformation->getFilterRegex(), transformation->getFilter() /* fmt */);
+                    sourceVault.setString(targetS);
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::Append) {
-                    target = source + transformation->getFilter();
-                    sourceVault.setString(target);
+                    targetS = source + transformation->getFilter();
+                    sourceVault.setString(targetS);
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::Prepend) {
-                    target = transformation->getFilter() + source;
-                    sourceVault.setString(target);
+                    targetS = transformation->getFilter() + source;
+                    sourceVault.setString(targetS);
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::AppendVar) {
                     auto it = variables.find(transformation->getFilter());
-                    if (it != variables.end()) target = source + (it->second);
+                    if (it != variables.end()) targetS = source + (it->second);
                     else {
-                        target = source;
+                        targetS = source;
                         LOGDEBUG(
                             std::string msg = ert::tracing::Logger::asString("Unable to extract variable '%s' in transformation item (empty value assumed)", transformation->getFilter().c_str());
                             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
                         );
                     }
-                    sourceVault.setString(target);
+                    sourceVault.setString(targetS);
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::PrependVar) {
                     auto it = variables.find(transformation->getFilter());
-                    if (it != variables.end()) target = (it->second) + source;
+                    if (it != variables.end()) targetS = (it->second) + source;
                     else {
-                        target = source;
+                        targetS = source;
                         LOGDEBUG(
                             std::string msg = ert::tracing::Logger::asString("Unable to extract variable '%s' in transformation item (empty value assumed)", transformation->getFilter().c_str());
                             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
                         );
                     }
-                    sourceVault.setString(target);
+                    sourceVault.setString(targetS);
                 }
                 else if (transformation->getFilterType() == Transformation::FilterType::Sum) {
                     if (transformation->getFilterNumberType() == 0 /* integer */) {
@@ -426,20 +449,24 @@ void AdminProvision::transform( const std::string &requestUri,
 
         // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState
         try { // nlohmann::json exceptions
+
+            std::string target = transformation->getTarget();
+            searchReplaceValueVariables(variables, target);
+
             if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyString) {
                 // extraction
-                target = sourceVault.getString(success);
+                targetS = sourceVault.getString(success);
                 if (!success) continue;
                 // assignment
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
-                responseBodyJson[j_ptr] = target;
+                nlohmann::json::json_pointer j_ptr(target);
+                responseBodyJson[j_ptr] = targetS;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyInteger) {
                 // extraction
                 targetI = sourceVault.getInteger(success);
                 if (!success) continue;
                 // assignment
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+                nlohmann::json::json_pointer j_ptr(target);
                 responseBodyJson[j_ptr] = targetI;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyUnsigned) {
@@ -447,7 +474,7 @@ void AdminProvision::transform( const std::string &requestUri,
                 targetU = sourceVault.getUnsigned(success);
                 if (!success) continue;
                 // assignment
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+                nlohmann::json::json_pointer j_ptr(target);
                 responseBodyJson[j_ptr] = targetU;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyFloat) {
@@ -455,7 +482,7 @@ void AdminProvision::transform( const std::string &requestUri,
                 targetF = sourceVault.getFloat(success);
                 if (!success) continue;
                 // assignment
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+                nlohmann::json::json_pointer j_ptr(target);
                 responseBodyJson[j_ptr] = targetF;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyBoolean) {
@@ -463,17 +490,40 @@ void AdminProvision::transform( const std::string &requestUri,
                 boolean = sourceVault.getBoolean(success);
                 if (!success) continue;
                 // assignment
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+                nlohmann::json::json_pointer j_ptr(target);
                 responseBodyJson[j_ptr] = boolean;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyObject) {
+
+                if (eraser) {
+                    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into json path '%s'", target.c_str()), ERT_FILE_LOCATION));
+                    if (target.empty()) {
+                        responseBodyJson.erase(responseBodyJson.begin(), responseBodyJson.end());
+                        continue;
+                    }
+
+                    //erase() DOES NOT SUPPORT JSON POINTERS:
+                    //nlohmann::json::json_pointer j_ptr(target);
+                    //responseBodyJson.erase(j_ptr);
+                    //
+                    // For a path '/a/b/c' we must access to /a/b and then erase "c":
+                    size_t lastSlashPos = target.find_last_of("/");
+                    // lastSlashPos will never be std::string::npos here
+                    std::string parentPath = target.substr(0, lastSlashPos);
+                    std::string childKey = "";
+                    if (lastSlashPos + 1 < target.size()) childKey = target.substr(lastSlashPos + 1, target.size());
+                    nlohmann::json::json_pointer j_ptr(parentPath);
+                    responseBodyJson[j_ptr].erase(childKey);
+                    continue;
+                }
+
                 // extraction will be object if possible, falling back to the rest of formats with this priority: string, integer, unsigned, float, boolean
                 // assignment for valid extraction
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+                nlohmann::json::json_pointer j_ptr(target);
 
                 obj = sourceVault.getObject(success);
                 if (!success) {
-                    target = sourceVault.getString(success);
+                    targetS = sourceVault.getString(success);
                     if (!success) {
                         targetI = sourceVault.getInteger(success);;
                         if (!success) {
@@ -491,18 +541,19 @@ void AdminProvision::transform( const std::string &requestUri,
                         }
                         else responseBodyJson[j_ptr] = targetI;
                     }
-                    else responseBodyJson[j_ptr] = target;
+                    else responseBodyJson[j_ptr] = targetS;
                 }
                 else responseBodyJson[j_ptr] = obj;
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
+
                 // assignment for valid extraction
-                nlohmann::json::json_pointer j_ptr(transformation->getTarget());
+                nlohmann::json::json_pointer j_ptr(target);
 
                 // extraction
-                target = sourceVault.getString(success);
+                targetS = sourceVault.getString(success);
                 if (!success) continue;
-                if (!h2agent::http2server::parseJsonContent(target, obj))
+                if (!h2agent::http2server::parseJsonContent(targetS, obj))
                     continue;
 
                 // assignment
@@ -510,10 +561,10 @@ void AdminProvision::transform( const std::string &requestUri,
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseHeader) {
                 // extraction
-                target = sourceVault.getString(success);
+                targetS = sourceVault.getString(success);
                 if (!success) continue;
                 // assignment
-                headers.emplace(transformation->getTarget(), nghttp2::asio_http2::header_value{target});
+                headers.emplace(target, nghttp2::asio_http2::header_value{targetS});
             }
             else if (transformation->getTargetType() == Transformation::TargetType::ResponseStatusCode) {
                 // extraction
@@ -533,9 +584,9 @@ void AdminProvision::transform( const std::string &requestUri,
                 if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                     std::string varname;
                     if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
-                        variables[transformation->getTarget()] = matches.str(0); // variable "as is" stores the entire match
+                        variables[target] = matches.str(0); // variable "as is" stores the entire match
                         for(size_t i=1; i < matches.size(); i++) {
-                            varname = transformation->getTarget();
+                            varname = target;
                             varname += ".";
                             varname += std::to_string(i);
                             variables[varname] = matches.str(i);
@@ -549,19 +600,19 @@ void AdminProvision::transform( const std::string &requestUri,
                 }
                 else {
                     // extraction
-                    target = sourceVault.getString(success);
+                    targetS = sourceVault.getString(success);
                     if (!success) continue;
                     // assignment
-                    variables[transformation->getTarget()] = target;
+                    variables[target] = targetS;
                 }
             }
             else if (transformation->getTargetType() == Transformation::TargetType::OutState) {
                 // extraction
-                target = sourceVault.getString(success);
+                targetS = sourceVault.getString(success);
                 if (!success) continue;
                 // assignment
-                outState = target;
-                outStateMethod = transformation->getTarget(); // if empty, means current method
+                outState = targetS;
+                outStateMethod = target; // if empty, means current method. This 'target' does not admit replace of variables because is constrained by schema to be POST, GET, etc.
             }
         }
         catch (std::exception& e)

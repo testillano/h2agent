@@ -426,6 +426,7 @@ BASIC_FOO_BAR_PROVISION_TEMPLATE='''
 '''
 
 # Transform better provision POST to give versatility
+# Variables var1="var1value" and var2="var2value" are added just in case could be used by the test
 TRANSFORM_FOO_BAR_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
@@ -440,11 +441,92 @@ TRANSFORM_FOO_BAR_PROVISION_TEMPLATE='''
   }},
   "transform": [
     {{
+      "source": "value.var1value",
+      "target": "var.var1"
+    }},
+    {{
+      "source": "value.var2value",
+      "target": "var.var2"
+    }},
+    {{
       "source": "{source}",
       "target": "{target}"
     }}
   ]
 }}
+'''
+
+TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar/{id}{queryp}",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar-{id}"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "value.var1value",
+      "target": "var.var1"
+    }},
+    {{
+      "source": "value.var2value",
+      "target": "var.var2"
+    }},
+    {{
+      "source": "{source}",
+      "target": "{target}"
+    }},
+    {{
+      "source": "{source2}",
+      "target": "{target2}"
+    }}
+  ]
+}}
+'''
+
+TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar/{id}{queryp}",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar-{id}",
+    "var1value": {{
+      "var2value": "value-of-var1value-var2value"
+    }}
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "value.var1value",
+      "target": "var.var1"
+    }},
+    {{
+      "source": "value.var2value",
+      "target": "var.var2"
+    }},
+    {{
+      "source": "{source}",
+      "target": "{target}"
+    }}
+  ]
+}}
+'''
+
+NESTED_VAR1_VAR2_REQUEST='''
+{
+  "var1value": {
+    "var2value": "value-of-var1value-var2value"
+  }
+}
 '''
 
 REGEX_FOO_BAR_PROVISION_TEMPLATE='''

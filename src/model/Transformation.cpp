@@ -146,7 +146,8 @@ bool Transformation::load(const nlohmann::json &j) {
 
     // Interpret source/target:
 
-    // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };)
+    // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser,
+    //                           GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
@@ -156,6 +157,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // - request.body: request body document.
     // + request.body.<node1>..<nodeN>: request body node path.
     // + request.header.<hname>: request header component (i.e. *content-type*).
+    // - eraser: this is used to indicate that the *response node target* specified.
     // + general.random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
     // + general.timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
     // + general.strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
@@ -167,6 +169,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // Regex needed:
     static std::regex requestUriParam("^request.uri.param.(.*)", std::regex::optimize); // no need to escape dots as this is validated in schema
     static std::regex requestBodyNode("^request.body.(.*)", std::regex::optimize);
+    static std::regex responseBodyNode("^response.body.(.*)", std::regex::optimize);
     static std::regex requestHeader("^request.header.(.*)", std::regex::optimize);
     static std::regex generalRandom("^general\\.random\\.([-+]{0,1}[0-9]+)\\.([-+]{0,1}[0-9]+)$", std::regex::optimize); // no need to validate min/max as it was done at schema
     static std::regex generalRandomSet("^general\\.randomset.(.*)", std::regex::optimize);
@@ -200,9 +203,21 @@ bool Transformation::load(const nlohmann::json &j) {
             source_.insert(source_.begin(), '/');
             source_type_ = SourceType::RequestBody;
         }
+        else if (sourceSpec == "response.body") { // whole document
+            source_type_ = SourceType::ResponseBody;
+        }
+        else if (std::regex_match(sourceSpec, matches, responseBodyNode)) { // nlohmann::json_pointer path (when path provided, i.e.: "request.body.foo.bar" turns into "/foo/bar")
+            source_ = matches.str(1);
+            std::replace(source_.begin(), source_.end(), '.', '/');
+            source_.insert(source_.begin(), '/');
+            source_type_ = SourceType::ResponseBody;
+        }
         else if (std::regex_match(sourceSpec, matches, requestHeader)) { // header name
             source_ = matches.str(1);
             source_type_ = SourceType::RequestHeader;
+        }
+        else if (sourceSpec == "eraser") {
+            source_type_ = SourceType::Eraser;
         }
         else if (std::regex_match(sourceSpec, matches, generalRandom)) { // range "<min>.<max>", i.e.: "-3.8", "0.100", "-15.+2", etc. These go to -> [source_i1_] and [source_i2_]
             source_i1_ = stoi(matches.str(1));
@@ -380,8 +395,8 @@ bool Transformation::load(const nlohmann::json &j) {
     LOGDEBUG(
         std::stringstream ss;
 
-        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, RequestHeader, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState): " << source_type_
-        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), RequestHeader, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, Value, Event): " << source_
+        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState): " << source_type_
+        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, Value, Event): " << source_
         << " | source_i1_ (GeneralRandom min): " << source_i1_
         << " | source_i2_ (GeneralRandom max): " << source_i2_
         << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_
