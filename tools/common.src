@@ -4,6 +4,33 @@
 if ! type curl &>/dev/null; then echo "ERROR: tool 'curl' (with http2 support) must be installed (sudo apt install curl) !" ; return 1 ; fi
 if ! type jq &>/dev/null; then echo "ERROR: tool 'jq' must be installed (sudo apt install jq) !" ; return 1 ; fi
 
+# Color variables:
+COLOR_reset='\e[0m'
+COLOR_red='\e[31m'
+COLOR_l_red='\e[91m'
+COLOR_green='\e[32m'
+COLOR_l_green='\e[92m'
+COLOR_yellow='\e[33m'
+COLOR_l_yellow='\e[93m'
+COLOR_blue='\e[34m'
+COLOR_l_blue='\e[94m'
+COLOR_magenta='\e[35m'
+COLOR_l_magenta='\e[95m'
+COLOR_cyan='\e[36m'
+COLOR_l_cyan='\e[96m'
+
+# $1: title literal; $2: color code (red by default); $3: pattern character (= by default)
+title()
+{
+  local literal=$1
+  local color=${2:-${COLOR_red}}
+  local pattern=${3:-=}
+
+  local title="${pattern} ${literal} ${pattern}"
+  local line=$(eval printf "%0.s${pattern}" {1..${#title}})
+  echo -e "${color}${line}\n${title}\n${line}${COLOR_reset}"
+}
+
 # $1: title; $2: method; $3: url
 # Prepend variables
 #   (*) EXPECTED_STATUS_CODES: space-separated list of expected http status code(s)
@@ -24,10 +51,7 @@ test_query() {
 
   local rc=0
   echo
-  echo
-  echo "=========================================================================="
-  echo -e "${info}"
-  echo "=========================================================================="
+  title "${info}" "" "-"
   local cmd="curl -i -X${method} --http2-prior-knowledge ${CURL_OPTS} ${url}"
   if [ -n "${VERBOSE}" ]
   then
@@ -49,7 +73,7 @@ test_query() {
   fi
   echo
 
-  eval ${cmd} > ${TMPDIR}/cmd.out 2>/dev/null
+  eval ${cmd} > ${TMPDIR}/cmd.out 2>${TMPDIR}/cmd.err
   cat ${TMPDIR}/cmd.out
   echo
   echo "--------------------------------------------------------------------------"
@@ -59,7 +83,12 @@ test_query() {
 
   if [ -n "${EXPECTED_STATUS_CODES}" ]
   then
-    [ -z "${receivedStatusCode}" ] && echo "Status code not received !" && return 1
+    if [ -z "${receivedStatusCode}" ]
+    then
+      echo "Status code not received !"
+      cat ${TMPDIR}/cmd.err 2>/dev/null
+      return 1
+    fi
     echo "${EXPECTED_STATUS_CODES}" | grep -qw ${receivedStatusCode}
     [ $? -ne 0 ] && rc=1 && echo "Expected status code(s) differs from received: ${receivedStatusCode}"
   fi
@@ -69,7 +98,9 @@ test_query() {
   then
     # Normalize with jq and ignore 'time' node, and optionally, 'phone' (it is random for unassigned):
     [ -n "${ASSERT_IGNORED_FIELDS}" ] && jq_expr="del(${ASSERT_IGNORED_FIELDS})"
-    [ "$(echo ${EXPECTED_BODY} | jq '"${jq_expr}"')" != "$(echo ${receivedBody} | jq '"${jq_expr}"')" ] && rc=1 && echo "Expected body differs from received: ${receivedBody}"
+    expected=$(echo ${EXPECTED_BODY} | jq "${jq_expr}")
+    received=$(echo ${receivedBody} | jq "${jq_expr}")
+    [ "${expected}" != "${received}" ] && rc=1 && echo -e "Expected body differs from received:\nExpected:\n${expected}\nReceived:\n${received}"
   fi
 
   if [ ${rc} -eq 0 ]
@@ -79,6 +110,7 @@ test_query() {
     echo
   else
     echo "Response is NOK :_("
+    cat ${TMPDIR}/cmd.err 2>/dev/null
   fi
   if [ -n "${INTERACT}" ]
   then

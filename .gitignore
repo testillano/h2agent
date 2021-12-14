@@ -23,7 +23,7 @@ src/version.cpp
 *.swp
 
 # Test temporary files
-tools/*/.*
+tools/manual/*/.*
 st/report*
 st/last
 

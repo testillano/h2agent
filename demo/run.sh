@@ -26,11 +26,14 @@ TMPDIR=$(mktemp -d)
 trap "rm -rf ${TMPDIR}" EXIT
 
 # Load test functions:
-source test.src
+source ../tools/common.src
+
+echo
+title "H2agent demo"
 
 # Initial cleanup
 EXPECTED_STATUS_CODES="200 204"
-test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || { echo "Check that the h2agent application is started !!" ; exit 1 ; }
+test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || { echo -e "\nCheck that the h2agent application is started" ; exit 1 ; }
 
 # Enable interactiveness and verbose output:
 INTERACT=true
@@ -98,8 +101,5 @@ do
 done
 
 echo
-echo "================"
-echo "Demo finished OK"
-echo "================"
-echo
+title "Demo finished OK"
 
