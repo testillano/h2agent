@@ -1,10 +1,20 @@
 # HTTP/2 Server Mock Demo
 
+## Requirements
+
+This demo requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
+
+```bash
+$ sudo apt-get install curl
+$ sudo apt-get install jq
+$ sudo apt-get install dos2unix
+```
+
 ## Case of use
 
 Our use case consists in a corporate office with a series of workplaces that can be assigned to an employee or be empty. We will simulate the database having each entry the workplace *ID*, a 5-digit phone extension, the assigned employee name and also an optional root node `developer` to indicate this job role if proceed.
 
-These are the **requirements**:
+These are the **specifications**:
 
 * Serve *GET* requests with URI `office/v2/workplace?id=<id>`, obtaining the information associated to the workplace. Additionally, the date/time of the query received will be added to the response (`"time"`: `"<free date format>"`). We will configure the following entries:
 

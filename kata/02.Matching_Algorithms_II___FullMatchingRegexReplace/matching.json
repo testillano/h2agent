@@ -1,0 +1,5 @@
+{
+  "algorithm": "FullMatchingRegexReplace",
+  "rgx": "(/ctrl/v2/id-[0-9]+)/(ts-[0-9]+)",
+  "fmt": "$1"
+}

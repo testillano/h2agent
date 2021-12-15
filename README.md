@@ -571,20 +571,20 @@ Both `rgx` and `fmt` arguments are required. This algorithm is based in [regex-r
 `URI` example:
 
 ```
-uri = "ctrl/v2/id-555112233/ts-1615562841"
+uri = "/ctrl/v2/id-555112233/ts-1615562841"
 ```
 
-* Remove last *timestamp* path part (`ctrl/v2/id-555112233/`):
+* Remove last *timestamp* path part (`/ctrl/v2/id-555112233`):
 
 ```
-rgx = "(ctrl/v2/id-[0-9]+/)(ts-[0-9]+)"
+rgx = "(/ctrl/v2/id-[0-9]+)/(ts-[0-9]+)"
 fmt = "$1"
 ```
 
-* Trim last four digits (`ctrl/v2/id-555112233/ts-161556`):
+* Trim last four digits (`/ctrl/v2/id-555112233/ts-161556`):
 
 ```
-rgx = "(ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
+rgx = "(/ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
@@ -596,11 +596,11 @@ The previous *full matching* algorithm could be simulated here using empty strin
 
 Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
 
-1. `ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
-2. `ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
-3. `ctrl/v2/id-555112244/ts-[0-9]{10}`
+1. `/ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
+2. `/ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
+3. `/ctrl/v2/id-555112244/ts-[0-9]{10}`
 
-If the `URI` "*ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
+If the `URI` "*/ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
 
 As provision key is built combining *inState*, *method* and *uri* fields, a regular expression could also be provided for *inState* (*method* is strictly checked), although this is not usual.
 
@@ -720,7 +720,15 @@ Defines the response behavior for an incoming request matching some basic condit
       "type": "integer"
     },
     "responseBody": {
-      "type": "object"
+      "oneOf": [
+        {"type": "object"},
+        {"type": "array"},
+        {"type": "string"},
+        {"type": "integer"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
     },
     "responseDelayMs": {
       "type": "integer"
@@ -803,7 +811,7 @@ Response status code.
 
 ##### responseBody
 
-Response body.
+Response body. Currently supported: object (`json` and arrays), string, integer, number, boolean and null types.
 
 ##### responseDelayMs
 
@@ -843,11 +851,11 @@ The **source** of information is classified after parsing the following possible
 
 - request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
-- request.body: request body document from root.
+- request.body: request body document from *root*.
 
 - request.body.`<node1>..<nodeN>`: request body node path. This source path **admits variables substitution**.
 
-- response.body: response body document from root. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body: response body document from *root*. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 - response.body.`<node1>..<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
@@ -855,7 +863,7 @@ The **source** of information is classified after parsing the following possible
 
 - eraser: this is used to indicate that the *response node target* specified (next section) must be eliminated (avoid to remove nonexistent elements or new null nodes could appear). With other kind of targets, it acts like setting an empty string but this usage is not recommended. Eraser could be useful to adequate a response body reference based in some conditions. There is also a twisted use of the response body in which we insert auxiliary nodes that we process as if they were templates but that we do not want to finally send in the response. This should evolve in the future as a separated `templateBody` or similar in the provision schema, but it is perfectly supported while you don't forget to erase such temporary nodes after using them in that naughty way.
 
-- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`. 
+- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
 - general.randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
 
@@ -938,19 +946,19 @@ The **source** of information is classified after parsing the following possible
 
 The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
 
-- response.body.string *[string]*: response body document storing expected string.
+- response.body.string *[string]*: response body document storing expected string at *root*.
 
-- response.body.integer *[integer]*: response body document storing expected integer.
+- response.body.integer *[integer]*: response body document storing expected integer at *root*.
 
-- response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer.
+- response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
 
-- response.body.float *[float number]*: response body document storing expected float number.
+- response.body.float *[float number]*: response body document storing expected float number at *root*.
 
-- response.body.boolean *[boolean]*: response body document storing expected boolean.
+- response.body.boolean *[boolean]*: response body document storing expected boolean at *root*.
 
-- response.body.object *[json object]*: response body document storing expected object as root node.
+- response.body.object *[json object]*: response body document storing expected object as *root* node.
 
-- response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
+- response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
 - response.body.string.`<node1>..<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
@@ -1005,11 +1013,11 @@ Filters give you the chance to make complex transformations:
    {
      "source": "request.uri.path",
      "target": "var.id_cat",
-     "filter": { "RegexCapture" : "api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+     "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
    }
    ```
 
-   In this case, if the source received is *"api/v2/id-28/category-animal/"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="api/v2/id-28/category-animal/"*.
+   In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="/api/v2/id-28/category-animal"*.
 
    Other example:
 
@@ -1017,7 +1025,7 @@ Filters give you the chance to make complex transformations:
   {
     "source": "request.uri.path",
     "target": "response.body.string.category",
-    "filter": { "RegexCapture" : "api\/v2\/id-[0-9]+\/category-([a-z]+)" }
+    "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
   }
   ```
 
@@ -1035,14 +1043,14 @@ Filters give you the chance to make complex transformations:
     "target": "response.body.unsigned.data.timestamp",
     "filter": {
       "RegexReplace" : {
-        "rgx" : "(ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
+        "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
         "fmt" : "$2"
       }
     }
   }
   ```
 
-  For example, if the source received is "*ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *1615562841*.
+  For example, if the source received is "*/ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *1615562841*.
 
   In this algorithm, the obtained value will be a string.
 

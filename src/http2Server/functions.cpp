@@ -147,10 +147,13 @@ bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bo
         ss << "Json content parse error: " << e.what()
            << " | exception id: " << e.id
            << " | byte position of error: " << e.byte;
-        ert::tracing::Logger::error(ss.str(), ERT_FILE_LOCATION);
 
         if (writeException)
             jsonObject =  ss.str();
+
+        // This will be debug, not error, because plain strings would always fail and some application
+        //  could work with non-json bodies:
+        LOGDEBUG(ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION));
 
         return false;
     }

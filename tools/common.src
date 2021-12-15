@@ -3,6 +3,7 @@
 # Requirements:
 if ! type curl &>/dev/null; then echo "ERROR: tool 'curl' (with http2 support) must be installed (sudo apt install curl) !" ; return 1 ; fi
 if ! type jq &>/dev/null; then echo "ERROR: tool 'jq' must be installed (sudo apt install jq) !" ; return 1 ; fi
+if ! type dos2unix &>/dev/null; then echo "ERROR: tool 'dos2unix' must be installed (sudo apt install dos2unix) !" ; return 1 ; fi
 
 # Color variables:
 COLOR_reset='\e[0m'
@@ -34,14 +35,16 @@ title()
 # $1: title; $2: method; $3: url
 # Prepend variables
 #   (*) EXPECTED_STATUS_CODES: space-separated list of expected http status code(s)
-#   (*) EXPECTED_BODY: expected reponse body
+#   (*) EXPECTED_RESPONSE: expected reponse
 #   (*) CURL_OPTS: additional curl options
-#   (*) ASSERT_IGNORED_FIELDS: ignored nodes at body validation
+#   (*) ASSERT_JSON_IGNORED_FIELDS: ignored nodes at json body validation
 #       INTERACT: non-empty value to go step by step
-#       VERBOSE: non-empty value to set verbose output
 #       TMPDIR: temporary directory (must be defined externally)
 #
 # (*) reset applied at the end
+#
+# ${TMPDIR}/cmd.out: stores the stdout for the curl command
+# ${TMPDIR}/cmd.err: stores the stderr for the curl command
 test_query() {
   local info=$1
   local method=$2
@@ -52,61 +55,53 @@ test_query() {
   local rc=0
   echo
   title "${info}" "" "-"
-  local cmd="curl -i -X${method} --http2-prior-knowledge ${CURL_OPTS} ${url}"
-  if [ -n "${VERBOSE}" ]
-  then
-    echo "Command to be executed:"
-    echo "   ${cmd}"
-    echo
-    [ -n "${EXPECTED_STATUS_CODES}" ] && echo "Expected HTTP status code(s): ${EXPECTED_STATUS_CODES}"
-    if [ -n "${EXPECTED_BODY}" ]
-    then
-      echo "Expected response body:"
-      echo ${EXPECTED_BODY} | jq '.'
-    fi
-    echo "--------------------------------------------------------------------------"
-  fi
-  if [ -n "${INTERACT}" ]
-  then
-    echo -n "Press ENTER to execute ..."
-    read -r dummy
-  fi
+  local cmd="curl -i -X${method} --http2-prior-knowledge ${CURL_OPTS} \"${url}\""
+  echo "CURL command: ${cmd}"
   echo
+  [ -n "${EXPECTED_STATUS_CODES}" ] && echo "Expected HTTP status code(s): ${EXPECTED_STATUS_CODES}"
+  [ -n "${EXPECTED_RESPONSE}" ] && echo "Expected response: ${EXPECTED_RESPONSE}"
+  [ -n "${INTERACT}" ] && echo -en "\nPress ENTER to send the request ... " && read -r dummy
 
   eval ${cmd} > ${TMPDIR}/cmd.out 2>${TMPDIR}/cmd.err
-  cat ${TMPDIR}/cmd.out
+  dos2unix ${TMPDIR}/cmd.out ${TMPDIR}/cmd.out &>/dev/null
+  dos2unix ${TMPDIR}/cmd.err ${TMPDIR}/cmd.err &>/dev/null
   echo
-  echo "--------------------------------------------------------------------------"
 
+  # STATUS CODE
   local receivedStatusCode=$(grep "^HTTP/2" ${TMPDIR}/cmd.out | awk '{ print $2 }')
-  local receivedBody=$(grep ^{ ${TMPDIR}/cmd.out)
-
-  if [ -n "${EXPECTED_STATUS_CODES}" ]
+  echo -n "Received HTTP status code: "
+  if [ -n "${receivedStatusCode}" ]
   then
-    if [ -z "${receivedStatusCode}" ]
+    echo -n "${receivedStatusCode} "
+    if [ -n "${EXPECTED_STATUS_CODES}" ]
     then
-      echo "Status code not received !"
-      cat ${TMPDIR}/cmd.err 2>/dev/null
-      return 1
+      echo "${EXPECTED_STATUS_CODES}" | grep -qw "${receivedStatusCode}"
+      [ $? -ne 0 ] && rc=1 && echo "=> differs from expected '${EXPECTED_STATUS_CODES}' !"
     fi
-    echo "${EXPECTED_STATUS_CODES}" | grep -qw ${receivedStatusCode}
-    [ $? -ne 0 ] && rc=1 && echo "Expected status code(s) differs from received: ${receivedStatusCode}"
+    echo
+  else
+    echo "not received !"
+    [ -n "${EXPECTED_STATUS_CODES}" ] && rc=1
   fi
 
+  # RESPONSE
+  local receivedResponse=$(tail -1 ${TMPDIR}/cmd.out)
+  echo "Received response: ${receivedResponse}"
   local jq_expr="."
-  if [ -n "${EXPECTED_BODY}" ]
+  if [ -n "${EXPECTED_RESPONSE}" ]
   then
-    # Normalize with jq and ignore 'time' node, and optionally, 'phone' (it is random for unassigned):
-    [ -n "${ASSERT_IGNORED_FIELDS}" ] && jq_expr="del(${ASSERT_IGNORED_FIELDS})"
-    expected=$(echo ${EXPECTED_BODY} | jq "${jq_expr}")
-    received=$(echo ${receivedBody} | jq "${jq_expr}")
-    [ "${expected}" != "${received}" ] && rc=1 && echo -e "Expected body differs from received:\nExpected:\n${expected}\nReceived:\n${received}"
+    # Normalize with jq ignoring optionally fields like 'time' or similar
+    [ -n "${ASSERT_JSON_IGNORED_FIELDS}" ] && jq_expr="del(${ASSERT_JSON_IGNORED_FIELDS})"
+    expected=$(echo ${EXPECTED_RESPONSE} | jq "${jq_expr}")
+    received=$(echo ${receivedResponse} | jq "${jq_expr}")
+    [ "${expected}" != "${received}" ] && rc=1 && echo -e "=> differs from expected !\n\nExpected:\n${expected}\nReceived:\n${received}"
   fi
 
+  echo
   if [ ${rc} -eq 0 ]
   then
     echo -n "Response is OK :-)"
-    [ -n "${ASSERT_IGNORED_FIELDS}" ] && echo -n " (ignored fields: ${jq_expr})"
+    [ -n "${ASSERT_JSON_IGNORED_FIELDS}" ] && echo -n " (ignored fields: ${jq_expr})"
     echo
   else
     echo "Response is NOK :_("
@@ -114,15 +109,15 @@ test_query() {
   fi
   if [ -n "${INTERACT}" ]
   then
-    echo "Press ENTER to continue ..."
+    echo -en "\nPress ENTER to continue ... "
     read -r dummy
   fi
 
   # Reset
   EXPECTED_STATUS_CODES=
-  EXPECTED_BODY=
+  EXPECTED_RESPONSE=
   CURL_OPTS=
-  ASSERT_IGNORED_FIELDS=
+  ASSERT_JSON_IGNORED_FIELDS=
 
   # Return rc
   return ${rc}

@@ -144,7 +144,12 @@ void AdminProvision::transform( const std::string &requestUri,
         // if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
     }
     else {
-        responseBody = getResponseBody().dump();
+        if (getResponseBody().is_null()) {
+            responseBody = getResponseBodyAsString();
+        }
+        else {
+            responseBody = getResponseBody().dump();
+        }
     }
 
     // Dynamic variables map: inherited along the transformation chain
@@ -662,8 +667,30 @@ bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexCon
     }
 
     it = j.find("responseBody");
-    if (it != j.end() && it->is_object()) {
-        response_body_ = *it;
+    if (it != j.end()) {
+        if (it->is_object() || it->is_array()) {
+            response_body_ = *it;
+        }
+        else if (it->is_string()) {
+            response_body_string_ = *it;
+        }
+        else if (it->is_number_integer() || it->is_number_unsigned()) {
+            //response_body_integer_ = *it;
+            int number = *it;
+            response_body_string_ = std::to_string(number);
+        }
+        else if (it->is_number_float()) {
+            //response_body_number_ = *it;
+            response_body_string_ = std::to_string(double(*it));
+        }
+        else if (it->is_boolean()) {
+            //response_body_boolean_ = *it;
+            response_body_string_ = ((bool)(*it) ? "true":"false");
+        }
+        else if (it->is_null()) {
+            //response_body_null_ = true;
+            response_body_string_ = "null";
+        }
     }
 
     it = j.find("responseDelayMs");

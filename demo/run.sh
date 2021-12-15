@@ -37,20 +37,19 @@ test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/se
 
 # Enable interactiveness and verbose output:
 INTERACT=true
-VERBOSE=true
 
-EXPECTED_BODY="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
+EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
 EXPECTED_STATUS_CODES=201
 CURL_OPTS="-d'{ \"algorithm\":\"PriorityMatchingRegex\" }' -H \"Content-Type: application/json\""
 test_query "Step 1. Server matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
 
-EXPECTED_BODY="{\"algorithm\":\"PriorityMatchingRegex\"}"
+EXPECTED_RESPONSE="{\"algorithm\":\"PriorityMatchingRegex\"}"
 EXPECTED_STATUS_CODES=200
 test_query "Step 2. Check server matching configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
 
 test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
 
-EXPECTED_BODY="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and provisions data received\" }"
+EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and provisions data received\" }"
 EXPECTED_STATUS_CODES=201
 CURL_OPTS="-d@./provisions.json -H \"Content-Type: application/json\""
 test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
@@ -58,33 +57,33 @@ test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPO
 EXPECTED_STATUS_CODES=200
 test_query "Step 5. Check server provisions configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
 
-KNOWN_BODY_REGISTERS=()
-KNOWN_BODY_REGISTERS+=( "{\"id\":\"id-1\",\"name\":\"Jess Glynne\",\"phone\":66453}" )
-KNOWN_BODY_REGISTERS+=( "{\"developer\":true, \"id\":\"id-2\",\"name\":\"Bryan Adams\",\"phone\":55643}" )
-KNOWN_BODY_REGISTERS+=( "{\"id\":\"id-3\",\"name\":\"Phil Collins\",\"phone\":32459}" )
+KNOWN_RESPONSE_REGISTERS=()
+KNOWN_RESPONSE_REGISTERS+=( "{\"id\":\"id-1\",\"name\":\"Jess Glynne\",\"phone\":66453}" )
+KNOWN_RESPONSE_REGISTERS+=( "{\"developer\":true, \"id\":\"id-2\",\"name\":\"Bryan Adams\",\"phone\":55643}" )
+KNOWN_RESPONSE_REGISTERS+=( "{\"id\":\"id-3\",\"name\":\"Phil Collins\",\"phone\":32459}" )
 for n in 1 2 3
 do
-  EXPECTED_BODY=${KNOWN_BODY_REGISTERS[$((n-1))]}
+  EXPECTED_RESPONSE=${KNOWN_RESPONSE_REGISTERS[$((n-1))]}
   EXPECTED_STATUS_CODES=200
-  ASSERT_IGNORED_FIELDS=".time"
+  ASSERT_JSON_IGNORED_FIELDS=".time"
   test_query "Step 6.${n}. Request the identifier 'id-${n}'" GET http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-${n}") || exit 1
 done
 
-EXPECTED_BODY="{\"developer\":true, \"id\":\"id-74\",\"name\":\"unassigned\"}"
+EXPECTED_RESPONSE="{\"developer\":true, \"id\":\"id-74\",\"name\":\"unassigned\"}"
 EXPECTED_STATUS_CODES=200
-ASSERT_IGNORED_FIELDS=".time,.phone"
+ASSERT_JSON_IGNORED_FIELDS=".time,.phone"
 test_query "Step 7. Request unassigned id-74 (even identifier must carry 'developer': true)" GET http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-74") || exit 1
 
-EXPECTED_BODY="{\"id\":\"id-75\",\"name\":\"unassigned\"}"
+EXPECTED_RESPONSE="{\"id\":\"id-75\",\"name\":\"unassigned\"}"
 EXPECTED_STATUS_CODES=200
-ASSERT_IGNORED_FIELDS=".time,.phone"
+ASSERT_JSON_IGNORED_FIELDS=".time,.phone"
 test_query "Step 8. Request unassigned id-75 (odd identifier must omit 'developer' field in response)" GET http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-75") || exit 1
 
-EXPECTED_BODY="{\"cause\":\"invalid workplace id provided, must be in format id-<2-digit number>\"}"
+EXPECTED_RESPONSE="{\"cause\":\"invalid workplace id provided, must be in format id-<2-digit number>\"}"
 EXPECTED_STATUS_CODES=400
 test_query "Step 9. Request invalid id-112" GET http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-112") || exit 1
 
-EXPECTED_BODY="{\"cause\":\"invalid workplace id provided, must be in format id-<2-digit number>\"}"
+EXPECTED_RESPONSE="{\"cause\":\"invalid workplace id provided, must be in format id-<2-digit number>\"}"
 EXPECTED_STATUS_CODES=400
 test_query "Step 10. Request invalid id-xyz" GET http://${H2AGENT_TRAFFIC_ENDPOINT}$(get_uri "id-xyz") || exit 1
 

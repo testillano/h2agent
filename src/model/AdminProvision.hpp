@@ -84,7 +84,16 @@ class AdminProvision
     std::string out_state_;
     unsigned int response_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
+
     nlohmann::json response_body_;
+    std::string response_body_string_{};
+    /* Tatsuhiro sends strings in response:
+    int response_body_integer_{};
+    double response_body_number_{};
+    bool response_body_boolean_{};
+    bool response_body_null_{};
+    */
+
     unsigned int response_delay_ms_;
 
     model::MockRequestData *mock_request_data_; // just in case it is used
@@ -219,6 +228,46 @@ public:
     const nlohmann::json &getResponseBody() const {
         return response_body_;
     }
+
+    /** Provisioned response body string
+     *
+     * @return Response body string
+     */
+    const std::string &getResponseBodyAsString() const {
+        return response_body_string_;
+    }
+
+//    /** Provisioned response body integer
+//     *
+//     * @return Response body integer
+//     */
+//     const int &getResponseBodyAsInteger() const {
+//        return response_body_integer_;
+//    }
+//
+//    /** Provisioned response body number
+//     *
+//     * @return Response body number
+//     */
+//    const double &getResponseBodyAsNumber() const {
+//        return response_body_number_;
+//    }
+//
+//    /** Provisioned response body boolean
+//     *
+//     * @return Response body boolean
+//     */
+//    bool getResponseBodyAsBoolean() const {
+//        return response_body_boolean_;
+//    }
+//
+//    /** Provisioned response body null
+//     *
+//     * @return Response body null
+//     */
+//    bool getResponseBodyAsNull() const {
+//        return response_body_null_;
+//    }
 
     /** Provisioned response delay milliseconds
      *
