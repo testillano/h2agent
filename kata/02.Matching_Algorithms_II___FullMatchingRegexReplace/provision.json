@@ -1,5 +1,5 @@
 {
-  "requestMethod": "POST",
-  "requestUri": "/ctrl/v2/id-555112233/",
+  "requestMethod": "GET",
+  "requestUri": "/ctrl/v2/id-555112233",
   "responseCode": 200
 }
