@@ -35,31 +35,5 @@
         "target": "response.body.object"
       }
     ]
-  },
-  {
-    "requestMethod": "DELETE",
-    "requestUri": "(/ctrl/v2/items/id-)([0-9]+)",
-    "responseCode": 200,
-    "transform": [
-      {
-        "source": "value.get-obtains-not-found",
-        "target": "outState.GET"
-      }
-    ],
-    "outState": "already-deleted"
-  },
-  {
-    "inState": "get-obtains-not-found",
-    "requestMethod": "GET",
-    "requestUri": "(/ctrl/v2/items/id-)([0-9]+)",
-    "responseCode": 404,
-    "outState": "get-obtains-not-found"
-  },
-  {
-    "inState": "already-deleted",
-    "requestMethod": "DELETE",
-    "requestUri": "(/ctrl/v2/items/id-)([0-9]+)",
-    "responseCode": 204,
-    "outState": "already-deleted"
   }
 ]

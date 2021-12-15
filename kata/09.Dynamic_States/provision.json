@@ -1,0 +1,161 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/evolve",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.1",
+        "target": "response.header.item-number"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "up" },
+        "target": "var.up"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "down" },
+        "target": "var.down"
+      },
+      {
+        "source": "value.2",
+        "filter": { "ConditionVar": "up" },
+        "target": "outState"
+      },
+      {
+        "source": "value.5",
+        "filter": { "ConditionVar": "down" },
+        "target": "outState"
+      }
+    ]
+  },
+  {
+    "inState":"2",
+    "requestMethod": "POST",
+    "requestUri": "/evolve",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.2",
+        "target": "response.header.item-number"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "up" },
+        "target": "var.up"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "down" },
+        "target": "var.down"
+      },
+      {
+        "source": "value.3",
+        "filter": { "ConditionVar": "up" },
+        "target": "outState"
+      },
+      {
+        "source": "value.initial",
+        "filter": { "ConditionVar": "down" },
+        "target": "outState"
+      }
+    ]
+  },
+  {
+    "inState":"3",
+    "requestMethod": "POST",
+    "requestUri": "/evolve",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.3",
+        "target": "response.header.item-number"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "up" },
+        "target": "var.up"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "down" },
+        "target": "var.down"
+      },
+      {
+        "source": "value.4",
+        "filter": { "ConditionVar": "up" },
+        "target": "outState"
+      },
+      {
+        "source": "value.2",
+        "filter": { "ConditionVar": "down" },
+        "target": "outState"
+      }
+    ]
+  },
+  {
+    "inState":"4",
+    "requestMethod": "POST",
+    "requestUri": "/evolve",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.4",
+        "target": "response.header.item-number"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "up" },
+        "target": "var.up"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "down" },
+        "target": "var.down"
+      },
+      {
+        "source": "value.5",
+        "filter": { "ConditionVar": "up" },
+        "target": "outState"
+      },
+      {
+        "source": "value.3",
+        "filter": { "ConditionVar": "down" },
+        "target": "outState"
+      }
+    ]
+  },
+  {
+    "inState":"5",
+    "requestMethod": "POST",
+    "requestUri": "/evolve",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "value.5",
+        "target": "response.header.item-number"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "up" },
+        "target": "var.up"
+      },
+      {
+        "source": "request.body.direction",
+        "filter": { "RegexCapture": "down" },
+        "target": "var.down"
+      },
+      {
+        "source": "value.initial",
+        "filter": { "ConditionVar": "up" },
+        "target": "outState"
+      },
+      {
+        "source": "value.4",
+        "filter": { "ConditionVar": "down" },
+        "target": "outState"
+      }
+    ]
+  }
+]

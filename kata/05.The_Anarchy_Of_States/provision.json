@@ -1,20 +1,25 @@
 [
   {
+    "inState": "state2",
     "requestMethod": "GET",
     "requestUri": "/rothbard/says",
     "responseCode": 200,
-    "responseBody": "the great single enemy of the human race"
+    "responseBody": " the great single enemy of the human race,",
+    "outState": "state3"
   },
   {
     "requestMethod": "GET",
     "requestUri": "/rothbard/says",
     "responseCode": 200,
-    "responseBody": "The State is, and always has been"
+    "responseBody": "The State is, and always has been,",
+    "outState": "state2"
   },
   {
+    "inState": "state3",
     "requestMethod": "GET",
     "requestUri": "/rothbard/says",
     "responseCode": 200,
-    "responseBody": "its liberty, happiness, and progress."
+    "responseBody": " its liberty, happiness, and progress.",
+    "outState": "purge"
   }
 ]
