@@ -143,7 +143,15 @@ const nlohmann::json server_provision = R"(
       "type": "integer"
     },
     "responseBody": {
-      "type": "object"
+      "oneOf": [
+        {"type": "object"},
+        {"type": "array"},
+        {"type": "string"},
+        {"type": "integer"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
     },
     "responseDelayMs": {
       "type": "integer"

@@ -1,0 +1,5 @@
+{
+  "algorithm": "FullMatchingRegexReplace",
+  "rgx": "(/number/is/even/)([0-9]+)",
+  "fmt": "$1"
+}

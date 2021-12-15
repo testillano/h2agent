@@ -1,0 +1,5 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/one/uri/path?name=Hayek&city=Friburgo",
+  "responseCode": 200
+}

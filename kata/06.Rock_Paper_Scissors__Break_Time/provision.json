@@ -1,0 +1,11 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/rock paper or scissors",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "general.randomset.rock|paper|scissors",
+      "target": "response.body.string"
+    }
+  ]
+}
