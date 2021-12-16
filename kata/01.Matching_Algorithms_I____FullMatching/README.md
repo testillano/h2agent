@@ -22,7 +22,7 @@ That is to say, the `URI` received will be used <u>directly to search the corres
 }
 ```
 
-There are more possibilities covered in the matching configuration schema for full matching algorithm. For example, the way to process possible query parameters. So, you can *sort* them by ampersand (which is the default) or semicolon, you could *pass by* the whole `URI` without sorting, and of course, you could ignore them.
+There are more possibilities covered in the matching configuration schema for full matching algorithm. For example, the way to process possible query parameters. So, you can *sort* them by ampersand (**which is the default**) or semicolon, you could *pass by* (**PassBy**) the whole `URI` without sorting, and of course, you could ignore them.
 
 For example, the previous provision would be never reached if the `URI` is like `/one/uri/path?name=foo`.
 
