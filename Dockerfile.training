@@ -1,0 +1,21 @@
+ARG img_tag=latest
+FROM ghcr.io/testillano/h2agent:${img_tag}
+MAINTAINER testillano
+
+LABEL testillano.h2agent.description="Docker image for h2agent service for training"
+
+COPY tools /home/h2agent/tools
+COPY demo /home/h2agent/demo
+COPY kata /home/h2agent/kata
+WORKDIR /home/h2agent/
+
+RUN apk update && apk add \
+    bash \
+    curl \
+    jq \
+    dos2unix
+
+RUN ln -s /opt/h2agent
+
+ENTRYPOINT ["sleep", "infinity"]
+CMD []
