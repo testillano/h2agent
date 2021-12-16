@@ -181,7 +181,7 @@ $ cat install_manifest.txt | sudo xargs rm
 
 #### Coverage
 
-Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
+Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
 
 ### Component test
 
@@ -446,13 +446,13 @@ Options:
 Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789" --fmt '$1'
 ```
 
-### Metrics
+## Metrics
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
 More information about implemented counters [here](#OAM).
 
-### Traces and printouts
+## Traces and printouts
 
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
@@ -490,6 +490,28 @@ $ kill $!
 [Warning]|/code/src/main.cpp:90(stopServers)|Stopping h2agent admin service at 03/04/21 20:49:40 CEST
 [Warning]|/code/src/main.cpp:97(stopServers)|Stopping h2agent mock service at 03/04/21 20:49:40 CEST
 [1]+  Exit 1                  h2agent --verbose
+```
+
+## Training
+
+### Demo
+
+A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
+
+### Kata
+
+A kata is available at `./kata` directory. It is designed to guide through a set of exercises with increasing complexity. Check its [README.md](./kata/README.md) file to learn more about.
+
+### Working with docker
+
+Sometimes, `github` access restrictions to build the project from scratch could be a handicap. Other times, you could simple prefer to run training stuff isolated.
+
+So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout.
+
+The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
+
+```bash
+$ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
 
 ## Management interface

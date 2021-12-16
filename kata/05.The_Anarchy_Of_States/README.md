@@ -50,7 +50,7 @@ The first provision item omits the `inState`, but you could add `"instate": "ini
 
 Another important thing about this provision set is that when exhausted, further requests from the client will never be answered (just a `501` which means *Not Implemented*, which is the way `h2agent` indicates a missing provision for the received event).
 
-So, that state called `four` is a kind of *road closed* for the dialogue becuase there is not a defined provision with `four` as `inState` field value.
+So, that state called `four` is a kind of *road closed* for the dialogue because there is not a defined provision with `four` as `inState` field value.
 
 There is another interesting reserved state called `purge`. It will remove all the history related to the event `URI` processed, so it can be reused (next request would be a maiden event and this has a correct provision: the first one: `initial`).
 
