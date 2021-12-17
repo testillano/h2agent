@@ -41,14 +41,23 @@ Solutions are available at git branch `kata-solutions`, but ... try to solve eve
 Exercises documentation links:
 
 [1 Matching Algorithms I (FullMatching)](./01.Matching_Algorithms_I____FullMatching/README.md)
+
 [2 Matching Algorithms II (FullMatchingRegexReplace)](./02.Matching_Algorithms_II___FullMatchingRegexReplace/README.md)
+
 [3 Matching Algorithms III (PriorityMatchingRegex)](./03.Matching_Algorithms_III__PriorityMatchingRegex/README.md)
+
 [4 Capture Regular Expression](./04.Capture_Regular_Expression/README.md)
+
 [5 The Anarchy Of States](./05.The_Anarchy_Of_States/README.md)
+
 [6 Rock Paper Scissors (Break Time)](./06.Rock_Paper_Scissors__Break_Time/README.md)
+
 [7 Only Those Who Wander Find New Paths](./07.Only_Those_Who_Wander_Find_New_Paths/README.md)
+
 [8 Server Data History](./08.Server_Data_History/README.md)
+
 [9 Dynamic States](./09.Dynamic_States/README.md)
+
 [10 Foreign States](./10.Foreign_States/README.md)
 
 ## How it works
