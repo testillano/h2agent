@@ -1,0 +1,4 @@
+Use RegexCapture filter to generate an equivalent-boolean string variable (up & down).
+Use ConditionVar to transfer the corresponding next states depending on the direction.
+As special case, 1 goes down to 5, and 5 goes up to 1 (initial stage).
+In order to ease the solution, we use numeric states except for 1 which must be 'initial'.
