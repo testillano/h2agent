@@ -521,6 +521,7 @@ $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ### POST /admin/v1/server-matching
 
 Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm.
+You can swap this algorithm safely keeping the existing provisions without side-effects, but normally, the mocked application should select an invariable matching configuration specially when long-term load testing is planned. For functional testing, as commented above, the matching configuration update is perfectly possible in real time.
 
 #### Request body schema
 
