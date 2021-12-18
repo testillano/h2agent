@@ -87,7 +87,9 @@ AdminProvisionData::LoadResult AdminProvisionData::loadSingle(const nlohmann::js
         admin_provision_key_t key = provision->getKey();
         add(key, provision);
 
-        // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex':
+        // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex'.
+        // So, we always have both lists available; as each algorithm finds within the proper
+        // list, we don't need to drop provisions when swaping the matching mode on the fly:
         write_guard_t guard(rw_mutex_);
         ordered_keys_.push_back(key);
 
