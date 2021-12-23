@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "value.",
-      "target": "response.body.string.emptyStringNode"
+      "target": "response.body.string./emptyStringNode"
     }
   ]
 }

@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "general.strftime.Now it's %I:%M%p.",
-      "target": "response.body.string.generalStrftime"
+      "target": "response.body.string./generalStrftime"
     }
   ]
 }

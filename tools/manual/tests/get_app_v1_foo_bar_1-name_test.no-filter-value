@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "value.This is a test",
-      "target": "response.body.string.value"
+      "target": "response.body.string./value"
     }
   ]
 }

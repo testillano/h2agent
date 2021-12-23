@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.string.uri-prepended",
+      "target": "response.body.string./uri-prepended",
       "filter": {
         "Prepend": "prefix-"
       }

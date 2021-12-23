@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "general.recvseq",
-      "target": "response.body.integer.recvseqAdding100",
+      "target": "response.body.integer./recvseqAdding100",
       "filter": {
         "Sum": 100
       }

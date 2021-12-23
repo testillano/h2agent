@@ -12,7 +12,7 @@
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.string.captureBarIdFromURIAndAppendSuffix",
+      "target": "response.body.string./captureBarIdFromURIAndAppendSuffix",
       "filter": {
         "RegexReplace": {
           "rgx": "/app/v1/foo/bar/([0-9]*)",
