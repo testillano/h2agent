@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "general.recvseq",
-      "target": "response.body.string.generalRecvseq"
+      "target": "response.body.string./generalRecvseq"
     }
   ]
 }

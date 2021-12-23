@@ -12,8 +12,8 @@ PROVISION
   },
   "transform": [
     {
-      "source": "request.body.node1.node2",
-      "target": "response.body.string.request.node1.node2"
+      "source": "request.body./node1/node2",
+      "target": "response.body.string./request/node1/node2"
     }
   ]
 }

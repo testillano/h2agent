@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.string.uri-appended",
+      "target": "response.body.string./uri-appended",
       "filter": {
         "Append": "-suffix"
       }

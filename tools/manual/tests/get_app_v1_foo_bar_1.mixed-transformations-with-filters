@@ -13,14 +13,14 @@ PROVISION
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.integer.nodeA.nodeB",
+      "target": "response.body.integer./nodeA/nodeB",
       "filter": {
         "RegexCapture": "([0-9]*)"
       }
     },
     {
       "source": "request.uri.path",
-      "target": "response.body.integer.nodeA.nodeB.nodeC",
+      "target": "response.body.integer./nodeA/nodeB/nodeC",
       "filter": {
         "RegexReplace": {
           "rgx": "([0-9]*)",
@@ -43,7 +43,7 @@ PROVISION
       }
     },
     {
-      "source": "request.body.node1.node2.delaymilliseconds",
+      "source": "request.body./node1/node2/delaymilliseconds",
       "target": "response.delayMs"
     },
     {
@@ -96,7 +96,7 @@ PROVISION
       }
     },
     {
-      "source": "request.body.forceErrors.internalServerError",
+      "source": "request.body./forceErrors/internalServerError",
       "target": "var.transfer-500-to-status-code"
     },
     {
