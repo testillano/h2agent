@@ -1,0 +1,4 @@
+Use a regular expression to detect odd numbers dumping the filter result on a variable (isOdd).
+This variable is empty (so, false) when it does not match. Then, using a condition variable
+filter, we use that variable to rule the tranfer into final response status code (400) only
+for odd numbers.
