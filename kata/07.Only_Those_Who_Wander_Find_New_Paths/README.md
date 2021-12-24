@@ -5,9 +5,9 @@ During the response construction, it is normally needed to access request body o
 So, you have these sources of information when it comes to use `json` paths:
 
 - request.body: request body document from *root*.
-- request.body.`<node1>..<nodeN>`: request body node path. This source path **admits variables substitution**.
+- request.body.`/<node1>/../<nodeN>`: request body node path. This source path **admits variables substitution**.
 - response.body: response body document from *root*. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
-- response.body.`<node1>..<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 And the targets:
 
@@ -25,19 +25,19 @@ And the targets:
 
 - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
-- response.body.string.`<node1>..<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
+- response.body.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.integer.`<node1>..<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
+- response.body.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.unsigned.`<node1>..<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
+- response.body.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.float.`<node1>..<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
+- response.body.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.boolean.`<node1>..<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+- response.body.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
 
-- response.body.object.`<node1>..<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+- response.body.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
 
-- response.body.jsonstring.`<node1>..<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
+- response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
 ## Exercise
 

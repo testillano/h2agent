@@ -53,6 +53,6 @@ The evaluation process will be:
 
 * `GET` data again expecting a `404` status code and no response data carried.
 
-  
+
 
 Think about possible `h2agent` limitations of *foreign state* procedure in the context of this exercise.

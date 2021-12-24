@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "request.header.test-id",
-      "target": "response.body.object.request-header-test-id"
+      "target": "response.body.object./request-header-test-id"
     }
   ]
 }

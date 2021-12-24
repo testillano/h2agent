@@ -140,8 +140,8 @@ Note that we always provision **decoded** `URIs` and although this complication 
 
 ### h2agent vs h2agent
 
-Execute this exercise by mean `./evaluate.sh <this exercise directory>` to see the `h2agent` playing against itself.
+Evaluate this exercise to see the `h2agent` playing against itself.
 
 ### h2agent vs you
 
-Execute this exercise interactively (`INTERACT=true ./evaluate.sh <this exercise directory>`) to play against the `h2agent`. Can you win to the mock ? I'm sure you will do ... sooner or later !
+Evaluate this exercise interactively (`./evaluate.sh -i`) to play against the `h2agent`. Can you win to the mock ? I'm sure you will do ... sooner or later !

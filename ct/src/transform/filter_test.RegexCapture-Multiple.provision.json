@@ -19,19 +19,19 @@
     },
     {
       "source": "var.captures.1",
-      "target": "response.body.string.captureFooFromURI"
+      "target": "response.body.string./captureFooFromURI"
     },
     {
       "source": "var.captures.2",
-      "target": "response.body.string.captureBarIdFromURI"
+      "target": "response.body.string./captureBarIdFromURI"
     },
     {
       "source": "var.captures.3",
-      "target": "response.body.string.thisShouldBeSkipped"
+      "target": "response.body.string./thisShouldBeSkipped"
     },
     {
       "source": "var.captures",
-      "target": "response.body.string.variableAsIs"
+      "target": "response.body.string./variableAsIs"
     }
   ]
 }

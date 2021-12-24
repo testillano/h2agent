@@ -55,7 +55,7 @@
     "transform": [
       {
         "source": "request.uri.path",
-        "target": "response.body.string.uriPath"
+        "target": "response.body.string./uriPath"
       }
     ]
   }

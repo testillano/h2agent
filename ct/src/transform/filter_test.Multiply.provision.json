@@ -12,7 +12,7 @@
   "transform": [
     {
       "source": "general.recvseq",
-      "target": "response.body.integer.recvseqMultipliedBy2",
+      "target": "response.body.integer./recvseqMultipliedBy2",
       "filter": {
         "Multiply": 2
       }

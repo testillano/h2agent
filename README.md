@@ -181,7 +181,7 @@ $ cat install_manifest.txt | sudo xargs rm
 
 #### Coverage
 
-Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
+Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
 
 ### Component test
 
@@ -446,13 +446,13 @@ Options:
 Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789" --fmt '$1'
 ```
 
-### Metrics
+## Metrics
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
 More information about implemented counters [here](#OAM).
 
-### Traces and printouts
+## Traces and printouts
 
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
@@ -492,6 +492,28 @@ $ kill $!
 [1]+  Exit 1                  h2agent --verbose
 ```
 
+## Training
+
+### Demo
+
+A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
+
+### Kata
+
+A kata is available at `./kata` directory. It is designed to guide through a set of exercises with increasing complexity. Check its [README.md](./kata/README.md) file to learn more about.
+
+### Working with docker
+
+Sometimes, `github` access restrictions to build the project from scratch could be a handicap. Other times, you could simple prefer to run training stuff isolated.
+
+So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout.
+
+The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
+
+```bash
+$ docker pull ghcr.io/testillano/h2agent_training:<tag>
+```
+
 ## Management interface
 
 `h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`:
@@ -499,6 +521,7 @@ $ kill $!
 ### POST /admin/v1/server-matching
 
 Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm.
+You can swap this algorithm safely keeping the existing provisions without side-effects, but normally, the mocked application should select an invariable matching configuration specially when long-term load testing is planned. For functional testing, as commented above, the matching configuration update is perfectly possible in real time.
 
 #### Request body schema
 
@@ -853,11 +876,11 @@ The **source** of information is classified after parsing the following possible
 
 - request.body: request body document from *root*.
 
-- request.body.`<node1>..<nodeN>`: request body node path. This source path **admits variables substitution**.
+- request.body.`/<node1>/../<nodeN>`: request body node path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` root.
 
 - response.body: response body document from *root*. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
-- response.body.`<node1>..<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 - request.header.`<hname>`: request header component (i.e. *content-type*).
 
@@ -960,19 +983,19 @@ The **target** of information is classified after parsing the following possible
 
 - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
-- response.body.string.`<node1>..<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
+- response.body.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.integer.`<node1>..<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
+- response.body.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.unsigned.`<node1>..<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
+- response.body.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.float.`<node1>..<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
+- response.body.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.boolean.`<node1>..<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+- response.body.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
 
-- response.body.object.`<node1>..<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+- response.body.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
 
-- response.body.jsonstring.`<node1>..<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
+- response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
 - response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**.
 
@@ -1179,7 +1202,7 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.body.forceErrors.internalServerError",
+    "source": "request.body./forceErrors/internalServerError",
     "target": "var.transfer-500-to-status-code"
   }
   ```
@@ -1783,3 +1806,4 @@ $ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 ### Pull request
 
 Rebase to update and then make a `pull request`.
+

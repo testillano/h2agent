@@ -13,7 +13,7 @@ PROVISION
   "transform": [
     {
       "source": "value.[{\"id\":\"2000\"},{\"id\":\"2001\"}]",
-      "target": "response.body.jsonstring.array"
+      "target": "response.body.jsonstring./array"
     }
   ]
 }

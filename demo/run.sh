@@ -35,7 +35,10 @@ title "H2agent demo"
 EXPECTED_STATUS_CODES="200 204"
 test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || { echo -e "\nCheck that the h2agent application is started" ; exit 1 ; }
 
-# Enable interactiveness and verbose output:
+EXPECTED_STATUS_CODES="200"
+test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data/configuration?discard=false&discardRequestsHistory=false" || exit 1
+
+# Enable interactiveness:
 INTERACT=true
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"

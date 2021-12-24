@@ -20,12 +20,12 @@
     },
     {
       "source": "value.foo",
-      "target": "response.body.string.must-be-missing-in-response",
+      "target": "response.body.string./must-be-missing-in-response",
       "filter": { "ConditionVar" : "falseVar" }
     },
     {
       "source": "value.foo",
-      "target": "response.body.string.must-be-in-response",
+      "target": "response.body.string./must-be-in-response",
       "filter": { "ConditionVar" : "trueVar" }
     }
   ]

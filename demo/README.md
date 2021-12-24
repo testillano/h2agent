@@ -1,6 +1,22 @@
 # HTTP/2 Server Mock Demo
 
-## Requirements
+## Prepare the environment
+
+### Working in training container
+
+If your are working in the training container (check the training section in the main project [README.md](../README.md) file), there is no need to build the project neither install requirements commented below, just execute the process in background and run the **demo** stuff:
+
+```bash
+bash-5.1# ls -lrt
+total 12
+drwxr-xr-x    5 root     root          4096 Dec 16 20:29 tools
+drwxr-xr-x   12 root     root          4096 Dec 16 20:29 kata
+drwxr-xr-x    2 root     root          4096 Dec 16 20:29 demo
+lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /opt/h2agent
+bash-5.1# ./h2agent --verbose &
+```
+
+### Working natively: requirements
 
 This demo requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
 
@@ -8,6 +24,13 @@ This demo requires `curl`, `jq` and `dos2unix`, so please try to install them on
 $ sudo apt-get install curl
 $ sudo apt-get install jq
 $ sudo apt-get install dos2unix
+```
+
+Also, you should build the project and start the `h2agent` (better in a separate terminal):
+
+```bash
+$ ./build.sh --auto # builds agent
+$ build/Release/bin/h2agent --verbose & # starts agent
 ```
 
 ## Case of use
@@ -46,8 +69,6 @@ These are the **specifications**:
 
 * Finally, we will simulate the deletion for existing identifiers (`id-1`, `id-2` and `id-3`), so when *DELETE* request is received for any of them, all subsequent *GET's* must obtain a *404 (Not Found)* status code from then on.
 
-
-
 ## Analysis
 
 As we need to identify bad *URI's*, we will use the matching algorithm <u>*PriorityMatchingRegex*</u>, including firstly the known registers, then the "valid but unassigned" ones, and finally a fall back default provision for `GET` method with the *bad request (400)* configuration.
@@ -63,8 +84,6 @@ This way is also valid:
 The optional `developer` node will be implemented through a <u>condition variable transformation filter</u>.
 
 Finally we will use the <u>out-state for foreign method</u> feature to simulate the registers deletion.
-
-
 
 ## Solution
 
@@ -255,8 +274,6 @@ HTTP/2 404
 
 ...
 ```
-
-
 
 ## Run the demo
 
