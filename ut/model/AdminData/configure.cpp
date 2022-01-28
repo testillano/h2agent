@@ -5,6 +5,7 @@
 
 #include <AdminMatchingData.hpp>
 #include <AdminProvisionData.hpp>
+#include <AdminSchemas.hpp>
 
 // Matching configuration:
 const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({ "algorithm": "FullMatching" })"_json;
@@ -48,11 +49,52 @@ const nlohmann::json ProvisionConfiguration__Success = R"(
 }
 )"_json;
 
+const nlohmann::json ProvisionConfiguration__SuccessRegex = R"delim(
+{
+  "requestMethod": "GET",
+  "requestUri": "(/foo/bar/)([0-9]{3})",
+        "responseCode": 200
+}
+)delim"_json;
+
+const nlohmann::json ProvisionConfiguration__SuccessArray = R"(
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/1",
+    "responseCode": 200
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/2",
+    "responseCode": 200
+  }
+]
+)"_json;
+
 const nlohmann::json ProvisionConfiguration__BadSchema = R"({ "happy": true, "pi": 3.141 })"_json;
+const nlohmann::json ProvisionConfiguration__BadContent = R"(
+{
+  "requestMethod": "GET",
+  "requestUri": "bad regular expression due to the slash \\",
+  "responseCode": 200
+}
+)"_json;
 
-const nlohmann::json ProvisionConfiguration_xxxxxxxxxxxxxx__BadContent = R"({ "algorithm": "FullMatching", "rgx":"whatever" })"_json;
-const nlohmann::json ProvisionConfiguration_yyyyyyyyyyyyyyyyy_BadContent = R"({ "algorithm": "FullMatching", "rgx":"whatever" })"_json;
-
+const nlohmann::json ProvisionConfiguration__BadContentArray = R"(
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "(/foo/bar/)[0-9]{3}",
+    "responseCode": 200
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "bad regular expression due to the slash \\",
+    "responseCode": 200
+  }
+]
+)"_json;
 
 class AdminData_test : public ::testing::Test
 {
@@ -101,16 +143,69 @@ TEST_F(AdminData_test, LoadMatching)
     EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__BadContent3), h2agent::model::AdminMatchingData::BadContent);
 }
 
-TEST_F(AdminData_test, LoadProvision)
+TEST_F(AdminData_test, LoadProvisionSuccess)
 {
     EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__Success), h2agent::model::AdminProvisionData::Success);
     nlohmann::json jarray = nlohmann::json::array();
     jarray.push_back(ProvisionConfiguration__Success);
     EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(), jarray.dump());
-    ASSERT_TRUE(AdminData_test::adata_.clearProvisions());
+    //EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
 
+    // two ordered provisions:
+    nlohmann::json anotherProvision = ProvisionConfiguration__Success;
+    anotherProvision["requestUri"] = std::string(ProvisionConfiguration__Success["requestUri"]) + "_bis";
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(anotherProvision), h2agent::model::AdminProvisionData::Success);
+    jarray.push_back(anotherProvision);
+    EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(true /* ordered */), jarray.dump());
+    EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
+
+    // provision array
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__SuccessArray), h2agent::model::AdminProvisionData::Success);
+    EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
+}
+
+TEST_F(AdminData_test, LoadProvisionFail)
+{
+    // Bad schema
     EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadSchema), h2agent::model::AdminProvisionData::BadSchema);
     EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(), "null");
-    ASSERT_FALSE(AdminData_test::adata_.clearProvisions());
+    EXPECT_EQ(AdminData_test::adata_.getProvisionData().getSchema().getJson(), h2agent::adminSchemas::server_provision);
+    EXPECT_FALSE(AdminData_test::adata_.clearProvisions());
+
+    // Bad content only happens for PriorityMatchingRegex:
+    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminMatchingData::Success);
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadContent), h2agent::model::AdminProvisionData::BadContent);
+    EXPECT_FALSE(AdminData_test::adata_.clearProvisions());
+
+    // Bad content array:
+    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminMatchingData::Success);
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadContentArray), h2agent::model::AdminProvisionData::BadContent);
+    EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
+}
+
+TEST_F(AdminData_test, FindProvisionRegex)
+{
+    // Bad content only happens for PriorityMatchingRegex:
+    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminMatchingData::Success);
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__SuccessRegex), h2agent::model::AdminProvisionData::Success);
+
+    EXPECT_TRUE(AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/foo/bar/123") != nullptr);
+    EXPECT_FALSE(AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("missing", "GET", "/foo/bar/123") != nullptr);
+    EXPECT_FALSE(AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "POST", "/foo/bar/123") != nullptr);
+    EXPECT_FALSE(AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/foo/bar/12345") != nullptr);
+    EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
+}
+
+TEST_F(AdminData_test, FindProvision)
+{
+    // Bad content only happens for PriorityMatchingRegex:
+    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminMatchingData::Success);
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__Success), h2agent::model::AdminProvisionData::Success);
+
+    EXPECT_TRUE(AdminData_test::adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test") != nullptr);
+    EXPECT_FALSE(AdminData_test::adata_.getProvisionData().find("missing", "GET", "/app/v1/foo/bar/1?name=test") != nullptr);
+    EXPECT_FALSE(AdminData_test::adata_.getProvisionData().find("initial", "POST", "/app/v1/foo/bar/1?name=test") != nullptr);
+    EXPECT_FALSE(AdminData_test::adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=missing") != nullptr);
+    EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
 }
 

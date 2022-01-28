@@ -6,7 +6,7 @@ MAINTAINER testillano
 
 LABEL testillano.h2agent.description="Docker image for h2agent coverage"
 
-RUN apk add lcov --update-cache --repository  http://dl-3.alpinelinux.org/alpine/edge/testing/
+RUN apk add lcov --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/
 
 COPY . /code
 WORKDIR /code
