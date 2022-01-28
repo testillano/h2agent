@@ -250,18 +250,22 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
     clear();
     try {
         nlohmann::json::json_pointer j_ptr(path);
-        j_value_ = jsonSource[j_ptr];
+        // operator[] aborts in debug compilation when the json pointer path is not found.
+        // It is safer to use at() method which has "bounds checking":
+        // j_value_ = jsonSource[j_ptr];
+        j_value_ = jsonSource.at(j_ptr);
+        if (j_value_.empty()) return false; // null extracted (path not found)
     }
     catch (std::exception& e)
     {
         ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+        return false;
     }
 
-    if (j_value_.empty()) return false; // null extracted (path not found)
-
-    native_type_ = NativeType::Object; // assumed
-
-    if (j_value_.is_string()) {
+    if (j_value_.is_object()) {
+        native_type_ = NativeType::Object;
+    }
+    else if (j_value_.is_string()) {
         s_value_ = j_value_;
         native_type_ = NativeType::String;
     }
@@ -281,18 +285,13 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
         b_value_ = j_value_;
         native_type_ = NativeType::Boolean;
     }
+    else {
+        ert::tracing::Logger::error("Unrecognized json pointer value format", ERT_FILE_LOCATION); // this shouldn't happen as all the possible formats are checked above
+        return false;
+    }
 
     return true;
 }
-
-std::string s_value_; // string
-std::int64_t i_value_; // integer
-std::uint64_t u_value_; // unsigned integer
-double f_value_; // float number
-bool b_value_; // boolean
-nlohmann::json j_value_; // json object
-
-
 
 std::string TypeConverter::asString() {
 

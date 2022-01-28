@@ -46,6 +46,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <Transformation.hpp>
+#include <TypeConverter.hpp>
 
 
 #define DEFAULT_ADMIN_PROVISION_STATE "initial"
@@ -94,6 +95,7 @@ class AdminProvision
     bool response_body_null_{};
     */
 
+
     unsigned int response_delay_ms_;
 
     model::MockRequestData *mock_request_data_; // just in case it is used
@@ -102,6 +104,40 @@ class AdminProvision
     void loadTransformation(const nlohmann::json &j);
 
     std::vector<std::shared_ptr<Transformation>> transformations_;
+
+    // Three processing stages: get sources, apply filters and store targets:
+    bool processSources(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        const std::map<std::string, std::string>& variables,
+                        const std::string &requestUri,
+                        const std::string &requestUriPath,
+                        const std::map<std::string, std::string> &requestQueryParametersMap,
+                        bool requestBodyJsonParseable,
+                        const nlohmann::json &requestBodyJson,
+                        const nghttp2::asio_http2::header_map &requestHeaders,
+                        bool &eraser,
+                        std::uint64_t generalUniqueServerSequence) const;
+
+    bool processFilters(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        const std::map<std::string, std::string>& variables,
+                        std::smatch &matches,
+                        std::string &source,
+                        bool eraser) const;
+
+    bool processTargets(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        std::map<std::string, std::string>& variables,
+                        const std::smatch &matches,
+                        bool eraser,
+                        bool hasFilter,
+                        unsigned int &responseStatusCode,
+                        nlohmann::json &responseBodyJson,
+                        nghttp2::asio_http2::header_map &responseHeaders,
+                        unsigned int &responseDelayMs,
+                        std::string &outState,
+                        std::string &outStateMethod) const;
+
 
 public:
 
@@ -114,29 +150,29 @@ public:
      *
      * @param requestUri Request URI
      * @param requestUriPath Request URI path part
-     * @param queryParametersMap Query Parameters Map (if exists)
+     * @param requestQueryParametersMap Query Parameters Map (if exists)
      * @param requestBody Request Body received
      * @param requestHeaders Request Headers Received
      * @param generalUniqueServerSequence HTTP/2 server monotonically increased sequence for every reception (unique)
      *
-     * @param statusCode Response status code filled by reference (if any transformation applies)
-     * @param headers Response headers filled by reference (if any transformation applies)
+     * @param responseStatusCode Response status code filled by reference (if any transformation applies)
+     * @param responseHeaders Response headers filled by reference (if any transformation applies)
      * @param responseBody Response body filled by reference (if any transformation applies)
-     * @param delayMs Response delay milliseconds filled by reference (if any transformation applies)
+     * @param responseDelayMs Response delay milliseconds filled by reference (if any transformation applies)
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
      * @param outStateMethod out-state for request context created in foreign method (virtual server data entry created), filled by reference (if any transformation applies)
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
-                    const std::map<std::string, std::string> &queryParametersMap,
+                    const std::map<std::string, std::string> &requestQueryParametersMap,
                     const std::string &requestBody,
                     const nghttp2::asio_http2::header_map &requestHeaders,
                     std::uint64_t generalUniqueServerSequence,
 
-                    unsigned int &statusCode,
-                    nghttp2::asio_http2::header_map &headers,
+                    unsigned int &responseStatusCode,
+                    nghttp2::asio_http2::header_map &responseHeaders,
                     std::string &responseBody,
-                    unsigned int &delayMs,
+                    unsigned int &responseDelayMs,
                     std::string &outState,
                     std::string &outStateMethod
                   ) const;
