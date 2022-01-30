@@ -89,10 +89,8 @@ public:
      *
      * @param historyEnabled Requests complete history storage
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
-     *
-     * @return Boolean about success operation
      */
-    bool loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+    void loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                      unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
                      bool historyEnabled, const std::string &virtualOriginComingFromMethod = "");
 
@@ -122,6 +120,15 @@ public:
      * @return Json string representation ('null' when nothing is found).
      */
     std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const;
+
+    /**
+     * Json string representation for class summary (total number of events and first/last/random keys).
+     *
+     * @param maxKeys Maximum number of keys to be displayed in the summary (protection for huge server data size). No limit by default.
+     *
+     * @return Json string representation.
+     */
+    std::string summary(const std::string &maxKeys = "") const;
 
     /**
      * Gets the mock request in specific position

@@ -17,6 +17,6 @@ initContainer:
 
 h2agent:
   h2agent_cl:
-    log_level: Debug
+    #log_level: Debug
     verbose:
       enabled: true

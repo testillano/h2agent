@@ -161,7 +161,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + general.random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
     // + general.timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
     // + general.strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
-    // - general.recvseq: sequence id increased for every mock reception (starts on *0* when the *h2agent*  is started).
+    // - general.recvseq: sequence id increased for every mock reception (starts on *1* when the *h2agent* is started).
     // + var.<id>: general purpose variable.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.

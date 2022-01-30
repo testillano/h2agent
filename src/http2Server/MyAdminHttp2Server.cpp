@@ -271,6 +271,17 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getJson().dump():"null");
         statusCode = (responseBody == "null" ? 204:200);
     }
+    else if (pathSuffix == "server-data/summary") {
+        std::string maxKeys = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            auto it = qmap.find("maxKeys");
+            if (it != qmap.end()) maxKeys = it->second;
+        }
+
+        responseBody = getHttp2Server()->getMockRequestData()->summary(maxKeys);
+        statusCode = 200;
+    }
     else if (pathSuffix == "server-provision") {
         bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);

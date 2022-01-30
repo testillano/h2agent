@@ -6,67 +6,82 @@
 PNAME=${PNAME:-h2agent}
 TRAFFIC_URL=${TRAFFIC_URL:-"http://localhost:8000"}
 METRICS_URL=${METRICS_URL:-"http://localhost:8080/metrics"}
-SERVER_API=${SERVER_API:-"app/v1"}
-[ "${SERVER_API}" != "/" ] && TRAFFIC_URL=${TRAFFIC_URL}/${SERVER_API}
 ADMIN_URL=${ADMIN_URL:-"http://localhost:8074/admin/v1"}
 CURL="curl -i --http2-prior-knowledge"
 
 #############
 # FUNCTIONS #
 #############
+do_curl() {
+   echo
+   echo [${CURL} $@]
+   echo
+   ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
+   echo ; echo
+}
+
 provision() {
    [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision; Gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
-   ${CURL} ${ADMIN_URL}/server-provision 2>/dev/null | tee /tmp/curl.out
-   echo ; echo
+   do_curl ${ADMIN_URL}/server-provision
 }
 
 matching() {
    [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
-   ${CURL} ${ADMIN_URL}/server-matching 2>/dev/null | tee /tmp/curl.out
-   echo ; echo
+   do_curl ${ADMIN_URL}/server-matching
 }
 
 data() {
+   local curl_method=
+
    if [ "$1" = "-h" -o "$1" = "--help" ]
    then
-     echo "Usage: data [method] [uri] [number (-1: last)]; Inspects server data events for given filters (${ADMIN_URL}/server-data)"
+     echo "Usage: data [method] [uri] [[-]request number]; Inspects server data events for the given filters (${ADMIN_URL}/server-data)"
+     echo "                                                Request number may be negative to access by reverse chronological order"
+     echo "            [--summary] [max keys]            ; Gets current server data summary to guide further queries"
+     echo "                                                Displayed keys could be limited (5 by default)"
      echo "            [--conf]                          ; Gets current server data configuration"
      echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
      echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
      echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
      echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
      echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
-     echo "            [--clean]                         ; Removes all the context information registered"
+     echo "            [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
+     return 0
+   elif [ "$1" = "--summary" ]
+   then
+     local maxKeys=${2:-5}
+     local queryParams=
+     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
+     do_curl "${ADMIN_URL}/server-data/summary${queryParams}"
      return 0
    elif [ "$1" = "--conf" ]
    then
-     ${CURL} ${ADMIN_URL}/server-data/configuration 2>/dev/null | tee /tmp/curl.out
-     echo ; echo
+     do_curl ${ADMIN_URL}/server-data/configuration
      return 0
    elif [ "$1" = "--discard-all" ]
    then
-     ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true" 2>/dev/null | tee /tmp/curl.out
+     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true"
      return 0
    elif [ "$1" = "--discard-history" ]
    then
-     ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true" 2>/dev/null | tee /tmp/curl.out
+     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true"
      return 0
    elif [ "$1" = "--keep-all" ]
    then
-     ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false" 2>/dev/null | tee /tmp/curl.out
+     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false"
      return 0
    elif [ "$1" = "--disable-purge" ]
    then
-     ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true" 2>/dev/null | tee /tmp/curl.out
+     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true"
      return 0
    elif [ "$1" = "--enable-purge" ]
    then
-     ${CURL} -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false" 2>/dev/null | tee /tmp/curl.out
+     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false"
      return 0
    elif [ "$1" = "--clean" ]
    then
-     ${CURL} -XDELETE ${ADMIN_URL}/server-data 2>/dev/null | tee /tmp/curl.out
-     return 0
+     curl_method="-XDELETE"
+     shift
    fi
 
    local requestMethod=$1
@@ -80,9 +95,17 @@ data() {
    local queryParams=
    [ -n "${requestMethod}" ] && queryParams="?requestUri=${requestUri}&requestMethod=${requestMethod}"
    [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
+   if [ -z "${curl_method}" -a -z "${queryParams}" ]
+   then
+     echo
+     echo "Take care about storage size when querying without filters."
+     echo "You may want to check the summary before: data --summary"
+     echo
+     echo "Press ENTER to continue, CTRL-C to abort ..."
+     read dummy
+   fi
 
-   ${CURL} "${ADMIN_URL}/server-data${queryParams}" 2>/dev/null | tee /tmp/curl.out
-   echo ; echo
+   do_curl ${curl_method} "${ADMIN_URL}/server-data${queryParams}"
 }
 
 json() {
@@ -111,7 +134,9 @@ metrics() {
 help() {
   echo -e "\n===== ${PNAME} helpers ====="
   echo -e "\nSourced variables:\n"
-  echo "TRAFFIC_URL=${TRAFFIC_URL}"
+  echo -n "TRAFFIC_URL=${TRAFFIC_URL}"
+  [ -n "${SERVER_API}" ] && echo -n "/${SERVER_API}"
+  echo
   echo "ADMIN_URL=${ADMIN_URL}"
   echo "CURL=\"${CURL}\""
   echo -e "\nSourced functions:\n"
@@ -137,4 +162,3 @@ if ! type jq &>/dev/null; then echo "Missing required dependency (jq) !" ; retur
 # Initialize temporary and show help
 touch /tmp/curl.out
 help
-

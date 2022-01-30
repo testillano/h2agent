@@ -151,7 +151,7 @@ bool AdminProvision::processSources(std::shared_ptr<Transformation> transformati
     }
     else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandom) {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
-        sourceVault.setInteger(transformation->getSourceI1() + (rand () % range));
+        sourceVault.setInteger(transformation->getSourceI1() + (rand() % range));
     }
     else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandomSet) {
         sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], variables); // replace variables if they exist
