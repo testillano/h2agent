@@ -81,7 +81,7 @@ bool MockRequestData::checkSelection(const std::string &requestMethod, const std
     return true;
 }
 
-bool MockRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+void MockRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                                   unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
                                   bool historyEnabled, const std::string &virtualOriginComingFromMethod) {
 
@@ -102,13 +102,9 @@ bool MockRequestData::loadRequest(const std::string &pstate, const std::string &
         requests = std::make_shared<MockRequests>();
     }
 
-    if (!requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod)) {
-        return false;
-    }
+    requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod);
 
     if (it == end()) add(key, requests); // push the key in the map:
-
-    return true;
 }
 
 bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber)
@@ -137,12 +133,12 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
 
     // Check request number:
     if (!requestNumber.empty()) {
-
+        bool reverse = (requestNumber[0] == '-');
         std::uint64_t u_requestNumber{};
-        if (!string2uint64(requestNumber, u_requestNumber))
+        if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
             return false;
 
-        somethingDeleted = it->second->removeMockRequest(u_requestNumber);
+        somethingDeleted = it->second->removeMockRequest(u_requestNumber, reverse);
     }
     else {
         somethingDeleted = true;
@@ -177,12 +173,12 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
     // Check request number:
     if (!requestNumber.empty()) {
-
+        bool reverse = (requestNumber[0] == '-');
         std::uint64_t u_requestNumber{};
-        if (!string2uint64(requestNumber, u_requestNumber))
+        if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
             return "null";
 
-        auto ptr = it->second->getMockRequest(u_requestNumber);
+        auto ptr = it->second->getMockRequest(u_requestNumber, reverse);
         if (ptr) {
             return ptr->getJson().dump();
         }
@@ -193,6 +189,37 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
     }
 
     return "null";
+}
+
+std::string MockRequestData::summary(const std::string &maxKeys) const {
+    nlohmann::json result;
+
+    result["totalKeys"] = (unsigned int)size();
+
+    std::uint64_t u_maxKeys{};
+    if (!string2uint64(maxKeys, u_maxKeys)) {
+        u_maxKeys = std::numeric_limits<uint64_t>::max();
+    }
+
+    size_t totalEvents = 0;
+    size_t historySize;
+    size_t displayedKeys = 0;
+    nlohmann::json key;
+    for (auto it = begin(); it != end(); it++) {
+        size_t historySize = it->second->size();
+        totalEvents += historySize;
+        if (displayedKeys >= u_maxKeys) continue;
+
+        key["method"] = it->second->getMethod();
+        key["uri"] = it->second->getUri();
+        key["amount"] = (unsigned int)historySize;
+        result["displayedKeys"]["list"].push_back(key);
+        displayedKeys += 1;
+    };
+    if (displayedKeys > 0) result["displayedKeys"]["amount"] = (unsigned int)displayedKeys;
+    result["totalEvents"] = (unsigned int)totalEvents;
+
+    return result.dump();
 }
 
 std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {

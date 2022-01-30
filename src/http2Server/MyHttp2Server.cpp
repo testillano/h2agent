@@ -58,7 +58,7 @@ namespace http2server
 MyHttp2Server::MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService):
     ert::http2comm::Http2Server("MockHttp2Server", workerThreads, timersIoService),
     admin_data_(nullptr),
-    general_unique_server_sequence_(0) {
+    general_unique_server_sequence_(1) {
 
     mock_request_data_ = new model::MockRequestData();
 

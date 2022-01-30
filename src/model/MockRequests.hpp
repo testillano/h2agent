@@ -40,7 +40,7 @@ SOFTWARE.
 #include <string>
 #include <vector>
 #include <memory>
-#include <cstdint>
+//#include <cstdint>
 
 #include <nlohmann/json.hpp>
 
@@ -98,37 +98,36 @@ public:
      *
      * @param historyEnabled Requests complete history storage
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
-     *
-     * @return Boolean about success operation
      */
-    bool loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+    void loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                      unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
                      bool historyEnabled, const std::string virtualOriginComingFromMethod = "");
 
 
     /**
-     * Removes vector item for a given position (1..N)
-     * Value '-1' (unsigned long long max): the latest event is selected.
+     * Removes vector item for a given position
+     * We could also access from the tail (reverse chronological order)
 
      * @param requestNumber Request history number (1..N) to filter selection.
+     * @param reverse Reverse the order to get the request from the tail instead the head.
      *
      * @return Boolean about if something was deleted
      */
-    bool removeMockRequest(std::uint64_t requestNumber);
+    bool removeMockRequest(std::uint64_t requestNumber, bool reverse);
 
     // getters:
 
     /**
-     * Gets the mock request in specific position
+     * Gets the mock request in specific position (last by default)
      *
-     * @param requestNumber Request history number (1..N) to filter selection. Last one by default.
-     * Value '-1' (unsigned long long max) selects the latest event.
+     * @param requestNumber Request history number (1..N) to filter selection. Value of '1' by default.
      * Value '0' is not accepted, and null will be returned in this case.
+     * @param reverse Reverse the order to get the request from the tail instead the head. True by default.
      *
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockRequest> getMockRequest(std::uint64_t requestNumber = std::numeric_limits<uint64_t>::max()) const;
+    std::shared_ptr<MockRequest> getMockRequest(std::uint64_t requestNumber = 1, bool reverse = true) const;
 
     /**
      * Builds json document for class information
@@ -149,6 +148,30 @@ public:
     * @return Last registered request state
     */
     const std::string &getLastRegisteredRequestState() const;
+
+    /** Number of requests
+    *
+    * @return Requests list size
+    */
+    size_t size() const {
+        return requests_.size();
+    }
+
+    /** Get the method of the requests list
+    *
+    * @return Requests method key
+    */
+    const std::string &getMethod() const {
+        return method_;
+    }
+
+    /** Get the uri of the requests list
+    *
+    * @return Requests uri key
+    */
+    const std::string &getUri() const {
+        return uri_;
+    }
 };
 
 }

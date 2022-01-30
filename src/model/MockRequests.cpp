@@ -50,26 +50,16 @@ void calculateMockRequestsKey(mock_requests_key_t &key, const std::string &metho
     key += uri;
 }
 
-bool MockRequests::removeMockRequest(std::uint64_t requestNumber) {
-
-    bool result{};
+bool MockRequests::removeMockRequest(std::uint64_t requestNumber, bool reverse) {
 
     write_guard_t guard(rw_mutex_);
 
     if (requests_.size() == 0 || requestNumber == 0) return false;
+    if (requestNumber > requests_.size()) return false;
 
-    if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
-        result = (requests_.size() > 0);
-        requests_.pop_back();
-    }
-    else {
-        if (requestNumber <= requests_.size()) {
-            result = true;
-            requests_.erase(requests_.begin() + requestNumber - 1);
-        }
-    }
+    requests_.erase(requests_.begin() + (reverse ? (requests_.size() - requestNumber):(requestNumber - 1)));
 
-    return result;
+    return true;
 }
 
 mock_requests_key_t MockRequests::getKey() const {
@@ -79,7 +69,7 @@ mock_requests_key_t MockRequests::getKey() const {
     return result;
 }
 
-bool MockRequests::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+void MockRequests::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                                unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
                                bool historyEnabled, const std::string virtualOriginComingFromMethod) {
 
@@ -87,40 +77,33 @@ bool MockRequests::loadRequest(const std::string &pstate, const std::string &sta
     uri_ = uri;
 
     auto request = std::make_shared<MockRequest>();
-    if (!request->load(pstate, state, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod)) {
-        return false;
-    }
+    request->load(pstate, state, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod);
 
     write_guard_t guard(rw_mutex_);
 
     if (!historyEnabled && requests_.size() != 0) {
         requests_[0] = request; // overwrite with this latest reception
-        return true;
     }
-
-    requests_.push_back(request);
-
-    return true;
+    else {
+        requests_.push_back(request);
+    }
 }
 
-std::shared_ptr<MockRequest> MockRequests::getMockRequest(std::uint64_t requestNumber) const {
+std::shared_ptr<MockRequest> MockRequests::getMockRequest(std::uint64_t requestNumber, bool reverse) const {
 
     read_guard_t guard(rw_mutex_);
 
     if (requests_.size() == 0) return nullptr;
     if (requestNumber == 0) return nullptr;
 
-    if (requestNumber == std::numeric_limits<uint64_t>::max() /* means the last for us */) {
-        //return *(requests_.back());
-        return *(std::prev(requests_.end()));
-    }
-    else {
-        if (requestNumber <= requests_.size()) {
-            return *(requests_.begin() + requestNumber - 1);
-        }
+    if (requestNumber > requests_.size()) return nullptr;
+
+    if (reverse) {
+        return *(requests_.begin() + (requests_.size() - requestNumber));
+        //return *(std::prev(requests_.end())); // this would be the last
     }
 
-    return nullptr;
+    return *(requests_.begin() + (requestNumber - 1));
 }
 
 

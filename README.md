@@ -894,7 +894,7 @@ The **source** of information is classified after parsing the following possible
 
 - general.strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
 
-- general.recvseq: sequence id number increased for every mock reception (starts on *0* when the *h2agent*  is started).
+- general.recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
 - var.`<id>`: general purpose variable. Cannot refer json objects. This source variable identifier **admits variables substitution**.
 
@@ -1364,21 +1364,19 @@ Retrieves the server requests schema if configured (at command-line).
 
 Json document containing server requests schema if configured, or empty if not.
 
-### GET /admin/v1/server-data
+### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
 
-Retrieves the current server internal data (requests received and their states and other useful information like timing). Be careful with large contexts due to long-term testing (or load testing) as this is not limited by any configuration maximum (not considered).
+Retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent responds with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information.
 
-You could retrieve a specific entry providing *requestMethod*, *requestUri* and *requestNumber* through query parameters (separator is `'&'`), for example:
+Without query parameters, you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-If case that *requestNumber* is provided, the single event (request object) will be retrieved if found, if omitted, the document built will contain the key (*method* and *uri*) and a `requests` node with the full history of events for such key. Why *h2agent* stores the whole history instead of the last received request for a given key ?: some simulated systems have its own state, so, simplification cannot be assumed: different requests could be received for the same *method/uri*. The *requestNumber* is the history position (**1..N** in chronological order). To get the latest one provide -1 (value of 0 is not accepted).
+The `json` document response shall contain three main nodes: `method`, `uri` and a `requests` object with the chronologically ordered list of events received for the given `method/uri` combination.
 
-If used, both *method* and *uri* shall be provided together (if one is missing and the other is provided, bad request is obtained).
+Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the response `requests` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemes (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
-
-Events received are stored <u>even if no provisions were found</u> for them, so no response fields will be added to their registers and state fields will be empty. This is useful to troubleshoot possible problems in testing configuration/design.
 
 #### Response status code
 
@@ -1388,7 +1386,7 @@ Events received are stored <u>even if no provisions were found</u> for them, so 
 
 When provided *method* and *uri*, server data will be filtered with that key. If request number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
-Example of whole struct for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*')
+Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*'):
 
 ```json
 [
@@ -1420,7 +1418,7 @@ Example of whole struct for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
           "x-version": "1.0.0"
         },
         "responseStatusCode": 200,
-        "serverSequence": 0,
+        "serverSequence": 1,
         "state": "initial"
       },
       {
@@ -1448,7 +1446,50 @@ Example of whole struct for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
           "x-version": "1.0.0"
         },
         "responseStatusCode": 200,
-        "serverSequence": 1,
+        "serverSequence": 2,
+        "state": "initial"
+      }
+    ],
+    "uri": "/app/v1/foo/bar/1?name=test"
+  }
+]
+```
+
+
+
+Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*') and a *requestNumber* (2):
+
+```json
+[
+  {
+    "method": "GET",
+    "requests": [
+      {
+        "body": {
+          "node1": {
+            "node2": "value-of-node1-node2"
+          }
+        },
+        "headers": {
+          "accept": "*/*",
+          "category-id": "testing",
+          "content-length": "52",
+          "content-type": "application/x-www-form-urlencoded",
+          "user-agent": "curl/7.58.0"
+        },
+        "previousState": "initial",
+        "receptionTimestampMs": 1626047921641,
+        "responseBody": {
+          "foo": "bar-1",
+          "generalRandomBetween10and30": 24
+        },
+        "responseDelayMs": 0,
+        "responseHeaders": {
+          "content-type": "text/html",
+          "x-version": "1.0.0"
+        },
+        "responseStatusCode": 200,
+        "serverSequence": 2,
         "state": "initial"
       }
     ],
@@ -1471,15 +1512,60 @@ The information collected for a requests item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
-* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence was actually not increased for the server data entry shown, only for the original event which caused this one.
+* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
+
+### GET /admin/v1/server-data/summary?maxKeys=`<number>`
+
+When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the server due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+A `json` document with some practical information is built:
+
+* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history requests (`amount`) is shown.
+* `totalEvents`: this includes possible virtual events, although normally this kind of configuration is not usual and the value matches the total number of real receptions.
+* `totalKeys`: total different keys (method/uri) registered.
+
+Take the following `json` as an example:
+
+```json
+{
+  "displayedKeys": {
+    "amount": 3,
+    "list": [
+      {
+        "amount": 2,
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/1?name=test"
+      },
+      {
+        "amount": 2,
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/2?name=test"
+      },
+      {
+        "amount": 2,
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/3?name=test"
+      }
+    ]
+  },
+  "totalEvents": 45000,
+  "totalKeys": 22500
+}
+```
 
 ### DELETE /admin/v1/server-data
 
-Deletes the server data given by query parameters defined in the same way as former *GET* operation defined. For example:
+Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together, and *number* is optional.
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *requestNumber* restricts optionally them.
 
 #### Response status code
 

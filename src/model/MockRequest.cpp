@@ -48,7 +48,7 @@ namespace model
 {
 
 
-bool MockRequest::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+void MockRequest::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                        unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
                        const std::string &virtualOriginComingFromMethod) {
 
@@ -69,8 +69,6 @@ bool MockRequest::load(const std::string &pstate, const std::string &state, cons
     virtual_origin_coming_from_method_ = virtualOriginComingFromMethod;
 
     saveJson();
-
-    return true;
 }
 
 void MockRequest::saveJson() {
