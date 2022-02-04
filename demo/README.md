@@ -153,7 +153,7 @@ Dump the server data map, just executing the corresponding management interface 
     "method": "GET",
     "requests": [
       {
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "user-agent": "curl/7.58.0"
         },
@@ -173,7 +173,7 @@ Dump the server data map, just executing the corresponding management interface 
     "method": "DELETE",
     "requests": [
       {
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "user-agent": "curl/7.58.0"
         },
@@ -206,7 +206,7 @@ Server data map now:
     "method": "GET",
     "requests": [
       {
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "user-agent": "curl/7.58.0"
         },
@@ -220,7 +220,7 @@ Server data map now:
         "virtualOriginComingFromMethod": "DELETE"
       },
       {
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "user-agent": "curl/7.58.0"
         },
@@ -239,7 +239,7 @@ Server data map now:
     "method": "DELETE",
     "requests": [
       {
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "user-agent": "curl/7.58.0"
         },

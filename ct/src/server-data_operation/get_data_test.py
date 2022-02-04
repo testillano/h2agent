@@ -25,7 +25,7 @@ def test_001_i_want_to_get_internal_data_on_admin_interface(h2ac_admin, h2ac_tra
   # Check server data
   response = h2ac_admin.get(ADMIN_DATA_URI)
   responseBodyRef = [{'method': 'GET', 'requests': [{'previousState': 'initial', 'receptionTimestampMs': 1623552535012, 'responseBody': {'foo': 'bar-1'}, 'responseDelayMs': 0, 'responseHeaders': {'content-type': 'text/html', 'x-version': '1.0.0'}, 'responseStatusCode': 200, 'serverSequence': 32, 'state': 'initial'}], 'uri': '/app/v1/foo/bar/1'}]
-  # Response will be something like: [{"method":"GET","requests":[{"body":{"foo":"bar-1"},"receptionTimestampMs":1623439423163,"state":"initial"}],"uri":"/app/v1/foo/bar/1"}]
+  # Response will be something like: [{"method":"GET","requests":[{"responseBody":{"foo":"bar-1"},"receptionTimestampMs":1623439423163,"state":"initial"}],"uri":"/app/v1/foo/bar/1"}]
   # We have a variable field 'receptionTimestampMs' and we don't know its real value.
   # So, we will remove it from both reference and response python dictionaries:
   # In this test we request all the server-data, so we must access the first array element with [0]:
