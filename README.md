@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://codedocs.xyz/testillano/h2agent.svg)](https://codedocs.xyz/testillano/h2agent/index.html)
-[![Coverage Status](https://coveralls.io/repos/github/testillano/h2agent/badge.svg?branch=master)](https://coveralls.io/github/testillano/h2agent?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/testillano/h2agent/badge.svg?branch=master&kill_cache=1)](https://coveralls.io/github/testillano/h2agent?branch=master)
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![Main project workflow](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
@@ -611,7 +611,7 @@ rgx = "(/ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
-So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used. Also, `regex-replace` could act as a *full matching* algorithm when no replacements are possible, so it can be used as a fallback to cover non-strictly matched receptions.
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used. Also, `regex-replace` could act as a direct *full matching* algorithm when no replacements are possible, so it can be used as a fall back to cover non-strictly matched receptions.
 
 The previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation.
 
@@ -919,12 +919,12 @@ The **source** of information is classified after parsing the following possible
       "method": "POST",
       "requests": [
         {
-          "body": {
+          "requestBody": {
             "engine": "tdi",
             "model": "audi",
             "year": 2021
           },
-          "headers": {
+          "requestHeaders": {
             "accept": "*/*",
             "content-length": "52",
             "content-type": "application/x-www-form-urlencoded",
@@ -951,7 +951,7 @@ The **source** of information is classified after parsing the following possible
 
   ​	`ev1.number` = -1 (means "the last")
 
-  ​	`ev1.path` = "/body"
+  ​	`ev1.path` = "/requestBody"
 
   Then, the event source would store this `json` object:
 
@@ -1394,12 +1394,12 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
     "method": "GET",
     "requests": [
       {
-        "body": {
+        "requestBody": {
           "node1": {
             "node2": "value-of-node1-node2"
           }
         },
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "category-id": "testing",
           "content-length": "52",
@@ -1422,12 +1422,12 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
         "state": "initial"
       },
       {
-        "body": {
+        "requestBody": {
           "node1": {
             "node2": "value-of-node1-node2"
           }
         },
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "category-id": "testing",
           "content-length": "52",
@@ -1465,12 +1465,12 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
     "method": "GET",
     "requests": [
       {
-        "body": {
+        "requestBody": {
           "node1": {
             "node2": "value-of-node1-node2"
           }
         },
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "category-id": "testing",
           "content-length": "52",

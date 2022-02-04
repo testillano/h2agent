@@ -84,11 +84,11 @@ void MockRequest::saveJson() {
         nlohmann::json hdrs;
         for(const auto &x: headers_)
             hdrs[x.first] = x.second.value;
-        json_["headers"] = hdrs;
+        json_["requestHeaders"] = hdrs;
     }
 
     if (!body_.empty()) {
-        h2agent::http2server::parseJsonContent(body_, json_["body"], true /* write exception */);
+        h2agent::http2server::parseJsonContent(body_, json_["requestBody"], true /* write exception */);
     }
 
     // Additional information

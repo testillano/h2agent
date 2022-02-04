@@ -13,7 +13,7 @@
     { "source": "value.POST", "target": "var.ev1.method" },
     { "source": "value./app/v1/foo/bar/1", "target": "var.ev1.uri" },
     { "source": "value.1", "target": "var.ev1.number" },
-    { "source": "value./body", "target": "var.ev1.path" },
+    { "source": "value./requestBody", "target": "var.ev1.path" },
     {
       "source": "event.ev1",
       "target": "response.body.object./firstRequestBody"

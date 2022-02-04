@@ -10,12 +10,12 @@ Imagine the following current server data map:
     "method": "POST",
     "requests": [
       {
-        "body": {
+        "requestBody": {
           "engine": "tdi",
           "model": "audi",
           "year": 2021
         },
-        "headers": {
+        "requestHeaders": {
           "accept": "*/*",
           "content-length": "52",
           "content-type": "application/x-www-form-urlencoded",
@@ -44,7 +44,7 @@ Now, you can prepare an event source `event.ev1`, just defining four variables t
 
 ​	`ev1.number` = -1 (means "the last")
 
-​	`ev1.path` = "/body"
+​	`ev1.path` = "/requestBody"
 
 Then, the event source would store this `json` object:
 
@@ -77,7 +77,7 @@ Now, just configure a provision to extract such object and transfer it to wherev
       "target": "var.ev1.number"
     },
     {
-      "source": "value./body",
+      "source": "value./requestBody",
       "target": "var.ev1.path"
     },
     {
