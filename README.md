@@ -231,6 +231,16 @@ version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b
 
 ### Benchmarking test
 
+Reference:
+
+* VirtualBox VM with Linux Bionic (Ubuntu 18.04.3 LTS).
+
+* Running on Intel(R) Core(TM) i7-8650U CPU @1.90GHz.
+
+* Memory size: 15GiB.
+
+  
+
 Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
 Check `st/start.sh -h` for help.
 
