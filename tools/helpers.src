@@ -38,7 +38,7 @@ data() {
      echo "Usage: data [method] [uri] [[-]request number]; Inspects server data events for the given filters (${ADMIN_URL}/server-data)"
      echo "                                                Request number may be negative to access by reverse chronological order"
      echo "            [--summary] [max keys]            ; Gets current server data summary to guide further queries"
-     echo "                                                Displayed keys could be limited (5 by default)"
+     echo "                                                Displayed keys could be limited (5 by default, -1: no limit)"
      echo "            [--conf]                          ; Gets current server data configuration"
      echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
      echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
@@ -52,6 +52,7 @@ data() {
      local maxKeys=${2:-5}
      local queryParams=
      [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
+     [ "${maxKeys}" = "-1" ] && queryParams=
      do_curl "${ADMIN_URL}/server-data/summary${queryParams}"
      return 0
    elif [ "$1" = "--conf" ]
@@ -128,7 +129,32 @@ trace() {
 }
 
 metrics() {
+   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics; Prometheus metrics" && return 0
    curl ${METRICS_URL}
+}
+
+snapshot() {
+   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot; Gets a compilation of current server information" && return 0
+
+   local dir=/tmp/snapshots/$(date +'%y%m%d.%H%M%S')
+   local last=/tmp/snapshots/last
+   mkdir -p ${dir}
+   rm -f ${last} && ln -s $(basename ${dir}) ${last}
+
+   matching && json > ${dir}/matching.json
+   provision && json > ${dir}/provision.json
+   data --conf && json > ${dir}/data-configuration.json
+   data --summary -1 && json > ${dir}/data-summary.json
+   echo | data && json > ${dir}/data.json
+   mkdir ${dir}/data-sequences
+   (jq '.[].requests[].serverSequence' ${dir}/data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/data-sequences.txt
+   for s in $(cat ${dir}/data-sequences.txt); do
+     jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/data.json > ${dir}/data-sequences/${s}.json
+   done
+
+   echo
+   echo "Created snapshot at:"
+   ls -l ${last}
 }
 
 help() {
@@ -146,7 +172,8 @@ help() {
   json -h
   sequence -h
   trace -h
-  echo "Usage: metrics; Prometheus metrics"
+  metrics -h
+  snapshot -h
   echo "Usage: help; This help"
   echo -e "\nMore information about management interface: https://github.com/testillano/h2agent#management-interface\n"
 }

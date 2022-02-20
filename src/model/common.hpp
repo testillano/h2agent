@@ -45,7 +45,7 @@ namespace h2agent
 namespace model
 {
 
-using mutex_t = std::shared_timed_mutex; // unfortunated name, shared_mutex in C++17
+using mutex_t = std::shared_mutex;
 using read_guard_t = std::shared_lock<mutex_t>;
 using write_guard_t = std::unique_lock<mutex_t>;
 
