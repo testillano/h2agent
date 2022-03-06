@@ -112,7 +112,7 @@ build_project() {
   _read make_procs
   _read build_type
 
-  envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type}"
+  envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type} -e STATIC_LINKING=TRUE"
 
   set -x
   rm -f CMakeCache.txt
