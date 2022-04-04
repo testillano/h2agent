@@ -161,9 +161,8 @@ snapshot() {
 help() {
   echo -e "\n===== ${PNAME} helpers ====="
   echo -e "\nSourced variables:\n"
-  echo -n "TRAFFIC_URL=${TRAFFIC_URL}"
-  [ -n "${SERVER_API}" ] && echo -n "/${SERVER_API}"
-  echo
+  echo "TRAFFIC_URL=${TRAFFIC_URL}"
+  [ -n "${SERVER_API}" ] && echo "SERVER_API=${SERVER_API}"
   echo "ADMIN_URL=${ADMIN_URL}"
   echo "CURL=\"${CURL}\""
   echo -e "\nSourced functions:\n"
