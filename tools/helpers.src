@@ -94,7 +94,6 @@ data() {
    [ -n "${requestNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
 
    local queryParams=
-   [ -n "${requestMethod}" ] && queryParams="?requestUri=${requestUri}&requestMethod=${requestMethod}"
    [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
    [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
    if [ -z "${curl_method}" -a -z "${queryParams}" ]
