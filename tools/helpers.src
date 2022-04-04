@@ -95,6 +95,7 @@ data() {
 
    local queryParams=
    [ -n "${requestMethod}" ] && queryParams="?requestUri=${requestUri}&requestMethod=${requestMethod}"
+   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
    [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
    if [ -z "${curl_method}" -a -z "${queryParams}" ]
    then
@@ -104,9 +105,10 @@ data() {
      echo
      echo "Press ENTER to continue, CTRL-C to abort ..."
      read dummy
+     do_curl ${ADMIN_URL}/server-data
+   else
+     do_curl ${curl_method} -G --data-urlencode "requestUri=${requestUri}" "${ADMIN_URL}/server-data${queryParams}"
    fi
-
-   do_curl ${curl_method} "${ADMIN_URL}/server-data${queryParams}"
 }
 
 json() {
