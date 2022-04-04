@@ -239,7 +239,7 @@ Reference:
 
 * Memory size: 15GiB.
 
-  
+
 
 Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
 Check `st/start.sh -h` for help.
@@ -878,9 +878,9 @@ Before describing sources and targets (and filters), just to clarify that in som
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- request.uri: whole request *URI*  path, including the possible query parameters.
+- request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
 
-- request.uri.path: request *URI* path part.
+- request.uri.path: `url-decoded` request *URI* path part.
 
 - request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
