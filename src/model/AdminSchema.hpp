@@ -35,67 +35,65 @@ SOFTWARE.
 
 #pragma once
 
-// Standard
 #include <string>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <nlohmann/json.hpp>
+
+#include <JsonSchema.hpp>
 
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
-{
-    bool available_;
+// Schema key:
+typedef std::string schema_key_t;
 
-    nlohmann::json json_;
-    nlohmann::json_schema::json_validator validator_;
+
+class AdminSchema
+{
+    nlohmann::json json_; // schema reference
+
+    schema_key_t key_;
+    h2agent::jsonschema::JsonSchema schema_;  // schema content
 
 public:
-    /**
-    * Default constructor
-    */
-    JsonSchema() : available_(false) {;}
-    ~JsonSchema() {;}
 
-    // setters
+    AdminSchema() {;}
+
+    // setters:
 
     /**
-    * Set json document schema
-    *
-    * @param j Json document schema
-    *
-    * @return Successful if a valid schema was configured
-    */
-    bool setJson(const nlohmann::json& j);
+     * Load schema information
+     *
+     * @param j Json schema object
+     *
+     * @return Operation success
+     */
+    bool load(const nlohmann::json &j);
 
-    // getters
+    // getters:
 
     /**
-    * Returns successful if a valid schema was configured
-    *
-    * @return Boolean about successful schema load
-    */
-    bool isAvailable() const {
-        return available_;
+     * Gets the schema key (identifier)
+     *
+     * @return Schema key
+     */
+    const schema_key_t &getKey() const {
+        return key_;
     }
 
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getJson() const
-    {
+    /** Json for class information
+     *
+     * @return Json object
+     */
+    const nlohmann::json &getJson() const {
         return json_;
     }
 
     /**
-    * Validates json document against schema.
+    * Validates json document against schem content.
     *
     * @return boolean about if json document is valid against json schema
     */

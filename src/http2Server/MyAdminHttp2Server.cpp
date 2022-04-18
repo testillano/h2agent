@@ -209,6 +209,27 @@ bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObje
     return result;
 }
 
+bool MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::string& log) const
+{
+    log = "schema operation; ";
+
+    h2agent::model::AdminSchemaData::LoadResult loadResult = admin_data_->loadSchema(configurationObject);
+    bool result = (loadResult == h2agent::model::AdminSchemaData::Success);
+
+    bool isArray = configurationObject.is_array();
+    if (loadResult == h2agent::model::AdminSchemaData::Success) {
+        log += (isArray ? "valid schemas and schemas data received":"valid schema and schema data received");
+    }
+    else if (loadResult == h2agent::model::AdminSchemaData::BadSchema) {
+        log += (isArray ? "detected one invalid schema":"invalid schema");
+    }
+    else if (loadResult == h2agent::model::AdminSchemaData::BadContent) {
+        log += (isArray ? "detected one invalid schema data received":"invalid schema data received");
+    }
+
+    return result;
+}
+
 void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
@@ -229,17 +250,9 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             jsonResponse_result = serverProvision(requestJson, jsonResponse_response);
             statusCode = jsonResponse_result ? 201:400;
         }
-        else if (pathSuffix == "server-data/schema") {
-            jsonResponse_response = "server-data/schema operation; ";
-            if (!getHttp2Server()->getMockRequestData()->loadRequestsSchema(requestJson)) {
-                statusCode = 400;
-                jsonResponse_response += "load failed";
-            }
-            else {
-                statusCode = 201;
-                jsonResponse_result = true;
-                jsonResponse_response += "valid schema loaded to validate traffic requests";
-            }
+        else if (pathSuffix == "schema") {
+            jsonResponse_result = schema(requestJson, jsonResponse_response);
+            statusCode = jsonResponse_result ? 201:400;
         }
         else {
             statusCode = 501;
@@ -259,17 +272,17 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 
 void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
-    if (pathSuffix == "server-provision/schema") {
-        responseBody = admin_data_->getProvisionData().getSchema().getJson().dump();
-        statusCode = 200;
-    }
-    else if (pathSuffix == "server-matching/schema") {
+    if (pathSuffix == "server-matching/schema") {
         responseBody = admin_data_->getMatchingData().getSchema().getJson().dump();
         statusCode = 200;
     }
-    else if (pathSuffix == "server-data/schema") {
-        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getJson().dump():"null");
-        statusCode = (responseBody == "null" ? 204:200);
+    else if (pathSuffix == "server-provision/schema") {
+        responseBody = admin_data_->getProvisionData().getSchema().getJson().dump();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "schema/schema") {
+        responseBody = admin_data_->getSchemaData().getSchema().getJson().dump();
+        statusCode = 200;
     }
     else if (pathSuffix == "server-data/summary") {
         std::string maxKeys = "";
@@ -282,14 +295,18 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         responseBody = getHttp2Server()->getMockRequestData()->summary(maxKeys);
         statusCode = 200;
     }
+    else if (pathSuffix == "server-matching") {
+        responseBody = admin_data_->getMatchingData().getJson().dump();
+        statusCode = 200;
+    }
     else if (pathSuffix == "server-provision") {
         bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
         statusCode = (responseBody == "null" ? 204:200);
     }
-    else if (pathSuffix == "server-matching") {
-        responseBody = admin_data_->getMatchingData().getJson().dump();
-        statusCode = 200;
+    else if (pathSuffix == "schema") {
+        responseBody = admin_data_->getSchemaData().asJsonString();
+        statusCode = (responseBody == "null" ? 204:200);
     }
     else if (pathSuffix == "server-data") {
         std::string requestMethod = "";
@@ -325,6 +342,9 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
 
     if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
+    }
+    else if (pathSuffix == "schema") {
+        statusCode = (admin_data_->clearSchemas() ? 200:204);
     }
     else if (pathSuffix == "server-data") {
         std::string requestMethod = "";

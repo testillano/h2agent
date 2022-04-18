@@ -599,28 +599,43 @@ void AdminProvision::transform( const std::string &requestUri,
                                 std::string &responseBody,
                                 unsigned int &responseDelayMs,
                                 std::string &outState,
-                                std::string &outStateMethod
+                                std::string &outStateMethod,
+                                std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
+                                std::shared_ptr<h2agent::model::AdminSchema> responseSchema
                               ) const
 {
-
     // Default values without transformations:
     responseStatusCode = getResponseCode();
     responseHeaders = getResponseHeaders();
     responseDelayMs = getResponseDelayMilliseconds();
     outState = getOutState(); // prepare next request state, with URI path before transformed with matching algorithms
 
-    // Find out if request body will need to be parsed (this is true if any transformation uses it as source):
+    // Find out if request body will need to be parsed (this is true if any transformation uses it as source or schema validation is needed):
     nlohmann::json requestBodyJson;
     bool requestBodyJsonParseable = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-        if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-            if (!requestBody.empty()) {
-                requestBodyJsonParseable = h2agent::http2server::parseJsonContent(requestBody, requestBodyJson);
+    bool requestBodyJsonWanted = (requestSchema != nullptr);
+    if (!requestBodyJsonWanted) {
+        for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+            if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
+                if (!requestBody.empty()) {
+                    requestBodyJsonWanted = true;
+                }
+                else {
+                    LOGINFORMATIONAL(ert::tracing::Logger::informational("No request body received: some transformations will be ignored", ERT_FILE_LOCATION));
+                }
+                break;
             }
-            else {
-                LOGINFORMATIONAL(ert::tracing::Logger::informational("No request body received: some transformations will be ignored", ERT_FILE_LOCATION));
-            }
-            break;
+        }
+    }
+    if (requestBodyJsonWanted) {
+        requestBodyJsonParseable = h2agent::http2server::parseJsonContent(requestBody, requestBodyJson);
+    }
+
+    // Request schema validation:
+    if (requestSchema && requestBodyJsonParseable) {
+        if (!requestSchema->validate(requestBodyJson)) {
+            responseStatusCode = 400; // bad request
+            return; // INTERRUPT TRANSFORMATIONS
         }
     }
 
@@ -687,6 +702,13 @@ void AdminProvision::transform( const std::string &requestUri,
 
     // (*) Regenerate final responseBody after transformations:
     if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump();
+
+    // Response schema validation:
+    if (responseSchema) {
+        if (!responseSchema->validate(usesResponseBodyAsTransformationTarget ? responseBodyJson:getResponseBody())) {
+            responseStatusCode = 500; // built response will be anyway sent although status code is overwritten with internal server error.
+        }
+    }
 }
 
 bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
@@ -717,6 +739,24 @@ bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexCon
     if (it != j.end() && it->is_string()) {
         out_state_ = *it;
         if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
+    }
+
+    it = j.find("requestSchemaId");
+    if (it != j.end() && it->is_string()) {
+        request_schema_id_ = *it;
+        if (request_schema_id_.empty()) {
+            ert::tracing::Logger::error("Invalid empty request schema identifier", ERT_FILE_LOCATION);
+            return false;
+        }
+    }
+
+    it = j.find("responseSchemaId");
+    if (it != j.end() && it->is_string()) {
+        response_schema_id_ = *it;
+        if (response_schema_id_.empty()) {
+            ert::tracing::Logger::error("Invalid empty response schema identifier", ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     it = j.find("responseHeaders");

@@ -21,7 +21,6 @@ target_link_libraries( ${H2AGENT_TARGET_NAME}
 PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}
         h2agent-http2Server
-        h2agent-jsonSchema
         h2agent-model
         ert_logger
         ert_http2comm
@@ -39,7 +38,9 @@ ${CMAKE_EXE_LINKER_FLAGS}
         prometheus-cpp-core
         z
 
+        h2agent-jsonSchema
         nlohmann_json_schema_validator
+
         ) # target_link_libraries
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/version.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/version.cpp @ONLY)

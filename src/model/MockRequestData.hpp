@@ -174,15 +174,6 @@ public:
      * @return Sucessful operaiton
      */
     bool loadRequestsSchema(const nlohmann::json& schema);
-
-    /**
-     * Gets requests schema for optional validation
-     *
-     * @return Json schema reference
-     */
-    const h2agent::jsonschema::JsonSchema &getRequestsSchema() const {
-        return requests_schema_;
-    }
 };
 
 }

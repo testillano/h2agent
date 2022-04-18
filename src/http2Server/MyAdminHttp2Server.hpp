@@ -101,6 +101,7 @@ public:
 
     bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

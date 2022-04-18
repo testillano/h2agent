@@ -17,7 +17,13 @@ do_curl() {
    echo [${CURL} $@]
    echo
    ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
+   [ $? -eq 0 -a -n "${BEAUTIFY}" ] && echo && echo && json
    echo ; echo
+}
+
+matching() {
+   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
+   do_curl ${ADMIN_URL}/server-matching
 }
 
 provision() {
@@ -25,9 +31,9 @@ provision() {
    do_curl ${ADMIN_URL}/server-provision
 }
 
-matching() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
-   do_curl ${ADMIN_URL}/server-matching
+schema() {
+   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema; Gets current schema configuration (${ADMIN_URL}/schema)" && return 0
+   do_curl ${ADMIN_URL}/schema
 }
 
 data() {
@@ -144,6 +150,7 @@ snapshot() {
 
    matching && json > ${dir}/matching.json
    provision && json > ${dir}/provision.json
+   schema && json > ${dir}/schema.json
    data --conf && json > ${dir}/data-configuration.json
    data --summary -1 && json > ${dir}/data-summary.json
    echo | data && json > ${dir}/data.json
@@ -166,10 +173,12 @@ help() {
   echo "ADMIN_URL=${ADMIN_URL}"
   echo "CURL=\"${CURL}\""
   echo -e "\nSourced functions:\n"
-  provision -h
   matching -h
+  provision -h
+  schema -h
   data -h
   json -h
+  echo "(force json() execution exporting BEAUTIFY with a non-empty value)"
   sequence -h
   trace -h
   metrics -h
