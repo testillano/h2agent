@@ -45,6 +45,7 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <AdminSchema.hpp>
 #include <Transformation.hpp>
 #include <TypeConverter.hpp>
 
@@ -95,8 +96,11 @@ class AdminProvision
     bool response_body_null_{};
     */
 
-
     unsigned int response_delay_ms_;
+
+    // Schemas:
+    std::string request_schema_id_{};
+    std::string response_schema_id_{};
 
     model::MockRequestData *mock_request_data_; // just in case it is used
 
@@ -147,6 +151,7 @@ public:
 
     /**
      * Applies transformations vector over request received and ongoing reponse built
+     * Also checks optional schema validation for incoming and/or outgoing traffic
      *
      * @param requestUri Request URI
      * @param requestUriPath Request URI path part
@@ -161,6 +166,8 @@ public:
      * @param responseDelayMs Response delay milliseconds filled by reference (if any transformation applies)
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
      * @param outStateMethod out-state for request context created in foreign method (virtual server data entry created), filled by reference (if any transformation applies)
+     * @param requestSchema Optional json schema to validate incoming traffic. Nothing is done when nullptr is provided.
+     * @param responseSchema Optional json schema to validate outgoing traffic. Nothing is done when nullptr is provided.
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -174,7 +181,9 @@ public:
                     std::string &responseBody,
                     unsigned int &responseDelayMs,
                     std::string &outState,
-                    std::string &outStateMethod
+                    std::string &outStateMethod,
+                    std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
+                    std::shared_ptr<h2agent::model::AdminSchema> responseSchema
                   ) const;
 
     // setters:
@@ -311,6 +320,22 @@ public:
      */
     unsigned int getResponseDelayMilliseconds() const {
         return response_delay_ms_;
+    }
+
+    /** Provisioned request schema identifier
+     *
+     * @return Request schema string identifier
+     */
+    const std::string &getRequestSchemaId() const {
+        return request_schema_id_;
+    }
+
+    /** Provisioned response schema identifier
+     *
+     * @return Response schema string identifier
+     */
+    const std::string &getResponseSchemaId() const {
+        return response_schema_id_;
     }
 };
 

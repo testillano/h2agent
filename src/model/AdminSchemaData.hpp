@@ -35,103 +35,73 @@ SOFTWARE.
 
 #pragma once
 
-//#include <string>
-#include <mutex>
-#include <shared_mutex>
-
 #include <nlohmann/json.hpp>
 
-#include <AdminMatchingData.hpp>
-#include <AdminProvisionData.hpp>
-#include <AdminSchemaData.hpp>
+#include <Map.hpp>
+#include <AdminSchema.hpp>
+
+#include <JsonSchema.hpp>
+#include <AdminSchemas.hpp>
+
 
 namespace h2agent
 {
 namespace model
 {
 
-class AdminData
+// Map key will be string which has a hash function.
+class AdminSchemaData : public Map<schema_key_t, std::shared_ptr<AdminSchema>>
 {
-    AdminMatchingData matching_data_;
-    AdminProvisionData provision_data_;
-    AdminSchemaData schema_data_;
-
 public:
+    AdminSchemaData();
+    ~AdminSchemaData() = default;
 
-    /** Empty constructor */
-    AdminData() {;}
+    // Load result
+    enum LoadResult { Success = 0, BadSchema, BadContent };
 
     /**
-     * Loads admin matching operation data
+     * Json string representation for class information
+     *
+     * @return Json string representation
+     */
+    std::string asJsonString() const;
+
+    /**
+     * Loads schema operation data
      *
      * @param j Json document from operation body request
      *
-     * @return Boolean about success operation
+     * @return Load operation result
      */
-    AdminMatchingData::LoadResult loadMatching(const nlohmann::json &j) {
-        return matching_data_.load(j);
-    }
+    LoadResult load(const nlohmann::json &j);
 
-    /**
-     * Loads admin provision operation data
-     *
-     * @param j Json document from operation body request
-     *
-     * @return Boolean about success operation
-     */
-    AdminProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminMatchingData::AlgorithmType::PriorityMatchingRegex));
-    }
-
-    /**
-     * Loads admin schema operation data
-     *
-     * @param j Json document from operation body request
-     *
-     * @return Boolean about success operation
-     */
-    AdminSchemaData::LoadResult loadSchema(const nlohmann::json &j) {
-        return schema_data_.load(j);
-    }
-
-    /**
-     * Clears admin provisions data
+    /** Clears internal data (map)
      *
      * @return True if something was removed, false if already empty
      */
-    bool clearProvisions() {
-        return provision_data_.clear();
-    }
+    bool clear();
 
     /**
-     * Clears admin schemas data
+     * Finds schema item
      *
-     * @return True if something was removed, false if already empty
+     * @param id Schema identifier
+     *
+     * @return Schema information or null if missing
      */
-    bool clearSchemas() {
-        return schema_data_.clear();
-    }
+    std::shared_ptr<AdminSchema> find(const std::string &id) const;
 
     /**
-     * Gets admin matching data
-     */
-    const AdminMatchingData& getMatchingData() const {
-        return matching_data_;
+    * Gets schema operation schema
+    */
+    const h2agent::jsonschema::JsonSchema& getSchema() const {
+        return schema_schema_;
     }
 
-    /**
-     * Gets admin provision data
-     */
-    const AdminProvisionData& getProvisionData() const {
-        return provision_data_;
-    }
+private:
 
-    /**
-     * Gets admin schema data
-     */
-    const AdminSchemaData& getSchemaData() const {
-        return schema_data_;
-    }
+    h2agent::jsonschema::JsonSchema schema_schema_;
+
+    LoadResult loadSingle(const nlohmann::json &j);
 };
 
 }

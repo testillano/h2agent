@@ -124,25 +124,6 @@ std::string MyHttp2Server::serverDataConfigurationAsJsonString() const {
     return result.dump();
 }
 
-bool MyHttp2Server::setRequestsSchema(const std::string &schemaContent) {
-
-    LOGDEBUG(ert::tracing::Logger::debug("Json string provided for requests schema", ERT_FILE_LOCATION));
-
-    nlohmann::json schema;
-    if(!h2agent::http2server::parseJsonContent(schemaContent, schema))
-        return false;
-
-    if (!getMockRequestData()->loadRequestsSchema(schema)) {
-        LOGWARNING(
-            ert::tracing::Logger::warning("Requests won't be validated (schema will be ignored)", ERT_FILE_LOCATION);
-        );
-
-        return false;
-    }
-
-    return true;
-}
-
 void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                             const std::string& requestBody,
                             unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
@@ -189,33 +170,6 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
-
-    // Possible schema validation:
-    if(getMockRequestData()->getRequestsSchema().isAvailable()) {
-        // TODO: take advantage of this parsing for transformation and request storage below
-
-        nlohmann::json requestJson;
-        bool success = h2agent::http2server::parseJsonContent(requestBody, requestJson);
-
-        if (success) {
-            if (!getMockRequestData()->getRequestsSchema().validate(requestJson)) {
-                statusCode = 400;
-                LOGINFORMATIONAL(
-                    ert::tracing::Logger::informational("Invalid schema for traffic request received", ERT_FILE_LOCATION);
-                );
-                return;
-            }
-        }
-        else
-        {
-            // Response data:
-            statusCode = 400;
-            LOGINFORMATIONAL(
-                ert::tracing::Logger::informational("Failed validation schema (parsing request body) for traffic request received", ERT_FILE_LOCATION);
-            );
-            return;
-        }
-    }
 
 // Admin provision & matching configuration:
     const h2agent::model::AdminProvisionData & provisionData = getAdminData()->getProvisionData();
@@ -271,10 +225,29 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         std::string outState;
         std::string outStateMethod;
 
+        // OPTIONAL SCHEMAS VALIDATION
+        const h2agent::model::AdminSchemaData & schemaData = getAdminData()->getSchemaData();
+        std::shared_ptr<h2agent::model::AdminSchema> requestSchema;
+        std::shared_ptr<h2agent::model::AdminSchema> responseSchema;
+        std::string requestSchemaId = provision->getRequestSchemaId();
+        if (!requestSchemaId.empty()) {
+            requestSchema = schemaData.find(requestSchemaId);
+            LOGWARNING(
+                if (!requestSchema) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for incoming message: VALIDATION will be IGNORED", requestSchemaId.c_str()), ERT_FILE_LOCATION);
+            );
+        }
+        std::string responseSchemaId = provision->getResponseSchemaId();
+        if (!responseSchemaId.empty()) {
+            responseSchema = schemaData.find(responseSchemaId);
+            LOGWARNING(
+                if (!responseSchema) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for outgoing message: VALIDATION will be IGNORED", responseSchemaId.c_str()), ERT_FILE_LOCATION);
+            );
+        }
+
         // PREPARE & TRANSFORM
         provision->setMockRequestData(mock_request_data_); // could be used by event source
-        provision->transform( uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
-                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod);
+        provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, requestSchema, responseSchema);
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {

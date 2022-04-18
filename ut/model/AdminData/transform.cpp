@@ -271,7 +271,7 @@ TEST_F(AdminData_test, TransformWithSources) // test different sources
     std::string outState;
     std::string outStateMethod;
 
-    provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod);
+    provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, nullptr, nullptr);
 
 
     EXPECT_TRUE(AdminData_test::adata_.clearProvisions());

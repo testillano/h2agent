@@ -7,7 +7,7 @@
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![Main project workflow](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
-`h2agent` is a network service that enables mocking other network services.
+`h2agent` is a network service that enables mocking other network services using HTTP/2 protocol.
 
 **Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) *Prezi* presentation** for a complete and useful overview of this component.
 
@@ -385,9 +385,6 @@ Options:
    interface is secured by default. To include management interface, this option must
    be also provided.
 
-[--server-request-schema <path file>]
-  Path file for the server schema to validate requests received.
-
 [--server-matching <path file>]
   Path file for optional startup server matching configuration.
 
@@ -486,7 +483,6 @@ Server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
 Traffic secured: no
 Admin secured: no
-Server request schema: <not provided>
 Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
 Server data storage: enabled
@@ -527,6 +523,132 @@ $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ## Management interface
 
 `h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`:
+
+### POST /admin/v1/schema
+
+Loads an schema for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "object"
+    }
+  },
+  "required": [ "id", "schema" ]
+}
+```
+
+##### id
+
+Schema unique identifier. If the schema already exists, it will be overwritten.
+
+**schema**
+
+Content in `json` format to specify the schema definition.
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /admin/v1/schema (multiple schemas)
+
+Load of a set of schemas through an array object is allowed. So, instead of launching *N* schema loads separately, you could group them as in the following example:
+
+```json
+[
+  {
+    "id": "myRequestsSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "foo": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "foo"
+      ]
+    }
+  },
+  {
+    "id": "myResponsesSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bar": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "bar"
+      ]
+    }
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single load. A schema set fails with the first failed item, giving a 'pluralized' version of the single load failed response message.
+
+### GET /admin/v1/schema/schema
+
+Retrieves the schema of the schema operation body.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json document containing the schema operation schema.
+
+### GET /admin/v1/schema
+
+Retrieves all the schemas configured.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+Json array containing all loaded items, '*null*' if nothing configured.
+
+### DELETE /admin/v1/schema
+
+Deletes all the process schemas loaded.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+No response body.
 
 ### POST /admin/v1/server-matching
 
@@ -743,6 +865,9 @@ Defines the response behavior for an incoming request matching some basic condit
     "requestUri": {
       "type": "string"
     },
+    "requestSchemaId": {
+      "type": "string"
+    },
     "responseHeaders": {
       "additionalProperties": {
         "type": "string"
@@ -788,6 +913,9 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "required": [ "source", "target" ]
       }
+    },
+    "responseSchemaId": {
+      "type": "string"
     }
   },
   "required": [ "requestMethod", "responseCode" ]
@@ -824,6 +952,10 @@ Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
 Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
 
 <u>*Empty string is accepted*</u>, and is reserved to configure an optional default provision, something which could be specially useful to define the fall back provision if no matching entry is found. So, you could configure defaults for each method, just putting an empty *request URI* or omitting this optional field. Default provisions could evolve through states (in/out) but at least "initial" is again mandatory to be processed.
+
+##### requestSchemaId
+
+We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
 ##### responseHeaders
 
@@ -1221,6 +1353,12 @@ Filters give you the chance to make complex transformations:
 
 
 
+Finally, after possible transformations, we could validate the response body:
+
+##### responseSchemaId
+
+We could optionally validate built responses against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
 #### Response status code
 
 **201** (Created) or **400** (Bad Request).
@@ -1234,7 +1372,7 @@ Filters give you the chance to make complex transformations:
 }
 ```
 
-### POST /admin/v1/server-provision [multiple provisions]
+### POST /admin/v1/server-provision (multiple provisions)
 
 Provision of a set of provisions through an array object is allowed. So, instead of launching *N* provisions separately, you could group them as in the following example:
 
@@ -1350,10 +1488,6 @@ For example:
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
-### POST /admin/v1/server-data/schema
-
-Loads a requests schema for validation of traffic receptions.
-
 #### Request body
 
 Request body will be the `json` schema for the requests.
@@ -1361,10 +1495,6 @@ Request body will be the `json` schema for the requests.
 #### Response status code
 
 **201** (Created) or **400** (Bad Request).
-
-### GET /admin/v1/server-data/schema
-
-Retrieves the server requests schema if configured (at command-line).
 
 #### Response status code
 
@@ -1386,7 +1516,7 @@ The `json` document response shall contain three main nodes: `method`, `uri` and
 
 Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the response `requests` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
 
-This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemes (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
+This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
 #### Response status code
 
@@ -1688,9 +1818,9 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 
 3. Refer to `h2agent` values through the corresponding dependency alias, for example `.Values.h2server.image` to access process repository and tag.
 
-### Agent configuration
+### Agent configuration files
 
-At the moment, the server request schema is the only configuration file used by the `h2agent` process and could be added by mean a `config map`. The rest of parameters are passed through [command line](#command-line).
+Some [command line](#command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
 
 ## Troubleshooting
 

@@ -119,9 +119,6 @@ public:
         return general_unique_server_sequence_;
     }
 
-    // return success to load schema
-    bool setRequestsSchema(const std::string &schemaContent);
-
     void discardServerData(bool discard = true) {
         server_data_ = !discard;
     }

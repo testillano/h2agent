@@ -223,9 +223,6 @@ void usage(int rc)
        << "   interface is secured by default. To include management interface, this option must\n"
        << "   be also provided.\n\n"
 
-       << "[--server-request-schema <path file>]\n"
-       << "  Path file for the server schema to validate requests received.\n\n"
-
        << "[--server-matching <path file>]\n"
        << "  Path file for optional startup server matching configuration.\n\n"
 
@@ -322,7 +319,6 @@ int main(int argc, char* argv[])
     std::string server_key_password = "";
     std::string server_crt_file = "";
     bool admin_secured = false;
-    std::string server_req_schema_file = "";
     bool discard_server_data = false;
     bool discard_server_data_requests_history = false;
     bool disable_purge = false;
@@ -423,11 +419,6 @@ int main(int argc, char* argv[])
         admin_secured = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--server-request-schema", value))
-    {
-        server_req_schema_file = value;
-    }
-
     if (cmdOptionExists(argv, argv + argc, "--server-matching", value))
     {
         server_matching_file = value;
@@ -523,8 +514,6 @@ int main(int argc, char* argv[])
     std::cout << "Traffic secured: " << (traffic_secured ? "yes":"no") << '\n';
     std::cout << "Admin secured: " << (traffic_secured ? (admin_secured ? "yes":"no"):(admin_secured ? "ignored":"no")) << '\n';
 
-    std::cout << "Server request schema: " << ((server_req_schema_file != "") ? server_req_schema_file :
-              "<not provided>") << '\n';
     std::cout << "Server matching configuration file: " << ((server_matching_file != "") ? server_matching_file :
               "<not provided>") << '\n';
     std::cout << "Server provision configuration file: " << ((server_provision_file != "") ? server_provision_file :
@@ -591,16 +580,6 @@ int main(int argc, char* argv[])
     std::string fileContent;
     nlohmann::json jsonObject;
     bool success;
-
-    if (server_req_schema_file != "") {
-        success = h2agent::http2server::getFileContent(server_req_schema_file, fileContent);
-        if (success)
-            success = myHttp2Server->setRequestsSchema(fileContent);
-
-        if (!success) {
-            std::cerr << "Requests schema load failed: will be ignored" << std::endl;
-        }
-    }
 
     if (server_matching_file != "") {
         success = h2agent::http2server::getFileContent(server_matching_file, fileContent);

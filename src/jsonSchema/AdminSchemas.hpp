@@ -46,6 +46,24 @@ namespace h2agent
 namespace adminSchemas
 {
 
+const nlohmann::json schema = R"(
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "object"
+    }
+  },
+  "required": [ "id", "schema" ]
+}
+)"_json;
+
 const nlohmann::json server_matching = R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -133,6 +151,9 @@ const nlohmann::json server_provision = R"(
     "requestUri": {
       "type": "string"
     },
+    "requestSchemaId": {
+      "type": "string"
+    },
     "responseHeaders": {
       "additionalProperties": {
         "type": "string"
@@ -178,6 +199,9 @@ const nlohmann::json server_provision = R"(
         },
         "required": [ "source", "target" ]
       }
+    },
+    "responseSchemaId": {
+      "type": "string"
     }
   },
   "required": [ "requestMethod", "responseCode" ]
