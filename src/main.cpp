@@ -460,10 +460,11 @@ int main(int argc, char* argv[])
         prometheus_message_size_bytes_histogram_boundaries = loadHistogramBoundaries(value, messageSizeBytesHistogramBucketBoundaries);
     }
 
+    std::string gitVersion = h2agent::GIT_VERSION;
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
-        std::cout << h2agent::GIT_VERSION << '\n';
+        std::cout << (gitVersion.empty() ? "unknown: must built on git repository":gitVersion) << '\n';
         _exit(EXIT_SUCCESS);
     }
 
@@ -472,8 +473,7 @@ int main(int argc, char* argv[])
     bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && server_key_password.empty());
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    std::cout << "[" << getLocaltime().c_str() << "] Starting " << progname <<
-              " (version " << h2agent::GIT_VERSION << ") ..." << '\n';
+    std::cout << getLocaltime().c_str() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
