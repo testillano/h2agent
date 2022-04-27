@@ -13,112 +13,112 @@ CURL="curl -i --http2-prior-knowledge"
 # FUNCTIONS #
 #############
 do_curl() {
-   echo
-   echo [${CURL} $@]
-   echo
-   ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
-   [ $? -eq 0 -a -n "${BEAUTIFY_JSON}" ] && echo && echo && json
-   echo ; echo
+  echo
+  echo [${CURL} $@]
+  echo
+  ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
+  [ $? -eq 0 -a -n "${BEAUTIFY_JSON}" ] && echo && echo && json
+  echo ; echo
 }
 
 schema() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [--clean]; Cleans/gets current schema configuration (${ADMIN_URL}/schema)" && return 0
-   local curl_method=
-   [ "$1" = "--clean" ] && curl_method="-XDELETE"
-   do_curl ${curl_method} "${ADMIN_URL}/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [--clean]; Cleans/gets current schema configuration (${ADMIN_URL}/schema)" && return 0
+  local curl_method=
+  [ "$1" = "--clean" ] && curl_method="-XDELETE"
+  do_curl ${curl_method} "${ADMIN_URL}/schema"
 }
 
 matching() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
-   do_curl ${ADMIN_URL}/server-matching
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets current matching configuration (${ADMIN_URL}/server-matching)" && return 0
+  do_curl ${ADMIN_URL}/server-matching
 }
 
 provision() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision [--clean]; Cleans/gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
-   local curl_method=
-   [ "$1" = "--clean" ] && curl_method="-XDELETE"
-   do_curl ${curl_method} ${ADMIN_URL}/server-provision
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision [--clean]; Cleans/gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
+  local curl_method=
+  [ "$1" = "--clean" ] && curl_method="-XDELETE"
+  do_curl ${curl_method} ${ADMIN_URL}/server-provision
 }
 
 data() {
-   local curl_method=
+  local curl_method=
 
-   if [ "$1" = "-h" -o "$1" = "--help" ]
-   then
-     echo "Usage: data [method] [uri] [[-]request number]; Inspects server data events for the given filters (${ADMIN_URL}/server-data)"
-     echo "                                                Request number may be negative to access by reverse chronological order"
-     echo "            [--summary] [max keys]            ; Gets current server data summary to guide further queries"
-     echo "                                                Displayed keys could be limited (5 by default, -1: no limit)"
-     echo "            [--conf]                          ; Gets current server data configuration"
-     echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
-     echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
-     echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
-     echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
-     echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
-     echo "            [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
-     echo
-     return 0
-   elif [ "$1" = "--summary" ]
-   then
-     local maxKeys=${2:-5}
-     local queryParams=
-     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
-     [ "${maxKeys}" = "-1" ] && queryParams=
-     do_curl "${ADMIN_URL}/server-data/summary${queryParams}"
-     return 0
-   elif [ "$1" = "--conf" ]
-   then
-     do_curl ${ADMIN_URL}/server-data/configuration
-     return 0
-   elif [ "$1" = "--discard-all" ]
-   then
-     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true"
-     return 0
-   elif [ "$1" = "--discard-history" ]
-   then
-     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true"
-     return 0
-   elif [ "$1" = "--keep-all" ]
-   then
-     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false"
-     return 0
-   elif [ "$1" = "--disable-purge" ]
-   then
-     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true"
-     return 0
-   elif [ "$1" = "--enable-purge" ]
-   then
-     do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false"
-     return 0
-   elif [ "$1" = "--clean" ]
-   then
-     curl_method="-XDELETE"
-     shift
-   fi
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: data [method] [uri] [[-]request number]; Inspects server data events for the given filters (${ADMIN_URL}/server-data)"
+    echo "                                                Request number may be negative to access by reverse chronological order"
+    echo "            [--summary] [max keys]            ; Gets current server data summary to guide further queries"
+    echo "                                                Displayed keys could be limited (5 by default, -1: no limit)"
+    echo "            [--conf]                          ; Gets current server data configuration"
+    echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
+    echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
+    echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
+    echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
+    echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
+    echo "            [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
+    echo
+    return 0
+  elif [ "$1" = "--summary" ]
+  then
+    local maxKeys=${2:-5}
+    local queryParams=
+    [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
+    [ "${maxKeys}" = "-1" ] && queryParams=
+    do_curl "${ADMIN_URL}/server-data/summary${queryParams}"
+    return 0
+  elif [ "$1" = "--conf" ]
+  then
+    do_curl ${ADMIN_URL}/server-data/configuration
+    return 0
+  elif [ "$1" = "--discard-all" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true"
+    return 0
+  elif [ "$1" = "--discard-history" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true"
+    return 0
+  elif [ "$1" = "--keep-all" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false"
+    return 0
+  elif [ "$1" = "--disable-purge" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true"
+    return 0
+  elif [ "$1" = "--enable-purge" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false"
+    return 0
+  elif [ "$1" = "--clean" ]
+  then
+    curl_method="-XDELETE"
+    shift
+  fi
 
-   local requestMethod=$1
-   local requestUri=$2
-   local requestNumber=$3
+  local requestMethod=$1
+  local requestUri=$2
+  local requestNumber=$3
 
-   [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
-   [ -n "${requestNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
-   [ -n "${requestNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
+  [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
+  [ -n "${requestNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
+  [ -n "${requestNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
 
-   local queryParams=
-   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
-   [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
-   if [ -z "${curl_method}" -a -z "${queryParams}" ]
-   then
-     echo
-     echo "Take care about storage size when querying without filters."
-     echo "You may want to check the summary before: data --summary"
-     echo
-     echo "Press ENTER to continue, CTRL-C to abort ..."
-     read dummy
-     do_curl ${ADMIN_URL}/server-data
-   else
-     do_curl ${curl_method} -G --data-urlencode "requestUri=${requestUri}" "${ADMIN_URL}/server-data${queryParams}"
-   fi
+  local queryParams=
+  [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
+  [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
+  if [ -z "${curl_method}" -a -z "${queryParams}" ]
+  then
+    echo
+    echo "Take care about storage size when querying without filters."
+    echo "You may want to check the summary before: data --summary"
+    echo
+    echo "Press ENTER to continue, CTRL-C to abort ..."
+    read dummy
+    do_curl ${ADMIN_URL}/server-data
+  else
+    do_curl ${curl_method} -G --data-urlencode "requestUri=${requestUri}" "${ADMIN_URL}/server-data${queryParams}"
+  fi
 }
 
 json() {
@@ -141,40 +141,40 @@ sequence() {
 }
 
 trace() {
-   local level=${1:-Debug}
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Sets h2agent tracing level" && return 0
-   echo "Level selected: ${level}"
-   ${CURL} -XPUT ${ADMIN_URL}/logging?level=${level}
+  local level=${1:-Debug}
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Sets h2agent tracing level" && return 0
+  echo "Level selected: ${level}"
+  ${CURL} -XPUT ${ADMIN_URL}/logging?level=${level}
 }
 
 metrics() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics; Prometheus metrics" && return 0
-   curl ${METRICS_URL}
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics; Prometheus metrics" && return 0
+  curl ${METRICS_URL}
 }
 
 snapshot() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot; Gets a compilation of current server information" && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot; Gets a compilation of current server information" && return 0
 
-   local dir=/tmp/snapshots/$(date +'%y%m%d.%H%M%S')
-   local last=/tmp/snapshots/last
-   mkdir -p ${dir}
-   rm -f ${last} && ln -s $(basename ${dir}) ${last}
+  local dir=/tmp/snapshots/$(date +'%y%m%d.%H%M%S')
+  local last=/tmp/snapshots/last
+  mkdir -p ${dir}
+  rm -f ${last} && ln -s $(basename ${dir}) ${last}
 
-   schema && json > ${dir}/schema.json
-   matching && json > ${dir}/matching.json
-   provision && json > ${dir}/provision.json
-   data --conf && json > ${dir}/data-configuration.json
-   data --summary -1 && json > ${dir}/data-summary.json
-   echo | data && json > ${dir}/data.json
-   mkdir ${dir}/data-sequences
-   (jq '.[].requests[].serverSequence' ${dir}/data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/data-sequences.txt
-   for s in $(cat ${dir}/data-sequences.txt); do
-     jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/data.json > ${dir}/data-sequences/${s}.json
-   done
+  schema && json > ${dir}/schema.json
+  matching && json > ${dir}/matching.json
+  provision && json > ${dir}/provision.json
+  data --conf && json > ${dir}/data-configuration.json
+  data --summary -1 && json > ${dir}/data-summary.json
+  echo | data && json > ${dir}/data.json
+  mkdir ${dir}/data-sequences
+  (jq '.[].requests[].serverSequence' ${dir}/data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/data-sequences.txt
+  for s in $(cat ${dir}/data-sequences.txt); do
+    jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/data.json > ${dir}/data-sequences/${s}.json
+  done
 
-   echo
-   echo "Created snapshot at:"
-   ls -l ${last}
+  echo
+  echo "Created snapshot at:"
+  ls -l ${last}
 }
 
 help() {
