@@ -223,6 +223,9 @@ void usage(int rc)
        << "   interface is secured by default. To include management interface, this option must\n"
        << "   be also provided.\n\n"
 
+       << "[--schema <path file>]\n"
+       << "  Path file for optional startup schema configuration.\n\n"
+
        << "[--server-matching <path file>]\n"
        << "  Path file for optional startup server matching configuration.\n\n"
 
@@ -323,6 +326,7 @@ int main(int argc, char* argv[])
     bool discard_server_data_requests_history = false;
     bool disable_purge = false;
     bool verbose = false;
+    std::string schema_file = "";
     std::string server_matching_file = "";
     std::string server_provision_file = "";
     std::string prometheus_port = "8080";
@@ -417,6 +421,11 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--secure-admin", value))
     {
         admin_secured = true;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--schema", value))
+    {
+        schema_file = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "--server-matching", value))
@@ -514,6 +523,8 @@ int main(int argc, char* argv[])
     std::cout << "Traffic secured: " << (traffic_secured ? "yes":"no") << '\n';
     std::cout << "Admin secured: " << (traffic_secured ? (admin_secured ? "yes":"no"):(admin_secured ? "ignored":"no")) << '\n';
 
+    std::cout << "Schema configuration file: " << ((schema_file != "") ? schema_file :
+              "<not provided>") << '\n';
     std::cout << "Server matching configuration file: " << ((server_matching_file != "") ? server_matching_file :
               "<not provided>") << '\n';
     std::cout << "Server provision configuration file: " << ((server_provision_file != "") ? server_provision_file :
@@ -551,7 +562,7 @@ int main(int argc, char* argv[])
     if (p_metrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {
-            std::cerr << "Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
+            std::cerr << getLocaltime().c_str() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             _exit(EXIT_FAILURE);
         }
     }
@@ -581,6 +592,22 @@ int main(int argc, char* argv[])
     nlohmann::json jsonObject;
     bool success;
 
+    if (schema_file != "") {
+        success = h2agent::http2server::getFileContent(schema_file, fileContent);
+        std::string log = "Schema configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            success = myAdminHttp2Server->schema(jsonObject, log);
+        }
+
+        if (!success) {
+            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+        }
+    }
+
     if (server_matching_file != "") {
         success = h2agent::http2server::getFileContent(server_matching_file, fileContent);
         std::string log = "Server matching configuration load failed and will be ignored";
@@ -593,7 +620,7 @@ int main(int argc, char* argv[])
         }
 
         if (!success) {
-            std::cerr << log << std::endl;
+            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
         }
     }
 
@@ -609,7 +636,7 @@ int main(int argc, char* argv[])
         }
 
         if (!success) {
-            std::cerr << log << std::endl;
+            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
         }
     }
 

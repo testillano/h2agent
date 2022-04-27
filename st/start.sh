@@ -7,8 +7,9 @@ DEFAULTS=
 [ "$1" = "-y" ] && DEFAULTS=true
 
 # Default values
-H2AGENT_PROVISION__dflt=provision.json
+H2AGENT_SCHEMA__dflt=schema.json
 H2AGENT_MATCHING__dflt=matching.json
+H2AGENT_PROVISION__dflt=provision.json
 H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION__dflt=discard-all
 H2AGENT__SERVER_DATA_PURGE_CONFIGURATION__dflt=disable-purge
 H2AGENT__ENDPOINT__dflt=0.0.0.0
@@ -33,7 +34,7 @@ H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
 # Common variables
-COMMON_VARS="H2AGENT_PROVISION H2AGENT_MATCHING H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION H2AGENT__SERVER_DATA_PURGE_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_SCHEMA H2AGENT_MATCHING H2AGENT_PROVISION H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION H2AGENT__SERVER_DATA_PURGE_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -168,10 +169,12 @@ cd $(dirname $0)
 # Requirements
 which jq &>/dev/null || { echo "Required 'jq' tool (https://stedolan.github.io/jq/)" ; exit 1 ; }
 
-read_value "Provision configuration" H2AGENT_PROVISION
-[ ! -f "${H2AGENT_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_PROVISION}' !" && exit 1
+read_value "Schema configuration" H2AGENT_SCHEMA
+[ ! -f "${H2AGENT_SCHEMA}" ] && echo "ERROR: missing file '${H2AGENT_SCHEMA}' !" && exit 1
 read_value "Matching configuration" H2AGENT_MATCHING
 [ ! -f "${H2AGENT_MATCHING}" ] && echo "ERROR: missing file '${H2AGENT_MATCHING}' !" && exit 1
+read_value "Provision configuration" H2AGENT_PROVISION
+[ ! -f "${H2AGENT_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_PROVISION}' !" && exit 1
 read_value "Server data storage configuration" H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
 read_value "Server data purge configuration" H2AGENT__SERVER_DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
 read_value "H2agent endpoint address" H2AGENT__ENDPOINT
@@ -191,8 +194,9 @@ jq --arg replace "${H2AGENT__RESPONSE_DELAY_MS}" '. |= map(if .responseDelayMs =
 jq --arg replace "${ST_REQUEST_METHOD}" '. |= map(if .requestMethod == "POST" then (.requestMethod=($replace)) else . end)' | \
 jq --arg replace "/${ST_REQUEST_URL}" '. |= map(if .requestUri == "URI" then (.requestUri=($replace)) else . end)' > ${TMP_DIR}/provision.json
 
-h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/provision.json || exit 1
+h2a_admin_curl POST admin/v1/schema 201 ${H2AGENT_SCHEMA} || exit 1
 h2a_admin_curl POST admin/v1/server-matching 201 ${H2AGENT_MATCHING} || exit 1
+h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/provision.json || exit 1
 
 # Server data configuration
 case ${H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION} in
