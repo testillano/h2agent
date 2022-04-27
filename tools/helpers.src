@@ -17,8 +17,15 @@ do_curl() {
    echo [${CURL} $@]
    echo
    ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
-   [ $? -eq 0 -a -n "${BEAUTIFY}" ] && echo && echo && json
+   [ $? -eq 0 -a -n "${BEAUTIFY_JSON}" ] && echo && echo && json
    echo ; echo
+}
+
+schema() {
+   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [--clean]; Cleans/gets current schema configuration (${ADMIN_URL}/schema)" && return 0
+   local curl_method=
+   [ "$1" = "--clean" ] && curl_method="-XDELETE"
+   do_curl ${curl_method} "${ADMIN_URL}/schema"
 }
 
 matching() {
@@ -27,13 +34,10 @@ matching() {
 }
 
 provision() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision; Gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
-   do_curl ${ADMIN_URL}/server-provision
-}
-
-schema() {
-   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema; Gets current schema configuration (${ADMIN_URL}/schema)" && return 0
-   do_curl ${ADMIN_URL}/schema
+   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision [--clean]; Cleans/gets current provision configuration (${ADMIN_URL}/server-provision)" && return 0
+   local curl_method=
+   [ "$1" = "--clean" ] && curl_method="-XDELETE"
+   do_curl ${curl_method} ${ADMIN_URL}/server-provision
 }
 
 data() {
@@ -52,6 +56,7 @@ data() {
      echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
      echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
      echo "            [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
+     echo
      return 0
    elif [ "$1" = "--summary" ]
    then
@@ -118,7 +123,14 @@ data() {
 
 json() {
   local jq_expr=${1:-.}
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: json [jq expression, '.' by default]; Beautifies last operation json response content" && return 0
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: json [jq expression, '.' by default]; Beautifies last operation json response content"
+    echo "                                             Example filter: schema && json '.[] | select(.id==\"myRequestsSchema\")'"
+    echo "                                             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'"
+    echo
+    return 0
+  fi
   tail -1 /tmp/curl.out | jq "${jq_expr}"
 }
 
@@ -148,9 +160,9 @@ snapshot() {
    mkdir -p ${dir}
    rm -f ${last} && ln -s $(basename ${dir}) ${last}
 
+   schema && json > ${dir}/schema.json
    matching && json > ${dir}/matching.json
    provision && json > ${dir}/provision.json
-   schema && json > ${dir}/schema.json
    data --conf && json > ${dir}/data-configuration.json
    data --summary -1 && json > ${dir}/data-summary.json
    echo | data && json > ${dir}/data.json
@@ -173,12 +185,11 @@ help() {
   echo "ADMIN_URL=${ADMIN_URL}"
   echo "CURL=\"${CURL}\""
   echo -e "\nSourced functions:\n"
+  schema -h
   matching -h
   provision -h
-  schema -h
   data -h
   json -h
-  echo "(force json() execution exporting BEAUTIFY with a non-empty value)"
   sequence -h
   trace -h
   metrics -h

@@ -2,6 +2,7 @@
   {
     "requestMethod": "POST",
     "requestUri": "URI",
+    "requestSchemaId": "myRequestSchemaId",
     "responseDelayMs": 0,
     "responseCode": 200,
     "responseBody": {

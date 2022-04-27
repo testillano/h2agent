@@ -248,11 +248,14 @@ Check `st/start.sh -h` for help.
 $ st/start.sh -y
 
 
-Input Provision configuration
- (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
+Input Schema configuration
+ (or set 'H2AGENT_SCHEMA' to be non-interactive) [schema.json]: schema.json
 
 Input Matching configuration
  (or set 'H2AGENT_MATCHING' to be non-interactive) [matching.json]: matching.json
+
+Input Provision configuration
+ (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
 
 Input Server data configuration (discard-all|discard-history|keep-all)
  (or set 'H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
@@ -385,6 +388,9 @@ Options:
    interface is secured by default. To include management interface, this option must
    be also provided.
 
+[--schema <path file>]
+  Path file for optional startup schema configuration.
+
 [--server-matching <path file>]
   Path file for optional startup server matching configuration.
 
@@ -483,6 +489,7 @@ Server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
 Traffic secured: no
 Admin secured: no
+Schema configuration file: <not provided>
 Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
 Server data storage: enabled
@@ -526,7 +533,7 @@ $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 
 ### POST /admin/v1/schema
 
-Loads an schema for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
+Loads schema(s) for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
 
 #### Request body schema
 
@@ -550,11 +557,24 @@ Loads an schema for future event validation. Added schemas could be referenced w
 }
 ```
 
-##### id
+If you have a `json` schema (from file `schema.json`) and want to build the `h2agent` schema configuration (into file `h2agent_schema.json`), you may perform automations like this *bash script* example:
+
+```bash
+$> jq --arg id "theSchemaId" '. | { id: $id, schema: . }' schema.json > h2agent_schema.json
+```
+
+Also *python* or any other language could do the job:
+
+```python
+>>> schema = {"$schema":"http://json-schema.org/draft-07/schema#","type":"object","additionalProperties":True,"properties":{"foo":{"type":"string"}},"required":["foo"]}
+>>> print({ "id":"theSchemaId", "schema":schema })
+```
+
+##### **id**
 
 Schema unique identifier. If the schema already exists, it will be overwritten.
 
-**schema**
+##### **schema**
 
 Content in `json` format to specify the schema definition.
 
@@ -632,7 +652,7 @@ Retrieves all the schemas configured.
 
 #### Response status code
 
-**200** (OK), **204** (No Content) or **400** (Bad Request).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -644,7 +664,7 @@ Deletes all the process schemas loaded.
 
 #### Response status code
 
-**200** (OK), **204** (No Content) or **400** (Bad Request).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -1425,7 +1445,7 @@ Retrieves all the provisions configured.
 
 #### Response status code
 
-**200** (OK), **204** (No Content) or **400** (Bad Request).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -1437,7 +1457,7 @@ Deletes the whole process provision. It is useful to clear the configuration if 
 
 #### Response status code
 
-**200** (OK), **204** (No Content) or **400** (Bad Request).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -1498,7 +1518,7 @@ Request body will be the `json` schema for the requests.
 
 #### Response status code
 
-**200** (OK), **204** (No Content).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -1520,7 +1540,7 @@ This operation is useful for testing post verification stages (validate content 
 
 #### Response status code
 
-**200** (OK), **204** (No Content), **400** (Bad Request).
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 
@@ -1835,18 +1855,22 @@ source tools/helpers.src
 
 Sourced variables:
 
-TRAFFIC_URL=http://localhost:8000/app/v1
+TRAFFIC_URL=http://localhost:8000
 ADMIN_URL=http://localhost:8074/admin/v1
 CURL="curl -i --http2-prior-knowledge"
 
 Sourced functions:
 
-Usage: provision; Gets current provision configuration (http://localhost:8074/admin/v1/server-provision)
+Usage: schema [--clean]; Cleans/gets current schema configuration (http://localhost:8074/admin/v1/schema)
 Usage: matching; Gets current matching configuration (http://localhost:8074/admin/v1/server-matching)
-Usage: data [method] [uri] [number (-1: last)];
+Usage: provision [--clean]; Cleans/gets current provision configuration (http://localhost:8074/admin/v1/server-provision)
+Usage: data [method] [uri] [[-]request number];
                      Inspects server data events for given filters
                      (http://localhost:8074/admin/v1/server-data)
+                     Request number may be negative to access by reverse chronological order
 
+            [--summary] [max keys]            ; Gets current server data summary to guide further queries
+                                                Displayed keys could be limited (5 by default, -1: no limit)
             [--conf]                          ; Gets current server data configuration
             [--discard-all]                   ; Sets server data configuration to discard
                                                 all the events received
@@ -1860,16 +1884,19 @@ Usage: data [method] [uri] [number (-1: last)];
             [--enable-purge]                  ; Sets server data configuration to process
                                                 events post-removal when a provision on
                                                 'purge' state is reached
-            [--clean]                         ; Removes all the context information
-                                                registered
-Usage: json [jq expression, '.' by default]   ; Beautifies last operation json response
-                                                content
-Usage: sequence [value (available values by default)]; Extract server sequence document
-                                                       from json retrieved in last data()
-                                                       call
+            [--clean] [query filters]         ; Removes server data events. Admits additional
+                                                query filters to narrow the selection.
+
+Usage: json [jq expression, '.' by default]; Beautifies last operation json response content
+                                             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
+                                             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'
+
+Usage: sequence [value (available values by default)]; Extract server sequence document from
+                                                       json retrieved in last data() call
 Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]
                                               ; Sets h2agent tracing level
 Usage: metrics                                ; Prometheus metrics
+Usage: snapshot                               ; Gets a compilation of current server information
 Usage: help                                   ; This help
 
 More information about management interface: https://github.com/testillano/h2agent#management-interface
