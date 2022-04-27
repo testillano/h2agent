@@ -244,12 +244,14 @@ Reference:
 Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
 Check `st/start.sh -h` for help.
 
+As schema validation is normally used only for function tests, it will be disabled here:
+
 ```bash
 $ st/start.sh -y
 
 
-Input Schema configuration
- (or set 'H2AGENT_SCHEMA' to be non-interactive) [schema.json]: schema.json
+Input Validate schemas (y|n)
+ (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]: n
 
 Input Matching configuration
  (or set 'H2AGENT_MATCHING' to be non-interactive) [matching.json]: matching.json
