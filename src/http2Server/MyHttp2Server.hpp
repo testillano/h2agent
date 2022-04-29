@@ -54,6 +54,7 @@ namespace h2agent
 namespace model
 {
 class MockRequestData;
+class GlobalVariablesData;
 class AdminData;
 }
 
@@ -67,6 +68,7 @@ class MyHttp2Server: public ert::http2comm::Http2Server
     bool purge_execution_;
 
     model::MockRequestData *mock_request_data_;
+    model::GlobalVariablesData *global_variables_data_;
     model::AdminData *admin_data_;
     std::atomic<std::uint64_t> general_unique_server_sequence_;
 
@@ -80,6 +82,7 @@ class MyHttp2Server: public ert::http2comm::Http2Server
 
 public:
     MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
+    ~MyHttp2Server();
 
     /**
     * Enable metrics
@@ -105,6 +108,9 @@ public:
 
     model::MockRequestData *getMockRequestData() const {
         return mock_request_data_;
+    }
+    model::GlobalVariablesData *getGlobalVariablesData() const {
+        return global_variables_data_;
     }
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;

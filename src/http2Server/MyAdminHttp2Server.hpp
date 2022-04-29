@@ -73,6 +73,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 
 public:
     MyAdminHttp2Server(size_t workerThreads);
+    ~MyAdminHttp2Server();
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -99,9 +100,10 @@ public:
         return http2_server_;
     }
 
+    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
-    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
+    bool serverDataGlobal(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

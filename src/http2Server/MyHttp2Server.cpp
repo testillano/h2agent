@@ -47,6 +47,7 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockRequestData.hpp>
+#include <GlobalVariablesData.hpp>
 #include <functions.hpp>
 
 namespace h2agent
@@ -61,10 +62,16 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads, boost::asio::io_service *time
     general_unique_server_sequence_(1) {
 
     mock_request_data_ = new model::MockRequestData();
+    global_variables_data_ = new model::GlobalVariablesData();
 
     server_data_ = true;
     server_data_requests_history_ = true;
     purge_execution_ = true;
+}
+
+MyHttp2Server::~MyHttp2Server() {
+    delete (mock_request_data_);
+    delete (global_variables_data_);
 }
 
 void MyHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
@@ -246,6 +253,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
         // PREPARE & TRANSFORM
         provision->setMockRequestData(mock_request_data_); // could be used by event source
+        provision->setGlobalVariablesData(global_variables_data_);
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, requestSchema, responseSchema);
 

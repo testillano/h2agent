@@ -11,6 +11,7 @@ H2AGENT_VALIDATE_SCHEMAS__dflt=n
 H2AGENT_SCHEMA__dflt=schema.json
 H2AGENT_MATCHING__dflt=matching.json
 H2AGENT_PROVISION__dflt=provision.json
+H2AGENT_GLOBALS__dflt=globals.json
 H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION__dflt=discard-all
 H2AGENT__SERVER_DATA_PURGE_CONFIGURATION__dflt=disable-purge
 H2AGENT__ENDPOINT__dflt=0.0.0.0
@@ -35,7 +36,7 @@ H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
 # Common variables
-COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_MATCHING H2AGENT_PROVISION H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION H2AGENT__SERVER_DATA_PURGE_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_MATCHING H2AGENT_PROVISION H2AGENT_GLOBALS H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION H2AGENT__SERVER_DATA_PURGE_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -180,6 +181,8 @@ read_value "Matching configuration" H2AGENT_MATCHING
 [ ! -f "${H2AGENT_MATCHING}" ] && echo "ERROR: missing file '${H2AGENT_MATCHING}' !" && exit 1
 read_value "Provision configuration" H2AGENT_PROVISION
 [ ! -f "${H2AGENT_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_PROVISION}' !" && exit 1
+read_value "Global variables configuration" H2AGENT_GLOBALS
+[ ! -f "${H2AGENT_GLOBALS}" ] &&  echo "ERROR: missing file '${H2AGENT_GLOBALS}' !" && exit 1
 read_value "Server data storage configuration" H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
 read_value "Server data purge configuration" H2AGENT__SERVER_DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
 read_value "H2agent endpoint address" H2AGENT__ENDPOINT
@@ -225,6 +228,9 @@ cat ${TMP_DIR}/curl.output
 echo -en "\n\nRemoving current server data information ... "
 h2a_admin_curl DELETE "admin/v1/server-data"
 echo "done !"
+
+# Now, configure possible globals:
+h2a_admin_curl POST admin/v1/server-data/global 201 ${H2AGENT_GLOBALS} || exit 1
 
 # Launcher type
 read_value "Launcher type" ST_LAUNCHER "h2load|hermes"

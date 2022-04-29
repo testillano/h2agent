@@ -9,6 +9,7 @@ add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/AdminSchema.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AdminSchemaData.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockRequestData.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/GlobalVariablesData.cpp
 )
 
 target_include_directories (h2agent-model

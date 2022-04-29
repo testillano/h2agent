@@ -16,7 +16,7 @@
       "eyeColor": "blue",
       "name": "Joseph Norton",
       "gender": "male",
-      "company": "TERRAGO",
+      "company": "<to be replaced by global variable>",
       "email": "josephnorton@terrago.com",
       "phone": "+1 (830) 543-3984",
       "address": "346 Hanson Place, Interlochen, American Samoa, 7538",
@@ -57,6 +57,10 @@
       {
         "source": "request.uri.path",
         "target": "response.body.string./uriPath"
+      },
+      {
+        "source": "globalVar.COMPANY NAME",
+        "target": "response.body.string./company"
       }
     ]
   }

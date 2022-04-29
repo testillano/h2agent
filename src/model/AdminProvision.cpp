@@ -45,6 +45,7 @@ SOFTWARE.
 
 #include <AdminProvision.hpp>
 #include <MockRequestData.hpp>
+#include <GlobalVariablesData.hpp>
 
 #include <functions.hpp>
 
@@ -79,7 +80,7 @@ void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &i
 
 AdminProvision::AdminProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_PROVISION_STATE),
-    response_delay_ms_(0), mock_request_data_(nullptr) {;}
+    response_delay_ms_(0), mock_request_data_(nullptr), global_variables_data_(nullptr) {;}
 
 
 bool AdminProvision::processSources(std::shared_ptr<Transformation> transformation,
@@ -190,6 +191,20 @@ bool AdminProvision::processSources(std::shared_ptr<Transformation> transformati
         else {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract source variable '%s' in transformation item", varname.c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            return false;
+        }
+    }
+    else if (transformation->getSourceType() == Transformation::SourceType::SGVar) {
+        std::string varname = transformation->getSource();
+        searchReplaceValueVariables(variables, varname);
+        bool exists;
+        std::string globalVariableValue = global_variables_data_->getValue(varname, exists);
+        if (exists) sourceVault.setString(globalVariableValue);
+        else {
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Unable to extract source global variable '%s' in transformation item", varname.c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
             return false;
@@ -568,6 +583,36 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
                 variables[target] = targetS;
             }
         }
+        else if (transformation->getTargetType() == Transformation::TargetType::TGVar) {
+            if (eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s'", target.c_str()), ERT_FILE_LOCATION));
+                global_variables_data_->removeVariable(target);
+            }
+            else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
+                std::string varname;
+                if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
+                    global_variables_data_->loadVariable(target, matches.str(0)); // variable "as is" stores the entire match
+                    for(size_t i=1; i < matches.size(); i++) {
+                        varname = target;
+                        varname += ".";
+                        varname += std::to_string(i);
+                        global_variables_data_->loadVariable(varname, matches.str(i));
+                        LOGDEBUG(
+                            std::stringstream ss;
+                            ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
+                            ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+                        );
+                    }
+                }
+            }
+            else {
+                // extraction
+                targetS = sourceVault.getString(success);
+                if (!success) return false;
+                // assignment
+                global_variables_data_->loadVariable(target, targetS);
+            }
+        }
         else if (transformation->getTargetType() == Transformation::TargetType::OutState) {
             // extraction
             targetS = sourceVault.getString(success);
@@ -679,7 +724,7 @@ void AdminProvision::transform( const std::string &requestUri,
         auto transformation = (*it);
         bool eraser = false;
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonParseable, requestBodyJson, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 
@@ -694,7 +739,7 @@ void AdminProvision::transform( const std::string &requestUri,
                 continue;
         }
 
-        // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState
+        // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState
         if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseHeaders, responseDelayMs, outState, outStateMethod))
             continue;
 
