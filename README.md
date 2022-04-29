@@ -259,6 +259,9 @@ Input Matching configuration
 Input Provision configuration
  (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
 
+Input Global variables configuration
+ (or set 'H2AGENT_GLOBALS' to be non-interactive) [globals.json]: globals.json
+
 Input Server data configuration (discard-all|discard-history|keep-all)
  (or set 'H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
 
@@ -399,6 +402,9 @@ Options:
 [--server-provision <path file>]
   Path file for optional startup server provision configuration.
 
+[--global-variables <path file>]
+  Path file for optional startup global variables configuration.
+
 [--discard-server-data]
   Disables server data storage for events received (enabled by default).
   This invalidates some features like FSM related ones (in-state, out-state)
@@ -494,6 +500,7 @@ Admin secured: no
 Schema configuration file: <not provided>
 Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
+Global variables configuration file: <not provided>
 Server data storage: enabled
 Server data requests history storage: enabled
 Purge execution: enabled
@@ -923,11 +930,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^response\\.body$|^response\\.body\\..|^request\\.header\\..|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
+            "pattern": "^event\\..|^var\\..|^globalVar\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^response\\.body$|^response\\.body\\..|^request\\.header\\..|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
+            "pattern": "^var\\..|^globalVar\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
           }
         },
         "additionalProperties" : {
@@ -1026,7 +1033,7 @@ Let's start describing the available sources of data: regardless the native or n
 
 *Variables substitution:*
 
-Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist. In that case we will add the comment "**admits variables substitution**". Some of them are not allowed because have no sense or they are rarely needed:
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist (**only normal variables can be used in that form**: global ones are excluded to avoid possible performance impact on load testing, but you could transfer a global variable into normal one to overcome this limitation). In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
 
 
@@ -1048,7 +1055,10 @@ The **source** of information is classified after parsing the following possible
 
 - request.header.`<hname>`: request header component (i.e. *content-type*).
 
-- eraser: this is used to indicate that the *response node target* specified (next section) must be eliminated (avoid to remove nonexistent elements or new null nodes could appear). With other kind of targets, it acts like setting an empty string but this usage is not recommended. Eraser could be useful to adequate a response body reference based in some conditions. There is also a twisted use of the response body in which we insert auxiliary nodes that we process as if they were templates but that we do not want to finally send in the response. This should evolve in the future as a separated `templateBody` or similar in the provision schema, but it is perfectly supported while you don't forget to erase such temporary nodes after using them in that naughty way.
+- eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
+  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this.
+  - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
+  - With other kind of targets, eraser acts like setting an empty string.
 
 - general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
@@ -1060,7 +1070,9 @@ The **source** of information is classified after parsing the following possible
 
 - general.recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
-- var.`<id>`: general purpose variable. Cannot refer json objects. This source variable identifier **admits variables substitution**.
+- var.`<id>`: general purpose variable (accessible within transformation chain). Cannot refer json objects. This source variable identifier **admits variables substitution**.
+
+- globalVar.`<id>`: general purpose global variable (readable from any provision). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**.
 
@@ -1168,6 +1180,8 @@ The **target** of information is classified after parsing the following possible
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
 - var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
+
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
@@ -1721,13 +1735,95 @@ Take the following `json` as an example:
 }
 ```
 
+### POST /admin/v1/server-data/global
+
+Loads global variables for future usage.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^.*$": {
+      "anyOf": [
+        {
+          "type": "string"
+        }
+      ]
+    }
+  }
+}
+```
+
+That is to say, and object with one level of fields with string value. For example:
+
+```json
+{
+  "variable_name_1": "variable_value_1",
+  "variable_name_2": "variable_value_2",
+  ...
+  "variable_name_N": "variable_value_N"
+}
+```
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### GET /admin/v1/server-data/global/schema
+
+Retrieves the server data global schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json document containing server data global schema.
+
+### GET /admin/v1/server-data/global
+
+Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created:
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+A `json` document with the list of variable fields and their values. Take the following `json` as an example:
+
+```json
+{
+  "variable_name_1": "variable_value_1",
+  "variable_name_2": "variable_value_2",
+  ...
+  "variable_name_N": "variable_value_N"
+}
+```
+
 ### DELETE /admin/v1/server-data
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *requestNumber* restricts optionally them.
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything (<u>including global variables registered</u>), *method* and *URI* are provided together and *requestNumber* restricts optionally them.
 
 #### Response status code
 
@@ -1864,13 +1960,17 @@ CURL="curl -i --http2-prior-knowledge"
 Sourced functions:
 
 Usage: schema [--clean]; Cleans/gets current schema configuration (http://localhost:8074/admin/v1/schema)
+Usage: schema_schema; Gets the schema configuration schema
 Usage: matching; Gets current matching configuration (http://localhost:8074/admin/v1/server-matching)
+Usage: matching_schema; Gets the matching configuration schema
 Usage: provision [--clean]; Cleans/gets current provision configuration (http://localhost:8074/admin/v1/server-provision)
+Usage: provision_schema; Gets the provision configuration schema
 Usage: data [method] [uri] [[-]request number];
                      Inspects server data events for given filters
                      (http://localhost:8074/admin/v1/server-data)
                      Request number may be negative to access by reverse chronological order
 
+            [--global]                        ; Gets current list of global variables
             [--summary] [max keys]            ; Gets current server data summary to guide further queries
                                                 Displayed keys could be limited (5 by default, -1: no limit)
             [--conf]                          ; Gets current server data configuration
@@ -1886,9 +1986,11 @@ Usage: data [method] [uri] [[-]request number];
             [--enable-purge]                  ; Sets server data configuration to process
                                                 events post-removal when a provision on
                                                 'purge' state is reached
-            [--clean] [query filters]         ; Removes server data events. Admits additional
+            [--clean] [query filters]         ; Removes server data events and possible
+                                                global variables list. Admits additional
                                                 query filters to narrow the selection.
 
+Usage: data_global_schema; Gets the server data global variables configuration schema
 Usage: json [jq expression, '.' by default]; Beautifies last operation json response content
                                              Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
                                              Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'

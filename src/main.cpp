@@ -232,6 +232,9 @@ void usage(int rc)
        << "[--server-provision <path file>]\n"
        << "  Path file for optional startup server provision configuration.\n\n"
 
+       << "[--global-variables <path file>]\n"
+       << "  Path file for optional startup global variables configuration.\n\n"
+
        << "[--discard-server-data]\n"
        << "  Disables server data storage for events received (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
@@ -329,6 +332,7 @@ int main(int argc, char* argv[])
     std::string schema_file = "";
     std::string server_matching_file = "";
     std::string server_provision_file = "";
+    std::string global_variables_file = "";
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
@@ -438,6 +442,11 @@ int main(int argc, char* argv[])
         server_provision_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--global-variables", value))
+    {
+        global_variables_file = value;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--discard-server-data", value))
     {
         discard_server_data = true;
@@ -528,6 +537,8 @@ int main(int argc, char* argv[])
     std::cout << "Server matching configuration file: " << ((server_matching_file != "") ? server_matching_file :
               "<not provided>") << '\n';
     std::cout << "Server provision configuration file: " << ((server_provision_file != "") ? server_provision_file :
+              "<not provided>") << '\n';
+    std::cout << "Global variables configuration file: " << ((global_variables_file != "") ? global_variables_file :
               "<not provided>") << '\n';
     std::cout << "Server data storage: " << (!discard_server_data ? "enabled":"disabled") << '\n';
     std::cout << "Server data requests history storage: " << (!discard_server_data_requests_history ? "enabled":"disabled") << '\n';
@@ -645,6 +656,23 @@ int main(int argc, char* argv[])
     myHttp2Server->discardServerDataRequestsHistory(discard_server_data_requests_history);
     myHttp2Server->disablePurge(disable_purge);
     myAdminHttp2Server->setHttp2Server(myHttp2Server);
+
+    // Now that myHttp2Server is referenced, I wil have access to global variables:
+    if (global_variables_file != "") {
+        success = h2agent::http2server::getFileContent(global_variables_file, fileContent);
+        std::string log = "Global variables configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            success = myAdminHttp2Server->serverDataGlobal(jsonObject, log);
+        }
+
+        if (!success) {
+            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+        }
+    }
 
     // Associate data containers:
     myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration

@@ -69,6 +69,7 @@ typedef std::string admin_provision_key_t;
 void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
 class MockRequestData;
+class GlobalVariablesData;
 
 
 class AdminProvision
@@ -103,6 +104,7 @@ class AdminProvision
     std::string response_schema_id_{};
 
     model::MockRequestData *mock_request_data_; // just in case it is used
+    model::GlobalVariablesData *global_variables_data_; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
@@ -203,6 +205,14 @@ public:
      */
     void setMockRequestData(model::MockRequestData *p) {
         mock_request_data_ = p;
+    }
+
+    /**
+     * Sets the global variables data reference,
+     * just in case it is used in event source
+     */
+    void setGlobalVariablesData(model::GlobalVariablesData *p) {
+        global_variables_data_ = p;
     }
 
     // getters:

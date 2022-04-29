@@ -50,6 +50,7 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockRequestData.hpp>
+#include <GlobalVariablesData.hpp>
 #include <functions.hpp>
 
 
@@ -62,6 +63,11 @@ MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
+}
+
+MyAdminHttp2Server::~MyAdminHttp2Server()
+{
+    delete (admin_data_);
 }
 
 //const std::pair<int, std::string> JSON_SCHEMA_VALIDATION(
@@ -209,6 +215,16 @@ bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObje
     return result;
 }
 
+bool MyAdminHttp2Server::serverDataGlobal(const nlohmann::json &configurationObject, std::string& log) const
+{
+    log = "server-data/global operation; ";
+
+    bool result = getHttp2Server()->getGlobalVariablesData()->loadJson(configurationObject);
+    log += (result ? "valid schema and global variables data received":"invalid schema");
+
+    return result;
+}
+
 bool MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "schema operation; ";
@@ -254,6 +270,10 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             jsonResponse_result = schema(requestJson, jsonResponse_response);
             statusCode = jsonResponse_result ? 201:400;
         }
+        else if (pathSuffix == "server-data/global") {
+            jsonResponse_result = serverDataGlobal(requestJson, jsonResponse_response);
+            statusCode = jsonResponse_result ? 201:400;
+        }
         else {
             statusCode = 501;
             jsonResponse_response = "unsupported operation";
@@ -295,6 +315,14 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         responseBody = getHttp2Server()->getMockRequestData()->summary(maxKeys);
         statusCode = 200;
     }
+    else if (pathSuffix == "server-data/global") {
+        responseBody = getHttp2Server()->getGlobalVariablesData()->asJsonString();
+        statusCode = (responseBody == "null" ? 204:200);
+    }
+    else if (pathSuffix == "server-data/global/schema") {
+        responseBody = getHttp2Server()->getGlobalVariablesData()->getSchema().getJson().dump();
+        statusCode = 200;
+    }
     else if (pathSuffix == "server-matching") {
         responseBody = admin_data_->getMatchingData().getJson().dump();
         statusCode = 200;
@@ -332,14 +360,12 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
     else {
         statusCode = 400;
-        responseBody = buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)");
+        responseBody = buildJsonResponse(false, std::string("invalid operation '") + pathSuffix + std::string("'"));
     }
 }
 
 void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
 {
-    bool somethingDeleted;
-
     if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
     }
@@ -347,6 +373,8 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         statusCode = (admin_data_->clearSchemas() ? 200:204);
     }
     else if (pathSuffix == "server-data") {
+        bool serverDataDeleted = false;
+        bool serverDataGlobalVariablesDeleted = false;
         std::string requestMethod = "";
         std::string requestUri = "";
         std::string requestNumber = "";
@@ -359,9 +387,13 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             it = qmap.find("requestNumber");
             if (it != qmap.end()) requestNumber = it->second;
         }
+        else {
+            serverDataGlobalVariablesDeleted = getHttp2Server()->getGlobalVariablesData()->clear();
+        }
 
-        bool success = getHttp2Server()->getMockRequestData()->clear(somethingDeleted, requestMethod, requestUri, requestNumber);
-        statusCode = success ? (somethingDeleted ? 200:204):400;
+        bool success = getHttp2Server()->getMockRequestData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
+
+        statusCode = success ? ((serverDataDeleted || serverDataGlobalVariablesDeleted) ? 200:204):400;
     }
     else {
         statusCode = 400;
