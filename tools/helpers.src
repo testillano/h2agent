@@ -196,6 +196,7 @@ snapshot() {
   data --conf && json > ${dir}/data-configuration.json
   data --summary -1 && json > ${dir}/data-summary.json
   echo | data && json > ${dir}/data.json
+  data --global && json > ${dir}/data-global-variables.json
   mkdir ${dir}/data-sequences
   (jq '.[].requests[].serverSequence' ${dir}/data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/data-sequences.txt
   for s in $(cat ${dir}/data-sequences.txt); do
