@@ -165,6 +165,7 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
 
 void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receiveEMPTY()",  ERT_FILE_LOCATION));
     // Response document:
     // {
     //   "result":"<true or false>",
@@ -248,6 +249,7 @@ bool MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::
 
 void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     bool jsonResponse_result{};
@@ -292,6 +294,8 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 
 void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receiveGET()",  ERT_FILE_LOCATION));
+
     if (pathSuffix == "server-matching/schema") {
         responseBody = admin_data_->getMatchingData().getSchema().getJson().dump();
         statusCode = 200;
@@ -317,7 +321,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
     else if (pathSuffix == "server-data/global") {
         responseBody = getHttp2Server()->getGlobalVariablesData()->asJsonString();
-        statusCode = (responseBody == "null" ? 204:200);
+        statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/global/schema") {
         responseBody = getHttp2Server()->getGlobalVariablesData()->getSchema().getJson().dump();
@@ -330,11 +334,11 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     else if (pathSuffix == "server-provision") {
         bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
-        statusCode = (responseBody == "null" ? 204:200);
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "schema") {
         responseBody = admin_data_->getSchemaData().asJsonString();
-        statusCode = (responseBody == "null" ? 204:200);
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data") {
         std::string requestMethod = "";
@@ -352,7 +356,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
 
         bool validQuery;
         responseBody = getHttp2Server()->getMockRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
-        statusCode = validQuery ? (responseBody == "null" ? 204:200):400;
+        statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/configuration") {
         responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
@@ -366,6 +370,8 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
 
 void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receiveDELETE()",  ERT_FILE_LOCATION));
+
     if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
     }
@@ -402,6 +408,8 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
 
 void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receivePUT()",  ERT_FILE_LOCATION));
+
     bool success = false;
 
     if (pathSuffix == "logging") {

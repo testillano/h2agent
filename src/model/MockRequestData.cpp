@@ -154,11 +154,11 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
     if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
         validQuery = true;
-        return ((size() != 0) ? asJson().dump() : "null");
+        return ((size() != 0) ? asJson().dump() : "[]"); // server data is shown as an array
     }
 
     if (!checkSelection(requestMethod, requestUri, requestNumber))
-        return "null";
+        return "[]";
 
     validQuery = true;
 
@@ -169,26 +169,26 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
     auto it = get(key);
     if (it == end())
-        return "null"; // nothing found to be built
+        return "[]"; // nothing found to be built
 
     // Check request number:
     if (!requestNumber.empty()) {
         bool reverse = (requestNumber[0] == '-');
         std::uint64_t u_requestNumber{};
         if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
-            return "null";
+            return "[]";
 
         auto ptr = it->second->getMockRequest(u_requestNumber, reverse);
         if (ptr) {
             return ptr->getJson().dump();
         }
-        else return "null";
+        else return "[]";
     }
     else {
         return it->second->asJson().dump();
     }
 
-    return "null";
+    return "[]";
 }
 
 std::string MockRequestData::summary(const std::string &maxKeys) const {

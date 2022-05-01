@@ -279,7 +279,7 @@ TEST_F(AdminData_test, LoadProvisionFail)
 {
     // Bad schema
     EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadSchema), h2agent::model::AdminProvisionData::BadSchema);
-    EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(), "null");
+    EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(), "[]");
     EXPECT_EQ(AdminData_test::adata_.getProvisionData().getSchema().getJson(), h2agent::adminSchemas::server_provision);
     EXPECT_FALSE(AdminData_test::adata_.clearProvisions());
 
@@ -342,7 +342,7 @@ TEST_F(AdminData_test, LoadSchemaFail)
 {
     // Bad schema
     EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__BadSchema), h2agent::model::AdminSchemaData::BadSchema);
-    EXPECT_EQ(AdminData_test::adata_.getSchemaData().asJsonString(), "null");
+    EXPECT_EQ(AdminData_test::adata_.getSchemaData().asJsonString(), "[]");
     EXPECT_EQ(AdminData_test::adata_.getSchemaData().getSchema().getJson(), h2agent::adminSchemas::schema);
     EXPECT_FALSE(AdminData_test::adata_.clearSchemas());
 

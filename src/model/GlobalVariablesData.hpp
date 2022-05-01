@@ -83,9 +83,9 @@ public:
     bool clear();
 
     /**
-     * Json string representation for class information
+     * Json string representation for class information (json object)
      *
-     * @return Json string representation ('null' when nothing is found).
+     * @return Json string representation ('{}' for empty object).
      */
     std::string asJsonString() const;
 

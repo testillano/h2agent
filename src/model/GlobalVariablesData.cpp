@@ -83,7 +83,7 @@ std::string GlobalVariablesData::asJsonString() const {
     read_guard_t guard(rw_mutex_);
 
     if (Map::size() == 0)
-        return "null"; // nothing found to be built
+        return "{}"; // nothing found to be built
 
     return asJson().dump();
 }

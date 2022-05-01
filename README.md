@@ -653,7 +653,7 @@ Retrieves the schema of the schema operation body.
 
 #### Response body
 
-Json document containing the schema operation schema.
+Json object document containing the schema operation schema.
 
 ### GET /admin/v1/schema
 
@@ -665,7 +665,7 @@ Retrieves all the schemas configured.
 
 #### Response body
 
-Json array containing all loaded items, '*null*' if nothing configured.
+Json array document containing all loaded items, when something is configured (no-content response has no body).
 
 ### DELETE /admin/v1/schema
 
@@ -811,7 +811,7 @@ Retrieves the server matching schema.
 
 #### Response body
 
-Json document containing server matching schema.
+Json object document containing server matching schema.
 
 ### GET /admin/v1/server-matching
 
@@ -823,7 +823,7 @@ Retrieves the current server matching configuration.
 
 #### Response body
 
-Json document containing server matching information, '*null*' if nothing configured (working with defaults).
+Json object document containing server matching configuration.
 
 ### POST /admin/v1/server-provision
 
@@ -1453,7 +1453,7 @@ Retrieves the server provision schema.
 
 #### Response body
 
-Json document containing server provision schema.
+Json object document containing server provision schema.
 
 ### GET /admin/v1/server-provision
 
@@ -1465,7 +1465,7 @@ Retrieves all the provisions configured.
 
 #### Response body
 
-Json array containing all provisioned items, '*null*' if nothing configured.
+Json array document containing all provisioned items, when something is configured (no-content response has no body).
 
 ### DELETE /admin/v1/server-provision
 
@@ -1524,27 +1524,11 @@ For example:
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
-#### Request body
-
-Request body will be the `json` schema for the requests.
-
-#### Response status code
-
-**201** (Created) or **400** (Bad Request).
-
-#### Response status code
-
-**200** (OK) or **204** (No Content).
-
-#### Response body
-
-Json document containing server requests schema if configured, or empty if not.
-
 ### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
 
 Retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent responds with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information.
 
-Without query parameters, you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
+<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
@@ -1559,6 +1543,8 @@ This operation is useful for testing post verification stages (validate content 
 **200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
+
+Json array document containing all the selected event items, when something matches (no-content response has no body).
 
 When provided *method* and *uri*, server data will be filtered with that key. If request number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
@@ -1700,7 +1686,7 @@ When a huge amount of events are stored, we can still troubleshoot an specific k
 
 #### Response body
 
-A `json` document with some practical information is built:
+A `json` object document with some practical information is built:
 
 * `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history requests (`amount`) is shown.
 * `totalEvents`: this includes possible virtual events, although normally this kind of configuration is not usual and the value matches the total number of real receptions.
@@ -1766,8 +1752,7 @@ That is to say, and object with one level of fields with string value. For examp
 {
   "variable_name_1": "variable_value_1",
   "variable_name_2": "variable_value_2",
-  ...
-  "variable_name_N": "variable_value_N"
+  "variable_name_3": "variable_value_3"
 }
 ```
 
@@ -1794,7 +1779,7 @@ Retrieves the server data global schema.
 
 #### Response body
 
-Json document containing server data global schema.
+Json object document containing server data global schema.
 
 ### GET /admin/v1/server-data/global
 
@@ -1806,14 +1791,15 @@ Global variables are created dynamically during provision processing and can be 
 
 #### Response body
 
-A `json` document with the list of variable fields and their values. Take the following `json` as an example:
+Json object document with variable fields and their values, when something is stored (no-content response has no body).
+
+Take the following `json` as an example:
 
 ```json
 {
   "variable_name_1": "variable_value_1",
   "variable_name_2": "variable_value_2",
-  ...
-  "variable_name_N": "variable_value_N"
+  "variable_name_3": "variable_value_3"
 }
 ```
 

@@ -424,6 +424,29 @@ def admin_schema(h2ac_admin, files):
 
   yield send
 
+# GLOBAL VARIABLES
+VALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"true", "response":"server-data/global operation; valid schema and global variables data received" }
+INVALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"false", "response":"server-data/global operation; invalid schema" }
+@pytest.fixture(scope='session')
+def admin_server_data_global(h2ac_admin, files):
+  """
+  content: provide string or dictionary. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid global variables assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_GLOBAL_VARIABLES__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = files(content, callerDistance = 3)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_DATA_URI + '/global', request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_DATA_URI + '/global', request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
+
 
 # JSON TEMPLATES ###############################################
 
@@ -483,6 +506,43 @@ MY_REQUESTS_SCHEMA_ID_TEMPLATE='''
       "{requiredProperty}"
     ]
   }}
+}}
+'''
+
+GLOBAL_VARIABLES_1_2_3='''
+{
+  "var1": "value1",
+  "var2": "value2",
+  "var3": "value3"
+}
+'''
+
+GLOBAL_VARIABLES_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "value.{gvarcreated}value",
+      "target": "globalVar.{gvarcreated}"
+    }},
+    {{
+      "source": "eraser",
+      "target": "globalVar.{gvarremoved}"
+    }},
+    {{
+      "source": "globalVar.{gvaranswered}",
+      "target": "response.body.string./gvaranswered"
+    }}
+  ]
 }}
 '''
 
