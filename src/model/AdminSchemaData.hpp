@@ -60,9 +60,9 @@ public:
     enum LoadResult { Success = 0, BadSchema, BadContent };
 
     /**
-     * Json string representation for class information
+     * Json string representation for class information (json array)
      *
-     * @return Json string representation
+     * @return Json string representation ('[]' for empty array).
      */
     std::string asJsonString() const;
 

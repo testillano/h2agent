@@ -53,14 +53,14 @@ AdminSchemaData::AdminSchemaData() {
 
 std::string AdminSchemaData::asJsonString() const {
 
-    nlohmann::json result;
+    nlohmann::json result = nlohmann::json::array();
 
     for (auto it = map_.begin(); it != map_.end(); it++) {
         result.push_back(it->second->getJson());
     };
 
-    // guarantee "null" if empty (nlohmann could change):
-    return (result.empty() ? "null":result.dump());
+    // Schema configuration is shown as an array regardless if there is 1 item, N items or none ([]):
+    return (result.dump());
 }
 
 AdminSchemaData::LoadResult AdminSchemaData::loadSingle(const nlohmann::json &j) {

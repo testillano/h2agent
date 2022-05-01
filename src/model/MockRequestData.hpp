@@ -108,7 +108,7 @@ public:
     bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &requestNumber = "");
 
     /**
-     * Json string representation for class information filtered
+     * Json string representation for class information filtered (json array)
      *
      * @param requestMethod Request method to filter selection. Mandatory if 'requestUri' is provided:
      * @param requestUri Request URI path to filter selection. Mandatory if 'requestMethod' is provided.
@@ -117,7 +117,7 @@ public:
      * If provided '-1' (unsigned long long max), the latest event is selected.
      * @param validQuery Boolean result passed by reference.
      *
-     * @return Json string representation ('null' when nothing is found).
+     * @return Json string representation ('[]' for empty array).
      */
     std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const;
 

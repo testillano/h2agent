@@ -48,7 +48,7 @@ TEST_F(ServerData_test, LoadGlobalVariablesSuccess)
 TEST_F(ServerData_test, LoadGlobalVariablesFail)
 {
     EXPECT_FALSE(ServerData_test::gvardata_.loadJson(GlobalVariablesConfiguration__BadSchema));
-    EXPECT_EQ(ServerData_test::gvardata_.asJsonString(), "null");
+    EXPECT_EQ(ServerData_test::gvardata_.asJsonString(), "{}");
 }
 
 TEST_F(ServerData_test, GetGlobalVariablesSchema)
