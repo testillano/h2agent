@@ -402,6 +402,7 @@ def admin_provision(h2ac_admin, files):
 
 # SCHEMA
 VALID_SCHEMA__RESPONSE_BODY = { "result":"true", "response":"schema operation; valid schema and schema data received" }
+VALID_SCHEMAS__RESPONSE_BODY = { "result":"true", "response":"schema operation; valid schemas and schemas data received" }
 INVALID_SCHEMA_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"schema operation; invalid schema" }
 INVALID_SCHEMA_DATA__RESPONSE_BODY = { "result":"false", "response":"schema operation; invalid schema data received" }
 @pytest.fixture(scope='session')
