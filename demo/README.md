@@ -132,7 +132,7 @@ But the first provision says another important thing through its unique transfor
 
 The third provision listed above, defines the way to behave with that new *GET* state: answer *404 (Not Found)* status code.
 
-The key thing to have in mind is the events map, where working states are stored. And it is important to understand that the foreign method transformation generates a virtual event (something that actually never happened through the traffic interface) to force a new state for a supposed *GET*  request in the same *URI* which was deleted: that virtual event is distinguishable thanks to `virtualOriginComingFromMethod`, a node field which could be used as indicator to skip the whole event during test validations.
+The key thing to have in mind is the events map, where working states are stored. And it is important to understand that the foreign method transformation generates a virtual event (something that actually never happened through the traffic interface) to force a new state for a supposed *GET*  request in the same *URI* which was deleted: that virtual event is distinguishable thanks to `virtualOrigin`, a node field which could be used as indicator to skip the whole event during test validations.
 
 To better understand, we will show here the snapshots for server data after every operation. Considering for example the case for `id-2`, and omitting the first *GET* (which is done in the demo to show the database entry), we will send the *DELETE*, and then the *GET* to confirm the expected *404 (Not Found)* status code. Finally we will repeat that requests to show that the *FSM* jams on infinite death-way-state for both methods.
 
@@ -164,7 +164,10 @@ Dump the server data map, just executing the corresponding management interface 
         "responseStatusCode": 204,
         "serverSequence": 1,
         "state": "get-obtains-not-found",
-        "virtualOriginComingFromMethod": "DELETE"
+        "virtualOrigin": {
+           "method": "DELETE",
+           "uri": "/office/v2/workplace?id=id-2"
+        }
       }
     ],
     "uri": "/office/v2/workplace?id=id-2"
@@ -217,7 +220,10 @@ Server data map now:
         "responseStatusCode": 204,
         "serverSequence": 1,
         "state": "get-obtains-not-found",
-        "virtualOriginComingFromMethod": "DELETE"
+        "virtualOrigin": {
+          "method": "DELETE",
+          "uri": "/office/v2/workplace?id=id-2"
+        }
       },
       {
         "requestHeaders": {

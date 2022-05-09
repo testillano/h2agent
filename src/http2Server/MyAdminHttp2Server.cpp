@@ -292,20 +292,29 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     responseBody = buildJsonResponse(jsonResponse_result, jsonResponse_response);
 }
 
-void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
+void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("receiveGET()",  ERT_FILE_LOCATION));
 
     if (pathSuffix == "server-matching/schema") {
-        responseBody = admin_data_->getMatchingData().getSchema().getJson().dump();
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getMatchingData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-provision/schema") {
-        responseBody = admin_data_->getProvisionData().getSchema().getJson().dump();
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getProvisionData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
         statusCode = 200;
     }
     else if (pathSuffix == "schema/schema") {
-        responseBody = admin_data_->getSchemaData().getSchema().getJson().dump();
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getSchemaData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-data/summary") {
@@ -324,7 +333,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/global/schema") {
-        responseBody = getHttp2Server()->getGlobalVariablesData()->getSchema().getJson().dump();
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = getHttp2Server()->getGlobalVariablesData()->getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-matching") {
@@ -510,7 +522,9 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     }
     else {
         std::stringstream ss;
-        ss << "ADMIN REQUEST RECEIVED [" << pathSuffix << "]| Method: " << method << " | Headers: " << h2agent::http2server::headersAsString(req.header()) << " | Uri Path: " << uriPath;
+        ss << "ADMIN REQUEST RECEIVED | Method: " << method
+           << " | Headers: " << h2agent::http2server::headersAsString(req.header())
+           << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uriPath;
         if (!uriQuery.empty()) {
             ss << " | Query Params: " << uriQuery;
         }
@@ -540,7 +554,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         return;
     }
     else if (method == "GET") {
-        receiveGET(pathSuffix, uriQuery, statusCode, responseBody);
+        receiveGET(req.uri().scheme + std::string("://") + req.uri().host + uriPath /* schema $id */, pathSuffix, uriQuery, statusCode, responseBody);
         return;
     }
     else if (method == "POST") {

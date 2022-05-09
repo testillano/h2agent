@@ -71,13 +71,13 @@ mock_requests_key_t MockRequests::getKey() const {
 
 void MockRequests::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                                unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                               bool historyEnabled, const std::string virtualOriginComingFromMethod) {
+                               bool historyEnabled, const std::string virtualOriginComingFromMethod, const std::string virtualOriginComingFromUri) {
 
     method_ = method;
     uri_ = uri;
 
     auto request = std::make_shared<MockRequest>();
-    request->load(pstate, state, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod);
+    request->load(pstate, state, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
     write_guard_t guard(rw_mutex_);
 

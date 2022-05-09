@@ -142,7 +142,8 @@ class AdminProvision
                         nghttp2::asio_http2::header_map &responseHeaders,
                         unsigned int &responseDelayMs,
                         std::string &outState,
-                        std::string &outStateMethod) const;
+                        std::string &outStateMethod,
+                        std::string &outStateUri) const;
 
 
 public:
@@ -167,7 +168,8 @@ public:
      * @param responseBody Response body filled by reference (if any transformation applies)
      * @param responseDelayMs Response delay milliseconds filled by reference (if any transformation applies)
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
-     * @param outStateMethod out-state for request context created in foreign method (virtual server data entry created), filled by reference (if any transformation applies)
+     * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
+     * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param requestSchema Optional json schema to validate incoming traffic. Nothing is done when nullptr is provided.
      * @param responseSchema Optional json schema to validate outgoing traffic. Nothing is done when nullptr is provided.
      */
@@ -184,6 +186,7 @@ public:
                     unsigned int &responseDelayMs,
                     std::string &outState,
                     std::string &outStateMethod,
+                    std::string &outStateUri,
                     std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
                     std::shared_ptr<h2agent::model::AdminSchema> responseSchema
                   ) const;

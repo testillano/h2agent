@@ -414,7 +414,8 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
                                     nghttp2::asio_http2::header_map &responseHeaders,
                                     unsigned int &responseDelayMs,
                                     std::string &outState,
-                                    std::string &outStateMethod) const
+                                    std::string &outStateMethod,
+                                    std::string &outStateUri) const
 {
     bool success;
     std::string targetS;
@@ -428,7 +429,12 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
     try { // nlohmann::json exceptions
 
         std::string target = transformation->getTarget();
+        std::string target2 = transformation->getTarget2(); // foreign outState URI
+
         searchReplaceValueVariables(variables, target);
+        if (!target2.empty()) {
+            searchReplaceValueVariables(variables, target2);
+        }
 
         if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyString) {
             // extraction
@@ -617,9 +623,10 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
-            // assignment
+            // assignments
             outState = targetS;
-            outStateMethod = target; // if empty, means current method. This 'target' does not admit replace of variables because is constrained by schema to be POST, GET, etc.
+            outStateMethod = target; // empty on regular usage
+            outStateUri = target2; // empty on regular usage
         }
     }
     catch (std::exception& e)
@@ -645,6 +652,7 @@ void AdminProvision::transform( const std::string &requestUri,
                                 unsigned int &responseDelayMs,
                                 std::string &outState,
                                 std::string &outStateMethod,
+                                std::string &outStateUri,
                                 std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
                                 std::shared_ptr<h2agent::model::AdminSchema> responseSchema
                               ) const
@@ -654,6 +662,8 @@ void AdminProvision::transform( const std::string &requestUri,
     responseHeaders = getResponseHeaders();
     responseDelayMs = getResponseDelayMilliseconds();
     outState = getOutState(); // prepare next request state, with URI path before transformed with matching algorithms
+    outStateMethod = "";
+    outStateUri = "";
 
     // Find out if request body will need to be parsed (this is true if any transformation uses it as source or schema validation is needed):
     nlohmann::json requestBodyJson;
@@ -740,7 +750,7 @@ void AdminProvision::transform( const std::string &requestUri,
         }
 
         // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseHeaders, responseDelayMs, outState, outStateMethod))
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri))
             continue;
 
     }

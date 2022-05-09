@@ -440,7 +440,7 @@ Options:
 
 ## Execution of matching helper utility
 
-This utility could be useful to test regular expressions before putting them at provision objects.
+This utility could be useful to test regular expressions before putting them at provision objects (`requestUri` or transformation filters which use regular expressions).
 
 ### Command line
 
@@ -455,8 +455,8 @@ Options:
 --regex <value>
   Regex pattern value to match against.
 
---uri <value>
-  URI value to be matched.
+--test <value>
+  Test string value to be matched.
 
 [--fmt <value>]
   Optional regex-replace output format.
@@ -464,7 +464,7 @@ Options:
 [-h|--help]
   This help.
 
-Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789" --fmt '$1'
+Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 ```
 
 ## Metrics
@@ -930,11 +930,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^event\\..|^var\\..|^globalVar\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^response\\.body$|^response\\.body\\..|^request\\.header\\..|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..+|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..|^globalVar\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
+            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$"
           }
         },
         "additionalProperties" : {
@@ -1185,11 +1185,10 @@ The **target** of information is classified after parsing the following possible
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
-- outState.`[POST|GET|PUT|DELETE|HEAD]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision).
+- outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
-  You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted").
+  You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
 
-  This overrides the default provisioned one.
 
 
 
@@ -1664,7 +1663,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 
 The information collected for a requests item is:
 
-* `virtualOriginComingFromMethod`: optional, special field for virtual entries coming from provisions which established an *out-state* for a foreign method. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible.
+* `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
 * `receptionTimestampMs`: event reception *timestamp*.
 * `state`: working/current state for the event.
 * `headers`: object containing the list of request headers.
@@ -1674,7 +1673,7 @@ The information collected for a requests item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
-* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
+* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### GET /admin/v1/server-data/summary?maxKeys=`<number>`
 
