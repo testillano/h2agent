@@ -269,6 +269,7 @@ bool Transformation::load(const nlohmann::json &j) {
 
     // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
+    target2_ = ""; // same
 
     // Target specifications:
     // - response.body.string *[string]*: response body document storing expected string.
@@ -291,7 +292,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + var.<id> *[string (or number as string)]*: general purpose variable.
     // + globalVar.<id> *[string (or number as string)]*: general purpose global variable.
     // - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
-    // + outState.[POST|GET|PUT|DELETE|HEAD] *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This overrides the default provisioned one.
+    // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
     // Regex needed:
     static std::regex responseBodyStringNode("^response.body.string.(.*)", std::regex::optimize);
@@ -302,7 +303,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseBodyObjectNode("^response.body.object.(.*)", std::regex::optimize);
     static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)", std::regex::optimize);
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
-    static std::regex outStateMethod("^outState.(POST|GET|PUT|DELETE|HEAD)", std::regex::optimize);
+    static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
 
     try {
         if (targetSpec == "response.body.string") { // whole document
@@ -375,8 +376,12 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (targetSpec == "outState") {
             target_type_ = TargetType::OutState;
         }
-        else if (std::regex_match(targetSpec, matches, outStateMethod)) { // method
-            target_ = matches.str(1);
+        else if (std::regex_match(targetSpec, matches, outStateMethodUri)) { // method
+            target_ = matches.str(1); // <method>
+            target2_ = matches.str(2); // .<uri>
+            if (!target2_.empty()) {
+                target2_ = target2_.substr(1); // remove the initial dot to store the uri
+            }
             target_type_ = TargetType::OutState;
         }
     }
@@ -394,7 +399,8 @@ bool Transformation::load(const nlohmann::json &j) {
         << " | source_i1_: " << source_i1_ << " (GeneralRandom min)"
         << " | source_i2_: " << source_i2_ << " (GeneralRandom max)"
         << " | target_type_: " << target_type_ << " (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState)"
-        << " | target_: " << target_ << " (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState(empty: current method, method: another))";
+        << " | target_: " << target_ << " (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState(empty: current method, method: another))"
+        << " | target2_: " << target2_ << " (OutState(empty: current uri, uri: another))";
 
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );

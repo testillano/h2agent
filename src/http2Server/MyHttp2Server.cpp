@@ -171,9 +171,10 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "REQUEST RECEIVED (traffic interface)| Method: " << method
+        ss << "TRAFFIC REQUEST RECEIVED | Method: " << method
         << " | Headers: " << h2agent::http2server::headersAsString(req.header())
-        << " | Uri (path + query parameters if not ignored): " << uri;
+        << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
+        << " | Query parameters: " << ((uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Ignore) ? "ignored":"not ignored");
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
@@ -231,6 +232,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
         std::string outState;
         std::string outStateMethod;
+        std::string outStateUri;
 
         // OPTIONAL SCHEMAS VALIDATION
         const h2agent::model::AdminSchemaData & schemaData = getAdminData()->getSchemaData();
@@ -255,7 +257,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         provision->setMockRequestData(mock_request_data_); // could be used by event source
         provision->setGlobalVariablesData(global_variables_data_);
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
-                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, requestSchema, responseSchema);
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
@@ -272,7 +274,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
             }
         }
         else {
-            bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);
+            bool hasVirtualMethod = !outStateMethod.empty();
 
             // Store request event context information
             if (server_data_) {
@@ -280,7 +282,14 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
-                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+                    LOGWARNING(
+                        if (outStateMethod == method && outStateUri.empty()) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Redundant 'outState' foreign method with current provision one: '%s'", method.c_str()), ERT_FILE_LOCATION);
+                    );
+                    if (outStateUri.empty()) {
+                        outStateUri = uri; // by default
+                    }
+
+                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }

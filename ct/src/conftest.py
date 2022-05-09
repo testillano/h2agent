@@ -695,7 +695,7 @@ def assertUnprovisioned(serverDataEvent, requestBody = None, serverSequence = No
   if requestBody: assert serverDataEvent["requestBody"] == requestBody
   if serverSequence: assert serverDataEvent["serverSequence"] == serverSequence
 
-  with pytest.raises(KeyError): val = serverDataEvent["virtualOriginComingFromMethod"]
+  with pytest.raises(KeyError): val = serverDataEvent["virtualOrigin"]
   with pytest.raises(KeyError): val = serverDataEvent["responseHeaders"]
   with pytest.raises(KeyError): val = serverDataEvent["responseBody"]
   if not requestBody:

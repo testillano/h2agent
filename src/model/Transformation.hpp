@@ -85,7 +85,8 @@ private:
     int source_i1_, source_i2_; // GeneralRandom
 
     TargetType target_type_;
-    std::string target_; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node), ResponseHeader, TVar, TGVar
+    std::string target_; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState (foreign method part)
+    std::string target2_; // OutState (foreign uri part)
 
     bool has_filter_;
     FilterType filter_type_;
@@ -128,6 +129,10 @@ public:
     /** Gets target */
     const std::string &getTarget() const {
         return target_;
+    }
+    /** Gets target2 */
+    const std::string &getTarget2() const {
+        return target2_;
     }
 
     /** Gets filter existence */

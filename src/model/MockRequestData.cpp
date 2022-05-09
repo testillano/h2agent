@@ -83,7 +83,7 @@ bool MockRequestData::checkSelection(const std::string &requestMethod, const std
 
 void MockRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                                   unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                                  bool historyEnabled, const std::string &virtualOriginComingFromMethod) {
+                                  bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
 
     // Find MockRequests
@@ -102,7 +102,7 @@ void MockRequestData::loadRequest(const std::string &pstate, const std::string &
         requests = std::make_shared<MockRequests>();
     }
 
-    requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod);
+    requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
     if (it == end()) add(key, requests); // push the key in the map:
 }
