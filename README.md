@@ -177,7 +177,8 @@ $ cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-*Ongoing*: check the badge above to know the current coverage level.
+*Work ongoing*: check the badge above to know the current coverage level.
+You can execute it after project building, for example for `Release` target: `./build/Release/bin/unit-test`.
 
 #### Coverage
 
@@ -1944,11 +1945,12 @@ CURL="curl -i --http2-prior-knowledge"
 
 Sourced functions:
 
-Usage: schema [--clean]; Cleans/gets current schema configuration (http://localhost:8074/admin/v1/schema)
+Usage: schema [--clean] [file]; Cleans/gets/updates current schema configuration (http://localhost:8074/admin/v1/schema)
 Usage: schema_schema; Gets the schema configuration schema
-Usage: matching; Gets current matching configuration (http://localhost:8074/admin/v1/server-matching)
+Usage: matching; Gets/updates current matching configuration (http://localhost:8074/admin/v1/server-matching)
 Usage: matching_schema; Gets the matching configuration schema
-Usage: provision [--clean]; Cleans/gets current provision configuration (http://localhost:8074/admin/v1/server-provision)
+Usage: provision [--clean] [file]; Cleans/gets/updates current provision configuration
+                                   (http://localhost:8074/admin/v1/server-provision)
 Usage: provision_schema; Gets the provision configuration schema
 Usage: data [method] [uri] [[-]request number];
                      Inspects server data events for given filters
@@ -1986,6 +1988,8 @@ Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|E
                                               ; Sets h2agent tracing level
 Usage: metrics                                ; Prometheus metrics
 Usage: snapshot                               ; Gets a compilation of current server information
+Usage: example                                ; Basic configuration examples (schema, matching, provision).
+                                                Try: source <(example)
 Usage: help                                   ; This help
 
 More information about management interface: https://github.com/testillano/h2agent#management-interface
@@ -2130,11 +2134,11 @@ Fork the project and create a new branch. Check [here](https://chris.beams.io/po
 
 ### Run unit tests
 
-See [unit test](unit-test).
+See [unit test](#unit-test).
 
 ### Run component tests
 
-See [component test](component-test).
+See [component test](#component-test).
 
 ### Check formatting
 
