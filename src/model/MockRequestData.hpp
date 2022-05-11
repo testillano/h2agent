@@ -89,10 +89,11 @@ public:
      *
      * @param historyEnabled Requests complete history storage
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
+     * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
     void loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                      unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                     bool historyEnabled, const std::string &virtualOriginComingFromMethod = "");
+                     bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
 
     /** Clears internal data
      *
@@ -108,7 +109,7 @@ public:
     bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &requestNumber = "");
 
     /**
-     * Json string representation for class information filtered
+     * Json string representation for class information filtered (json array)
      *
      * @param requestMethod Request method to filter selection. Mandatory if 'requestUri' is provided:
      * @param requestUri Request URI path to filter selection. Mandatory if 'requestMethod' is provided.
@@ -117,7 +118,7 @@ public:
      * If provided '-1' (unsigned long long max), the latest event is selected.
      * @param validQuery Boolean result passed by reference.
      *
-     * @return Json string representation ('null' when nothing is found).
+     * @return Json string representation ('[]' for empty array).
      */
     std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const;
 
@@ -174,15 +175,6 @@ public:
      * @return Sucessful operaiton
      */
     bool loadRequestsSchema(const nlohmann::json& schema);
-
-    /**
-     * Gets requests schema for optional validation
-     *
-     * @return Json schema reference
-     */
-    const h2agent::jsonschema::JsonSchema &getRequestsSchema() const {
-        return requests_schema_;
-    }
 };
 
 }

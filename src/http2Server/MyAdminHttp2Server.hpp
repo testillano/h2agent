@@ -66,13 +66,14 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 
     void receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const;
-    void receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const;
+    void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
 
 
 public:
     MyAdminHttp2Server(size_t workerThreads);
+    ~MyAdminHttp2Server();
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -99,8 +100,10 @@ public:
         return http2_server_;
     }
 
+    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    bool serverDataGlobal(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

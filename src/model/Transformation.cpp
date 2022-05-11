@@ -147,12 +147,12 @@ bool Transformation::load(const nlohmann::json &j) {
     // Interpret source/target:
 
     // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser,
-    //                           GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState };)
+    //                           GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
-    // - request.uri: whole request *URI*  path, including the possible query parameters.
-    // - request.uri.path: request *URI* path part.
+    // - request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
+    // - request.uri.path: `url-decoded` request *URI* path part.
     // + request.uri.param.<name>: request URI specific parameter `<name>`.
     // - request.body: request body document.
     // + request.body./<node1>/../<nodeN>: request body node path.
@@ -163,6 +163,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + general.strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
     // - general.recvseq: sequence id increased for every mock reception (starts on *1* when the *h2agent* is started).
     // + var.<id>: general purpose variable.
+    // + globalVar.<id>: general purpose global variable.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.
 
@@ -176,6 +177,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex generalTimestamp("^general.timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/ns as it was done at schema
     static std::regex generalStrftime("^general.strftime.(.*)", std::regex::optimize); // free format, errors captured
     static std::regex varId("^var.(.*)", std::regex::optimize);
+    static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
     static std::regex value("^value.(.*)", std::regex::optimize);
     static std::regex event("^event.(.*)", std::regex::optimize);
 
@@ -244,6 +246,10 @@ bool Transformation::load(const nlohmann::json &j) {
             source_ = matches.str(1);
             source_type_ = SourceType::SVar;
         }
+        else if (std::regex_match(sourceSpec, matches, gvarId)) { // global variable id
+            source_ = matches.str(1);
+            source_type_ = SourceType::SGVar;
+        }
         else if (std::regex_match(sourceSpec, matches, value)) { // value content
             source_ = matches.str(1);
             source_type_ = SourceType::Value;
@@ -261,8 +267,9 @@ bool Transformation::load(const nlohmann::json &j) {
         return false;
     }
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
+    target2_ = ""; // same
 
     // Target specifications:
     // - response.body.string *[string]*: response body document storing expected string.
@@ -283,8 +290,9 @@ bool Transformation::load(const nlohmann::json &j) {
     // - response.statusCode *[unsigned integer]*: response status code.
     // - response.delayMs *[unsigned integer]*: simulated delay to respond.
     // + var.<id> *[string (or number as string)]*: general purpose variable.
+    // + globalVar.<id> *[string (or number as string)]*: general purpose global variable.
     // - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
-    // + outState.[POST|GET|PUT|DELETE|HEAD] *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This overrides the default provisioned one.
+    // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
     // Regex needed:
     static std::regex responseBodyStringNode("^response.body.string.(.*)", std::regex::optimize);
@@ -295,7 +303,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseBodyObjectNode("^response.body.object.(.*)", std::regex::optimize);
     static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)", std::regex::optimize);
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
-    static std::regex outStateMethod("^outState.(POST|GET|PUT|DELETE|HEAD)", std::regex::optimize);
+    static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
 
     try {
         if (targetSpec == "response.body.string") { // whole document
@@ -361,11 +369,19 @@ bool Transformation::load(const nlohmann::json &j) {
             target_ = matches.str(1);
             target_type_ = TargetType::TVar;
         }
+        else if (std::regex_match(targetSpec, matches, gvarId)) { // global variable id
+            target_ = matches.str(1);
+            target_type_ = TargetType::TGVar;
+        }
         else if (targetSpec == "outState") {
             target_type_ = TargetType::OutState;
         }
-        else if (std::regex_match(targetSpec, matches, outStateMethod)) { // method
-            target_ = matches.str(1);
+        else if (std::regex_match(targetSpec, matches, outStateMethodUri)) { // method
+            target_ = matches.str(1); // <method>
+            target2_ = matches.str(2); // .<uri>
+            if (!target2_.empty()) {
+                target2_ = target2_.substr(1); // remove the initial dot to store the uri
+            }
             target_type_ = TargetType::OutState;
         }
     }
@@ -378,12 +394,13 @@ bool Transformation::load(const nlohmann::json &j) {
     LOGDEBUG(
         std::stringstream ss;
 
-        ss << "TRANSFORMATION| source_type_ (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, Value, Event, InState): " << source_type_
-        << " | source_ (RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, Value, Event): " << source_
-        << " | source_i1_ (GeneralRandom min): " << source_i1_
-        << " | source_i2_ (GeneralRandom max): " << source_i2_
-        << " | target_type_ (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, OutState): " << target_type_
-        << " | target_ (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, OutState(empty: current method, method: another)): " << target_;
+        ss << "TRANSFORMATION| source_type_: " << source_type_ << " (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState)"
+        << " | source_: " << source_ << " (RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event)"
+        << " | source_i1_: " << source_i1_ << " (GeneralRandom min)"
+        << " | source_i2_: " << source_i2_ << " (GeneralRandom max)"
+        << " | target_type_: " << target_type_ << " (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState)"
+        << " | target_: " << target_ << " (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState(empty: current method, method: another))"
+        << " | target2_: " << target2_ << " (OutState(empty: current uri, uri: another))";
 
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
@@ -393,13 +410,13 @@ bool Transformation::load(const nlohmann::json &j) {
 
     if (has_filter_) {
 
-    ss << " |FILTER| filter_type_ (RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar): " << filter_type_
+    ss << " |FILTER| filter_type_: " << filter_type_ << " (RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar)"
        /*<< " | filter_rgx_: ?"*/
-       << " | filter_ (RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar): " << filter_
-       << " | filter_number_type_ for Sum/Multiply (0: integer, 1: unsigned, 2: float): " << filter_number_type_
-       << " | filter_i_ (Sum, Multiply): " << filter_i_
-       << " | filter_u_ (Sum, Multiply): " << filter_u_
-       << " | filter_f_ (Sum, Multiply): " << filter_f_;
+       << " | filter_ " << filter_ << " (RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar)"
+       << " | filter_number_type_ for Sum/Multiply: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
+       << " | filter_i_: " << filter_i_ << " (Sum, Multiply)"
+       << " | filter_u_: " << filter_u_ << " (Sum, Multiply)"
+       << " | filter_f_: " << filter_f_ << " (Sum, Multiply)";
 
     ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     }

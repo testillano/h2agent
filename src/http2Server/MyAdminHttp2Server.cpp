@@ -50,6 +50,7 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockRequestData.hpp>
+#include <GlobalVariablesData.hpp>
 #include <functions.hpp>
 
 
@@ -62,6 +63,11 @@ MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
+}
+
+MyAdminHttp2Server::~MyAdminHttp2Server()
+{
+    delete (admin_data_);
 }
 
 //const std::pair<int, std::string> JSON_SCHEMA_VALIDATION(
@@ -159,6 +165,7 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
 
 void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receiveEMPTY()",  ERT_FILE_LOCATION));
     // Response document:
     // {
     //   "result":"<true or false>",
@@ -209,8 +216,40 @@ bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObje
     return result;
 }
 
+bool MyAdminHttp2Server::serverDataGlobal(const nlohmann::json &configurationObject, std::string& log) const
+{
+    log = "server-data/global operation; ";
+
+    bool result = getHttp2Server()->getGlobalVariablesData()->loadJson(configurationObject);
+    log += (result ? "valid schema and global variables data received":"invalid schema");
+
+    return result;
+}
+
+bool MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::string& log) const
+{
+    log = "schema operation; ";
+
+    h2agent::model::AdminSchemaData::LoadResult loadResult = admin_data_->loadSchema(configurationObject);
+    bool result = (loadResult == h2agent::model::AdminSchemaData::Success);
+
+    bool isArray = configurationObject.is_array();
+    if (loadResult == h2agent::model::AdminSchemaData::Success) {
+        log += (isArray ? "valid schemas and schemas data received":"valid schema and schema data received");
+    }
+    else if (loadResult == h2agent::model::AdminSchemaData::BadSchema) {
+        log += (isArray ? "detected one invalid schema":"invalid schema");
+    }
+    else if (loadResult == h2agent::model::AdminSchemaData::BadContent) {
+        log += (isArray ? "detected one invalid schema data received":"invalid schema data received");
+    }
+
+    return result;
+}
+
 void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     bool jsonResponse_result{};
@@ -229,17 +268,13 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             jsonResponse_result = serverProvision(requestJson, jsonResponse_response);
             statusCode = jsonResponse_result ? 201:400;
         }
-        else if (pathSuffix == "server-data/schema") {
-            jsonResponse_response = "server-data/schema operation; ";
-            if (!getHttp2Server()->getMockRequestData()->loadRequestsSchema(requestJson)) {
-                statusCode = 400;
-                jsonResponse_response += "load failed";
-            }
-            else {
-                statusCode = 201;
-                jsonResponse_result = true;
-                jsonResponse_response += "valid schema loaded to validate traffic requests";
-            }
+        else if (pathSuffix == "schema") {
+            jsonResponse_result = schema(requestJson, jsonResponse_response);
+            statusCode = jsonResponse_result ? 201:400;
+        }
+        else if (pathSuffix == "server-data/global") {
+            jsonResponse_result = serverDataGlobal(requestJson, jsonResponse_response);
+            statusCode = jsonResponse_result ? 201:400;
         }
         else {
             statusCode = 501;
@@ -257,19 +292,30 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     responseBody = buildJsonResponse(jsonResponse_result, jsonResponse_response);
 }
 
-void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
+void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
 {
-    if (pathSuffix == "server-provision/schema") {
-        responseBody = admin_data_->getProvisionData().getSchema().getJson().dump();
+    LOGDEBUG(ert::tracing::Logger::debug("receiveGET()",  ERT_FILE_LOCATION));
+
+    if (pathSuffix == "server-matching/schema") {
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getMatchingData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
         statusCode = 200;
     }
-    else if (pathSuffix == "server-matching/schema") {
-        responseBody = admin_data_->getMatchingData().getSchema().getJson().dump();
+    else if (pathSuffix == "server-provision/schema") {
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getProvisionData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
         statusCode = 200;
     }
-    else if (pathSuffix == "server-data/schema") {
-        responseBody = (getHttp2Server()->getMockRequestData()->getRequestsSchema().isAvailable() ? getHttp2Server()->getMockRequestData()->getRequestsSchema().getJson().dump():"null");
-        statusCode = (responseBody == "null" ? 204:200);
+    else if (pathSuffix == "schema/schema") {
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getSchemaData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
+        statusCode = 200;
     }
     else if (pathSuffix == "server-data/summary") {
         std::string maxKeys = "";
@@ -282,14 +328,29 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
         responseBody = getHttp2Server()->getMockRequestData()->summary(maxKeys);
         statusCode = 200;
     }
-    else if (pathSuffix == "server-provision") {
-        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
-        responseBody = admin_data_->getProvisionData().asJsonString(ordered);
-        statusCode = (responseBody == "null" ? 204:200);
+    else if (pathSuffix == "server-data/global") {
+        responseBody = getHttp2Server()->getGlobalVariablesData()->asJsonString();
+        statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "server-data/global/schema") {
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = getHttp2Server()->getGlobalVariablesData()->getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
+        statusCode = 200;
     }
     else if (pathSuffix == "server-matching") {
         responseBody = admin_data_->getMatchingData().getJson().dump();
         statusCode = 200;
+    }
+    else if (pathSuffix == "server-provision") {
+        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
+        responseBody = admin_data_->getProvisionData().asJsonString(ordered);
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "schema") {
+        responseBody = admin_data_->getSchemaData().asJsonString();
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data") {
         std::string requestMethod = "";
@@ -307,7 +368,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
 
         bool validQuery;
         responseBody = getHttp2Server()->getMockRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
-        statusCode = validQuery ? (responseBody == "null" ? 204:200):400;
+        statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/configuration") {
         responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
@@ -315,18 +376,23 @@ void MyAdminHttp2Server::receiveGET(const std::string &pathSuffix, const std::st
     }
     else {
         statusCode = 400;
-        responseBody = buildJsonResponse(false, "invalid operation (allowed: server-provision|server-matching|server-data)");
+        responseBody = buildJsonResponse(false, std::string("invalid operation '") + pathSuffix + std::string("'"));
     }
 }
 
 void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
 {
-    bool somethingDeleted;
+    LOGDEBUG(ert::tracing::Logger::debug("receiveDELETE()",  ERT_FILE_LOCATION));
 
     if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearProvisions() ? 200:204);
     }
+    else if (pathSuffix == "schema") {
+        statusCode = (admin_data_->clearSchemas() ? 200:204);
+    }
     else if (pathSuffix == "server-data") {
+        bool serverDataDeleted = false;
+        bool serverDataGlobalVariablesDeleted = false;
         std::string requestMethod = "";
         std::string requestUri = "";
         std::string requestNumber = "";
@@ -339,9 +405,13 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             it = qmap.find("requestNumber");
             if (it != qmap.end()) requestNumber = it->second;
         }
+        else {
+            serverDataGlobalVariablesDeleted = getHttp2Server()->getGlobalVariablesData()->clear();
+        }
 
-        bool success = getHttp2Server()->getMockRequestData()->clear(somethingDeleted, requestMethod, requestUri, requestNumber);
-        statusCode = success ? (somethingDeleted ? 200:204):400;
+        bool success = getHttp2Server()->getMockRequestData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
+
+        statusCode = success ? ((serverDataDeleted || serverDataGlobalVariablesDeleted) ? 200:204):400;
     }
     else {
         statusCode = 400;
@@ -350,6 +420,8 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
 
 void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
 {
+    LOGDEBUG(ert::tracing::Logger::debug("receivePUT()",  ERT_FILE_LOCATION));
+
     bool success = false;
 
     if (pathSuffix == "logging") {
@@ -450,7 +522,9 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     }
     else {
         std::stringstream ss;
-        ss << "ADMIN REQUEST RECEIVED [" << pathSuffix << "]| Method: " << method << " | Headers: " << h2agent::http2server::headersAsString(req.header()) << " | Uri Path: " << uriPath;
+        ss << "ADMIN REQUEST RECEIVED | Method: " << method
+           << " | Headers: " << h2agent::http2server::headersAsString(req.header())
+           << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uriPath;
         if (!uriQuery.empty()) {
             ss << " | Query Params: " << uriQuery;
         }
@@ -480,7 +554,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         return;
     }
     else if (method == "GET") {
-        receiveGET(pathSuffix, uriQuery, statusCode, responseBody);
+        receiveGET(req.uri().scheme + std::string("://") + req.uri().host + uriPath /* schema $id */, pathSuffix, uriQuery, statusCode, responseBody);
         return;
     }
     else if (method == "POST") {

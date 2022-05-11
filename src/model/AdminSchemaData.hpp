@@ -35,15 +35,10 @@ SOFTWARE.
 
 #pragma once
 
-#include <vector>
-#include <string>
-#include <mutex>
-#include <shared_mutex>
-
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
-#include <AdminProvision.hpp>
+#include <AdminSchema.hpp>
 
 #include <JsonSchema.hpp>
 #include <AdminSchemas.hpp>
@@ -55,12 +50,11 @@ namespace model
 {
 
 // Map key will be string which has a hash function.
-// We will agregate method and uri in a single string for that.
-class AdminProvisionData : public Map<admin_provision_key_t, std::shared_ptr<AdminProvision>>
+class AdminSchemaData : public Map<schema_key_t, std::shared_ptr<AdminSchema>>
 {
 public:
-    AdminProvisionData();
-    ~AdminProvisionData() = default;
+    AdminSchemaData();
+    ~AdminSchemaData() = default;
 
     // Load result
     enum LoadResult { Success = 0, BadSchema, BadContent };
@@ -68,66 +62,46 @@ public:
     /**
      * Json string representation for class information (json array)
      *
-     * @param ordered Print json array elements following the insertion order
-     *
      * @return Json string representation ('[]' for empty array).
      */
-    std::string asJsonString(bool ordered = false) const;
+    std::string asJsonString() const;
 
     /**
-     * Loads server provision operation data
+     * Loads schema operation data
      *
      * @param j Json document from operation body request
-     * @param priorityMatchingRegexConfigured provision load depends on matching configuration (priority regexp)
      *
      * @return Load operation result
      */
-    LoadResult load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+    LoadResult load(const nlohmann::json &j);
 
-    /** Clears internal data (map and ordered keys vector)
+    /** Clears internal data (map)
      *
      * @return True if something was removed, false if already empty
      */
     bool clear();
 
     /**
-     * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
-     * know if current state exists for the reception.
+     * Finds schema item
      *
-     * @param inState Request input state if proceeed
-     * @param method Request method received
-     * @param uri Request URI path received
+     * @param id Schema identifier
      *
-     * @return Provision information or null if missing
+     * @return Schema information or null if missing
      */
-    std::shared_ptr<AdminProvision> find(const std::string &inState, const std::string &method, const std::string &uri) const;
+    std::shared_ptr<AdminSchema> find(const std::string &id) const;
 
     /**
-    * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
-    * know if current state exists for the reception.
-    * The algorithm is PriorityMatchingRegex, so ordered search is applied.
-    *
-    * @param inState Request input state if proceeed
-    * @param method Request method received
-    * @param uri Request URI path received
-    *
-    * @return Provision information or null if missing
-    */
-    std::shared_ptr<AdminProvision> findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const;
-
-    /**
-    * Gets provision schema
+    * Gets schema operation schema
     */
     const h2agent::jsonschema::JsonSchema& getSchema() const {
-        return server_provision_schema_;
+        return schema_schema_;
     }
 
 private:
 
-    std::vector<admin_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
-    h2agent::jsonschema::JsonSchema server_provision_schema_;
+    h2agent::jsonschema::JsonSchema schema_schema_;
 
-    LoadResult loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+    LoadResult loadSingle(const nlohmann::json &j);
 };
 
 }

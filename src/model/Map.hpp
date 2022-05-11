@@ -68,8 +68,8 @@ public:
 
     // getters
 
-    /** Returns a copy of the entire map */
-    map_t get() const
+    /** Returns a reference of the entire map */
+    const map_t &get() const
     {
         read_guard_t guard(rw_mutex_);
         return map_;
@@ -128,6 +128,17 @@ public:
     {
         write_guard_t wr_lock(rw_mutex_);
         map_[key] = value;
+    }
+
+    /**
+     * Adds another map of same kind to the map
+     *
+     * @param map map to add
+     */
+    void add(const map_t& m)
+    {
+        write_guard_t wr_lock(rw_mutex_);
+        map_.insert(m.begin(), m.end());
     }
 
     /**

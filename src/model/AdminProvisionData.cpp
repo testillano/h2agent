@@ -54,7 +54,7 @@ AdminProvisionData::AdminProvisionData() {
 
 std::string AdminProvisionData::asJsonString(bool ordered) const {
 
-    nlohmann::json result;
+    nlohmann::json result = nlohmann::json::array();
 
     if (ordered) {
         for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
@@ -68,8 +68,8 @@ std::string AdminProvisionData::asJsonString(bool ordered) const {
         };
     }
 
-    // guarantee "null" if empty (nlohmann could change):
-    return (result.empty() ? "null":result.dump());
+    // Provision is shown as an array regardless if there is 1 item, N items or none ([]):
+    return (result.dump());
 }
 
 AdminProvisionData::LoadResult AdminProvisionData::loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {

@@ -33,74 +33,89 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-// Standard
 #include <string>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <nlohmann/json.hpp>
+
+#include <ert/tracing/Logger.hpp>
+
+#include <AdminSchemaData.hpp>
 
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+AdminSchemaData::AdminSchemaData() {
+    schema_schema_.setJson(h2agent::adminSchemas::schema); // won't fail
+}
+
+std::string AdminSchemaData::asJsonString() const {
+
+    nlohmann::json result = nlohmann::json::array();
+
+    for (auto it = map_.begin(); it != map_.end(); it++) {
+        result.push_back(it->second->getJson());
+    };
+
+    // Schema configuration is shown as an array regardless if there is 1 item, N items or none ([]):
+    return (result.dump());
+}
+
+AdminSchemaData::LoadResult AdminSchemaData::loadSingle(const nlohmann::json &j) {
+
+    if (!schema_schema_.validate(j)) {
+        return BadSchema;
+    }
+
+    // Schema object to fill:
+    auto schema = std::make_shared<AdminSchema>();
+
+    if (schema->load(j)) {
+
+        // Push the key in the map:
+        schema_key_t key = schema->getKey();
+        add(key, schema);
+
+        return Success;
+    }
+
+    return BadContent;
+}
+
+AdminSchemaData::LoadResult AdminSchemaData::load(const nlohmann::json &j) {
+
+    if (j.is_array()) {
+        for (auto it : j) // "it" is of type json::reference and has no key() member
+        {
+            LoadResult result = loadSingle(it);
+            if (result != Success)
+                return result;
+        }
+
+        return Success;
+    }
+
+    return loadSingle(j);
+}
+
+bool AdminSchemaData::clear()
 {
-    bool available_;
+    bool result = (size() != 0);
 
-    nlohmann::json json_;
-    nlohmann::json_schema::json_validator validator_;
+    map_.clear();
 
-public:
-    /**
-    * Default constructor
-    */
-    JsonSchema() : available_(false) {;}
-    ~JsonSchema() {;}
+    return result;
+}
 
-    // setters
+std::shared_ptr<AdminSchema> AdminSchemaData::find(const std::string &id) const {
+    auto it = get(id);
+    if (it != end())
+        return it->second;
 
-    /**
-    * Set json document schema
-    *
-    * @param j Json document schema
-    *
-    * @return Successful if a valid schema was configured
-    */
-    bool setJson(const nlohmann::json& j);
-
-    // getters
-
-    /**
-    * Returns successful if a valid schema was configured
-    *
-    * @return Boolean about successful schema load
-    */
-    bool isAvailable() const {
-        return available_;
-    }
-
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getJson() const
-    {
-        return json_;
-    }
-
-    /**
-    * Validates json document against schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& j) const;
-};
+    return nullptr;
+}
 
 }
 }

@@ -46,6 +46,42 @@ namespace h2agent
 namespace adminSchemas
 {
 
+const nlohmann::json schema = R"(
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "object"
+    }
+  },
+  "required": [ "id", "schema" ]
+}
+)"_json;
+
+const nlohmann::json server_data_global = R"(
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^.*$": {
+      "anyOf": [
+        {
+          "type": "string"
+        }
+      ]
+    }
+  }
+}
+)"_json;
+
 const nlohmann::json server_matching = R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -72,6 +108,13 @@ const nlohmann::json server_matching = R"(
 }
 )"_json;
 
+// Regular expressions within json schemas:
+//
+// Any regex syntax that need to be a literal needs to be double escaped.
+// Let’s take your example, we would like specify a literal $ character, which is a regex syntax for boundary-type assertions indicating the end of an input.
+// We would need escape the character with a single \ to be literal, however in jsonSchema, the \ would also needed to be escaped with another slash \.
+//
+// About pattern (schema regex): https://json-schema.org/understanding-json-schema/reference/regular_expressions.html
 const nlohmann::json server_provision = R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -133,6 +176,9 @@ const nlohmann::json server_provision = R"(
     "requestUri": {
       "type": "string"
     },
+    "requestSchemaId": {
+      "type": "string"
+    },
     "responseHeaders": {
       "additionalProperties": {
         "type": "string"
@@ -166,11 +212,11 @@ const nlohmann::json server_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^response\\.body$|^response\\.body\\..|^request\\.header\\..|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..+|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
+            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$"
           }
         },
         "additionalProperties" : {
@@ -178,6 +224,9 @@ const nlohmann::json server_provision = R"(
         },
         "required": [ "source", "target" ]
       }
+    },
+    "responseSchemaId": {
+      "type": "string"
     }
   },
   "required": [ "requestMethod", "responseCode" ]

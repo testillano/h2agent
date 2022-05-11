@@ -35,102 +35,89 @@ SOFTWARE.
 
 #pragma once
 
-//#include <string>
-#include <mutex>
-#include <shared_mutex>
-
 #include <nlohmann/json.hpp>
 
-#include <AdminMatchingData.hpp>
-#include <AdminProvisionData.hpp>
-#include <AdminSchemaData.hpp>
+#include <Map.hpp>
+#include <JsonSchema.hpp>
+
 
 namespace h2agent
 {
 namespace model
 {
 
-class AdminData
+/**
+ * This class stores the global variables list.
+ */
+class GlobalVariablesData : public Map<std::string, std::string>
 {
-    AdminMatchingData matching_data_;
-    AdminProvisionData provision_data_;
-    AdminSchemaData schema_data_;
+    mutable mutex_t rw_mutex_;
+
+    h2agent::jsonschema::JsonSchema global_variables_schema_;
 
 public:
-
-    /** Empty constructor */
-    AdminData() {;}
+    GlobalVariablesData();
+    ~GlobalVariablesData() = default;
 
     /**
-     * Loads admin matching operation data
+     * Loads variable and value
+     *
+     * @param variable variable name
+     * @param value variable value
+     */
+    void loadVariable(const std::string &variable, const std::string &value);
+
+    /**
+     * Loads server data global operation data
      *
      * @param j Json document from operation body request
      *
-     * @return Boolean about success operation
+     * @return Load operation result
      */
-    AdminMatchingData::LoadResult loadMatching(const nlohmann::json &j) {
-        return matching_data_.load(j);
-    }
+    bool loadJson(const nlohmann::json &j);
 
-    /**
-     * Loads admin provision operation data
+    /** Clears list
      *
-     * @param j Json document from operation body request
+     * @return Boolean about success of operation (something removed, nothing removed: already empty)
+     */
+    bool clear();
+
+    /**
+     * Json string representation for class information (json object)
      *
-     * @return Boolean about success operation
+     * @return Json string representation ('{}' for empty object).
      */
-    AdminProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminMatchingData::AlgorithmType::PriorityMatchingRegex));
-    }
+    std::string asJsonString() const;
 
     /**
-     * Loads admin schema operation data
+     * Gets the variable value for the variable name provided
      *
-     * @param j Json document from operation body request
+     * @param variableName Variable name for which the query was performed
+     * @param exists Variable was found (true) or missing (false)
      *
-     * @return Boolean about success operation
+     * @return variable value
      */
-    AdminSchemaData::LoadResult loadSchema(const nlohmann::json &j) {
-        return schema_data_.load(j);
-    }
+    std::string getValue(const std::string &variableName, bool &exists) const;
 
     /**
-     * Clears admin provisions data
+     * Removes the variable name provided from map
      *
-     * @return True if something was removed, false if already empty
+     * @param variableName Variable name to be removed
      */
-    bool clearProvisions() {
-        return provision_data_.clear();
-    }
+    void removeVariable(const std::string &variableName);
 
     /**
-     * Clears admin schemas data
+     * Builds json document for class information
      *
-     * @return True if something was removed, false if already empty
+     * @return Json object
      */
-    bool clearSchemas() {
-        return schema_data_.clear();
-    }
+    nlohmann::json asJson() const;
 
     /**
-     * Gets admin matching data
-     */
-    const AdminMatchingData& getMatchingData() const {
-        return matching_data_;
-    }
-
-    /**
-     * Gets admin provision data
-     */
-    const AdminProvisionData& getProvisionData() const {
-        return provision_data_;
-    }
-
-    /**
-     * Gets admin schema data
-     */
-    const AdminSchemaData& getSchemaData() const {
-        return schema_data_;
+    * Gets global variables schema
+    */
+    const h2agent::jsonschema::JsonSchema& getSchema() const {
+        return global_variables_schema_;
     }
 };
 

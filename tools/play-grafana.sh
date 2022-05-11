@@ -30,7 +30,7 @@ echo "Adding prometheus/grafana repositories ..."
 helm repo remove prometheus-community grafana &>/dev/null
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts &>/dev/null
 helm repo add grafana https://grafana.github.io/helm-charts &>/dev/null
-hlem repo update &>/dev/null
+helm repo update &>/dev/null
 
 # Deploy h2agent
 kubectl create namespace ${NAMESPACE} &>/dev/null

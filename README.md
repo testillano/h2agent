@@ -7,7 +7,7 @@
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![Main project workflow](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
-`h2agent` is a network service that enables mocking other network services.
+`h2agent` is a network service that enables mocking other network services using HTTP/2 protocol.
 
 **Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) *Prezi* presentation** for a complete and useful overview of this component.
 
@@ -177,7 +177,8 @@ $ cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-*Ongoing*: check the badge above to know the current coverage level.
+*Work ongoing*: check the badge above to know the current coverage level.
+You can execute it after project building, for example for `Release` target: `./build/Release/bin/unit-test`.
 
 #### Coverage
 
@@ -239,20 +240,28 @@ Reference:
 
 * Memory size: 15GiB.
 
-  
+
 
 Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
 Check `st/start.sh -h` for help.
+
+As schema validation is normally used only for function tests, it will be disabled here:
 
 ```bash
 $ st/start.sh -y
 
 
-Input Provision configuration
- (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
+Input Validate schemas (y|n)
+ (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]: n
 
 Input Matching configuration
  (or set 'H2AGENT_MATCHING' to be non-interactive) [matching.json]: matching.json
+
+Input Provision configuration
+ (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
+
+Input Global variables configuration
+ (or set 'H2AGENT_GLOBALS' to be non-interactive) [globals.json]: globals.json
 
 Input Server data configuration (discard-all|discard-history|keep-all)
  (or set 'H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
@@ -385,14 +394,17 @@ Options:
    interface is secured by default. To include management interface, this option must
    be also provided.
 
-[--server-request-schema <path file>]
-  Path file for the server schema to validate requests received.
+[--schema <path file>]
+  Path file for optional startup schema configuration.
 
 [--server-matching <path file>]
   Path file for optional startup server matching configuration.
 
 [--server-provision <path file>]
   Path file for optional startup server provision configuration.
+
+[--global-variables <path file>]
+  Path file for optional startup global variables configuration.
 
 [--discard-server-data]
   Disables server data storage for events received (enabled by default).
@@ -429,7 +441,7 @@ Options:
 
 ## Execution of matching helper utility
 
-This utility could be useful to test regular expressions before putting them at provision objects.
+This utility could be useful to test regular expressions before putting them at provision objects (`requestUri` or transformation filters which use regular expressions).
 
 ### Command line
 
@@ -444,8 +456,8 @@ Options:
 --regex <value>
   Regex pattern value to match against.
 
---uri <value>
-  URI value to be matched.
+--test <value>
+  Test string value to be matched.
 
 [--fmt <value>]
   Optional regex-replace output format.
@@ -453,7 +465,7 @@ Options:
 [-h|--help]
   This help.
 
-Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --uri "a|b|0123456789" --fmt '$1'
+Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 ```
 
 ## Metrics
@@ -486,9 +498,10 @@ Server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
 Traffic secured: no
 Admin secured: no
-Server request schema: <not provided>
+Schema configuration file: <not provided>
 Server matching configuration file: <not provided>
 Server provision configuration file: <not provided>
+Global variables configuration file: <not provided>
 Server data storage: enabled
 Server data requests history storage: enabled
 Purge execution: enabled
@@ -527,6 +540,145 @@ $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ## Management interface
 
 `h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`:
+
+### POST /admin/v1/schema
+
+Loads schema(s) for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "schema": {
+      "type": "object"
+    }
+  },
+  "required": [ "id", "schema" ]
+}
+```
+
+If you have a `json` schema (from file `schema.json`) and want to build the `h2agent` schema configuration (into file `h2agent_schema.json`), you may perform automations like this *bash script* example:
+
+```bash
+$> jq --arg id "theSchemaId" '. | { id: $id, schema: . }' schema.json > h2agent_schema.json
+```
+
+Also *python* or any other language could do the job:
+
+```python
+>>> schema = {"$schema":"http://json-schema.org/draft-07/schema#","type":"object","additionalProperties":True,"properties":{"foo":{"type":"string"}},"required":["foo"]}
+>>> print({ "id":"theSchemaId", "schema":schema })
+```
+
+##### **id**
+
+Schema unique identifier. If the schema already exists, it will be overwritten.
+
+##### **schema**
+
+Content in `json` format to specify the schema definition.
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /admin/v1/schema (multiple schemas)
+
+Load of a set of schemas through an array object is allowed. So, instead of launching *N* schema loads separately, you could group them as in the following example:
+
+```json
+[
+  {
+    "id": "myRequestsSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "foo": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "foo"
+      ]
+    }
+  },
+  {
+    "id": "myResponsesSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bar": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "bar"
+      ]
+    }
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single load. A schema set fails with the first failed item, giving a 'pluralized' version of the single load failed response message.
+
+### GET /admin/v1/schema/schema
+
+Retrieves the schema of the schema operation body.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing the schema operation schema.
+
+### GET /admin/v1/schema
+
+Retrieves all the schemas configured.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all loaded items, when something is configured (no-content response has no body).
+
+### DELETE /admin/v1/schema
+
+Deletes all the process schemas loaded.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+No response body.
 
 ### POST /admin/v1/server-matching
 
@@ -660,7 +812,7 @@ Retrieves the server matching schema.
 
 #### Response body
 
-Json document containing server matching schema.
+Json object document containing server matching schema.
 
 ### GET /admin/v1/server-matching
 
@@ -672,7 +824,7 @@ Retrieves the current server matching configuration.
 
 #### Response body
 
-Json document containing server matching information, '*null*' if nothing configured (working with defaults).
+Json object document containing server matching configuration.
 
 ### POST /admin/v1/server-provision
 
@@ -743,6 +895,9 @@ Defines the response behavior for an incoming request matching some basic condit
     "requestUri": {
       "type": "string"
     },
+    "requestSchemaId": {
+      "type": "string"
+    },
     "responseHeaders": {
       "additionalProperties": {
         "type": "string"
@@ -776,11 +931,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^event\\..|^var\\..|^value\\..*|^request\\.uri$|^request\\.uri\\.path$|^request\\.uri\\.param\\..|^request\\.body$|^request\\.body\\..|^response\\.body$|^response\\.body\\..|^request\\.header\\..|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..|^general\\.recvseq$|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..+|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^var\\..|^response\\.body\\.(object$|object\\..|jsonstring$|jsonstring\\..|string$|string\\..|integer$|integer\\..|unsigned$|unsigned\\..|float$|float\\..|boolean$|boolean\\..)|^response\\.header\\..|^response(\\.statusCode$|\\.delayMs$)|^outState(\\.POST|\\.GET|\\.PUT|\\.DELETE|\\.HEAD)?$"
+            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$"
           }
         },
         "additionalProperties" : {
@@ -788,6 +943,9 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "required": [ "source", "target" ]
       }
+    },
+    "responseSchemaId": {
+      "type": "string"
     }
   },
   "required": [ "requestMethod", "responseCode" ]
@@ -824,6 +982,10 @@ Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
 Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
 
 <u>*Empty string is accepted*</u>, and is reserved to configure an optional default provision, something which could be specially useful to define the fall back provision if no matching entry is found. So, you could configure defaults for each method, just putting an empty *request URI* or omitting this optional field. Default provisions could evolve through states (in/out) but at least "initial" is again mandatory to be processed.
+
+##### requestSchemaId
+
+We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
 ##### responseHeaders
 
@@ -872,15 +1034,15 @@ Let's start describing the available sources of data: regardless the native or n
 
 *Variables substitution:*
 
-Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist. In that case we will add the comment "**admits variables substitution**". Some of them are not allowed because have no sense or they are rarely needed:
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist (**only normal variables can be used in that form**: global ones are excluded to avoid possible performance impact on load testing, but you could transfer a global variable into normal one to overcome this limitation). In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
 
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- request.uri: whole request *URI*  path, including the possible query parameters.
+- request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
 
-- request.uri.path: request *URI* path part.
+- request.uri.path: `url-decoded` request *URI* path part.
 
 - request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
@@ -894,7 +1056,10 @@ The **source** of information is classified after parsing the following possible
 
 - request.header.`<hname>`: request header component (i.e. *content-type*).
 
-- eraser: this is used to indicate that the *response node target* specified (next section) must be eliminated (avoid to remove nonexistent elements or new null nodes could appear). With other kind of targets, it acts like setting an empty string but this usage is not recommended. Eraser could be useful to adequate a response body reference based in some conditions. There is also a twisted use of the response body in which we insert auxiliary nodes that we process as if they were templates but that we do not want to finally send in the response. This should evolve in the future as a separated `templateBody` or similar in the provision schema, but it is perfectly supported while you don't forget to erase such temporary nodes after using them in that naughty way.
+- eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
+  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this.
+  - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
+  - With other kind of targets, eraser acts like setting an empty string.
 
 - general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
@@ -906,7 +1071,9 @@ The **source** of information is classified after parsing the following possible
 
 - general.recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
-- var.`<id>`: general purpose variable. Cannot refer json objects. This source variable identifier **admits variables substitution**.
+- var.`<id>`: general purpose variable (accessible within transformation chain). Cannot refer json objects. This source variable identifier **admits variables substitution**.
+
+- globalVar.`<id>`: general purpose global variable (readable from any provision). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**.
 
@@ -1015,13 +1182,14 @@ The **target** of information is classified after parsing the following possible
 
 - var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**.
+
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
-- outState.`[POST|GET|PUT|DELETE|HEAD]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision).
+- outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
-  You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted").
+  You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
 
-  This overrides the default provisioned one.
 
 
 
@@ -1221,6 +1389,12 @@ Filters give you the chance to make complex transformations:
 
 
 
+Finally, after possible transformations, we could validate the response body:
+
+##### responseSchemaId
+
+We could optionally validate built responses against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
 #### Response status code
 
 **201** (Created) or **400** (Bad Request).
@@ -1234,7 +1408,7 @@ Filters give you the chance to make complex transformations:
 }
 ```
 
-### POST /admin/v1/server-provision [multiple provisions]
+### POST /admin/v1/server-provision (multiple provisions)
 
 Provision of a set of provisions through an array object is allowed. So, instead of launching *N* provisions separately, you could group them as in the following example:
 
@@ -1279,7 +1453,7 @@ Retrieves the server provision schema.
 
 #### Response body
 
-Json document containing server provision schema.
+Json object document containing server provision schema.
 
 ### GET /admin/v1/server-provision
 
@@ -1287,11 +1461,11 @@ Retrieves all the provisions configured.
 
 #### Response status code
 
-**200** (OK), **204** (No Content) or **400** (Bad Request).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
-Json array containing all provisioned items, '*null*' if nothing configured.
+Json array document containing all provisioned items, when something is configured (no-content response has no body).
 
 ### DELETE /admin/v1/server-provision
 
@@ -1299,7 +1473,7 @@ Deletes the whole process provision. It is useful to clear the configuration if 
 
 #### Response status code
 
-**200** (OK), **204** (No Content) or **400** (Bad Request).
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -1350,35 +1524,11 @@ For example:
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
-### POST /admin/v1/server-data/schema
-
-Loads a requests schema for validation of traffic receptions.
-
-#### Request body
-
-Request body will be the `json` schema for the requests.
-
-#### Response status code
-
-**201** (Created) or **400** (Bad Request).
-
-### GET /admin/v1/server-data/schema
-
-Retrieves the server requests schema if configured (at command-line).
-
-#### Response status code
-
-**200** (OK), **204** (No Content).
-
-#### Response body
-
-Json document containing server requests schema if configured, or empty if not.
-
 ### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
 
 Retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent responds with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information.
 
-Without query parameters, you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
+<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
@@ -1386,13 +1536,15 @@ The `json` document response shall contain three main nodes: `method`, `uri` and
 
 Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the response `requests` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
 
-This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemes (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
+This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
 #### Response status code
 
-**200** (OK), **204** (No Content), **400** (Bad Request).
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
+
+Json array document containing all the selected event items, when something matches (no-content response has no body).
 
 When provided *method* and *uri*, server data will be filtered with that key. If request number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
@@ -1512,7 +1664,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 
 The information collected for a requests item is:
 
-* `virtualOriginComingFromMethod`: optional, special field for virtual entries coming from provisions which established an *out-state* for a foreign method. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible.
+* `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
 * `receptionTimestampMs`: event reception *timestamp*.
 * `state`: working/current state for the event.
 * `headers`: object containing the list of request headers.
@@ -1522,7 +1674,7 @@ The information collected for a requests item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
-* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if  it contains the field `virtualOriginComingFromMethod`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
+* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### GET /admin/v1/server-data/summary?maxKeys=`<number>`
 
@@ -1534,7 +1686,7 @@ When a huge amount of events are stored, we can still troubleshoot an specific k
 
 #### Response body
 
-A `json` document with some practical information is built:
+A `json` object document with some practical information is built:
 
 * `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history requests (`amount`) is shown.
 * `totalEvents`: this includes possible virtual events, although normally this kind of configuration is not usual and the value matches the total number of real receptions.
@@ -1569,13 +1721,95 @@ Take the following `json` as an example:
 }
 ```
 
+### POST /admin/v1/server-data/global
+
+Loads global variables for future usage.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^.*$": {
+      "anyOf": [
+        {
+          "type": "string"
+        }
+      ]
+    }
+  }
+}
+```
+
+That is to say, and object with one level of fields with string value. For example:
+
+```json
+{
+  "variable_name_1": "variable_value_1",
+  "variable_name_2": "variable_value_2",
+  "variable_name_3": "variable_value_3"
+}
+```
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### GET /admin/v1/server-data/global/schema
+
+Retrieves the server data global schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing server data global schema.
+
+### GET /admin/v1/server-data/global
+
+Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created:
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json object document with variable fields and their values, when something is stored (no-content response has no body).
+
+Take the following `json` as an example:
+
+```json
+{
+  "variable_name_1": "variable_value_1",
+  "variable_name_2": "variable_value_2",
+  "variable_name_3": "variable_value_3"
+}
+```
+
 ### DELETE /admin/v1/server-data
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *requestNumber* restricts optionally them.
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything (<u>including global variables registered</u>), *method* and *URI* are provided together and *requestNumber* restricts optionally them.
 
 #### Response status code
 
@@ -1688,9 +1922,9 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 
 3. Refer to `h2agent` values through the corresponding dependency alias, for example `.Values.h2server.image` to access process repository and tag.
 
-### Agent configuration
+### Agent configuration files
 
-At the moment, the server request schema is the only configuration file used by the `h2agent` process and could be added by mean a `config map`. The rest of parameters are passed through [command line](#command-line).
+Some [command line](#command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
 
 ## Troubleshooting
 
@@ -1705,18 +1939,27 @@ source tools/helpers.src
 
 Sourced variables:
 
-TRAFFIC_URL=http://localhost:8000/app/v1
+TRAFFIC_URL=http://localhost:8000
 ADMIN_URL=http://localhost:8074/admin/v1
 CURL="curl -i --http2-prior-knowledge"
 
 Sourced functions:
 
-Usage: provision; Gets current provision configuration (http://localhost:8074/admin/v1/server-provision)
-Usage: matching; Gets current matching configuration (http://localhost:8074/admin/v1/server-matching)
-Usage: data [method] [uri] [number (-1: last)];
+Usage: schema [--clean] [file]; Cleans/gets/updates current schema configuration (http://localhost:8074/admin/v1/schema)
+Usage: schema_schema; Gets the schema configuration schema
+Usage: matching; Gets/updates current matching configuration (http://localhost:8074/admin/v1/server-matching)
+Usage: matching_schema; Gets the matching configuration schema
+Usage: provision [--clean] [file]; Cleans/gets/updates current provision configuration
+                                   (http://localhost:8074/admin/v1/server-provision)
+Usage: provision_schema; Gets the provision configuration schema
+Usage: data [method] [uri] [[-]request number];
                      Inspects server data events for given filters
                      (http://localhost:8074/admin/v1/server-data)
+                     Request number may be negative to access by reverse chronological order
 
+            [--global]                        ; Gets current list of global variables
+            [--summary] [max keys]            ; Gets current server data summary to guide further queries
+                                                Displayed keys could be limited (5 by default, -1: no limit)
             [--conf]                          ; Gets current server data configuration
             [--discard-all]                   ; Sets server data configuration to discard
                                                 all the events received
@@ -1730,16 +1973,23 @@ Usage: data [method] [uri] [number (-1: last)];
             [--enable-purge]                  ; Sets server data configuration to process
                                                 events post-removal when a provision on
                                                 'purge' state is reached
-            [--clean]                         ; Removes all the context information
-                                                registered
-Usage: json [jq expression, '.' by default]   ; Beautifies last operation json response
-                                                content
-Usage: sequence [value (available values by default)]; Extract server sequence document
-                                                       from json retrieved in last data()
-                                                       call
+            [--clean] [query filters]         ; Removes server data events and possible
+                                                global variables list. Admits additional
+                                                query filters to narrow the selection.
+
+Usage: data_global_schema; Gets the server data global variables configuration schema
+Usage: json [jq expression, '.' by default]; Beautifies last operation json response content
+                                             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
+                                             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'
+
+Usage: sequence [value (available values by default)]; Extract server sequence document from
+                                                       json retrieved in last data() call
 Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]
                                               ; Sets h2agent tracing level
 Usage: metrics                                ; Prometheus metrics
+Usage: snapshot                               ; Gets a compilation of current server information
+Usage: example                                ; Basic configuration examples (schema, matching, provision).
+                                                Try: source <(example)
 Usage: help                                   ; This help
 
 More information about management interface: https://github.com/testillano/h2agent#management-interface
@@ -1884,11 +2134,11 @@ Fork the project and create a new branch. Check [here](https://chris.beams.io/po
 
 ### Run unit tests
 
-See [unit test](unit-test).
+See [unit test](#unit-test).
 
 ### Run component tests
 
-See [component test](component-test).
+See [component test](#component-test).
 
 ### Check formatting
 

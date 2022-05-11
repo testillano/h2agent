@@ -1,6 +1,5 @@
 add_executable( unit-test "")
 
-
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':
 add_library(ert_logger STATIC IMPORTED)
 add_library(ert_http2comm STATIC IMPORTED)
@@ -11,9 +10,8 @@ set_property(TARGET ert_metrics PROPERTY IMPORTED_LOCATION /usr/local/lib/ert/li
 
 target_link_libraries( unit-test
 PRIVATE
--static
+${CMAKE_EXE_LINKER_FLAGS}
         h2agent-http2Server
-        h2agent-jsonSchema
         h2agent-model
         ert_logger
         ert_http2comm
@@ -31,6 +29,7 @@ PRIVATE
         prometheus-cpp-core
         z
 
+        h2agent-jsonSchema
         nlohmann_json_schema_validator
 
         #boost_thread

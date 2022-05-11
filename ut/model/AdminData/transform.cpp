@@ -196,6 +196,10 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
       }
     },
     {
+      "source": "value.new-state-for-POST",
+      "target": "outState.POST./this/uri"
+    },
+    {
       "source": "general.strftime.Now it's %I:%M%p.",
       "target": "outState",
       "filter": {
@@ -270,8 +274,9 @@ TEST_F(AdminData_test, TransformWithSources) // test different sources
     unsigned int responseDelayMs;
     std::string outState;
     std::string outStateMethod;
+    std::string outStateUri;
 
-    provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod);
+    provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
 
     EXPECT_TRUE(AdminData_test::adata_.clearProvisions());

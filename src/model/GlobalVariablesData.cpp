@@ -33,74 +33,85 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-// Standard
 #include <string>
 
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <ert/tracing/Logger.hpp>
 
+#include <GlobalVariablesData.hpp>
+#include <AdminSchemas.hpp>
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+GlobalVariablesData::GlobalVariablesData() {
+    global_variables_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
+}
+
+void GlobalVariablesData::loadVariable(const std::string &variable, const std::string &value) {
+
+    write_guard_t guard(rw_mutex_);
+
+    add(variable, value);
+}
+
+bool GlobalVariablesData::loadJson(const nlohmann::json &j) {
+
+    if (!global_variables_schema_.validate(j)) {
+        return false;
+    }
+
+    write_guard_t guard(rw_mutex_);
+    add(j);
+
+    return true;
+}
+
+bool GlobalVariablesData::clear()
 {
-    bool available_;
+    bool result = (Map::size() > 0); // something deleted
 
-    nlohmann::json json_;
-    nlohmann::json_schema::json_validator validator_;
+    write_guard_t guard(rw_mutex_);
+    Map::clear();
 
-public:
-    /**
-    * Default constructor
-    */
-    JsonSchema() : available_(false) {;}
-    ~JsonSchema() {;}
+    return result;
+}
 
-    // setters
+std::string GlobalVariablesData::asJsonString() const {
 
-    /**
-    * Set json document schema
-    *
-    * @param j Json document schema
-    *
-    * @return Successful if a valid schema was configured
-    */
-    bool setJson(const nlohmann::json& j);
+    read_guard_t guard(rw_mutex_);
 
-    // getters
+    if (Map::size() == 0)
+        return "{}"; // nothing found to be built
 
-    /**
-    * Returns successful if a valid schema was configured
-    *
-    * @return Boolean about successful schema load
-    */
-    bool isAvailable() const {
-        return available_;
-    }
+    return asJson().dump();
+}
 
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getJson() const
-    {
-        return json_;
-    }
+std::string GlobalVariablesData::getValue(const std::string &variableName, bool &exists) const {
 
-    /**
-    * Validates json document against schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& j) const;
-};
+    read_guard_t guard(rw_mutex_);
+
+    auto it = get(variableName);
+    exists = (it != end());
+
+    return (exists ? (it->second):"");
+}
+
+void GlobalVariablesData::removeVariable(const std::string &variableName) {
+
+    write_guard_t guard(rw_mutex_);
+    remove(variableName);
+}
+
+nlohmann::json GlobalVariablesData::asJson() const {
+
+    read_guard_t guard(rw_mutex_);
+
+    nlohmann::json result = get();
+
+    return result;
+}
 
 }
 }

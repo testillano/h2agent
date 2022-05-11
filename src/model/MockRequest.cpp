@@ -50,7 +50,7 @@ namespace model
 
 void MockRequest::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
                        unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                       const std::string &virtualOriginComingFromMethod) {
+                       const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
     reception_timestamp_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
@@ -67,14 +67,17 @@ void MockRequest::load(const std::string &pstate, const std::string &state, cons
     response_delay_ms_ = responseDelayMs;
 
     virtual_origin_coming_from_method_ = virtualOriginComingFromMethod;
+    virtual_origin_coming_from_uri_ = virtualOriginComingFromUri;
 
     saveJson();
 }
 
 void MockRequest::saveJson() {
 
-    if (!virtual_origin_coming_from_method_.empty())
-        json_["virtualOriginComingFromMethod"] = virtual_origin_coming_from_method_;
+    if (!virtual_origin_coming_from_method_.empty()) {
+        json_["virtualOrigin"]["method"] = virtual_origin_coming_from_method_;
+        json_["virtualOrigin"]["uri"] = virtual_origin_coming_from_uri_;
+    }
 
     json_["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
 

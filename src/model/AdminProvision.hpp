@@ -45,6 +45,7 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <AdminSchema.hpp>
 #include <Transformation.hpp>
 #include <TypeConverter.hpp>
 
@@ -68,6 +69,7 @@ typedef std::string admin_provision_key_t;
 void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
 class MockRequestData;
+class GlobalVariablesData;
 
 
 class AdminProvision
@@ -95,10 +97,14 @@ class AdminProvision
     bool response_body_null_{};
     */
 
-
     unsigned int response_delay_ms_;
 
+    // Schemas:
+    std::string request_schema_id_{};
+    std::string response_schema_id_{};
+
     model::MockRequestData *mock_request_data_; // just in case it is used
+    model::GlobalVariablesData *global_variables_data_; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
@@ -136,7 +142,8 @@ class AdminProvision
                         nghttp2::asio_http2::header_map &responseHeaders,
                         unsigned int &responseDelayMs,
                         std::string &outState,
-                        std::string &outStateMethod) const;
+                        std::string &outStateMethod,
+                        std::string &outStateUri) const;
 
 
 public:
@@ -147,6 +154,7 @@ public:
 
     /**
      * Applies transformations vector over request received and ongoing reponse built
+     * Also checks optional schema validation for incoming and/or outgoing traffic
      *
      * @param requestUri Request URI
      * @param requestUriPath Request URI path part
@@ -160,7 +168,10 @@ public:
      * @param responseBody Response body filled by reference (if any transformation applies)
      * @param responseDelayMs Response delay milliseconds filled by reference (if any transformation applies)
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
-     * @param outStateMethod out-state for request context created in foreign method (virtual server data entry created), filled by reference (if any transformation applies)
+     * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
+     * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
+     * @param requestSchema Optional json schema to validate incoming traffic. Nothing is done when nullptr is provided.
+     * @param responseSchema Optional json schema to validate outgoing traffic. Nothing is done when nullptr is provided.
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -174,7 +185,10 @@ public:
                     std::string &responseBody,
                     unsigned int &responseDelayMs,
                     std::string &outState,
-                    std::string &outStateMethod
+                    std::string &outStateMethod,
+                    std::string &outStateUri,
+                    std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
+                    std::shared_ptr<h2agent::model::AdminSchema> responseSchema
                   ) const;
 
     // setters:
@@ -194,6 +208,14 @@ public:
      */
     void setMockRequestData(model::MockRequestData *p) {
         mock_request_data_ = p;
+    }
+
+    /**
+     * Sets the global variables data reference,
+     * just in case it is used in event source
+     */
+    void setGlobalVariablesData(model::GlobalVariablesData *p) {
+        global_variables_data_ = p;
     }
 
     // getters:
@@ -311,6 +333,22 @@ public:
      */
     unsigned int getResponseDelayMilliseconds() const {
         return response_delay_ms_;
+    }
+
+    /** Provisioned request schema identifier
+     *
+     * @return Request schema string identifier
+     */
+    const std::string &getRequestSchemaId() const {
+        return request_schema_id_;
+    }
+
+    /** Provisioned response schema identifier
+     *
+     * @return Response schema string identifier
+     */
+    const std::string &getResponseSchemaId() const {
+        return response_schema_id_;
     }
 };
 

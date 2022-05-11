@@ -23,6 +23,7 @@ H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.enviro
 ADMIN_URI_PREFIX = '/admin/v1/'
 ADMIN_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
+ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
 
 #########
@@ -340,6 +341,7 @@ def files():
 def admin_cleanup(h2ac_admin):
   def cleanup(matchingFile = None, matchingContent = { "algorithm": "FullMatching" }):
     response = h2ac_admin.delete(ADMIN_PROVISION_URI)
+    response = h2ac_admin.delete(ADMIN_SCHEMA_URI)
     response = h2ac_admin.delete(ADMIN_DATA_URI)
 
     if matchingFile:
@@ -348,6 +350,30 @@ def admin_cleanup(h2ac_admin):
       response = h2ac_admin.postDict(ADMIN_MATCHING_URI, matchingContent)
 
   yield cleanup
+
+# MATCHING
+VALID_MATCHING__RESPONSE_BODY = { "result":"true", "response":"server-matching operation; valid schema and matching data received" }
+INVALID_MATCHING_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid schema" }
+INVALID_MATCHING_DATA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid matching data received" }
+@pytest.fixture(scope='session')
+def admin_matching(h2ac_admin, files):
+  """
+  content: provide string or dictionary. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid provision assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_MATCHING__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = files(content, callerDistance = 3)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_MATCHING_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_MATCHING_URI, request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
 
 # PROVISION
 VALID_PROVISION__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
@@ -374,27 +400,50 @@ def admin_provision(h2ac_admin, files):
 
   yield send
 
-
-# MATCHING
-VALID_MATCHING__RESPONSE_BODY = { "result":"true", "response":"server-matching operation; valid schema and matching data received" }
-INVALID_MATCHING_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid schema" }
-INVALID_MATCHING_DATA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid matching data received" }
+# SCHEMA
+VALID_SCHEMA__RESPONSE_BODY = { "result":"true", "response":"schema operation; valid schema and schema data received" }
+VALID_SCHEMAS__RESPONSE_BODY = { "result":"true", "response":"schema operation; valid schemas and schemas data received" }
+INVALID_SCHEMA_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"schema operation; invalid schema" }
+INVALID_SCHEMA_DATA__RESPONSE_BODY = { "result":"false", "response":"schema operation; invalid schema data received" }
 @pytest.fixture(scope='session')
-def admin_matching(h2ac_admin, files):
+def admin_schema(h2ac_admin, files):
   """
   content: provide string or dictionary. The string will be interpreted as resources file path.
-  responseBodyRef: response body reference, valid provision assumed by default.
+  responseBodyRef: response body reference, valid schema assumed by default.
   responseStatusRef: response status code reference, 201 by default.
   kwargs: format arguments for file content. Dictionary must be already formatted.
   """
-  def send(content, responseBodyRef = VALID_MATCHING__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+  def send(content, responseBodyRef = VALID_SCHEMA__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
 
     request = content # assume content as dictionary
     if isinstance(content, str):
       request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
-    response = h2ac_admin.post(ADMIN_MATCHING_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_MATCHING_URI, request)
+    response = h2ac_admin.post(ADMIN_SCHEMA_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_SCHEMA_URI, request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
+
+# GLOBAL VARIABLES
+VALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"true", "response":"server-data/global operation; valid schema and global variables data received" }
+INVALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"false", "response":"server-data/global operation; invalid schema" }
+@pytest.fixture(scope='session')
+def admin_server_data_global(h2ac_admin, files):
+  """
+  content: provide string or dictionary. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid global variables assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_GLOBAL_VARIABLES__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = files(content, callerDistance = 3)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_DATA_URI + '/global', request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_DATA_URI + '/global', request)
     h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
 
   yield send
@@ -422,6 +471,79 @@ BASIC_FOO_BAR_PROVISION_TEMPLATE='''
     "content-type":"text/html",
     "x-version":"1.0.0"
   }}
+}}
+'''
+
+SCHEMAS_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode":201,
+  "responseBody": {{
+    "{responseBodyField}":"test"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }},
+  "requestSchemaId":"{reqId}",
+  "responseSchemaId":"{resId}"
+}}
+'''
+
+MY_REQUESTS_SCHEMA_ID_TEMPLATE='''
+{{
+  "id": "{id}",
+  "schema": {{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {{
+      "{requiredProperty}": {{
+        "type": "string"
+      }}
+    }},
+    "required": [
+      "{requiredProperty}"
+    ]
+  }}
+}}
+'''
+
+GLOBAL_VARIABLES_1_2_3='''
+{
+  "var1": "value1",
+  "var2": "value2",
+  "var3": "value3"
+}
+'''
+
+GLOBAL_VARIABLES_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode":200,
+  "responseBody": {{
+    "foo":"bar"
+  }},
+  "responseHeaders": {{
+    "content-type":"text/html",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "value.{gvarcreated}value",
+      "target": "globalVar.{gvarcreated}"
+    }},
+    {{
+      "source": "eraser",
+      "target": "globalVar.{gvarremoved}"
+    }},
+    {{
+      "source": "globalVar.{gvaranswered}",
+      "target": "response.body.string./gvaranswered"
+    }}
+  ]
 }}
 '''
 
@@ -573,7 +695,7 @@ def assertUnprovisioned(serverDataEvent, requestBody = None, serverSequence = No
   if requestBody: assert serverDataEvent["requestBody"] == requestBody
   if serverSequence: assert serverDataEvent["serverSequence"] == serverSequence
 
-  with pytest.raises(KeyError): val = serverDataEvent["virtualOriginComingFromMethod"]
+  with pytest.raises(KeyError): val = serverDataEvent["virtualOrigin"]
   with pytest.raises(KeyError): val = serverDataEvent["responseHeaders"]
   with pytest.raises(KeyError): val = serverDataEvent["responseBody"]
   if not requestBody:

@@ -33,74 +33,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
-
-// Standard
-#include <string>
-
-// Project
-//#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <AdminSchema.hpp>
 
 
 namespace h2agent
 {
-namespace jsonschema
+namespace model
 {
 
-class JsonSchema
+bool AdminSchema::load(const nlohmann::json &j) {
+
+    // Store whole document (useful for GET operation)
+    json_ = j;
+
+    // Mandatory
+    auto it = j.find("id");
+    key_ = *it;
+
+    it = j.find("schema");
+    return (schema_.setJson(*it)); // could fail
+}
+
+bool AdminSchema::validate(const nlohmann::json& j) const
 {
-    bool available_;
-
-    nlohmann::json json_;
-    nlohmann::json_schema::json_validator validator_;
-
-public:
-    /**
-    * Default constructor
-    */
-    JsonSchema() : available_(false) {;}
-    ~JsonSchema() {;}
-
-    // setters
-
-    /**
-    * Set json document schema
-    *
-    * @param j Json document schema
-    *
-    * @return Successful if a valid schema was configured
-    */
-    bool setJson(const nlohmann::json& j);
-
-    // getters
-
-    /**
-    * Returns successful if a valid schema was configured
-    *
-    * @return Boolean about successful schema load
-    */
-    bool isAvailable() const {
-        return available_;
-    }
-
-    /**
-    * Get json document schema
-    *
-    * @return Json document schema
-    */
-    const nlohmann::json& getJson() const
-    {
-        return json_;
-    }
-
-    /**
-    * Validates json document against schema.
-    *
-    * @return boolean about if json document is valid against json schema
-    */
-    bool validate(const nlohmann::json& j) const;
-};
+    return schema_.validate(j);
+}
 
 }
 }

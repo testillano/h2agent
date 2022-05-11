@@ -5,6 +5,7 @@
 
 #include <AdminMatchingData.hpp>
 #include <AdminProvisionData.hpp>
+#include <AdminSchemaData.hpp>
 #include <AdminSchemas.hpp>
 
 // Matching configuration:
@@ -45,7 +46,9 @@ const nlohmann::json ProvisionConfiguration__Success = R"(
       "source": "general.random.10.30",
       "target": "response.body.integer./generalRandomBetween10and30"
     }
-  ]
+  ],
+  "requestSchemaId": "myRequestsSchema",
+  "responseSchemaId": "myResponsesSchema"
 }
 )"_json;
 
@@ -80,6 +83,22 @@ const nlohmann::json ProvisionConfiguration__BadContent = R"(
   "responseCode": 200
 }
 )"_json;
+const nlohmann::json ProvisionConfiguration__BadContent2 = R"(
+{
+  "requestMethod": "GET",
+  "requestUri": "/any/uri",
+  "responseCode": 200,
+  "requestSchemaId": ""
+}
+)"_json;
+const nlohmann::json ProvisionConfiguration__BadContent3 = R"(
+{
+  "requestMethod": "GET",
+  "requestUri": "/any/uri",
+  "responseCode": 200,
+  "responseSchemaId": ""
+}
+)"_json;
 
 const nlohmann::json ProvisionConfiguration__BadContentArray = R"(
 [
@@ -95,6 +114,98 @@ const nlohmann::json ProvisionConfiguration__BadContentArray = R"(
   }
 ]
 )"_json;
+
+// Schema configuration:
+const nlohmann::json SchemaConfiguration__Success = R"(
+{
+  "id": "myRequestsSchema",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "foo": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "foo"
+    ]
+  }
+}
+)"_json;
+
+const nlohmann::json SchemaConfiguration__SuccessArray = R"(
+[
+  {
+    "id": "myRequestsSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "foo": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "foo"
+      ]
+    }
+  },
+  {
+    "id": "myResponsesSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bar": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "bar"
+      ]
+    }
+  }
+]
+)"_json;
+
+const nlohmann::json SchemaConfiguration__BadSchema = R"({ "happy": true, "pi": 3.141 })"_json;
+/*
+const nlohmann::json SchemaConfiguration__BadContent = R"(
+{
+  "id": "myRequestsSchema",
+  "schema": {} <- TODO: find a invalid schema definition
+}
+)"_json;
+
+const nlohmann::json SchemaConfiguration__BadContentArray = R"(
+[
+  {
+    "id": "myRequestsSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "foo": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "foo"
+      ]
+    }
+  },
+  {
+    "id": "myResponsesSchema",
+    "schema": {} <- TODO: find a invalid schema definition
+  }
+]
+)"_json;
+*/
 
 class AdminData_test : public ::testing::Test
 {
@@ -168,13 +279,18 @@ TEST_F(AdminData_test, LoadProvisionFail)
 {
     // Bad schema
     EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadSchema), h2agent::model::AdminProvisionData::BadSchema);
-    EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(), "null");
+    EXPECT_EQ(AdminData_test::adata_.getProvisionData().asJsonString(), "[]");
     EXPECT_EQ(AdminData_test::adata_.getProvisionData().getSchema().getJson(), h2agent::adminSchemas::server_provision);
     EXPECT_FALSE(AdminData_test::adata_.clearProvisions());
 
-    // Bad content only happens for PriorityMatchingRegex:
+    // Bad content due to bad regex (using PriorityMatchingRegex):
     EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminMatchingData::Success);
     EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadContent), h2agent::model::AdminProvisionData::BadContent);
+    // Bad content with empty request schema id:
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadContent2), h2agent::model::AdminProvisionData::BadContent);
+    // Bad content with empty response schema id:
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration__BadContent3), h2agent::model::AdminProvisionData::BadContent);
+
     EXPECT_FALSE(AdminData_test::adata_.clearProvisions());
 
     // Bad content array:
@@ -207,5 +323,43 @@ TEST_F(AdminData_test, FindProvision)
     EXPECT_FALSE(AdminData_test::adata_.getProvisionData().find("initial", "POST", "/app/v1/foo/bar/1?name=test") != nullptr);
     EXPECT_FALSE(AdminData_test::adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=missing") != nullptr);
     EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
+}
+
+TEST_F(AdminData_test, LoadSchemaSuccess)
+{
+    EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__Success), h2agent::model::AdminSchemaData::Success);
+    nlohmann::json jarray = nlohmann::json::array();
+    jarray.push_back(SchemaConfiguration__Success);
+    EXPECT_EQ(AdminData_test::adata_.getSchemaData().asJsonString(), jarray.dump());
+    //EXPECT_TRUE(AdminData_test::adata_.clearSchemas());
+
+    // schema array
+    EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__SuccessArray), h2agent::model::AdminSchemaData::Success);
+    EXPECT_TRUE(AdminData_test::adata_.clearSchemas());
+}
+
+TEST_F(AdminData_test, LoadSchemaFail)
+{
+    // Bad schema
+    EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__BadSchema), h2agent::model::AdminSchemaData::BadSchema);
+    EXPECT_EQ(AdminData_test::adata_.getSchemaData().asJsonString(), "[]");
+    EXPECT_EQ(AdminData_test::adata_.getSchemaData().getSchema().getJson(), h2agent::adminSchemas::schema);
+    EXPECT_FALSE(AdminData_test::adata_.clearSchemas());
+
+//    // Bad content with the schema is not a schema
+//    EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__BadContent), h2agent::model::AdminSchemaData::BadContent);
+//    EXPECT_FALSE(AdminData_test::adata_.clearSchemas());
+
+//    // Bad content array:
+//    EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__BadContentArray), h2agent::model::AdminSchemaData::BadContent);
+//    EXPECT_TRUE(AdminData_test::adata_.clearSchemas());
+}
+
+TEST_F(AdminData_test, FindSchema)
+{
+    EXPECT_EQ(AdminData_test::adata_.loadSchema(SchemaConfiguration__Success), h2agent::model::AdminSchemaData::Success);
+
+    EXPECT_TRUE(AdminData_test::adata_.getSchemaData().find("myRequestsSchema") != nullptr);
+    EXPECT_TRUE(AdminData_test::adata_.clearSchemas());
 }
 

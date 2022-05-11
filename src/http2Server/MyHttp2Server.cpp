@@ -47,6 +47,7 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockRequestData.hpp>
+#include <GlobalVariablesData.hpp>
 #include <functions.hpp>
 
 namespace h2agent
@@ -61,10 +62,16 @@ MyHttp2Server::MyHttp2Server(size_t workerThreads, boost::asio::io_service *time
     general_unique_server_sequence_(1) {
 
     mock_request_data_ = new model::MockRequestData();
+    global_variables_data_ = new model::GlobalVariablesData();
 
     server_data_ = true;
     server_data_requests_history_ = true;
     purge_execution_ = true;
+}
+
+MyHttp2Server::~MyHttp2Server() {
+    delete (mock_request_data_);
+    delete (global_variables_data_);
 }
 
 void MyHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
@@ -124,25 +131,6 @@ std::string MyHttp2Server::serverDataConfigurationAsJsonString() const {
     return result.dump();
 }
 
-bool MyHttp2Server::setRequestsSchema(const std::string &schemaContent) {
-
-    LOGDEBUG(ert::tracing::Logger::debug("Json string provided for requests schema", ERT_FILE_LOCATION));
-
-    nlohmann::json schema;
-    if(!h2agent::http2server::parseJsonContent(schemaContent, schema))
-        return false;
-
-    if (!getMockRequestData()->loadRequestsSchema(schema)) {
-        LOGWARNING(
-            ert::tracing::Logger::warning("Requests won't be validated (schema will be ignored)", ERT_FILE_LOCATION);
-        );
-
-        return false;
-    }
-
-    return true;
-}
-
 void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                             const std::string& requestBody,
                             unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
@@ -175,46 +163,21 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         uriQuery = h2agent::http2server::sortQueryParameters(qmap, ';');
     }
 
+    std::string uri = uriPath;
     if (uriQuery != "") {
-        uriPath += "?";
-        uriPath += uriQuery;
+        uri += "?";
+        uri += uriQuery;
     }
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "REQUEST RECEIVED (traffic interface)| Method: " << method
+        ss << "TRAFFIC REQUEST RECEIVED | Method: " << method
         << " | Headers: " << h2agent::http2server::headersAsString(req.header())
-        << " | Uri Path (and query parameters if not ignored): " << uriPath;
+        << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
+        << " | Query parameters: " << ((uriPathQueryParametersFilterType == h2agent::model::AdminMatchingData::Ignore) ? "ignored":"not ignored");
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
-
-    // Possible schema validation:
-    if(getMockRequestData()->getRequestsSchema().isAvailable()) {
-        // TODO: take advantage of this parsing for transformation and request storage below
-
-        nlohmann::json requestJson;
-        bool success = h2agent::http2server::parseJsonContent(requestBody, requestJson);
-
-        if (success) {
-            if (!getMockRequestData()->getRequestsSchema().validate(requestJson)) {
-                statusCode = 400;
-                LOGINFORMATIONAL(
-                    ert::tracing::Logger::informational("Invalid schema for traffic request received", ERT_FILE_LOCATION);
-                );
-                return;
-            }
-        }
-        else
-        {
-            // Response data:
-            statusCode = 400;
-            LOGINFORMATIONAL(
-                ert::tracing::Logger::informational("Failed validation schema (parsing request body) for traffic request received", ERT_FILE_LOCATION);
-            );
-            return;
-        }
-    }
 
 // Admin provision & matching configuration:
     const h2agent::model::AdminProvisionData & provisionData = getAdminData()->getProvisionData();
@@ -222,7 +185,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
 // Find mock context:
     std::string inState;
-    /*bool requestFound = */getMockRequestData()->findLastRegisteredRequest(method, uriPath, inState); // if not found, inState will be 'initial'
+    /*bool requestFound = */getMockRequestData()->findLastRegisteredRequest(method, uri, inState); // if not found, inState will be 'initial'
 
 // Matching algorithm:
     h2agent::model::AdminMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
@@ -230,30 +193,29 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
     if (algorithmType == h2agent::model::AdminMatchingData::FullMatching) {
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), inState.c_str());
+            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-        provision = provisionData.find(inState, method, uriPath);
+        provision = provisionData.find(inState, method, uri);
     }
-
     else if (algorithmType == h2agent::model::AdminMatchingData::FullMatchingRegexReplace) {
 
-        std::string transformedUriPath = std::regex_replace (uriPath, matchingData.getRgx(), matchingData.getFmt());
+        std::string transformedUri = std::regex_replace (uri, matchingData.getRgx(), matchingData.getFmt());
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Uri Path after regex-replace transformation: '%s'", transformedUriPath.c_str());
+            std::string msg = ert::tracing::Logger::asString("Uri after regex-replace transformation: '%s'", transformedUri.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            msg = ert::tracing::Logger::asString("Searching 'FullMatchingRegexReplace' provision for method '%s', uri '%s' and state '%s'", method.c_str(), transformedUriPath.c_str(), inState.c_str());
+            msg = ert::tracing::Logger::asString("Searching 'FullMatchingRegexReplace' provision for method '%s', uri '%s' and state '%s'", method.c_str(), transformedUri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-        provision = provisionData.find(inState, method, transformedUriPath);
+        provision = provisionData.find(inState, method, transformedUri);
     }
     else if (algorithmType == h2agent::model::AdminMatchingData::PriorityMatchingRegex) {
 
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Searching 'PriorityMatchingRegex' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uriPath.c_str(), inState.c_str());
+            std::string msg = ert::tracing::Logger::asString("Searching 'PriorityMatchingRegex' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-        provision = provisionData.findWithPriorityMatchingRegex(inState, method, uriPath);
+        provision = provisionData.findWithPriorityMatchingRegex(inState, method, uri);
     }
 
     // Fall back to possible default provision (empty URI):
@@ -270,16 +232,37 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
 
         std::string outState;
         std::string outStateMethod;
+        std::string outStateUri;
+
+        // OPTIONAL SCHEMAS VALIDATION
+        const h2agent::model::AdminSchemaData & schemaData = getAdminData()->getSchemaData();
+        std::shared_ptr<h2agent::model::AdminSchema> requestSchema;
+        std::shared_ptr<h2agent::model::AdminSchema> responseSchema;
+        std::string requestSchemaId = provision->getRequestSchemaId();
+        if (!requestSchemaId.empty()) {
+            requestSchema = schemaData.find(requestSchemaId);
+            LOGWARNING(
+                if (!requestSchema) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for incoming message: VALIDATION will be IGNORED", requestSchemaId.c_str()), ERT_FILE_LOCATION);
+            );
+        }
+        std::string responseSchemaId = provision->getResponseSchemaId();
+        if (!responseSchemaId.empty()) {
+            responseSchema = schemaData.find(responseSchemaId);
+            LOGWARNING(
+                if (!responseSchema) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for outgoing message: VALIDATION will be IGNORED", responseSchemaId.c_str()), ERT_FILE_LOCATION);
+            );
+        }
 
         // PREPARE & TRANSFORM
         provision->setMockRequestData(mock_request_data_); // could be used by event source
-        provision->transform( uriPath, req.uri().raw_path, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
-                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod);
+        provision->setGlobalVariablesData(global_variables_data_);
+        provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
             bool somethingDeleted;
-            bool success = getMockRequestData()->clear(somethingDeleted, method, uriPath);
+            bool success = getMockRequestData()->clear(somethingDeleted, method, uri);
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -291,15 +274,22 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
             }
         }
         else {
-            bool hasVirtualMethod = (!outStateMethod.empty() && outStateMethod != method);
+            bool hasVirtualMethod = !outStateMethod.empty();
 
             // Store request event context information
             if (server_data_) {
-                getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */);
+                getMockRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
-                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */, method /* virtual origin coming from method */);
+                    LOGWARNING(
+                        if (outStateMethod == method && outStateUri.empty()) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Redundant 'outState' foreign method with current provision one: '%s'", method.c_str()), ERT_FILE_LOCATION);
+                    );
+                    if (outStateUri.empty()) {
+                        outStateUri = uri; // by default
+                    }
+
+                    getMockRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_requests_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }
@@ -313,7 +303,7 @@ void MyHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockRequestData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uriPath, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockRequestData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {

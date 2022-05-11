@@ -8,7 +8,6 @@ add_executable( ${H2AGENT_TARGET_NAME}
         ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
         ) # add_executable h2agent
 
-
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':
 add_library(ert_logger STATIC IMPORTED)
 add_library(ert_http2comm STATIC IMPORTED)
@@ -20,9 +19,8 @@ set_property(TARGET ert_metrics PROPERTY IMPORTED_LOCATION /usr/local/lib/ert/li
 # https://github.com/jgomezselles/hermes/commit/e659b86f4190598a81783016307768001a9d6fa3: -static is enough
 target_link_libraries( ${H2AGENT_TARGET_NAME}
 PRIVATE
--static
+${CMAKE_EXE_LINKER_FLAGS}
         h2agent-http2Server
-        h2agent-jsonSchema
         h2agent-model
         ert_logger
         ert_http2comm
@@ -40,7 +38,9 @@ PRIVATE
         prometheus-cpp-core
         z
 
+        h2agent-jsonSchema
         nlohmann_json_schema_validator
+
         ) # target_link_libraries
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/version.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/version.cpp @ONLY)
