@@ -6,8 +6,8 @@
 
 #include <functions.hpp>
 
-#include <AdminMatchingData.hpp>
-#include <AdminProvisionData.hpp>
+#include <AdminServerMatchingData.hpp>
+#include <AdminServerProvisionData.hpp>
 #include <AdminSchemas.hpp>
 
 // Matching configuration:
@@ -249,10 +249,10 @@ public:
 TEST_F(AdminData_test, TransformWithSources) // test different sources
 {
 
-    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminMatchingData::Success);
-    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminProvisionData::Success);
+    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminServerProvisionData::Success);
 
-    std::shared_ptr<h2agent::model::AdminProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision);
     //auto provision = AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
 

@@ -21,10 +21,11 @@ H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.enviro
 
 # Api Path
 ADMIN_URI_PREFIX = '/admin/v1/'
-ADMIN_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
-ADMIN_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
-ADMIN_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
+ADMIN_GLOBAL_VARIABLE_URI = ADMIN_URI_PREFIX + 'global-variable'
+ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
+ADMIN_SERVER_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
+ADMIN_SERVER_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
 
 #########
 # HOOKS #
@@ -340,14 +341,15 @@ def files():
 @pytest.fixture(scope='session')
 def admin_cleanup(h2ac_admin):
   def cleanup(matchingFile = None, matchingContent = { "algorithm": "FullMatching" }):
-    response = h2ac_admin.delete(ADMIN_PROVISION_URI)
     response = h2ac_admin.delete(ADMIN_SCHEMA_URI)
-    response = h2ac_admin.delete(ADMIN_DATA_URI)
+    response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI)
+    response = h2ac_admin.delete(ADMIN_SERVER_PROVISION_URI)
+    response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI)
 
     if matchingFile:
-      response = h2ac_admin.post(ADMIN_MATCHING_URI, files(matchingFile, callerDistance = 3))
+      response = h2ac_admin.post(ADMIN_SERVER_MATCHING_URI, files(matchingFile, callerDistance = 3))
     elif matchingContent:
-      response = h2ac_admin.postDict(ADMIN_MATCHING_URI, matchingContent)
+      response = h2ac_admin.postDict(ADMIN_SERVER_MATCHING_URI, matchingContent)
 
   yield cleanup
 
@@ -356,7 +358,7 @@ VALID_MATCHING__RESPONSE_BODY = { "result":"true", "response":"server-matching o
 INVALID_MATCHING_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid schema" }
 INVALID_MATCHING_DATA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid matching data received" }
 @pytest.fixture(scope='session')
-def admin_matching(h2ac_admin, files):
+def admin_server_matching(h2ac_admin, files):
   """
   content: provide string or dictionary. The string will be interpreted as resources file path.
   responseBodyRef: response body reference, valid provision assumed by default.
@@ -370,7 +372,7 @@ def admin_matching(h2ac_admin, files):
       request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
-    response = h2ac_admin.post(ADMIN_MATCHING_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_MATCHING_URI, request)
+    response = h2ac_admin.post(ADMIN_SERVER_MATCHING_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_SERVER_MATCHING_URI, request)
     h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
 
   yield send
@@ -381,7 +383,7 @@ VALID_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provisio
 INVALID_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid schema" }
 INVALID_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid provision data received" }
 @pytest.fixture(scope='session')
-def admin_provision(h2ac_admin, files):
+def admin_server_provision(h2ac_admin, files):
   """
   content: provide string or dictionary/list. The string will be interpreted as resources file path.
   responseBodyRef: response body reference, valid provision assumed by default.
@@ -395,7 +397,7 @@ def admin_provision(h2ac_admin, files):
       request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
-    response = h2ac_admin.post(ADMIN_PROVISION_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_PROVISION_URI, request)
+    response = h2ac_admin.post(ADMIN_SERVER_PROVISION_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, request)
     h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
 
   yield send
@@ -426,10 +428,10 @@ def admin_schema(h2ac_admin, files):
   yield send
 
 # GLOBAL VARIABLES
-VALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"true", "response":"server-data/global operation; valid schema and global variables data received" }
-INVALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"false", "response":"server-data/global operation; invalid schema" }
+VALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"true", "response":"global-variable operation; valid schema and global variables received" }
+INVALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"false", "response":"global-variable operation; invalid schema" }
 @pytest.fixture(scope='session')
-def admin_server_data_global(h2ac_admin, files):
+def admin_global_variable(h2ac_admin, files):
   """
   content: provide string or dictionary. The string will be interpreted as resources file path.
   responseBodyRef: response body reference, valid global variables assumed by default.
@@ -443,7 +445,7 @@ def admin_server_data_global(h2ac_admin, files):
       request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
-    response = h2ac_admin.post(ADMIN_DATA_URI + '/global', request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_DATA_URI + '/global', request)
+    response = h2ac_admin.post(ADMIN_GLOBAL_VARIABLE_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_GLOBAL_VARIABLE_URI, request)
     h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
 
   yield send
@@ -510,7 +512,7 @@ MY_REQUESTS_SCHEMA_ID_TEMPLATE='''
 }}
 '''
 
-GLOBAL_VARIABLES_1_2_3='''
+GLOBAL_VARIABLE_1_2_3='''
 {
   "var1": "value1",
   "var2": "value2",
@@ -518,7 +520,7 @@ GLOBAL_VARIABLES_1_2_3='''
 }
 '''
 
-GLOBAL_VARIABLES_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
+GLOBAL_VARIABLE_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar",

@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_DATA_URI, assertUnprovisioned
+from conftest import ADMIN_SERVER_DATA_URI, assertUnprovisioned
 
 
 @pytest.mark.admin
@@ -17,7 +17,7 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
 
   # Get this first server sequence:
-  response = h2ac_admin.get(ADMIN_DATA_URI)
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   seq_ini = response["body"][0]["requests"][0]["serverSequence"]
 
   response = h2ac_traffic.get("/app/v1/foo/bar/1") # this will be seq_ini + 1
@@ -28,16 +28,16 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   # We have 2 GETs and 3 POSTs
 
   # We will delete partially both, for example, the last one of GETs and POSTs:
-  response = h2ac_admin.delete(ADMIN_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=-1")
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=-1")
   response["status"] = 200
-  response = h2ac_admin.delete(ADMIN_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar/2&requestNumber=-1")
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar/2&requestNumber=-1")
   response["status"] = 200
 
   # Now we have 1 GET and 2 POSTs (those with 'first' and 'second' body values for 'foo-bar'):
   # Method + Uri key is not sort (only the requests within), so we have to search for them:
 
   # Locate the survival GET key:
-  response = h2ac_admin.get(ADMIN_DATA_URI)
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   survival_get_key = next(item for item in response["body"] if item["method"] == "GET")
   event = survival_get_key["requests"][0]
   assert survival_get_key["uri"] == "/app/v1/foo/bar/1"
@@ -52,16 +52,16 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   assertUnprovisioned(event2, { "foo-bar":"second" }, seq_ini + 3)
 
   # Remove POSTs at a time:
-  response = h2ac_admin.delete(ADMIN_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar/2")
-  response = h2ac_admin.get(ADMIN_DATA_URI)
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar/2")
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   with pytest.raises(StopIteration): posts_key = next(item for item in response["body"] if item["method"] == "POST")
 
   # Remove the first (and only) GET:
-  response = h2ac_admin.delete(ADMIN_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=1")
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=1")
   response["status"] = 200
 
   # Even not GET survives, although the key remains (without requests node):
-  response = h2ac_admin.get(ADMIN_DATA_URI)
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   key = next(item for item in response["body"] if item["method"] == "GET")
   assert key["uri"] == "/app/v1/foo/bar/1"
 

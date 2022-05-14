@@ -53,22 +53,22 @@ namespace h2agent
 {
 namespace model
 {
-class MockRequestData;
-class GlobalVariablesData;
+class MockServerRequestData;
+class GlobalVariable;
 class AdminData;
 }
 
 namespace http2server
 {
 
-class MyHttp2Server: public ert::http2comm::Http2Server
+class MyTrafficHttp2Server: public ert::http2comm::Http2Server
 {
     bool server_data_;
-    bool server_data_requests_history_;
+    bool server_data_key_history_;
     bool purge_execution_;
 
-    model::MockRequestData *mock_request_data_;
-    model::GlobalVariablesData *global_variables_data_;
+    model::MockServerRequestData *mock_request_data_;
+    model::GlobalVariable *global_variable_;
     model::AdminData *admin_data_;
     std::atomic<std::uint64_t> general_unique_server_sequence_;
 
@@ -81,8 +81,8 @@ class MyHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
 public:
-    MyHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
-    ~MyHttp2Server();
+    MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
+    ~MyTrafficHttp2Server();
 
     /**
     * Enable metrics
@@ -106,11 +106,11 @@ public:
                  std::string& responseBody, unsigned int &responseDelayMs);
 
 
-    model::MockRequestData *getMockRequestData() const {
+    model::MockServerRequestData *getMockServerRequestData() const {
         return mock_request_data_;
     }
-    model::GlobalVariablesData *getGlobalVariablesData() const {
-        return global_variables_data_;
+    model::GlobalVariable *getGlobalVariable() const {
+        return global_variable_;
     }
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;
@@ -125,12 +125,12 @@ public:
         return general_unique_server_sequence_;
     }
 
-    void discardServerData(bool discard = true) {
+    void discardData(bool discard = true) {
         server_data_ = !discard;
     }
 
-    void discardServerDataRequestsHistory(bool discard = true) {
-        server_data_requests_history_ = !discard;
+    void discardDataKeyHistory(bool discard = true) {
+        server_data_key_history_ = !discard;
     }
 
     void disablePurge(bool disable = true) {

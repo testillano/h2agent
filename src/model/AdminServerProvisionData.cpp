@@ -40,7 +40,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <AdminProvisionData.hpp>
+#include <AdminServerProvisionData.hpp>
 
 
 namespace h2agent
@@ -48,11 +48,11 @@ namespace h2agent
 namespace model
 {
 
-AdminProvisionData::AdminProvisionData() {
+AdminServerProvisionData::AdminServerProvisionData() {
     server_provision_schema_.setJson(h2agent::adminSchemas::server_provision); // won't fail
 }
 
-std::string AdminProvisionData::asJsonString(bool ordered) const {
+std::string AdminServerProvisionData::asJsonString(bool ordered) const {
 
     nlohmann::json result = nlohmann::json::array();
 
@@ -72,19 +72,19 @@ std::string AdminProvisionData::asJsonString(bool ordered) const {
     return (result.dump());
 }
 
-AdminProvisionData::LoadResult AdminProvisionData::loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
 
     if (!server_provision_schema_.validate(j)) {
         return BadSchema;
     }
 
     // Provision object to fill:
-    auto provision = std::make_shared<AdminProvision>();
+    auto provision = std::make_shared<AdminServerProvision>();
 
     if (provision->load(j, priorityMatchingRegexConfigured)) {
 
         // Push the key in the map:
-        admin_provision_key_t key = provision->getKey();
+        admin_server_provision_key_t key = provision->getKey();
         add(key, provision);
 
         // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex'.
@@ -99,7 +99,7 @@ AdminProvisionData::LoadResult AdminProvisionData::loadSingle(const nlohmann::js
     return BadContent;
 }
 
-AdminProvisionData::LoadResult AdminProvisionData::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
 
     if (j.is_array()) {
         for (auto it : j) // "it" is of type json::reference and has no key() member
@@ -115,7 +115,7 @@ AdminProvisionData::LoadResult AdminProvisionData::load(const nlohmann::json &j,
     return loadSingle(j, priorityMatchingRegexConfigured);
 }
 
-bool AdminProvisionData::clear()
+bool AdminServerProvisionData::clear()
 {
     bool result = (size() != 0);
 
@@ -127,9 +127,9 @@ bool AdminProvisionData::clear()
     return result;
 }
 
-std::shared_ptr<AdminProvision> AdminProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
-    admin_provision_key_t key;
-    calculateAdminProvisionKey(key, inState, method, uri);
+std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
+    admin_server_provision_key_t key;
+    calculateAdminServerProvisionKey(key, inState, method, uri);
 
     auto it = get(key);
     if (it != end())
@@ -138,9 +138,9 @@ std::shared_ptr<AdminProvision> AdminProvisionData::find(const std::string &inSt
     return nullptr;
 }
 
-std::shared_ptr<AdminProvision> AdminProvisionData::findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const {
-    admin_provision_key_t key;
-    calculateAdminProvisionKey(key, inState, method, uri);
+std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const {
+    admin_server_provision_key_t key;
+    calculateAdminServerProvisionKey(key, inState, method, uri);
 
     for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
         auto provision = get(*it)->second;

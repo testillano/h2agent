@@ -17,7 +17,7 @@
       "name": "Joseph Norton",
       "gender": "male",
       "company": "<to be replaced by global variable>",
-      "email": "josephnorton@terrago.com",
+      "email": "<to be replaced by global variable>",
       "phone": "+1 (830) 543-3984",
       "address": "346 Hanson Place, Interlochen, American Samoa, 7538",
       "about": "Esse labore tempor nisi non nisi eiusmod mollit ad ipsum dolore tempor commodo id. Veniam nisi fugiat adipisicing anim exercitation do amet nostrud. In incididunt ea tempor est deserunt irure consectetur qui magna in commodo ullamco ullamco. Incididunt deserunt do duis in laboris quis velit.\r\n",
@@ -61,6 +61,14 @@
       {
         "source": "globalVar.COMPANY NAME",
         "target": "response.body.string./company"
+      },
+      {
+        "source": "response.body./name",
+        "target": "var.name"
+      },
+      {
+        "source": "globalVar.EMAIL.@{name}",
+        "target": "response.body.string./email"
       }
     ]
   }

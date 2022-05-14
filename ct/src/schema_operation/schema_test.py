@@ -10,9 +10,9 @@ def test_000_cleanup(admin_cleanup):
 
 
 @pytest.mark.admin
-def test_001_i_want_to_configure_schemas_and_corresponding_provision_on_admin_interface(admin_provision, admin_schema):
+def test_001_i_want_to_configure_schemas_and_corresponding_provision_on_admin_interface(admin_server_provision, admin_schema):
 
-  admin_provision(string2dict(SCHEMAS_PROVISION_TEMPLATE, reqId="myRequestsSchemaId", resId="myResponsesSchemaId", responseBodyField="bar"))
+  admin_server_provision(string2dict(SCHEMAS_PROVISION_TEMPLATE, reqId="myRequestsSchemaId", resId="myResponsesSchemaId", responseBodyField="bar"))
   admin_schema(string2dict(MY_REQUESTS_SCHEMA_ID_TEMPLATE, id="myRequestsSchemaId", requiredProperty="foo"))
   admin_schema(string2dict(MY_REQUESTS_SCHEMA_ID_TEMPLATE, id="myResponsesSchemaId", requiredProperty="bar"))
 
@@ -54,10 +54,10 @@ def test_004_i_want_to_send_post_request_for_provisioned_data_on_traffic_interfa
   # Verify response
   h2ac_traffic.assert_response__status_body_headers(response, 400, "") # failed on request schema, so no transformations and response body are processed
 
-def test_005_i_want_to_send_post_request_for_provisioned_data_on_traffic_interface_and_fail_on_response_schema(admin_provision, h2ac_admin, h2ac_traffic):
+def test_005_i_want_to_send_post_request_for_provisioned_data_on_traffic_interface_and_fail_on_response_schema(admin_server_provision, h2ac_admin, h2ac_traffic):
 
   # Update provision
-  admin_provision(string2dict(SCHEMAS_PROVISION_TEMPLATE, reqId="myRequestsSchemaId", resId="myResponsesSchemaId", responseBodyField="bad-response-field"))
+  admin_server_provision(string2dict(SCHEMAS_PROVISION_TEMPLATE, reqId="myRequestsSchemaId", resId="myResponsesSchemaId", responseBodyField="bad-response-field"))
 
   # Send POST
   response = h2ac_traffic.postDict("/app/v1/foo/bar", { "foo": "required" })

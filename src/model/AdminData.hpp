@@ -41,8 +41,8 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
-#include <AdminMatchingData.hpp>
-#include <AdminProvisionData.hpp>
+#include <AdminServerMatchingData.hpp>
+#include <AdminServerProvisionData.hpp>
 #include <AdminSchemaData.hpp>
 
 namespace h2agent
@@ -52,8 +52,8 @@ namespace model
 
 class AdminData
 {
-    AdminMatchingData matching_data_;
-    AdminProvisionData provision_data_;
+    AdminServerMatchingData matching_data_;
+    AdminServerProvisionData provision_data_;
     AdminSchemaData schema_data_;
 
 public:
@@ -68,7 +68,7 @@ public:
      *
      * @return Boolean about success operation
      */
-    AdminMatchingData::LoadResult loadMatching(const nlohmann::json &j) {
+    AdminServerMatchingData::LoadResult loadMatching(const nlohmann::json &j) {
         return matching_data_.load(j);
     }
 
@@ -79,8 +79,8 @@ public:
      *
      * @return Boolean about success operation
      */
-    AdminProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminMatchingData::AlgorithmType::PriorityMatchingRegex));
+    AdminServerProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
+        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminServerMatchingData::AlgorithmType::PriorityMatchingRegex));
     }
 
     /**
@@ -115,14 +115,14 @@ public:
     /**
      * Gets admin matching data
      */
-    const AdminMatchingData& getMatchingData() const {
+    const AdminServerMatchingData& getMatchingData() const {
         return matching_data_;
     }
 
     /**
      * Gets admin provision data
      */
-    const AdminProvisionData& getProvisionData() const {
+    const AdminServerProvisionData& getProvisionData() const {
         return provision_data_;
     }
 

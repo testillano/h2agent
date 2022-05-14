@@ -44,7 +44,7 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
-#include <MockRequest.hpp>
+#include <MockServerRequest.hpp>
 #include <common.hpp>
 
 namespace h2agent
@@ -54,29 +54,29 @@ namespace model
 
 
 // Mock key:
-typedef std::string mock_requests_key_t;
+typedef std::string mock_server_requests_key_t;
 // Future proof: instead of using a key = <method><uri>, we could agreggate them:
 // typedef std::pair<std::string, std::string> mock_key_t;
 // But in order to compile, we need to define a hash function for the unordered map:
 // https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
 // https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
 
-void calculateMockRequestsKey(mock_requests_key_t &key, const std::string &method, const std::string &uri);
+void calculateMockServerRequestsKey(mock_server_requests_key_t &key, const std::string &method, const std::string &uri);
 
 
 
-class MockRequests
+class MockServerRequests
 {
     mutable mutex_t rw_mutex_;
 
     std::string method_;
     std::string uri_;
 
-    std::vector<std::shared_ptr<MockRequest>> requests_;
+    std::vector<std::shared_ptr<MockServerRequest>> requests_;
 
 public:
 
-    MockRequests() {;}
+    MockServerRequests() {;}
 
     // setters:
 
@@ -114,7 +114,7 @@ public:
      *
      * @return Boolean about if something was deleted
      */
-    bool removeMockRequest(std::uint64_t requestNumber, bool reverse);
+    bool removeMockServerRequest(std::uint64_t requestNumber, bool reverse);
 
     // getters:
 
@@ -128,7 +128,7 @@ public:
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockRequest> getMockRequest(std::uint64_t requestNumber = 1, bool reverse = true) const;
+    std::shared_ptr<MockServerRequest> getMockServerRequest(std::uint64_t requestNumber = 1, bool reverse = true) const;
 
     /**
      * Builds json document for class information
@@ -142,7 +142,7 @@ public:
      *
      * @return Mock request key
      */
-    mock_requests_key_t getKey() const;
+    mock_server_requests_key_t getKey() const;
 
     /** Last registered request state
     *

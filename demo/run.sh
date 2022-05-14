@@ -36,7 +36,7 @@ EXPECTED_STATUS_CODES="200 204"
 test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || { echo -e "\nCheck that the h2agent application is started" ; exit 1 ; }
 
 EXPECTED_STATUS_CODES="200"
-test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data/configuration?discard=false&discardRequestsHistory=false" || exit 1
+test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data/configuration?discard=false&discardKeyHistory=false" || exit 1
 
 # Enable interactiveness:
 INTERACT=true

@@ -1,4 +1,4 @@
-#include <GlobalVariablesData.hpp>
+#include <GlobalVariable.hpp>
 
 #include <AdminSchemas.hpp>
 
@@ -6,53 +6,53 @@
 #include <gtest/gtest.h>
 
 // Global variables configuration:
-const nlohmann::json GlobalVariablesConfiguration__Success = R"(
+const nlohmann::json GlobalVariableConfiguration__Success = R"(
 {
   "variable_name_1": "variable_value_1",
   "variable_name_2": "variable_value_2"
 }
 )"_json;
 
-const nlohmann::json GlobalVariablesConfiguration__BadSchema = R"({ "variable_name_1": "variable_value_1", "variable_name_2": 2 })"_json;
+const nlohmann::json GlobalVariableConfiguration__BadSchema = R"({ "variable_name_1": "variable_value_1", "variable_name_2": 2 })"_json;
 
 
 class ServerData_test : public ::testing::Test
 {
 public:
-    h2agent::model::GlobalVariablesData gvardata_;
+    h2agent::model::GlobalVariable gvars_;
 
     ServerData_test() {
         ;
     }
 };
 
-TEST_F(ServerData_test, LoadGlobalVariablesSuccess)
+TEST_F(ServerData_test, LoadGlobalVariableSuccess)
 {
-    EXPECT_TRUE(ServerData_test::gvardata_.loadJson(GlobalVariablesConfiguration__Success));
-    EXPECT_EQ(ServerData_test::gvardata_.asJson(), GlobalVariablesConfiguration__Success);
+    EXPECT_TRUE(ServerData_test::gvars_.loadJson(GlobalVariableConfiguration__Success));
+    EXPECT_EQ(ServerData_test::gvars_.asJson(), GlobalVariableConfiguration__Success);
 
     bool exists{};
-    EXPECT_EQ(ServerData_test::gvardata_.getValue("variable_name_2", exists), "variable_value_2");
+    EXPECT_EQ(ServerData_test::gvars_.getValue("variable_name_2", exists), "variable_value_2");
     EXPECT_TRUE(exists);
-    ServerData_test::gvardata_.removeVariable("variable_name_2");
-    EXPECT_EQ(ServerData_test::gvardata_.getValue("variable_name_2", exists), std::string(""));
+    ServerData_test::gvars_.removeVariable("variable_name_2");
+    EXPECT_EQ(ServerData_test::gvars_.getValue("variable_name_2", exists), std::string(""));
     EXPECT_FALSE(exists);
-    ServerData_test::gvardata_.loadVariable("another_variable", "another_value");
-    EXPECT_EQ(ServerData_test::gvardata_.getValue("another_variable", exists), "another_value");
+    ServerData_test::gvars_.loadVariable("another_variable", "another_value");
+    EXPECT_EQ(ServerData_test::gvars_.getValue("another_variable", exists), "another_value");
     EXPECT_TRUE(exists);
 
-    EXPECT_TRUE(ServerData_test::gvardata_.clear());
-    EXPECT_FALSE(ServerData_test::gvardata_.clear());
+    EXPECT_TRUE(ServerData_test::gvars_.clear());
+    EXPECT_FALSE(ServerData_test::gvars_.clear());
 }
 
-TEST_F(ServerData_test, LoadGlobalVariablesFail)
+TEST_F(ServerData_test, LoadGlobalVariableFail)
 {
-    EXPECT_FALSE(ServerData_test::gvardata_.loadJson(GlobalVariablesConfiguration__BadSchema));
-    EXPECT_EQ(ServerData_test::gvardata_.asJsonString(), "{}");
+    EXPECT_FALSE(ServerData_test::gvars_.loadJson(GlobalVariableConfiguration__BadSchema));
+    EXPECT_EQ(ServerData_test::gvars_.asJsonString(), "{}");
 }
 
-TEST_F(ServerData_test, GetGlobalVariablesSchema)
+TEST_F(ServerData_test, GetGlobalVariableSchema)
 {
-    EXPECT_EQ(ServerData_test::gvardata_.getSchema().getJson(), h2agent::adminSchemas::server_data_global);
+    EXPECT_EQ(ServerData_test::gvars_.getSchema().getJson(), h2agent::adminSchemas::server_data_global);
 }
 

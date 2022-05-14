@@ -41,7 +41,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
-#include <MockRequests.hpp>
+#include <MockServerRequests.hpp>
 
 #include <JsonSchema.hpp>
 
@@ -58,7 +58,7 @@ namespace model
  * Also, the last request for an specific key, is used to know the state which is used to get the
  * corresponding provision information.
  */
-class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequests>>
+class MockServerRequestData : public Map<mock_server_requests_key_t, std::shared_ptr<MockServerRequests>>
 {
     h2agent::jsonschema::JsonSchema requests_schema_;
 
@@ -68,8 +68,8 @@ class MockRequestData : public Map<mock_requests_key_t, std::shared_ptr<MockRequ
     mutable mutex_t rw_mutex_;
 
 public:
-    MockRequestData() {};
-    ~MockRequestData() = default;
+    MockServerRequestData() {};
+    ~MockServerRequestData() = default;
 
     /**
      * Loads request data
@@ -146,7 +146,7 @@ public:
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockRequest> getMockRequest(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+    std::shared_ptr<MockServerRequest> getMockServerRequest(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
 
     /**
      * Builds json document for class information

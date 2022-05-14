@@ -37,8 +37,8 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <MockRequestData.hpp>
-#include <AdminProvision.hpp>
+#include <MockServerRequestData.hpp>
+#include <AdminServerProvision.hpp>
 
 
 namespace h2agent
@@ -46,7 +46,7 @@ namespace h2agent
 namespace model
 {
 
-bool MockRequestData::string2uint64(const std::string &input, std::uint64_t &output) const {
+bool MockServerRequestData::string2uint64(const std::string &input, std::uint64_t &output) const {
 
     bool result = false;
 
@@ -65,7 +65,7 @@ bool MockRequestData::string2uint64(const std::string &input, std::uint64_t &out
     return result;
 }
 
-bool MockRequestData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const {
+bool MockServerRequestData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const {
 
     // Bad request checkings:
     if (requestMethod.empty() != requestUri.empty()) {
@@ -81,16 +81,16 @@ bool MockRequestData::checkSelection(const std::string &requestMethod, const std
     return true;
 }
 
-void MockRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                                  unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                                  bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerRequestData::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                                        unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+                                        bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
 
-    // Find MockRequests
-    std::shared_ptr<MockRequests> requests;
+    // Find MockServerRequests
+    std::shared_ptr<MockServerRequests> requests;
 
-    mock_requests_key_t key;
-    calculateMockRequestsKey(key, method, uri);
+    mock_server_requests_key_t key;
+    calculateMockServerRequestsKey(key, method, uri);
 
     write_guard_t guard(rw_mutex_);
 
@@ -99,7 +99,7 @@ void MockRequestData::loadRequest(const std::string &pstate, const std::string &
         requests = it->second;
     }
     else {
-        requests = std::make_shared<MockRequests>();
+        requests = std::make_shared<MockServerRequests>();
     }
 
     requests->loadRequest(pstate, state, method, uri, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
@@ -107,7 +107,7 @@ void MockRequestData::loadRequest(const std::string &pstate, const std::string &
     if (it == end()) add(key, requests); // push the key in the map:
 }
 
-bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber)
+bool MockServerRequestData::clear(bool &somethingDeleted, const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber)
 {
     bool result = true;
     somethingDeleted = false;
@@ -122,8 +122,8 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     if (!checkSelection(requestMethod, requestUri, requestNumber))
         return false;
 
-    mock_requests_key_t key;
-    calculateMockRequestsKey(key, requestMethod, requestUri);
+    mock_server_requests_key_t key;
+    calculateMockServerRequestsKey(key, requestMethod, requestUri);
 
     write_guard_t guard(rw_mutex_);
 
@@ -138,7 +138,7 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
         if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
             return false;
 
-        somethingDeleted = it->second->removeMockRequest(u_requestNumber, reverse);
+        somethingDeleted = it->second->removeMockServerRequest(u_requestNumber, reverse);
     }
     else {
         somethingDeleted = true;
@@ -148,7 +148,7 @@ bool MockRequestData::clear(bool &somethingDeleted, const std::string &requestMe
     return result;
 }
 
-std::string MockRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const {
+std::string MockServerRequestData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const {
 
     validQuery = false;
 
@@ -162,8 +162,8 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
 
     validQuery = true;
 
-    mock_requests_key_t key;
-    calculateMockRequestsKey(key, requestMethod, requestUri);
+    mock_server_requests_key_t key;
+    calculateMockServerRequestsKey(key, requestMethod, requestUri);
 
     read_guard_t guard(rw_mutex_);
 
@@ -178,7 +178,7 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
         if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
             return "[]";
 
-        auto ptr = it->second->getMockRequest(u_requestNumber, reverse);
+        auto ptr = it->second->getMockServerRequest(u_requestNumber, reverse);
         if (ptr) {
             return ptr->getJson().dump();
         }
@@ -191,7 +191,7 @@ std::string MockRequestData::asJsonString(const std::string &requestMethod, cons
     return "[]";
 }
 
-std::string MockRequestData::summary(const std::string &maxKeys) const {
+std::string MockServerRequestData::summary(const std::string &maxKeys) const {
     nlohmann::json result;
 
     result["totalKeys"] = (unsigned int)size();
@@ -222,7 +222,7 @@ std::string MockRequestData::summary(const std::string &maxKeys) const {
     return result.dump();
 }
 
-std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {
+std::shared_ptr<MockServerRequest> MockServerRequestData::getMockServerRequest(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {
 
     LOGDEBUG(
         std::string msg = ert::tracing::Logger::asString("requestMethod: %s | requestUri: %s | requestNumber: %s", requestMethod.c_str(), requestUri.c_str(), requestNumber.c_str());
@@ -235,8 +235,8 @@ std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &
     if (requestMethod.empty() || requestUri.empty() || requestNumber.empty())
         return nullptr;
 
-    mock_requests_key_t key;
-    calculateMockRequestsKey(key, requestMethod, requestUri);
+    mock_server_requests_key_t key;
+    calculateMockServerRequestsKey(key, requestMethod, requestUri);
 
     read_guard_t guard(rw_mutex_);
 
@@ -249,10 +249,10 @@ std::shared_ptr<MockRequest> MockRequestData::getMockRequest(const std::string &
     if (!string2uint64(requestNumber, u_requestNumber))
         return nullptr;
 
-    return (it->second->getMockRequest(u_requestNumber));
+    return (it->second->getMockServerRequest(u_requestNumber));
 }
 
-nlohmann::json MockRequestData::asJson() const {
+nlohmann::json MockServerRequestData::asJson() const {
 
     nlohmann::json result;
 
@@ -265,15 +265,15 @@ nlohmann::json MockRequestData::asJson() const {
     return result;
 }
 
-bool MockRequestData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
+bool MockServerRequestData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
 
-    mock_requests_key_t key;
-    calculateMockRequestsKey(key, method, uri);
+    mock_server_requests_key_t key;
+    calculateMockServerRequestsKey(key, method, uri);
 
     read_guard_t guard(rw_mutex_);
 
     auto it = get(key);
-    state = DEFAULT_ADMIN_PROVISION_STATE;
+    state = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
     if (it != end()) {
         state = it->second->getLastRegisteredRequestState();
         return true;
@@ -282,7 +282,7 @@ bool MockRequestData::findLastRegisteredRequest(const std::string &method, const
     return false;
 }
 
-bool MockRequestData::loadRequestsSchema(const nlohmann::json& schema) {
+bool MockServerRequestData::loadRequestsSchema(const nlohmann::json& schema) {
 
     requests_schema_.setJson(schema);
 
