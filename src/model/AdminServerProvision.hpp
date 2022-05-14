@@ -50,7 +50,7 @@ SOFTWARE.
 #include <TypeConverter.hpp>
 
 
-#define DEFAULT_ADMIN_PROVISION_STATE "initial"
+#define DEFAULT_ADMIN_SERVER_PROVISION_STATE "initial"
 
 
 namespace h2agent
@@ -59,24 +59,24 @@ namespace model
 {
 
 // Provision key:
-typedef std::string admin_provision_key_t;
+typedef std::string admin_server_provision_key_t;
 // Future proof: instead of using a key = <method><uri>, we could agreggate them:
-// typedef std::pair<std::string, std::string> admin_provision_key_t;
+// typedef std::pair<std::string, std::string> admin_server_provision_key_t;
 // But in order to compile, we need to define a hash function for the unordered map:
 // https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
 // https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
 
-void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
+void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
-class MockRequestData;
-class GlobalVariablesData;
+class MockServerRequestData;
+class GlobalVariable;
 
 
-class AdminProvision
+class AdminServerProvision
 {
     nlohmann::json json_; // provision reference
 
-    admin_provision_key_t key_; // calculated in every load()
+    admin_server_provision_key_t key_; // calculated in every load()
     std::regex regex_; // precompile key as possible regex for PriorityMatchingRegex algorithm
 
     // Cached information:
@@ -103,8 +103,8 @@ class AdminProvision
     std::string request_schema_id_{};
     std::string response_schema_id_{};
 
-    model::MockRequestData *mock_request_data_; // just in case it is used
-    model::GlobalVariablesData *global_variables_data_; // just in case it is used
+    model::MockServerRequestData *mock_server_request_data_; // just in case it is used
+    model::GlobalVariable *global_variable_; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
@@ -148,7 +148,7 @@ class AdminProvision
 
 public:
 
-    AdminProvision();
+    AdminServerProvision();
 
     // transform logic
 
@@ -206,16 +206,16 @@ public:
      * Sets the internal mock request data,
      * just in case it is used in event source
      */
-    void setMockRequestData(model::MockRequestData *p) {
-        mock_request_data_ = p;
+    void setMockServerRequestData(model::MockServerRequestData *p) {
+        mock_server_request_data_ = p;
     }
 
     /**
      * Sets the global variables data reference,
      * just in case it is used in event source
      */
-    void setGlobalVariablesData(model::GlobalVariablesData *p) {
-        global_variables_data_ = p;
+    void setGlobalVariable(model::GlobalVariable *p) {
+        global_variable_ = p;
     }
 
     // getters:
@@ -225,7 +225,7 @@ public:
      *
      * @return Provision key
      */
-    const admin_provision_key_t &getKey() const {
+    const admin_server_provision_key_t &getKey() const {
         return key_;
     }
 

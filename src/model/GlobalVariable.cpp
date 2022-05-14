@@ -37,7 +37,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <GlobalVariablesData.hpp>
+#include <GlobalVariable.hpp>
 #include <AdminSchemas.hpp>
 
 namespace h2agent
@@ -45,20 +45,20 @@ namespace h2agent
 namespace model
 {
 
-GlobalVariablesData::GlobalVariablesData() {
-    global_variables_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
+GlobalVariable::GlobalVariable() {
+    global_variable_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
 }
 
-void GlobalVariablesData::loadVariable(const std::string &variable, const std::string &value) {
+void GlobalVariable::loadVariable(const std::string &variable, const std::string &value) {
 
     write_guard_t guard(rw_mutex_);
 
     add(variable, value);
 }
 
-bool GlobalVariablesData::loadJson(const nlohmann::json &j) {
+bool GlobalVariable::loadJson(const nlohmann::json &j) {
 
-    if (!global_variables_schema_.validate(j)) {
+    if (!global_variable_schema_.validate(j)) {
         return false;
     }
 
@@ -68,7 +68,7 @@ bool GlobalVariablesData::loadJson(const nlohmann::json &j) {
     return true;
 }
 
-bool GlobalVariablesData::clear()
+bool GlobalVariable::clear()
 {
     bool result = (Map::size() > 0); // something deleted
 
@@ -78,7 +78,7 @@ bool GlobalVariablesData::clear()
     return result;
 }
 
-std::string GlobalVariablesData::asJsonString() const {
+std::string GlobalVariable::asJsonString() const {
 
     read_guard_t guard(rw_mutex_);
 
@@ -88,7 +88,7 @@ std::string GlobalVariablesData::asJsonString() const {
     return asJson().dump();
 }
 
-std::string GlobalVariablesData::getValue(const std::string &variableName, bool &exists) const {
+std::string GlobalVariable::getValue(const std::string &variableName, bool &exists) const {
 
     read_guard_t guard(rw_mutex_);
 
@@ -98,13 +98,13 @@ std::string GlobalVariablesData::getValue(const std::string &variableName, bool 
     return (exists ? (it->second):"");
 }
 
-void GlobalVariablesData::removeVariable(const std::string &variableName) {
+void GlobalVariable::removeVariable(const std::string &variableName) {
 
     write_guard_t guard(rw_mutex_);
     remove(variableName);
 }
 
-nlohmann::json GlobalVariablesData::asJson() const {
+nlohmann::json GlobalVariable::asJson() const {
 
     read_guard_t guard(rw_mutex_);
 

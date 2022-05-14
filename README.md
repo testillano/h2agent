@@ -255,25 +255,24 @@ Input Validate schemas (y|n)
  (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]: n
 
 Input Matching configuration
- (or set 'H2AGENT_MATCHING' to be non-interactive) [matching.json]: matching.json
+ (or set 'H2AGENT_SERVER_MATCHING' to be non-interactive) [server-matching.json]: server-matching.json
 
 Input Provision configuration
- (or set 'H2AGENT_PROVISION' to be non-interactive) [provision.json]: provision.json
+ (or set 'H2AGENT_SERVER_PROVISION' to be non-interactive) [server-provision.json]: server-provision.json
 
-Input Global variables configuration
- (or set 'H2AGENT_GLOBALS' to be non-interactive) [globals.json]: globals.json
+Input Global variable(s) configuration
+ (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]: global-variable.json
 
-Input Server data configuration (discard-all|discard-history|keep-all)
- (or set 'H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
+Input Server data storage configuration (discard-all|discard-history|keep-all)
+ (or set 'H2AGENT__DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
 
 Input Server data purge configuration (enable-purge|disable-purge)
- (or set 'H2AGENT__SERVER_DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]:
-disable-purge
+ (or set 'H2AGENT__DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]: disable-purge
 
-Input h2agent endpoint address
- (or set 'H2AGENT__ENDPOINT' to be non-interactive) [0.0.0.0]: 0.0.0.0
+Input H2agent endpoint address
+ (or set 'H2AGENT__BIND_ADDRESS' to be non-interactive) [0.0.0.0]: 0.0.0.0
 
-Input h2agent response delay in milliseconds
+Input H2agent response delay in milliseconds
  (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 0
 
 Input Request method (PUT|DELETE|HEAD|POST|GET)
@@ -283,27 +282,27 @@ Input Request url
  (or set 'ST_REQUEST_URL' to be non-interactive) [/load-test/v1/id-21]: /load-test/v1/id-21
 
 Server data configuration:
-{"purgeExecution":"false","storeEvents":"false","storeEventsRequestsHistory":"false"}
+{"purgeExecution":"false","storeEvents":"false","storeEventsKeyHistory":"false"}
 
 Removing current server data information ... done !
 
 Input Launcher type (h2load|hermes)
  (or set 'ST_LAUNCHER' to be non-interactive) [h2load]: h2load
 
-Input number of h2load iterations
+Input Number of h2load iterations
  (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]: 100000
 
-Input number of h2load clients
+Input Number of h2load clients
  (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]: 1
 
-Input number of h2load threads
+Input Number of h2load threads
  (or set 'H2LOAD__THREADS' to be non-interactive) [1]: 1
 
-Input number of h2load concurrent streams
+Input Number of h2load concurrent streams
  (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]: 100
 
 
-+ h2load -t1 -n100000 -c1 -m100 http://0.0.0.0:8000/load-test/v1/id-21 -d /tmp/tmp.lUiD7VLUHk/request.json
++ h2load -t1 -n100000 -c1 -m100 http://0.0.0.0:8000/load-test/v1/id-21 -d /tmp/tmp.6ad32NuVqJ/request.json
 + tee -a ./report_delay0_iters100000_c1_t1_m100.txt
 starting benchmark...
 spawning thread #0: 1 total client(s). 100000 total requests
@@ -346,6 +345,8 @@ You may take a look to `h2agent` command line by just typing the build path, for
 
 ```
 ./build/Release/bin/h2agent -h
+h2agent - HTTP/2 Agent service
+
 Usage: h2agent [options]
 
 Options:
@@ -359,66 +360,72 @@ Options:
 [--ipv6]
   IP stack configured for IPv6. Defaults to IPv4.
 
+[-b|--bind-address <address>]
+  Servers bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).
+
 [-a|--admin-port <port>]
   Admin <port>; defaults to 8074.
 
-[-p|--server-port <port>]
-  Server <port>; defaults to 8000.
+[-p|--traffic-server-port <port>]
+  Traffic server <port>; defaults to 8000. Set '-1' to disable
+  (mock server service is enabled by default).
 
-[-m|--server-api-name <name>]
-  Server API name; defaults to empty.
+[-m|--traffic-server-api-name <name>]
+  Traffic server API name; defaults to empty.
 
-[-n|--server-api-version <version>]
-  Server API version; defaults to empty.
+[-n|--traffic-server-api-version <version>]
+  Traffic server API version; defaults to empty.
 
-[-w|--worker-threads <threads>]
-  Number of worker threads; defaults to a mimimum of 2 threads except if hardware
-   concurrency permits a greater margin taking into account other process threads.
-  Normally, 1 thread should be enough even for complex logic provisioned.
+[-w|--traffic-server-worker-threads <threads>]
+  Number of traffic server worker threads; defaults to a mimimum of 2 threads
+  except if hardware concurrency permits a greater margin taking into account
+  other process threads. Normally, 1 thread should be enough even for complex
+  logic provisioned (admin server always uses 1 worker thread).
 
-[-t|--server-threads <threads>]
-  Number of nghttp2 server threads; defaults to 1 (1 connection).
+[-t|--traffic-server-threads <threads>]
+  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)
+  (admin server always uses 1 nghttp2 thread).
 
-[-k|--server-key <path file>]
-  Path file for server key to enable SSL/TLS; unsecured by default.
+[-k|--traffic-server-key <path file>]
+  Path file for traffic server key to enable SSL/TLS; unsecured by default.
 
-[--server-key-password <password>]
+[-d|--traffic-server-key-password <password>]
   When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process
-   start.
+  start.
 
-[-c|--server-crt <path file>]
-  Path file for server crt to enable SSL/TLS; unsecured by default.
+[-c|--traffic-server-crt <path file>]
+  Path file for traffic server crt to enable SSL/TLS; unsecured by default.
 
 [-s|--secure-admin]
-  When key (-k|--server-key) and crt (-c|--server-crt) are provided, only the traffic
-   interface is secured by default. To include management interface, this option must
-   be also provided.
+  When key (-k|--traffic-server-key) and crt (-c|--traffic-server-crt) are provided,
+  only traffic interface is secured by default. This option secures admin interface
+  reusing traffic configuration (key/crt/password).
 
 [--schema <path file>]
   Path file for optional startup schema configuration.
 
-[--server-matching <path file>]
-  Path file for optional startup server matching configuration.
+[--global-variable <path file>]
+  Path file for optional startup global variable(s) configuration.
 
-[--server-provision <path file>]
-  Path file for optional startup server provision configuration.
+[--traffic-server-matching <path file>]
+  Path file for optional startup traffic server matching configuration.
 
-[--global-variables <path file>]
-  Path file for optional startup global variables configuration.
+[--traffic-server-provision <path file>]
+  Path file for optional startup traffic server provision configuration.
 
-[--discard-server-data]
-  Disables server data storage for events received (enabled by default).
+[--discard-data]
+  Disables data storage for events processed (enabled by default).
   This invalidates some features like FSM related ones (in-state, out-state)
-   or event-source transformations.
+  or event-source transformations.
 
-[--discard-server-data-requests-history]
-  Disables server data requests history storage (enabled by default).
-  Only latest request (for each key 'method/uri') will be stored and will
-   be accessible for further analysis.
+[--discard-data-key-history]
+  Disables data key history storage (enabled by default).
+  Only latest event (for each key 'method/uri') will be stored and will
+  be accessible for further analysis.
   This limits some features like FSM related ones (in-state, out-state)
-   or event-source transformations.
-  Implicitly disabled by option '--discard-server-data'.
-  Ignored for unprovisioned events (for troubleshooting purposes).
+  or event-source transformations.
+  Implicitly disabled by option '--discard-data'.
+  Ignored for server-unprovisioned events (for troubleshooting purposes).
 
 [--disable-purge]
   Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
@@ -481,37 +488,43 @@ Traces are managed by `syslog` by default, but could be shown verbosely at stand
 ```bash
 $ ./h2agent --verbose &
 [1] 27407
-[03/04/21 20:49:35 CEST] Starting h2agent (version v0.0.1-27-g04c11e9) ...
+[03/04/21 20:49:35 CEST] Starting h2agent v1.0.0-93-g0ab2129
 Log level: Warning
 Verbose (stdout): true
 IP stack: IPv4
 Admin port: 8074
-Server port: 8000
-Server api name: <none>
-Server api version: <none>
 Hardware concurrency: 8
+Traffic server (mock server service): enabled
+Traffic server bind address: 0.0.0.0
+Traffic server port: 8000
+Traffic server api name: <none>
+Traffic server api version: <none>
 Traffic server worker threads: 2
-Server threads (exploited by multiple clients): 1
-Server key password: <not provided>
-Server key file: <not provided>
-Server crt file: <not provided>
+Traffic server threads (exploited by multiple clients): 1
+Traffic server key password: <not provided>
+Traffic server key file: <not provided>
+Traffic server crt file: <not provided>
 SSL/TLS disabled: both key & certificate must be provided
 Traffic secured: no
 Admin secured: no
 Schema configuration file: <not provided>
-Server matching configuration file: <not provided>
-Server provision configuration file: <not provided>
 Global variables configuration file: <not provided>
-Server data storage: enabled
-Server data requests history storage: enabled
+Data storage: enabled
+Data key history storage: enabled
 Purge execution: enabled
+Traffic server matching configuration file: <not provided>
+Traffic server provision configuration file: <not provided>
+Prometheus bind address: 0.0.0.0
 Prometheus port: 8080
 
 $ kill $!
 [Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15
 [Warning]|/code/src/main.cpp:104(_exit)|Terminating with exit code 1
-[Warning]|/code/src/main.cpp:90(stopServers)|Stopping h2agent admin service at 03/04/21 20:49:40 CEST
-[Warning]|/code/src/main.cpp:97(stopServers)|Stopping h2agent mock service at 03/04/21 20:49:40 CEST
+[Warning]|/code/src/main.cpp:134(stopAgent)|Stopping h2agent timers service at 13/05/22 20:07:59 CEST
+[Warning]|/code/src/main.cpp:142(stopAgent)|Stopping h2agent admin service at 13/05/22 20:07:59 CEST
+[Warning]|/code/src/main.cpp:149(stopAgent)|Stopping h2agent traffic service at 13/05/22 20:07:59 CEST
+[Warning]|/code/src/main.cpp:160(_exit)|Stopping logger
+
 [1]+  Exit 1                  h2agent --verbose
 ```
 
@@ -539,7 +552,27 @@ $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 
 ## Management interface
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`:
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`.
+
+We will start describing **general** mock operations:
+
+* Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
+* Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
+* Logging: dynamic logger configuration.
+
+Then, we will describe **traffic server mock** features:
+
+* Server matching configuration: classification algorithms to  split the incoming traffic and access to the final procedure which will be applied.
+
+* Server provision configuration: here we will define the mock behavior regarding the request received, and the transformations done over it to build the final response and evolve, if proceed, to another state for further receptions.
+
+* Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations).
+
+
+
+___
+
+
 
 ### POST /admin/v1/schema
 
@@ -679,6 +712,114 @@ Deletes all the process schemas loaded.
 #### Response body
 
 No response body.
+
+### POST /admin/v1/global-variable
+
+Loads global variables for future usage.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^.*$": {
+      "anyOf": [
+        {
+          "type": "string"
+        }
+      ]
+    }
+  }
+}
+```
+
+That is to say, and object with one level of fields with string value. For example:
+
+```json
+{
+  "variable_name_1": "variable_value_1",
+  "variable_name_2": "variable_value_2",
+  "variable_name_3": "variable_value_3"
+}
+```
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### GET /admin/v1/global-variable/schema
+
+Retrieves the global variables schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing server data global schema.
+
+### GET /admin/v1/global-variable
+
+Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created:
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json object document with variable fields and their values, when something is stored (no-content response has no body).
+
+Take the following `json` as an example:
+
+```json
+{
+  "variable_name_1": "variable_value_1",
+  "variable_name_2": "variable_value_2",
+  "variable_name_3": "variable_value_3"
+}
+```
+
+### DELETE /admin/v1/global-variable
+
+Deletes all the global variables registered.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+No response body.
+
+### PUT /admin/v1/logging?level=`<level>`
+
+Changes the log level of the `h2agent` process to any of the levels described in [command line](#command-line) section: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+
+
+___
+
+
 
 ### POST /admin/v1/server-matching
 
@@ -971,7 +1112,7 @@ Let's see an example to clarify:
 
 Further similar matches (*m*), will repeat the cycle again and again.
 
-<u>Dynamic server data purge</u>:  the keyword '**purge**' is a reserved out-state used to indicate that server data related to an event history must be dropped. This mechanism is useful in long-term load tests to avoid high memory consumption removing those scenarios which have been successfully completed, putting this special out-state at the last scenario stage provision. If they wouldn't be successful, post-verification and troubleshooting would be obviously limited (as future proof, a purge dump file could be configured on command line to store the information on file system before removal). There is another important difference between purging scenarios and disabling the server data requests history. In the first one, all the failed scenarios will be available for further analysis, as normally, the purge operation is performed at the last scenario stage which won't be reached normally in case of fail.
+<u>Dynamic server data purge</u>:  the keyword '**purge**' is a reserved out-state used to indicate that server data related to an event history must be dropped. This mechanism is useful in long-term load tests to avoid high memory consumption removing those scenarios which have been successfully completed, putting this special out-state at the last scenario stage provision. If they wouldn't be successful, post-verification and troubleshooting would be obviously limited (as future proof, a purge dump file could be configured on command line to store the information on file system before removal). There is another important difference between purging scenarios and disabling the data key history. In the first one, all the failed scenarios will be available for further analysis, as normally, the purge operation is performed at the last scenario stage which won't be reached normally in case of fail.
 
 ##### requestMethod
 
@@ -1479,15 +1620,15 @@ Deletes the whole process provision. It is useful to clear the configuration if 
 
 No response body.
 
-### PUT /admin/v1/server-data/configuration?discard=`<true|false>`&discardRequestsHistory=`<true|false>`&disablePurge=`<true|false>`
+### PUT /admin/v1/server-data/configuration?discard=`<true|false>`&discardKeyHistory=`<true|false>`&disablePurge=`<true|false>`
 
 There are three valid configurations for storage configuration behavior, depending on the query parameters provided:
 
-* `discard=true&discardRequestsHistory=true`: nothing is stored.
-*  `discard=false&discardRequestsHistory=true`: no requests history stored (only the last received, except for unprovisioned events, which history is always respected for troubleshooting purposes).
-* `discard=false&discardRequestsHistory=false`: everything is stored: events and requests history.
+* `discard=true&discardKeyHistory=true`: nothing is stored.
+*  `discard=false&discardKeyHistory=true`: no key history stored (only the last event for a key, except for unprovisioned events, which history is always respected for troubleshooting purposes).
+* `discard=false&discardKeyHistory=false`: everything is stored: events and key history.
 
-The combination `discard=true&discardRequestsHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
+The combination `discard=true&discardKeyHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
 
 And regardless the previous combinations, you could enable or disable the purge execution when this reserved state is reached for a specific provision. Take into account that this stage has no sense if no data is stored but you could configure it anyway:
 
@@ -1518,7 +1659,7 @@ For example:
 {
     "purgeExecution": "true",
     "storeEvents": "true",
-    "storeEventsRequestsHistory": "true"
+    "storeEventsKeyHistory": "true"
 }
 ```
 
@@ -1721,95 +1862,13 @@ Take the following `json` as an example:
 }
 ```
 
-### POST /admin/v1/server-data/global
-
-Loads global variables for future usage.
-
-#### Request body schema
-
-`POST` request must comply the following schema:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "additionalProperties": false,
-  "patternProperties": {
-    "^.*$": {
-      "anyOf": [
-        {
-          "type": "string"
-        }
-      ]
-    }
-  }
-}
-```
-
-That is to say, and object with one level of fields with string value. For example:
-
-```json
-{
-  "variable_name_1": "variable_value_1",
-  "variable_name_2": "variable_value_2",
-  "variable_name_3": "variable_value_3"
-}
-```
-
-#### Response status code
-
-**201** (Created) or **400** (Bad Request).
-
-#### Response body
-
-```json
-{
-  "result":"<true or false>",
-  "response":"<additional information>"
-}
-```
-
-### GET /admin/v1/server-data/global/schema
-
-Retrieves the server data global schema.
-
-#### Response status code
-
-**200** (OK).
-
-#### Response body
-
-Json object document containing server data global schema.
-
-### GET /admin/v1/server-data/global
-
-Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created:
-
-#### Response status code
-
-**200** (OK) or **204** (No Content).
-
-#### Response body
-
-Json object document with variable fields and their values, when something is stored (no-content response has no body).
-
-Take the following `json` as an example:
-
-```json
-{
-  "variable_name_1": "variable_value_1",
-  "variable_name_2": "variable_value_2",
-  "variable_name_3": "variable_value_3"
-}
-```
-
 ### DELETE /admin/v1/server-data
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-Same restrictions apply here for deletion: query parameters could be omitted to remove everything (<u>including global variables registered</u>), *method* and *URI* are provided together and *requestNumber* restricts optionally them.
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *requestNumber* restricts optionally them.
 
 #### Response status code
 
@@ -1818,78 +1877,6 @@ Same restrictions apply here for deletion: query parameters could be omitted to 
 #### Response body
 
 No response body.
-
-### POST /admin/v1/send-message
-
-Sends a message to the server endpoint established in the `command line`.
-***TO BE IMPLEMENTED.***
-
-#### Request body schema
-
-`POST` request must comply the following schema:
-
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "requestHeader": {
-      "additionalProperties": {
-        "type": "string"
-       },
-       "type": "object"
-    },
-    "requestMethod": {
-      "type": "string",
-        "enum": ["POST", "GET", "PUT", "DELETE"]
-    },
-    "requestUri": {
-      "type": "string"
-    },
-    "requestBody": {
-      "type": "object"
-    },
-    "responseHeaders": {
-      "additionalProperties": {
-        "type": "string"
-       },
-       "type": "object"
-    },
-    "responseCode": {
-      "type": "integer"
-    },
-    "responseBody": {
-      "type": "object"
-    }
-  },
-  "required": [ "requestMethod", "requestUri" ]
-}
-```
-
-#### Response status code
-
-**201** (Created) or **400** (Bad Request).
-
-#### Response body
-
-```json
-{
-  "result":"<true or false>",
-  "response":"<additional information>"
-}
-```
-
-### PUT /admin/v1/logging?level=`<level>`
-
-Changes the log level of the `h2agent` process to any of the levels described in [command line](#command-line) section: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
-
-#### Response status code
-
-**200** (OK) or **400** (Bad Request).
-
-
 
 ## How it is delivered
 
@@ -1910,12 +1897,12 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
    ```yaml
    dependencies:
      - name: h2agent
-       version: 1.0.0
+       version: 2.2.0
        repository: alias:erthelm
        alias: h2server
 
      - name: h2agent
-       version: 1.0.0
+       version: 2.2.0
        repository: alias:erthelm
        alias: h2server2
    ```
@@ -1935,64 +1922,60 @@ As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages
 ```bash
 source tools/helpers.src
 
-===== h2agent helpers =====
+===== h2agent operation helpers =====
+Shortcut helpers (sourced variables and functions)
+to ease agent operation over management interface:
+   https://github.com/testillano/h2agent#management-interface
 
-Sourced variables:
-
+=== Variables ===
 TRAFFIC_URL=http://localhost:8000
 ADMIN_URL=http://localhost:8074/admin/v1
 CURL="curl -i --http2-prior-knowledge"
 
-Sourced functions:
-
-Usage: schema [--clean] [file]; Cleans/gets/updates current schema configuration (http://localhost:8074/admin/v1/schema)
-Usage: schema_schema; Gets the schema configuration schema
-Usage: matching; Gets/updates current matching configuration (http://localhost:8074/admin/v1/server-matching)
-Usage: matching_schema; Gets the matching configuration schema
-Usage: provision [--clean] [file]; Cleans/gets/updates current provision configuration
-                                   (http://localhost:8074/admin/v1/server-provision)
-Usage: provision_schema; Gets the provision configuration schema
-Usage: data [method] [uri] [[-]request number];
-                     Inspects server data events for given filters
-                     (http://localhost:8074/admin/v1/server-data)
-                     Request number may be negative to access by reverse chronological order
-
-            [--global]                        ; Gets current list of global variables
-            [--summary] [max keys]            ; Gets current server data summary to guide further queries
-                                                Displayed keys could be limited (5 by default, -1: no limit)
-            [--conf]                          ; Gets current server data configuration
-            [--discard-all]                   ; Sets server data configuration to discard
-                                                all the events received
-            [--discard-history]               ; Sets server data configuration to keep
-                                                only the last request for events received
-            [--keep-all]                      ; Sets server data configuration to keep
-                                                all the events received
-            [--disable-purge]                 ; Sets server data configuration to skip
-                                                events post-removal when a provision on
-                                                'purge' state is reached
-            [--enable-purge]                  ; Sets server data configuration to process
-                                                events post-removal when a provision on
-                                                'purge' state is reached
-            [--clean] [query filters]         ; Removes server data events and possible
-                                                global variables list. Admits additional
-                                                query filters to narrow the selection.
-
-Usage: data_global_schema; Gets the server data global variables configuration schema
-Usage: json [jq expression, '.' by default]; Beautifies last operation json response content
-                                             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
-                                             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'
-
-Usage: sequence [value (available values by default)]; Extract server sequence document from
-                                                       json retrieved in last data() call
-Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]
-                                              ; Sets h2agent tracing level
-Usage: metrics                                ; Prometheus metrics
-Usage: snapshot                               ; Gets a compilation of current server information
-Usage: example                                ; Basic configuration examples (schema, matching, provision).
-                                                Try: source <(example)
-Usage: help                                   ; This help
-
-More information about management interface: https://github.com/testillano/h2agent#management-interface
+=== General ===
+Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
+                                            (http://localhost:8074/admin/v1/schema).
+Usage: schema_schema [-h|--help]; Gets the schema configuration schema
+                                  (http://localhost:8074/admin/v1/schema/schema).
+Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration
+                                                     (http://localhost:8074/admin/v1/global-variable).
+Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema
+                                           (http://localhost:8074/admin/v1/global-variable/schema).
+Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
+                          [--discard-all]     ; Sets data configuration to discard all the events processed.
+                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
+                          [--keep-all]        ; Sets data configuration to keep all the events processed.
+                          [--disable-purge]   ; Sets data configuration to skip events post-removal when a provision on
+                                                'purge' state is reached.
+                          [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on
+                                                'purge' state is reached.
+=== Traffic server ===
+Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
+                                    (http://localhost:8074/admin/v1/server-matching).
+Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema
+                                           (http://localhost:8074/admin/v1/server-matching/schema).
+Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
+                                                      (http://localhost:8074/admin/v1/server-provision).
+Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
+                                            (http://localhost:8074/admin/v1/server-provision/schema).
+Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
+                   [method] [uri] [[-]request number]; Restricts shown data with given positional filters.
+                                                       Request number may be negative to access by reverse chronological order.
+                   [--summary] [max keys]            ; Gets current server data summary to guide further queries.
+                                                       Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
+                   [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the                                                        selection.
+Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
+                                                                               retrieved in previous server_data() call.
+=== Auxiliary ===
+Usage: json [-h|--help]; Beautifies previous operation json response content.
+            [jq expression, '.' by default]; jq filter over previous content.
+            Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
+            Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
+Usage: trace [-h|--help] <level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>; Sets h2agent tracing level.
+Usage: metrics [-h|--help]; Prometheus metrics.
+Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
+Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)
+Usage: help; This help. Overview: help | grep ^Usage
 ```
 
 ### OAM

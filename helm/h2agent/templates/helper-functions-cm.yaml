@@ -16,7 +16,7 @@ data:
     PNAME="{{ .Values.name }}"
     TRAFFIC_URL="http://localhost:{{ .Values.service.traffic_port }}"
     METRICS_URL="http://localhost:{{ .Values.service.prometheus_port }}/metrics"
-    SERVER_API="{{ .Values.h2agent_cl.server_api_name }}/{{ .Values.h2agent_cl.server_api_version }}"
+    SERVER_API="{{ .Values.h2agent_cl.traffic_server_api_name }}/{{ .Values.h2agent_cl.traffic_server_api_version }}"
     ADMIN_URL="http://localhost:{{ .Values.service.admin_port }}/admin/v1"
     CURL="curl -i --http2-prior-knowledge"
 
