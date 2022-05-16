@@ -1,4 +1,5 @@
 #!/bin/bash
+# Set INTERACT=false on calling shell to test without prompts
 
 #############
 # VARIABLES #
@@ -31,15 +32,16 @@ source ../tools/common.src
 echo
 title "H2agent demo"
 
+# Enable interactiveness:
+INTERACT=${INTERACT:-true}
+[ "${INTERACT}" = "false" ] && INTERACT=
+
 # Initial cleanup
 EXPECTED_STATUS_CODES="200 204"
 test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || { echo -e "\nCheck that the h2agent application is started" ; exit 1 ; }
 
 EXPECTED_STATUS_CODES="200"
 test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data/configuration?discard=false&discardKeyHistory=false" || exit 1
-
-# Enable interactiveness:
-INTERACT=true
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
 EXPECTED_STATUS_CODES=201
