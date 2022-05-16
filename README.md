@@ -1953,7 +1953,7 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 
 ## How it integrates in a service
 
-1. Add the project's helm repository with alias `erthelm`:
+1. Add the project's [helm repository](https://testillano.github.io/helm/) with alias `erthelm`:
 
    ```bash
     helm repo add erthelm https://testillano.github.io/helm
