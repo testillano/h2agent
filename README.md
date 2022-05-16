@@ -1,21 +1,80 @@
-# C++ HTTP/2 Agent Service
+# C++ HTTP/2 Mock Service
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://codedocs.xyz/testillano/h2agent.svg)](https://codedocs.xyz/testillano/h2agent/index.html)
 [![Coverage Status](https://coveralls.io/repos/github/testillano/h2agent/badge.svg?branch=master&kill_cache=1)](https://coveralls.io/github/testillano/h2agent?branch=master)
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
-[![Main project workflow](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
+[![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
-`h2agent` is a network service that enables mocking other network services using HTTP/2 protocol.
+`H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
 
-**Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) *Prezi* presentation** for a complete and useful overview of this component.
+Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) ***Prezi*** presentation for a complete and useful overview of this component.
 
 When developing a network service, one often needs to integrate it with other services. However, integrating full-blown versions of such services in a development setup is not always suitable, for instance when they are either heavyweight or not fully developed.
 
-`h2agent` can be used to replace one of those, which allows development to progress and testing to be conducted in isolation against such a service.
+`H2agent` can be used to replace one (or many) of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
-`h2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
+`H2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
+
+So, `h2agent` could be used as:
+
+* **Server** mock: fully implemented
+* **Client** mock: design ongoing (roadmap planned for 3.x.x).
+
+Check the [releases](https://github.com/testillano/h2agent/releases) to get latest packages.
+
+## How can you use it ?
+
+`H2agent` process may be used natively, as a `docker` container, or as part of `kubernetes` deployment.
+
+The easiest way to build the project is using [containers](https://en.wikipedia.org/wiki/LXC) technology (this project uses `docker`): **to generate all the artifacts**, just type the following:
+
+```bash
+$> ./build.sh --auto
+```
+
+The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally the <u>project executable</u> (`--project`). Then you will have everything available to run the process with three different modes:
+
+* Run <u>project executable</u> natively (standalone):
+
+  ```bash
+  $> build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  ```
+
+  You may play with native helpers functions and examples:
+
+  ```bash
+  $> source tools/helpers.src # type help in any moment after sourcing
+  $> server_example # follow instructions or just source it: source <(server_example)
+  ```
+
+* Run <u>project image</u> with docker:
+
+  ```bash
+  $> docker run --rm -it ghcr.io/testillano/h2agent:latest -h
+  ```
+
+* Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#how-it-is-delivered) section, but in summary, you could do the following:
+
+  ```bash
+  $> # helm dependency update helm/h2agent # no dependencies at the moment
+  $> helm install h2agent-example helm/h2agent --wait
+  $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
+  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h
+  ```
+
+  You may enter the pod and play with helpers functions and examples:
+
+  ```bash
+  $> kubectl exec -it ${pod} -- sh
+  / # source /opt/utils/helpers.src # type help in any moment after sourcing
+  / # server_example # follow instructions or just source it: source <(server_example)
+  ```
+
+
+
+Next sections will describe in detail, how to build [project image](#project-image) and project executable ([using docker](#build-project-with-docker) or [natively](#build-project-natively)).
 
 ## Project image
 
@@ -33,10 +92,6 @@ $ ./build.sh --project-image
 ```
 
 This image is built with `./Dockerfile`.
-
-## Usage
-
-The static-autonomous executable docker image, will be also available through corresponding `helm charts` (normally packaged into releases) which will be described in following [sections](#how-it-is-delivered).
 
 ## Build project with docker
 
@@ -231,6 +286,8 @@ version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b
 ```
 
 ### Benchmarking test
+
+This test is useful to identify possible memory leaks, process crashes or performance degradation introduced with new fixes or features.
 
 Reference:
 
@@ -533,6 +590,12 @@ $ kill $!
 ### Demo
 
 A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
+Just in case you want to test demo procedure health, you can execute in non-interactive mode:
+
+```bash
+$> INTERACT=false demo/run.sh
+$> echo $?
+```
 
 ### Kata
 
@@ -2135,4 +2198,10 @@ $ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 ### Pull request
 
 Rebase to update and then make a `pull request`.
+Some of the basic things to check before submitting would be:
+
+* [Unit test](#unit-test).
+* [Component test](#component-test).
+* [demo](#demo).
+* [benchmarking test](#benchmarking-test).
 
