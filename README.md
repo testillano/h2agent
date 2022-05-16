@@ -22,7 +22,9 @@ So, `h2agent` could be used as:
 * **Server** mock: fully implemented
 * **Client** mock: design ongoing (roadmap planned for 3.x.x).
 
-Check the [releases](https://github.com/testillano/h2agent/releases) to get latest packages.
+Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests.
+
+Check the [releases](https://github.com/testillano/h2agent/releases) to get latest packages, or read the following sections to build all the artifacts needed to start playing:
 
 ## How can you use it ?
 
@@ -49,10 +51,12 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> server_example # follow instructions or just source it: source <(server_example)
   ```
 
+  You could also provide `-h` or `--help` to get **process help**.
+
 * Run <u>project image</u> with docker:
 
   ```bash
-  $> docker run --rm -it ghcr.io/testillano/h2agent:latest -h
+  $> docker run --network=host --rm -it ghcr.io/testillano/h2agent:latest & # you may play native helpers again, on host
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#how-it-is-delivered) section, but in summary, you could do the following:
@@ -64,7 +68,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h
   ```
 
-  You may enter the pod and play with helpers functions and examples:
+  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils`:
 
   ```bash
   $> kubectl exec -it ${pod} -- sh
