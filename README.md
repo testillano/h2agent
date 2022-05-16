@@ -2206,6 +2206,6 @@ Some of the basic things to check before submitting would be:
 
 * [Unit test](#unit-test).
 * [Component test](#component-test).
-* [demo](#demo).
-* [benchmarking test](#benchmarking-test).
+* [Demo](#demo).
+* [Benchmarking test](#benchmarking-test).
 
