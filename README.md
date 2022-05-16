@@ -51,7 +51,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> server_example # follow instructions or just source it: source <(server_example)
   ```
 
-  You could also provide `-h` or `--help` to get **process help**.
+  You could also provide `-h` or `--help` to get **process help**: more information [here](#execution-of-main-agent).
 
 * Run <u>project image</u> with docker:
 
