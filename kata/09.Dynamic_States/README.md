@@ -6,6 +6,6 @@ With this resource we have full control to evolve the next provision to be execu
 
 ## Exercise
 
-Create the `provision.json` file, to manage a `POST` request to `URI` `/evolve` and two possible requests bodies: `{"direction": "up"}` or `{"direction": "down"}`.
+Create the `server-provision.json` file, to manage a `POST` request to `URI` `/evolve` and two possible requests bodies: `{"direction": "up"}` or `{"direction": "down"}`.
 
 That request must be answered with an empty body and a response header `item-number` with a number between 1 and 5 in such a way that `up` direction increases the count monotonically, and `down` direction decreases it. The initial state will have the count 1.

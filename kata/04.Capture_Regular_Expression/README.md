@@ -59,8 +59,8 @@ The main (non-suffixed) variable, will store the global match, which can be used
 
 ## Exercise
 
-Complete the `provision.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/number/is/even/<even number>` and a status code `400` for a `GET` with the same `URI` carrying an odd number: `/number/is/even/<odd number>`.
+Complete the `server-provision.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/number/is/even/<even number>` and a status code `400` for a `GET` with the same `URI` carrying an odd number: `/number/is/even/<odd number>`.
 
-The `matching.json` file is already provided.
+The `server-matching.json` file is already provided.
 
 Hint: the `ConditionVar` transformation filter is used to condition the transfer from the source to the target depending on the provided variable boolean value. Take a look to the official documentation [here](https://github.com/testillano/h2agent#post-adminv1server-provision).

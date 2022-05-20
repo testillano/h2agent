@@ -53,7 +53,7 @@ Consider a `POST` request to `URI` `/process/numbers` with this `json` body cont
 
 and also carrying a header `app-version` with the server business logic semantic version (string format).
 
-You must **complete** the `provision.json` file, in order to mirror the request body *as is* towards the response body, together with an additional `json` node called `processed` holding two child nodes within: `numbers` will be an array of the received integer values, and `appVersion` will store the value of the request header commented above.
+You must **complete** the `server-provision.json` file, in order to mirror the request body *as is* towards the response body, together with an additional `json` node called `processed` holding two child nodes within: `numbers` will be an array of the received integer values, and `appVersion` will store the value of the request header commented above.
 
 So, the response body should be something like:
 

@@ -39,8 +39,8 @@ This does not mean that you won't have access to query parameters within provisi
 
 ## Exercise
 
-Complete the `matching.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/one/uri/path?name=Hayek&city=Friburgo`.
+Complete the `server-matching.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/one/uri/path?name=Hayek&city=Friburgo`.
 
-It is not allowed to modify the `provision.json` file.
+It is not allowed to modify the `server-provision.json` file.
 
 Note that the `h2agent` answers with status code 501 when a provision is not found for the incoming reception.

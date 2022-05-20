@@ -6,7 +6,7 @@
 cd $(dirname $0)
 
 title "$(dirname $0)" "${COLOR_magenta}"
-cleanup_matching_provision "s"
+cleanup_server_matching_server_provision "s"
 
 QUOTE=
 for part in 1 2 3

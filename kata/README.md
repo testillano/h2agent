@@ -4,7 +4,7 @@
 
 ### Working in training container
 
-If your are working in the training container (check the training section in the main project [README.md](../README.md) file), there is no need to build the project neither install requirements commented below, just execute the process in background and run the **kata** stuff:
+If your are working in the training container (check main project documentation [training](../README.md#working-with-docker) subsection), there is no need to build the project neither install requirements commented below, just start the training container and then execute the process in background to run the **kata** stuff:
 
 ```bash
 bash-5.1# ls -lrt
@@ -18,7 +18,7 @@ bash-5.1# ./h2agent --verbose &
 
 ### Working natively: requirements
 
-This demo requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
+This kata requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
 
 ```bash
 $ sudo apt-get install curl
@@ -62,10 +62,10 @@ Exercises documentation links:
 
 ## How it works
 
-The student must complete each test directory with the corresponding missing stuff: `matching.json` or `provision.json` are normally required. The testing procedure is always the same:
+The student must complete each test directory with the corresponding missing stuff: `server-matching.json` or `server-provision.json` are normally required. The testing procedure is always the same:
 
-1. The agent is configured with `matching.json` to set the matching algorithm.
-2. The agent is configured with `provision.json` to set its reaction behavior.
+1. The agent is configured with `server-matching.json` to set the server matching algorithm.
+2. The agent is configured with `server-provision.json` to set its server reaction behavior.
 2. An HTTP/2 request (provided by the problem) is sent to the agent.
 3. The answer received from the agent is validated to check if the solution is correct.
 
@@ -80,7 +80,5 @@ Remember that reading the whole project documentation carefully could help you t
 Anyway, enable debugging traces to the executable if you are completely lost (just add `-l Debug`), but take into account that those traces could be useful or not as they are not intended to solve this kind of exercises.
 
 Remember to source `./tools/helpers.src` which is a very good set of functions to better troubleshoot.
-
-If you manage to do real nonsenses, it is possible that you cause a crash of the application, in which case, don't hesitate to report it [here](https://github.com/testillano/h2agent/issues/new?assignees=&labels=&template=bug_report.md&title=Crash).
 
 Thank you and enjoy !
