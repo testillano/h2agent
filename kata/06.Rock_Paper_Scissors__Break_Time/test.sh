@@ -36,7 +36,7 @@ result() {
 cd $(dirname $0)
 
 title "$(dirname $0)" "${COLOR_magenta}"
-cleanup_matching_provision
+cleanup_server_matching_server_provision
 
 if [ -n "${INTERACT}" ] # user playing
 then

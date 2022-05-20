@@ -39,9 +39,9 @@ So this acts like a `GET` is received and its state evolves following a foreign 
 
 ## Exercise
 
-Copy `matching.json` and `provision.json` files from  exercise "**08.Server_Data_History**".
+Copy `server-matching.json` and `server-provision.json` files from  exercise "**08.Server_Data_History**".
 
-Add the necessary provisions to `provision.json` to simulate the deletion of a random item.
+Add the necessary provisions to `server-provision.json` to simulate the deletion of a random item.
 
 The evaluation process will be:
 

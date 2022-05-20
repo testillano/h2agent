@@ -58,4 +58,4 @@ Normally, in load testing, we should never repeat a cycle reusing past `URIs`. T
 
 ## Exercise
 
-Fix the `provision.json` file, in order to reassemble a coherent quote built from three `GET` requests on `rothbard/says` `URI`.
+Fix the `server-provision.json` file, in order to reassemble a coherent quote built from three `GET` requests on `rothbard/says` `URI`.

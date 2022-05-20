@@ -22,6 +22,6 @@ This is because the format `$1` represents the first capture group which discard
 
 ## Exercise
 
-Fix the `provision.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/ctrl/v2/id-555112233/ts-5555555555`.
+Fix the `server-provision.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/ctrl/v2/id-555112233/ts-5555555555`.
 
-It is not allowed to modify the `matching.json` file.
+It is not allowed to modify the `server-matching.json` file.
