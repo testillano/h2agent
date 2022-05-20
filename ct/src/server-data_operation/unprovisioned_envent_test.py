@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_DATA_URI, assertUnprovisionedServerDataItemRequestsIndex
+from conftest import ADMIN_SERVER_DATA_URI, assertUnprovisionedServerDataItemRequestsIndex
 
 
 
@@ -40,6 +40,6 @@ def test_001_i_want_to_check_internal_data_after_unprovisioned_event(h2ac_admin,
   #  }
   #]
   # Check server data
-  response = h2ac_admin.get(ADMIN_DATA_URI)
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   assertUnprovisionedServerDataItemRequestsIndex(response["body"][0], "GET", "/app/v1/foo/bar/1", 0) # no body in our test
 

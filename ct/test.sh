@@ -145,8 +145,8 @@ else
   kubectl create namespace "${NAMESPACE}" &>/dev/null
   # shellcheck disable=SC2086
   helm install "${CHART_NAME}" "${HELM_CHART}" -n "${NAMESPACE}" --wait \
-     --set h2agent.h2agent_cl.server_api_name="app" \
-     --set h2agent.h2agent_cl.server_api_version="v1" \
+     --set h2agent.h2agent_cl.traffic_server_api_name="app" \
+     --set h2agent.h2agent_cl.traffic_server_api_version="v1" \
      --set test.image.tag="${TAG}" \
      --set h2agent.image.tag="${TAG}" \
      ${XTRA_HELM_SETS} || { echo "Error !"; exit 1 ; }

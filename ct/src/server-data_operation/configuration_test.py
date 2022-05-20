@@ -1,57 +1,57 @@
 import pytest
 import json
-from conftest import BASIC_FOO_BAR_PROVISION_TEMPLATE, string2dict, ADMIN_DATA_URI
+from conftest import BASIC_FOO_BAR_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_DATA_URI
 
 
 @pytest.mark.admin
-def test_001_i_want_to_set_discard_true_and_requests_history_discard_true(h2ac_admin):
+def test_001_i_want_to_set_discard_true_and_key_history_discard_true(h2ac_admin):
 
   # Configure
-  response = h2ac_admin.put(ADMIN_DATA_URI + "/configuration?discard=true&discardRequestsHistory=true")
+  response = h2ac_admin.put(ADMIN_SERVER_DATA_URI + "/configuration?discard=true&discardKeyHistory=true")
   assert response["status"] == 200
 
   # Check configuration
-  response = h2ac_admin.get(ADMIN_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": "false", "storeEventsRequestsHistory": "false", "purgeExecution": "true" }
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
+  responseBodyRef = { "storeEvents": "false", "storeEventsKeyHistory": "false", "purgeExecution": "true" }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.admin
-def test_002_i_want_to_set_discard_true_and_requests_history_discard_false(h2ac_admin):
+def test_002_i_want_to_set_discard_true_and_key_history_discard_false(h2ac_admin):
 
   # Configure
-  response = h2ac_admin.put(ADMIN_DATA_URI + "/configuration?discard=true&discardRequestsHistory=false")
+  response = h2ac_admin.put(ADMIN_SERVER_DATA_URI + "/configuration?discard=true&discardKeyHistory=false")
   assert response["status"] == 400
 
   # Check configuration (must be the configuration from previous test, as this one failed):
-  response = h2ac_admin.get(ADMIN_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": "false", "storeEventsRequestsHistory": "false", "purgeExecution": "true" }
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
+  responseBodyRef = { "storeEvents": "false", "storeEventsKeyHistory": "false", "purgeExecution": "true" }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.admin
-def test_003_i_want_to_set_discard_false_and_requests_history_discard_true(h2ac_admin):
+def test_003_i_want_to_set_discard_false_and_key_history_discard_true(h2ac_admin):
 
   # Configure
-  response = h2ac_admin.put(ADMIN_DATA_URI + "/configuration?discard=false&discardRequestsHistory=true")
+  response = h2ac_admin.put(ADMIN_SERVER_DATA_URI + "/configuration?discard=false&discardKeyHistory=true")
   assert response["status"] == 200
 
   # Check configuration
-  response = h2ac_admin.get(ADMIN_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": "true", "storeEventsRequestsHistory": "false", "purgeExecution": "true" }
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
+  responseBodyRef = { "storeEvents": "true", "storeEventsKeyHistory": "false", "purgeExecution": "true" }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.admin
-def test_004_i_want_to_set_discard_false_and_requests_history_discard_false(h2ac_admin):
+def test_004_i_want_to_set_discard_false_and_key_history_discard_false(h2ac_admin):
 
   # Configure
-  response = h2ac_admin.put(ADMIN_DATA_URI + "/configuration?discard=false&discardRequestsHistory=false")
+  response = h2ac_admin.put(ADMIN_SERVER_DATA_URI + "/configuration?discard=false&discardKeyHistory=false")
   assert response["status"] == 200
 
   # Check configuration
-  response = h2ac_admin.get(ADMIN_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": "true", "storeEventsRequestsHistory": "true", "purgeExecution": "true" }
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
+  responseBodyRef = { "storeEvents": "true", "storeEventsKeyHistory": "true", "purgeExecution": "true" }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -59,12 +59,12 @@ def test_004_i_want_to_set_discard_false_and_requests_history_discard_false(h2ac
 def test_005_i_want_to_set_disable_purge_true(h2ac_admin):
 
   # Configure
-  response = h2ac_admin.put(ADMIN_DATA_URI + "/configuration?disablePurge=true")
+  response = h2ac_admin.put(ADMIN_SERVER_DATA_URI + "/configuration?disablePurge=true")
   assert response["status"] == 200
 
   # Check configuration
-  response = h2ac_admin.get(ADMIN_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": "true", "storeEventsRequestsHistory": "true", "purgeExecution": "false" }
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
+  responseBodyRef = { "storeEvents": "true", "storeEventsKeyHistory": "true", "purgeExecution": "false" }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -73,11 +73,11 @@ def test_005_i_want_to_set_disable_purge_true(h2ac_admin):
 def test_006_i_want_to_set_disable_purge_false(h2ac_admin):
 
   # Configure
-  response = h2ac_admin.put(ADMIN_DATA_URI + "/configuration?disablePurge=false")
+  response = h2ac_admin.put(ADMIN_SERVER_DATA_URI + "/configuration?disablePurge=false")
   assert response["status"] == 200
 
   # Check configuration
-  response = h2ac_admin.get(ADMIN_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": "true", "storeEventsRequestsHistory": "true", "purgeExecution": "true" }
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
+  responseBodyRef = { "storeEvents": "true", "storeEventsKeyHistory": "true", "purgeExecution": "true" }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 

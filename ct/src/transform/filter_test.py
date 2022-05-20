@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_PROVISION_URI
+from conftest import ADMIN_SERVER_PROVISION_URI
 
 
 @pytest.mark.transform
@@ -12,10 +12,10 @@ def test_000_cleanup(admin_cleanup):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_001_append(admin_provision, h2ac_traffic):
+def test_001_append(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.Append.provision.json")
+  admin_server_provision("filter_test.Append.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -25,10 +25,10 @@ def test_001_append(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_002_prepend(admin_provision, h2ac_traffic):
+def test_002_prepend(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.Prepend.provision.json")
+  admin_server_provision("filter_test.Prepend.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -38,10 +38,10 @@ def test_002_prepend(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_003_appendVar(admin_provision, h2ac_traffic):
+def test_003_appendVar(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.AppendVar.provision.json")
+  admin_server_provision("filter_test.AppendVar.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -51,10 +51,10 @@ def test_003_appendVar(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_004_prependVar(admin_provision, h2ac_traffic):
+def test_004_prependVar(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.PrependVar.provision.json")
+  admin_server_provision("filter_test.PrependVar.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -64,10 +64,10 @@ def test_004_prependVar(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_005_multiply(admin_provision, h2ac_traffic):
+def test_005_multiply(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.Multiply.provision.json")
+  admin_server_provision("filter_test.Multiply.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -78,10 +78,10 @@ def test_005_multiply(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_006_sum(admin_provision, h2ac_traffic):
+def test_006_sum(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.Sum.provision.json")
+  admin_server_provision("filter_test.Sum.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -92,10 +92,10 @@ def test_006_sum(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_007_regexcapture(admin_provision, h2ac_traffic):
+def test_007_regexcapture(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.RegexCapture.provision.json")
+  admin_server_provision("filter_test.RegexCapture.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -105,10 +105,10 @@ def test_007_regexcapture(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_008_regexcapturemultiple(admin_provision, h2ac_traffic):
+def test_008_regexcapturemultiple(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.RegexCapture-Multiple.provision.json")
+  admin_server_provision("filter_test.RegexCapture-Multiple.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -118,10 +118,10 @@ def test_008_regexcapturemultiple(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_009_regexreplace(admin_provision, h2ac_traffic):
+def test_009_regexreplace(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.RegexReplace.provision.json")
+  admin_server_provision("filter_test.RegexReplace.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -130,10 +130,10 @@ def test_009_regexreplace(admin_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_010_conditionVariable(admin_provision, h2ac_traffic):
+def test_010_conditionVariable(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_provision("filter_test.ConditionVar.provision.json")
+  admin_server_provision("filter_test.ConditionVar.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")

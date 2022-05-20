@@ -46,11 +46,11 @@ SOFTWARE.
 #include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyAdminHttp2Server.hpp>
-#include <MyHttp2Server.hpp>
+#include <MyTrafficHttp2Server.hpp>
 
 #include <AdminData.hpp>
-#include <MockRequestData.hpp>
-#include <GlobalVariablesData.hpp>
+#include <MockServerRequestData.hpp>
+#include <GlobalVariable.hpp>
 #include <functions.hpp>
 
 
@@ -179,16 +179,16 @@ bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObjec
 {
     log = "server-matching operation; ";
 
-    h2agent::model::AdminMatchingData::LoadResult loadResult = admin_data_->loadMatching(configurationObject);
-    bool result = (loadResult == h2agent::model::AdminMatchingData::Success);
+    h2agent::model::AdminServerMatchingData::LoadResult loadResult = admin_data_->loadMatching(configurationObject);
+    bool result = (loadResult == h2agent::model::AdminServerMatchingData::Success);
 
-    if (loadResult == h2agent::model::AdminMatchingData::Success) {
+    if (loadResult == h2agent::model::AdminServerMatchingData::Success) {
         log += "valid schema and matching data received";
     }
-    else if (loadResult == h2agent::model::AdminMatchingData::BadSchema) {
+    else if (loadResult == h2agent::model::AdminServerMatchingData::BadSchema) {
         log += "invalid schema";
     }
-    else if (loadResult == h2agent::model::AdminMatchingData::BadContent) {
+    else if (loadResult == h2agent::model::AdminServerMatchingData::BadContent) {
         log += "invalid matching data received";
     }
 
@@ -199,29 +199,29 @@ bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObje
 {
     log = "server-provision operation; ";
 
-    h2agent::model::AdminProvisionData::LoadResult loadResult = admin_data_->loadProvision(configurationObject);
-    bool result = (loadResult == h2agent::model::AdminProvisionData::Success);
+    h2agent::model::AdminServerProvisionData::LoadResult loadResult = admin_data_->loadProvision(configurationObject);
+    bool result = (loadResult == h2agent::model::AdminServerProvisionData::Success);
 
     bool isArray = configurationObject.is_array();
-    if (loadResult == h2agent::model::AdminProvisionData::Success) {
+    if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
         log += (isArray ? "valid schemas and provisions data received":"valid schema and provision data received");
     }
-    else if (loadResult == h2agent::model::AdminProvisionData::BadSchema) {
+    else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
     }
-    else if (loadResult == h2agent::model::AdminProvisionData::BadContent) {
+    else if (loadResult == h2agent::model::AdminServerProvisionData::BadContent) {
         log += (isArray ? "detected one invalid provision data received":"invalid provision data received");
     }
 
     return result;
 }
 
-bool MyAdminHttp2Server::serverDataGlobal(const nlohmann::json &configurationObject, std::string& log) const
+bool MyAdminHttp2Server::globalVariable(const nlohmann::json &configurationObject, std::string& log) const
 {
-    log = "server-data/global operation; ";
+    log = "global-variable operation; ";
 
-    bool result = getHttp2Server()->getGlobalVariablesData()->loadJson(configurationObject);
-    log += (result ? "valid schema and global variables data received":"invalid schema");
+    bool result = getHttp2Server()->getGlobalVariable()->loadJson(configurationObject);
+    log += (result ? "valid schema and global variables received":"invalid schema");
 
     return result;
 }
@@ -272,8 +272,8 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             jsonResponse_result = schema(requestJson, jsonResponse_response);
             statusCode = jsonResponse_result ? 201:400;
         }
-        else if (pathSuffix == "server-data/global") {
-            jsonResponse_result = serverDataGlobal(requestJson, jsonResponse_response);
+        else if (pathSuffix == "global-variable") {
+            jsonResponse_result = globalVariable(requestJson, jsonResponse_response);
             statusCode = jsonResponse_result ? 201:400;
         }
         else {
@@ -325,16 +325,16 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) maxKeys = it->second;
         }
 
-        responseBody = getHttp2Server()->getMockRequestData()->summary(maxKeys);
+        responseBody = getHttp2Server()->getMockServerRequestData()->summary(maxKeys);
         statusCode = 200;
     }
-    else if (pathSuffix == "server-data/global") {
-        responseBody = getHttp2Server()->getGlobalVariablesData()->asJsonString();
+    else if (pathSuffix == "global-variable") {
+        responseBody = getHttp2Server()->getGlobalVariable()->asJsonString();
         statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
-    else if (pathSuffix == "server-data/global/schema") {
+    else if (pathSuffix == "global-variable/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getHttp2Server()->getGlobalVariablesData()->getSchema().getJson();
+        nlohmann::json jsonSchema = getHttp2Server()->getGlobalVariable()->getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = 200;
@@ -344,7 +344,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = 200;
     }
     else if (pathSuffix == "server-provision") {
-        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminMatchingData::PriorityMatchingRegex);
+        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::PriorityMatchingRegex);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
@@ -367,7 +367,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         }
 
         bool validQuery;
-        responseBody = getHttp2Server()->getMockRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+        responseBody = getHttp2Server()->getMockServerRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/configuration") {
@@ -392,7 +392,6 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     }
     else if (pathSuffix == "server-data") {
         bool serverDataDeleted = false;
-        bool serverDataGlobalVariablesDeleted = false;
         std::string requestMethod = "";
         std::string requestUri = "";
         std::string requestNumber = "";
@@ -405,13 +404,13 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             it = qmap.find("requestNumber");
             if (it != qmap.end()) requestNumber = it->second;
         }
-        else {
-            serverDataGlobalVariablesDeleted = getHttp2Server()->getGlobalVariablesData()->clear();
-        }
 
-        bool success = getHttp2Server()->getMockRequestData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
+        bool success = getHttp2Server()->getMockServerRequestData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
 
-        statusCode = success ? ((serverDataDeleted || serverDataGlobalVariablesDeleted) ? 200:204):400;
+        statusCode = (success ? (serverDataDeleted ? 200:204):400);
+    }
+    else if (pathSuffix == "global-variable") {
+        statusCode = (getHttp2Server()->getGlobalVariable()->clear() ? 200:204);
     }
     else {
         statusCode = 400;
@@ -449,41 +448,41 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     else if (pathSuffix == "server-data/configuration") {
 
         std::string discard{};
-        std::string discardRequestsHistory{};
+        std::string discardKeyHistory{};
         std::string disablePurge{};
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
             auto it = qmap.find("discard");
             if (it != qmap.end()) discard = it->second;
-            it = qmap.find("discardRequestsHistory");
-            if (it != qmap.end()) discardRequestsHistory = it->second;
+            it = qmap.find("discardKeyHistory");
+            if (it != qmap.end()) discardKeyHistory = it->second;
             it = qmap.find("disablePurge");
             if (it != qmap.end()) disablePurge = it->second;
         }
 
         bool b_discard = (discard == "true");
-        bool b_discardRequestsHistory = (discardRequestsHistory == "true");
+        bool b_discardKeyHistory = (discardKeyHistory == "true");
         bool b_disablePurge = (disablePurge == "true");
 
         success = true;
-        if (!discard.empty() && !discardRequestsHistory.empty())
-            success = !(b_discard && !b_discardRequestsHistory); // it has no sense to try to keep history if whole server data is discarded
+        if (!discard.empty() && !discardKeyHistory.empty())
+            success = !(b_discard && !b_discardKeyHistory); // it has no sense to try to keep history if whole data is discarded
 
         if (success) {
             if (!discard.empty()) {
-                getHttp2Server()->discardServerData(b_discard);
-                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard server data: %s", b_discard ? "true":"false"), ERT_FILE_LOCATION));
+                getHttp2Server()->discardData(b_discard);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard data: %s", b_discard ? "true":"false"), ERT_FILE_LOCATION));
             }
-            if (!discardRequestsHistory.empty()) {
-                getHttp2Server()->discardServerDataRequestsHistory(b_discardRequestsHistory);
-                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard server data requests history: %s", b_discardRequestsHistory ? "true":"false"), ERT_FILE_LOCATION));
+            if (!discardKeyHistory.empty()) {
+                getHttp2Server()->discardDataKeyHistory(b_discardKeyHistory);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard data key history: %s", b_discardKeyHistory ? "true":"false"), ERT_FILE_LOCATION));
             }
             if (!disablePurge.empty()) {
                 getHttp2Server()->disablePurge(b_disablePurge);
                 LOGWARNING(
                     ert::tracing::Logger::warning(ert::tracing::Logger::asString("Disable purge execution: %s", b_disablePurge ? "true":"false"), ERT_FILE_LOCATION);
-                    if (!b_disablePurge && b_discardRequestsHistory)
+                    if (!b_disablePurge && b_discardKeyHistory)
                     ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution will be limited as history is discarded"), ERT_FILE_LOCATION);
                     if (!b_disablePurge && b_discard)
                         ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution has no sense as no events will be stored"), ERT_FILE_LOCATION);
@@ -491,7 +490,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             }
         }
         else {
-            ert::tracing::Logger::error("Cannot keep requests history if whole server data is discarded", ERT_FILE_LOCATION);
+            ert::tracing::Logger::error("Cannot keep requests history if data storage is discarded", ERT_FILE_LOCATION);
         }
     }
 

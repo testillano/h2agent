@@ -7,6 +7,7 @@ PNAME=${PNAME:-h2agent}
 TRAFFIC_URL=${TRAFFIC_URL:-"http://localhost:8000"}
 METRICS_URL=${METRICS_URL:-"http://localhost:8080/metrics"}
 ADMIN_URL=${ADMIN_URL:-"http://localhost:8074/admin/v1"}
+[ "${SERVER_API}" = "/" ] && SERVER_API=
 CURL="curl -i --http2-prior-knowledge"
 
 #############
@@ -22,7 +23,7 @@ do_curl() {
 }
 
 schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [--clean] [file]; Cleans/gets/updates current schema configuration (${ADMIN_URL}/schema)" && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration (${ADMIN_URL}/schema)." && return 0
   [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/schema && return 0
   if [ "$1" = "--clean" ]
   then
@@ -33,23 +34,70 @@ schema() {
 }
 
 schema_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema_schema; Gets the schema configuration schema" && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema_schema [-h|--help]; Gets the schema configuration schema (${ADMIN_URL}/schema/schema)." && return 0
   do_curl "${ADMIN_URL}/schema/schema"
 }
 
-matching() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching; Gets/updates current matching configuration (${ADMIN_URL}/server-matching)" && return 0
+global_variable() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
+  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/global-variable && return 0
+  if [ "$1" = "--clean" ]
+  then
+    do_curl -XDELETE ${ADMIN_URL}/global-variable
+  else
+    do_curl -XPOST -d@${1} -H 'Content-Type: application/json' ${ADMIN_URL}/global-variable
+  fi
+}
+
+global_variable_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema (${ADMIN_URL}/global-variable/schema)." && return 0
+  do_curl "${ADMIN_URL}/global-variable/schema"
+}
+
+data_configuration() {
+
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
+    echo "                          [--discard-all]     ; Sets data configuration to discard all the events processed."
+    echo "                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key."
+    echo "                          [--keep-all]        ; Sets data configuration to keep all the events processed."
+    echo "                          [--disable-purge]   ; Sets data configuration to skip events post-removal when a provision on 'purge' state is reached."
+    echo "                          [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on 'purge' state is reached."
+    return 0
+  elif [ "$1" = "--discard-all" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardKeyHistory=true"
+  elif [ "$1" = "--discard-history" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardKeyHistory=true"
+  elif [ "$1" = "--keep-all" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardKeyHistory=false"
+  elif [ "$1" = "--disable-purge" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true"
+  elif [ "$1" = "--enable-purge" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false"
+  else
+    do_curl ${ADMIN_URL}/server-data/configuration
+  fi
+}
+
+server_matching() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help]; Gets/updates current server matching configuration (${ADMIN_URL}/server-matching)." && return 0
   [ -z "$1" ] && do_curl ${ADMIN_URL}/server-matching && return 0
   do_curl -XPOST -d@${1} -H 'Content-Type: application/json' ${ADMIN_URL}/server-matching
 }
 
-matching_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: matching_schema; Gets the matching configuration schema" && return 0
+server_matching_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema (${ADMIN_URL}/server-matching/schema)." && return 0
   do_curl "${ADMIN_URL}/server-matching/schema"
 }
 
-provision() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision [--clean] [file]; Cleans/gets/updates current provision configuration (${ADMIN_URL}/server-provision)" && return 0
+server_provision() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration (${ADMIN_URL}/server-provision)." && return 0
   [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/server-provision && return 0
   if [ "$1" = "--clean" ]
   then
@@ -59,33 +107,22 @@ provision() {
   fi
 }
 
-provision_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: provision_schema; Gets the provision configuration schema" && return 0
+server_provision_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema (${ADMIN_URL}/server-provision/schema)." && return 0
   do_curl "${ADMIN_URL}/server-provision/schema"
 }
 
-data() {
+server_data() {
   local curl_method=
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: data [method] [uri] [[-]request number]; Inspects server data events for the given filters (${ADMIN_URL}/server-data)"
-    echo "                                                Request number may be negative to access by reverse chronological order"
-    echo "            [--global]                        ; Gets current list of global variables"
-    echo "            [--summary] [max keys]            ; Gets current server data summary to guide further queries"
-    echo "                                                Displayed keys could be limited (5 by default, -1: no limit)"
-    echo "            [--conf]                          ; Gets current server data configuration"
-    echo "            [--discard-all]                   ; Sets server data configuration to discard all the events received"
-    echo "            [--discard-history]               ; Sets server data configuration to keep only the last request for events received"
-    echo "            [--keep-all]                      ; Sets server data configuration to keep all the events received"
-    echo "            [--disable-purge]                 ; Sets server data configuration to skip events post-removal when a provision on 'purge' state is reached"
-    echo "            [--enable-purge]                  ; Sets server data configuration to process events post-removal when a provision on 'purge' state is reached"
-    echo "            [--clean] [query filters]         ; Removes server data events and possible global variables list. Admits additional query filters to narrow the selection."
-    echo
-    return 0
-  elif [ "$1" = "--global" ]
-  then
-    do_curl ${ADMIN_URL}/server-data/global
+    echo "Usage: server_data [-h|--help]; Inspects server data events (${ADMIN_URL}/server-data)."
+    echo "                   [method] [uri] [[-]request number]; Restricts shown data with given positional filters."
+    echo "                                                       Request number may be negative to access by reverse chronological order."
+    echo "                   [--summary] [max keys]            ; Gets current server data summary to guide further queries."
+    echo "                                                       Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
+    echo "                   [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -94,30 +131,6 @@ data() {
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=
     do_curl "${ADMIN_URL}/server-data/summary${queryParams}"
-    return 0
-  elif [ "$1" = "--conf" ]
-  then
-    do_curl ${ADMIN_URL}/server-data/configuration
-    return 0
-  elif [ "$1" = "--discard-all" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardRequestsHistory=true"
-    return 0
-  elif [ "$1" = "--discard-history" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=true"
-    return 0
-  elif [ "$1" = "--keep-all" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardRequestsHistory=false"
-    return 0
-  elif [ "$1" = "--disable-purge" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true"
-    return 0
-  elif [ "$1" = "--enable-purge" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false"
     return 0
   elif [ "$1" = "--clean" ]
   then
@@ -140,7 +153,7 @@ data() {
   then
     echo
     echo "Take care about storage size when querying without filters."
-    echo "You may want to check the summary before: data --summary"
+    echo "You may want to check the summary before: server_data --summary"
     echo
     echo "Press ENTER to continue, CTRL-C to abort ..."
     read dummy
@@ -155,44 +168,46 @@ data() {
   fi
 }
 
-data_global_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: data_global_schema; Gets the server data global variables configuration schema" && return 0
-  do_curl "${ADMIN_URL}/server-data/global/schema"
+server_data_sequence() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
+  [ -z "$1" ] && json ".[].requests[].serverSequence" | sort -n && return 0
+  json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
 }
 
 json() {
   local jq_expr=${1:-.}
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: json [jq expression, '.' by default]; Beautifies last operation json response content"
-    echo "                                             Example filter: schema && json '.[] | select(.id==\"myRequestsSchema\")'"
-    echo "                                             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'"
-    echo
+    echo "Usage: json [-h|--help]; Beautifies previous operation json response content."
+    echo "            [jq expression, '.' by default]; jq filter over previous content."
+    echo "            Example filter: schema && json '.[] | select(.id==\"myRequestsSchema\")'"
+    echo "            Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'."
     return 0
   fi
   tail -1 /tmp/curl.out | jq "${jq_expr}"
 }
 
-sequence() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: sequence [value (available values by default)]; Extract server sequence document from json retrieved in last data() call" && return 0
-  [ -z "$1" ] && json ".[].requests[].serverSequence" | sort -n && return 0
-  json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
-}
-
 trace() {
-  local level=${1:-Debug}
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: trace [level: [Debug]|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Sets h2agent tracing level" && return 0
-  echo "Level selected: ${level}"
+  local level=$1
+  if [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ]
+  then
+    echo "Usage: trace [-h|--help] <level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>; Sets h2agent tracing level."
+    return 0
+  fi
+  echo -n "Level selected: ${level}"
+  local recommended_level="Warning"
+  [ "$1" != "${recommended_level}" ] && echo -n " (recommended '${recommended_level}' for normal operation)."
+  echo
   ${CURL} -XPUT ${ADMIN_URL}/logging?level=${level}
 }
 
 metrics() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics; Prometheus metrics" && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics [-h|--help]; Prometheus metrics." && return 0
   curl ${METRICS_URL}
 }
 
 snapshot() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot; Gets a compilation of current server information" && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration." && return 0
 
   local dir=/tmp/snapshots/$(date +'%y%m%d.%H%M%S')
   local last=/tmp/snapshots/last
@@ -200,16 +215,20 @@ snapshot() {
   rm -f ${last} && ln -s $(basename ${dir}) ${last}
 
   schema && json > ${dir}/schema.json
-  matching && json > ${dir}/matching.json
-  provision && json > ${dir}/provision.json
-  data --conf && json > ${dir}/data-configuration.json
-  data --summary -1 && json > ${dir}/data-summary.json
-  echo | data && json > ${dir}/data.json
-  data --global && json > ${dir}/data-global-variables.json
-  mkdir ${dir}/data-sequences
-  (jq '.[].requests[].serverSequence' ${dir}/data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/data-sequences.txt
-  for s in $(cat ${dir}/data-sequences.txt); do
-    jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/data.json > ${dir}/data-sequences/${s}.json
+  schema_schema && json > ${dir}/schema_schema.json
+  global_variable && json > ${dir}/global-variable.json
+  global_variable_schema && json > ${dir}/global-variable_schema.json
+  server_matching && json > ${dir}/server-matching.json
+  server_matching_schema && json > ${dir}/server-matching_schema.json
+  server_provision && json > ${dir}/server-provision.json
+  server_provision_schema && json > ${dir}/server-provision_schema.json
+  server_data --conf && json > ${dir}/server-data-configuration.json
+  server_data --summary -1 && json > ${dir}/server-data-summary.json
+  echo | server_data && json > ${dir}/server-data.json
+  mkdir ${dir}/server-data-sequences
+  (jq '.[].requests[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
+  for s in $(cat ${dir}/server-data-sequences.txt); do
+    jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
   done
 
   echo
@@ -217,13 +236,13 @@ snapshot() {
   ls -l ${last}
 }
 
-example() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: example; Basic configuration examples (schema, matching, provision). Try: source <(example)" && return 0
+server_example() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)" && return 0
 
-  # If h2agent is up, we will suggest as example the same matching configuration detected, to avoid breaking its behaviour
+  # If h2agent is up, we will suggest as example the same server matching configuration detected, to avoid breaking its behaviour
   #  (provisions and schemas are probably not harmful because of their dummy names):
-  local foo_matching=$(curl --http2-prior-knowledge http://localhost:8074/admin/v1/server-matching 2>/dev/null | jq '.' -c)
-  [ -z "${foo_matching}" ] && foo_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
+  local foo_server_matching=$(curl --http2-prior-knowledge http://localhost:8074/admin/v1/server-matching 2>/dev/null | jq '.' -c)
+  [ -z "${foo_server_matching}" ] && foo_server_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
 
   local server_api_path=
   [ -n "${SERVER_API}" ] && server_api_path="/${SERVER_API}"
@@ -245,12 +264,16 @@ example() {
   jq --arg id "dummySchemaId" '. | { id: \$id, schema: . }' /tmp/dummySchema.json > /tmp/h2agent_dummySchema.json
   schema /tmp/h2agent_dummySchema.json # configuration
 
-  # Configure classification algorithm:
-  echo '${foo_matching}' > /tmp/dummyMatching.json
-  matching /tmp/dummyMatching.json # configuration
+  ###############
+  # SERVER MOCK #
+  ###############
 
-  # Configure basic provision to answer the same request received:
-  cat << ! > /tmp/dummyProvision.json
+  # Configure classification algorithm:
+  echo '${foo_server_matching}' > /tmp/dummyServerMatching.json
+  server_matching /tmp/dummyServerMatching.json # configuration
+
+  # Configure basic server provision to answer the same request received:
+  cat << ! > /tmp/dummyServerProvision.json
   {
     "requestMethod": "POST",
     "requestUri": "${server_api_path}/my/dummy/path",
@@ -266,10 +289,10 @@ example() {
     ]
   }
 !
-  provision /tmp/dummyProvision.json # configuration
+  server_provision /tmp/dummyServerProvision.json # configuration
 
   # Check configuration
-  schema && matching && provision
+  schema && server_matching && server_provision
 
   # Test it !
   \${CURL} -d'{"foo":1, "bar":2}' \${TRAFFIC_URL}${server_api_path}/my/dummy/path
@@ -278,29 +301,40 @@ EOF
 }
 
 help() {
-  echo -e "\n===== ${PNAME} helpers ====="
-  echo -e "\nSourced variables:\n"
+  echo
+  echo "===== ${PNAME} operation helpers ====="
+  echo "Shortcut helpers (sourced variables and functions)"
+  echo "to ease agent operation over management interface:"
+  echo "   https://github.com/testillano/h2agent#management-interface"
+  echo
+  echo "=== Variables ==="
   echo "TRAFFIC_URL=${TRAFFIC_URL}"
   [ -n "${SERVER_API}" ] && echo "SERVER_API=${SERVER_API}"
   echo "ADMIN_URL=${ADMIN_URL}"
   echo "CURL=\"${CURL}\""
-  echo -e "\nSourced functions:\n"
+  echo
+  echo "=== General ==="
   schema -h
   schema_schema -h
-  matching -h
-  matching_schema -h
-  provision -h
-  provision_schema -h
-  data -h
-  data_global_schema -h
+  global_variable -h
+  global_variable_schema -h
+  data_configuration -h
+  echo
+  echo "=== Traffic server ==="
+  server_matching -h
+  server_matching_schema -h
+  server_provision -h
+  server_provision_schema -h
+  server_data -h
+  server_data_sequence -h
+  echo
+  echo "=== Auxiliary ==="
   json -h
-  sequence -h
   trace -h
   metrics -h
   snapshot -h
-  example -h
-  echo "Usage: help; This help"
-  echo -e "\nMore information about management interface: https://github.com/testillano/h2agent#management-interface\n"
+  server_example -h
+  echo "Usage: help; This help. Overview: help | grep ^Usage"
 }
 
 #############

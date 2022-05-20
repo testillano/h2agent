@@ -9,12 +9,12 @@ DEFAULTS=
 # Default values
 H2AGENT_VALIDATE_SCHEMAS__dflt=n
 H2AGENT_SCHEMA__dflt=schema.json
-H2AGENT_MATCHING__dflt=matching.json
-H2AGENT_PROVISION__dflt=provision.json
-H2AGENT_GLOBALS__dflt=globals.json
-H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION__dflt=discard-all
-H2AGENT__SERVER_DATA_PURGE_CONFIGURATION__dflt=disable-purge
-H2AGENT__ENDPOINT__dflt=0.0.0.0
+H2AGENT_SERVER_MATCHING__dflt=server-matching.json
+H2AGENT_SERVER_PROVISION__dflt=server-provision.json
+H2AGENT_GLOBAL_VARIABLE__dflt=global-variable.json
+H2AGENT__DATA_STORAGE_CONFIGURATION__dflt=discard-all
+H2AGENT__DATA_PURGE_CONFIGURATION__dflt=disable-purge
+H2AGENT__BIND_ADDRESS__dflt=0.0.0.0
 H2AGENT__RESPONSE_DELAY_MS__dflt=0
 
 ST_REQUEST_METHOD__dflt="POST"
@@ -36,7 +36,7 @@ H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
 # Common variables
-COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_MATCHING H2AGENT_PROVISION H2AGENT_GLOBALS H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION H2AGENT__SERVER_DATA_PURGE_CONFIGURATION H2AGENT__ENDPOINT H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -44,53 +44,52 @@ COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_MATCHING H2AGENT_PR
 usage() {
 
   cat << EOF
+H2agent 'mock server' benchmark script
+
 Usage: $0 [-h|--help] [-y]
 
           -h|--help: this help.
           -y:        assume defaults for all the questions.
 
+Examples:
 
- Some examples to benchmark:
+1) Test that h2agent delay timers are managed asynchronously for the worker
+   thread, freeing the tatsuhiro's nghttp2 io service for an specific stream:
 
- 1) Test that h2agent delay timers are managed asynchronously for the worker thread, freeing the
-    tatsuhiro's nghttp2 io service for an specific stream:
+   $> H2AGENT__RESPONSE_DELAY_MS=1000 H2LOAD__ITERATIONS=100 ./start.sh -y
 
-    H2AGENT__RESPONSE_DELAY_MS=1000 H2LOAD__ITERATIONS=100 ./start.sh -y
+   As m=100, all the iterations (100) must be managed in about 1 second:
 
-    As m=100, all the iterations (100) must be managed in about 1 second:
+   finished in 1.01s, 98.70 req/s, 105.88KB/s
+   requests: 100 total, 100 started, 100 done, 100 succeeded, 0 failed, 0 errored, 0 timeout
+   status codes: 100 2xx, 0 3xx, 0 4xx, 0 5xx
+   traffic: 107.28KB (109859) total, 335B (335) headers (space savings 95.28%), 105.18KB (107700) data
+                            min         max        mean          sd    +/- sd
+   time for request:      1.01s       1.01s       1.01s      1.96ms    41.00%
+   time for connect:      255us       255us       255us         0us   100.00%
+   time to 1st byte:      1.01s       1.01s       1.01s         0us   100.00%
+   req/s           :      98.75       98.75       98.75        0.00   100.00%
 
-    finished in 1.01s, 98.70 req/s, 105.88KB/s
-    requests: 100 total, 100 started, 100 done, 100 succeeded, 0 failed, 0 errored, 0 timeout
-    status codes: 100 2xx, 0 3xx, 0 4xx, 0 5xx
-    traffic: 107.28KB (109859) total, 335B (335) headers (space savings 95.28%), 105.18KB (107700) data
-                      min         max         mean         sd        +/- sd
-    time for request:      1.01s       1.01s       1.01s      1.96ms    41.00%
-    time for connect:      255us       255us       255us         0us   100.00%
-    time to 1st byte:      1.01s       1.01s       1.01s         0us   100.00%
-    req/s           :      98.75       98.75       98.75        0.00   100.00%
+2) Test that no memory leaks arise for the asyncronous timers:
 
-    Older h2agent versions took 100 seconds as the delay was processed whithin the stream context blocking the server io service.
+   $> H2AGENT__RESPONSE_DELAY_MS=1 H2LOAD__ITERATIONS=1000000 ./start.sh -y
 
- 2) Test that no memory leaks arise for the asyncronous timers:
+   %MEM should be stable at 0% (use for example: 'top -H -p $(pgrep h2agent)')
 
-    H2AGENT__RESPONSE_DELAY_MS=1 H2LOAD__ITERATIONS=1000000 ./start.sh -y
+3) Test high load, to get about 14k req/s in 8-cpu machine with default startup
+   and these parameters:
 
-    %MEM should be stable at 0% (use for example: 'top -H -p $(pgrep h2agent)')
+   $> H2LOAD__ITERATIONS=100000 ./start.sh -y
 
- 3) Test high load, to get about 14k req/s in 8-cpu machine with default startup and these parameters:
-
-    H2LOAD__ITERATIONS=100000 ./start.sh -y
-
-    finished in 7.26s, 13779.98 req/s, 14.43MB/s
-    requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
-    status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-    traffic: 104.72MB (109809330) total, 293.18KB (300219) headers (space savings 95.77%), 102.71MB (107700000) data
-                         min         max         mean         sd        +/- sd
-    time for request:     1.89ms     21.95ms      7.20ms      1.35ms    82.44%
-    time for connect:      196us       196us       196us         0us   100.00%
-    time to 1st byte:    10.30ms     10.30ms     10.30ms         0us   100.00%
-    req/s           :   13780.40    13780.40    13780.40        0.00   100.00%
-
+   finished in 7.26s, 13779.98 req/s, 14.43MB/s
+   requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
+   status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
+   traffic: 104.72MB (109809330) total, 293.18KB (300219) headers (space savings 95.77%), 102.71MB (107700000) data
+                            min         max        mean          sd    +/- sd
+   time for request:     1.89ms     21.95ms      7.20ms      1.35ms    82.44%
+   time for connect:      196us       196us       196us         0us   100.00%
+   time to 1st byte:    10.30ms     10.30ms     10.30ms         0us   100.00%
+   req/s           :   13780.40    13780.40    13780.40        0.00   100.00%
 EOF
 }
 
@@ -104,7 +103,7 @@ h2a_admin_curl() {
   local s_dataFile_option=
   [ -n "${dataFile}" ] && s_dataFile_option="-d@${dataFile}"
 
-  status=$(curl -s -w "%{http_code}" --http2-prior-knowledge -o ${TMP_DIR}/curl.output -H 'content-type: application/json' -X${method} ${s_dataFile_option} "http://${H2AGENT__ENDPOINT}:${H2AGENT__ADMIN_PORT}/${uri}")
+  status=$(curl -s -w "%{http_code}" --http2-prior-knowledge -o ${TMP_DIR}/curl.output -H 'content-type: application/json' -X${method} ${s_dataFile_option} "http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__ADMIN_PORT}/${uri}")
 
   if [ -n "${expected_status}" ]
   then
@@ -139,7 +138,7 @@ read_value() {
 
   local default=$(eval echo \$$2__dflt)
   echo
-  [ -n "${output}" ] && echo "Prepended ${what}: ${output}" && check_valid_values "${output}" "${validValues}" && return $?
+  [ -n "${output}" ] && echo "Prepended ${what}: ${2}=${output}" && check_valid_values "${output}" "${validValues}" && return $?
   echo -en "Input ${what}${s_supported}\n (or set '$2' to be non-interactive) [${default}]: "
   [ -z "${DEFAULTS}" ] && read output
   [ -z "${output}" ] && output=${default} && echo ${output}
@@ -177,15 +176,15 @@ then
   read_value "Schema configuration" H2AGENT_SCHEMA
   [ ! -f "${H2AGENT_SCHEMA}" ] && echo "ERROR: missing file '${H2AGENT_SCHEMA}' !" && exit 1
 fi
-read_value "Matching configuration" H2AGENT_MATCHING
-[ ! -f "${H2AGENT_MATCHING}" ] && echo "ERROR: missing file '${H2AGENT_MATCHING}' !" && exit 1
-read_value "Provision configuration" H2AGENT_PROVISION
-[ ! -f "${H2AGENT_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_PROVISION}' !" && exit 1
-read_value "Global variables configuration" H2AGENT_GLOBALS
-[ ! -f "${H2AGENT_GLOBALS}" ] &&  echo "ERROR: missing file '${H2AGENT_GLOBALS}' !" && exit 1
-read_value "Server data storage configuration" H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
-read_value "Server data purge configuration" H2AGENT__SERVER_DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
-read_value "H2agent endpoint address" H2AGENT__ENDPOINT
+read_value "Matching configuration" H2AGENT_SERVER_MATCHING
+[ ! -f "${H2AGENT_SERVER_MATCHING}" ] && echo "ERROR: missing file '${H2AGENT_SERVER_MATCHING}' !" && exit 1
+read_value "Provision configuration" H2AGENT_SERVER_PROVISION
+[ ! -f "${H2AGENT_SERVER_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_SERVER_PROVISION}' !" && exit 1
+read_value "Global variable(s) configuration" H2AGENT_GLOBAL_VARIABLE
+[ ! -f "${H2AGENT_GLOBAL_VARIABLE}" ] &&  echo "ERROR: missing file '${H2AGENT_GLOBAL_VARIABLE}' !" && exit 1
+read_value "Server data storage configuration" H2AGENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
+read_value "Server data purge configuration" H2AGENT__DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
+read_value "H2agent endpoint address" H2AGENT__BIND_ADDRESS
 read_value "H2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
 [ ${H2AGENT__RESPONSE_DELAY_MS} -ne 0 ] && H2LOAD__ITERATIONS__dflt=$((H2LOAD__ITERATIONS__dflt/H2AGENT__RESPONSE_DELAY_MS)) # duration correction
 
@@ -198,30 +197,30 @@ TMP_DIR=$(mktemp -d)
 trap "rm -rf ${TMP_DIR}" EXIT
 
 # build provision:
-jq --arg replace "${H2AGENT__RESPONSE_DELAY_MS}" '. |= map(if .responseDelayMs == 0 then (.responseDelayMs=($replace | tonumber)) else . end)' ${H2AGENT_PROVISION} | \
+jq --arg replace "${H2AGENT__RESPONSE_DELAY_MS}" '. |= map(if .responseDelayMs == 0 then (.responseDelayMs=($replace | tonumber)) else . end)' ${H2AGENT_SERVER_PROVISION} | \
 jq --arg replace "${ST_REQUEST_METHOD}" '. |= map(if .requestMethod == "POST" then (.requestMethod=($replace)) else . end)' | \
-jq --arg replace "/${ST_REQUEST_URL}" '. |= map(if .requestUri == "URI" then (.requestUri=($replace)) else . end)' > ${TMP_DIR}/provision.json
+jq --arg replace "/${ST_REQUEST_URL}" '. |= map(if .requestUri == "URI" then (.requestUri=($replace)) else . end)' > ${TMP_DIR}/server-provision.json
 if [ "${H2AGENT_VALIDATE_SCHEMAS}" != "y" ]
 then
-  jq 'del (.[0].requestSchemaId,.[0].responseSchemaId)' ${TMP_DIR}/provision.json > ${TMP_DIR}/provision.json2
-  mv ${TMP_DIR}/provision.json2 ${TMP_DIR}/provision.json
+  jq 'del (.[0].requestSchemaId,.[0].responseSchemaId)' ${TMP_DIR}/server-provision.json > ${TMP_DIR}/server-provision.json2
+  mv ${TMP_DIR}/server-provision.json2 ${TMP_DIR}/server-provision.json
 fi
 
 [ "${H2AGENT_VALIDATE_SCHEMAS}" = "y" ] && { h2a_admin_curl POST admin/v1/schema 201 ${H2AGENT_SCHEMA} || exit 1 ; }
-h2a_admin_curl POST admin/v1/server-matching 201 ${H2AGENT_MATCHING} || exit 1
-h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/provision.json || exit 1
+h2a_admin_curl POST admin/v1/server-matching 201 ${H2AGENT_SERVER_MATCHING} || exit 1
+h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/server-provision.json || exit 1
 
 # Server data configuration
-case ${H2AGENT__SERVER_DATA_STORAGE_CONFIGURATION} in
-  discard-all) DISCARD_SERVER_DATA=true; DISCARD_SERVER_DATA_HISTORY=true ;;
-  discard-history) DISCARD_SERVER_DATA=false; DISCARD_SERVER_DATA_HISTORY=true ;;
-  keep-all) DISCARD_SERVER_DATA=false; DISCARD_SERVER_DATA_HISTORY=false ;;
+case ${H2AGENT__DATA_STORAGE_CONFIGURATION} in
+  discard-all) DISCARD_DATA=true; DISCARD_DATA_HISTORY=true ;;
+  discard-history) DISCARD_DATA=false; DISCARD_DATA_HISTORY=true ;;
+  keep-all) DISCARD_DATA=false; DISCARD_DATA_HISTORY=false ;;
 esac
-case ${H2AGENT__SERVER_DATA_PURGE_CONFIGURATION} in
+case ${H2AGENT__DATA_PURGE_CONFIGURATION} in
   enable-purge) DISABLE_PURGE=false ;;
   disable-purge) DISABLE_PURGE=true ;;
 esac
-h2a_admin_curl PUT "admin/v1/server-data/configuration?discard=${DISCARD_SERVER_DATA}&discardRequestsHistory=${DISCARD_SERVER_DATA_HISTORY}&disablePurge=${DISABLE_PURGE}" 200 || exit 1
+h2a_admin_curl PUT "admin/v1/server-data/configuration?discard=${DISCARD_DATA}&discardKeyHistory=${DISCARD_DATA_HISTORY}&disablePurge=${DISABLE_PURGE}" 200 || exit 1
 echo -e "\nServer data configuration:"
 h2a_admin_curl GET "admin/v1/server-data/configuration" || exit 1
 cat ${TMP_DIR}/curl.output
@@ -230,7 +229,7 @@ h2a_admin_curl DELETE "admin/v1/server-data"
 echo "done !"
 
 # Now, configure possible globals:
-h2a_admin_curl POST admin/v1/server-data/global 201 ${H2AGENT_GLOBALS} || exit 1
+h2a_admin_curl POST admin/v1/global-variable 201 ${H2AGENT_GLOBAL_VARIABLE} || exit 1
 
 # Launcher type
 read_value "Launcher type" ST_LAUNCHER "h2load|hermes"
@@ -261,7 +260,7 @@ then
   echo
   echo
   set -x
-  time h2load -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__ENDPOINT}:${H2AGENT__TRAFFIC_PORT}/${ST_REQUEST_URL} ${s_DATA_OPT} | tee -a ${REPORT}
+  time h2load -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__TRAFFIC_PORT}/${ST_REQUEST_URL} ${s_DATA_OPT} | tee -a ${REPORT}
   set +x
 
 elif [ "${ST_LAUNCHER}" = "hermes" ] ################################################# HERMES
@@ -275,7 +274,7 @@ then
   mkdir ${TMP_DIR}/scripts
   cat << EOF > ${TMP_DIR}/scripts/traffic.json
 {
-  "dns": "${H2AGENT__ENDPOINT}",
+  "dns": "${H2AGENT__BIND_ADDRESS}",
   "port": "${H2AGENT__TRAFFIC_PORT}",
   "timeout": 20000,
   "flow": [

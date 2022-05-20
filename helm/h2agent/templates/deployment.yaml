@@ -41,41 +41,37 @@ spec:
             {{- end }}
             - "--admin-port"
             - {{ .Values.service.admin_port | quote }}
-            - "--server-port"
+            - "--traffic-server-port"
             - {{ .Values.service.traffic_port | quote }}
-            - "--server-api-name"
-            - {{ .Values.h2agent_cl.server_api_name | quote }}
-            - "--server-api-version"
-            - {{ .Values.h2agent_cl.server_api_version | quote }}
-            - "--worker-threads"
-            - {{ .Values.h2agent_cl.worker_threads | quote }}
-            - "--server-threads"
-            - {{ .Values.h2agent_cl.server_threads | quote }}
-            {{- if ne .Values.h2agent_cl.server_key ""  }}
-            - "--server-key"
-            - {{ .Values.h2agent_cl.server_key | quote }}
+            - "--traffic-server-api-name"
+            - {{ .Values.h2agent_cl.traffic_server_api_name | quote }}
+            - "--traffic-server-api-version"
+            - {{ .Values.h2agent_cl.traffic_server_api_version | quote }}
+            - "--traffic-server-worker-threads"
+            - {{ .Values.h2agent_cl.traffic_server_worker_threads | quote }}
+            - "--traffic-server-threads"
+            - {{ .Values.h2agent_cl.traffic_server_threads | quote }}
+            {{- if ne .Values.h2agent_cl.traffic_server_key ""  }}
+            - "--traffic-server-key"
+            - {{ .Values.h2agent_cl.traffic_server_key | quote }}
             {{- end }}
-            {{- if ne .Values.h2agent_cl.server_crt ""  }}
-            - "--server-crt"
-            - {{ .Values.h2agent_cl.server_crt | quote }}
+            {{- if ne .Values.h2agent_cl.traffic_server_crt ""  }}
+            - "--traffic-server-crt"
+            - {{ .Values.h2agent_cl.traffic_server_crt | quote }}
             {{- end }}
-            {{- if ne .Values.h2agent_cl.server_request_schema ""  }}
-            - "--server-request-schema"
-            - {{ .Values.h2agent_cl.server_request_schema | quote }}
+            {{- if ne .Values.h2agent_cl.traffic_server_matching ""  }}
+            - "--traffic-server-matching"
+            - {{ .Values.h2agent_cl.traffic_server_matching | quote }}
             {{- end }}
-            {{- if ne .Values.h2agent_cl.server_matching ""  }}
-            - "--server-matching"
-            - {{ .Values.h2agent_cl.server_matching | quote }}
+            {{- if ne .Values.h2agent_cl.traffic_server_provision ""  }}
+            - "--traffic-server-provision"
+            - {{ .Values.h2agent_cl.traffic_server_provision | quote }}
             {{- end }}
-            {{- if ne .Values.h2agent_cl.server_provision ""  }}
-            - "--server-provision"
-            - {{ .Values.h2agent_cl.server_provision | quote }}
+            {{- if not .Values.h2agent_cl.data.enabled }}
+            - "--discard-data"
             {{- end }}
-            {{- if not .Values.h2agent_cl.server_data.enabled }}
-            - "--discard-server-data"
-            {{- end }}
-            {{- if not .Values.h2agent_cl.server_data_requests_history.enabled }}
-            - "--discard-server-data-requests-history"
+            {{- if not .Values.h2agent_cl.data_key_history.enabled }}
+            - "--discard-data-key-history"
             {{- end }}
             - "--prometheus-port"
             - {{ .Values.service.prometheus_port | quote }}

@@ -48,18 +48,18 @@ namespace h2agent
 namespace model
 {
 class AdminData;
-class MockRequestData;
+class MockServerRequestData;
 }
 
 namespace http2server
 {
 
-class MyHttp2Server;
+class MyTrafficHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     model::AdminData *admin_data_;
-    h2agent::http2server::MyHttp2Server *http2_server_; // used to set server-data configuration (discard contexts and/or history)
+    h2agent::http2server::MyTrafficHttp2Server *http2_server_; // used to set server-data configuration (discard contexts and/or history)
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
@@ -93,17 +93,17 @@ public:
         return admin_data_;
     }
 
-    void setHttp2Server(h2agent::http2server::MyHttp2Server* ptr) {
+    void setHttp2Server(h2agent::http2server::MyTrafficHttp2Server* ptr) {
         http2_server_ = ptr;
     }
-    h2agent::http2server::MyHttp2Server *getHttp2Server(void) const {
+    h2agent::http2server::MyTrafficHttp2Server *getHttp2Server(void) const {
         return http2_server_;
     }
 
     bool schema(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
-    bool serverDataGlobal(const nlohmann::json &configurationObject, std::string& log) const;
+    bool globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

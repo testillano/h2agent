@@ -43,7 +43,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
-#include <AdminProvision.hpp>
+#include <AdminServerProvision.hpp>
 
 #include <JsonSchema.hpp>
 #include <AdminSchemas.hpp>
@@ -56,11 +56,11 @@ namespace model
 
 // Map key will be string which has a hash function.
 // We will agregate method and uri in a single string for that.
-class AdminProvisionData : public Map<admin_provision_key_t, std::shared_ptr<AdminProvision>>
+class AdminServerProvisionData : public Map<admin_server_provision_key_t, std::shared_ptr<AdminServerProvision>>
 {
 public:
-    AdminProvisionData();
-    ~AdminProvisionData() = default;
+    AdminServerProvisionData();
+    ~AdminServerProvisionData() = default;
 
     // Load result
     enum LoadResult { Success = 0, BadSchema, BadContent };
@@ -100,7 +100,7 @@ public:
      *
      * @return Provision information or null if missing
      */
-    std::shared_ptr<AdminProvision> find(const std::string &inState, const std::string &method, const std::string &uri) const;
+    std::shared_ptr<AdminServerProvision> find(const std::string &inState, const std::string &method, const std::string &uri) const;
 
     /**
     * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
@@ -113,7 +113,7 @@ public:
     *
     * @return Provision information or null if missing
     */
-    std::shared_ptr<AdminProvision> findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const;
+    std::shared_ptr<AdminServerProvision> findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const;
 
     /**
     * Gets provision schema
@@ -124,7 +124,7 @@ public:
 
 private:
 
-    std::vector<admin_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
+    std::vector<admin_server_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
     h2agent::jsonschema::JsonSchema server_provision_schema_;
 
     LoadResult loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured);

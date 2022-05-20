@@ -39,14 +39,14 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <AdminMatchingData.hpp>
+#include <AdminServerMatchingData.hpp>
 
 namespace h2agent
 {
 namespace model
 {
 
-AdminMatchingData::AdminMatchingData() {
+AdminServerMatchingData::AdminServerMatchingData() {
     algorithm_ = FullMatching;
     //rgx_.clear();
     fmt_.clear();
@@ -56,7 +56,7 @@ AdminMatchingData::AdminMatchingData() {
     server_matching_schema_.setJson(h2agent::adminSchemas::server_matching); // won't fail
 }
 
-AdminMatchingData::LoadResult AdminMatchingData::load(const nlohmann::json &j) {
+AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann::json &j) {
 
     if (!server_matching_schema_.validate(j)) {
         return BadSchema;

@@ -43,9 +43,9 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <AdminProvision.hpp>
-#include <MockRequestData.hpp>
-#include <GlobalVariablesData.hpp>
+#include <AdminServerProvision.hpp>
+#include <MockServerRequestData.hpp>
+#include <GlobalVariable.hpp>
 
 #include <functions.hpp>
 
@@ -67,7 +67,7 @@ void printVariables(const  std::map<std::string, std::string> &variables) {
 }
 */
 
-void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri) {
+void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri) {
     // key: <in-state>#<request-method>#<request-uri>
     // hash '#' separator eases regexp usage for stored key
     key = inState;
@@ -78,22 +78,22 @@ void calculateAdminProvisionKey(admin_provision_key_t &key, const std::string &i
 }
 
 
-AdminProvision::AdminProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
-    out_state_(DEFAULT_ADMIN_PROVISION_STATE),
-    response_delay_ms_(0), mock_request_data_(nullptr), global_variables_data_(nullptr) {;}
+AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
+    out_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
+    response_delay_ms_(0), mock_server_request_data_(nullptr), global_variable_(nullptr) {;}
 
 
-bool AdminProvision::processSources(std::shared_ptr<Transformation> transformation,
-                                    TypeConverter& sourceVault,
-                                    const std::map<std::string, std::string>& variables,
-                                    const std::string &requestUri,
-                                    const std::string &requestUriPath,
-                                    const std::map<std::string, std::string> &requestQueryParametersMap,
-                                    bool requestBodyJsonParseable,
-                                    const nlohmann::json &requestBodyJson,
-                                    const nghttp2::asio_http2::header_map &requestHeaders,
-                                    bool &eraser,
-                                    std::uint64_t generalUniqueServerSequence) const {
+bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
+        TypeConverter& sourceVault,
+        const std::map<std::string, std::string>& variables,
+        const std::string &requestUri,
+        const std::string &requestUriPath,
+        const std::map<std::string, std::string> &requestQueryParametersMap,
+        bool requestBodyJsonParseable,
+        const nlohmann::json &requestBodyJson,
+        const nghttp2::asio_http2::header_map &requestHeaders,
+        bool &eraser,
+        std::uint64_t generalUniqueServerSequence) const {
 
     if (transformation->getSourceType() == Transformation::SourceType::RequestUri) {
         sourceVault.setString(requestUri);
@@ -200,7 +200,7 @@ bool AdminProvision::processSources(std::shared_ptr<Transformation> transformati
         std::string varname = transformation->getSource();
         searchReplaceValueVariables(variables, varname);
         bool exists;
-        std::string globalVariableValue = global_variables_data_->getValue(varname, exists);
+        std::string globalVariableValue = global_variable_->getValue(varname, exists);
         if (exists) sourceVault.setString(globalVariableValue);
         else {
             LOGDEBUG(
@@ -230,8 +230,8 @@ bool AdminProvision::processSources(std::shared_ptr<Transformation> transformati
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
-        auto mockRequest = mock_request_data_->getMockRequest(event_method, event_uri, event_number);
-        if (!mockRequest) {
+        auto mockServerRequest = mock_server_request_data_->getMockServerRequest(event_method, event_uri, event_number);
+        if (!mockServerRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -239,7 +239,7 @@ bool AdminProvision::processSources(std::shared_ptr<Transformation> transformati
             return false;
         }
 
-        if (!sourceVault.setObject(mockRequest->getJson(), event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
+        if (!sourceVault.setObject(mockServerRequest->getJson(), event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unexpected error extracting event for variable '%s' in transformation item", transformation->getSource().c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -260,12 +260,12 @@ bool AdminProvision::processSources(std::shared_ptr<Transformation> transformati
     return true;
 }
 
-bool AdminProvision::processFilters(std::shared_ptr<Transformation> transformation,
-                                    TypeConverter& sourceVault,
-                                    const std::map<std::string, std::string>& variables,
-                                    std::smatch &matches,
-                                    std::string &source,
-                                    bool eraser) const
+bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transformation,
+        TypeConverter& sourceVault,
+        const std::map<std::string, std::string>& variables,
+        std::smatch &matches,
+        std::string &source,
+        bool eraser) const
 {
     bool success;
     std::string targetS;
@@ -403,19 +403,19 @@ bool AdminProvision::processFilters(std::shared_ptr<Transformation> transformati
     return true;
 }
 
-bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformation,
-                                    TypeConverter &sourceVault,
-                                    std::map<std::string, std::string>& variables,
-                                    const std::smatch &matches,
-                                    bool eraser,
-                                    bool hasFilter,
-                                    unsigned int &responseStatusCode,
-                                    nlohmann::json &responseBodyJson,
-                                    nghttp2::asio_http2::header_map &responseHeaders,
-                                    unsigned int &responseDelayMs,
-                                    std::string &outState,
-                                    std::string &outStateMethod,
-                                    std::string &outStateUri) const
+bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transformation,
+        TypeConverter &sourceVault,
+        std::map<std::string, std::string>& variables,
+        const std::smatch &matches,
+        bool eraser,
+        bool hasFilter,
+        unsigned int &responseStatusCode,
+        nlohmann::json &responseBodyJson,
+        nghttp2::asio_http2::header_map &responseHeaders,
+        unsigned int &responseDelayMs,
+        std::string &outState,
+        std::string &outStateMethod,
+        std::string &outStateUri) const
 {
     bool success;
     std::string targetS;
@@ -592,17 +592,17 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
         else if (transformation->getTargetType() == Transformation::TargetType::TGVar) {
             if (eraser) {
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s'", target.c_str()), ERT_FILE_LOCATION));
-                global_variables_data_->removeVariable(target);
+                global_variable_->removeVariable(target);
             }
             else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                 std::string varname;
                 if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
-                    global_variables_data_->loadVariable(target, matches.str(0)); // variable "as is" stores the entire match
+                    global_variable_->loadVariable(target, matches.str(0)); // variable "as is" stores the entire match
                     for(size_t i=1; i < matches.size(); i++) {
                         varname = target;
                         varname += ".";
                         varname += std::to_string(i);
-                        global_variables_data_->loadVariable(varname, matches.str(i));
+                        global_variable_->loadVariable(varname, matches.str(i));
                         LOGDEBUG(
                             std::stringstream ss;
                             ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
@@ -616,7 +616,7 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
                 targetS = sourceVault.getString(success);
                 if (!success) return false;
                 // assignment
-                global_variables_data_->loadVariable(target, targetS);
+                global_variable_->loadVariable(target, targetS);
             }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::OutState) {
@@ -638,24 +638,24 @@ bool AdminProvision::processTargets(std::shared_ptr<Transformation> transformati
     return true;
 }
 
-void AdminProvision::transform( const std::string &requestUri,
-                                const std::string &requestUriPath,
-                                const std::map<std::string, std::string> &requestQueryParametersMap,
-                                const std::string &requestBody,
-                                const nghttp2::asio_http2::header_map &requestHeaders,
-                                std::uint64_t generalUniqueServerSequence,
+void AdminServerProvision::transform( const std::string &requestUri,
+                                      const std::string &requestUriPath,
+                                      const std::map<std::string, std::string> &requestQueryParametersMap,
+                                      const std::string &requestBody,
+                                      const nghttp2::asio_http2::header_map &requestHeaders,
+                                      std::uint64_t generalUniqueServerSequence,
 
-                                /* OUTPUT PARAMETERS WHICH ALREADY HAVE DEFAULT VALUES BEFORE TRANSFORMATIONS: */
-                                unsigned int &responseStatusCode,
-                                nghttp2::asio_http2::header_map &responseHeaders,
-                                std::string &responseBody,
-                                unsigned int &responseDelayMs,
-                                std::string &outState,
-                                std::string &outStateMethod,
-                                std::string &outStateUri,
-                                std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
-                                std::shared_ptr<h2agent::model::AdminSchema> responseSchema
-                              ) const
+                                      /* OUTPUT PARAMETERS WHICH ALREADY HAVE DEFAULT VALUES BEFORE TRANSFORMATIONS: */
+                                      unsigned int &responseStatusCode,
+                                      nghttp2::asio_http2::header_map &responseHeaders,
+                                      std::string &responseBody,
+                                      unsigned int &responseDelayMs,
+                                      std::string &outState,
+                                      std::string &outStateMethod,
+                                      std::string &outStateUri,
+                                      std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
+                                      std::shared_ptr<h2agent::model::AdminSchema> responseSchema
+                                    ) const
 {
     // Default values without transformations:
     responseStatusCode = getResponseCode();
@@ -766,7 +766,7 @@ void AdminProvision::transform( const std::string &requestUri,
     }
 }
 
-bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
 
     // Store whole document (useful for GET operation)
     json_ = j;
@@ -787,13 +787,13 @@ bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexCon
     it = j.find("inState");
     if (it != j.end() && it->is_string()) {
         in_state_ = *it;
-        if (in_state_.empty()) in_state_ = DEFAULT_ADMIN_PROVISION_STATE;
+        if (in_state_.empty()) in_state_ = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
     }
 
     it = j.find("outState");
     if (it != j.end() && it->is_string()) {
         out_state_ = *it;
-        if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
+        if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
     }
 
     it = j.find("requestSchemaId");
@@ -859,7 +859,7 @@ bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexCon
     }
 
     // Store key:
-    calculateAdminProvisionKey(key_, in_state_, request_method_, request_uri_);
+    calculateAdminServerProvisionKey(key_, in_state_, request_method_, request_uri_);
 
     if (priorityMatchingRegexConfigured) {
         // Precompile regex with key, only for 'PriorityMatchingRegex' algorithm:
@@ -876,12 +876,12 @@ bool AdminProvision::load(const nlohmann::json &j, bool priorityMatchingRegexCon
     return true;
 }
 
-void AdminProvision::loadResponseHeaders(const nlohmann::json &j) {
+void AdminServerProvision::loadResponseHeaders(const nlohmann::json &j) {
     for (auto& [key, val] : j.items())
         response_headers_.emplace(key, nghttp2::asio_http2::header_value{val});
 }
 
-void AdminProvision::loadTransformation(const nlohmann::json &j) {
+void AdminServerProvision::loadTransformation(const nlohmann::json &j) {
 
     LOGDEBUG(
         std::string msg = ert::tracing::Logger::asString("Loading transformation item: %s", j.dump().c_str()); // avoid newlines in traces (dump(n) pretty print)

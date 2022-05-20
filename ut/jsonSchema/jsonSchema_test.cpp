@@ -56,7 +56,7 @@ TEST_F(jsonSchema_test, checkSchemaSchema)
     EXPECT_FALSE(jsonSchema_test::json_schema_.validate(SchemaJson_nok));
 }
 
-TEST_F(jsonSchema_test, checkGlobalVariablesSchema)
+TEST_F(jsonSchema_test, checkGlobalVariableSchema)
 {
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_data_global));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());

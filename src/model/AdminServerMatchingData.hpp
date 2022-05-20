@@ -35,10 +35,16 @@ SOFTWARE.
 
 #pragma once
 
+#include <regex>
+#include <mutex>
+#include <shared_mutex>
+
+#include <common.hpp>
+
 #include <nlohmann/json.hpp>
 
-#include <Map.hpp>
 #include <JsonSchema.hpp>
+#include <AdminSchemas.hpp>
 
 
 namespace h2agent
@@ -46,79 +52,79 @@ namespace h2agent
 namespace model
 {
 
-/**
- * This class stores the global variables list.
- */
-class GlobalVariablesData : public Map<std::string, std::string>
+class AdminServerMatchingData
 {
-    mutable mutex_t rw_mutex_;
-
-    h2agent::jsonschema::JsonSchema global_variables_schema_;
-
 public:
-    GlobalVariablesData();
-    ~GlobalVariablesData() = default;
+    AdminServerMatchingData();
+    ~AdminServerMatchingData() = default;
+
+    // Algorithm type
+    enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex };
+    // UriPathQueryParametersFilter type
+    enum UriPathQueryParametersFilterType { SortAmpersand = 0, SortSemicolon, PassBy, Ignore };
+
+    // Load result
+    enum LoadResult { Success = 0, BadSchema, BadContent };
+
+    // getters
+    AlgorithmType getAlgorithm() const {
+        read_guard_t guard(rw_mutex_);
+        return algorithm_;
+    }
+
+    const std::regex& getRgx() const {
+        read_guard_t guard(rw_mutex_);
+        return rgx_;
+    }
+
+    const std::string& getFmt() const {
+        read_guard_t guard(rw_mutex_);
+        return fmt_;
+    }
+
+    UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const {
+        read_guard_t guard(rw_mutex_);
+        return uri_path_query_parameters_filter_;
+    }
 
     /**
-     * Loads variable and value
+     * Json for class information
      *
-     * @param variable variable name
-     * @param value variable value
+     * @return Json object
      */
-    void loadVariable(const std::string &variable, const std::string &value);
+    const nlohmann::json &getJson() const {
+        read_guard_t guard(rw_mutex_);
+
+        return json_;
+    }
 
     /**
-     * Loads server data global operation data
+     * Loads server matching operation data
      *
      * @param j Json document from operation body request
      *
      * @return Load operation result
      */
-    bool loadJson(const nlohmann::json &j);
-
-    /** Clears list
-     *
-     * @return Boolean about success of operation (something removed, nothing removed: already empty)
-     */
-    bool clear();
+    LoadResult load(const nlohmann::json &j);
 
     /**
-     * Json string representation for class information (json object)
-     *
-     * @return Json string representation ('{}' for empty object).
-     */
-    std::string asJsonString() const;
-
-    /**
-     * Gets the variable value for the variable name provided
-     *
-     * @param variableName Variable name for which the query was performed
-     * @param exists Variable was found (true) or missing (false)
-     *
-     * @return variable value
-     */
-    std::string getValue(const std::string &variableName, bool &exists) const;
-
-    /**
-     * Removes the variable name provided from map
-     *
-     * @param variableName Variable name to be removed
-     */
-    void removeVariable(const std::string &variableName);
-
-    /**
-     * Builds json document for class information
-     *
-     * @return Json object
-     */
-    nlohmann::json asJson() const;
-
-    /**
-    * Gets global variables schema
+    * Gets matching schema
     */
     const h2agent::jsonschema::JsonSchema& getSchema() const {
-        return global_variables_schema_;
+        return server_matching_schema_;
     }
+
+private:
+    h2agent::jsonschema::JsonSchema server_matching_schema_;
+
+    mutable mutex_t rw_mutex_;
+
+    nlohmann::json json_;
+
+    AlgorithmType algorithm_;
+    std::regex rgx_;
+    std::string fmt_;
+    UriPathQueryParametersFilterType uri_path_query_parameters_filter_;
 };
 
 }

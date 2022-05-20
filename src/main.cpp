@@ -50,7 +50,7 @@ SOFTWARE.
 #include "version.hpp"
 #include <functions.hpp>
 #include "MyAdminHttp2Server.hpp"
-#include "MyHttp2Server.hpp"
+#include "MyTrafficHttp2Server.hpp"
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -62,7 +62,7 @@ const char* progname;
 namespace
 {
 h2agent::http2server::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
-h2agent::http2server::MyHttp2Server* myHttp2Server = nullptr;
+h2agent::http2server::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // traffic
 boost::asio::io_service *timersIoService = nullptr;
 
 const char* AdminApiName = "admin";
@@ -143,11 +143,11 @@ void stopAgent()
         myAdminHttp2Server->stop();
     }
 
-    if (myHttp2Server)
+    if (myTrafficHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
-                       "Stopping h2agent mock service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
-        myHttp2Server->stop();
+                       "Stopping h2agent traffic service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+        myTrafficHttp2Server->stop();
     }
 }
 
@@ -177,7 +177,9 @@ void usage(int rc)
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
-    ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
+    ss << progname << " - HTTP/2 Agent service\n\n"
+
+       << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
@@ -188,78 +190,97 @@ void usage(int rc)
        << "[--ipv6]\n"
        << "  IP stack configured for IPv6. Defaults to IPv4.\n\n"
 
+       << "[-b|--bind-address <address>]\n"
+       << "  Servers bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).\n\n"
+
        << "[-a|--admin-port <port>]\n"
        << "  Admin <port>; defaults to 8074.\n\n"
 
-       << "[-p|--server-port <port>]\n"
-       << "  Server <port>; defaults to 8000.\n\n"
+       << "[-p|--traffic-server-port <port>]\n"
+       << "  Traffic server <port>; defaults to 8000. Set '-1' to disable\n"
+       << "  (mock server service is enabled by default).\n\n"
 
-       << "[-m|--server-api-name <name>]\n"
-       << "  Server API name; defaults to empty.\n\n"
+       << "[-m|--traffic-server-api-name <name>]\n"
+       << "  Traffic server API name; defaults to empty.\n\n"
 
-       << "[-n|--server-api-version <version>]\n"
-       << "  Server API version; defaults to empty.\n\n"
+       << "[-n|--traffic-server-api-version <version>]\n"
+       << "  Traffic server API version; defaults to empty.\n\n"
 
-       << "[-w|--worker-threads <threads>]\n"
-       << "  Number of worker threads; defaults to a mimimum of 2 threads except if hardware\n"
-       << "   concurrency permits a greater margin taking into account other process threads.\n"
-       << "  Normally, 1 thread should be enough even for complex logic provisioned.\n\n"
+       << "[-w|--traffic-server-worker-threads <threads>]\n"
+       << "  Number of traffic server worker threads; defaults to a mimimum of 2 threads\n"
+       << "  except if hardware concurrency permits a greater margin taking into account\n"
+       << "  other process threads. Normally, 1 thread should be enough even for complex\n"
+       << "  logic provisioned (admin server always uses 1 worker thread).\n\n"
 
-       << "[-t|--server-threads <threads>]\n"
-       << "  Number of nghttp2 server threads; defaults to 1 (1 connection).\n\n"
+       << "[-t|--traffic-server-threads <threads>]\n"
+       << "  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)\n"
+       << "  (admin server always uses 1 nghttp2 thread).\n\n"
+       // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
-       << "[-k|--server-key <path file>]\n"
-       << "  Path file for server key to enable SSL/TLS; unsecured by default.\n\n"
+       << "[-k|--traffic-server-key <path file>]\n"
+       << "  Path file for traffic server key to enable SSL/TLS; unsecured by default.\n\n"
 
-       << "[--server-key-password <password>]\n"
+       << "[-d|--traffic-server-key-password <password>]\n"
        << "  When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process\n"
-       << "   start.\n\n"
+       << "  start.\n\n"
 
-       << "[-c|--server-crt <path file>]\n"
-       << "  Path file for server crt to enable SSL/TLS; unsecured by default.\n\n"
+       << "[-c|--traffic-server-crt <path file>]\n"
+       << "  Path file for traffic server crt to enable SSL/TLS; unsecured by default.\n\n"
 
        << "[-s|--secure-admin]\n"
-       << "  When key (-k|--server-key) and crt (-c|--server-crt) are provided, only the traffic\n"
-       << "   interface is secured by default. To include management interface, this option must\n"
-       << "   be also provided.\n\n"
+       << "  When key (-k|--traffic-server-key) and crt (-c|--traffic-server-crt) are provided,\n"
+       << "  only traffic interface is secured by default. This option secures admin interface\n"
+       << "  reusing traffic configuration (key/crt/password).\n\n"
 
        << "[--schema <path file>]\n"
        << "  Path file for optional startup schema configuration.\n\n"
 
-       << "[--server-matching <path file>]\n"
-       << "  Path file for optional startup server matching configuration.\n\n"
+       << "[--global-variable <path file>]\n"
+       << "  Path file for optional startup global variable(s) configuration.\n\n"
 
-       << "[--server-provision <path file>]\n"
-       << "  Path file for optional startup server provision configuration.\n\n"
+       << "[--traffic-server-matching <path file>]\n"
+       << "  Path file for optional startup traffic server matching configuration.\n\n"
 
-       << "[--global-variables <path file>]\n"
-       << "  Path file for optional startup global variables configuration.\n\n"
+       << "[--traffic-server-provision <path file>]\n"
+       << "  Path file for optional startup traffic server provision configuration.\n\n"
 
-       << "[--discard-server-data]\n"
-       << "  Disables server data storage for events received (enabled by default).\n"
+       << "[--discard-data]\n"
+       << "  Disables data storage for events processed (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
-       << "   or event-source transformations.\n\n"
+       << "  or event-source transformations.\n\n"
+       //<< "  This affects to both mock server-data and client-data storages,\n"
+       //<< "  but normally both containers will not be used together in the same process instance.\n\n"
 
-       << "[--discard-server-data-requests-history]\n"
-       << "  Disables server data requests history storage (enabled by default).\n"
-       << "  Only latest request (for each key 'method/uri') will be stored and will\n"
-       << "   be accessible for further analysis.\n"
+       << "[--discard-data-key-history]\n"
+       << "  Disables data key history storage (enabled by default).\n"
+       << "  Only latest event (for each key 'method/uri') will be stored and will\n"
+       //<< "  Only latest event (for each key 'method/uri'/'endpoint') will be stored and will\n"
+       << "  be accessible for further analysis.\n"
        << "  This limits some features like FSM related ones (in-state, out-state)\n"
-       << "   or event-source transformations.\n"
-       << "  Implicitly disabled by option '--discard-server-data'.\n"
-       << "  Ignored for unprovisioned events (for troubleshooting purposes).\n\n"
+       << "  or event-source transformations.\n"
+       //<< "  , event-source transformations or client triggers.\n"
+       << "  Implicitly disabled by option '--discard-data'.\n"
+       << "  Ignored for server-unprovisioned events (for troubleshooting purposes).\n\n"
+       //<< "  This affects to both mock server-data and client-data storages,\n"
+       //<< "  but normally both containers will not be used together in the same process instance.\n\n"
 
        << "[--disable-purge]\n"
        << "  Skips events post-removal when a provision on 'purge' state is reached (enabled by default).\n\n"
+       //<< "  This affects to both mock 'server internal/client external' purge procedures,\n"
+       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-port <port>]\n"
        << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n\n"
+       //<< "  This affects to both mock 'server internal/client external' processing time values,\n"
+       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.\n\n"
+       //<< "  This affects to both mock 'server internal/client external' message size values,\n"
+       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -315,24 +336,25 @@ int main(int argc, char* argv[])
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
+    std::string bind_address = "";
     std::string admin_port = "8074";
-    std::string server_port = "8000";
-    std::string server_api_name = "";
-    std::string server_api_version = "";
-    int worker_threads = -1;
-    int server_threads = 1;
-    std::string server_key_file = "";
-    std::string server_key_password = "";
-    std::string server_crt_file = "";
+    std::string traffic_server_port = "8000";
+    std::string traffic_server_api_name = "";
+    std::string traffic_server_api_version = "";
+    int traffic_server_worker_threads = -1;
+    int traffic_server_threads = 1;
+    std::string traffic_server_key_file = "";
+    std::string traffic_server_key_password = "";
+    std::string traffic_server_crt_file = "";
     bool admin_secured = false;
-    bool discard_server_data = false;
-    bool discard_server_data_requests_history = false;
+    bool discard_data = false;
+    bool discard_data_key_history = false;
     bool disable_purge = false;
     bool verbose = false;
     std::string schema_file = "";
-    std::string server_matching_file = "";
-    std::string server_provision_file = "";
-    std::string global_variables_file = "";
+    std::string traffic_server_matching_file = "";
+    std::string traffic_server_provision_file = "";
+    std::string global_variable_file = "";
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
@@ -366,6 +388,12 @@ int main(int argc, char* argv[])
         ipv6 = true;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "-b", value)
+            || cmdOptionExists(argv, argv + argc, "--bind-address", value))
+    {
+        bind_address = value;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "-a", value)
             || cmdOptionExists(argv, argv + argc, "--admin-port", value))
     {
@@ -373,52 +401,53 @@ int main(int argc, char* argv[])
     }
 
     if (cmdOptionExists(argv, argv + argc, "-p", value)
-            || cmdOptionExists(argv, argv + argc, "--server-port", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-port", value))
     {
-        server_port = value;
+        traffic_server_port = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-m", value)
-            || cmdOptionExists(argv, argv + argc, "--server-api-name", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-api-name", value))
     {
-        server_api_name = value;
+        traffic_server_api_name = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-n", value)
-            || cmdOptionExists(argv, argv + argc, "--server-api-version", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-api-version", value))
     {
-        server_api_version = value;
+        traffic_server_api_version = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-w", value)
-            || cmdOptionExists(argv, argv + argc, "--worker-threads", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-worker-threads", value))
     {
-        worker_threads = toNumber(value);
+        traffic_server_worker_threads = toNumber(value);
     }
 
     // Probably, this parameter is not useful as we release the server thread using our workers, so
     //  no matter if you launch more server threads here, no difference should be detected ...
     if (cmdOptionExists(argv, argv + argc, "-t", value)
-            || cmdOptionExists(argv, argv + argc, "--server-threads", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-threads", value))
     {
-        server_threads = toNumber(value);
+        traffic_server_threads = toNumber(value);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-k", value)
-            || cmdOptionExists(argv, argv + argc, "--server-key", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-key", value))
     {
-        server_key_file = value;
+        traffic_server_key_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--server-key-password", value))
+    if (cmdOptionExists(argv, argv + argc, "-d", value)
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-key-password", value))
     {
-        server_key_password = value;
+        traffic_server_key_password = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-c", value)
-            || cmdOptionExists(argv, argv + argc, "--server-crt", value))
+            || cmdOptionExists(argv, argv + argc, "--traffic-server-crt", value))
     {
-        server_crt_file = value;
+        traffic_server_crt_file = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-s", value)
@@ -432,30 +461,30 @@ int main(int argc, char* argv[])
         schema_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--server-matching", value))
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-matching", value))
     {
-        server_matching_file = value;
+        traffic_server_matching_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--server-provision", value))
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-provision", value))
     {
-        server_provision_file = value;
+        traffic_server_provision_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--global-variables", value))
+    if (cmdOptionExists(argv, argv + argc, "--global-variable", value))
     {
-        global_variables_file = value;
+        global_variable_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--discard-server-data", value))
+    if (cmdOptionExists(argv, argv + argc, "--discard-data", value))
     {
-        discard_server_data = true;
-        discard_server_data_requests_history = true; // implicitly
+        discard_data = true;
+        discard_data_key_history = true; // implicitly
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--discard-server-data-requests-history", value))
+    if (cmdOptionExists(argv, argv + argc, "--discard-data-key-history", value))
     {
-        discard_server_data_requests_history = true;
+        discard_data_key_history = true;
     }
 
     if (cmdOptionExists(argv, argv + argc, "--disable-purge", value))
@@ -487,8 +516,9 @@ int main(int argc, char* argv[])
     }
 
     // Secure options
-    bool traffic_secured = (!server_key_file.empty() && !server_crt_file.empty());
-    bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && server_key_password.empty());
+    bool traffic_server_enabled = (traffic_server_port != "-1");
+    bool traffic_secured = (!traffic_server_key_file.empty() && !traffic_server_crt_file.empty());
+    bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && traffic_server_key_password.empty());
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << getLocaltime().c_str() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
@@ -496,55 +526,66 @@ int main(int argc, char* argv[])
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
     std::cout << "Admin port: " << admin_port << '\n';
-    std::cout << "Server port: " << server_port << '\n';
-    std::cout << "Server api name: " << ((server_api_name != "") ?
-                                         server_api_name :
-                                         "<none>") << '\n';
-    std::cout << "Server api version: " << ((server_api_version != "") ?
-                                            server_api_version :
-                                            "<none>") << '\n';
 
     unsigned int hardwareConcurrency = std::thread::hardware_concurrency();
     std::cout << "Hardware concurrency: " << hardwareConcurrency << '\n';
 
-    if (worker_threads < 1) {
-        // Calculate traffic server threads:
-        // * Miminum assignment = 2 threads
-        // * Maximum assignment = CPUs - rest of threads count
-        int maxWorkerThreadsAssignment = hardwareConcurrency - 7 /* main(1) + admin server(workers=1) + timers io(tt=1) + admin(t1->2) + traffic (t2->2) */;
-        worker_threads = (maxWorkerThreadsAssignment > 2) ? maxWorkerThreadsAssignment : 2;
-    }
-    std::cout << "Traffic server worker threads: " << worker_threads << '\n';
-    std::cout << "Server threads (exploited by multiple clients): " << server_threads << '\n';
-    std::cout << "Server key password: " << ((server_key_password != "") ? "***" :
-              "<not provided>") << '\n';
-    std::cout << "Server key file: " << ((server_key_file != "") ? server_key_file :
-                                         "<not provided>") << '\n';
-    std::cout << "Server crt file: " << ((server_crt_file != "") ? server_crt_file :
-                                         "<not provided>") << '\n';
-    if (!traffic_secured) {
-        std::cout << "SSL/TLS disabled: both key & certificate must be provided" << '\n';
-        if (!server_key_password.empty()) {
-            std::cout << "Server key password was provided but will be ignored !" << '\n';
-        }
+    // Server bind address for servers
+    std::string bind_address_prometheus_exposer = bind_address;
+    if (bind_address.empty()) {
+        bind_address = (ipv6 ? "::" : "0.0.0.0"); // default bind address
+        bind_address_prometheus_exposer = (ipv6 ? "[::]" : "0.0.0.0"); // default bind address prometheus exposer
     }
 
-    std::cout << "Traffic secured: " << (traffic_secured ? "yes":"no") << '\n';
+    std::cout << "Traffic server (mock server service): " << (traffic_server_enabled ? "enabled":"disabled") << '\n';
+
+    if (traffic_server_enabled) {
+        std::cout << "Traffic server bind address: " << bind_address << '\n';
+        std::cout << "Traffic server port: " << traffic_server_port << '\n';
+        std::cout << "Traffic server api name: " << ((traffic_server_api_name != "") ?  traffic_server_api_name : "<none>") << '\n';
+        std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
+
+        if (traffic_server_worker_threads < 1) {
+            // Calculate traffic server threads:
+            // * Miminum assignment = 2 threads
+            // * Maximum assignment = CPUs - rest of threads count
+            int maxTrafficServerWorkerThreadsAssignment = hardwareConcurrency - 6 /* main(1) + admin server(workers=1) + timers io(tt=1) + admin(t1->1) + traffic (t2->2) */;
+            traffic_server_worker_threads = (maxTrafficServerWorkerThreadsAssignment > 2) ? maxTrafficServerWorkerThreadsAssignment : 2;
+        }
+        std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
+        std::cout << "Traffic server threads (exploited by multiple clients): " << traffic_server_threads << '\n';
+        std::cout << "Traffic server key password: " << ((traffic_server_key_password != "") ? "***" : "<not provided>") << '\n';
+        std::cout << "Traffic server key file: " << ((traffic_server_key_file != "") ? traffic_server_key_file : "<not provided>") << '\n';
+        std::cout << "Traffic server crt file: " << ((traffic_server_crt_file != "") ? traffic_server_crt_file : "<not provided>") << '\n';
+        if (!traffic_secured) {
+            std::cout << "SSL/TLS disabled: both key & certificate must be provided" << '\n';
+            if (!traffic_server_key_password.empty()) {
+                std::cout << "Traffic server key password was provided but will be ignored !" << '\n';
+            }
+        }
+
+        std::cout << "Traffic secured: " << (traffic_secured ? "yes":"no") << '\n';
+    }
+
     std::cout << "Admin secured: " << (traffic_secured ? (admin_secured ? "yes":"no"):(admin_secured ? "ignored":"no")) << '\n';
 
     std::cout << "Schema configuration file: " << ((schema_file != "") ? schema_file :
               "<not provided>") << '\n';
-    std::cout << "Server matching configuration file: " << ((server_matching_file != "") ? server_matching_file :
+    std::cout << "Global variables configuration file: " << ((global_variable_file != "") ? global_variable_file :
               "<not provided>") << '\n';
-    std::cout << "Server provision configuration file: " << ((server_provision_file != "") ? server_provision_file :
-              "<not provided>") << '\n';
-    std::cout << "Global variables configuration file: " << ((global_variables_file != "") ? global_variables_file :
-              "<not provided>") << '\n';
-    std::cout << "Server data storage: " << (!discard_server_data ? "enabled":"disabled") << '\n';
-    std::cout << "Server data requests history storage: " << (!discard_server_data_requests_history ? "enabled":"disabled") << '\n';
+
+    std::cout << "Data storage: " << (!discard_data ? "enabled":"disabled") << '\n';
+    std::cout << "Data key history storage: " << (!discard_data_key_history ? "enabled":"disabled") << '\n';
     std::cout << "Purge execution: " << (disable_purge ? "disabled":"enabled") << '\n';
+
+    if (traffic_server_enabled) {
+        std::cout << "Traffic server matching configuration file: " << ((traffic_server_matching_file != "") ? traffic_server_matching_file : "<not provided>") << '\n';
+        std::cout << "Traffic server provision configuration file: " << ((traffic_server_provision_file != "") ? traffic_server_provision_file : "<not provided>") << '\n';
+    }
+
     if (prometheus_port != "-1") {
 
+        std::cout << "Prometheus bind address: " << bind_address_prometheus_exposer << '\n';
         std::cout << "Prometheus port: " << prometheus_port << '\n';
         if (!responseDelaySecondsHistogramBucketBoundaries.empty()) {
             std::cout << "Prometheus 'response delay seconds' histogram boundaries: " << prometheus_response_delay_seconds_histogram_boundaries << '\n';
@@ -554,7 +595,7 @@ int main(int argc, char* argv[])
         }
     }
     else {
-        std::cout << "Metrics disabled" << '\n';
+        std::cout << "Metrics (prometheus): disabled" << '\n';
     }
 
     // Flush:
@@ -562,11 +603,6 @@ int main(int argc, char* argv[])
 
     ert::tracing::Logger::initialize(progname);
     ert::tracing::Logger::verbose(verbose);
-
-
-    // Process bin address for servers
-    std::string bind_address = (ipv6 ? "::" : "0.0.0.0");
-    std::string bind_address_prometheus_exposer = (ipv6 ? "[::]" : "0.0.0.0");
 
     // Prometheus
     ert::metrics::Metrics *p_metrics = ((prometheus_port != "-1") ? new ert::metrics::Metrics : nullptr);
@@ -578,7 +614,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(1);
+    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(1); // 1 nghttp2 server thread
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -593,11 +629,13 @@ int main(int argc, char* argv[])
         timersIoService->run();
     });
 
-    myHttp2Server = new h2agent::http2server::MyHttp2Server(worker_threads, timersIoService);
-    myHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
-    myHttp2Server->enableMyMetrics(p_metrics);
-    myHttp2Server->setApiName(server_api_name);
-    myHttp2Server->setApiVersion(server_api_version);
+    if (traffic_server_enabled) {
+        myTrafficHttp2Server = new h2agent::http2server::MyTrafficHttp2Server(traffic_server_worker_threads, timersIoService);
+        myTrafficHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
+        myTrafficHttp2Server->enableMyMetrics(p_metrics);
+        myTrafficHttp2Server->setApiName(traffic_server_api_name);
+        myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
+    }
 
     std::string fileContent;
     nlohmann::json jsonObject;
@@ -619,54 +657,57 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (server_matching_file != "") {
-        success = h2agent::http2server::getFileContent(server_matching_file, fileContent);
-        std::string log = "Server matching configuration load failed and will be ignored";
-        if (success)
-            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+    if (traffic_server_enabled) {
+        if (traffic_server_matching_file != "") {
+            success = h2agent::http2server::getFileContent(traffic_server_matching_file, fileContent);
+            std::string log = "Server matching configuration load failed and will be ignored";
+            if (success)
+                success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
 
-        if (success) {
-            log += ": ";
-            success = myAdminHttp2Server->serverMatching(jsonObject, log);
+            if (success) {
+                log += ": ";
+                success = myAdminHttp2Server->serverMatching(jsonObject, log);
+            }
+
+            if (!success) {
+                std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+            }
         }
 
-        if (!success) {
-            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+        if (traffic_server_provision_file != "") {
+            success = h2agent::http2server::getFileContent(traffic_server_provision_file, fileContent);
+            std::string log = "Server provision configuration load failed and will be ignored";
+            if (success)
+                success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+
+            if (success) {
+                log += ": ";
+                success = myAdminHttp2Server->serverProvision(jsonObject, log);
+            }
+
+            if (!success) {
+                std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+            }
         }
+
+        // Server data configuration:
+        myTrafficHttp2Server->discardData(discard_data);
+        myTrafficHttp2Server->discardDataKeyHistory(discard_data_key_history);
+        myTrafficHttp2Server->disablePurge(disable_purge);
     }
 
-    if (server_provision_file != "") {
-        success = h2agent::http2server::getFileContent(server_provision_file, fileContent);
-        std::string log = "Server provision configuration load failed and will be ignored";
-        if (success)
-            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+    myAdminHttp2Server->setHttp2Server(myTrafficHttp2Server);
 
-        if (success) {
-            log += ": ";
-            success = myAdminHttp2Server->serverProvision(jsonObject, log);
-        }
-
-        if (!success) {
-            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
-        }
-    }
-
-    // Server data configuration:
-    myHttp2Server->discardServerData(discard_server_data);
-    myHttp2Server->discardServerDataRequestsHistory(discard_server_data_requests_history);
-    myHttp2Server->disablePurge(disable_purge);
-    myAdminHttp2Server->setHttp2Server(myHttp2Server);
-
-    // Now that myHttp2Server is referenced, I wil have access to global variables:
-    if (global_variables_file != "") {
-        success = h2agent::http2server::getFileContent(global_variables_file, fileContent);
+    // Now that myTrafficHttp2Server is referenced, I wil have access to global variables:
+    if (global_variable_file != "") {
+        success = h2agent::http2server::getFileContent(global_variable_file, fileContent);
         std::string log = "Global variables configuration load failed and will be ignored";
         if (success)
             success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
-            success = myAdminHttp2Server->serverDataGlobal(jsonObject, log);
+            success = myAdminHttp2Server->globalVariable(jsonObject, log);
         }
 
         if (!success) {
@@ -675,12 +716,14 @@ int main(int argc, char* argv[])
     }
 
     // Associate data containers:
-    myHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
+    if (traffic_server_enabled) {
+        myTrafficHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
+    }
 
     // Server key password:
-    if (!server_key_password.empty()) {
-        if (traffic_secured) myHttp2Server->setServerKeyPassword(server_key_password);
-        if (admin_secured) myAdminHttp2Server->setServerKeyPassword(server_key_password);
+    if (!traffic_server_key_password.empty()) {
+        if (traffic_server_enabled && traffic_secured) myTrafficHttp2Server->setServerKeyPassword(traffic_server_key_password);
+        if (admin_secured) myAdminHttp2Server->setServerKeyPassword(traffic_server_key_password);
     }
 
     if (hasPEMpasswordPrompt) {
@@ -690,12 +733,16 @@ int main(int argc, char* argv[])
 
     int rc1 = EXIT_SUCCESS;
     int rc2 = EXIT_SUCCESS;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? server_key_file:"", admin_secured ? server_crt_file:"", server_threads);});
+    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", 1);});
 
     if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
     // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
 
-    std::thread t2([&] { rc2 = myHttp2Server->serve(bind_address, server_port, server_key_file, server_crt_file, server_threads);});
+    std::thread t2([&] {
+        if (myTrafficHttp2Server) {
+            rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, traffic_server_threads);
+        }
+    });
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for rc1/rc2 update from threads
     if (rc1 != EXIT_SUCCESS) _exit(rc1);
