@@ -11,32 +11,32 @@ H2AGENT_TRAFFIC_ENDPOINT=localhost:8000
 # FUNCTIONS #
 #############
 
-# Performs cleanup, and matching/provision configuration
+# Performs cleanup, and server matching/provision configuration
 # $1: 's' to specific plural for multiple provisions
-cleanup_matching_provision() {
+cleanup_server_matching_server_provision() {
   local s=$1
 
   EXPECTED_STATUS_CODES="200 204"
   test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || exit 1
   test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
 
-  if [ -f "matching.json" ]
+  if [ -f "server-matching.json" ]
   then
     EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
     EXPECTED_STATUS_CODES=201
-    CURL_OPTS="-d@matching.json -H \"Content-Type: application/json\""
+    CURL_OPTS="-d@server-matching.json -H \"Content-Type: application/json\""
     test_query "Matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
   fi
 
-  if [ -f "provision.json" ]
+  if [ -f "server-provision.json" ]
   then
     EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema${s} and provision${s} data received\" }"
     EXPECTED_STATUS_CODES=201
-    CURL_OPTS="-d@provision.json -H \"Content-Type: application/json\""
+    CURL_OPTS="-d@server-provision.json -H \"Content-Type: application/json\""
     test_query "Provision configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
   fi
 }
-export -f cleanup_matching_provision
+export -f cleanup_server_matching_server_provision
 
 evaluate() {
   local dir=$1

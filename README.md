@@ -2176,7 +2176,15 @@ MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 5
 
 ## Contributing
 
-You must follow these steps:
+In you want to contribute the project with fixes or new features, you must follow these steps:
+
+### Create Issue
+
+In case that you detect a crash in the application, report it [here](https://github.com/testillano/h2agent/issues/new?assignees=&labels=&template=bug_report.md&title=Crash).
+
+To share ideas and suggest new features, report [here](https://github.com/testillano/h2agent/issues/new?assignees=&labels=&template=feature_request.md&title=idea).
+
+Any help and feedback is well appreciated. Thank you in advance !
 
 ### Fork
 
@@ -2190,6 +2198,13 @@ See [unit test](#unit-test).
 
 See [component test](#component-test).
 
+### Additional verifications
+
+It would be also good to check the demo health and benchmark test:
+
+* [Demo](#demo).
+* [Benchmarking test](#benchmarking-test).
+
 ### Check formatting
 
 Please, execute `astyle` formatting (using [frankwolf image](https://hub.docker.com/r/frankwolf/astyle)) before any pull request:
@@ -2202,10 +2217,4 @@ $ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 ### Pull request
 
 Rebase to update and then make a `pull request`.
-Some of the basic things to check before submitting would be:
-
-* [Unit test](#unit-test).
-* [Component test](#component-test).
-* [Demo](#demo).
-* [Benchmarking test](#benchmarking-test).
 

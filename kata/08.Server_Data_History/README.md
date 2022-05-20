@@ -90,7 +90,7 @@ Now, just configure a provision to extract such object and transfer it to wherev
 
 ## Exercise
 
-Create the `provision.json` to accept these requests:
+Create the `server-provision.json` to accept these requests:
 
 * `POST` `/ctrl/v2/items/update/id-<number>`
 * `GET` `/ctrl/v2/items/id-<number>`
@@ -99,4 +99,4 @@ The `POST` request must be answered with status code `200`.
 
 The `GET` request must be answered with status code `200` and a response body which is the request body received in the previous `POST` request.
 
-The `matching.json` configuration is provided as a `PriorityMatchingRegex` algorithm, although the order is not significant here because the `URIs` received are different. As those `URIs` transport an arbitrary identifier, this discards the `FullMatching` algorithm, and we must match them to identify the corresponding provision. This algorithm is normally used when a server manages different `URIs` which cannot be processed with a master/unique regular expression (`FullMatchingRegexReplace` algorithm).
+The `server-matching.json` configuration is provided as a `PriorityMatchingRegex` algorithm, although the order is not significant here because the `URIs` received are different. As those `URIs` transport an arbitrary identifier, this discards the `FullMatching` algorithm, and we must match them to identify the corresponding provision. This algorithm is normally used when a server manages different `URIs` which cannot be processed with a master/unique regular expression (`FullMatchingRegexReplace` algorithm).
