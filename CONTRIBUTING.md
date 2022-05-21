@@ -26,7 +26,7 @@ Run [component tests](./README.md#component-test) and check that nothing was bro
 
 ### Additional tests
 
-It would be also good to check the [demo](./README.md#demo) and [benchmark](./README.md#benchmarking-test) health:
+It would be also good to check the [demo](./README.md#demo) and [benchmark](./README.md#benchmarking-test) health.
 
 ### Source style format
 
