@@ -8,24 +8,24 @@
       "target": "response.body.object"
     },
     {
-      "source": "request.body.number1",
+      "source": "request.body./number1",
       "target": "var.number1"
     },
     {
-      "source": "request.body.number2",
+      "source": "request.body./number2",
       "target": "var.number2"
     },
     {
-      "source": "request.body.number3",
+      "source": "request.body./number3",
       "target": "var.number3"
     },
     {
       "source": "value.[ @{number1}, @{number2}, @{number3} ]",
-      "target": "response.body.jsonstring.processed.numbers"
+      "target": "response.body.jsonstring./processed/numbers"
     },
     {
       "source": "request.header.app-version",
-      "target": "response.body.string.processed.appVersion"
+      "target": "response.body.string./processed/appVersion"
     }
   ]
 }

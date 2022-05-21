@@ -34,7 +34,7 @@ Imagine the following current server data map:
 ]
 ```
 
-**Note**: remember that `./tools/helpers.src` can be sourced to access some helper functions, for example you could execute `data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
+**Note**: remember that `./tools/helpers.src` can be sourced to access some helper functions, for example you could execute `server-data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
 
 Now, you can prepare an event source `event.ev1`, just defining four variables to address the event whose names extend the event variable with *method*, *uri*, *number* and *path* suffixes:
 

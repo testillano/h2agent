@@ -9,12 +9,12 @@
         "target": "response.header.item-number"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "up" },
         "target": "var.up"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "down" },
         "target": "var.down"
       },
@@ -41,12 +41,12 @@
         "target": "response.header.item-number"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "up" },
         "target": "var.up"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "down" },
         "target": "var.down"
       },
@@ -73,12 +73,12 @@
         "target": "response.header.item-number"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "up" },
         "target": "var.up"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "down" },
         "target": "var.down"
       },
@@ -105,12 +105,12 @@
         "target": "response.header.item-number"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "up" },
         "target": "var.up"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "down" },
         "target": "var.down"
       },
@@ -137,12 +137,12 @@
         "target": "response.header.item-number"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "up" },
         "target": "var.up"
       },
       {
-        "source": "request.body.direction",
+        "source": "request.body./direction",
         "filter": { "RegexCapture": "down" },
         "target": "var.down"
       },

@@ -27,7 +27,7 @@
         "target": "var.ev1.number"
       },
       {
-        "source": "value./body",
+        "source": "value./requestBody",
         "target": "var.ev1.path"
       },
       {
