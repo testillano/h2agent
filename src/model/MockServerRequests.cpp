@@ -69,8 +69,11 @@ mock_server_requests_key_t MockServerRequests::getKey() const {
     return result;
 }
 
-void MockServerRequests::loadRequest(const std::string &pstate, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                                     unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+void MockServerRequests::loadRequest(const std::string &pstate, const std::string &state,
+                                     const std::string &method, const std::string &uri,
+                                     const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                                     unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody,
+                                     std::uint64_t serverSequence, unsigned int responseDelayMs,
                                      bool historyEnabled, const std::string virtualOriginComingFromMethod, const std::string virtualOriginComingFromUri) {
 
     method_ = method;
