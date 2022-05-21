@@ -51,6 +51,7 @@ namespace h2agent
 namespace model
 {
 
+
 /**
  * This class stores the requests history.
  *
@@ -63,7 +64,7 @@ class MockServerRequestData : public Map<mock_server_requests_key_t, std::shared
     h2agent::jsonschema::JsonSchema requests_schema_;
 
     bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
-    bool string2uint64(const std::string &input, std::uint64_t &output) const;
+    bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) const;
 
     mutable mutex_t rw_mutex_;
 

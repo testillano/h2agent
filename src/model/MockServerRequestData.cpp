@@ -46,18 +46,20 @@ namespace h2agent
 namespace model
 {
 
-bool MockServerRequestData::string2uint64(const std::string &input, std::uint64_t &output) const {
+bool MockServerRequestData::string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) const {
 
     bool result = false;
 
     if (!input.empty()) {
+        negative = (input[0] == '-');
+
         try {
-            output = std::stoull(input);
+            output = std::stoull(negative ? input.substr(1):input);
             result = true;
         }
         catch(std::exception &e)
         {
-            std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer: %s", input.c_str(), e.what());
+            std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer%s: %s", input.c_str(), (negative ? " with negative sign":""), e.what());
             ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
         }
     }
@@ -133,9 +135,9 @@ bool MockServerRequestData::clear(bool &somethingDeleted, const std::string &req
 
     // Check request number:
     if (!requestNumber.empty()) {
-        bool reverse = (requestNumber[0] == '-');
+        bool reverse{};
         std::uint64_t u_requestNumber{};
-        if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
+        if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
             return false;
 
         somethingDeleted = it->second->removeMockServerRequest(u_requestNumber, reverse);
@@ -173,9 +175,9 @@ std::string MockServerRequestData::asJsonString(const std::string &requestMethod
 
     // Check request number:
     if (!requestNumber.empty()) {
-        bool reverse = (requestNumber[0] == '-');
+        bool reverse{};
         std::uint64_t u_requestNumber{};
-        if (!string2uint64(reverse ? requestNumber.substr(1):requestNumber, u_requestNumber))
+        if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
             return "[]";
 
         auto ptr = it->second->getMockServerRequest(u_requestNumber, reverse);
@@ -196,8 +198,9 @@ std::string MockServerRequestData::summary(const std::string &maxKeys) const {
 
     result["totalKeys"] = (unsigned int)size();
 
+    bool negative;
     std::uint64_t u_maxKeys{};
-    if (!string2uint64(maxKeys, u_maxKeys)) {
+    if (!string2uint64andSign(maxKeys, u_maxKeys, negative)) {
         u_maxKeys = std::numeric_limits<uint64_t>::max();
     }
 
@@ -224,16 +227,25 @@ std::string MockServerRequestData::summary(const std::string &maxKeys) const {
 
 std::shared_ptr<MockServerRequest> MockServerRequestData::getMockServerRequest(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {
 
+    if (requestMethod.empty()) {
+        LOGDEBUG(ert::tracing::Logger::debug("Empty 'requestMethod' provided: cannot retrieve the server data event", ERT_FILE_LOCATION));
+        return nullptr;
+    }
+
+    if (requestUri.empty()) {
+        LOGDEBUG(ert::tracing::Logger::debug("Empty 'requestUri' provided: cannot retrieve the server data event", ERT_FILE_LOCATION));
+        return nullptr;
+    }
+
+    if (requestNumber.empty()) {
+        LOGDEBUG(ert::tracing::Logger::debug("Empty 'requestNumber' provided: cannot retrieve the server data event", ERT_FILE_LOCATION));
+        return nullptr;
+    }
+
     LOGDEBUG(
         std::string msg = ert::tracing::Logger::asString("requestMethod: %s | requestUri: %s | requestNumber: %s", requestMethod.c_str(), requestUri.c_str(), requestNumber.c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
-
-    if (requestMethod.empty())
-        return nullptr;
-
-    if (requestMethod.empty() || requestUri.empty() || requestNumber.empty())
-        return nullptr;
 
     mock_server_requests_key_t key;
     calculateMockServerRequestsKey(key, requestMethod, requestUri);
@@ -244,12 +256,12 @@ std::shared_ptr<MockServerRequest> MockServerRequestData::getMockServerRequest(c
     if (it == end())
         return nullptr; // nothing found
 
-    // Check request number:
+    bool reverse{};
     std::uint64_t u_requestNumber{};
-    if (!string2uint64(requestNumber, u_requestNumber))
+    if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
         return nullptr;
 
-    return (it->second->getMockServerRequest(u_requestNumber));
+    return (it->second->getMockServerRequest(u_requestNumber, reverse));
 }
 
 nlohmann::json MockServerRequestData::asJson() const {

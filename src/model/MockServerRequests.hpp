@@ -121,14 +121,14 @@ public:
     /**
      * Gets the mock request in specific position (last by default)
      *
-     * @param requestNumber Request history number (1..N) to filter selection. Value of '1' by default.
+     * @param requestNumber Request history number (1..N) to filter selection.
      * Value '0' is not accepted, and null will be returned in this case.
-     * @param reverse Reverse the order to get the request from the tail instead the head. True by default.
+     * @param reverse Reverse the order to get the request from the tail instead the head.
      *
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockServerRequest> getMockServerRequest(std::uint64_t requestNumber = 1, bool reverse = true) const;
+    std::shared_ptr<MockServerRequest> getMockServerRequest(std::uint64_t requestNumber, bool reverse) const;
 
     /**
      * Builds json document for class information
