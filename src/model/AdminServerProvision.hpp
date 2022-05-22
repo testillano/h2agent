@@ -103,7 +103,7 @@ class AdminServerProvision
     std::string request_schema_id_{};
     std::string response_schema_id_{};
 
-    model::MockServerEventsData *mock_server_request_data_; // just in case it is used
+    model::MockServerEventsData *mock_server_events_data_; // just in case it is used
     model::GlobalVariable *global_variable_; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
@@ -207,7 +207,7 @@ public:
      * just in case it is used in event source
      */
     void setMockServerEventsData(model::MockServerEventsData *p) {
-        mock_server_request_data_ = p;
+        mock_server_events_data_ = p;
     }
 
     /**

@@ -43,7 +43,7 @@ namespace h2agent
 namespace model
 {
 
-void calculateMockServerKeyEventsKey(mock_server_requests_key_t &key, const std::string &method, const std::string &uri) {
+void calculateMockServerKeyEventsKey(mock_server_events_key_t &key, const std::string &method, const std::string &uri) {
     // key <request-method>#<request-uri>
     key += method;
     key += "#";
@@ -62,9 +62,9 @@ bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t requestNumber, 
     return true;
 }
 
-mock_server_requests_key_t MockServerKeyEvents::getKey() const {
+mock_server_events_key_t MockServerKeyEvents::getKey() const {
 
-    mock_server_requests_key_t result;
+    mock_server_events_key_t result;
     calculateMockServerKeyEventsKey(result, method_, uri_);
     return result;
 }

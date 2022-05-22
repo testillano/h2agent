@@ -59,7 +59,7 @@ namespace model
  * Also, the last request for an specific key, is used to know the state which is used to get the
  * corresponding provision information.
  */
-class MockServerEventsData : public Map<mock_server_requests_key_t, std::shared_ptr<MockServerKeyEvents>>
+class MockServerEventsData : public Map<mock_server_events_key_t, std::shared_ptr<MockServerKeyEvents>>
 {
     h2agent::jsonschema::JsonSchema requests_schema_;
 
