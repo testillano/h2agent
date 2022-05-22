@@ -44,7 +44,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <AdminServerProvision.hpp>
-#include <MockServerRequestData.hpp>
+#include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
 
 #include <functions.hpp>
@@ -230,7 +230,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
-        auto mockServerRequest = mock_server_request_data_->getMockServerRequest(event_method, event_uri, event_number);
+        auto mockServerRequest = mock_server_request_data_->getMockServerKeyEvent(event_method, event_uri, event_number);
         if (!mockServerRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());

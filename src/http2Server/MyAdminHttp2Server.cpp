@@ -49,7 +49,7 @@ SOFTWARE.
 #include <MyTrafficHttp2Server.hpp>
 
 #include <AdminData.hpp>
-#include <MockServerRequestData.hpp>
+#include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
 #include <functions.hpp>
 
@@ -325,7 +325,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) maxKeys = it->second;
         }
 
-        responseBody = getHttp2Server()->getMockServerRequestData()->summary(maxKeys);
+        responseBody = getHttp2Server()->getMockServerEventsData()->summary(maxKeys);
         statusCode = 200;
     }
     else if (pathSuffix == "global-variable") {
@@ -367,7 +367,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         }
 
         bool validQuery;
-        responseBody = getHttp2Server()->getMockServerRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+        responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/configuration") {
@@ -405,7 +405,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) requestNumber = it->second;
         }
 
-        bool success = getHttp2Server()->getMockServerRequestData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
+        bool success = getHttp2Server()->getMockServerEventsData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
 
         statusCode = (success ? (serverDataDeleted ? 200:204):400);
     }

@@ -53,7 +53,7 @@ namespace h2agent
 {
 namespace model
 {
-class MockServerRequestData;
+class MockServerEventsData;
 class GlobalVariable;
 class AdminData;
 }
@@ -67,7 +67,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     bool server_data_key_history_;
     bool purge_execution_;
 
-    model::MockServerRequestData *mock_request_data_;
+    model::MockServerEventsData *mock_request_data_;
     model::GlobalVariable *global_variable_;
     model::AdminData *admin_data_;
     std::atomic<std::uint64_t> general_unique_server_sequence_;
@@ -106,7 +106,7 @@ public:
                  std::string& responseBody, unsigned int &responseDelayMs);
 
 
-    model::MockServerRequestData *getMockServerRequestData() const {
+    model::MockServerEventsData *getMockServerEventsData() const {
         return mock_request_data_;
     }
     model::GlobalVariable *getGlobalVariable() const {

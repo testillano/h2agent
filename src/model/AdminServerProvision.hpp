@@ -68,7 +68,7 @@ typedef std::string admin_server_provision_key_t;
 
 void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
-class MockServerRequestData;
+class MockServerEventsData;
 class GlobalVariable;
 
 
@@ -103,7 +103,7 @@ class AdminServerProvision
     std::string request_schema_id_{};
     std::string response_schema_id_{};
 
-    model::MockServerRequestData *mock_server_request_data_; // just in case it is used
+    model::MockServerEventsData *mock_server_request_data_; // just in case it is used
     model::GlobalVariable *global_variable_; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
@@ -203,10 +203,10 @@ public:
     bool load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
 
     /**
-     * Sets the internal mock request data,
+     * Sets the internal mock server data,
      * just in case it is used in event source
      */
-    void setMockServerRequestData(model::MockServerRequestData *p) {
+    void setMockServerEventsData(model::MockServerEventsData *p) {
         mock_server_request_data_ = p;
     }
 

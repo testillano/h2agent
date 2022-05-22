@@ -48,7 +48,7 @@ namespace h2agent
 namespace model
 {
 class AdminData;
-class MockServerRequestData;
+class MockServerEventsData;
 }
 
 namespace http2server
