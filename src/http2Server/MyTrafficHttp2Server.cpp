@@ -61,7 +61,7 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
     admin_data_(nullptr),
     general_unique_server_sequence_(1) {
 
-    mock_request_data_ = new model::MockServerEventsData();
+    mock_server_events_data_ = new model::MockServerEventsData();
     global_variable_ = new model::GlobalVariable();
 
     server_data_ = true;
@@ -70,7 +70,7 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
 }
 
 MyTrafficHttp2Server::~MyTrafficHttp2Server() {
-    delete (mock_request_data_);
+    delete (mock_server_events_data_);
     delete (global_variable_);
 }
 
@@ -254,7 +254,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         }
 
         // PREPARE & TRANSFORM
-        provision->setMockServerEventsData(mock_request_data_); // could be used by event source
+        provision->setMockServerEventsData(mock_server_events_data_); // could be used by event source
         provision->setGlobalVariable(global_variable_);
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
