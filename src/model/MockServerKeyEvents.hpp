@@ -44,7 +44,7 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
-#include <MockServerRequest.hpp>
+#include <MockServerKeyEvent.hpp>
 #include <common.hpp>
 
 namespace h2agent
@@ -61,22 +61,22 @@ typedef std::string mock_server_requests_key_t;
 // https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
 // https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
 
-void calculateMockServerRequestsKey(mock_server_requests_key_t &key, const std::string &method, const std::string &uri);
+void calculateMockServerKeyEventsKey(mock_server_requests_key_t &key, const std::string &method, const std::string &uri);
 
 
 
-class MockServerRequests
+class MockServerKeyEvents
 {
     mutable mutex_t rw_mutex_;
 
     std::string method_;
     std::string uri_;
 
-    std::vector<std::shared_ptr<MockServerRequest>> requests_;
+    std::vector<std::shared_ptr<MockServerKeyEvent>> requests_;
 
 public:
 
-    MockServerRequests() {;}
+    MockServerKeyEvents() {;}
 
     // setters:
 
@@ -114,12 +114,12 @@ public:
      *
      * @return Boolean about if something was deleted
      */
-    bool removeMockServerRequest(std::uint64_t requestNumber, bool reverse);
+    bool removeMockServerKeyEvent(std::uint64_t requestNumber, bool reverse);
 
     // getters:
 
     /**
-     * Gets the mock request in specific position (last by default)
+     * Gets the mock server key event in specific position (last by default)
      *
      * @param requestNumber Request history number (1..N) to filter selection.
      * Value '0' is not accepted, and null will be returned in this case.
@@ -128,7 +128,7 @@ public:
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockServerRequest> getMockServerRequest(std::uint64_t requestNumber, bool reverse) const;
+    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(std::uint64_t requestNumber, bool reverse) const;
 
     /**
      * Builds json document for class information

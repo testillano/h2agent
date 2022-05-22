@@ -48,7 +48,7 @@ namespace model
 {
 
 
-class MockServerRequest
+class MockServerKeyEvent
 {
     std::string pstate_;
 
@@ -73,7 +73,7 @@ class MockServerRequest
 
 public:
 
-    MockServerRequest() {;}
+    MockServerKeyEvent() {;}
 
     // setters:
 

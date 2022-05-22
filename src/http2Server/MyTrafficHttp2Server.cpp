@@ -46,7 +46,7 @@ SOFTWARE.
 #include <MyTrafficHttp2Server.hpp>
 
 #include <AdminData.hpp>
-#include <MockServerRequestData.hpp>
+#include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
 #include <functions.hpp>
 
@@ -61,7 +61,7 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
     admin_data_(nullptr),
     general_unique_server_sequence_(1) {
 
-    mock_request_data_ = new model::MockServerRequestData();
+    mock_request_data_ = new model::MockServerEventsData();
     global_variable_ = new model::GlobalVariable();
 
     server_data_ = true;
@@ -185,7 +185,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
 // Find mock context:
     std::string inState;
-    /*bool requestFound = */getMockServerRequestData()->findLastRegisteredRequest(method, uri, inState); // if not found, inState will be 'initial'
+    /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequest(method, uri, inState); // if not found, inState will be 'initial'
 
 // Matching algorithm:
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
@@ -254,7 +254,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         }
 
         // PREPARE & TRANSFORM
-        provision->setMockServerRequestData(mock_request_data_); // could be used by event source
+        provision->setMockServerEventsData(mock_request_data_); // could be used by event source
         provision->setGlobalVariable(global_variable_);
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
@@ -262,7 +262,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
             bool somethingDeleted;
-            bool success = getMockServerRequestData()->clear(somethingDeleted, method, uri);
+            bool success = getMockServerEventsData()->clear(somethingDeleted, method, uri);
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -278,7 +278,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
             // Store request event context information
             if (server_data_) {
-                getMockServerRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
@@ -289,7 +289,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
                         outStateUri = uri; // by default
                     }
 
-                    getMockServerRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
+                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }
@@ -303,7 +303,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerRequestData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {
