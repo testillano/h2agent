@@ -80,7 +80,7 @@ void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const s
 
 AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
-    response_delay_ms_(0), mock_server_request_data_(nullptr), global_variable_(nullptr) {;}
+    response_delay_ms_(0), mock_server_events_data_(nullptr), global_variable_(nullptr) {;}
 
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
@@ -230,7 +230,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
-        auto mockServerRequest = mock_server_request_data_->getMockServerKeyEvent(event_method, event_uri, event_number);
+        auto mockServerRequest = mock_server_events_data_->getMockServerKeyEvent(event_method, event_uri, event_number);
         if (!mockServerRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());

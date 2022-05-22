@@ -91,7 +91,7 @@ void MockServerEventsData::loadRequest(const std::string &pstate, const std::str
     // Find MockServerKeyEvents
     std::shared_ptr<MockServerKeyEvents> requests;
 
-    mock_server_requests_key_t key;
+    mock_server_events_key_t key;
     calculateMockServerKeyEventsKey(key, method, uri);
 
     write_guard_t guard(rw_mutex_);
@@ -124,7 +124,7 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
     if (!checkSelection(requestMethod, requestUri, requestNumber))
         return false;
 
-    mock_server_requests_key_t key;
+    mock_server_events_key_t key;
     calculateMockServerKeyEventsKey(key, requestMethod, requestUri);
 
     write_guard_t guard(rw_mutex_);
@@ -164,7 +164,7 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
 
     validQuery = true;
 
-    mock_server_requests_key_t key;
+    mock_server_events_key_t key;
     calculateMockServerKeyEventsKey(key, requestMethod, requestUri);
 
     read_guard_t guard(rw_mutex_);
@@ -247,7 +247,7 @@ std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
-    mock_server_requests_key_t key;
+    mock_server_events_key_t key;
     calculateMockServerKeyEventsKey(key, requestMethod, requestUri);
 
     read_guard_t guard(rw_mutex_);
@@ -279,7 +279,7 @@ nlohmann::json MockServerEventsData::asJson() const {
 
 bool MockServerEventsData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
 
-    mock_server_requests_key_t key;
+    mock_server_events_key_t key;
     calculateMockServerKeyEventsKey(key, method, uri);
 
     read_guard_t guard(rw_mutex_);
