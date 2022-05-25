@@ -260,7 +260,7 @@ jobs:
       name: Delete package h2agent_builder:local
       uses: actions/delete-package-versions@v3
       with:
-        #owner: ${{ github.repository_owner }}
+        owner: ${{ github.repository_owner }}
         token: ${{ secrets.GITHUB_TOKEN }}
         package-name: 'h2agent_builder'
         package-version-ids: ${{ steps.docker_build1.outputs.digest }}
@@ -268,7 +268,7 @@ jobs:
       name: Delete package h2agent:local
       uses: actions/delete-package-versions@v3
       with:
-        #owner: ${{ github.repository_owner }}
+        owner: ${{ github.repository_owner }}
         token: ${{ secrets.GITHUB_TOKEN }}
         package-name: 'h2agent'
         package-version-ids: ${{ steps.docker_build2.outputs.digest }}
@@ -276,7 +276,7 @@ jobs:
       name: Delete package ct-h2agent:local
       uses: actions/delete-package-versions@v3
       with:
-        #owner: ${{ github.repository_owner }}
+        owner: ${{ github.repository_owner }}
         token: ${{ secrets.GITHUB_TOKEN }}
         package-name: 'ct-h2agent'
         package-version-ids: ${{ steps.docker_build3.outputs.digest }}
@@ -284,7 +284,7 @@ jobs:
       name: Delete package h2agent_training:local
       uses: actions/delete-package-versions@v3
       with:
-        #owner: ${{ github.repository_owner }}
+        owner: ${{ github.repository_owner }}
         token: ${{ secrets.GITHUB_TOKEN }}
         package-name: 'h2agent_training'
         package-version-ids: ${{ steps.docker_build4.outputs.digest }}
