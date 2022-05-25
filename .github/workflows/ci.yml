@@ -64,7 +64,7 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
         # logout at job end:
-        #logout: true
+        logout: true
     -
       name: Login to GitHub Container Registry
       uses: docker/login-action@v1
@@ -73,7 +73,7 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
         # logout at job end:
-        #logout: true
+        logout: true
     -
       name: Build and push local builder image
       id: docker_build1
@@ -204,6 +204,23 @@ jobs:
     #    path: /tmp
     #...
     -
+      name: Login to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        # logout at job end:
+        logout: true
+    -
+      name: Login to GitHub Container Registry
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        # logout at job end:
+        logout: true
+    -
       name: Push images manually
       run: |
         # load docker images:
@@ -232,8 +249,9 @@ jobs:
         do
           for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
           do
-            echo "Push '${imgbn}' image to '${hub}' hub"
+            echo "Push '${imgbn}' local image from 'ghcr.io' hub"
             docker pull ghcr.io/testillano/${imgbn}:local
+            echo "Push '${imgbn}' image to '${hub}' hub"
             docker tag ghcr.io/testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
             docker push ${hub}/testillano/${imgbn}:${image_tag}
           done
