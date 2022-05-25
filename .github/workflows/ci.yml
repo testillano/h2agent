@@ -82,7 +82,8 @@ jobs:
         tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
         context: .
-        #push: true
+        # this local one is pushed to allow next build step:
+        push: true
         outputs: type=docker,dest=/tmp/h2agent_builder.tar
     -
       name: Image digest
@@ -134,24 +135,28 @@ jobs:
       with:
         name: h2agent_builder
         path: /tmp/h2agent_builder.tar
+        retention-days: 1
     -
       name: Upload artifact for h2agent
       uses: actions/upload-artifact@v2
       with:
         name: h2agent
         path: /tmp/h2agent.tar
+        retention-days: 1
     -
       name: Upload artifact for ct-h2agent
       uses: actions/upload-artifact@v2
       with:
         name: ct-h2agent
         path: /tmp/ct-h2agent.tar
+        retention-days: 1
     -
       name: Upload artifact for h2agent_training
       uses: actions/upload-artifact@v2
       with:
         name: h2agent_training
         path: /tmp/h2agent_training.tar
+        retention-days: 1
 
   build_coverage:
     needs: build_docker_images
