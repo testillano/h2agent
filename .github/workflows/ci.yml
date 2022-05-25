@@ -46,8 +46,8 @@ jobs:
           # docker cannot write on host directory:
           ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
 
-  build_and_push:
-    name: Build and push docker images to Docker Hub
+  build_docker_images:
+    name: Build docker images (but not push yet)
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
     steps:
@@ -118,39 +118,9 @@ jobs:
         context: .
         #push: true
         build-args: img_tag=local
-    -
-      name: Image4 digest
-      run: echo ${{ steps.docker_build4.outputs.digest }}
-    -
-      name: Push images manually
-      run: |
-        # workflow dispatch event:
-        image_tag=${{ github.event.inputs.tag }}
-        echo Workflow dispatch image_tag=$image_tag
-
-        # Strip git ref prefix from version
-        [ -z "${image_tag}" ] && image_tag=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-        # Strip "v" prefix from tag name
-        [[ "${{ github.ref }}" == "refs/tags/"* ]] && image_tag=$(echo $image_tag | sed -e 's/^v//')
-
-        # Use Docker `latest` tag convention
-        [ "$image_tag" == "master" ] && image_tag=latest
-
-        echo Processed image_tag=$image_tag
-
-        for hub in docker.io ghcr.io
-        do
-          for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
-          do
-            echo "Push '${imgbn}' image to '${hub}' hub"
-            docker tag ghcr.io/testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
-            docker push ${hub}/testillano/${imgbn}:${image_tag}
-          done
-        done
 
   build_coverage:
-    needs: build_and_push
+    needs: build_docker_images
     name: Build local coverage image
     runs-on: ubuntu-latest
     steps:
@@ -194,8 +164,45 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: total-coverage.info
 
-  helm_publish:
+  push_docker_images:
     needs: unit_tests_and_coverage
+    name: Push docker images to Docker Hub
+    runs-on: ubuntu-latest
+    #if: github.event_name == 'push'
+    steps:
+    -
+      name: Image4 digest
+      run: echo ${{ steps.docker_build4.outputs.digest }}
+    -
+      name: Push images manually
+      run: |
+        # workflow dispatch event:
+        image_tag=${{ github.event.inputs.tag }}
+        echo Workflow dispatch image_tag=$image_tag
+
+        # Strip git ref prefix from version
+        [ -z "${image_tag}" ] && image_tag=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+        # Strip "v" prefix from tag name
+        [[ "${{ github.ref }}" == "refs/tags/"* ]] && image_tag=$(echo $image_tag | sed -e 's/^v//')
+
+        # Use Docker `latest` tag convention
+        [ "$image_tag" == "master" ] && image_tag=latest
+
+        echo Processed image_tag=$image_tag
+
+        for hub in docker.io ghcr.io
+        do
+          for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
+          do
+            echo "Push '${imgbn}' image to '${hub}' hub"
+            docker tag ghcr.io/testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
+            docker push ${hub}/testillano/${imgbn}:${image_tag}
+          done
+        done
+
+  helm_publish:
+    needs: push_docker_images
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
