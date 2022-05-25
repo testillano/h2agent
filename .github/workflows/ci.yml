@@ -54,9 +54,9 @@ jobs:
     -
       name: Check out the repo
       uses: actions/checkout@v2
-    -
-      name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+    #-
+    #  name: Set up Docker Buildx
+    #  uses: docker/setup-buildx-action@v1
     -
       name: Login to Docker Hub
       uses: docker/login-action@v1
@@ -75,22 +75,6 @@ jobs:
         # logout at job end:
         logout: true
     -
-      name: Build (but not push) builder image
-      id: docker_build0
-      uses: docker/build-push-action@v2
-      with:
-        tags: ghcr.io/testillano/h2agent_builder:local
-        file: Dockerfile.build
-        context: .
-        # this local one is pushed to allow next build step,
-        # but this is incompatible with output type=docker, so
-        # we will replicate the stage without artifact output
-        #push: true
-        outputs: type=docker,dest=/tmp/h2agent_builder.tar
-    -
-      name: Image digest
-      run: echo ${{ steps.docker_build0.outputs.digest }}
-    -
       name: Build and push local builder image
       id: docker_build1
       uses: docker/build-push-action@v2
@@ -98,12 +82,23 @@ jobs:
         tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
         context: .
+        # Push docker images (tagged local) to share with 'push_docker_images'
+        #  job, instead of using artifacts upload/download mechanism, because
+        #  project 'Dockerfiles' need for real images, not tarballs:
         push: true
+        #outputs: type=docker,dest=/tmp/h2agent_builder.tar
+    #-
+    #  name: Upload artifact for h2agent_builder
+    #  uses: actions/upload-artifact@v2
+    #  with:
+    #    name: h2agent_builder
+    #    path: /tmp/h2agent_builder.tar
+    #    retention-days: 1
     -
       name: Image digest
       run: echo ${{ steps.docker_build1.outputs.digest }}
     -
-      name: Build (but not push) project image
+      name: Build and push local project image
       id: docker_build2
       uses: docker/build-push-action@v2
       with:
@@ -111,26 +106,26 @@ jobs:
         file: Dockerfile
         build-args: base_tag=local
         context: .
-        #push: true
-        outputs: type=docker,dest=/tmp/h2agent.tar
+        push: true
+        #outputs: type=docker,dest=/tmp/h2agent.tar
     -
       name: Image2 digest
       run: echo ${{ steps.docker_build2.outputs.digest }}
     -
-      name: Build (but not push) ct image
+      name: Build and push local ct image
       id: docker_build3
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/ct-h2agent:local
         file: ct/Dockerfile
         context: ct
-        #push: true
-        outputs: type=docker,dest=/tmp/ct-h2agent.tar
+        push: true
+        #outputs: type=docker,dest=/tmp/ct-h2agent.tar
     -
       name: Image3 digest
       run: echo ${{ steps.docker_build3.outputs.digest }}
     -
-      name: Build (but not push) project training image
+      name: Build and push local project training image
       id: docker_build4
       uses: docker/build-push-action@v2
       with:
@@ -138,39 +133,11 @@ jobs:
         file: Dockerfile.training
         build-args: img_tag=local
         context: .
-        #push: true
-        outputs: type=docker,dest=/tmp/h2agent_training.tar
+        push: true
+        #outputs: type=docker,dest=/tmp/h2agent_training.tar
     -
       name: Image4 digest
       run: echo ${{ steps.docker_build4.outputs.digest }}
-    -
-      name: Upload artifact for h2agent_builder
-      uses: actions/upload-artifact@v2
-      with:
-        name: h2agent_builder
-        path: /tmp/h2agent_builder.tar
-        retention-days: 1
-    -
-      name: Upload artifact for h2agent
-      uses: actions/upload-artifact@v2
-      with:
-        name: h2agent
-        path: /tmp/h2agent.tar
-        retention-days: 1
-    -
-      name: Upload artifact for ct-h2agent
-      uses: actions/upload-artifact@v2
-      with:
-        name: ct-h2agent
-        path: /tmp/ct-h2agent.tar
-        retention-days: 1
-    -
-      name: Upload artifact for h2agent_training
-      uses: actions/upload-artifact@v2
-      with:
-        name: h2agent_training
-        path: /tmp/h2agent_training.tar
-        retention-days: 1
 
   build_coverage:
     needs: build_docker_images
@@ -226,42 +193,25 @@ jobs:
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
     steps:
-    -
-      name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-    -
-      name: Download artifact h2agent_builder
-      uses: actions/download-artifact@v2
-      with:
-        name: h2agent_builder
-        path: /tmp
-    -
-      name: Download artifact h2agent
-      uses: actions/download-artifact@v2
-      with:
-        name: h2agent
-        path: /tmp
-    -
-      name: Download artifact ct-h2agent
-      uses: actions/download-artifact@v2
-      with:
-        name: ct-h2agent
-        path: /tmp
-    -
-      name: Download artifact h2agent_training
-      uses: actions/download-artifact@v2
-      with:
-        name: h2agent_training
-        path: /tmp
+    #-
+    #  name: Set up Docker Buildx
+    #  uses: docker/setup-buildx-action@v1
+    #-
+    #  name: Download artifact h2agent_builder
+    #  uses: actions/download-artifact@v2
+    #  with:
+    #    name: h2agent_builder
+    #    path: /tmp
+    #...
     -
       name: Push images manually
       run: |
         # load docker images:
-        docker load --input /tmp/h2agent_builder.tar
-        docker load --input /tmp/h2agent.tar
-        docker load --input /tmp/ct-h2agent.tar
-        docker load --input /tmp/h2agent_training.tar
-        docker image ls -a
+        #docker load --input /tmp/h2agent_builder.tar
+        #docker load --input /tmp/h2agent.tar
+        #docker load --input /tmp/ct-h2agent.tar
+        #docker load --input /tmp/h2agent_training.tar
+        #docker image ls -a
 
         # workflow dispatch event:
         image_tag=${{ github.event.inputs.tag }}
