@@ -80,6 +80,7 @@ jobs:
         file: Dockerfile.build
         context: .
         #push: true
+        outputs: type=docker,dest=/tmp/h2agent_builder.tar
     -
       name: Image digest
       run: echo ${{ steps.docker_build1.outputs.digest }}
@@ -90,9 +91,10 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent:local
         file: Dockerfile
+        build-args: base_tag=local
         context: .
         #push: true
-        build-args: base_tag=local
+        outputs: type=docker,dest=/tmp/h2agent.tar
     -
       name: Image2 digest
       run: echo ${{ steps.docker_build2.outputs.digest }}
@@ -105,6 +107,7 @@ jobs:
         file: ct/Dockerfile
         context: ct
         #push: true
+        outputs: type=docker,dest=/tmp/ct-h2agent.tar
     -
       name: Image3 digest
       run: echo ${{ steps.docker_build3.outputs.digest }}
@@ -115,9 +118,37 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent_training:local
         file: Dockerfile.training
+        build-args: img_tag=local
         context: .
         #push: true
-        build-args: img_tag=local
+        outputs: type=docker,dest=/tmp/h2agent_training.tar
+    -
+      name: Image4 digest
+      run: echo ${{ steps.docker_build4.outputs.digest }}
+    -
+      name: Upload artifact for h2agent_builder
+      uses: actions/upload-artifact@v2
+      with:
+        name: h2agent_builder
+        path: /tmp/h2agent_builder.tar
+    -
+      name: Upload artifact for h2agent
+      uses: actions/upload-artifact@v2
+      with:
+        name: h2agent
+        path: /tmp/h2agent.tar
+    -
+      name: Upload artifact for ct-h2agent
+      uses: actions/upload-artifact@v2
+      with:
+        name: ct-h2agent
+        path: /tmp/ct-h2agent.tar
+    -
+      name: Upload artifact for h2agent_training
+      uses: actions/upload-artifact@v2
+      with:
+        name: h2agent_training
+        path: /tmp/h2agent_training.tar
 
   build_coverage:
     needs: build_docker_images
@@ -171,11 +202,39 @@ jobs:
     #if: github.event_name == 'push'
     steps:
     -
-      name: Image4 digest
-      run: echo ${{ steps.docker_build4.outputs.digest }}
+      name: Download artifact h2agent_builder
+      uses: actions/download-artifact@v2
+      with:
+        name: h2agent_builder
+        path: /tmp
+    -
+      name: Download artifact h2agent
+      uses: actions/download-artifact@v2
+      with:
+        name: h2agent
+        path: /tmp
+    -
+      name: Download artifact ct-h2agent
+      uses: actions/download-artifact@v2
+      with:
+        name: ct-h2agent
+        path: /tmp
+    -
+      name: Download artifact h2agent_training
+      uses: actions/download-artifact@v2
+      with:
+        name: h2agent_training
+        path: /tmp
     -
       name: Push images manually
       run: |
+        # load docker images:
+        docker load --input /tmp/h2agent_builder.tar
+        docker load --input /tmp/h2agent.tar
+        docker load --input /tmp/ct-h2agent.tar
+        docker load --input /tmp/h2agent_training.tar
+        docker image ls -a
+
         # workflow dispatch event:
         image_tag=${{ github.event.inputs.tag }}
         echo Workflow dispatch image_tag=$image_tag
