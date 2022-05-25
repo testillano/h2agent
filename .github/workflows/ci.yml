@@ -256,6 +256,38 @@ jobs:
             docker push ${hub}/testillano/${imgbn}:${image_tag}
           done
         done
+    -
+      name: Delete package h2agent_builder:local
+      uses: actions/delete-package-versions@v3
+      with:
+        #owner: ${{ github.repository_owner }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        package-name: 'h2agent_builder'
+        package-version-ids: ${{ steps.docker_build1.outputs.digest }}
+    -
+      name: Delete package h2agent:local
+      uses: actions/delete-package-versions@v3
+      with:
+        #owner: ${{ github.repository_owner }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        package-name: 'h2agent'
+        package-version-ids: ${{ steps.docker_build2.outputs.digest }}
+    -
+      name: Delete package ct-h2agent:local
+      uses: actions/delete-package-versions@v3
+      with:
+        #owner: ${{ github.repository_owner }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        package-name: 'ct-h2agent'
+        package-version-ids: ${{ steps.docker_build3.outputs.digest }}
+    -
+      name: Delete package h2agent_training:local
+      uses: actions/delete-package-versions@v3
+      with:
+        #owner: ${{ github.repository_owner }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        package-name: 'h2agent_training'
+        package-version-ids: ${{ steps.docker_build4.outputs.digest }}
 
   helm_publish:
     needs: push_docker_images
