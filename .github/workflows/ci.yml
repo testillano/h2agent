@@ -76,15 +76,29 @@ jobs:
         logout: true
     -
       name: Build (but not push) builder image
+      id: docker_build0
+      uses: docker/build-push-action@v2
+      with:
+        tags: ghcr.io/testillano/h2agent_builder:local
+        file: Dockerfile.build
+        context: .
+        # this local one is pushed to allow next build step,
+        # but this is incompatible with output type=docker, so
+        # we will replicate the stage without artifact output
+        #push: true
+        outputs: type=docker,dest=/tmp/h2agent_builder.tar
+    -
+      name: Image digest
+      run: echo ${{ steps.docker_build0.outputs.digest }}
+    -
+      name: Build and push local builder image
       id: docker_build1
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
         context: .
-        # this local one is pushed to allow next build step:
         push: true
-        outputs: type=docker,dest=/tmp/h2agent_builder.tar
     -
       name: Image digest
       run: echo ${{ steps.docker_build1.outputs.digest }}
@@ -177,13 +191,16 @@ jobs:
         logout: true
     -
       name: Build and push coverage image
-      id: docker_build0
+      id: docker_build5
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
         file: Dockerfile.coverage
         context: .
         push: true
+    -
+      name: Image digest
+      run: echo ${{ steps.docker_build5.outputs.digest }}
 
   unit_tests_and_coverage:
     needs: build_coverage
