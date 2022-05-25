@@ -20,8 +20,8 @@ public:
     nlohmann::json json_doc_;
 
     http2Server_test() {
-        qmap_amp_ = h2agent::http2server::extractQueryParameters(QueryParametersExampleDefault);
-        qmap_scl_ = h2agent::http2server::extractQueryParameters(QueryParametersExampleSemicolon, ';');
+        qmap_amp_ = h2agent::http2::extractQueryParameters(QueryParametersExampleDefault);
+        qmap_scl_ = h2agent::http2::extractQueryParameters(QueryParametersExampleSemicolon, ';');
 
         headers_.insert(std::pair<std::string, nghttp2::asio_http2::header_value>("content-type", {"application/json; charset=utf-8", false}));
         headers_.insert(std::pair<std::string, nghttp2::asio_http2::header_value>("content-length", {std::to_string(200), false}));
@@ -45,20 +45,15 @@ TEST_F(http2Server_test, QueryParameters)
             EXPECT_EQ(it->second, std::string(var) + "_value");
         }
 
-        std::string qmap_str = h2agent::http2server::sortQueryParameters(qmap);
+        std::string qmap_str = h2agent::http2::sortQueryParameters(qmap);
         EXPECT_EQ(qmap_str, "bar=bar_value&foo=foo_value");
-        qmap_str = h2agent::http2server::sortQueryParameters(qmap, ';');
+        qmap_str = h2agent::http2::sortQueryParameters(qmap, ';');
         EXPECT_EQ(qmap_str, "bar=bar_value;foo=foo_value");
     }
 
     // Bad key
-    auto qmap_bkey = h2agent::http2server::extractQueryParameters(QueryParametersExampleBadKey);
+    auto qmap_bkey = h2agent::http2::extractQueryParameters(QueryParametersExampleBadKey);
     EXPECT_EQ(qmap_bkey.size(), 0);
-}
-
-TEST_F(http2Server_test, headersAsString)
-{
-    EXPECT_EQ(h2agent::http2server::headersAsString(http2Server_test::headers_), "[content-length: 200][content-type: application/json; charset=utf-8]");
 }
 
 TEST_F(http2Server_test, jsonContentSerialization)
@@ -71,20 +66,20 @@ TEST_F(http2Server_test, jsonContentSerialization)
     jfile.close();
 
     std::string content;
-    if (h2agent::http2server::getFileContent(jfilePath, content)) {
+    if (h2agent::http2::getFileContent(jfilePath, content)) {
         EXPECT_EQ(json_str, content);
     }
 
     nlohmann::json jsonDoc;
-    if (h2agent::http2server::parseJsonContent(content, jsonDoc)) {
+    if (h2agent::http2::parseJsonContent(content, jsonDoc)) {
         EXPECT_EQ(http2Server_test::json_doc_, jsonDoc);
     }
 
     // Error cases:
-    if (!h2agent::http2server::parseJsonContent("{\"not a json\":}", jsonDoc, true /* write exception */)) {
+    if (!h2agent::http2::parseJsonContent("{\"not a json\":}", jsonDoc, true /* write exception */)) {
         EXPECT_EQ(jsonDoc.dump(), "\"Json content parse error: [json.exception.parse_error.101] parse error at line 1, column 15: syntax error while parsing value - unexpected '}'; expected '[', '{', or a literal | exception id: 101 | byte position of error: 15\"");
     }
 
-    EXPECT_FALSE(h2agent::http2server::getFileContent("/this/is/not/a/valid/file", content));
+    EXPECT_FALSE(h2agent::http2::getFileContent("/this/is/not/a/valid/file", content));
 }
 

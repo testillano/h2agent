@@ -536,7 +536,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
-            if (!h2agent::http2server::parseJsonContent(targetS, obj))
+            if (!h2agent::http2::parseJsonContent(targetS, obj))
                 return false;
 
             // assignment
@@ -683,7 +683,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         }
     }
     if (requestBodyJsonWanted) {
-        requestBodyJsonParseable = h2agent::http2server::parseJsonContent(requestBody, requestBodyJson);
+        requestBodyJsonParseable = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
     }
 
     // Request schema validation:

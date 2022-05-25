@@ -38,12 +38,6 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <memory>
-#include <cstdint>
-#include <atomic>
-
-#include <boost/asio.hpp>
-
-#include <JsonSchema.hpp>
 
 #include <ert/metrics/Metrics.hpp>
 
@@ -53,43 +47,33 @@ namespace h2agent
 {
 namespace model
 {
-class MockServerEventsData;
-class GlobalVariable;
 class AdminData;
+class MockServerEventsData;
 }
 
-namespace http2server
+namespace http2
 {
 
-class MyTrafficHttp2Server: public ert::http2comm::Http2Server
-{
-    bool server_data_;
-    bool server_data_key_history_;
-    bool purge_execution_;
+class MyTrafficHttp2Server;
 
-    model::MockServerEventsData *mock_server_events_data_;
-    model::GlobalVariable *global_variable_;
+class MyAdminHttp2Server: public ert::http2comm::Http2Server
+{
     model::AdminData *admin_data_;
-    std::atomic<std::uint64_t> general_unique_server_sequence_;
+    h2agent::http2::MyTrafficHttp2Server *http2_server_; // used to set server-data configuration (discard contexts and/or history)
 
-    // metrics:
-    ert::metrics::Metrics *metrics_{};
+    std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
+    std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
 
-    ert::metrics::counter_t *observed_requests_processed_counter_{};
-    ert::metrics::counter_t *observed_requests_unprovisioned_counter_{};
-    ert::metrics::counter_t *purged_contexts_successful_counter_{};
-    ert::metrics::counter_t *purged_contexts_failed_counter_{};
+    void receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const;
+    void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const;
+    void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const;
+    void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
+    void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
+
 
 public:
-    MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
-    ~MyTrafficHttp2Server();
-
-    /**
-    * Enable metrics
-    *
-    *  @param metrics Optional metrics object to compute counters
-    */
-    void enableMyMetrics(ert::metrics::Metrics *metrics);
+    MyAdminHttp2Server(size_t workerThreads);
+    ~MyAdminHttp2Server();
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -105,37 +89,22 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
-
-    model::MockServerEventsData *getMockServerEventsData() const {
-        return mock_server_events_data_;
-    }
-    model::GlobalVariable *getGlobalVariable() const {
-        return global_variable_;
-    }
-    void setAdminData(model::AdminData *p) {
-        admin_data_ = p;
-    }
     model::AdminData *getAdminData() const {
         return admin_data_;
     }
 
-    std::string serverDataConfigurationAsJsonString() const;
-
-    const std::atomic<std::uint64_t> &getGeneralUniqueServerSequence() const {
-        return general_unique_server_sequence_;
+    void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {
+        http2_server_ = ptr;
     }
 
-    void discardData(bool discard = true) {
-        server_data_ = !discard;
+    h2agent::http2::MyTrafficHttp2Server *getHttp2Server(void) const {
+        return http2_server_;
     }
 
-    void discardDataKeyHistory(bool discard = true) {
-        server_data_key_history_ = !discard;
-    }
-
-    void disablePurge(bool disable = true) {
-        purge_execution_ = !disable;
-    }
+    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
+    bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
+    bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    bool globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

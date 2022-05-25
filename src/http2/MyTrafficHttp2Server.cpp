@@ -41,6 +41,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
+#include <ert/http2comm/Http2Headers.hpp>
 #include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyTrafficHttp2Server.hpp>
@@ -52,7 +53,7 @@ SOFTWARE.
 
 namespace h2agent
 {
-namespace http2server
+namespace http2
 {
 
 
@@ -155,12 +156,12 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortAmpersand) {
 
-        qmap = h2agent::http2server::extractQueryParameters(uriQuery);
-        uriQuery = h2agent::http2server::sortQueryParameters(qmap);
+        qmap = h2agent::http2::extractQueryParameters(uriQuery);
+        uriQuery = h2agent::http2::sortQueryParameters(qmap);
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortSemicolon) {
-        qmap = h2agent::http2server::extractQueryParameters(uriQuery, ';');
-        uriQuery = h2agent::http2server::sortQueryParameters(qmap, ';');
+        qmap = h2agent::http2::extractQueryParameters(uriQuery, ';');
+        uriQuery = h2agent::http2::sortQueryParameters(qmap, ';');
     }
 
     std::string uri = uriPath;
@@ -172,7 +173,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     LOGDEBUG(
         std::stringstream ss;
         ss << "TRAFFIC REQUEST RECEIVED | Method: " << method
-        << " | Headers: " << h2agent::http2server::headersAsString(req.header())
+        << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
         << " | Query parameters: " << ((uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
@@ -314,7 +315,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "RESPONSE TO SEND| StatusCode: " << statusCode << " | Headers: " << h2agent::http2server::headersAsString(headers);
+        ss << "RESPONSE TO SEND| StatusCode: " << statusCode << " | Headers: " << ert::http2comm::headersAsString(headers);
         if (!responseBody.empty()) ss << " | Body: " << responseBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
