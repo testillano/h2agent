@@ -45,7 +45,7 @@ SOFTWARE.
 
 namespace h2agent
 {
-namespace http2server
+namespace http2
 {
 
 /**
@@ -67,16 +67,6 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
  * @return sorted query parameters URI part.
  */
 std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator = '&' /* maybe ';' */);
-
-
-/**
- * Prints headers list for traces
- *
- * @param headers nghttp2 headers map
- *
- * @return sorted query parameters URI part
- */
-std::string headersAsString(const nghttp2::asio_http2::header_map &headers);
 
 
 /**

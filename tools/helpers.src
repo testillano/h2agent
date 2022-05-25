@@ -241,7 +241,7 @@ server_example() {
 
   # If h2agent is up, we will suggest as example the same server matching configuration detected, to avoid breaking its behaviour
   #  (provisions and schemas are probably not harmful because of their dummy names):
-  local foo_server_matching=$(curl --http2-prior-knowledge http://localhost:8074/admin/v1/server-matching 2>/dev/null | jq '.' -c)
+  local foo_server_matching=$(curl --http2-prior-knowledge ${ADMIN_URL}/server-matching 2>/dev/null | jq '.' -c)
   [ -z "${foo_server_matching}" ] && foo_server_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
 
   local server_api_path=

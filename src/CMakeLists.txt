@@ -1,4 +1,4 @@
-add_subdirectory(http2Server)
+add_subdirectory(http2)
 add_subdirectory(jsonSchema)
 add_subdirectory(model)
 
@@ -20,7 +20,7 @@ set_property(TARGET ert_metrics PROPERTY IMPORTED_LOCATION /usr/local/lib/ert/li
 target_link_libraries( ${H2AGENT_TARGET_NAME}
 PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}
-        h2agent-http2Server
+        h2agent-http2
         h2agent-model
         ert_logger
         ert_http2comm

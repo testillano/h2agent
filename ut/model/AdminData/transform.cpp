@@ -258,7 +258,7 @@ TEST_F(AdminData_test, TransformWithSources) // test different sources
 
     std::string requestUri = "/app/v1/foo/bar/1?name=test";
     std::string requestUriPath = "/app/v1/foo/bar/1";
-    std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(requestUri);
+    std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(requestUri);
     const nlohmann::json request = R"({ "node1": { "node2": "value-of-node1-node2", "delaymilliseconds": 25 } })"_json;
 
 

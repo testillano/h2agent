@@ -61,8 +61,8 @@ const char* progname;
 
 namespace
 {
-h2agent::http2server::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
-h2agent::http2server::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // traffic
+h2agent::http2::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
+h2agent::http2::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // incoming traffic
 boost::asio::io_service *timersIoService = nullptr;
 
 const char* AdminApiName = "admin";
@@ -614,7 +614,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(1); // 1 nghttp2 server thread
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(1); // 1 nghttp2 server thread
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -630,7 +630,7 @@ int main(int argc, char* argv[])
     });
 
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2server::MyTrafficHttp2Server(traffic_server_worker_threads, timersIoService);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, timersIoService);
         myTrafficHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(p_metrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
@@ -642,10 +642,10 @@ int main(int argc, char* argv[])
     bool success;
 
     if (schema_file != "") {
-        success = h2agent::http2server::getFileContent(schema_file, fileContent);
+        success = h2agent::http2::getFileContent(schema_file, fileContent);
         std::string log = "Schema configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
@@ -659,10 +659,10 @@ int main(int argc, char* argv[])
 
     if (traffic_server_enabled) {
         if (traffic_server_matching_file != "") {
-            success = h2agent::http2server::getFileContent(traffic_server_matching_file, fileContent);
+            success = h2agent::http2::getFileContent(traffic_server_matching_file, fileContent);
             std::string log = "Server matching configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -675,10 +675,10 @@ int main(int argc, char* argv[])
         }
 
         if (traffic_server_provision_file != "") {
-            success = h2agent::http2server::getFileContent(traffic_server_provision_file, fileContent);
+            success = h2agent::http2::getFileContent(traffic_server_provision_file, fileContent);
             std::string log = "Server provision configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -700,10 +700,10 @@ int main(int argc, char* argv[])
 
     // Now that myTrafficHttp2Server is referenced, I wil have access to global variables:
     if (global_variable_file != "") {
-        success = h2agent::http2server::getFileContent(global_variable_file, fileContent);
+        success = h2agent::http2::getFileContent(global_variable_file, fileContent);
         std::string log = "Global variables configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";

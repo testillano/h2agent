@@ -1,12 +1,13 @@
-add_library (h2agent-http2Server
+add_library (h2agent-http2
     ${CMAKE_CURRENT_LIST_DIR}/functions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MyTrafficHttp2Server.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/MyTrafficHttp2Client.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MyAdminHttp2Server.cpp
 )
 
-target_include_directories (h2agent-http2Server
+target_include_directories (h2agent-http2
 PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/http2Server
+    ${CMAKE_SOURCE_DIR}/src/http2
     ${CMAKE_SOURCE_DIR}/src/jsonSchema
     ${CMAKE_SOURCE_DIR}/src/model
 
