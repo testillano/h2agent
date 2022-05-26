@@ -1,9 +1,9 @@
 # `<PULL REQUEST TITLE HERE>`
-<!--- Provide a general summary of your changes in the #title above; -->
+<!-- Provide a general summary of your changes in the #title above; -->
 
 ## Description
-<!--- Describe your changes in detail; -->
-<!--- Please also include relevant motivation and context; -->
+<!-- Describe your changes in detail; -->
+<!-- Please also include relevant motivation and context; -->
 
 ## Type of change
 <!-- Please delete options that are not relevant: -->
