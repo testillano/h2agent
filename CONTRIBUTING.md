@@ -1,4 +1,4 @@
-# C++ HTTP/2 Mock Service contribution guidelines
+# C++ HTTP/2 Mock Service Contribution Guidelines
 
 If you want to contribute the project with fixes or new features, you must follow these steps:
 
@@ -66,7 +66,7 @@ Go to `Actions` tab in your fork page and wait for the "green ball" of *Continuo
 
 ## Pull request
 
-Create the `pull request` in your `github` fork. Follow instructions and wait for final acceptance.
+Create the `pull request` in your `github` fork. Follow [instructions](.github/PULL_REQUEST_TEMPLATE/pull_request_template.md) and wait for final acceptance.
 
 Thank you in advance for your contribution.
 
