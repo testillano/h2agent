@@ -536,6 +536,50 @@ Options:
 Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 ```
 
+## Execution with TLS support
+
+`H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
+
+```bash
+$> ls tools/ssl/
+create_all.sh  create_self-signed_certificate.sh
+```
+
+Using `create_all.sh`, server key and certificate are created at execution directory:
+
+```bash
+$> tools/ssl/create_all.sh
+tools/ssl/create_all.sh 
++ openssl genrsa -des3 -out ca.key 4096
+Generating RSA private key, 4096 bit long modulus (2 primes)
+..++++
+..........++++
+e is 65537 (0x010001)
+Enter pass phrase for ca.key:
+Verifying - Enter pass phrase for ca.key:
++ openssl req -new -x509 -days 365 -key ca.key -out ca.crt -subj '/C=ES/ST=Madrid/L=Madrid/O=Security/OU=IT Department/CN=www.example.com'
+Enter pass phrase for ca.key:
++ openssl genrsa -des3 -out server.key 1024
+Generating RSA private key, 1024 bit long modulus (2 primes)
+...............................................+++++
+.....................+++++
+
+etc.
+```
+
+Add the following parameters to the agent command-line (appended key password to avoid the 'PEM pass phrase' prompt at process start):
+
+```bash
+--traffic-server-key server.key --traffic-server-crt server.crt --traffic-server-key-password <key password>
+```
+
+For quick testing, launch unsecured traffic in this way:
+
+```bash
+$> curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
+HTTP/2 501
+```
+
 ## Metrics
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
