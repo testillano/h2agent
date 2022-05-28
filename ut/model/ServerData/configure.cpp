@@ -19,7 +19,7 @@ const nlohmann::json GlobalVariableConfiguration__BadSchema = R"({ "variable_nam
 class ServerData_test : public ::testing::Test
 {
 public:
-    h2agent::model::GlobalVariable gvars_;
+    h2agent::model::GlobalVariable gvars_{};
 
     ServerData_test() {
         ;
@@ -31,7 +31,7 @@ TEST_F(ServerData_test, LoadGlobalVariableSuccess)
     EXPECT_TRUE(ServerData_test::gvars_.loadJson(GlobalVariableConfiguration__Success));
     EXPECT_EQ(ServerData_test::gvars_.asJson(), GlobalVariableConfiguration__Success);
 
-    bool exists{};
+    bool exists = false;
     EXPECT_EQ(ServerData_test::gvars_.getValue("variable_name_2", exists), "variable_value_2");
     EXPECT_TRUE(exists);
     ServerData_test::gvars_.removeVariable("variable_name_2");

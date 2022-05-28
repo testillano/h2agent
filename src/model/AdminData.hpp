@@ -52,9 +52,9 @@ namespace model
 
 class AdminData
 {
-    AdminServerMatchingData matching_data_;
-    AdminServerProvisionData provision_data_;
-    AdminSchemaData schema_data_;
+    AdminServerMatchingData matching_data_{};
+    AdminServerProvisionData provision_data_{};
+    AdminSchemaData schema_data_{};
 
 public:
 

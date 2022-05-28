@@ -56,14 +56,14 @@ public:
 
 private:
 
-    std::string s_value_; // string
-    std::int64_t i_value_; // integer
-    std::uint64_t u_value_; // unsigned integer
-    double f_value_; // float number
-    bool b_value_; // boolean
-    nlohmann::json j_value_; // json object
+    std::string s_value_{}; // string
+    std::int64_t i_value_{}; // integer
+    std::uint64_t u_value_{}; // unsigned integer
+    double f_value_{}; // float number
+    bool b_value_{}; // boolean
+    nlohmann::json j_value_{}; // json object
 
-    NativeType native_type_;
+    NativeType native_type_{};
 
     /**
     * Gets native type selected from source

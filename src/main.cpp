@@ -78,7 +78,7 @@ const char* AdminApiVersion = "v1";
 std::string loadHistogramBoundaries(const std::string &input, ert::metrics::bucket_boundaries_t &boundaries) {
     std::string result;
     std::stringstream ss(input);
-    double value;
+    double value = 0;
     while (ss >> value) {
         boundaries.push_back(value);
         result += (std::to_string(value) + " ");
@@ -115,8 +115,8 @@ std::string getLocaltime()
     std::string result;
 
     char timebuffer[80];
-    time_t rawtime;
-    struct tm* timeinfo;
+    time_t rawtime = 0;
+    struct tm* timeinfo(nullptr);
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
@@ -295,7 +295,7 @@ void usage(int rc)
 
 int toNumber(const std::string& value)
 {
-    int result{};
+    int result = 0;
 
     try
     {
@@ -358,8 +358,8 @@ int main(int argc, char* argv[])
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
-    ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries;
-    ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries;
+    ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
+    ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
 
     std::string value;
 
@@ -639,7 +639,7 @@ int main(int argc, char* argv[])
 
     std::string fileContent;
     nlohmann::json jsonObject;
-    bool success;
+    bool success = false;
 
     if (schema_file != "") {
         success = h2agent::http2::getFileContent(schema_file, fileContent);

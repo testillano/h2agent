@@ -71,14 +71,14 @@ public:
     /** Returns a reference of the entire map */
     const map_t &get() const
     {
-        read_guard_t guard(rw_mutex_);
+        read_guard_t guard(mutex_);
         return map_;
     }
 
     /** copy operator */
     Map& operator= (const map_t& other)
     {
-        write_guard_t guard(rw_mutex_);
+        write_guard_t guard(mutex_);
         map_ = other;
         return *this;
     }
@@ -91,28 +91,28 @@ public:
      */
     map_it get(const Key& key) const
     {
-        read_guard_t guard(rw_mutex_);
+        //read_guard_t guard(mutex_);
         return map_.find(key);
     }
 
     /** begin iterator */
     map_it begin() const
     {
-        read_guard_t guard(rw_mutex_);
+        read_guard_t guard(mutex_);
         return map_.begin();
     }
 
     /** end iterator */
     map_it end() const
     {
-        read_guard_t guard(rw_mutex_);
+        read_guard_t guard(mutex_);
         return map_.end();
     }
 
     /** map size */
     size_t size() const
     {
-        read_guard_t guard(rw_mutex_);
+        read_guard_t guard(mutex_);
         return map_.size();
     }
 
@@ -126,7 +126,7 @@ public:
      */
     void add(const Key& key, const Value &value)
     {
-        write_guard_t wr_lock(rw_mutex_);
+        write_guard_t guard(mutex_);
         map_[key] = value;
     }
 
@@ -137,7 +137,7 @@ public:
      */
     void add(const map_t& m)
     {
-        write_guard_t wr_lock(rw_mutex_);
+        write_guard_t guard(mutex_);
         map_.insert(m.begin(), m.end());
     }
 
@@ -148,7 +148,7 @@ public:
      */
     void remove(map_it it)
     {
-        write_guard_t guard(rw_mutex_);
+        write_guard_t guard(mutex_);
         map_.erase(it);
     }
 
@@ -159,20 +159,20 @@ public:
      */
     void remove(const Key& key)
     {
-        write_guard_t guard(rw_mutex_);
+        write_guard_t guard(mutex_);
         map_.erase(key);
     }
 
     /** Clear map */
     void clear()
     {
-        write_guard_t guard(rw_mutex_);
+        write_guard_t guard(mutex_);
         map_.clear();
     }
 
 protected:
-    mutable mutex_t rw_mutex_;
-    map_t map_;
+    mutable mutex_t mutex_{};
+    map_t map_{};
 };
 
 }

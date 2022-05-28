@@ -50,7 +50,7 @@ namespace model
 
 class MockServerKeyEvent
 {
-    std::string pstate_;
+    std::string pstate_{};
 
     std::uint64_t reception_timestamp_ms_{};
     std::string state_{};

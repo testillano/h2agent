@@ -124,10 +124,12 @@ public:
 
 private:
 
-    std::vector<admin_server_provision_key_t> ordered_keys_; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
-    h2agent::jsonschema::JsonSchema server_provision_schema_;
+    std::vector<admin_server_provision_key_t> ordered_keys_{}; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
+    h2agent::jsonschema::JsonSchema server_provision_schema_{};
 
     LoadResult loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+
+    mutable mutex_t rw_mutex_{};
 };
 
 }

@@ -190,7 +190,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
 // Matching algorithm:
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
-    std::shared_ptr<h2agent::model::AdminServerProvision> provision;
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision(nullptr);
 
     if (algorithmType == h2agent::model::AdminServerMatchingData::FullMatching) {
         LOGDEBUG(
@@ -237,8 +237,8 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
         // OPTIONAL SCHEMAS VALIDATION
         const h2agent::model::AdminSchemaData & schemaData = getAdminData()->getSchemaData();
-        std::shared_ptr<h2agent::model::AdminSchema> requestSchema;
-        std::shared_ptr<h2agent::model::AdminSchema> responseSchema;
+        std::shared_ptr<h2agent::model::AdminSchema> requestSchema(nullptr);
+        std::shared_ptr<h2agent::model::AdminSchema> responseSchema(nullptr);
         std::string requestSchemaId = provision->getRequestSchemaId();
         if (!requestSchemaId.empty()) {
             requestSchema = schemaData.find(requestSchemaId);
@@ -262,7 +262,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
-            bool somethingDeleted;
+            bool somethingDeleted = false;
             bool success = getMockServerEventsData()->clear(somethingDeleted, method, uri);
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");

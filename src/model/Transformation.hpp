@@ -79,23 +79,23 @@ public:
 
 private:
 
-    SourceType source_type_;
-    std::string source_; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event
-    std::vector<std::string> source_tokenized_; // GeneralRandomSet
-    int source_i1_, source_i2_; // GeneralRandom
+    SourceType source_type_{};
+    std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event
+    std::vector<std::string> source_tokenized_{}; // GeneralRandomSet
+    int source_i1_{}, source_i2_{}; // GeneralRandom
 
-    TargetType target_type_;
-    std::string target_; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState (foreign method part)
-    std::string target2_; // OutState (foreign uri part)
+    TargetType target_type_{};
+    std::string target_{}; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState (foreign method part)
+    std::string target2_{}; // OutState (foreign uri part)
 
-    bool has_filter_;
-    FilterType filter_type_;
-    std::string filter_; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar
-    std::regex filter_rgx_; // RegexCapture, RegexReplace
-    int filter_number_type_; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
-    std::int64_t filter_i_; // Sum, Multiply
-    std::uint64_t filter_u_; // Sum, Multiply
-    double filter_f_; // Sum, Multiply
+    bool has_filter_{};
+    FilterType filter_type_{};
+    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar
+    std::regex filter_rgx_{}; // RegexCapture, RegexReplace
+    int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
+    std::int64_t filter_i_{}; // Sum, Multiply
+    std::uint64_t filter_u_{}; // Sum, Multiply
+    double filter_f_{}; // Sum, Multiply
 
 public:
 

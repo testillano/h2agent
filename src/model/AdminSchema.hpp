@@ -53,10 +53,10 @@ typedef std::string schema_key_t;
 
 class AdminSchema
 {
-    nlohmann::json json_; // schema reference
+    nlohmann::json json_{}; // schema reference
 
-    schema_key_t key_;
-    h2agent::jsonschema::JsonSchema schema_;  // schema content
+    schema_key_t key_{};
+    h2agent::jsonschema::JsonSchema schema_{};  // schema content
 
 public:
 

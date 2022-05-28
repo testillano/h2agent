@@ -64,7 +64,7 @@ bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t requestNumber, 
 
 mock_server_events_key_t MockServerKeyEvents::getKey() const {
 
-    mock_server_events_key_t result;
+    mock_server_events_key_t result{};
     calculateMockServerKeyEventsKey(result, method_, uri_);
     return result;
 }

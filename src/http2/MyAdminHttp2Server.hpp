@@ -58,8 +58,8 @@ class MyTrafficHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
-    model::AdminData *admin_data_;
-    h2agent::http2::MyTrafficHttp2Server *http2_server_; // used to set server-data configuration (discard contexts and/or history)
+    model::AdminData *admin_data_{};
+    h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;

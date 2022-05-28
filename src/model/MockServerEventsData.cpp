@@ -89,9 +89,9 @@ void MockServerEventsData::loadRequest(const std::string &pstate, const std::str
 
 
     // Find MockServerKeyEvents
-    std::shared_ptr<MockServerKeyEvents> requests;
+    std::shared_ptr<MockServerKeyEvents> requests(nullptr);
 
-    mock_server_events_key_t key;
+    mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, method, uri);
 
     write_guard_t guard(rw_mutex_);
@@ -115,16 +115,16 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
     somethingDeleted = false;
 
     if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
-        somethingDeleted = (Map::size() > 0);
         write_guard_t guard(rw_mutex_);
-        Map::clear();
+        somethingDeleted = (map_.size() > 0);
+        map_.clear();
         return result;
     }
 
     if (!checkSelection(requestMethod, requestUri, requestNumber))
         return false;
 
-    mock_server_events_key_t key;
+    mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, requestMethod, requestUri);
 
     write_guard_t guard(rw_mutex_);
@@ -135,8 +135,8 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
 
     // Check request number:
     if (!requestNumber.empty()) {
-        bool reverse{};
-        std::uint64_t u_requestNumber{};
+        bool reverse = false;
+        std::uint64_t u_requestNumber = 0;
         if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
             return false;
 
@@ -144,7 +144,7 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
     }
     else {
         somethingDeleted = true;
-        Map::remove(it); // remove key
+        remove(it); // remove key
     }
 
     return result;
@@ -164,7 +164,7 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
 
     validQuery = true;
 
-    mock_server_events_key_t key;
+    mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, requestMethod, requestUri);
 
     read_guard_t guard(rw_mutex_);
@@ -175,8 +175,8 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
 
     // Check request number:
     if (!requestNumber.empty()) {
-        bool reverse{};
-        std::uint64_t u_requestNumber{};
+        bool reverse = false;
+        std::uint64_t u_requestNumber = 0;
         if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
             return "[]";
 
@@ -198,16 +198,18 @@ std::string MockServerEventsData::summary(const std::string &maxKeys) const {
 
     result["totalKeys"] = (unsigned int)size();
 
-    bool negative;
-    std::uint64_t u_maxKeys{};
+    bool negative = false;
+    std::uint64_t u_maxKeys = 0;
     if (!string2uint64andSign(maxKeys, u_maxKeys, negative)) {
         u_maxKeys = std::numeric_limits<uint64_t>::max();
     }
 
     size_t totalEvents = 0;
-    size_t historySize;
+    size_t historySize = 0;
     size_t displayedKeys = 0;
     nlohmann::json key;
+
+    read_guard_t guard(rw_mutex_);
     for (auto it = begin(); it != end(); it++) {
         size_t historySize = it->second->size();
         totalEvents += historySize;
@@ -247,7 +249,7 @@ std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
-    mock_server_events_key_t key;
+    mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, requestMethod, requestUri);
 
     read_guard_t guard(rw_mutex_);
@@ -256,8 +258,8 @@ std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(
     if (it == end())
         return nullptr; // nothing found
 
-    bool reverse{};
-    std::uint64_t u_requestNumber{};
+    bool reverse = false;
+    std::uint64_t u_requestNumber = 0;
     if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
         return nullptr;
 
@@ -279,7 +281,7 @@ nlohmann::json MockServerEventsData::asJson() const {
 
 bool MockServerEventsData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
 
-    mock_server_events_key_t key;
+    mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, method, uri);
 
     read_guard_t guard(rw_mutex_);

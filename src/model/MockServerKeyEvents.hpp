@@ -67,12 +67,12 @@ void calculateMockServerKeyEventsKey(mock_server_events_key_t &key, const std::s
 
 class MockServerKeyEvents
 {
-    mutable mutex_t rw_mutex_;
+    mutable mutex_t rw_mutex_{};
 
-    std::string method_;
-    std::string uri_;
+    std::string method_{};
+    std::string uri_{};
 
-    std::vector<std::shared_ptr<MockServerKeyEvent>> requests_;
+    std::vector<std::shared_ptr<MockServerKeyEvent>> requests_{};
 
 public:
 
