@@ -295,14 +295,15 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
 
 std::string TypeConverter::asString() {
 
+    bool success = false;
     std::stringstream ss;
     ss << "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): " << getNativeType()
-       << "|  String: " << s_value_
-       << " | Integer: " << i_value_
-       << " | Unsigned integer: " << u_value_
-       << " | Float number: " << f_value_
-       << " | Boolean: " << (b_value_ ? "true":"false")
-       << " | Object: " << j_value_.dump();
+       << "|  String: " << getString(success)
+       << " | Integer: " << getInteger(success)
+       << " | Unsigned integer: " << getUnsigned(success)
+       << " | Float number: " << getFloat(success)
+       << " | Boolean: " << (getBoolean(success) ? "true":"false")
+       << " | Object: " << getObject(success).dump();
 
     return ss.str();
 }

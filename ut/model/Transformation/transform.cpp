@@ -251,26 +251,26 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
 }
 )delim"_json;
 
-class AdminData_test : public ::testing::Test
+class Transform_test : public ::testing::Test
 {
 public:
     h2agent::model::AdminData adata_{};
 
-    AdminData_test() {
+    Transform_test() {
       ;
     }
 };
 
-TEST_F(AdminData_test, TransformWithSources) // test different sources
+TEST_F(Transform_test, TransformWithSources) // test different sources
 {
 
-    EXPECT_EQ(AdminData_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
-    EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminServerProvisionData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminServerProvisionData::Success);
 
     std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
 
     ASSERT_TRUE(provision);
-    //auto provision = AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    //auto provision = Transform_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
 
     std::string requestUri = "/app/v1/foo/bar/1?name=test";
     std::string requestUriPath = "/app/v1/foo/bar/1";
@@ -299,6 +299,6 @@ TEST_F(AdminData_test, TransformWithSources) // test different sources
     provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
 
-    EXPECT_TRUE(AdminData_test::adata_.clearProvisions());
+    EXPECT_TRUE(Transform_test::adata_.clearProvisions());
 }
 
