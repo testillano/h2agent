@@ -120,7 +120,7 @@ bool MyAdminHttp2Server::checkHeaders(const
 
 std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 {
-    std::string result{};
+    std::string result;
 
     size_t apiPathSize = getApiPath().size(); // /admin/v1
     size_t uriPathSize = uriPath.size(); // /admin/v1<suffix>
@@ -152,7 +152,7 @@ THIS WAS REPLACED TEMPORARILY BY A SLIGHTLY LESS EFFICIENT VERSION, TO AVOID VAL
 
 std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody) const
 {
-    std::string result{};
+    std::string result;
     result = R"({ "result":")";
     result += (responseResult ? "true":"false");
     result += R"(", "response": )";
@@ -253,8 +253,8 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
-    bool jsonResponse_result{};
-    std::string jsonResponse_response{};
+    bool jsonResponse_result = false;
+    std::string jsonResponse_response;
 
     // Admin schema validation:
     nlohmann::json requestJson;
@@ -367,7 +367,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) requestNumber = it->second;
         }
 
-        bool validQuery;
+        bool validQuery = false;
         responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
@@ -448,9 +448,9 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     }
     else if (pathSuffix == "server-data/configuration") {
 
-        std::string discard{};
-        std::string discardKeyHistory{};
-        std::string disablePurge{};
+        std::string discard;
+        std::string discardKeyHistory;
+        std::string disablePurge;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);

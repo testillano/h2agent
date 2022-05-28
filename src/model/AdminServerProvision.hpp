@@ -74,21 +74,21 @@ class GlobalVariable;
 
 class AdminServerProvision
 {
-    nlohmann::json json_; // provision reference
+    nlohmann::json json_{}; // provision reference
 
-    admin_server_provision_key_t key_; // calculated in every load()
-    std::regex regex_; // precompile key as possible regex for PriorityMatchingRegex algorithm
+    admin_server_provision_key_t key_{}; // calculated in every load()
+    std::regex regex_{}; // precompile key as possible regex for PriorityMatchingRegex algorithm
 
     // Cached information:
     std::string request_method_{};
     std::string request_uri_{};
-    std::string in_state_;
+    std::string in_state_{};
 
-    std::string out_state_;
+    std::string out_state_{};
     unsigned int response_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
 
-    nlohmann::json response_body_;
+    nlohmann::json response_body_{};
     std::string response_body_string_{};
     /* Tatsuhiro sends strings in response:
     int response_body_integer_{};
@@ -97,19 +97,19 @@ class AdminServerProvision
     bool response_body_null_{};
     */
 
-    unsigned int response_delay_ms_;
+    unsigned int response_delay_ms_{};
 
     // Schemas:
     std::string request_schema_id_{};
     std::string response_schema_id_{};
 
-    model::MockServerEventsData *mock_server_events_data_; // just in case it is used
-    model::GlobalVariable *global_variable_; // just in case it is used
+    model::MockServerEventsData *mock_server_events_data_{}; // just in case it is used
+    model::GlobalVariable *global_variable_{}; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
 
-    std::vector<std::shared_ptr<Transformation>> transformations_;
+    std::vector<std::shared_ptr<Transformation>> transformations_{};
 
     // Three processing stages: get sources, apply filters and store targets:
     bool processSources(std::shared_ptr<Transformation> transformation,

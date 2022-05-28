@@ -12,12 +12,12 @@ const std::string QueryParametersExampleBadKey = "foo=foo_value&bar=bar_value&fo
 class http2Server_test : public ::testing::Test
 {
 public:
-    std::map<std::string, std::string> qmap_amp_;
-    std::map<std::string, std::string> qmap_scl_;
+    std::map<std::string, std::string> qmap_amp_{};
+    std::map<std::string, std::string> qmap_scl_{};
 
-    nghttp2::asio_http2::header_map headers_;
+    nghttp2::asio_http2::header_map headers_{};
 
-    nlohmann::json json_doc_;
+    nlohmann::json json_doc_{};
 
     http2Server_test() {
         qmap_amp_ = h2agent::http2::extractQueryParameters(QueryParametersExampleDefault);

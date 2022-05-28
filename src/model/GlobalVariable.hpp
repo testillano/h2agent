@@ -51,9 +51,9 @@ namespace model
  */
 class GlobalVariable : public Map<std::string, std::string>
 {
-    mutable mutex_t rw_mutex_;
+    mutable mutex_t rw_mutex_{};
 
-    h2agent::jsonschema::JsonSchema global_variable_schema_;
+    h2agent::jsonschema::JsonSchema global_variable_schema_{};
 
 public:
     GlobalVariable();

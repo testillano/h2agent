@@ -50,10 +50,10 @@ namespace jsonschema
 
 class JsonSchema
 {
-    bool available_;
+    bool available_{};
 
-    nlohmann::json json_;
-    nlohmann::json_schema::json_validator validator_;
+    nlohmann::json json_{};
+    nlohmann::json_schema::json_validator validator_{};
 
 public:
     /**

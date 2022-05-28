@@ -50,9 +50,6 @@ GlobalVariable::GlobalVariable() {
 }
 
 void GlobalVariable::loadVariable(const std::string &variable, const std::string &value) {
-
-    write_guard_t guard(rw_mutex_);
-
     add(variable, value);
 }
 
@@ -62,7 +59,6 @@ bool GlobalVariable::loadJson(const nlohmann::json &j) {
         return false;
     }
 
-    write_guard_t guard(rw_mutex_);
     add(j);
 
     return true;
@@ -70,19 +66,17 @@ bool GlobalVariable::loadJson(const nlohmann::json &j) {
 
 bool GlobalVariable::clear()
 {
-    bool result = (Map::size() > 0); // something deleted
-
     write_guard_t guard(rw_mutex_);
-    Map::clear();
+    bool result = (map_.size() > 0); // something deleted
+
+    map_.clear();
 
     return result;
 }
 
 std::string GlobalVariable::asJsonString() const {
 
-    read_guard_t guard(rw_mutex_);
-
-    if (Map::size() == 0)
+    if (map_.size() == 0)
         return "{}"; // nothing found to be built
 
     return asJson().dump();
@@ -99,18 +93,11 @@ std::string GlobalVariable::getValue(const std::string &variableName, bool &exis
 }
 
 void GlobalVariable::removeVariable(const std::string &variableName) {
-
-    write_guard_t guard(rw_mutex_);
     remove(variableName);
 }
 
 nlohmann::json GlobalVariable::asJson() const {
-
-    read_guard_t guard(rw_mutex_);
-
-    nlohmann::json result = get();
-
-    return result;
+    return get();
 }
 
 }

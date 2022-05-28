@@ -9,6 +9,9 @@
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
 #include <AdminSchemas.hpp>
+#include <MockServerEventsData.hpp>
+#include <GlobalVariable.hpp>
+
 
 // Matching configuration:
 const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({ "algorithm": "FullMatching" })"_json;
@@ -115,6 +118,18 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     {
       "source": "inState",
       "target": "response.body.string./instate"
+    },
+    {
+      "source": "value.myglobalvarvalue",
+      "target": "globalVar.myglobalvar"
+    },
+    {
+      "source": "globalVar.myglobalvar",
+      "target": "response.body.string./myglobalvar"
+    },
+    {
+      "source": "eraser",
+      "target": "globalVar.myglobalvar"
     }
   ]
 }
@@ -239,7 +254,7 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
 class AdminData_test : public ::testing::Test
 {
 public:
-    h2agent::model::AdminData adata_;
+    h2agent::model::AdminData adata_{};
 
     AdminData_test() {
       ;
@@ -253,6 +268,7 @@ TEST_F(AdminData_test, TransformWithSources) // test different sources
     EXPECT_EQ(AdminData_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminServerProvisionData::Success);
 
     std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+
     ASSERT_TRUE(provision);
     //auto provision = AdminData_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
 
@@ -268,13 +284,17 @@ TEST_F(AdminData_test, TransformWithSources) // test different sources
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
     std::uint64_t generalUniqueServerSequence = 74;
     // outputs:
-    unsigned int statusCode;
+    unsigned int statusCode = 0;
     nghttp2::asio_http2::header_map headers;
     std::string responseBody;
-    unsigned int responseDelayMs;
+    unsigned int responseDelayMs = 0;
     std::string outState;
     std::string outStateMethod;
     std::string outStateUri;
+
+    // Reserve memory for storage data and global variables, just in case they are used:
+    provision->setMockServerEventsData(new h2agent::model::MockServerEventsData()); // could be used by event source
+    provision->setGlobalVariable(new h2agent::model::GlobalVariable());
 
     provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 

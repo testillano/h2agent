@@ -402,12 +402,6 @@ bool Transformation::load(const nlohmann::json &j) {
         << " | target_: " << target_ << " (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState(empty: current method, method: another))"
         << " | target2_: " << target2_ << " (OutState(empty: current uri, uri: another))";
 
-        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
-    );
-
-    LOGDEBUG(
-        std::stringstream ss;
-
     if (has_filter_) {
 
     ss << " |FILTER| filter_type_: " << filter_type_ << " (RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar)"
@@ -417,11 +411,11 @@ bool Transformation::load(const nlohmann::json &j) {
        << " | filter_i_: " << filter_i_ << " (Sum, Multiply)"
        << " | filter_u_: " << filter_u_ << " (Sum, Multiply)"
        << " | filter_f_: " << filter_f_ << " (Sum, Multiply)";
+}
 
-    ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
-    }
+ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
 
-    );
+);
 
     return true;
 }

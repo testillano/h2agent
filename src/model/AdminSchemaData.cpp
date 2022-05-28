@@ -55,6 +55,7 @@ std::string AdminSchemaData::asJsonString() const {
 
     nlohmann::json result = nlohmann::json::array();
 
+    read_guard_t guard(rw_mutex_);
     for (auto it = map_.begin(); it != map_.end(); it++) {
         result.push_back(it->second->getJson());
     };
@@ -73,7 +74,6 @@ AdminSchemaData::LoadResult AdminSchemaData::loadSingle(const nlohmann::json &j)
     auto schema = std::make_shared<AdminSchema>();
 
     if (schema->load(j)) {
-
         // Push the key in the map:
         schema_key_t key = schema->getKey();
         add(key, schema);
@@ -102,6 +102,8 @@ AdminSchemaData::LoadResult AdminSchemaData::load(const nlohmann::json &j) {
 
 bool AdminSchemaData::clear()
 {
+    write_guard_t guard(rw_mutex_);
+
     bool result = (size() != 0);
 
     map_.clear();
@@ -110,6 +112,7 @@ bool AdminSchemaData::clear()
 }
 
 std::shared_ptr<AdminSchema> AdminSchemaData::find(const std::string &id) const {
+    read_guard_t guard(rw_mutex_);
     auto it = get(id);
     if (it != end())
         return it->second;

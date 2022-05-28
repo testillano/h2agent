@@ -61,12 +61,12 @@ namespace model
  */
 class MockServerEventsData : public Map<mock_server_events_key_t, std::shared_ptr<MockServerKeyEvents>>
 {
-    h2agent::jsonschema::JsonSchema requests_schema_;
+    h2agent::jsonschema::JsonSchema requests_schema_{};
 
     bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
     bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) const;
 
-    mutable mutex_t rw_mutex_;
+    mutable mutex_t rw_mutex_{};
 
 public:
     MockServerEventsData() {};

@@ -20,12 +20,12 @@ const nlohmann::json GlobalVariableJson_nok2 = R"({"var1": {"foo":"bar"}})"_json
 class jsonSchema_test : public ::testing::Test
 {
 public:
-    h2agent::jsonschema::JsonSchema json_schema_;
+    h2agent::jsonschema::JsonSchema json_schema_{};
 };
 
 TEST_F(jsonSchema_test, invalidSchema)
 {
-    nlohmann::json not_an_schema{};
+    nlohmann::json not_an_schema;
     EXPECT_FALSE(jsonSchema_test::json_schema_.setJson(not_an_schema));
     EXPECT_FALSE(jsonSchema_test::json_schema_.isAvailable());
 }

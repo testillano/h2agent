@@ -169,7 +169,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::GeneralStrftime) {
-        std::time_t unixTime;
+        std::time_t unixTime = 0;
         std::time (&unixTime);
         char buffer[100] = {0};
         /*size_t size = */strftime(buffer, sizeof(buffer), transformation->getSource().c_str(), localtime(&unixTime));
@@ -199,7 +199,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     else if (transformation->getSourceType() == Transformation::SourceType::SGVar) {
         std::string varname = transformation->getSource();
         searchReplaceValueVariables(variables, varname);
-        bool exists;
+        bool exists = false;
         std::string globalVariableValue = global_variable_->getValue(varname, exists);
         if (exists) sourceVault.setString(globalVariableValue);
         else {
@@ -267,11 +267,11 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         std::string &source,
         bool eraser) const
 {
-    bool success;
+    bool success = false;
     std::string targetS;
-    std::int64_t targetI;
-    std::uint64_t targetU;
-    double targetF;
+    std::int64_t targetI = 0;
+    std::uint64_t targetU = 0;
+    double targetF = 0;
 
 
     //std::string source; // (*)
@@ -417,12 +417,12 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         std::string &outStateMethod,
         std::string &outStateUri) const
 {
-    bool success;
+    bool success = false;
     std::string targetS;
-    std::int64_t targetI;
-    std::uint64_t targetU;
-    double targetF;
-    bool boolean;
+    std::int64_t targetI = 0;
+    std::uint64_t targetU = 0;
+    double targetF = 0;
+    bool boolean = false;
     nlohmann::json obj;
 
 
@@ -723,10 +723,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // Dynamic variables map: inherited along the transformation chain
-    std::map<std::string, std::string> variables{}; // source & target variables (key=variable name/value=variable value)
+    std::map<std::string, std::string> variables; // source & target variables (key=variable name/value=variable value)
 
     // Type converter:
-    TypeConverter sourceVault;
+    TypeConverter sourceVault{};
 
     // Apply transformations sequentially
     for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {

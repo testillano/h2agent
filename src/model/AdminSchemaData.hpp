@@ -99,9 +99,11 @@ public:
 
 private:
 
-    h2agent::jsonschema::JsonSchema schema_schema_;
+    h2agent::jsonschema::JsonSchema schema_schema_{};
 
     LoadResult loadSingle(const nlohmann::json &j);
+
+    mutable mutex_t rw_mutex_{};
 };
 
 }

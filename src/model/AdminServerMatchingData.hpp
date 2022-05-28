@@ -115,16 +115,16 @@ public:
     }
 
 private:
-    h2agent::jsonschema::JsonSchema server_matching_schema_;
+    h2agent::jsonschema::JsonSchema server_matching_schema_{};
 
-    mutable mutex_t rw_mutex_;
+    mutable mutex_t rw_mutex_{};
 
-    nlohmann::json json_;
+    nlohmann::json json_{};
 
-    AlgorithmType algorithm_;
-    std::regex rgx_;
-    std::string fmt_;
-    UriPathQueryParametersFilterType uri_path_query_parameters_filter_;
+    AlgorithmType algorithm_{};
+    std::regex rgx_{};
+    std::string fmt_{};
+    UriPathQueryParametersFilterType uri_path_query_parameters_filter_{};
 };
 
 }

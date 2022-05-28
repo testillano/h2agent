@@ -210,7 +210,7 @@ const nlohmann::json SchemaConfiguration__BadContentArray = R"(
 class AdminData_test : public ::testing::Test
 {
 public:
-    h2agent::model::AdminData adata_;
+    h2agent::model::AdminData adata_{};
 
     AdminData_test() {
         ;
