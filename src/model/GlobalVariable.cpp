@@ -79,7 +79,7 @@ std::string GlobalVariable::asJsonString() const {
     if (map_.size() == 0)
         return "{}"; // nothing found to be built
 
-    return asJson().dump();
+    return getJson().dump();
 }
 
 std::string GlobalVariable::getValue(const std::string &variableName, bool &exists) const {
@@ -96,7 +96,7 @@ void GlobalVariable::removeVariable(const std::string &variableName) {
     remove(variableName);
 }
 
-nlohmann::json GlobalVariable::asJson() const {
+nlohmann::json GlobalVariable::getJson() const {
     return get();
 }
 

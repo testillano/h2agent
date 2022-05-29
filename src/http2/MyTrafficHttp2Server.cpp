@@ -186,7 +186,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
 // Find mock context:
     std::string inState;
-    /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequest(method, uri, inState); // if not found, inState will be 'initial'
+    /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequestState(method, uri, inState); // if not found, inState will be 'initial'
 
 // Matching algorithm:
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();

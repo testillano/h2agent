@@ -154,10 +154,10 @@ public:
      *
      * @return Json object
      */
-    nlohmann::json asJson() const;
+    nlohmann::json getJson() const;
 
     /**
-     * Finds most recent mock context entry.
+     * Finds most recent mock context entry state.
      *
      * @param method Request method which was received
      * @param uri Request URI path which was received
@@ -165,7 +165,7 @@ public:
      *
      * @return Boolean about if the request is found or not
      */
-    bool findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const;
+    bool findLastRegisteredRequestState(const std::string &method, const std::string &uri, std::string &state) const;
 
 
     /**
