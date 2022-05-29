@@ -110,7 +110,7 @@ std::shared_ptr<MockServerKeyEvent> MockServerKeyEvents::getMockServerKeyEvent(s
 }
 
 
-nlohmann::json MockServerKeyEvents::asJson() const {
+nlohmann::json MockServerKeyEvents::getJson() const {
     nlohmann::json result;
 
     result["method"] = method_;

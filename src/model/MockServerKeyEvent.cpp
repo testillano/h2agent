@@ -108,7 +108,7 @@ void MockServerKeyEvent::saveJson() {
             hdrs[x.first] = x.second.value;
         json_["responseHeaders"] = hdrs;
     }
-    json_["serverSequence"] = (unsigned int)server_sequence_;
+    json_["serverSequence"] = (std::uint64_t)server_sequence_;
 }
 
 }

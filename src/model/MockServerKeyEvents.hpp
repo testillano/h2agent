@@ -135,7 +135,7 @@ public:
      *
      * @return Json object
      */
-    nlohmann::json asJson() const;
+    nlohmann::json getJson() const;
 
     /**
      * Gets the mock requests key as '<request-method>|<request-uri>'

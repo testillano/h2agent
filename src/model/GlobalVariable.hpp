@@ -111,7 +111,7 @@ public:
      *
      * @return Json object
      */
-    nlohmann::json asJson() const;
+    nlohmann::json getJson() const;
 
     /**
     * Gets global variables schema

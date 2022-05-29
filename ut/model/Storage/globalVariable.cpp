@@ -29,7 +29,7 @@ public:
 TEST_F(GlobalVariable_test, LoadGlobalVariableSuccess)
 {
     EXPECT_TRUE(GlobalVariable_test::gvars_.loadJson(GlobalVariableConfiguration__Success));
-    EXPECT_EQ(GlobalVariable_test::gvars_.asJson(), GlobalVariableConfiguration__Success);
+    EXPECT_EQ(GlobalVariable_test::gvars_.getJson(), GlobalVariableConfiguration__Success);
 
     bool exists = false;
     EXPECT_EQ(GlobalVariable_test::gvars_.getValue("variable_name_2", exists), "variable_value_2");

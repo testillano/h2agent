@@ -156,7 +156,7 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
 
     if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
         validQuery = true;
-        return ((size() != 0) ? asJson().dump() : "[]"); // server data is shown as an array
+        return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
     }
 
     if (!checkSelection(requestMethod, requestUri, requestNumber))
@@ -187,7 +187,7 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
         else return "[]";
     }
     else {
-        return it->second->asJson().dump();
+        return it->second->getJson().dump();
     }
 
     return "[]";
@@ -196,7 +196,7 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
 std::string MockServerEventsData::summary(const std::string &maxKeys) const {
     nlohmann::json result;
 
-    result["totalKeys"] = (unsigned int)size();
+    result["totalKeys"] = (std::uint64_t)size();
 
     bool negative = false;
     std::uint64_t u_maxKeys = 0;
@@ -217,12 +217,12 @@ std::string MockServerEventsData::summary(const std::string &maxKeys) const {
 
         key["method"] = it->second->getMethod();
         key["uri"] = it->second->getUri();
-        key["amount"] = (unsigned int)historySize;
+        key["amount"] = (std::uint64_t)historySize;
         result["displayedKeys"]["list"].push_back(key);
         displayedKeys += 1;
     };
-    if (displayedKeys > 0) result["displayedKeys"]["amount"] = (unsigned int)displayedKeys;
-    result["totalEvents"] = (unsigned int)totalEvents;
+    if (displayedKeys > 0) result["displayedKeys"]["amount"] = (std::uint64_t)displayedKeys;
+    result["totalEvents"] = (std::uint64_t)totalEvents;
 
     return result.dump();
 }
@@ -266,20 +266,20 @@ std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(
     return (it->second->getMockServerKeyEvent(u_requestNumber, reverse));
 }
 
-nlohmann::json MockServerEventsData::asJson() const {
+nlohmann::json MockServerEventsData::getJson() const {
 
     nlohmann::json result;
 
     read_guard_t guard(rw_mutex_);
 
     for (auto it = begin(); it != end(); it++) {
-        result.push_back(it->second->asJson());
+        result.push_back(it->second->getJson());
     };
 
     return result;
 }
 
-bool MockServerEventsData::findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const {
+bool MockServerEventsData::findLastRegisteredRequestState(const std::string &method, const std::string &uri, std::string &state) const {
 
     mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, method, uri);
