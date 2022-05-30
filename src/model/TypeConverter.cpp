@@ -295,17 +295,16 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
 
 std::string TypeConverter::asString() {
 
-    bool success = false;
     std::stringstream ss;
     ss << "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): " << getNativeType()
-       << "|  String: " << getString(success)
-       << " | Integer: " << getInteger(success)
-       << " | Unsigned integer: " << getUnsigned(success)
-       << " | Float number: " << getFloat(success)
-       << " | Boolean: " << (getBoolean(success) ? "true":"false")
-       << " | Object: " << getObject(success).dump();
+       << " | " << ((getNativeType() == NativeType::String) ? "STRING":"String") << ": " << s_value_
+       << " | " << ((getNativeType() == NativeType::Integer) ? "INTEGER":"Integer") << ": " << i_value_
+       << " | " << ((getNativeType() == NativeType::Unsigned) ? "UNSIGNED":"Unsigned") << ": " << u_value_
+       << " | " << ((getNativeType() == NativeType::Float) ? "FLOAT":"Float") << ": " << f_value_
+       << " | " << ((getNativeType() == NativeType::Boolean) ? "BOOLEAN":"Boolean") << ": " << (b_value_ ? "true":"false")
+       << " | " << ((getNativeType() == NativeType::Object) ? "OBJECT":"Object") << ": " << j_value_.dump();
 
-    return ss.str();
+    return (ss.str());
 }
 
 }

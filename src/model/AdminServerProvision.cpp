@@ -714,8 +714,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
     }
     else {
-        if (getResponseBody().is_null()) {
-            responseBody = getResponseBodyAsString();
+        if (getResponseBody().is_null()) { // if not an object, get the string representation
+            responseBody = getResponseBodyString();
         }
         else {
             responseBody = getResponseBody().dump();

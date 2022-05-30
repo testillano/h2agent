@@ -232,6 +232,10 @@ public:
 
     /**
     * Class string representation
+    *
+    * Member attributes may not be updated until their corresponding
+    * getters are invoked, then, this representation is ONLY RELIABLE
+    * for current native type.
     */
     std::string asString();
 };
