@@ -303,8 +303,9 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
-Check `st/start.sh -h` for help.
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information).
+
+Also, `st/last.sh` script repeats the last execution in headless mode.
 
 As schema validation is normally used only for function tests, it will be disabled here:
 
@@ -549,7 +550,7 @@ Using `create_all.sh`, server key and certificate are created at execution direc
 
 ```bash
 $> tools/ssl/create_all.sh
-tools/ssl/create_all.sh 
+tools/ssl/create_all.sh
 + openssl genrsa -des3 -out ca.key 4096
 Generating RSA private key, 4096 bit long modulus (2 primes)
 ..++++
