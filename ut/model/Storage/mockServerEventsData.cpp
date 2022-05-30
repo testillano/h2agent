@@ -115,6 +115,11 @@ TEST_F(MockServerEventsData_test, clearFails)
     success = data_.clear(somethingDeleted, "DELETE", "/the/uri/111", "-invalid number");
     EXPECT_FALSE(success);
     EXPECT_FALSE(somethingDeleted);
+
+    // wrong input: method/uri/number empty
+    success = data_.clear(somethingDeleted, "", "", "");
+    EXPECT_TRUE(success);
+    EXPECT_TRUE(somethingDeleted);
 }
 
 TEST_F(MockServerEventsData_test, asJsonString)

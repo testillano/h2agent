@@ -287,11 +287,13 @@ public:
         return response_body_;
     }
 
-    /** Provisioned response body string
+    /** Provisioned response body when it is an string,
+     *  or could be converted into string, instead of
+     *  a json object.
      *
      * @return Response body string
      */
-    const std::string &getResponseBodyAsString() const {
+    const std::string &getResponseBodyString() const {
         return response_body_string_;
     }
 

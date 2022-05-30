@@ -211,6 +211,7 @@ class Configure_test : public ::testing::Test
 {
 public:
     h2agent::model::AdminData adata_{};
+    h2agent::model::AdminSchema aschema_{};
 
     Configure_test() {
         ;
@@ -318,10 +319,17 @@ TEST_F(Configure_test, FindProvision)
     EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadProvision(ProvisionConfiguration__Success), h2agent::model::AdminServerProvisionData::Success);
 
-    EXPECT_TRUE(Configure_test::adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test") != nullptr);
     EXPECT_FALSE(Configure_test::adata_.getProvisionData().find("missing", "GET", "/app/v1/foo/bar/1?name=test") != nullptr);
     EXPECT_FALSE(Configure_test::adata_.getProvisionData().find("initial", "POST", "/app/v1/foo/bar/1?name=test") != nullptr);
     EXPECT_FALSE(Configure_test::adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=missing") != nullptr);
+
+    auto provision = Configure_test::adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    EXPECT_TRUE(provision != nullptr);
+
+    EXPECT_EQ(provision->getResponseBodyString(), "" /* response body is an object in this provision */);
+    EXPECT_EQ(provision->getRequestSchemaId(), "myRequestsSchema");
+    EXPECT_EQ(provision->getResponseSchemaId(), "myResponsesSchema");
+
     EXPECT_TRUE(Configure_test::adata_.clearProvisions());
 }
 
@@ -361,5 +369,15 @@ TEST_F(Configure_test, FindSchema)
 
     EXPECT_TRUE(Configure_test::adata_.getSchemaData().find("myRequestsSchema") != nullptr);
     EXPECT_TRUE(Configure_test::adata_.clearSchemas());
+}
+
+TEST_F(Configure_test, ValidateSchema)
+{
+    EXPECT_EQ(Configure_test::adata_.loadSchema(SchemaConfiguration__Success), h2agent::model::AdminSchemaData::Success);
+
+    auto schemaData = Configure_test::adata_.getSchemaData().find("myRequestsSchema");
+    EXPECT_TRUE(schemaData != nullptr);
+
+    EXPECT_TRUE(schemaData->validate(R"({"foo":"bar"})"_json));
 }
 
