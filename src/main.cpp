@@ -207,14 +207,15 @@ void usage(int rc)
        << "  Traffic server API version; defaults to empty.\n\n"
 
        << "[-w|--traffic-server-worker-threads <threads>]\n"
-       << "  Number of traffic server worker threads; defaults to a mimimum of 2 threads\n"
-       << "  except if hardware concurrency permits a greater margin taking into account\n"
-       << "  other process threads. Normally, 1 thread should be enough even for complex\n"
-       << "  logic provisioned (admin server always uses 1 worker thread).\n\n"
+       << "  Number of traffic server worker threads; defaults to 1, which should be enough\n"
+       << "  even for complex logic provisioned (admin server always uses 1 worker thread).\n"
+       << "  It could be increased if hardware concurrency permits a greater margin taking\n"
+       << "  into account other process threads considered busy.\n\n"
 
        << "[-t|--traffic-server-threads <threads>]\n"
        << "  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)\n"
-       << "  (admin server always uses 1 nghttp2 thread).\n\n"
+       << "  (admin server always uses 1 nghttp2 thread). This option is exploited\n"
+       << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
        << "[-k|--traffic-server-key <path file>]\n"
@@ -341,7 +342,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_port = "8000";
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
-    int traffic_server_worker_threads = -1;
+    int traffic_server_worker_threads = 1;
     int traffic_server_threads = 1;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
@@ -527,9 +528,6 @@ int main(int argc, char* argv[])
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
     std::cout << "Admin port: " << admin_port << '\n';
 
-    unsigned int hardwareConcurrency = std::thread::hardware_concurrency();
-    std::cout << "Hardware concurrency: " << hardwareConcurrency << '\n';
-
     // Server bind address for servers
     std::string bind_address_prometheus_exposer = bind_address;
     if (bind_address.empty()) {
@@ -545,15 +543,13 @@ int main(int argc, char* argv[])
         std::cout << "Traffic server api name: " << ((traffic_server_api_name != "") ?  traffic_server_api_name : "<none>") << '\n';
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
-        if (traffic_server_worker_threads < 1) {
-            // Calculate traffic server threads:
-            // * Miminum assignment = 2 threads
-            // * Maximum assignment = CPUs - rest of threads count
-            int maxTrafficServerWorkerThreadsAssignment = hardwareConcurrency - 6 /* main(1) + admin server(workers=1) + timers io(tt=1) + admin(t1->1) + traffic (t2->2) */;
-            traffic_server_worker_threads = (maxTrafficServerWorkerThreadsAssignment > 2) ? maxTrafficServerWorkerThreadsAssignment : 2;
-        }
+        std::cout << "Traffic server threads (nghttp2): " << traffic_server_threads << '\n';
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
-        std::cout << "Traffic server threads (exploited by multiple clients): " << traffic_server_threads << '\n';
+
+        // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
+        // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + traffic_server_threads + traffic_server_worker_threads)
+        // are over hardware concurrency (unsigned int hardwareConcurrency = std::thread::hardware_concurrency();)
+
         std::cout << "Traffic server key password: " << ((traffic_server_key_password != "") ? "***" : "<not provided>") << '\n';
         std::cout << "Traffic server key file: " << ((traffic_server_key_file != "") ? traffic_server_key_file : "<not provided>") << '\n';
         std::cout << "Traffic server crt file: " << ((traffic_server_crt_file != "") ? traffic_server_crt_file : "<not provided>") << '\n';

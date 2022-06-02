@@ -439,14 +439,15 @@ Options:
   Traffic server API version; defaults to empty.
 
 [-w|--traffic-server-worker-threads <threads>]
-  Number of traffic server worker threads; defaults to a mimimum of 2 threads
-  except if hardware concurrency permits a greater margin taking into account
-  other process threads. Normally, 1 thread should be enough even for complex
-  logic provisioned (admin server always uses 1 worker thread).
+  Number of traffic server worker threads; defaults to 1, which should be enough
+  even for complex logic provisioned (admin server always uses 1 worker thread).
+  It could be increased if hardware concurrency permits a greater margin taking
+  into account other process threads considered busy.
 
 [-t|--traffic-server-threads <threads>]
   Number of nghttp2 traffic server threads; defaults to 1 (1 connection)
-  (admin server always uses 1 nghttp2 thread).
+  (admin server always uses 1 nghttp2 thread). This option is exploited
+  by multiple clients.
 
 [-k|--traffic-server-key <path file>]
   Path file for traffic server key to enable SSL/TLS; unsecured by default.
@@ -599,14 +600,13 @@ Log level: Warning
 Verbose (stdout): true
 IP stack: IPv4
 Admin port: 8074
-Hardware concurrency: 8
 Traffic server (mock server service): enabled
 Traffic server bind address: 0.0.0.0
 Traffic server port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
-Traffic server worker threads: 2
-Traffic server threads (exploited by multiple clients): 1
+Traffic server threads (nghttp2): 1
+Traffic server worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
 Traffic server crt file: <not provided>
