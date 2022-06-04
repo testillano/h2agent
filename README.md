@@ -507,9 +507,11 @@ Options:
 
 [--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
+  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
+  could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
 
 [--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
-  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.
+  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
 
 [-v|--version]
   Program version.

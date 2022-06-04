@@ -74,18 +74,25 @@ const char* AdminApiVersion = "v1";
 /////////////////////////
 
 // Transform input in the form "<double> <double> .. <double>" to bucket boundaries vector
-// Returns the final string ignoring non-double values scanned.
+// Cientific notation is allowed, for example boundaries for 150us would be 150e-6
+// Returns the final string ignoring non-double values scanned. Also sort is applied.
 std::string loadHistogramBoundaries(const std::string &input, ert::metrics::bucket_boundaries_t &boundaries) {
     std::string result;
+
     std::stringstream ss(input);
     double value = 0;
     while (ss >> value) {
         boundaries.push_back(value);
-        result += (std::to_string(value) + " ");
+    }
+
+    std::sort(boundaries.begin(), boundaries.end());
+    for (const auto &i: boundaries) {
+        result += (std::to_string(i) + " ");
     }
 
     return result;
 }
+
 
 /*
 int getThreadCount() {
@@ -274,12 +281,14 @@ void usage(int rc)
        << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
-       << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n\n"
+       << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
+       << "  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we\n"
+       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n\n"
        //<< "  This affects to both mock 'server internal/client external' processing time values,\n"
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
-       << "  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.\n\n"
+       << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n\n"
        //<< "  This affects to both mock 'server internal/client external' message size values,\n"
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
