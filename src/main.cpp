@@ -180,7 +180,7 @@ void sighndl(int signal)
 // Command line functions //
 ////////////////////////////
 
-void usage(int rc)
+void usage(int rc, const std::string &errorMessage = "")
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
@@ -300,6 +300,12 @@ void usage(int rc)
 
        << '\n';
 
+
+    if (rc != 0 && !errorMessage.empty())
+    {
+        ss << errorMessage << '\n';
+    }
+
     _exit(rc);
 }
 
@@ -313,7 +319,7 @@ int toNumber(const std::string& value)
     }
     catch (...)
     {
-        usage(EXIT_FAILURE);
+        usage(EXIT_FAILURE, std::string("Error in number conversion for '" + value + "' !"));
     }
 
     return result;
@@ -384,7 +390,7 @@ int main(int argc, char* argv[])
     {
         if (!ert::tracing::Logger::setLevel(value))
         {
-            usage(EXIT_FAILURE);
+            usage(EXIT_FAILURE, "Invalid log level provided !");
         }
     }
 
@@ -432,6 +438,10 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--traffic-server-worker-threads", value))
     {
         traffic_server_worker_threads = toNumber(value);
+        if (traffic_server_worker_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-worker-threads' value. Must be greater than 0.");
+        }
     }
 
     // Probably, this parameter is not useful as we release the server thread using our workers, so
@@ -440,6 +450,10 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--traffic-server-threads", value))
     {
         traffic_server_threads = toNumber(value);
+        if (traffic_server_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-threads' value. Must be greater than 0.");
+        }
     }
 
     if (cmdOptionExists(argv, argv + argc, "-k", value)
