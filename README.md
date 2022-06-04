@@ -8,8 +8,17 @@
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
 `H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
+It is mainly designed for testing, but could even simulate or complement advanced services.
 
-Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) ***Prezi*** presentation for a complete and useful overview of this component.
+## Quick start
+
+It is recommended to complete the following points first:
+
+* A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
+* A ***[demo](./README.md#demo)*** exercise which presents a basic use case to better understand the project essentials.
+* And finally, a ***[kata](./README.md#kata)*** training to adquire better knowledge of project capabilities.
+
+## Scope
 
 When developing a network service, one often needs to integrate it with other services. However, integrating full-blown versions of such services in a development setup is not always suitable, for instance when they are either heavyweight or not fully developed.
 
