@@ -42,6 +42,7 @@ SOFTWARE.
 #include <algorithm>
 
 #include <nlohmann/json.hpp>
+#include <arashpartow/exprtk.hpp>
 
 #include <ert/tracing/Logger.hpp>
 
@@ -51,6 +52,9 @@ SOFTWARE.
 
 #include <functions.hpp>
 
+
+typedef exprtk::expression<double>   expression_t;
+typedef exprtk::parser<double>       parser_t;
 
 namespace h2agent
 {
@@ -156,6 +160,27 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     else if (transformation->getSourceType() == Transformation::SourceType::Eraser) {
         sourceVault.setString(""); // with other than response body nodes, it acts like setting empty string
         eraser = true;
+    }
+    else if (transformation->getSourceType() == Transformation::SourceType::Math) {
+        std::string expressionString = transformation->getSource();
+        searchReplaceValueVariables(variables, expressionString);
+
+        /*
+           We don't use builtin variables as we can parse h2agent ones which is easier to implement:
+
+           typedef exprtk::symbol_table<double> symbol_table_t;
+           symbol_table_t symbol_table;
+           double x = 2.0;
+           symbol_table.add_variable("x",x);
+           expression.register_symbol_table(symbol_table);
+           parser.compile("3*x",expression);
+           std::cout << expression.value() << std::endl; // 3*2
+        */
+
+        expression_t   expression;
+        parser_t       parser;
+        parser.compile(expressionString, expression);
+        sourceVault.setFloat(expression.value());
     }
     else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandom) {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
@@ -772,7 +797,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         auto transformation = (*it);
         bool eraser = false;
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 

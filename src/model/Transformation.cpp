@@ -147,7 +147,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // Interpret source/target:
 
     // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser,
-    //                           GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState };)
+    //                           Math, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
@@ -158,6 +158,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + request.body./<node1>/../<nodeN>: request body node path.
     // + request.header.<hname>: request header component (i.e. *content-type*).
     // - eraser: this is used to indicate that the *response node target* specified.
+    // + math.`<expression>`: this source is based in Arash Partow's exprtk math library compilation.
     // + random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
     // + timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
     // + strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
@@ -172,6 +173,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex requestBodyNode("^request.body.(.*)", std::regex::optimize);
     static std::regex responseBodyNode("^response.body.(.*)", std::regex::optimize);
     static std::regex requestHeader("^request.header.(.*)", std::regex::optimize);
+    static std::regex math("^math.(.*)", std::regex::optimize);
     static std::regex random("^random\\.([-+]{0,1}[0-9]+)\\.([-+]{0,1}[0-9]+)$", std::regex::optimize); // no need to validate min/max as it was done at schema
     static std::regex randomSet("^randomset.(.*)", std::regex::optimize);
     static std::regex timestamp("^timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/ns as it was done at schema
@@ -216,6 +218,10 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (sourceSpec == "eraser") {
             source_type_ = SourceType::Eraser;
+        }
+        else if (std::regex_match(sourceSpec, matches, math)) { // math expression, i.e. "2*sqrt(2)"
+            source_ = matches.str(1);
+            source_type_ = SourceType::Math;
         }
         else if (std::regex_match(sourceSpec, matches, random)) { // range "<min>.<max>", i.e.: "-3.8", "0.100", "-15.+2", etc. These go to -> [source_i1_] and [source_i2_]
             source_i1_ = stoi(matches.str(1));
@@ -394,8 +400,8 @@ bool Transformation::load(const nlohmann::json &j) {
     LOGDEBUG(
         std::stringstream ss;
 
-        ss << "TRANSFORMATION| source_type_: " << source_type_ << " (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState)"
-        << " | source_: " << source_ << " (RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event)"
+        ss << "TRANSFORMATION| source_type_: " << source_type_ << " (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState)"
+        << " | source_: " << source_ << " (RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, Math, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event)"
         << " | source_i1_: " << source_i1_ << " (GeneralRandom min)"
         << " | source_i2_: " << source_i2_ << " (GeneralRandom max)"
         << " | target_type_: " << target_type_ << " (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState)"
