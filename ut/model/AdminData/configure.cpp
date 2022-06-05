@@ -43,8 +43,8 @@ const nlohmann::json ProvisionConfiguration__Success = R"(
   },
   "transform": [
     {
-      "source": "general.random.10.30",
-      "target": "response.body.integer./generalRandomBetween10and30"
+      "source": "random.10.30",
+      "target": "response.body.integer./randomBetween10and30"
     }
   ],
   "requestSchemaId": "myRequestsSchema",

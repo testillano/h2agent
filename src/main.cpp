@@ -535,7 +535,7 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
-        std::cout << (gitVersion.empty() ? "unknown: must built on git repository":gitVersion) << '\n';
+        std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
         _exit(EXIT_SUCCESS);
     }
 

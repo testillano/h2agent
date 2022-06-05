@@ -12,8 +12,8 @@ PROVISION
   },
   "transform": [
     {
-      "source": "general.strftime.Now it's %I:%M%p.",
-      "target": "response.body.string./generalStrftime"
+      "source": "strftime.Now it's %I:%M%p.",
+      "target": "response.body.string./strftime"
     }
   ]
 }

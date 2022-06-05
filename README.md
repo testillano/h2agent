@@ -1195,7 +1195,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..+|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
@@ -1325,15 +1325,15 @@ The **source** of information is classified after parsing the following possible
   - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
   - With other kind of targets, eraser acts like setting an empty string.
 
-- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+- random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
-- general.randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
+- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
 
-- general.timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
 
-- general.strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
+- strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
 
-- general.recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
+- recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
 - var.`<id>`: general purpose variable (accessible within transformation chain). Cannot refer json objects. This source variable identifier **admits variables substitution**.
 
@@ -1461,7 +1461,7 @@ There are several **filter** methods, but remember that filter node is optional,
 
 ```json
 {
-  "source": "general.random.25.35",
+  "source": "random.25.35",
   "target": "response.delayMs"
 }
 ```
@@ -1606,7 +1606,7 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "general.random.0.99999999",
+    "source": "random.0.99999999",
     "target": "var.mysum",
     "filter": { "Sum" : 123456789012345 }
   }
@@ -1836,7 +1836,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
         "receptionTimestampMs": 1626047915716,
         "responseBody": {
           "foo": "bar-1",
-          "generalRandomBetween10and30": 27
+          "randomBetween10and30": 27
         },
         "responseDelayMs": 0,
         "responseHeaders": {
@@ -1864,7 +1864,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
         "receptionTimestampMs": 1626047921641,
         "responseBody": {
           "foo": "bar-1",
-          "generalRandomBetween10and30": 24
+          "randomBetween10and30": 24
         },
         "responseDelayMs": 0,
         "responseHeaders": {
@@ -1907,7 +1907,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
         "receptionTimestampMs": 1626047921641,
         "responseBody": {
           "foo": "bar-1",
-          "generalRandomBetween10and30": 24
+          "randomBetween10and30": 24
         },
         "responseDelayMs": 0,
         "responseHeaders": {
