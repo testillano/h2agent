@@ -554,7 +554,12 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 return false;
 
             // assignment
-            responseBodyJson[j_ptr] = obj;
+            if (target.empty()) {
+                responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.object
+            }
+            else {
+                responseBodyJson[j_ptr] = obj;
+            }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::ResponseHeader) {
             // extraction
