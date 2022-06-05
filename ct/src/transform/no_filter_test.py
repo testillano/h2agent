@@ -608,3 +608,14 @@ def test_047_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffi
   responseBodyRef = { "foo":"bar-1" } # request body json is ignored as cannot be set as target string. The template request body is configured instead
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
+@pytest.mark.transform
+def test_048_mathCalculationToResponseInteger(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="math.1+2+3+5+8", target="response.body.integer./math-calculation"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  responseBodyRef = { "foo":"bar-1", "math-calculation":19 }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+

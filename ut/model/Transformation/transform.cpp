@@ -140,6 +140,10 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     {
       "source": "event.persistEvent",
       "target": "response.body.object./event"
+    },
+    {
+      "source": "math.1+2+3+5+8",
+      "target": "response.body.integer./math-calculation"
     }
   ]
 }
@@ -350,7 +354,8 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "strftime": "Now it's 02:56AM.",
       "unix_ms": "1653872192363",
       "unix_ns": "1653872192363705636",
-      "unix_s": "1653872192"
+      "unix_s": "1653872192",
+      "math-calculation": 19
     }
     )"_json;
     for(auto i: { "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {

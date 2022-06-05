@@ -985,7 +985,7 @@ Optional argument used to specify the transformation for query parameters receiv
 
 ###### SortAmpersand
 
-This is the default behavior and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
+This is the <u>default behavior</u> and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
 
 ###### SortSemicolon
 
@@ -1195,7 +1195,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
@@ -1324,6 +1324,40 @@ The **source** of information is classified after parsing the following possible
   - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this.
   - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
   - With other kind of targets, eraser acts like setting an empty string.
+
+- math.`<expression>`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server with this kind of provision:
+
+  ```json
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/calculate",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "request.body",
+        "target": "var.expression"
+      },
+      {
+        "source": "math.@{expression}",
+        "target": "response.body.float"
+      }
+    ]
+  }
+  ```
+
+  Start the process with that provision content as `provision.json` file:
+
+  ```bash
+  $> ./build/Release/bin/h2agent --traffic-server-provision provision.json &>/dev/null &
+  [1] 31456
+  ```
+
+  And send simple query like this to do the job:
+
+  ```bash
+  $> curl --http2-prior-knowledge -XPOST -d'(1+sqrt(5))/2' http://127.0.0.1:8000/app/v1/calculate
+  1.618033988749895
+  ```
 
 - random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
@@ -1612,7 +1646,7 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs.
+  In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs. For more complex operations, you may use the `math` source.
 
 
 
@@ -1626,7 +1660,7 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  In this example, we operate `-10 * -0.1 = 1`.
+  In this example, we operate `-10 * -0.1 = 1`. For more complex operations, you may use the `math` source.
 
 
 

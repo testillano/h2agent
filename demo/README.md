@@ -35,11 +35,11 @@ $ build/Release/bin/h2agent --verbose & # starts agent
 
 ## Case of use
 
-Our use case consists in a corporate office with a series of workplaces that can be assigned to an employee or be empty. We will simulate the database having each entry the workplace *ID*, a 5-digit phone extension, the assigned employee name and also an optional root node `developer` to indicate this job role if proceed.
+Our use case consists in a corporate office with a series of workplaces that can be assigned to an employee or be empty. We will simulate the database having each entry the workplace **id**, a 5-digit **phone** extension, the assigned employee **name** and also an optional root node `developer` to indicate this job role if proceed.
 
 These are the **specifications**:
 
-* Serve *GET* requests with URI `office/v2/workplace?id=<id>`, obtaining the information associated to the workplace. Additionally, the date/time of the query received will be added to the response (`"time"`: `"<free date format>"`). We will configure the following entries:
+* Serve *GET* requests with URI `office/v2/workplace?id=<id>`, obtaining the information associated to the workplace. Additionally, the date/time of the query received will be added to the response (`"time"`: `"<free date format>"`). We will provision the following entries:
 
   ```{
   id = id-1
@@ -65,7 +65,7 @@ These are the **specifications**:
   }
   ```
 
-* Workplaces with **even** identifiers are reserved for developers, so the extra field commented above must be included in the response body root. This will be manually configured for `id-2` but shall be automated for unassigned ones which are even numbers.
+* Workplaces with **even** identifiers are reserved for developers, so the extra field commented above must be included in the response body root. This could be manually configured for `id-2` (*Bryan Adams*) but shall be automated for unassigned ones which are even numbers.
 
 * Finally, we will simulate the deletion for existing identifiers (`id-1`, `id-2` and `id-3`), so when *DELETE* request is received for any of them, all subsequent *GET's* must obtain a *404 (Not Found)* status code from then on.
 
