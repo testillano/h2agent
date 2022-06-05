@@ -4,7 +4,7 @@
   "responseCode": 200,
   "transform": [
     {
-      "source": "general.randomset.rock|paper|scissors",
+      "source": "randomset.rock|paper|scissors",
       "target": "response.body.string"
     }
   ]

@@ -13,7 +13,7 @@
     },
     "transform": [
       {
-        "source": "general.strftime.%F %H:%M:%S",
+        "source": "strftime.%F %H:%M:%S",
         "target": "response.body.string./time"
       }
     ]
@@ -33,7 +33,7 @@
     },
     "transform": [
       {
-        "source": "general.strftime.%F %H:%M:%S",
+        "source": "strftime.%F %H:%M:%S",
         "target": "response.body.string./time"
       }
     ]
@@ -52,7 +52,7 @@
     },
     "transform": [
       {
-        "source": "general.strftime.%F %H:%M:%S",
+        "source": "strftime.%F %H:%M:%S",
         "target": "response.body.string./time"
       }
     ]
@@ -73,11 +73,11 @@
         "target": "response.body.string./id"
       },
       {
-        "source": "general.random.30000.69999",
+        "source": "random.30000.69999",
         "target": "response.body.integer./phone"
       },
       {
-        "source": "general.strftime.%F %H:%M:%S",
+        "source": "strftime.%F %H:%M:%S",
         "target": "response.body.string./time"
       },
       {

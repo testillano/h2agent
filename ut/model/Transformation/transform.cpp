@@ -78,31 +78,31 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "response.body.object./responseBody/remove-me"
     },
     {
-      "source": "general.random.20.30",
+      "source": "random.20.30",
       "target": "response.body.string./random"
     },
     {
-      "source": "general.randomset.rock|paper|scissors",
+      "source": "randomset.rock|paper|scissors",
       "target": "response.body.string./randomset"
     },
     {
-      "source": "general.timestamp.s",
+      "source": "timestamp.s",
       "target": "response.body.string./unix_s"
     },
     {
-      "source": "general.timestamp.ms",
+      "source": "timestamp.ms",
       "target": "response.body.string./unix_ms"
     },
     {
-      "source": "general.timestamp.ns",
+      "source": "timestamp.ns",
       "target": "response.body.string./unix_ns"
     },
     {
-      "source": "general.strftime.Now it's %I:%M%p.",
+      "source": "strftime.Now it's %I:%M%p.",
       "target": "response.body.string./strftime"
     },
     {
-      "source": "general.recvseq",
+      "source": "recvseq",
       "target": "response.body.integer./recvseq"
     },
     {
@@ -205,21 +205,21 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
       "target": "response.body.string./x-version"
     },
     {
-      "source": "general.random.-3.-3",
+      "source": "random.-3.-3",
       "target": "response.body.string./random-will-be-2",
       "filter": {
         "Sum": 5
       }
     },
     {
-      "source": "general.timestamp.ns",
+      "source": "timestamp.ns",
       "target": "response.body.unsigned./zeroed",
       "filter": {
         "Multiply": 0
       }
     },
     {
-      "source": "general.strftime.predictable",
+      "source": "strftime.predictable",
       "target": "response.body.string./time",
       "filter": {
         "Prepend": "Now it's "

@@ -11,12 +11,12 @@
   },
   "transform": [
     {
-      "source": "general.recvseq",
+      "source": "recvseq",
       "target": "var.aux"
     },
     {
       "source": "var.aux",
-      "target": "response.body.unsigned./generalRecvseqFromVarAux"
+      "target": "response.body.unsigned./recvseqFromVarAux"
     }
   ]
 }

@@ -12,7 +12,7 @@ PROVISION
   },
   "transform": [
     {
-      "source": "general.timestamp.ns",
+      "source": "timestamp.ns",
       "target": "response.body.unsigned./nanoseconds-timestamp"
     }
   ]
