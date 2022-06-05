@@ -305,7 +305,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
 
     std::string requestBody = request.dump();
     nghttp2::asio_http2::header_map requestHeaders;
-    requestHeaders.emplace("Content-Type", nghttp2::asio_http2::header_value{"application/json"});
+    requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
     std::uint64_t generalUniqueServerSequence = 74;
     // outputs:
@@ -384,7 +384,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
 
     std::string requestBody = request.dump();
     nghttp2::asio_http2::header_map requestHeaders;
-    requestHeaders.emplace("Content-Type", nghttp2::asio_http2::header_value{"application/json"});
+    requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
     std::uint64_t generalUniqueServerSequence = 74;
     // outputs:
@@ -403,8 +403,10 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(statusCode, 500);
     EXPECT_EQ(ert::http2comm::headersAsString(headers), "[content-type: text/html][my-header: headervalue][response-header-field-name: test.mysuffix][x-version: 1.0.0]");
     nlohmann::json assertedJson = nlohmann::json::parse(responseBody);
+    // add original responseBody, which is joined (merge by default)
     nlohmann::json expectedJson = R"(
     {
+      "foo": "bar-1",
       "field": "fieldvalue",
       "node1": {
         "delaymilliseconds": 25,

@@ -118,8 +118,9 @@ class AdminServerProvision
                         const std::string &requestUri,
                         const std::string &requestUriPath,
                         const std::map<std::string, std::string> &requestQueryParametersMap,
-                        bool requestBodyJsonParseable,
-                        const nlohmann::json &requestBodyJson,
+                        bool requestBodyJsonOrString,
+                        const nlohmann::json &requestBodyJson, // if json
+                        const std::string &requestBody, // if string
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;

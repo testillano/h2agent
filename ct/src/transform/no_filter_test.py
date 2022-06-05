@@ -153,14 +153,14 @@ def test_011_objectToResponseBodyObjectPath(admin_server_provision, h2ac_traffic
 
 
 @pytest.mark.transform
-def test_012_requestToResponse(admin_server_provision, h2ac_traffic):
+def test_012_requestToResponseObject(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.object"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
-  responseBodyRef = { "node1": { "node2":"value-of-node1-node2" } }
+  responseBodyRef = { "foo": "bar-1", "node1": { "node2":"value-of-node1-node2" } }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -572,5 +572,39 @@ def test_044_transferFixedValueToVariableNameWithReplacedVariables(admin_server_
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
   responseBodyRef = { "foo":"bar-1", "result": "var1valuevalue" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_045_requestBodyStringToResponseObject(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.object"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), requestHeaders=None) # request body will be interpreted as string
+  responseBodyRef = "{\"node1\":{\"node2\":\"value-of-node1-node2\"}}"
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_046_requestBodyStringToResponseString(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), requestHeaders=None) # request body will be interpreted as string
+  responseBodyRef = "{\"node1\":{\"node2\":\"value-of-node1-node2\"}}" # although it seems a json, application/json content-type was missing,
+                                                                       # so, it is interpreted like any other string.
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_047_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  responseBodyRef = { "foo":"bar-1" } # request body json is ignored as cannot be set as target string. The template request body is configured instead
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 

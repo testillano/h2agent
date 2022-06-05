@@ -539,7 +539,8 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // Defaults
     responseBody.clear();
-    headers.emplace("Content-Type", nghttp2::asio_http2::header_value{"application/json"}); // except DELETE
+    // Content type, just in case:
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"}); // except DELETE
 
     // No operation provided:
     if (noPathSuffix) {
