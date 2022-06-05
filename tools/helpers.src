@@ -29,7 +29,7 @@ schema() {
   then
     do_curl -XDELETE ${ADMIN_URL}/schema
   else
-    do_curl -XPOST -d@${1} -H 'Content-Type: application/json' ${ADMIN_URL}/schema
+    do_curl -XPOST -d@${1} -H 'content-type: application/json' ${ADMIN_URL}/schema
   fi
 }
 
@@ -45,7 +45,7 @@ global_variable() {
   then
     do_curl -XDELETE ${ADMIN_URL}/global-variable
   else
-    do_curl -XPOST -d@${1} -H 'Content-Type: application/json' ${ADMIN_URL}/global-variable
+    do_curl -XPOST -d@${1} -H 'content-type: application/json' ${ADMIN_URL}/global-variable
   fi
 }
 
@@ -88,7 +88,7 @@ data_configuration() {
 server_matching() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help]; Gets/updates current server matching configuration (${ADMIN_URL}/server-matching)." && return 0
   [ -z "$1" ] && do_curl ${ADMIN_URL}/server-matching && return 0
-  do_curl -XPOST -d@${1} -H 'Content-Type: application/json' ${ADMIN_URL}/server-matching
+  do_curl -XPOST -d@${1} -H 'content-type: application/json' ${ADMIN_URL}/server-matching
 }
 
 server_matching_schema() {
@@ -103,7 +103,7 @@ server_provision() {
   then
     do_curl -XDELETE ${ADMIN_URL}/server-provision
   else
-    do_curl -XPOST -d@${1} -H 'Content-Type: application/json' ${ADMIN_URL}/server-provision
+    do_curl -XPOST -d@${1} -H 'content-type: application/json' ${ADMIN_URL}/server-provision
   fi
 }
 

@@ -38,6 +38,8 @@ SOFTWARE.
 #include <sys/time.h>
 #include <ctime>
 #include <time.h>       /* time_t, struct tm, time, localtime, strftime */
+#include <string>
+#include <algorithm>
 
 #include <nlohmann/json.hpp>
 
@@ -89,8 +91,9 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::string &requestUri,
         const std::string &requestUriPath,
         const std::map<std::string, std::string> &requestQueryParametersMap,
-        bool requestBodyJsonParseable,
-        const nlohmann::json &requestBodyJson,
+        bool requestBodyJsonOrString,
+        const nlohmann::json &requestBodyJson, // if json
+        const std::string &requestBody, // if string
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -113,15 +116,19 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
-        if(!requestBodyJsonParseable) return false;
-        std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
-        searchReplaceValueVariables(variables, path);
-        if (!sourceVault.setObject(requestBodyJson, path)) {
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
-            return false;
+        if(requestBodyJsonOrString) {
+            std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
+            searchReplaceValueVariables(variables, path);
+            if (!sourceVault.setObject(requestBodyJson, path)) {
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+                return false;
+            }
+        }
+        else {
+            sourceVault.setString(requestBody);
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
@@ -526,7 +533,14 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 }
                 else responseBodyJson[j_ptr] = targetS;
             }
-            else responseBodyJson[j_ptr] = obj;
+            else {
+                if (target.empty()) {
+                    responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.object
+                }
+                else {
+                    responseBodyJson[j_ptr] = obj;
+                }
+            }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
 
@@ -665,29 +679,47 @@ void AdminServerProvision::transform( const std::string &requestUri,
     outStateMethod = "";
     outStateUri = "";
 
-    // Find out if request body will need to be parsed (this is true if any transformation uses it as source or schema validation is needed):
+    // Find out if request body is a valid json or just a string
     nlohmann::json requestBodyJson;
-    bool requestBodyJsonParseable = false;
-    bool requestBodyJsonWanted = (requestSchema != nullptr);
-    if (!requestBodyJsonWanted) {
-        for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-            if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                if (!requestBody.empty()) {
-                    requestBodyJsonWanted = true;
+    auto ct_it = requestHeaders.find("content-type");
+    bool requestBodyJsonOrString = false;
+    if (ct_it != requestHeaders.end()) {
+        std::string ct = ct_it->second.value;
+        std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
+            return std::tolower(c);
+        });
+        requestBodyJsonOrString = (ct == "application/json"); // still need to check if it is a valid json
+    }
+
+    // Find out if request body will need to be parsed:
+    if (requestBodyJsonOrString) {
+        bool requestBodyJsonRequired = false;
+
+        if (requestSchema != nullptr) {
+            requestBodyJsonRequired = true;
+        }
+        else {
+            for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+                if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
+                    if (!requestBody.empty()) {
+                        requestBodyJsonRequired = true;
+                    }
+                    else {
+                        LOGINFORMATIONAL(ert::tracing::Logger::informational("Empty request body received: some transformations will be ignored", ERT_FILE_LOCATION));
+                    }
+                    break;
                 }
-                else {
-                    LOGINFORMATIONAL(ert::tracing::Logger::informational("No request body received: some transformations will be ignored", ERT_FILE_LOCATION));
-                }
-                break;
             }
         }
-    }
-    if (requestBodyJsonWanted) {
-        requestBodyJsonParseable = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
+
+        if (requestBodyJsonRequired) {
+            // if fails to parse, we will consider it as an string ignoring the content-type:
+            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
+        }
     }
 
     // Request schema validation:
-    if (requestSchema && requestBodyJsonParseable) {
+    if (requestSchema && requestBodyJsonOrString) {
         if (!requestSchema->validate(requestBodyJson)) {
             responseStatusCode = 400; // bad request
             return; // INTERRUPT TRANSFORMATIONS
@@ -708,6 +740,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
             break;
         }
     }
+
     nlohmann::json responseBodyJson;
     if (usesResponseBodyAsTransformationTarget) {
         responseBodyJson = getResponseBody();   // clone provision response body to manipulate this copy and finally we will dump() it over 'responseBody':
@@ -735,7 +768,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         bool eraser = false;
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonParseable, requestBodyJson, requestHeaders, eraser, generalUniqueServerSequence))
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 
         std::smatch matches; // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671

@@ -24,7 +24,7 @@ cleanup_server_matching_server_provision() {
   then
     EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
     EXPECTED_STATUS_CODES=201
-    CURL_OPTS="-d@server-matching.json -H \"Content-Type: application/json\""
+    CURL_OPTS="-d@server-matching.json -H \"content-type: application/json\""
     test_query "Matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
   fi
 
@@ -32,7 +32,7 @@ cleanup_server_matching_server_provision() {
   then
     EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema${s} and provision${s} data received\" }"
     EXPECTED_STATUS_CODES=201
-    CURL_OPTS="-d@server-provision.json -H \"Content-Type: application/json\""
+    CURL_OPTS="-d@server-provision.json -H \"content-type: application/json\""
     test_query "Provision configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
   fi
 }

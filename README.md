@@ -1318,7 +1318,7 @@ The **source** of information is classified after parsing the following possible
 
 - response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
-- request.header.`<hname>`: request header component (i.e. *content-type*).
+- request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
 - eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
   - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this.
@@ -1438,7 +1438,7 @@ The **target** of information is classified after parsing the following possible
 
 - response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
-- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**.
+- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**. Take into account that header fields values are sent [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
 - response.statusCode *[unsigned integer]*: response status code.
 

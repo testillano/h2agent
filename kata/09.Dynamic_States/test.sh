@@ -14,7 +14,7 @@ do
   [ $i -eq 5 ] && direction=down
 
   EXPECTED_STATUS_CODES=200
-  CURL_OPTS="-d'{ \"direction\": \"${direction}\" }' -H \"Content-Type: application/json\""
+  CURL_OPTS="-d'{ \"direction\": \"${direction}\" }' -H \"content-type: application/json\""
   test_query "Send POST request" POST "http://${H2AGENT_TRAFFIC_ENDPOINT}/evolve" || exit 1
   ITEM_NUMBER=$(grep ^item-number ${TMPDIR}/cmd.out | cut -d: -f2 | xargs)
   cat ${TMPDIR}/cmd.out

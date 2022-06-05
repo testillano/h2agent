@@ -45,7 +45,7 @@ test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
 EXPECTED_STATUS_CODES=201
-CURL_OPTS="-d'{ \"algorithm\":\"PriorityMatchingRegex\" }' -H \"Content-Type: application/json\""
+CURL_OPTS="-d'{ \"algorithm\":\"PriorityMatchingRegex\" }' -H \"content-type: application/json\""
 test_query "Step 1. Server matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
 
 EXPECTED_RESPONSE="{\"algorithm\":\"PriorityMatchingRegex\"}"
@@ -56,7 +56,7 @@ test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and provisions data received\" }"
 EXPECTED_STATUS_CODES=201
-CURL_OPTS="-d@./provisions.json -H \"Content-Type: application/json\""
+CURL_OPTS="-d@./provisions.json -H \"content-type: application/json\""
 test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
 
 EXPECTED_STATUS_CODES=200
