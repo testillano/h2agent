@@ -997,7 +997,7 @@ If received, query parameters are kept without modifying the received *URI* path
 
 ###### Ignore
 
-If received, query parameters are ignored (removed from *URI* path and not taken into account to match provisions).
+If received, query parameters are ignored during classification (removed from *URI* path and not taken into account to match provisions), but they are, as always, stored to be accessible in further transformations. Anyway, take into account that they will be tokenized by ampersand (semicolon is not eligible as it is considered rare, so not implemented at the moment).
 
 ##### rgx & fmt
 
