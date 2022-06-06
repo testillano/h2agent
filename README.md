@@ -1325,39 +1325,7 @@ The **source** of information is classified after parsing the following possible
   - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
   - With other kind of targets, eraser acts like setting an empty string.
 
-- math.`<expression>`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server with this kind of provision:
-
-  ```json
-  {
-    "requestMethod": "POST",
-    "requestUri": "/app/v1/calculate",
-    "responseCode": 200,
-    "transform": [
-      {
-        "source": "request.body",
-        "target": "var.expression"
-      },
-      {
-        "source": "math.@{expression}",
-        "target": "response.body.float"
-      }
-    ]
-  }
-  ```
-
-  Start the process with that provision content as `provision.json` file:
-
-  ```bash
-  $> ./build/Release/bin/h2agent --traffic-server-provision provision.json &>/dev/null &
-  [1] 31456
-  ```
-
-  And send simple query like this to do the job:
-
-  ```bash
-  $> curl --http2-prior-knowledge -XPOST -d'(1+sqrt(5))/2' http://127.0.0.1:8000/app/v1/calculate
-  1.618033988749895
-  ```
+- math.`<expression>`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
 
 - random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 

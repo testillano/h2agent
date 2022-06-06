@@ -56,7 +56,7 @@ Exercises documentation links:
 
 [8 Server Data History](./08.Server_Data_History/README.md)
 
-[9 Dynamic States](./09.Dynamic_States/README.md)
+[9 Arithmetic Server](./09.Arithmetic_Server/README.md)
 
 [10 Foreign States](./10.Foreign_States/README.md)
 
