@@ -68,27 +68,27 @@ typedef std::string admin_server_provision_key_t;
 
 void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
-class MockServerRequestData;
+class MockServerEventsData;
 class GlobalVariable;
 
 
 class AdminServerProvision
 {
-    nlohmann::json json_; // provision reference
+    nlohmann::json json_{}; // provision reference
 
-    admin_server_provision_key_t key_; // calculated in every load()
-    std::regex regex_; // precompile key as possible regex for PriorityMatchingRegex algorithm
+    admin_server_provision_key_t key_{}; // calculated in every load()
+    std::regex regex_{}; // precompile key as possible regex for PriorityMatchingRegex algorithm
 
     // Cached information:
     std::string request_method_{};
     std::string request_uri_{};
-    std::string in_state_;
+    std::string in_state_{};
 
-    std::string out_state_;
+    std::string out_state_{};
     unsigned int response_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
 
-    nlohmann::json response_body_;
+    nlohmann::json response_body_{};
     std::string response_body_string_{};
     /* Tatsuhiro sends strings in response:
     int response_body_integer_{};
@@ -97,19 +97,19 @@ class AdminServerProvision
     bool response_body_null_{};
     */
 
-    unsigned int response_delay_ms_;
+    unsigned int response_delay_ms_{};
 
     // Schemas:
     std::string request_schema_id_{};
     std::string response_schema_id_{};
 
-    model::MockServerRequestData *mock_server_request_data_; // just in case it is used
-    model::GlobalVariable *global_variable_; // just in case it is used
+    model::MockServerEventsData *mock_server_events_data_{}; // just in case it is used
+    model::GlobalVariable *global_variable_{}; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
 
-    std::vector<std::shared_ptr<Transformation>> transformations_;
+    std::vector<std::shared_ptr<Transformation>> transformations_{};
 
     // Three processing stages: get sources, apply filters and store targets:
     bool processSources(std::shared_ptr<Transformation> transformation,
@@ -118,8 +118,9 @@ class AdminServerProvision
                         const std::string &requestUri,
                         const std::string &requestUriPath,
                         const std::map<std::string, std::string> &requestQueryParametersMap,
-                        bool requestBodyJsonParseable,
-                        const nlohmann::json &requestBodyJson,
+                        bool requestBodyJsonOrString,
+                        const nlohmann::json &requestBodyJson, // if json
+                        const std::string &requestBody, // if string
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;
@@ -203,11 +204,11 @@ public:
     bool load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
 
     /**
-     * Sets the internal mock request data,
+     * Sets the internal mock server data,
      * just in case it is used in event source
      */
-    void setMockServerRequestData(model::MockServerRequestData *p) {
-        mock_server_request_data_ = p;
+    void setMockServerEventsData(model::MockServerEventsData *p) {
+        mock_server_events_data_ = p;
     }
 
     /**
@@ -287,11 +288,13 @@ public:
         return response_body_;
     }
 
-    /** Provisioned response body string
+    /** Provisioned response body when it is an string,
+     *  or could be converted into string, instead of
+     *  a json object.
      *
      * @return Response body string
      */
-    const std::string &getResponseBodyAsString() const {
+    const std::string &getResponseBodyString() const {
         return response_body_string_;
     }
 

@@ -56,6 +56,7 @@ std::string AdminServerProvisionData::asJsonString(bool ordered) const {
 
     nlohmann::json result = nlohmann::json::array();
 
+    read_guard_t guard(rw_mutex_);
     if (ordered) {
         for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
             auto element =  get(*it);
@@ -85,13 +86,14 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
 
         // Push the key in the map:
         admin_server_provision_key_t key = provision->getKey();
-        add(key, provision);
 
         // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex'.
         // So, we always have both lists available; as each algorithm finds within the proper
         // list, we don't need to drop provisions when swaping the matching mode on the fly:
         write_guard_t guard(rw_mutex_);
         ordered_keys_.push_back(key);
+
+        add(key, provision);
 
         return Success;
     }
@@ -117,20 +119,22 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohma
 
 bool AdminServerProvisionData::clear()
 {
+    write_guard_t guard(rw_mutex_);
+
     bool result = (size() != 0);
 
     map_.clear();
 
-    write_guard_t guard(rw_mutex_);
     ordered_keys_.clear();
 
     return result;
 }
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
-    admin_server_provision_key_t key;
+    admin_server_provision_key_t key{};
     calculateAdminServerProvisionKey(key, inState, method, uri);
 
+    read_guard_t guard(rw_mutex_);
     auto it = get(key);
     if (it != end())
         return it->second;
@@ -139,9 +143,10 @@ std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::
 }
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const {
-    admin_server_provision_key_t key;
+    admin_server_provision_key_t key{};
     calculateAdminServerProvisionKey(key, inState, method, uri);
 
+    read_guard_t guard(rw_mutex_);
     for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
         auto provision = get(*it)->second;
         if (std::regex_match(key, provision->getRegex()))

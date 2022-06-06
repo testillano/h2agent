@@ -41,7 +41,7 @@ SOFTWARE.
 
 namespace h2agent
 {
-namespace http2server
+namespace http2
 {
 
 std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator) {
@@ -94,20 +94,6 @@ std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, 
             result += "=";
             result += it->second; // value
         }
-    }
-
-    return result;
-}
-
-std::string headersAsString(const nghttp2::asio_http2::header_map &headers) {
-    std::string result = "";
-
-    for(auto it = headers.begin(); it != headers.end(); it ++) {
-        result += "[";
-        result += it->first;
-        result += ": ";
-        result += it->second.value;
-        result += "]";
     }
 
     return result;

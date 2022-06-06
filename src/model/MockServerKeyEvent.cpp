@@ -37,7 +37,7 @@ SOFTWARE.
 
 #include <functions.hpp>
 
-#include <MockServerRequest.hpp>
+#include <MockServerKeyEvent.hpp>
 
 #include <chrono>
 
@@ -48,9 +48,9 @@ namespace model
 {
 
 
-void MockServerRequest::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                             unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                             const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerKeyEvent::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                              unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
+                              const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
     reception_timestamp_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
@@ -72,7 +72,7 @@ void MockServerRequest::load(const std::string &pstate, const std::string &state
     saveJson();
 }
 
-void MockServerRequest::saveJson() {
+void MockServerKeyEvent::saveJson() {
 
     if (!virtual_origin_coming_from_method_.empty()) {
         json_["virtualOrigin"]["method"] = virtual_origin_coming_from_method_;
@@ -91,13 +91,13 @@ void MockServerRequest::saveJson() {
     }
 
     if (!body_.empty()) {
-        h2agent::http2server::parseJsonContent(body_, json_["requestBody"], true /* write exception */);
+        h2agent::http2::parseJsonContent(body_, json_["requestBody"], true /* write exception */);
     }
 
     // Additional information
     if (!pstate_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = pstate_;
     if (!response_body_.empty()) {
-        h2agent::http2server::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
+        h2agent::http2::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
     }
 
     json_["responseDelayMs"] = (unsigned int)response_delay_ms_;
@@ -108,7 +108,7 @@ void MockServerRequest::saveJson() {
             hdrs[x.first] = x.second.value;
         json_["responseHeaders"] = hdrs;
     }
-    json_["serverSequence"] = (unsigned int)server_sequence_;
+    json_["serverSequence"] = (std::uint64_t)server_sequence_;
 }
 
 }

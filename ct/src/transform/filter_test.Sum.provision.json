@@ -11,7 +11,7 @@
   },
   "transform": [
     {
-      "source": "general.recvseq",
+      "source": "recvseq",
       "target": "response.body.integer./recvseqAdding100",
       "filter": {
         "Sum": 100

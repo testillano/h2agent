@@ -11,7 +11,7 @@ set_property(TARGET ert_metrics PROPERTY IMPORTED_LOCATION /usr/local/lib/ert/li
 target_link_libraries( unit-test
 PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}
-        h2agent-http2Server
+        h2agent-http2
         h2agent-model
         ert_logger
         ert_http2comm
@@ -42,4 +42,5 @@ ${CMAKE_EXE_LINKER_FLAGS}
 
 add_subdirectory(jsonSchema)
 add_subdirectory(http2Server)
+#add_subdirectory(http2Client)
 add_subdirectory(model)

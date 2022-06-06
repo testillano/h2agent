@@ -12,8 +12,8 @@ PROVISION
   },
   "transform": [
     {
-      "source": "general.recvseq",
-      "target": "response.body.float./generalRecvseq"
+      "source": "recvseq",
+      "target": "response.body.float./recvseq"
     }
   ]
 }

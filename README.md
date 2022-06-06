@@ -8,8 +8,17 @@
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
 `H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
+It is mainly designed for testing, but could even simulate or complement advanced services.
 
-Take a look at [this](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/) ***Prezi*** presentation for a complete and useful overview of this component.
+## Quick start
+
+It is recommended to complete the following points first:
+
+* A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
+* A ***[demo](./README.md#demo)*** exercise which presents a basic use case to better understand the project essentials.
+* And finally, a ***[kata](./README.md#kata)*** training to adquire better knowledge of project capabilities.
+
+## Scope
 
 When developing a network service, one often needs to integrate it with other services. However, integrating full-blown versions of such services in a development setup is not always suitable, for instance when they are either heavyweight or not fully developed.
 
@@ -303,8 +312,9 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities.
-Check `st/start.sh -h` for help.
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information).
+
+Also, `st/last.sh` script repeats the last execution in headless mode.
 
 As schema validation is normally used only for function tests, it will be disabled here:
 
@@ -438,14 +448,15 @@ Options:
   Traffic server API version; defaults to empty.
 
 [-w|--traffic-server-worker-threads <threads>]
-  Number of traffic server worker threads; defaults to a mimimum of 2 threads
-  except if hardware concurrency permits a greater margin taking into account
-  other process threads. Normally, 1 thread should be enough even for complex
-  logic provisioned (admin server always uses 1 worker thread).
+  Number of traffic server worker threads; defaults to 1, which should be enough
+  even for complex logic provisioned (admin server always uses 1 worker thread).
+  It could be increased if hardware concurrency permits a greater margin taking
+  into account other process threads considered busy.
 
 [-t|--traffic-server-threads <threads>]
   Number of nghttp2 traffic server threads; defaults to 1 (1 connection)
-  (admin server always uses 1 nghttp2 thread).
+  (admin server always uses 1 nghttp2 thread). This option is exploited
+  by multiple clients.
 
 [-k|--traffic-server-key <path file>]
   Path file for traffic server key to enable SSL/TLS; unsecured by default.
@@ -496,9 +507,11 @@ Options:
 
 [--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
+  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
+  could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
 
 [--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
-  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.
+  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
 
 [-v|--version]
   Program version.
@@ -536,6 +549,50 @@ Options:
 Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 ```
 
+## Execution with TLS support
+
+`H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
+
+```bash
+$> ls tools/ssl/
+create_all.sh  create_self-signed_certificate.sh
+```
+
+Using `create_all.sh`, server key and certificate are created at execution directory:
+
+```bash
+$> tools/ssl/create_all.sh
+tools/ssl/create_all.sh
++ openssl genrsa -des3 -out ca.key 4096
+Generating RSA private key, 4096 bit long modulus (2 primes)
+..++++
+..........++++
+e is 65537 (0x010001)
+Enter pass phrase for ca.key:
+Verifying - Enter pass phrase for ca.key:
++ openssl req -new -x509 -days 365 -key ca.key -out ca.crt -subj '/C=ES/ST=Madrid/L=Madrid/O=Security/OU=IT Department/CN=www.example.com'
+Enter pass phrase for ca.key:
++ openssl genrsa -des3 -out server.key 1024
+Generating RSA private key, 1024 bit long modulus (2 primes)
+...............................................+++++
+.....................+++++
+
+etc.
+```
+
+Add the following parameters to the agent command-line (appended key password to avoid the 'PEM pass phrase' prompt at process start):
+
+```bash
+--traffic-server-key server.key --traffic-server-crt server.crt --traffic-server-key-password <key password>
+```
+
+For quick testing, launch unsecured traffic in this way:
+
+```bash
+$> curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
+HTTP/2 501
+```
+
 ## Metrics
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
@@ -554,14 +611,13 @@ Log level: Warning
 Verbose (stdout): true
 IP stack: IPv4
 Admin port: 8074
-Hardware concurrency: 8
 Traffic server (mock server service): enabled
 Traffic server bind address: 0.0.0.0
 Traffic server port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
-Traffic server worker threads: 2
-Traffic server threads (exploited by multiple clients): 1
+Traffic server threads (nghttp2): 1
+Traffic server worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
 Traffic server crt file: <not provided>
@@ -929,7 +985,7 @@ Optional argument used to specify the transformation for query parameters receiv
 
 ###### SortAmpersand
 
-This is the default behavior and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
+This is the <u>default behavior</u> and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
 
 ###### SortSemicolon
 
@@ -941,7 +997,7 @@ If received, query parameters are kept without modifying the received *URI* path
 
 ###### Ignore
 
-If received, query parameters are ignored (removed from *URI* path and not taken into account to match provisions).
+If received, query parameters are ignored during classification (removed from *URI* path and not taken into account to match provisions), but they are, as always, stored to be accessible in further transformations. Anyway, take into account that they will be tokenized by ampersand (semicolon is not eligible as it is considered rare, so not implemented at the moment).
 
 ##### rgx & fmt
 
@@ -1139,7 +1195,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^general\\.random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^general\\.randomset\\..+|^general\\.timestamp\\.[m|n]{0,1}s$|^general\\.strftime\\..+|^general\\.recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
@@ -1262,22 +1318,24 @@ The **source** of information is classified after parsing the following possible
 
 - response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
-- request.header.`<hname>`: request header component (i.e. *content-type*).
+- request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
 - eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
   - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this.
   - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
   - With other kind of targets, eraser acts like setting an empty string.
 
-- general.random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+- math.`<expression>`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
 
-- general.randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
+- random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
-- general.timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
 
-- general.strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
+- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
 
-- general.recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
+- strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
+
+- recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
 - var.`<id>`: general purpose variable (accessible within transformation chain). Cannot refer json objects. This source variable identifier **admits variables substitution**.
 
@@ -1382,7 +1440,7 @@ The **target** of information is classified after parsing the following possible
 
 - response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
-- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**.
+- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**. Take into account that header fields values are sent [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
 - response.statusCode *[unsigned integer]*: response status code.
 
@@ -1405,7 +1463,7 @@ There are several **filter** methods, but remember that filter node is optional,
 
 ```json
 {
-  "source": "general.random.25.35",
+  "source": "random.25.35",
   "target": "response.delayMs"
 }
 ```
@@ -1550,13 +1608,13 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "general.random.0.99999999",
+    "source": "random.0.99999999",
     "target": "var.mysum",
     "filter": { "Sum" : 123456789012345 }
   }
   ```
 
-  In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs.
+  In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs. For more complex operations, you may use the `math` source.
 
 
 
@@ -1570,7 +1628,7 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  In this example, we operate `-10 * -0.1 = 1`.
+  In this example, we operate `-10 * -0.1 = 1`. For more complex operations, you may use the `math` source.
 
 
 
@@ -1780,7 +1838,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
         "receptionTimestampMs": 1626047915716,
         "responseBody": {
           "foo": "bar-1",
-          "generalRandomBetween10and30": 27
+          "randomBetween10and30": 27
         },
         "responseDelayMs": 0,
         "responseHeaders": {
@@ -1808,7 +1866,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
         "receptionTimestampMs": 1626047921641,
         "responseBody": {
           "foo": "bar-1",
-          "generalRandomBetween10and30": 24
+          "randomBetween10and30": 24
         },
         "responseDelayMs": 0,
         "responseHeaders": {
@@ -1851,7 +1909,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
         "receptionTimestampMs": 1626047921641,
         "responseBody": {
           "foo": "bar-1",
-          "generalRandomBetween10and30": 24
+          "randomBetween10and30": 24
         },
         "responseDelayMs": 0,
         "responseHeaders": {
@@ -2176,45 +2234,4 @@ MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 5
 
 ## Contributing
 
-In you want to contribute the project with fixes or new features, you must follow these steps:
-
-### Create Issue
-
-In case that you detect a crash in the application, report it [here](https://github.com/testillano/h2agent/issues/new?assignees=&labels=&template=bug_report.md&title=Crash).
-
-To share ideas and suggest new features, report [here](https://github.com/testillano/h2agent/issues/new?assignees=&labels=&template=feature_request.md&title=idea).
-
-Any help and feedback is well appreciated. Thank you in advance !
-
-### Fork
-
-Fork the project and create a new branch. Check [here](https://chris.beams.io/posts/git-commit/) for a good reference of universal conventions regarding how to describe commit messages and make changes.
-
-### Run unit tests
-
-See [unit test](#unit-test).
-
-### Run component tests
-
-See [component test](#component-test).
-
-### Additional verifications
-
-It would be also good to check the demo health and benchmark test:
-
-* [Demo](#demo).
-* [Benchmarking test](#benchmarking-test).
-
-### Check formatting
-
-Please, execute `astyle` formatting (using [frankwolf image](https://hub.docker.com/r/frankwolf/astyle)) before any pull request:
-
-```bash
-$ sources=$(find . -name "*.hpp" -o -name "*.cpp")
-$ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
-```
-
-### Pull request
-
-Rebase to update and then make a `pull request`.
-
+Check the project [contributing guidelines](./CONTRIBUTING.md).

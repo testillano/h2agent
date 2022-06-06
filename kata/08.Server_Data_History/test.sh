@@ -11,7 +11,7 @@ cleanup_server_matching_server_provision "s"
 number=${RANDOM}
 
 EXPECTED_STATUS_CODES=200
-CURL_OPTS="-d'{ \"foo\":\"bar\", \"lorem\":\"ipsum\" }' -H \"Content-Type: application/json\""
+CURL_OPTS="-d'{ \"foo\":\"bar\", \"lorem\":\"ipsum\" }' -H \"content-type: application/json\""
 test_query "Send POST update request" POST "http://${H2AGENT_TRAFFIC_ENDPOINT}/ctrl/v2/items/update/id-${number}" || exit 1
 
 EXPECTED_STATUS_CODES=200

@@ -43,20 +43,21 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
+#include <ert/http2comm/Http2Headers.hpp>
 #include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
 
 #include <AdminData.hpp>
-#include <MockServerRequestData.hpp>
+#include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
 #include <functions.hpp>
 
 
 namespace h2agent
 {
-namespace http2server
+namespace http2
 {
 
 MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
@@ -119,7 +120,7 @@ bool MyAdminHttp2Server::checkHeaders(const
 
 std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 {
-    std::string result{};
+    std::string result;
 
     size_t apiPathSize = getApiPath().size(); // /admin/v1
     size_t uriPathSize = uriPath.size(); // /admin/v1<suffix>
@@ -151,7 +152,7 @@ THIS WAS REPLACED TEMPORARILY BY A SLIGHTLY LESS EFFICIENT VERSION, TO AVOID VAL
 
 std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody) const
 {
-    std::string result{};
+    std::string result;
     result = R"({ "result":")";
     result += (responseResult ? "true":"false");
     result += R"(", "response": )";
@@ -252,12 +253,12 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
-    bool jsonResponse_result{};
-    std::string jsonResponse_response{};
+    bool jsonResponse_result = false;
+    std::string jsonResponse_response;
 
     // Admin schema validation:
     nlohmann::json requestJson;
-    bool success = h2agent::http2server::parseJsonContent(requestBody, requestJson);
+    bool success = h2agent::http2::parseJsonContent(requestBody, requestJson);
 
     if (success) {
         if (pathSuffix == "server-matching") {
@@ -320,12 +321,12 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     else if (pathSuffix == "server-data/summary") {
         std::string maxKeys = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("maxKeys");
             if (it != qmap.end()) maxKeys = it->second;
         }
 
-        responseBody = getHttp2Server()->getMockServerRequestData()->summary(maxKeys);
+        responseBody = getHttp2Server()->getMockServerEventsData()->summary(maxKeys);
         statusCode = 200;
     }
     else if (pathSuffix == "global-variable") {
@@ -357,7 +358,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         std::string requestUri = "";
         std::string requestNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
             if (it != qmap.end()) requestMethod = it->second;
             it = qmap.find("requestUri");
@@ -366,8 +367,8 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) requestNumber = it->second;
         }
 
-        bool validQuery;
-        responseBody = getHttp2Server()->getMockServerRequestData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+        bool validQuery = false;
+        responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data/configuration") {
@@ -396,7 +397,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         std::string requestUri = "";
         std::string requestNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
             if (it != qmap.end()) requestMethod = it->second;
             it = qmap.find("requestUri");
@@ -405,7 +406,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) requestNumber = it->second;
         }
 
-        bool success = getHttp2Server()->getMockServerRequestData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
+        bool success = getHttp2Server()->getMockServerEventsData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
 
         statusCode = (success ? (serverDataDeleted ? 200:204):400);
     }
@@ -426,7 +427,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     if (pathSuffix == "logging") {
         std::string level = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("level");
             if (it != qmap.end()) level = it->second;
         }
@@ -447,12 +448,12 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     }
     else if (pathSuffix == "server-data/configuration") {
 
-        std::string discard{};
-        std::string discardKeyHistory{};
-        std::string disablePurge{};
+        std::string discard;
+        std::string discardKeyHistory;
+        std::string disablePurge;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2server::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("discard");
             if (it != qmap.end()) discard = it->second;
             it = qmap.find("discardKeyHistory");
@@ -522,7 +523,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
     else {
         std::stringstream ss;
         ss << "ADMIN REQUEST RECEIVED | Method: " << method
-           << " | Headers: " << h2agent::http2server::headersAsString(req.header())
+           << " | Headers: " << ert::http2comm::headersAsString(req.header())
            << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uriPath;
         if (!uriQuery.empty()) {
             ss << " | Query Params: " << uriQuery;
@@ -538,7 +539,8 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // Defaults
     responseBody.clear();
-    headers.emplace("Content-Type", nghttp2::asio_http2::header_value{"application/json"}); // except DELETE
+    // Content type, just in case:
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"}); // except DELETE
 
     // No operation provided:
     if (noPathSuffix) {

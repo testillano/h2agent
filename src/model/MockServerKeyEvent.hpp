@@ -48,9 +48,9 @@ namespace model
 {
 
 
-class MockServerRequest
+class MockServerKeyEvent
 {
-    std::string pstate_;
+    std::string pstate_{};
 
     std::uint64_t reception_timestamp_ms_{};
     std::string state_{};
@@ -73,7 +73,7 @@ class MockServerRequest
 
 public:
 
-    MockServerRequest() {;}
+    MockServerKeyEvent() {;}
 
     // setters:
 

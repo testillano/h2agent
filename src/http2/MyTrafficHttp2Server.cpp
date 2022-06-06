@@ -41,18 +41,19 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
+#include <ert/http2comm/Http2Headers.hpp>
 #include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyTrafficHttp2Server.hpp>
 
 #include <AdminData.hpp>
-#include <MockServerRequestData.hpp>
+#include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
 #include <functions.hpp>
 
 namespace h2agent
 {
-namespace http2server
+namespace http2
 {
 
 
@@ -61,7 +62,7 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
     admin_data_(nullptr),
     general_unique_server_sequence_(1) {
 
-    mock_request_data_ = new model::MockServerRequestData();
+    mock_server_events_data_ = new model::MockServerEventsData();
     global_variable_ = new model::GlobalVariable();
 
     server_data_ = true;
@@ -70,7 +71,7 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
 }
 
 MyTrafficHttp2Server::~MyTrafficHttp2Server() {
-    delete (mock_request_data_);
+    delete (mock_server_events_data_);
     delete (global_variable_);
 }
 
@@ -151,16 +152,17 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     std::map<std::string, std::string> qmap; // query parameters map
 
     if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
+        qmap = h2agent::http2::extractQueryParameters(uriQuery); // future proof: Ignore but tokenize by semicolon (it is rare, so we will assume the ampersand filter)
         uriQuery = "";
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortAmpersand) {
 
-        qmap = h2agent::http2server::extractQueryParameters(uriQuery);
-        uriQuery = h2agent::http2server::sortQueryParameters(qmap);
+        qmap = h2agent::http2::extractQueryParameters(uriQuery);
+        uriQuery = h2agent::http2::sortQueryParameters(qmap);
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortSemicolon) {
-        qmap = h2agent::http2server::extractQueryParameters(uriQuery, ';');
-        uriQuery = h2agent::http2server::sortQueryParameters(qmap, ';');
+        qmap = h2agent::http2::extractQueryParameters(uriQuery, ';');
+        uriQuery = h2agent::http2::sortQueryParameters(qmap, ';');
     }
 
     std::string uri = uriPath;
@@ -172,7 +174,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     LOGDEBUG(
         std::stringstream ss;
         ss << "TRAFFIC REQUEST RECEIVED | Method: " << method
-        << " | Headers: " << h2agent::http2server::headersAsString(req.header())
+        << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
         << " | Query parameters: " << ((uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
@@ -185,11 +187,11 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
 // Find mock context:
     std::string inState;
-    /*bool requestFound = */getMockServerRequestData()->findLastRegisteredRequest(method, uri, inState); // if not found, inState will be 'initial'
+    /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequestState(method, uri, inState); // if not found, inState will be 'initial'
 
 // Matching algorithm:
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
-    std::shared_ptr<h2agent::model::AdminServerProvision> provision;
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision(nullptr);
 
     if (algorithmType == h2agent::model::AdminServerMatchingData::FullMatching) {
         LOGDEBUG(
@@ -236,8 +238,8 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
         // OPTIONAL SCHEMAS VALIDATION
         const h2agent::model::AdminSchemaData & schemaData = getAdminData()->getSchemaData();
-        std::shared_ptr<h2agent::model::AdminSchema> requestSchema;
-        std::shared_ptr<h2agent::model::AdminSchema> responseSchema;
+        std::shared_ptr<h2agent::model::AdminSchema> requestSchema(nullptr);
+        std::shared_ptr<h2agent::model::AdminSchema> responseSchema(nullptr);
         std::string requestSchemaId = provision->getRequestSchemaId();
         if (!requestSchemaId.empty()) {
             requestSchema = schemaData.find(requestSchemaId);
@@ -254,15 +256,15 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         }
 
         // PREPARE & TRANSFORM
-        provision->setMockServerRequestData(mock_request_data_); // could be used by event source
+        provision->setMockServerEventsData(mock_server_events_data_); // could be used by event source
         provision->setGlobalVariable(global_variable_);
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
-            bool somethingDeleted;
-            bool success = getMockServerRequestData()->clear(somethingDeleted, method, uri);
+            bool somethingDeleted = false;
+            bool success = getMockServerEventsData()->clear(somethingDeleted, method, uri);
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -278,7 +280,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
             // Store request event context information
             if (server_data_) {
-                getMockServerRequestData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
@@ -289,7 +291,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
                         outStateUri = uri; // by default
                     }
 
-                    getMockServerRequestData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
+                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }
@@ -303,7 +305,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerRequestData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {
@@ -314,7 +316,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "RESPONSE TO SEND| StatusCode: " << statusCode << " | Headers: " << h2agent::http2server::headersAsString(headers);
+        ss << "RESPONSE TO SEND| StatusCode: " << statusCode << " | Headers: " << ert::http2comm::headersAsString(headers);
         if (!responseBody.empty()) ss << " | Body: " << responseBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );

@@ -11,6 +11,7 @@ ARG build_type=Release
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 ARG google_test_ver=v1.10.0
+ARG arashpartow_exprtk=0.0.1
 
 RUN apk update && apk add \
     git \
@@ -37,3 +38,8 @@ RUN set -x && \
     cd .. && rm -rf * && \
     set +x
 
+# ArashPartow exprtk
+RUN set -x && \
+    wget https://github.com/ArashPartow/exprtk/raw/${arashpartow_exprtk}/exprtk.hpp && \
+    mkdir /usr/local/include/arashpartow && mv exprtk.hpp /usr/local/include/arashpartow && \
+    set +x

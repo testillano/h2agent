@@ -54,28 +54,28 @@ PROVISION
       }
     },
     {
-      "source": "general.random.-3.4",
+      "source": "random.-3.4",
       "target": "outState",
       "filter": {
         "Sum": 5
       }
     },
     {
-      "source": "general.timestamp.ns",
+      "source": "timestamp.ns",
       "target": "outState",
       "filter": {
         "Multiply": -1
       }
     },
     {
-      "source": "general.strftime.Now it's %I:%M%p.",
+      "source": "strftime.Now it's %I:%M%p.",
       "target": "outState",
       "filter": {
         "Sum": 5
       }
     },
     {
-      "source": "general.recvseq",
+      "source": "recvseq",
       "target": "outState",
       "filter": {
         "Multiply": 0.1

@@ -1,0 +1,28 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/calculate/sdpf",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "request.uri.param.a",
+      "target": "var.a"
+    },
+    {
+      "source": "request.uri.param.b",
+      "target": "var.b"
+    },
+    {
+      "source": "request.uri.param.c",
+      "target": "var.c"
+    },
+    {
+      "source": "request.uri.param.x",
+      "target": "var.x"
+    },
+    {
+      "source": "math.@{a}*@{x}^2+@{b}*@{x}+@{c}",
+      "target": "response.body.integer"
+    }
+  ]
+}
+

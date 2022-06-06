@@ -41,7 +41,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
-#include <MockServerRequests.hpp>
+#include <MockServerKeyEvents.hpp>
 
 #include <JsonSchema.hpp>
 
@@ -53,24 +53,24 @@ namespace model
 
 
 /**
- * This class stores the requests history.
+ * This class stores the mock server events.
  *
  * This is useful to post-verify the internal data (content and schema validation) on testing system.
  * Also, the last request for an specific key, is used to know the state which is used to get the
  * corresponding provision information.
  */
-class MockServerRequestData : public Map<mock_server_requests_key_t, std::shared_ptr<MockServerRequests>>
+class MockServerEventsData : public Map<mock_server_events_key_t, std::shared_ptr<MockServerKeyEvents>>
 {
-    h2agent::jsonschema::JsonSchema requests_schema_;
+    h2agent::jsonschema::JsonSchema requests_schema_{};
 
     bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
     bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) const;
 
-    mutable mutex_t rw_mutex_;
+    mutable mutex_t rw_mutex_{};
 
 public:
-    MockServerRequestData() {};
-    ~MockServerRequestData() = default;
+    MockServerEventsData() {};
+    ~MockServerEventsData() = default;
 
     /**
      * Loads request data
@@ -133,7 +133,7 @@ public:
     std::string summary(const std::string &maxKeys = "") const;
 
     /**
-     * Gets the mock request in specific position
+     * Gets the mock server key event in specific position
      *
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection
@@ -147,17 +147,17 @@ public:
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockServerRequest> getMockServerRequest(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
 
     /**
      * Builds json document for class information
      *
      * @return Json object
      */
-    nlohmann::json asJson() const;
+    nlohmann::json getJson() const;
 
     /**
-     * Finds most recent mock context entry.
+     * Finds most recent mock context entry state.
      *
      * @param method Request method which was received
      * @param uri Request URI path which was received
@@ -165,7 +165,7 @@ public:
      *
      * @return Boolean about if the request is found or not
      */
-    bool findLastRegisteredRequest(const std::string &method, const std::string &uri, std::string &state) const;
+    bool findLastRegisteredRequestState(const std::string &method, const std::string &uri, std::string &state) const;
 
 
     /**

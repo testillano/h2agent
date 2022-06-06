@@ -127,7 +127,7 @@ menu() {
     [ -s "${dataFile}" ] && curlDataOpt="-d@${dataFile}"
 
     # headers
-    local headers="-H Content-Type:application/json "
+    local headers="-H content-type:application/json "
     [ "${method}" = "GET" ] && headers=
     for hdr in $(sed -n '/^REQUEST_HDRS/,//p' ${file} | grep -vE '^REQUEST')
     do
@@ -153,7 +153,7 @@ menu() {
     read -r dummy
     # -XPOST not necessary (already inferred)
     set -x
-    curl -i --http2-prior-knowledge -d @${dataFile} -H "Content-Type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}
+    curl -i --http2-prior-knowledge -d @${dataFile} -H "content-type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}
     set +x
   fi
 

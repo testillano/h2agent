@@ -61,8 +61,8 @@ const char* progname;
 
 namespace
 {
-h2agent::http2server::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
-h2agent::http2server::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // traffic
+h2agent::http2::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
+h2agent::http2::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // incoming traffic
 boost::asio::io_service *timersIoService = nullptr;
 
 const char* AdminApiName = "admin";
@@ -74,18 +74,25 @@ const char* AdminApiVersion = "v1";
 /////////////////////////
 
 // Transform input in the form "<double> <double> .. <double>" to bucket boundaries vector
-// Returns the final string ignoring non-double values scanned.
+// Cientific notation is allowed, for example boundaries for 150us would be 150e-6
+// Returns the final string ignoring non-double values scanned. Also sort is applied.
 std::string loadHistogramBoundaries(const std::string &input, ert::metrics::bucket_boundaries_t &boundaries) {
     std::string result;
+
     std::stringstream ss(input);
-    double value;
+    double value = 0;
     while (ss >> value) {
         boundaries.push_back(value);
-        result += (std::to_string(value) + " ");
+    }
+
+    std::sort(boundaries.begin(), boundaries.end());
+    for (const auto &i: boundaries) {
+        result += (std::to_string(i) + " ");
     }
 
     return result;
 }
+
 
 /*
 int getThreadCount() {
@@ -115,8 +122,8 @@ std::string getLocaltime()
     std::string result;
 
     char timebuffer[80];
-    time_t rawtime;
-    struct tm* timeinfo;
+    time_t rawtime = 0;
+    struct tm* timeinfo(nullptr);
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
@@ -173,7 +180,7 @@ void sighndl(int signal)
 // Command line functions //
 ////////////////////////////
 
-void usage(int rc)
+void usage(int rc, const std::string &errorMessage = "")
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
@@ -207,14 +214,15 @@ void usage(int rc)
        << "  Traffic server API version; defaults to empty.\n\n"
 
        << "[-w|--traffic-server-worker-threads <threads>]\n"
-       << "  Number of traffic server worker threads; defaults to a mimimum of 2 threads\n"
-       << "  except if hardware concurrency permits a greater margin taking into account\n"
-       << "  other process threads. Normally, 1 thread should be enough even for complex\n"
-       << "  logic provisioned (admin server always uses 1 worker thread).\n\n"
+       << "  Number of traffic server worker threads; defaults to 1, which should be enough\n"
+       << "  even for complex logic provisioned (admin server always uses 1 worker thread).\n"
+       << "  It could be increased if hardware concurrency permits a greater margin taking\n"
+       << "  into account other process threads considered busy.\n\n"
 
        << "[-t|--traffic-server-threads <threads>]\n"
        << "  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)\n"
-       << "  (admin server always uses 1 nghttp2 thread).\n\n"
+       << "  (admin server always uses 1 nghttp2 thread). This option is exploited\n"
+       << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
        << "[-k|--traffic-server-key <path file>]\n"
@@ -273,12 +281,14 @@ void usage(int rc)
        << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
-       << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n\n"
+       << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
+       << "  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we\n"
+       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n\n"
        //<< "  This affects to both mock 'server internal/client external' processing time values,\n"
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
-       << "  Bucket boundaries for message size bytes histogram; no boundaries are defined by default.\n\n"
+       << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n\n"
        //<< "  This affects to both mock 'server internal/client external' message size values,\n"
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
@@ -290,12 +300,18 @@ void usage(int rc)
 
        << '\n';
 
+
+    if (rc != 0 && !errorMessage.empty())
+    {
+        ss << errorMessage << '\n';
+    }
+
     _exit(rc);
 }
 
 int toNumber(const std::string& value)
 {
-    int result{};
+    int result = 0;
 
     try
     {
@@ -303,7 +319,7 @@ int toNumber(const std::string& value)
     }
     catch (...)
     {
-        usage(EXIT_FAILURE);
+        usage(EXIT_FAILURE, std::string("Error in number conversion for '" + value + "' !"));
     }
 
     return result;
@@ -341,7 +357,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_port = "8000";
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
-    int traffic_server_worker_threads = -1;
+    int traffic_server_worker_threads = 1;
     int traffic_server_threads = 1;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
@@ -358,8 +374,8 @@ int main(int argc, char* argv[])
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
-    ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries;
-    ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries;
+    ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
+    ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
 
     std::string value;
 
@@ -374,7 +390,7 @@ int main(int argc, char* argv[])
     {
         if (!ert::tracing::Logger::setLevel(value))
         {
-            usage(EXIT_FAILURE);
+            usage(EXIT_FAILURE, "Invalid log level provided !");
         }
     }
 
@@ -422,6 +438,10 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--traffic-server-worker-threads", value))
     {
         traffic_server_worker_threads = toNumber(value);
+        if (traffic_server_worker_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-worker-threads' value. Must be greater than 0.");
+        }
     }
 
     // Probably, this parameter is not useful as we release the server thread using our workers, so
@@ -430,6 +450,10 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--traffic-server-threads", value))
     {
         traffic_server_threads = toNumber(value);
+        if (traffic_server_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-threads' value. Must be greater than 0.");
+        }
     }
 
     if (cmdOptionExists(argv, argv + argc, "-k", value)
@@ -511,7 +535,7 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
-        std::cout << (gitVersion.empty() ? "unknown: must built on git repository":gitVersion) << '\n';
+        std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
         _exit(EXIT_SUCCESS);
     }
 
@@ -526,9 +550,6 @@ int main(int argc, char* argv[])
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
     std::cout << "Admin port: " << admin_port << '\n';
-
-    unsigned int hardwareConcurrency = std::thread::hardware_concurrency();
-    std::cout << "Hardware concurrency: " << hardwareConcurrency << '\n';
 
     // Server bind address for servers
     std::string bind_address_prometheus_exposer = bind_address;
@@ -545,15 +566,13 @@ int main(int argc, char* argv[])
         std::cout << "Traffic server api name: " << ((traffic_server_api_name != "") ?  traffic_server_api_name : "<none>") << '\n';
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
-        if (traffic_server_worker_threads < 1) {
-            // Calculate traffic server threads:
-            // * Miminum assignment = 2 threads
-            // * Maximum assignment = CPUs - rest of threads count
-            int maxTrafficServerWorkerThreadsAssignment = hardwareConcurrency - 6 /* main(1) + admin server(workers=1) + timers io(tt=1) + admin(t1->1) + traffic (t2->2) */;
-            traffic_server_worker_threads = (maxTrafficServerWorkerThreadsAssignment > 2) ? maxTrafficServerWorkerThreadsAssignment : 2;
-        }
+        std::cout << "Traffic server threads (nghttp2): " << traffic_server_threads << '\n';
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
-        std::cout << "Traffic server threads (exploited by multiple clients): " << traffic_server_threads << '\n';
+
+        // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
+        // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + traffic_server_threads + traffic_server_worker_threads)
+        // are over hardware concurrency (unsigned int hardwareConcurrency = std::thread::hardware_concurrency();)
+
         std::cout << "Traffic server key password: " << ((traffic_server_key_password != "") ? "***" : "<not provided>") << '\n';
         std::cout << "Traffic server key file: " << ((traffic_server_key_file != "") ? traffic_server_key_file : "<not provided>") << '\n';
         std::cout << "Traffic server crt file: " << ((traffic_server_crt_file != "") ? traffic_server_crt_file : "<not provided>") << '\n';
@@ -614,7 +633,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    myAdminHttp2Server = new h2agent::http2server::MyAdminHttp2Server(1); // 1 nghttp2 server thread
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(1); // 1 nghttp2 server thread
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -630,7 +649,7 @@ int main(int argc, char* argv[])
     });
 
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2server::MyTrafficHttp2Server(traffic_server_worker_threads, timersIoService);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, timersIoService);
         myTrafficHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(p_metrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
@@ -639,13 +658,13 @@ int main(int argc, char* argv[])
 
     std::string fileContent;
     nlohmann::json jsonObject;
-    bool success;
+    bool success = false;
 
     if (schema_file != "") {
-        success = h2agent::http2server::getFileContent(schema_file, fileContent);
+        success = h2agent::http2::getFileContent(schema_file, fileContent);
         std::string log = "Schema configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
@@ -659,10 +678,10 @@ int main(int argc, char* argv[])
 
     if (traffic_server_enabled) {
         if (traffic_server_matching_file != "") {
-            success = h2agent::http2server::getFileContent(traffic_server_matching_file, fileContent);
+            success = h2agent::http2::getFileContent(traffic_server_matching_file, fileContent);
             std::string log = "Server matching configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -675,10 +694,10 @@ int main(int argc, char* argv[])
         }
 
         if (traffic_server_provision_file != "") {
-            success = h2agent::http2server::getFileContent(traffic_server_provision_file, fileContent);
+            success = h2agent::http2::getFileContent(traffic_server_provision_file, fileContent);
             std::string log = "Server provision configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -700,10 +719,10 @@ int main(int argc, char* argv[])
 
     // Now that myTrafficHttp2Server is referenced, I wil have access to global variables:
     if (global_variable_file != "") {
-        success = h2agent::http2server::getFileContent(global_variable_file, fileContent);
+        success = h2agent::http2::getFileContent(global_variable_file, fileContent);
         std::string log = "Global variables configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2server::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";

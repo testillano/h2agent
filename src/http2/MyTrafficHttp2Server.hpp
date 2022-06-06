@@ -53,24 +53,24 @@ namespace h2agent
 {
 namespace model
 {
-class MockServerRequestData;
+class MockServerEventsData;
 class GlobalVariable;
 class AdminData;
 }
 
-namespace http2server
+namespace http2
 {
 
 class MyTrafficHttp2Server: public ert::http2comm::Http2Server
 {
-    bool server_data_;
-    bool server_data_key_history_;
-    bool purge_execution_;
+    bool server_data_{};
+    bool server_data_key_history_{};
+    bool purge_execution_{};
 
-    model::MockServerRequestData *mock_request_data_;
-    model::GlobalVariable *global_variable_;
-    model::AdminData *admin_data_;
-    std::atomic<std::uint64_t> general_unique_server_sequence_;
+    model::MockServerEventsData *mock_server_events_data_{};
+    model::GlobalVariable *global_variable_{};
+    model::AdminData *admin_data_{};
+    std::atomic<std::uint64_t> general_unique_server_sequence_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
@@ -106,8 +106,8 @@ public:
                  std::string& responseBody, unsigned int &responseDelayMs);
 
 
-    model::MockServerRequestData *getMockServerRequestData() const {
-        return mock_request_data_;
+    model::MockServerEventsData *getMockServerEventsData() const {
+        return mock_server_events_data_;
     }
     model::GlobalVariable *getGlobalVariable() const {
         return global_variable_;

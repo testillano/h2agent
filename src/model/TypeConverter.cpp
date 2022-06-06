@@ -297,14 +297,14 @@ std::string TypeConverter::asString() {
 
     std::stringstream ss;
     ss << "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): " << getNativeType()
-       << "|  String: " << s_value_
-       << " | Integer: " << i_value_
-       << " | Unsigned integer: " << u_value_
-       << " | Float number: " << f_value_
-       << " | Boolean: " << (b_value_ ? "true":"false")
-       << " | Object: " << j_value_.dump();
+       << " | " << ((getNativeType() == NativeType::String) ? "STRING":"String") << ": " << s_value_
+       << " | " << ((getNativeType() == NativeType::Integer) ? "INTEGER":"Integer") << ": " << i_value_
+       << " | " << ((getNativeType() == NativeType::Unsigned) ? "UNSIGNED":"Unsigned") << ": " << u_value_
+       << " | " << ((getNativeType() == NativeType::Float) ? "FLOAT":"Float") << ": " << f_value_
+       << " | " << ((getNativeType() == NativeType::Boolean) ? "BOOLEAN":"Boolean") << ": " << (b_value_ ? "true":"false")
+       << " | " << ((getNativeType() == NativeType::Object) ? "OBJECT":"Object") << ": " << j_value_.dump();
 
-    return ss.str();
+    return (ss.str());
 }
 
 }

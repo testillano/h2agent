@@ -11,63 +11,63 @@ def test_000_cleanup(admin_cleanup):
 
 
 @pytest.mark.transform
-def test_001_generalRandom(admin_server_provision, h2ac_traffic):
+def test_001_random(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.random.10.30", target="response.body.integer./generalRandomBetween10and30"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="random.10.30", target="response.body.integer./randomBetween10and30"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
-  choice = response["body"]["generalRandomBetween10and30"]
-  responseBodyRef = { "foo":"bar-1", "generalRandomBetween10and30":choice }
+  choice = response["body"]["randomBetween10and30"]
+  responseBodyRef = { "foo":"bar-1", "randomBetween10and30":choice }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.transform
-def test_002_generalRandomset(admin_server_provision, h2ac_traffic):
+def test_002_randomset(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.randomset.rock|paper|scissors", target="response.body.string./generalRandomset"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.rock|paper|scissors", target="response.body.string./randomset"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
-  choice = response["body"]["generalRandomset"]
-  responseBodyRef = { "foo":"bar-1", "generalRandomset":choice }
+  choice = response["body"]["randomset"]
+  responseBodyRef = { "foo":"bar-1", "randomset":choice }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.transform
-def test_003_generalRecvseq(admin_server_provision, h2ac_traffic):
+def test_003_recvseq(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.recvseq", target="response.body.unsigned./generalRecvseq"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="recvseq", target="response.body.unsigned./recvseq"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
-  responseBodyRef = { "foo":"bar-1", "generalRecvseq":111 }
+  responseBodyRef = { "foo":"bar-1", "recvseq":111 }
   # Replace unknown node to allow comparing:
-  response["body"]["generalRecvseq"] = 111
+  response["body"]["recvseq"] = 111
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.transform
-def test_004_generalStrftime(admin_server_provision, h2ac_traffic):
+def test_004_strftime(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.strftime.Now it's %I:%M%p.", target="response.body.string./generalStrftime"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p.", target="response.body.string./strftime"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
-  value = response["body"]["generalStrftime"]
-  responseBodyRef = { "foo":"bar-1", "generalStrftime":value }
+  value = response["body"]["strftime"]
+  responseBodyRef = { "foo":"bar-1", "strftime":value }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
 @pytest.mark.transform
-def test_005_generalTimestampNs(admin_server_provision, h2ac_traffic):
+def test_005_timestampNs(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.timestamp.ns", target="response.body.unsigned./nanoseconds-timestamp"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="timestamp.ns", target="response.body.unsigned./nanoseconds-timestamp"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -153,14 +153,14 @@ def test_011_objectToResponseBodyObjectPath(admin_server_provision, h2ac_traffic
 
 
 @pytest.mark.transform
-def test_012_requestToResponse(admin_server_provision, h2ac_traffic):
+def test_012_requestToResponseObject(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.object"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
-  responseBodyRef = { "node1": { "node2":"value-of-node1-node2" } }
+  responseBodyRef = { "foo": "bar-1", "node1": { "node2":"value-of-node1-node2" } }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -244,8 +244,8 @@ def test_019_recvseqThroughVariableToResponseBodyUnsignedPath(admin_server_provi
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
-  val = response["body"]["generalRecvseqFromVarAux"]
-  responseBodyRef = { 'foo': 'bar-1', "generalRecvseqFromVarAux":val }
+  val = response["body"]["recvseqFromVarAux"]
+  responseBodyRef = { 'foo': 'bar-1', "recvseqFromVarAux":val }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -416,7 +416,7 @@ def test_031_replaceVariablesAtValueAndTransferToResponseBodyStringPath(admin_se
 def test_032_replaceVariablesAtGeneralStrftimeAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.strftime.Now it's %I:%M%p and var1 is @{var1}.", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p and var1 is @{var1}.", target="response.body.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -431,7 +431,7 @@ def test_032_replaceVariablesAtGeneralStrftimeAndTransferToResponseBodyStringPat
 def test_033_replaceVariablesAtGeneralRandomsetAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="general.randomset.@{var1}|@{var2}", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.@{var1}|@{var2}", target="response.body.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -572,5 +572,50 @@ def test_044_transferFixedValueToVariableNameWithReplacedVariables(admin_server_
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
   responseBodyRef = { "foo":"bar-1", "result": "var1valuevalue" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_045_requestBodyStringToResponseObject(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.object"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), requestHeaders=None) # request body will be interpreted as string
+  responseBodyRef = "{\"node1\":{\"node2\":\"value-of-node1-node2\"}}"
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_046_requestBodyStringToResponseString(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), requestHeaders=None) # request body will be interpreted as string
+  responseBodyRef = "{\"node1\":{\"node2\":\"value-of-node1-node2\"}}" # although it seems a json, application/json content-type was missing,
+                                                                       # so, it is interpreted like any other string.
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_047_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  responseBodyRef = { "foo":"bar-1" } # request body json is ignored as cannot be set as target string. The template request body is configured instead
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+def test_048_mathCalculationToResponseInteger(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="math.1+2+3+5+8", target="response.body.integer./math-calculation"))
+
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  responseBodyRef = { "foo":"bar-1", "math-calculation":19 }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 

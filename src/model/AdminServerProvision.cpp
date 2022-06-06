@@ -38,17 +38,23 @@ SOFTWARE.
 #include <sys/time.h>
 #include <ctime>
 #include <time.h>       /* time_t, struct tm, time, localtime, strftime */
+#include <string>
+#include <algorithm>
 
 #include <nlohmann/json.hpp>
+#include <arashpartow/exprtk.hpp>
 
 #include <ert/tracing/Logger.hpp>
 
 #include <AdminServerProvision.hpp>
-#include <MockServerRequestData.hpp>
+#include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
 
 #include <functions.hpp>
 
+
+typedef exprtk::expression<double>   expression_t;
+typedef exprtk::parser<double>       parser_t;
 
 namespace h2agent
 {
@@ -80,7 +86,7 @@ void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const s
 
 AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
-    response_delay_ms_(0), mock_server_request_data_(nullptr), global_variable_(nullptr) {;}
+    response_delay_ms_(0), mock_server_events_data_(nullptr), global_variable_(nullptr) {;}
 
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
@@ -89,8 +95,9 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::string &requestUri,
         const std::string &requestUriPath,
         const std::map<std::string, std::string> &requestQueryParametersMap,
-        bool requestBodyJsonParseable,
-        const nlohmann::json &requestBodyJson,
+        bool requestBodyJsonOrString,
+        const nlohmann::json &requestBodyJson, // if json
+        const std::string &requestBody, // if string
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -113,15 +120,19 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
-        if(!requestBodyJsonParseable) return false;
-        std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
-        searchReplaceValueVariables(variables, path);
-        if (!sourceVault.setObject(requestBodyJson, path)) {
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
-            return false;
+        if(requestBodyJsonOrString) {
+            std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
+            searchReplaceValueVariables(variables, path);
+            if (!sourceVault.setObject(requestBodyJson, path)) {
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+                return false;
+            }
+        }
+        else {
+            sourceVault.setString(requestBody);
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
@@ -150,6 +161,27 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setString(""); // with other than response body nodes, it acts like setting empty string
         eraser = true;
     }
+    else if (transformation->getSourceType() == Transformation::SourceType::Math) {
+        std::string expressionString = transformation->getSource();
+        searchReplaceValueVariables(variables, expressionString);
+
+        /*
+           We don't use builtin variables as we can parse h2agent ones which is easier to implement:
+
+           typedef exprtk::symbol_table<double> symbol_table_t;
+           symbol_table_t symbol_table;
+           double x = 2.0;
+           symbol_table.add_variable("x",x);
+           expression.register_symbol_table(symbol_table);
+           parser.compile("3*x",expression);
+           std::cout << expression.value() << std::endl; // 3*2
+        */
+
+        expression_t   expression;
+        parser_t       parser;
+        parser.compile(expressionString, expression);
+        sourceVault.setFloat(expression.value());
+    }
     else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandom) {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
         sourceVault.setInteger(transformation->getSourceI1() + (rand() % range));
@@ -169,7 +201,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::GeneralStrftime) {
-        std::time_t unixTime;
+        std::time_t unixTime = 0;
         std::time (&unixTime);
         char buffer[100] = {0};
         /*size_t size = */strftime(buffer, sizeof(buffer), transformation->getSource().c_str(), localtime(&unixTime));
@@ -199,7 +231,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     else if (transformation->getSourceType() == Transformation::SourceType::SGVar) {
         std::string varname = transformation->getSource();
         searchReplaceValueVariables(variables, varname);
-        bool exists;
+        bool exists = false;
         std::string globalVariableValue = global_variable_->getValue(varname, exists);
         if (exists) sourceVault.setString(globalVariableValue);
         else {
@@ -230,7 +262,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
-        auto mockServerRequest = mock_server_request_data_->getMockServerRequest(event_method, event_uri, event_number);
+        auto mockServerRequest = mock_server_events_data_->getMockServerKeyEvent(event_method, event_uri, event_number);
         if (!mockServerRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());
@@ -267,11 +299,11 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         std::string &source,
         bool eraser) const
 {
-    bool success;
+    bool success = false;
     std::string targetS;
-    std::int64_t targetI;
-    std::uint64_t targetU;
-    double targetF;
+    std::int64_t targetI = 0;
+    std::uint64_t targetU = 0;
+    double targetF = 0;
 
 
     //std::string source; // (*)
@@ -417,12 +449,12 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         std::string &outStateMethod,
         std::string &outStateUri) const
 {
-    bool success;
+    bool success = false;
     std::string targetS;
-    std::int64_t targetI;
-    std::uint64_t targetU;
-    double targetF;
-    bool boolean;
+    std::int64_t targetI = 0;
+    std::uint64_t targetU = 0;
+    double targetF = 0;
+    bool boolean = false;
     nlohmann::json obj;
 
 
@@ -526,7 +558,14 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 }
                 else responseBodyJson[j_ptr] = targetS;
             }
-            else responseBodyJson[j_ptr] = obj;
+            else {
+                if (target.empty()) {
+                    responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.object
+                }
+                else {
+                    responseBodyJson[j_ptr] = obj;
+                }
+            }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
 
@@ -536,11 +575,16 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
-            if (!h2agent::http2server::parseJsonContent(targetS, obj))
+            if (!h2agent::http2::parseJsonContent(targetS, obj))
                 return false;
 
             // assignment
-            responseBodyJson[j_ptr] = obj;
+            if (target.empty()) {
+                responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.object
+            }
+            else {
+                responseBodyJson[j_ptr] = obj;
+            }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::ResponseHeader) {
             // extraction
@@ -665,29 +709,47 @@ void AdminServerProvision::transform( const std::string &requestUri,
     outStateMethod = "";
     outStateUri = "";
 
-    // Find out if request body will need to be parsed (this is true if any transformation uses it as source or schema validation is needed):
+    // Find out if request body is a valid json or just a string
     nlohmann::json requestBodyJson;
-    bool requestBodyJsonParseable = false;
-    bool requestBodyJsonWanted = (requestSchema != nullptr);
-    if (!requestBodyJsonWanted) {
-        for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-            if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                if (!requestBody.empty()) {
-                    requestBodyJsonWanted = true;
+    auto ct_it = requestHeaders.find("content-type");
+    bool requestBodyJsonOrString = false;
+    if (ct_it != requestHeaders.end()) {
+        std::string ct = ct_it->second.value;
+        std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
+            return std::tolower(c);
+        });
+        requestBodyJsonOrString = (ct == "application/json"); // still need to check if it is a valid json
+    }
+
+    // Find out if request body will need to be parsed:
+    if (requestBodyJsonOrString) {
+        bool requestBodyJsonRequired = false;
+
+        if (requestSchema != nullptr) {
+            requestBodyJsonRequired = true;
+        }
+        else {
+            for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+                if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
+                    if (!requestBody.empty()) {
+                        requestBodyJsonRequired = true;
+                    }
+                    else {
+                        LOGINFORMATIONAL(ert::tracing::Logger::informational("Empty request body received: some transformations will be ignored", ERT_FILE_LOCATION));
+                    }
+                    break;
                 }
-                else {
-                    LOGINFORMATIONAL(ert::tracing::Logger::informational("No request body received: some transformations will be ignored", ERT_FILE_LOCATION));
-                }
-                break;
             }
         }
-    }
-    if (requestBodyJsonWanted) {
-        requestBodyJsonParseable = h2agent::http2server::parseJsonContent(requestBody, requestBodyJson);
+
+        if (requestBodyJsonRequired) {
+            // if fails to parse, we will consider it as an string ignoring the content-type:
+            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
+        }
     }
 
     // Request schema validation:
-    if (requestSchema && requestBodyJsonParseable) {
+    if (requestSchema && requestBodyJsonOrString) {
         if (!requestSchema->validate(requestBodyJson)) {
             responseStatusCode = 400; // bad request
             return; // INTERRUPT TRANSFORMATIONS
@@ -708,14 +770,15 @@ void AdminServerProvision::transform( const std::string &requestUri,
             break;
         }
     }
+
     nlohmann::json responseBodyJson;
     if (usesResponseBodyAsTransformationTarget) {
         responseBodyJson = getResponseBody();   // clone provision response body to manipulate this copy and finally we will dump() it over 'responseBody':
         // if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
     }
     else {
-        if (getResponseBody().is_null()) {
-            responseBody = getResponseBodyAsString();
+        if (getResponseBody().is_null()) { // if not an object, get the string representation
+            responseBody = getResponseBodyString();
         }
         else {
             responseBody = getResponseBody().dump();
@@ -723,10 +786,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // Dynamic variables map: inherited along the transformation chain
-    std::map<std::string, std::string> variables{}; // source & target variables (key=variable name/value=variable value)
+    std::map<std::string, std::string> variables; // source & target variables (key=variable name/value=variable value)
 
     // Type converter:
-    TypeConverter sourceVault;
+    TypeConverter sourceVault{};
 
     // Apply transformations sequentially
     for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
@@ -734,8 +797,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
         auto transformation = (*it);
         bool eraser = false;
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonParseable, requestBodyJson, requestHeaders, eraser, generalUniqueServerSequence))
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 
         std::smatch matches; // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671

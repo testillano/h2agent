@@ -26,7 +26,7 @@ For that, you could generate **random** integer numbers in a specific range and 
   "responseCode": 200,
   "transform": [
     {
-      "source": "general.random.25.35",
+      "source": "random.25.35",
       "target": "response.delayMs"
     }
   ]
@@ -44,11 +44,11 @@ Filters are applied with the given order inside the `transform` node array. You 
   "responseCode": 200,
   "transform": [
     {
-      "source": "general.random.0.99",
+      "source": "random.0.99",
       "target": "var.integer-part"
     },
     {
-      "source": "general.random.000.999",
+      "source": "random.000.999",
       "target": "var.float-part"
     },
     {
@@ -65,7 +65,7 @@ But there is another random generation method to get a value within a range of <
 
 So, for example imagine three possible values: rock, paper and scissors. The source needed will be just:
 
-`general.randomset.rock|paper|scissors`
+`randomset.rock|paper|scissors`
 
 Note that we use `randomset` which expects an input in the form `aa|bb|..|zz` instead of `random` which expected `min.max` input (the reason to choose the pipe symbol (`|`) separator is because it is more probable to need including dots inside labels instead of pipes).
 
@@ -92,7 +92,7 @@ So we would transfer the query parameters (`request.uri.param.<qp key>`) into va
       "target": "var.label2"
     },
     {
-      "source": "general.randomset.@{label1}|@{label2}",
+      "source": "randomset.@{label1}|@{label2}",
       "target": "response.body.string"
     }
   ]
@@ -125,7 +125,7 @@ Now, returning to our `rock, paper, scissors` game, the list is static so we hav
   "responseCode": 200,
   "transform": [
     {
-      "source": "general.randomset.rock|paper|scissors",
+      "source": "randomset.rock|paper|scissors",
       "target": "response.body.string"
     }
   ]
