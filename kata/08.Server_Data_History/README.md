@@ -22,7 +22,7 @@ Imagine the following current server data map:
           "user-agent": "curl/7.77.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626039610709,
+        "receptionTimestampUs": 1626039610709567,
         "responseDelayMs": 0,
         "responseStatusCode": 201,
         "serverSequence": 116,

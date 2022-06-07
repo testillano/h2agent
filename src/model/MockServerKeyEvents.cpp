@@ -69,9 +69,10 @@ mock_server_events_key_t MockServerKeyEvents::getKey() const {
     return result;
 }
 
-void MockServerKeyEvents::loadRequest(const std::string &pstate, const std::string &state,
+void MockServerKeyEvents::loadRequest(const std::string &previousState, const std::string &state,
                                       const std::string &method, const std::string &uri,
                                       const nghttp2::asio_http2::header_map &headers, const std::string &body,
+                                      const std::chrono::microseconds &receptionTimestampUs,
                                       unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody,
                                       std::uint64_t serverSequence, unsigned int responseDelayMs,
                                       bool historyEnabled, const std::string virtualOriginComingFromMethod, const std::string virtualOriginComingFromUri) {
@@ -80,7 +81,7 @@ void MockServerKeyEvents::loadRequest(const std::string &pstate, const std::stri
     uri_ = uri;
 
     auto request = std::make_shared<MockServerKeyEvent>();
-    request->load(pstate, state, headers, body, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
+    request->load(previousState, state, headers, body, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
     write_guard_t guard(rw_mutex_);
 

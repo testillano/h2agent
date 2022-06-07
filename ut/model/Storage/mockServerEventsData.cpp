@@ -19,6 +19,7 @@ public:
     std::string state_;
     nghttp2::asio_http2::header_map request_headers_, response_headers_;
     std::string request_body_;
+    std::chrono::microseconds reception_timestamp_us_;
     std::string response_body_;
 
     nlohmann::json real_event_;
@@ -33,19 +34,20 @@ public:
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
         request_body_ = "{\"foo\":1}";
+        reception_timestamp_us_ = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
         response_body_ = "{\"bar\":2}";
 
         // Two events per key, real and virtual for each, indexed by DELETE#/the/uri/111 and DELETE#/the/uri/222 respectively:
         // Server sequence will be ignored although being incoherent here (always 111):
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
 
         real_event_ = R"(
         {
           "previousState": "previous-state",
-          "receptionTimestampMs": 1653827182451,
+          "receptionTimestampUs": 1653827182451878,
           "requestBody": {
             "foo": 1
           },
@@ -126,10 +128,10 @@ TEST_F(MockServerEventsData_test, asJsonString)
 {
     bool validQuery = false;
     nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", validQuery)); // normalize to have safer comparisons
-    std::uint64_t receptionTimestampMs = assertedJson["receptionTimestampMs"]; // unpredictable
+    std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = real_event_;
-    expectedJson["receptionTimestampMs"] = receptionTimestampMs;
+    expectedJson["receptionTimestampUs"] = receptionTimestampUs;
 
     EXPECT_EQ(assertedJson, expectedJson);
 }
@@ -165,10 +167,10 @@ TEST_F(MockServerEventsData_test, summary)
 TEST_F(MockServerEventsData_test, getMockServerKeyEvent)
 {
     nlohmann::json assertedJson = data_.getMockServerKeyEvent("DELETE", "/the/uri/222", "-1")->getJson(); // last for uri '/the/uri/222'
-    std::uint64_t receptionTimestampMs = assertedJson["receptionTimestampMs"]; // unpredictable
+    std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = virtual_event_;
-    expectedJson["receptionTimestampMs"] = receptionTimestampMs;
+    expectedJson["receptionTimestampUs"] = receptionTimestampUs;
 
     EXPECT_EQ(assertedJson, expectedJson);
 }
@@ -176,10 +178,10 @@ TEST_F(MockServerEventsData_test, getMockServerKeyEvent)
 TEST_F(MockServerEventsData_test, getJson)
 {
     nlohmann::json assertedJson = data_.getJson();
-    std::uint64_t receptionTimestampMs_0_0 = assertedJson[0]["requests"][0]["receptionTimestampMs"]; // unpredictable
-    std::uint64_t receptionTimestampMs_0_1 = assertedJson[0]["requests"][1]["receptionTimestampMs"]; // unpredictable
-    std::uint64_t receptionTimestampMs_1_0 = assertedJson[1]["requests"][0]["receptionTimestampMs"]; // unpredictable
-    std::uint64_t receptionTimestampMs_1_1 = assertedJson[1]["requests"][1]["receptionTimestampMs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_0_0 = assertedJson[0]["requests"][0]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_0_1 = assertedJson[0]["requests"][1]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_1_0 = assertedJson[1]["requests"][0]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_1_1 = assertedJson[1]["requests"][1]["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = R"(
     [
@@ -199,13 +201,13 @@ TEST_F(MockServerEventsData_test, getJson)
     )"_json;
 
     // Fix unpredictable timestamps:
-    real_event_["receptionTimestampMs"] = receptionTimestampMs_0_0;
-    virtual_event_["receptionTimestampMs"] = receptionTimestampMs_0_1;
+    real_event_["receptionTimestampUs"] = receptionTimestampUs_0_0;
+    virtual_event_["receptionTimestampUs"] = receptionTimestampUs_0_1;
     expectedJson[0]["requests"].push_back(real_event_);
     expectedJson[0]["requests"].push_back(virtual_event_);
 
-    real_event_["receptionTimestampMs"] = receptionTimestampMs_1_0;
-    virtual_event_["receptionTimestampMs"] = receptionTimestampMs_1_1;
+    real_event_["receptionTimestampUs"] = receptionTimestampUs_1_0;
+    virtual_event_["receptionTimestampUs"] = receptionTimestampUs_1_1;
     expectedJson[1]["requests"].push_back(real_event_);
     expectedJson[1]["requests"].push_back(virtual_event_);
 
@@ -214,7 +216,7 @@ TEST_F(MockServerEventsData_test, getJson)
 
 TEST_F(MockServerEventsData_test, findLastRegisteredRequestState)
 {
-    data_.loadRequest(previous_state_, "most_recent_state", "PUT", "/the/put/uri", request_headers_, request_body_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+    data_.loadRequest(previous_state_, "most_recent_state", "PUT", "/the/put/uri", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
 
     std::string latestState;
     data_.findLastRegisteredRequestState("PUT", "/the/put/uri", latestState);
