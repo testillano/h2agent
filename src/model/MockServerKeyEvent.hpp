@@ -50,10 +50,10 @@ namespace model
 
 class MockServerKeyEvent
 {
-    std::string pstate_{};
-
-    std::uint64_t reception_timestamp_ms_{};
+    std::string previous_state_{};
     std::string state_{};
+
+    std::uint64_t reception_timestamp_us_{};
     nghttp2::asio_http2::header_map headers_{};
     std::string body_{};
 
@@ -80,23 +80,22 @@ public:
     /**
      * Loads request information
      *
-     * @param pstate Previous request state
+     * @param previousState Previous request state
      * @param state Request state
      * @param headers Request headers
      * @param body Request body
+     * @param receptionTimestampUs Microseconds reception timestamp
      *
-     * @param responseStatusCode
-     * @param responseHeaders
-     * @param responseBody
-     * @param serverSequence
-     * @param responseDelayMs
+     * @param responseStatusCode Response status code
+     * @param responseHeaders Response headers
+     * @param responseBody Response body
+     * @param serverSequence Server sequence
+     * @param responseDelayMs Response delay in milliseconds
 
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-              unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-              const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+    void load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
 
 
     // getters:

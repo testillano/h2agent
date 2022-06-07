@@ -1427,7 +1427,7 @@ The **source** of information is classified after parsing the following possible
             "user-agent": "curl/7.77.0"
           },
           "previousState": "initial",
-          "receptionTimestampMs": 1626039610709,
+          "receptionTimestampUs": 1626039610709978,
           "responseDelayMs": 0,
           "responseStatusCode": 201,
           "serverSequence": 116,
@@ -1888,7 +1888,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626047915716,
+        "receptionTimestampUs": 1626047915716112,
         "responseBody": {
           "foo": "bar-1",
           "randomBetween10and30": 27
@@ -1916,7 +1916,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626047921641,
+        "receptionTimestampUs": 1626047921641554,
         "responseBody": {
           "foo": "bar-1",
           "randomBetween10and30": 24
@@ -1959,7 +1959,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626047921641,
+        "receptionTimestampUs": 1626047921641684,
         "responseBody": {
           "foo": "bar-1",
           "randomBetween10and30": 24
@@ -1984,7 +1984,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 The information collected for a requests item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
-* `receptionTimestampMs`: event reception *timestamp*.
+* `receptionTimestampUs`: event reception *timestamp*.
 * `state`: working/current state for the event.
 * `headers`: object containing the list of request headers.
 * `body`: object containing the request body.

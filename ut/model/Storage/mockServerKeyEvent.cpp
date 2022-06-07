@@ -18,6 +18,7 @@ public:
     std::string state_;
     nghttp2::asio_http2::header_map request_headers_, response_headers_;
     std::string request_body_;
+    std::chrono::microseconds reception_timestamp_us_;
     std::string response_body_;
 
     MockServerKeyEvent_test() {
@@ -29,9 +30,10 @@ public:
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
         request_body_ = "{\"foo\":1}";
+        reception_timestamp_us_ = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
         response_body_ = "{\"bar\":2}";
 
-        data_.load(previous_state_, state_, request_headers_, request_body_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, "POST", "/the/uri");
+        data_.load(previous_state_, state_, request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, "POST", "/the/uri");
     }
 };
 
@@ -62,7 +64,7 @@ TEST_F(MockServerKeyEvent_test, getJson)
 
     nlohmann::json eventJson{};
     eventJson["previousState"] = previous_state_;
-    eventJson["receptionTimestampMs"] = data_.getJson()["receptionTimestampMs"]; // unpredictable
+    eventJson["receptionTimestampUs"] = data_.getJson()["receptionTimestampUs"]; // unpredictable
     eventJson["requestBody"] = nlohmann::json::parse(request_body_);
     eventJson["requestHeaders"] = nlohmann::json::parse("{\"request-header1\":\"req-h1\",\"request-header2\":\"req-h2\"}");
     eventJson["responseBody"] = nlohmann::json::parse(response_body_);
