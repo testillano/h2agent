@@ -35,7 +35,6 @@ SOFTWARE.
 
 #include <boost/optional.hpp>
 
-#include <chrono>
 #include <sstream>
 #include <errno.h>
 
@@ -501,6 +500,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
 void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
                                  req,
                                  const std::string& requestBody,
+                                 const std::chrono::microseconds &receptionTimestampUs,
                                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                                  std::string& responseBody, unsigned int &responseDelayMs)
 {

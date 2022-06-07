@@ -526,10 +526,10 @@ This utility could be useful to test regular expressions before putting them at 
 
 ### Command line
 
-You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/matching-helper -h|--help`:
+You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target:
 
-```
-./build/Release/bin/matching-helper -h
+```bash
+$> ./build/Release/bin/matching-helper -h
 Usage: matching-helper [options]
 
 Options:
@@ -546,7 +546,60 @@ Options:
 [-h|--help]
   This help.
 
-Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+Examples:
+   matching-helper --regex "https://(\w+).(com|es)/(\w+)/(\w+)" \
+                   --test "https://github.com/testillano/h2agent" --fmt 'User: $3; Project: $4'
+   matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+   matching-helper --regex "1|3|5|9" --test 2
+```
+
+Execution example:
+
+```bash
+$> ./build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+
+Regex: (a\|b\|)([0-9]{10})
+Test:  a|b|0123456789
+Fmt:   $2
+
+Match result: true
+Fmt result  : 0123456789
+```
+
+## Execution of Arash Partow's helper utility
+
+This utility could be useful to test [Arash Partow's](https://github.com/ArashPartow/exprtk) mathematical expressions before putting them at provision objects (`math.*` source).
+
+### Command line
+
+You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target:
+
+```bash
+$> ./build/Release/bin/arashpartow-helper -h
+Usage: arashpartow-helper [options]
+
+Options:
+
+--expression <value>
+  Expression to be calculated.
+
+[-h|--help]
+  This help.
+
+Examples:
+   arashpartow-helper --expression "(1+sqrt(5))/2"
+   arashpartow-helper --expression "404 == 404"
+   arashpartow-helper --expression "cos(3.141592)"
+```
+
+Execution example:
+
+```bash
+$> ./build/Release/bin/arashpartow-helper --expression "404 == 404"
+
+Expression: 404 == 404
+
+Result: 1
 ```
 
 ## Execution with TLS support
@@ -1374,7 +1427,7 @@ The **source** of information is classified after parsing the following possible
             "user-agent": "curl/7.77.0"
           },
           "previousState": "initial",
-          "receptionTimestampMs": 1626039610709,
+          "receptionTimestampUs": 1626039610709978,
           "responseDelayMs": 0,
           "responseStatusCode": 201,
           "serverSequence": 116,
@@ -1835,7 +1888,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626047915716,
+        "receptionTimestampUs": 1626047915716112,
         "responseBody": {
           "foo": "bar-1",
           "randomBetween10and30": 27
@@ -1863,7 +1916,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626047921641,
+        "receptionTimestampUs": 1626047921641554,
         "responseBody": {
           "foo": "bar-1",
           "randomBetween10and30": 24
@@ -1906,7 +1959,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1626047921641,
+        "receptionTimestampUs": 1626047921641684,
         "responseBody": {
           "foo": "bar-1",
           "randomBetween10and30": 24
@@ -1931,7 +1984,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 The information collected for a requests item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
-* `receptionTimestampMs`: event reception *timestamp*.
+* `receptionTimestampUs`: event reception *timestamp*.
 * `state`: working/current state for the event.
 * `headers`: object containing the list of request headers.
 * `body`: object containing the request body.

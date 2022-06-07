@@ -40,6 +40,7 @@ SOFTWARE.
 #include <memory>
 #include <cstdint>
 #include <atomic>
+#include <chrono>
 
 #include <boost/asio.hpp>
 
@@ -102,6 +103,7 @@ public:
 
     void receive(const nghttp2::asio_http2::server::request& req,
                  const std::string& requestBody,
+                 const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 

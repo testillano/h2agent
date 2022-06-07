@@ -158,7 +158,7 @@ Dump the server data map, just executing the corresponding management interface 
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1624564332404,
+        "receptionTimestampUs": 1624564332404138,
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
@@ -181,7 +181,7 @@ Dump the server data map, just executing the corresponding management interface 
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1624564332404,
+        "receptionTimestampUs": 1624564332404199,
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
@@ -214,7 +214,7 @@ Server data map now:
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1624564332404,
+        "receptionTimestampUs": 1624564332404138,
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
@@ -231,7 +231,7 @@ Server data map now:
           "user-agent": "curl/7.58.0"
         },
         "previousState": "get-obtains-not-found",
-        "receptionTimestampMs": 1624564368518,
+        "receptionTimestampUs": 1624564368518135,
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 404,
@@ -250,7 +250,7 @@ Server data map now:
           "user-agent": "curl/7.58.0"
         },
         "previousState": "initial",
-        "receptionTimestampMs": 1624564332404,
+        "receptionTimestampUs": 1624564332404199,
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,

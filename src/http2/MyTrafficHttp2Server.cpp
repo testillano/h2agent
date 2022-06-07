@@ -134,6 +134,7 @@ std::string MyTrafficHttp2Server::serverDataConfigurationAsJsonString() const {
 
 void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
                                    const std::string& requestBody,
+                                   const std::chrono::microseconds &receptionTimestampUs,
                                    unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                                    std::string& responseBody, unsigned int &responseDelayMs)
 {
@@ -280,7 +281,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
             // Store request event context information
             if (server_data_) {
-                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, receptionTimestampUs, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
@@ -291,7 +292,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
                         outStateUri = uri; // by default
                     }
 
-                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
+                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, receptionTimestampUs, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }
@@ -305,7 +306,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, receptionTimestampUs, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {

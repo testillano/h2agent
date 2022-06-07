@@ -39,8 +39,6 @@ SOFTWARE.
 
 #include <MockServerKeyEvent.hpp>
 
-#include <chrono>
-
 
 namespace h2agent
 {
@@ -48,13 +46,11 @@ namespace model
 {
 
 
-void MockServerKeyEvent::load(const std::string &pstate, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body,
-                              unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs,
-                              const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
-    reception_timestamp_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    reception_timestamp_us_ = receptionTimestampUs.count();
 
-    pstate_ = pstate;
+    previous_state_ = previousState;
 
     state_ = state;
     headers_ = headers;
@@ -79,7 +75,7 @@ void MockServerKeyEvent::saveJson() {
         json_["virtualOrigin"]["uri"] = virtual_origin_coming_from_uri_;
     }
 
-    json_["receptionTimestampMs"] = (std::uint64_t)reception_timestamp_ms_;
+    json_["receptionTimestampUs"] = (std::uint64_t)reception_timestamp_us_;
 
     if(!state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
 
@@ -95,7 +91,7 @@ void MockServerKeyEvent::saveJson() {
     }
 
     // Additional information
-    if (!pstate_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = pstate_;
+    if (!previous_state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
     if (!response_body_.empty()) {
         h2agent::http2::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
     }
