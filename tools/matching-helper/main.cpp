@@ -3,7 +3,7 @@
 |                   _       _     _                    _          _                   |
 |                  | |     | |   (_)                  | |        | |                  |
 |   _ __ ___   __ _| |_ ___| |__  _ _ __   __ _   __  | |__   ___| |_ __   ___ _ __   |
-|  | '_ ` _ \ / _` | __/ __| '_ \| | '_ \ / _` | |__| | '_ \ / _ \ | '_ \ / _ \ '__|  |  HTTP/2 SERVER UTILITY TO CHECK MATCHING ALGORITHMS
+|  | '_ ` _ \ / _` | __/ __| '_ \| | '_ \ / _` | |__| | '_ \ / _ \ | '_ \ / _ \ '__|  |  HELPER UTILITY TO TEST std::regex REGULAR EXPRESSIONS
 |  | | | | | | (_| | || (__| | | | | | | | (_| |      | | | |  __/ | |_) |  __/ |     |  Version 0.0.z
 |  |_| |_| |_|\__,_|\__\___|_| |_|_|_| |_|\__, |      |_| |_|\___|_| .__/ \___|_|     |  https://github.com/testillano/h2agent (matching-helper)
 |                                          __/ |                   | |                |
@@ -65,7 +65,10 @@ void usage(int rc)
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
-       << "Example: " << progname << " --regex \"(a\\|b\\|)([0-9]{10})\" --test \"a|b|0123456789\" --fmt '$2'"
+       << "Examples: " << '\n'
+       << "   " << progname << " --regex \"https://(\\w+).(com|es)/(\\w+)/(\\w+)\" --test \"https://github.com/testillano/h2agent\" --fmt 'User: $3; Project: $4'" << '\n'
+       << "   " << progname << " --regex \"(a\\|b\\|)([0-9]{10})\" --test \"a|b|0123456789\" --fmt '$2'" << '\n'
+       << "   " << progname << " --regex \"1|3|5|9\" --test 2" << '\n'
 
        << '\n';
 

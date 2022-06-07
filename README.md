@@ -526,10 +526,10 @@ This utility could be useful to test regular expressions before putting them at 
 
 ### Command line
 
-You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/matching-helper -h|--help`:
+You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target:
 
-```
-./build/Release/bin/matching-helper -h
+```bash
+$> ./build/Release/bin/matching-helper -h
 Usage: matching-helper [options]
 
 Options:
@@ -546,7 +546,60 @@ Options:
 [-h|--help]
   This help.
 
-Example: matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+Examples:
+   matching-helper --regex "https://(\w+).(com|es)/(\w+)/(\w+)" \
+                   --test "https://github.com/testillano/h2agent" --fmt 'User: $3; Project: $4'
+   matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+   matching-helper --regex "1|3|5|9" --test 2
+```
+
+Execution example:
+
+```bash
+$> ./build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+
+Regex: (a\|b\|)([0-9]{10})
+Test:  a|b|0123456789
+Fmt:   $2
+
+Match result: true
+Fmt result  : 0123456789
+```
+
+## Execution of Arash Partow's helper utility
+
+This utility could be useful to test [Arash Partow's](https://github.com/ArashPartow/exprtk) mathematical expressions before putting them at provision objects (`math.*` source).
+
+### Command line
+
+You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target:
+
+```bash
+$> ./build/Release/bin/arashpartow-helper -h
+Usage: arashpartow-helper [options]
+
+Options:
+
+--expression <value>
+  Expression to be calculated.
+
+[-h|--help]
+  This help.
+
+Examples:
+   arashpartow-helper --expression "(1+sqrt(5))/2"
+   arashpartow-helper --expression "404 == 404"
+   arashpartow-helper --expression "cos(3.141592)"
+```
+
+Execution example:
+
+```bash
+$> ./build/Release/bin/arashpartow-helper --expression "404 == 404"
+
+Expression: 404 == 404
+
+Result: 1
 ```
 
 ## Execution with TLS support
