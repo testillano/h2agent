@@ -46,17 +46,15 @@ jobs:
           # docker cannot write on host directory:
           ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
 
-  build_docker_images:
-    name: Build docker images (but not push yet)
+  build_and_push_docker_images_as_local:
+    needs: format_style
+    name: Build and push docker images as local
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
     steps:
     -
       name: Check out the repo
       uses: actions/checkout@v2
-    #-
-    #  name: Set up Docker Buildx
-    #  uses: docker/setup-buildx-action@v1
     -
       name: Login to Docker Hub
       uses: docker/login-action@v1
@@ -75,30 +73,19 @@ jobs:
         # logout at job end:
         logout: true
     -
-      name: Build and push local builder image
+      name: Build local builder image
       id: docker_build1
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
         context: .
-        # Push docker images (tagged local) to share with 'push_docker_images'
-        #  job, instead of using artifacts upload/download mechanism, because
-        #  project 'Dockerfiles' need for real images, not tarballs:
         push: true
-        #outputs: type=docker,dest=/tmp/h2agent_builder.tar
-    #-
-    #  name: Upload artifact for h2agent_builder
-    #  uses: actions/upload-artifact@v2
-    #  with:
-    #    name: h2agent_builder
-    #    path: /tmp/h2agent_builder.tar
-    #    retention-days: 1
     -
       name: Image digest
       run: echo ${{ steps.docker_build1.outputs.digest }}
     -
-      name: Build and push local project image
+      name: Build local project image
       id: docker_build2
       uses: docker/build-push-action@v2
       with:
@@ -107,12 +94,11 @@ jobs:
         build-args: base_tag=local
         context: .
         push: true
-        #outputs: type=docker,dest=/tmp/h2agent.tar
     -
       name: Image2 digest
       run: echo ${{ steps.docker_build2.outputs.digest }}
     -
-      name: Build and push local ct image
+      name: Build local ct image
       id: docker_build3
       uses: docker/build-push-action@v2
       with:
@@ -120,12 +106,11 @@ jobs:
         file: ct/Dockerfile
         context: ct
         push: true
-        #outputs: type=docker,dest=/tmp/ct-h2agent.tar
     -
       name: Image3 digest
       run: echo ${{ steps.docker_build3.outputs.digest }}
     -
-      name: Build and push local project training image
+      name: Build local project training image
       id: docker_build4
       uses: docker/build-push-action@v2
       with:
@@ -134,13 +119,12 @@ jobs:
         build-args: img_tag=local
         context: .
         push: true
-        #outputs: type=docker,dest=/tmp/h2agent_training.tar
     -
       name: Image4 digest
       run: echo ${{ steps.docker_build4.outputs.digest }}
 
   build_coverage:
-    needs: build_docker_images
+    needs: build_and_push_docker_images_as_local
     name: Build local coverage image
     runs-on: ubuntu-latest
     steps:
@@ -163,6 +147,7 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
         file: Dockerfile.coverage
+        build-args: base_tag=local
         context: .
         push: true
     -
@@ -187,22 +172,12 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: total-coverage.info
 
-  push_docker_images:
+  push_docker_images_as_latest:
     needs: unit_tests_and_coverage
-    name: Push docker images to Docker Hub
+    name: Push docker images to Docker/Github Hubs as latest
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'
     steps:
-    #-
-    #  name: Set up Docker Buildx
-    #  uses: docker/setup-buildx-action@v1
-    #-
-    #  name: Download artifact h2agent_builder
-    #  uses: actions/download-artifact@v2
-    #  with:
-    #    name: h2agent_builder
-    #    path: /tmp
-    #...
     -
       name: Login to Docker Hub
       uses: docker/login-action@v1
@@ -223,13 +198,6 @@ jobs:
     -
       name: Push images manually
       run: |
-        # load docker images:
-        #docker load --input /tmp/h2agent_builder.tar
-        #docker load --input /tmp/h2agent.tar
-        #docker load --input /tmp/ct-h2agent.tar
-        #docker load --input /tmp/h2agent_training.tar
-        #docker image ls -a
-
         # workflow dispatch event:
         image_tag=${{ github.event.inputs.tag }}
         echo Workflow dispatch image_tag=$image_tag
@@ -256,33 +224,9 @@ jobs:
             docker push ${hub}/testillano/${imgbn}:${image_tag}
           done
         done
-    #-
-    #  name: Delete package h2agent_builder:local
-    #  uses: actions/delete-package-versions@v3
-    #  with:
-    #    package-name: 'h2agent_builder'
-    #    package-version-ids: ${{ steps.docker_build1.outputs.digest }}
-    #-
-    #  name: Delete package h2agent:local
-    #  uses: actions/delete-package-versions@v3
-    #  with:
-    #    package-name: 'h2agent'
-    #    package-version-ids: ${{ steps.docker_build2.outputs.digest }}
-    #-
-    #  name: Delete package ct-h2agent:local
-    #  uses: actions/delete-package-versions@v3
-    #  with:
-    #    package-name: 'ct-h2agent'
-    #    package-version-ids: ${{ steps.docker_build3.outputs.digest }}
-    #-
-    #  name: Delete package h2agent_training:local
-    #  uses: actions/delete-package-versions@v3
-    #  with:
-    #    package-name: 'h2agent_training'
-    #    package-version-ids: ${{ steps.docker_build4.outputs.digest }}
 
   helm_publish:
-    needs: push_docker_images
+    needs: push_docker_images_as_latest
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
