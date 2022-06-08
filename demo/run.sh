@@ -26,7 +26,7 @@ cd $(dirname $0)
 TMPDIR=$(mktemp -d)
 trap "rm -rf ${TMPDIR}" EXIT
 
-# Load test functions:
+# Load common resources:
 source ../tools/common.src
 
 echo

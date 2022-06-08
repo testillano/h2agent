@@ -61,7 +61,7 @@ get_pod() {
   [ -n "$2" ] && filter+=" -l app.kubernetes.io/name=${2}"
 
   # shellcheck disable=SC2086
-  kubectl --namespace="$1" get pod --no-headers ${filter} | awk '{ if ($3 == "Running") print $1 }'
+  kubectl --namespace "$1" get pod --no-headers ${filter} | awk '{ if ($3 == "Running") print $1 }'
   return $?
 }
 
@@ -193,5 +193,32 @@ then
 else
   # shellcheck disable=SC2068
   do_test "${test_pod}" $@
+  RC=$?
 fi
+
+# Final hints:
+if [ ${RC} -eq 0 ]
+then
+  SCRAPE_PORT=$(kubectl get service -n ${NAMESPACE} -l app.kubernetes.io/name=h2agent -o=jsonpath='{.items[0].spec.ports[?(@.name=="http-metrics")].port}')
+  ADMIN_PORT=$(kubectl get service -n ${NAMESPACE} -l app.kubernetes.io/name=h2agent -o=jsonpath='{.items[0].spec.ports[?(@.name=="http2-admin")].port}')
+  TRAFFIC_PORT=$(kubectl get service -n ${NAMESPACE} -l app.kubernetes.io/name=h2agent -o=jsonpath='{.items[0].spec.ports[?(@.name=="http2-traffic")].port}')
+  h2agent_pod="$(get_pod "${NAMESPACE}" h2agent)"
+  [ -z "${ADMIN_PORT}" -o -z "${TRAFFIC_PORT}" -o -z "${h2agent_pod}" ] && exit 0 # ignore hints (scrape port could be missing)
+  cat << EOF
+
+You may want to start a proxy to minikube Cluster IP, in order to use native utilities like:
+   $> st/start.sh -y           # traffic load
+   $> source tools/helpers.src # troubleshooting
+   etc.
+
+Then, just execute these port-forward commands:
+
+$([ -n "${SCRAPE_PORT}" ] && echo "kubectl port-forward ${h2agent_pod} ${SCRAPE_PORT}:${SCRAPE_PORT} -n ${NAMESPACE} &")
+kubectl port-forward ${h2agent_pod} ${ADMIN_PORT}:${ADMIN_PORT} -n ${NAMESPACE} &
+kubectl port-forward ${h2agent_pod} ${TRAFFIC_PORT}:${TRAFFIC_PORT} -n ${NAMESPACE} &
+
+EOF
+fi
+
+exit ${RC}
 
