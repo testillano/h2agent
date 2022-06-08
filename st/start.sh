@@ -18,7 +18,7 @@ H2AGENT__BIND_ADDRESS__dflt=0.0.0.0
 H2AGENT__RESPONSE_DELAY_MS__dflt=0
 
 ST_REQUEST_METHOD__dflt="POST"
-ST_REQUEST_URL__dflt="/load-test/v1/id-21"
+ST_REQUEST_URL__dflt="/app/v1/load-test/v1/id-21"
 ST_LAUNCHER__dflt=h2load
 
 H2LOAD__ITERATIONS__dflt=100000
@@ -29,6 +29,9 @@ H2LOAD__CONCURRENT_STREAMS__dflt=100
 HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
 HERMES__EXPECTED_RESPONSE_CODE__dflt=200
+
+# Hermes image
+HERMES_IMG=jgomezselles/hermes:0.0.2
 
 # Fixed values
 ST_REQUEST_BODY='{ "id": "1a8b8863", "name": "Ada Lovelace", "email": "ada@geemail.com", "bio": "First programmer. No big deal.", "age": 198, "avatar": "http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg" }'
@@ -302,7 +305,7 @@ EOF
   echo "   sudo kill -SIGKILL \$(pgrep hermes)"
   echo
   set -x
-  time docker run -it --network host -v ${TMP_DIR}/scripts:/etc/scripts --entrypoint /hermes/hermes jgomezselles/hermes:0.0.1 -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
+  time docker run -it --network host -v ${TMP_DIR}/scripts:/etc/scripts --entrypoint /hermes/hermes ${HERMES_IMG} -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
   set +x
 fi
 
