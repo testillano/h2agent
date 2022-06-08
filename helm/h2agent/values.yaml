@@ -40,6 +40,8 @@ h2agent_cl:
     enabled: true
   prometheus_response_delay_seconds_histogram_boundaries: ""
   prometheus_message_size_bytes_histogram_boundaries: ""
+  metrics:
+    enabled: true
 
 utilsMountPath: "/opt/utils"
 

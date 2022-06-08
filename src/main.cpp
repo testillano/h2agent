@@ -278,7 +278,7 @@ void usage(int rc, const std::string &errorMessage = "")
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-port <port>]\n"
-       << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
+       << "  Prometheus <port>; defaults to 8080.\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
@@ -291,6 +291,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n\n"
        //<< "  This affects to both mock 'server internal/client external' message size values,\n"
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+
+       << "[--disable-metrics]\n"
+       << "  Disables prometheus scrape port (enabled by default).\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -374,6 +377,7 @@ int main(int argc, char* argv[])
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
+    bool disable_metrics = false;
     ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
     ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
 
@@ -531,6 +535,11 @@ int main(int argc, char* argv[])
         prometheus_message_size_bytes_histogram_boundaries = loadHistogramBoundaries(value, messageSizeBytesHistogramBucketBoundaries);
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--disable-metrics", value))
+    {
+        disable_metrics = true;
+    }
+
     std::string gitVersion = h2agent::GIT_VERSION;
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
@@ -602,8 +611,10 @@ int main(int argc, char* argv[])
         std::cout << "Traffic server provision configuration file: " << ((traffic_server_provision_file != "") ? traffic_server_provision_file : "<not provided>") << '\n';
     }
 
-    if (prometheus_port != "-1") {
-
+    if (disable_metrics) {
+        std::cout << "Metrics (prometheus): disabled" << '\n';
+    }
+    else {
         std::cout << "Prometheus bind address: " << bind_address_prometheus_exposer << '\n';
         std::cout << "Prometheus port: " << prometheus_port << '\n';
         if (!responseDelaySecondsHistogramBucketBoundaries.empty()) {
@@ -613,9 +624,6 @@ int main(int argc, char* argv[])
             std::cout << "Prometheus 'message size bytes' histogram boundaries: " << prometheus_message_size_bytes_histogram_boundaries << '\n';
         }
     }
-    else {
-        std::cout << "Metrics (prometheus): disabled" << '\n';
-    }
 
     // Flush:
     std::cout << std::endl;
@@ -624,7 +632,7 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::verbose(verbose);
 
     // Prometheus
-    ert::metrics::Metrics *p_metrics = ((prometheus_port != "-1") ? new ert::metrics::Metrics : nullptr);
+    ert::metrics::Metrics *p_metrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
     if (p_metrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {

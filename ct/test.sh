@@ -41,8 +41,9 @@ Usage: $0 [-h|--help] [ pytest extra options ]
 
        Examples:
 
-       XTRA_HELM_SETS="--set h2agent_cl.admin_port=8075 --set h2agent_cl.service.admin_port=8075" $0
-       XTRA_HELM_SETS="--set h2agent_cl.verbose.enabled=false" $0
+       XTRA_HELM_SETS="--set h2agent.h2agent_cl.admin_port=8075 --set h2agent_cl.service.admin_port=8075" $0
+       XTRA_HELM_SETS="--set h2agent.h2agent_cl.verbose.enabled=false" $0
+       XTRA_HELM_SETS="--set h2agent.h2agent_cl.metrics.enabled=false" $0
        REUSE=true $0 # reuses in case already deployed
        TAG=test1 $0
        $0 -n 4 # uses pytest-xdist
