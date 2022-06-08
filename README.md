@@ -503,7 +503,7 @@ Options:
   Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
 
 [--prometheus-port <port>]
-  Prometheus <port>; defaults to 8080 (-1 to disable metrics).
+  Prometheus <port>; defaults to 8080.
 
 [--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
@@ -512,6 +512,9 @@ Options:
 
 [--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
+
+[--disable-metrics]
+  Disables prometheus scrape port (enabled by default).
 
 [-v|--version]
   Program version.
