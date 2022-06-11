@@ -1,4 +1,4 @@
-PROVISION
+SERVER_PROVISION
 {
   "requestMethod": "GET",
   "requestUri": "",

@@ -1,0 +1,25 @@
+SERVER_PROVISION
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1?name=test",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.[{\"id\":\"2000\"},{\"id\":\"2001\"}]",
+      "target": "response.body.jsonstring./array"
+    }
+  ]
+}
+REQUEST_BODY
+{
+  "node1": {
+    "node2": "value-of-node1-node2"
+  }
+}
