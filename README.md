@@ -154,7 +154,17 @@ $ ./build.sh --project
 
 ## Build project natively
 
-This is a cmake-based building library, so you may install cmake:
+It may be hard to collect every dependency, so there is a native build **automation script**:
+
+```bash
+$> ./build-native.sh		
+```
+
+Note: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
+
+
+
+Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
 
 ```bash
 $ sudo apt-get install cmake

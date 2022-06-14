@@ -353,6 +353,8 @@ int main(int argc, char* argv[])
 
     progname = basename(argv[0]);
 
+    ert::tracing::Logger::initialize(progname); // initialize logger (before possible _exit() execution):
+
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
     std::string bind_address = "";
@@ -540,6 +542,9 @@ int main(int argc, char* argv[])
         disable_metrics = true;
     }
 
+    // Logger verbosity
+    ert::tracing::Logger::verbose(verbose);
+
     std::string gitVersion = h2agent::GIT_VERSION;
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
@@ -627,9 +632,6 @@ int main(int argc, char* argv[])
 
     // Flush:
     std::cout << std::endl;
-
-    ert::tracing::Logger::initialize(progname);
-    ert::tracing::Logger::verbose(verbose);
 
     // Prometheus
     ert::metrics::Metrics *p_metrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
