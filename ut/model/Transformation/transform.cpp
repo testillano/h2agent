@@ -358,7 +358,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "math-calculation": 19
     }
     )"_json;
-    for(auto i: { "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {
+    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {
         expectedJson[i] = assertedJson[i];
     }
     EXPECT_EQ(assertedJson, expectedJson);
