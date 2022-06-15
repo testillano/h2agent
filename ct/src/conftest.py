@@ -2,7 +2,20 @@
 import base64
 from collections import defaultdict
 import glob
+
+# https://stackoverflow.com/questions/72032032/importerror-cannot-import-name-iterable-from-collections-in-python
+# https://github.com/testillano/h2agent/issues/xxxx Hyper import failing since alpine 3.16 (latest on May 22) because of python 3.10 packaged
+# THIS IS BACKWARD COMPATIBLE (works on previous alpine 3.15)
+
+import collections.abc
+#hyper needs the four following aliases to be done manually.
+collections.Iterable = collections.abc.Iterable
+collections.Mapping = collections.abc.Mapping
+collections.MutableSet = collections.abc.MutableSet
+collections.MutableMapping = collections.abc.MutableMapping
+#Now import hyper
 from hyper import HTTP20Connection
+
 import inspect
 import json
 import logging
