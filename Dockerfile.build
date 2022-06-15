@@ -28,7 +28,7 @@ RUN set -x && \
     wget https://github.com/pboettch/json-schema-validator/archive/${pboettch_jsonschemavalidator_ver}.tar.gz && \
     tar xvf ${pboettch_jsonschemavalidator_ver}.tar.gz && cd json-schema-validator*/ && mkdir build && cd build && \
     cmake .. && make -j${make_procs} && make install && \
-    cd .. && rm -rf * && \
+    cd ../.. && rm -rf * && \
     set +x
 
 # google test framework
