@@ -31,7 +31,10 @@ So, `h2agent` could be used as:
 * **Server** mock: fully implemented
 * **Client** mock: design ongoing (roadmap planned for 3.x.x).
 
-Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests.
+Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
+
+* **Traffic plane**: application flows.
+* **Control plane**: traffic flow orchestration, mocks behavior control and SUT surroundings monitoring and inspection.
 
 Check the [releases](https://github.com/testillano/h2agent/releases) to get latest packages, or read the following sections to build all the artifacts needed to start playing:
 
