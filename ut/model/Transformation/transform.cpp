@@ -307,7 +307,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters("name=test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::string requestBody = request.dump();
+    std::shared_ptr<std::stringstream> requestBody = std::make_shared<std::stringstream>(request.dump());
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
@@ -387,7 +387,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(qmap["name"], "test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::string requestBody = request.dump();
+    std::shared_ptr<std::stringstream> requestBody = std::make_shared<std::stringstream>(request.dump());
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});

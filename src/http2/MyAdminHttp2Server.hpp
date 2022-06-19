@@ -86,7 +86,7 @@ public:
     bool checkHeaders(const nghttp2::asio_http2::server::request& req);
 
     void receive(const nghttp2::asio_http2::server::request& req,
-                 const std::string& requestBody,
+                 std::shared_ptr<std::stringstream> requestBody,
                  const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);

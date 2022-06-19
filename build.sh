@@ -11,7 +11,7 @@ make_procs__dflt=$(grep processor /proc/cpuinfo -c)
 build_type__dflt=Release
 nlohmann_json_ver__dflt=v3.9.1
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
-google_test_ver__dflt=v1.10.0
+google_test_ver__dflt=v1.11.0
 registry=ghcr.io/testillano
 
 #############
