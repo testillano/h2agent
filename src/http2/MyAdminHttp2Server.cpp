@@ -499,7 +499,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
 
 void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
                                  req,
-                                 const std::string& requestBody,
+                                 std::shared_ptr<std::stringstream> requestBody,
                                  const std::chrono::microseconds &receptionTimestampUs,
                                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                                  std::string& responseBody, unsigned int &responseDelayMs)
@@ -528,8 +528,8 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         if (!uriQuery.empty()) {
             ss << " | Query Params: " << uriQuery;
         }
-        if (!requestBody.empty()) {
-            std::string requestBodyWithoutNewlines = requestBody; // administrative interface receives json bodies in POST requests, so we normalize for logging
+        if (requestBody->rdbuf()->in_avail()) {
+            std::string requestBodyWithoutNewlines = requestBody->str(); // administrative interface receives json bodies in POST requests, so we normalize for logging
             requestBodyWithoutNewlines.erase(std::remove(requestBodyWithoutNewlines.begin(), requestBodyWithoutNewlines.end(), '\n'), requestBodyWithoutNewlines.end());
             ss << " | Body: " << requestBodyWithoutNewlines;
         }
@@ -559,7 +559,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         return;
     }
     else if (method == "POST") {
-        receivePOST(pathSuffix, requestBody, statusCode, responseBody);
+        receivePOST(pathSuffix, requestBody->str(), statusCode, responseBody);
         return;
     }
     else if (method == "PUT") {

@@ -10,7 +10,7 @@ ARG make_procs=4
 ARG build_type=Release
 ARG nlohmann_json_ver=v3.9.1
 ARG pboettch_jsonschemavalidator_ver=2.1.0
-ARG google_test_ver=v1.10.0
+ARG google_test_ver=v1.11.0
 ARG arashpartow_exprtk=0.0.1
 
 RUN apk update && apk add \

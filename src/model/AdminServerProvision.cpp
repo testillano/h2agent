@@ -97,7 +97,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::map<std::string, std::string> &requestQueryParametersMap,
         bool requestBodyJsonOrString,
         const nlohmann::json &requestBodyJson, // if json
-        const std::string &requestBody, // if string
+        std::shared_ptr<std::stringstream> requestBody, // if string
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -132,7 +132,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             }
         }
         else {
-            sourceVault.setString(requestBody);
+            sourceVault.setString(requestBody->str());
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
@@ -685,7 +685,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 void AdminServerProvision::transform( const std::string &requestUri,
                                       const std::string &requestUriPath,
                                       const std::map<std::string, std::string> &requestQueryParametersMap,
-                                      const std::string &requestBody,
+                                      std::shared_ptr<std::stringstream> requestBody,
                                       const nghttp2::asio_http2::header_map &requestHeaders,
                                       std::uint64_t generalUniqueServerSequence,
 
@@ -731,7 +731,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         else {
             for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
                 if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                    if (!requestBody.empty()) {
+                    if (requestBody->rdbuf()->in_avail()) {
                         requestBodyJsonRequired = true;
                     }
                     else {
@@ -744,7 +744,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         if (requestBodyJsonRequired) {
             // if fails to parse, we will consider it as an string ignoring the content-type:
-            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
+            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody->str(), requestBodyJson);
         }
     }
 
