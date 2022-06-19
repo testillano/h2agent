@@ -142,7 +142,6 @@ void stopAgent()
         timersIoService->stop();
         //delete(timersIoService);
     }
-
     if (myAdminHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
@@ -158,7 +157,7 @@ void stopAgent()
     }
 }
 
-void _exit(int rc)
+void myExit(int rc)
 {
     LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Terminating with exit code %d", rc), ERT_FILE_LOCATION));
 
@@ -173,7 +172,7 @@ void _exit(int rc)
 void sighndl(int signal)
 {
     LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Signal received: %d", signal), ERT_FILE_LOCATION));
-    _exit(EXIT_FAILURE);
+    myExit(EXIT_FAILURE);
 }
 
 ////////////////////////////
@@ -309,7 +308,7 @@ void usage(int rc, const std::string &errorMessage = "")
         ss << errorMessage << '\n';
     }
 
-    _exit(rc);
+    myExit(rc);
 }
 
 int toNumber(const std::string& value)
@@ -353,7 +352,7 @@ int main(int argc, char* argv[])
 
     progname = basename(argv[0]);
 
-    ert::tracing::Logger::initialize(progname); // initialize logger (before possible _exit() execution):
+    ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
@@ -550,7 +549,7 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
         std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
-        _exit(EXIT_SUCCESS);
+        myExit(EXIT_SUCCESS);
     }
 
     // Secure options
@@ -633,13 +632,17 @@ int main(int argc, char* argv[])
     // Flush:
     std::cout << std::endl;
 
+    // Capture TERM/INT signals for graceful exit:
+    signal(SIGTERM, sighndl);
+    signal(SIGINT, sighndl);
+
     // Prometheus
     ert::metrics::Metrics *p_metrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
     if (p_metrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {
             std::cerr << getLocaltime().c_str() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
-            _exit(EXIT_FAILURE);
+            myExit(EXIT_FAILURE);
         }
     }
 
@@ -647,10 +650,6 @@ int main(int argc, char* argv[])
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
-
-    // Capture TERM/INT signals for graceful exit:
-    signal(SIGTERM, sighndl);
-    signal(SIGINT, sighndl);
 
     timersIoService = new boost::asio::io_service();
     std::thread tt([&] {
@@ -774,14 +773,14 @@ int main(int argc, char* argv[])
     });
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for rc1/rc2 update from threads
-    if (rc1 != EXIT_SUCCESS) _exit(rc1);
-    if (rc2 != EXIT_SUCCESS) _exit(rc2);
+    if (rc1 != EXIT_SUCCESS) myExit(rc1);
+    if (rc2 != EXIT_SUCCESS) myExit(rc2);
 
     // Join threads
     tt.join();
     t1.join();
     t2.join();
 
-    _exit(EXIT_SUCCESS);
+    myExit(EXIT_SUCCESS);
 }
 
