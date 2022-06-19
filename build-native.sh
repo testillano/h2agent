@@ -55,11 +55,16 @@ ${SUDO} apt-get update
 
 (
 echo
-echo "CMake version must be 3.14 or higher:"
-echo "Build/(i)nstall cmake ${cmake_ver} or [s]kip [s]"
+echo "CMake"
+echo "-----"
+echo "Required: cmake version 3.14"
+echo "Current:  $(cmake --version | grep version)"
+echo "Install:  cmake version ${cmake_ver}"
+echo
+echo "(c)ontinue or [s]kip [s]:"
 read opt
 [ -z "${opt}" ] && opt=s
-if [ "${opt}" = "i" ]
+if [ "${opt}" = "c" ]
 then
   set -x && \
   wget https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}.tar.gz && tar xvf cmake* && cd cmake*/ && \
