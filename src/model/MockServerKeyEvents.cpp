@@ -45,7 +45,7 @@ namespace model
 
 void calculateMockServerKeyEventsKey(mock_server_events_key_t &key, const std::string &method, const std::string &uri) {
     // key <request-method>#<request-uri>
-    key += method;
+    key = method;
     key += "#";
     key += uri;
 }
