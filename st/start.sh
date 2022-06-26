@@ -33,8 +33,10 @@ HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 # Hermes image
 HERMES_IMG=jgomezselles/hermes:0.0.2
 
+ST_REQUEST_BODY__dflt='{"id":"1a8b8863","name":"Ada Lovelace","email":"ada@geemail.com","bio":"First programmer. No big deal.","age":198,"avatar":"http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg"}'
+ST_REQUEST_BODY=${ST_REQUEST_BODY-${ST_REQUEST_BODY__dflt}}
+
 # Fixed values
-ST_REQUEST_BODY='{ "id": "1a8b8863", "name": "Ada Lovelace", "email": "ada@geemail.com", "bio": "First programmer. No big deal.", "age": 198, "avatar": "http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg" }'
 H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
@@ -192,6 +194,41 @@ read_value "H2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
 [ ${H2AGENT__RESPONSE_DELAY_MS} -ne 0 ] && H2LOAD__ITERATIONS__dflt=$((H2LOAD__ITERATIONS__dflt/H2AGENT__RESPONSE_DELAY_MS)) # duration correction
 
 read_value "Request method" ST_REQUEST_METHOD "PUT|DELETE|HEAD|POST|GET" || exit 1
+
+if [ "${ST_REQUEST_METHOD}" = "POST" ]
+then
+  if [ "${ST_REQUEST_BODY}" != "${ST_REQUEST_BODY__dflt}" ]
+  then
+    echo
+    echo "POST request body has been redefined on current shell:"
+    echo
+    echo "ST_REQUEST_BODY=${ST_REQUEST_BODY}"
+    echo
+    echo "To restore default request body: unset ST_REQUEST_BODY"
+    echo
+  else
+    cat << EOF
+
+POST request body defaults to:
+   ${ST_REQUEST_BODY__dflt}
+
+To override this content from shell, paste the following snippet:
+
+# Define helper function:
+random_request() {
+   echo "Input desired size in bytes [3000]:"
+   read bytes
+   [ -z "\${bytes}" ] && bytes=3000
+   local size=\$((bytes/15)) # aproximation
+   export ST_REQUEST_BODY="{"\$(k=0 ; while [ \$k -lt \$size ]; do k=\$((k+1)); echo -n "\"id\${RANDOM}\":\${RANDOM}"; [ \${k} -lt \$size ] && echo -n "," ; done)"}"
+}
+
+# Invoke the function:
+random_request
+
+EOF
+  fi
+fi
 
 read_value "Request url" ST_REQUEST_URL
 ST_REQUEST_URL=$(echo ${ST_REQUEST_URL} | sed -e 's/^\///') # normalize to not have leading slash
