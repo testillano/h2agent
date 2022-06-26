@@ -158,10 +158,10 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         }
 
         LOGINFORMATIONAL(
-            if (general_unique_server_sequence_ % 5000 == 0) {
-                std::string msg = ert::tracing::Logger::asString("Current/maximum busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
-                ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
-            }
+        if (general_unique_server_sequence_ % 5000 == 0) {
+        std::string msg = ert::tracing::Logger::asString("Current/maximum busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
+            ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
+        }
         );
     }
 
