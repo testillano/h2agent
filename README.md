@@ -1704,6 +1704,16 @@ Filters give you the chance to make complex transformations:
 
   In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs. For more complex operations, you may use the `math` source.
 
+  This filter is also useful to sequence a subscriber number:
+
+  ```json
+  {
+    "source": "recvseq",
+    "target": "var.subscriber",
+    "filter": { "Sum" : 555000000 }
+  }
+  ```
+
 
 
 - Multiply: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):

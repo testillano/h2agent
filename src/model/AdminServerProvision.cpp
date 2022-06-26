@@ -719,6 +719,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
             return std::tolower(c);
         });
         requestBodyJsonOrString = (ct == "application/json"); // still need to check if it is a valid json
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("CONTENT TYPE: %s", ct.c_str()), ERT_FILE_LOCATION));
+        //LOGINFORMATIONAL(if (!requestBodyJsonOrString) ert::tracing::Logger::informational("Request body won't be interpreted as json", ERT_FILE_LOCATION));
     }
 
     // Find out if request body will need to be parsed:
@@ -796,6 +798,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         auto transformation = (*it);
         bool eraser = false;
+
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
