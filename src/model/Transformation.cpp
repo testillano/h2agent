@@ -409,27 +409,27 @@ std::string Transformation::asString() const {
     // SOURCE
     ss << "SourceType: " << SourceTypeAsText(source_type_);
     if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::GeneralUnique && source_type_ != SourceType::InState) {
-      ss << " | source_: " << source_;
+        ss << " | source_: " << source_;
 
-      if (source_type_ == SourceType::RequestBody || source_type_ == SourceType::ResponseBody) {
-        ss << " (empty: whole, path: node)";
-      }
-      else if (source_type_ == SourceType::GeneralRandom) {
-        ss << " | source_i1_: " << source_i1_ << " (GeneralRandom min)" << " | source_i2_: " << source_i2_ << " (GeneralRandom max)";
-      }
+        if (source_type_ == SourceType::RequestBody || source_type_ == SourceType::ResponseBody) {
+            ss << " (empty: whole, path: node)";
+        }
+        else if (source_type_ == SourceType::GeneralRandom) {
+            ss << " | source_i1_: " << source_i1_ << " (GeneralRandom min)" << " | source_i2_: " << source_i2_ << " (GeneralRandom max)";
+        }
     }
 
     // TARGET
     ss << " | TargetType: " << TargetTypeAsText(target_type_);
     if (target_type_ != TargetType::ResponseStatusCode && target_type_ != TargetType::ResponseDelayMs) {
-      ss << " | target_: " << target_;
+        ss << " | target_: " << target_;
 
-      if (target_type_ == TargetType::ResponseBodyString || target_type_ == TargetType::ResponseBodyInteger || target_type_ == TargetType::ResponseBodyUnsigned || target_type_ == TargetType::ResponseBodyFloat || target_type_ == TargetType::ResponseBodyBoolean || target_type_ == TargetType::ResponseBodyObject) {
-        ss << " (empty: whole, path: node)";
-      }
-      else if (target_type_ == TargetType::OutState) {
-        ss << " (empty: current method, method: another)" << " | target2_: " << target2_ << "(empty: current uri, uri: another)";
-      }
+        if (target_type_ == TargetType::ResponseBodyString || target_type_ == TargetType::ResponseBodyInteger || target_type_ == TargetType::ResponseBodyUnsigned || target_type_ == TargetType::ResponseBodyFloat || target_type_ == TargetType::ResponseBodyBoolean || target_type_ == TargetType::ResponseBodyObject) {
+            ss << " (empty: whole, path: node)";
+        }
+        else if (target_type_ == TargetType::OutState) {
+            ss << " (empty: current method, method: another)" << " | target2_: " << target2_ << "(empty: current uri, uri: another)";
+        }
     }
 
     // FILTER
@@ -441,14 +441,14 @@ std::string Transformation::asString() const {
 
             if (filter_type_ == FilterType::RegexReplace) {
                 ss << " (fmt)";
-              }
-              else if (filter_type_ == FilterType::RegexCapture) {
+            }
+            else if (filter_type_ == FilterType::RegexCapture) {
                 ss << " (literal, although not actually needed, but useful to access & print on traces)";
-              }
+            }
         }
         else {
-          ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
-             << " | filter_i_: " << filter_i_ << " | filter_u_: " << filter_u_ << " | filter_f_: " << filter_f_;
+            ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
+               << " | filter_i_: " << filter_i_ << " | filter_u_: " << filter_u_ << " | filter_f_: " << filter_f_;
         }
     }
 

@@ -62,24 +62,24 @@ public:
     enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-      static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "GeneralRandom", "GeneralRandomSet", "GeneralTimestamp", "GeneralStrftime", "GeneralUnique", "SVar", "SGVar", "Value", "Event", "InState" };
-      return text [type];
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "GeneralRandom", "GeneralRandomSet", "GeneralTimestamp", "GeneralStrftime", "GeneralUnique", "SVar", "SGVar", "Value", "Event", "InState" };
+        return text [type];
     }
 
     // Target type
     enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-      static const char* text [] = { "ResponseBodyString", "ResponseBodyInteger", "ResponseBodyUnsigned", "ResponseBodyFloat", "ResponseBodyBoolean", "ResponseBodyObject", "ResponseBodyJsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState" };
-      return text [type];
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyInteger", "ResponseBodyUnsigned", "ResponseBodyFloat", "ResponseBodyBoolean", "ResponseBodyObject", "ResponseBodyJsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState" };
+        return text [type];
     }
 
     // Filter type
     enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-      static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar" };
-      return text [type];
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar" };
+        return text [type];
     }
 
     // setters:
