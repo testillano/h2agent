@@ -285,12 +285,12 @@ bool MockServerEventsData::findLastRegisteredRequestState(const std::string &met
     read_guard_t guard(rw_mutex_);
 
     auto it = get(key);
-    state = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
     if (it != end()) {
         state = it->second->getLastRegisteredRequestState();
         return true;
     }
 
+    state = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
     return false;
 }
 

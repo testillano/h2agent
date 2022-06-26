@@ -58,7 +58,7 @@ echo
 echo "CMake"
 echo "-----"
 echo "Required: cmake version 3.14"
-echo "Current:  $(cmake --version | grep version)"
+echo "Current:  $(cmake --version 2>/dev/null | grep version)"
 echo "Install:  cmake version ${cmake_ver}"
 echo
 echo "(c)ontinue or [s]kip [s]:"

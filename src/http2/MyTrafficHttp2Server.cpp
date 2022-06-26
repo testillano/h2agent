@@ -153,21 +153,26 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     std::map<std::string, std::string> qmap; // query parameters map
 
     if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
-        qmap = h2agent::http2::extractQueryParameters(uriQuery); // future proof: Ignore but tokenize by semicolon (it is rare, so we will assume the ampersand filter)
+        if (!uriQuery.empty()) {
+          qmap = h2agent::http2::extractQueryParameters(uriQuery); // future proof: Ignore but tokenize by semicolon (it is rare, so we will assume the ampersand filter)
+        }
         uriQuery = "";
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortAmpersand) {
-
-        qmap = h2agent::http2::extractQueryParameters(uriQuery);
-        uriQuery = h2agent::http2::sortQueryParameters(qmap);
+        if (!uriQuery.empty()) {
+          qmap = h2agent::http2::extractQueryParameters(uriQuery);
+          uriQuery = h2agent::http2::sortQueryParameters(qmap);
+        }
     }
     else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortSemicolon) {
-        qmap = h2agent::http2::extractQueryParameters(uriQuery, ';');
-        uriQuery = h2agent::http2::sortQueryParameters(qmap, ';');
+        if (!uriQuery.empty()) {
+          qmap = h2agent::http2::extractQueryParameters(uriQuery, ';');
+          uriQuery = h2agent::http2::sortQueryParameters(qmap, ';');
+        }
     }
 
     std::string uri = uriPath;
-    if (uriQuery != "") {
+    if (!uriQuery.empty()) {
         uri += "?";
         uri += uriQuery;
     }
