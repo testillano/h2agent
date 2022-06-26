@@ -81,6 +81,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
+    std::atomic<int> max_busy_threads_{0};
+
 public:
     MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
     ~MyTrafficHttp2Server();

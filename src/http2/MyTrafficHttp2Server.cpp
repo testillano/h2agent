@@ -148,6 +148,23 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     std::string uriQuery = ((uriRawQuery.empty()) ? "":ert::http2comm::URLFunctions::decode(uriRawQuery)); // now decoded
     //std::string reqUriFragment = req.uri().fragment; // https://stackoverflow.com/a/65198345/2576671
 
+    // Busy threads:
+    int currentBusyThreads = busyThreads();
+    if (currentBusyThreads > 0) { // 0 when queue dispatcher is not used
+        int maxBusyThreads = max_busy_threads_.load();
+        if (currentBusyThreads > maxBusyThreads) {
+            maxBusyThreads = currentBusyThreads;
+            max_busy_threads_.store(maxBusyThreads);
+        }
+
+        LOGINFORMATIONAL(
+            if (general_unique_server_sequence_ % 5000 == 0) {
+                std::string msg = ert::tracing::Logger::asString("Current/maximum busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
+                ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
+            }
+        );
+    }
+
     // Query parameters transformation:
     h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getMatchingData(). getUriPathQueryParametersFilter();
     std::map<std::string, std::string> qmap; // query parameters map
