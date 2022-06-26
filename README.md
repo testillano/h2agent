@@ -157,7 +157,7 @@ $ ./build.sh --project
 It may be hard to collect every dependency, so there is a native build **automation script**:
 
 ```bash
-$> ./build-native.sh		
+$> ./build-native.sh
 ```
 
 Note: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
@@ -360,10 +360,29 @@ Input H2agent response delay in milliseconds
  (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 0
 
 Input Request method (PUT|DELETE|HEAD|POST|GET)
- (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]: POST
+ (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]:
+POST
+
+POST request body defaults to:
+   {"id":"1a8b8863","name":"Ada Lovelace","email":"ada@geemail.com","bio":"First programmer. No big deal.","age":198,"avatar":"http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg"}
+
+To override this content from shell, paste the following snippet:
+
+# Define helper function:
+random_request() {
+   echo "Input desired size in bytes [3000]:"
+   read bytes
+   [ -z "${bytes}" ] && bytes=3000
+   local size=$((bytes/15)) # aproximation
+   export ST_REQUEST_BODY="{"$(k=0 ; while [ $k -lt $size ]; do k=$((k+1)); echo -n "\"id${RANDOM}\":${RANDOM}"; [ ${k} -lt $size ] && echo -n "," ; done)"}"
+}
+
+# Invoke the function:
+random_request
+
 
 Input Request url
- (or set 'ST_REQUEST_URL' to be non-interactive) [/load-test/v1/id-21]: /load-test/v1/id-21
+ (or set 'ST_REQUEST_URL' to be non-interactive) [/app/v1/load-test/v1/id-21]:
 
 Server data configuration:
 {"purgeExecution":"false","storeEvents":"false","storeEventsKeyHistory":"false"}
@@ -467,8 +486,8 @@ Options:
   into account other process threads considered busy.
 
 [-t|--traffic-server-threads <threads>]
-  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)
-  (admin server always uses 1 nghttp2 thread). This option is exploited
+  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)
+  (admin server hardcodes 2 nghttp2 threads). This option is exploited
   by multiple clients.
 
 [-k|--traffic-server-key <path file>]
@@ -685,7 +704,7 @@ Traffic server bind address: 0.0.0.0
 Traffic server port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
-Traffic server threads (nghttp2): 1
+Traffic server threads (nghttp2): 2
 Traffic server worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
@@ -1701,26 +1720,26 @@ Filters give you the chance to make complex transformations:
 
 
 
-- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. If the variable is not defined, the condition is false. All the variables are strings in origin, and are converted to target selected types, but in this case the variable value is adapted as string to the boolean result following this procedure: empty string means *false*, any other situation is *true* (note that a variable containing the literal "false" would be interpreted as *true*). This decision allows to use, directly, regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter).
+- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. All the variables are strings in origin, and are converted to target selected types, but in this case the string variable value is adapted to boolean result in this way: if the variable is not defined or it is empty, the condition is *false*. It will be *true*  in the rest of cases.
 
-  ```json
-  {
-    "source": "value.500",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "transfer-500-to-status-code" }
-  }
-  ```
+  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string.
 
-  The variable used for the condition should be defined in a previous transformation, for example:
+  This behavior invite to use regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter). for example:
 
   ```json
   {
     "source": "request.body./forceErrors/internalServerError",
-    "target": "var.transfer-500-to-status-code"
+    "target": "var.internalServerError"
+  },
+  {
+    "source": "value.500",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "internalServerError" }
   }
   ```
 
-  In this example, the request body dictates the responses' status code to receive in the node path "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
+  In this example, the request body dictates the responses' status code depending on value (empty or not) received at "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
+
 
 
 

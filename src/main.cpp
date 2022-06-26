@@ -219,8 +219,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  into account other process threads considered busy.\n\n"
 
        << "[-t|--traffic-server-threads <threads>]\n"
-       << "  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)\n"
-       << "  (admin server always uses 1 nghttp2 thread). This option is exploited\n"
+       << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
+       << "  (admin server hardcodes 2 nghttp2 threads). This option is exploited\n"
        << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
-    int traffic_server_threads = 1;
+    int traffic_server_threads = 2;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
@@ -646,7 +646,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(1); // 1 nghttp2 server thread
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
