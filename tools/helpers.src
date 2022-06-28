@@ -189,16 +189,21 @@ json() {
 
 trace() {
   local level=$1
-  if [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ]
+  if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: trace [-h|--help] <level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>; Sets h2agent tracing level."
+    echo "Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent tracing level."
     return 0
   fi
-  echo -n "Level selected: ${level}"
-  local recommended_level="Warning"
-  [ "$1" != "${recommended_level}" ] && echo -n " (recommended '${recommended_level}' for normal operation)."
-  echo
-  ${CURL} -XPUT ${ADMIN_URL}/logging?level=${level}
+  if [ -n "$1" ]
+  then
+    echo -n "Level selected: ${level}"
+    local recommended_level="Warning"
+    [ "$1" != "${recommended_level}" ] && echo -n " (recommended '${recommended_level}' for normal operation)."
+    echo
+    do_curl -XPUT ${ADMIN_URL}/logging?level=${level}
+  else
+    do_curl -XGET ${ADMIN_URL}/logging
+  fi
 }
 
 metrics() {

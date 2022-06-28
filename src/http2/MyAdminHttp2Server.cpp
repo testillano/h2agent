@@ -374,6 +374,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
         statusCode = 200;
     }
+    else if (pathSuffix == "logging") {
+        responseBody = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
+        statusCode = 200;
+    }
     else {
         statusCode = 400;
         responseBody = buildJsonResponse(false, std::string("invalid operation '") + pathSuffix + std::string("'"));
