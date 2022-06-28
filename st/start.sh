@@ -25,6 +25,7 @@ H2LOAD__ITERATIONS__dflt=100000
 H2LOAD__CLIENTS__dflt=1
 #H2LOAD__THREADS__dflt=1
 H2LOAD__CONCURRENT_STREAMS__dflt=100
+#H2LOAD__EXTRA_ARGS="-w 20 -W 20" # max=30 by default
 
 HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
@@ -300,7 +301,7 @@ then
   echo
   echo
   set -x
-  time h2load -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__TRAFFIC_PORT}/${ST_REQUEST_URL} ${s_DATA_OPT} | tee -a ${REPORT}
+  time h2load ${H2LOAD__EXTRA_ARGS} -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__TRAFFIC_PORT}/${ST_REQUEST_URL} ${s_DATA_OPT} | tee -a ${REPORT}
   set +x
 
 elif [ "${ST_LAUNCHER}" = "hermes" ] ################################################# HERMES

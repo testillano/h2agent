@@ -769,7 +769,7 @@ We will start describing **general** mock operations:
 
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
 * Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
-* Logging: dynamic logger configuration.
+* Logging: dynamic logger configuration (update and check).
 
 Then, we will describe **traffic server mock** features:
 
@@ -1018,9 +1018,21 @@ Deletes all the global variables registered.
 
 No response body.
 
+### GET /admin/v1/logging
+
+Retrieves the current logging level of the `h2agent` process: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+String containing the current log level name.
+
 ### PUT /admin/v1/logging?level=`<level>`
 
-Changes the log level of the `h2agent` process to any of the levels described in [command line](#command-line) section: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+Changes the log level of the `h2agent` process to any of the available levels (this can be also configured on start as described in [command line](#command-line) section). So, `level` query parameter value could be any of the valid log levels: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
 #### Response status code
 
@@ -1323,7 +1335,7 @@ Let's see an example to clarify:
 
 Further similar matches (*m*), will repeat the cycle again and again.
 
-<u>Dynamic server data purge</u>:  the keyword '**purge**' is a reserved out-state used to indicate that server data related to an event history must be dropped. This mechanism is useful in long-term load tests to avoid high memory consumption removing those scenarios which have been successfully completed, putting this special out-state at the last scenario stage provision. If they wouldn't be successful, post-verification and troubleshooting would be obviously limited (as future proof, a purge dump file could be configured on command line to store the information on file system before removal). There is another important difference between purging scenarios and disabling the data key history. In the first one, all the failed scenarios will be available for further analysis, as normally, the purge operation is performed at the last scenario stage which won't be reached normally in case of fail.
+<u>Special **purge** state</u>:  stateful scenarios normally require access to former events (available at server data storage) to evolve through different provisions, so disabling server data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that server data related to an event history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
 
 ##### requestMethod
 

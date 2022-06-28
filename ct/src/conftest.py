@@ -36,6 +36,7 @@ H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.enviro
 ADMIN_URI_PREFIX = '/admin/v1/'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_GLOBAL_VARIABLE_URI = ADMIN_URI_PREFIX + 'global-variable'
+ADMIN_LOGGING_URI = ADMIN_URI_PREFIX + 'logging'
 ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_SERVER_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_SERVER_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
@@ -168,7 +169,10 @@ class RestClient(object):
     def parse(self, response):
         response_body = response.read(decode_content=True).decode('utf-8')
         if len(response_body) != 0:
-          response_body_dict = json.loads(response_body)
+          try:
+            response_body_dict = json.loads(response_body)
+          except:
+            response_body_dict = response_body
         else:
           response_body_dict = ''
         response_data = { "status":response.status, "body":response_body_dict, "headers":response.headers }
