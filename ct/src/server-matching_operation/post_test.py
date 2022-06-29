@@ -25,7 +25,7 @@ def test_002_i_want_to_identify_wrong_content_for_server_matching_operation_on_a
 def test_003_i_want_to_send_and_check_valid_server_matching_operations_on_admin_interface(admin_server_matching, h2ac_admin):
 
   # FullMatching with passBy query parameters
-  FullMatchingPassBy = { "algorithm":"FullMatching", "uriPathQueryParametersFilter":"PassBy" }
+  FullMatchingPassBy = { "algorithm":"FullMatching", "uriPathQueryParameters":{"filter":"PassBy"} }
   admin_server_matching(FullMatchingPassBy)
   response = h2ac_admin.get(ADMIN_SERVER_MATCHING_URI)
   h2ac_admin.assert_response__status_body_headers(response, 200, FullMatchingPassBy)

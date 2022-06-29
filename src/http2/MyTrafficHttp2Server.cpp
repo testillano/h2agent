@@ -166,25 +166,17 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
     }
 
     // Query parameters transformation:
-    h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getMatchingData(). getUriPathQueryParametersFilter();
     std::map<std::string, std::string> qmap; // query parameters map
+    if (!uriQuery.empty()) {
+        char separator = ((getAdminData()->getMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
+        qmap = h2agent::http2::extractQueryParameters(uriQuery, separator);
 
-    if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
-        if (!uriQuery.empty()) {
-            qmap = h2agent::http2::extractQueryParameters(uriQuery); // future proof: Ignore but tokenize by semicolon (it is rare, so we will assume the ampersand filter)
+        h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getMatchingData().getUriPathQueryParametersFilter();
+        if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
+            uriQuery = "";
         }
-        uriQuery = "";
-    }
-    else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortAmpersand) {
-        if (!uriQuery.empty()) {
-            qmap = h2agent::http2::extractQueryParameters(uriQuery);
-            uriQuery = h2agent::http2::sortQueryParameters(qmap);
-        }
-    }
-    else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::SortSemicolon) {
-        if (!uriQuery.empty()) {
-            qmap = h2agent::http2::extractQueryParameters(uriQuery, ';');
-            uriQuery = h2agent::http2::sortQueryParameters(qmap, ';');
+        else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Sort) {
+            uriQuery = h2agent::http2::sortQueryParameters(qmap, separator);
         }
     }
 
@@ -199,7 +191,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         ss << "TRAFFIC REQUEST RECEIVED | Method: " << method
         << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
-        << " | Query parameters: " << ((uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
+        << " | Query parameters: " << ((getAdminData()->getMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
         if (requestBody->rdbuf()->in_avail()) ss << " | Body: " << requestBody->str();
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );

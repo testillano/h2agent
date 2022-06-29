@@ -104,7 +104,9 @@ To reach this provision instance, your matching algorithm shall be something lik
 ```json
 {
   "algorithm": "FullMatching",
-  "uriPathQueryParametersFilter": "Ignore"
+  "uriPathQueryParameters": {
+    "filter": "Ignore"
+  }
 }
 ```
 

@@ -31,7 +31,9 @@ If that is the case, just configure the matching algorithm to ignore the query p
 ```
 {
   "algorithm": "FullMatching",
-  "uriPathQueryParametersFilter": "Ignore"
+  "uriPathQueryParameters": {
+    "filter":"Ignore"
+  }
 }
 ```
 

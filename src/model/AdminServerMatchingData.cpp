@@ -50,7 +50,8 @@ AdminServerMatchingData::AdminServerMatchingData() {
     algorithm_ = FullMatching;
     //rgx_.clear();
     fmt_.clear();
-    uri_path_query_parameters_filter_ = SortAmpersand;
+    uri_path_query_parameters_filter_ = Sort;
+    uri_path_query_parameters_separator_ = Ampersand;
     json_["algorithm"] = "FullMatching";
 
     server_matching_schema_.setJson(h2agent::adminSchemas::server_matching); // won't fail
@@ -91,17 +92,29 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
         fmt_ = *fmt_it;
     }
 
-    auto uriPathQueryParametersFilter_it = j.find("uriPathQueryParametersFilter");
-    uri_path_query_parameters_filter_ = SortAmpersand; // default
-    if (uriPathQueryParametersFilter_it != j.end() && uriPathQueryParametersFilter_it->is_string()) {
-        if (*uriPathQueryParametersFilter_it == "SortSemicolon") {
-            uri_path_query_parameters_filter_ = SortSemicolon;
+    auto uriPathQueryParameters_it = j.find("uriPathQueryParameters");
+    if (uriPathQueryParameters_it != j.end()) {
+        auto filter_it = (*uriPathQueryParameters_it).find("filter"); // mandatory
+        if (filter_it->is_string()) {
+            if (*filter_it == "Sort") {
+                uri_path_query_parameters_filter_ = Sort;
+            }
+            else if (*filter_it == "PassBy") {
+                uri_path_query_parameters_filter_ = PassBy;
+            }
+            else if (*filter_it == "Ignore") {
+                uri_path_query_parameters_filter_ = Ignore;
+            }
         }
-        else if (*uriPathQueryParametersFilter_it == "PassBy") {
-            uri_path_query_parameters_filter_ = PassBy;
-        }
-        else if (*uriPathQueryParametersFilter_it == "Ignore") {
-            uri_path_query_parameters_filter_ = Ignore;
+
+        auto separator_it = (*uriPathQueryParameters_it).find("separator"); // optional
+        if (separator_it != (*uriPathQueryParameters_it).end() && separator_it->is_string()) {
+            if (*separator_it == "Ampersand") {
+                uri_path_query_parameters_separator_ = Ampersand;
+            }
+            else if (*separator_it == "Semicolon") {
+                uri_path_query_parameters_separator_ = Semicolon;
+            }
         }
     }
 
