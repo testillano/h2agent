@@ -163,7 +163,7 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
     return result;
 }
 
-void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &responseBody) const
+void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("receiveEMPTY()",  ERT_FILE_LOCATION));
     // Response document:
@@ -172,6 +172,7 @@ void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, std::string &res
     //   "response":"<additional information>"
     // }
     responseBody = buildJsonResponse(false, "no operation provided");
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     statusCode = 400;
 }
 
@@ -247,13 +248,16 @@ bool MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::
     return result;
 }
 
-void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, std::string &responseBody) const
+void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     bool jsonResponse_result = false;
     std::string jsonResponse_response;
+
+    // All responses are json content:
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
 
     // Admin schema validation:
     nlohmann::json requestJson;
@@ -292,9 +296,12 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     responseBody = buildJsonResponse(jsonResponse_result, jsonResponse_response);
 }
 
-void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, std::string &responseBody) const
+void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("receiveGET()",  ERT_FILE_LOCATION));
+
+    // All responses, except for 'logging', are json content:
+    bool jsonContent = true;
 
     if (pathSuffix == "server-matching/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
@@ -376,12 +383,16 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     }
     else if (pathSuffix == "logging") {
         responseBody = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
+        headers.emplace("content-type", nghttp2::asio_http2::header_value{"text/html"});
+        jsonContent = false;
         statusCode = 200;
     }
     else {
         statusCode = 400;
         responseBody = buildJsonResponse(false, std::string("invalid operation '") + pathSuffix + std::string("'"));
     }
+
+    if (jsonContent) headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
 }
 
 void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
@@ -543,12 +554,10 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
 
     // Defaults
     responseBody.clear();
-    // Content type, just in case:
-    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"}); // except DELETE
 
     // No operation provided:
     if (noPathSuffix) {
-        receiveEMPTY(statusCode, responseBody);
+        receiveEMPTY(statusCode, headers, responseBody);
         return;
     }
 
@@ -559,11 +568,11 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         return;
     }
     else if (method == "GET") {
-        receiveGET(req.uri().scheme + std::string("://") + req.uri().host + uriPath /* schema $id */, pathSuffix, uriQuery, statusCode, responseBody);
+        receiveGET(req.uri().scheme + std::string("://") + req.uri().host + uriPath /* schema $id */, pathSuffix, uriQuery, statusCode, headers, responseBody);
         return;
     }
     else if (method == "POST") {
-        receivePOST(pathSuffix, requestBody->str(), statusCode, responseBody);
+        receivePOST(pathSuffix, requestBody->str(), statusCode, headers, responseBody);
         return;
     }
     else if (method == "PUT") {

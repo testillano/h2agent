@@ -2206,7 +2206,7 @@ Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.
             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
-Usage: trace [-h|--help] <level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>; Sets h2agent tracing level.
+Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent tracing level.
 Usage: metrics [-h|--help]; Prometheus metrics.
 Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
 Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)
