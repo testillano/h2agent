@@ -1070,34 +1070,37 @@ You can swap this algorithm safely keeping the existing provisions without side-
     "fmt": {
       "type": "string"
     },
-    "uriPathQueryParametersFilter": {
-      "type": "string",
-        "enum": ["SortAmpersand", "SortSemicolon", "PassBy", "Ignore"]
+    "uriPathQueryParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "type": "string",
+            "enum": ["Sort", "PassBy", "Ignore"]
+        },
+        "separator": {
+          "type": "string",
+            "enum": ["Ampersand", "Semicolon"]
+        }
+      },
+      "required": [ "filter" ]
     }
   },
   "required": [ "algorithm" ]
 }
 ```
 
-##### uriPathQueryParametersFilter
+##### uriPathQueryParameters
 
-Optional argument used to specify the transformation for query parameters received in the *URI* path.
+Optional object used to specify the transformation used for traffic classification, of query parameters received in the *URI* path. It contains two fields, a mandatory _filter_ and an optional _separator_:
 
-###### SortAmpersand
-
-This is the <u>default behavior</u> and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
-
-###### SortSemicolon
-
-Same as SortAmpersand, but using *semicolon* (`';'`) as query parameters pairs separator.
-
-###### PassBy
-
-If received, query parameters are kept without modifying the received *URI* path.
-
-###### Ignore
-
-If received, query parameters are ignored during classification (removed from *URI* path and not taken into account to match provisions), but they are, as always, stored to be accessible in further transformations. Anyway, take into account that they will be tokenized by ampersand (semicolon is not eligible as it is considered rare, so not implemented at the moment).
+* *filter*:
+  * *Sort*: this is the <u>default behavior</u>, which sorts, if received, query parameters to make provisions predictable for unordered inputs.
+  * *PassBy*: if received, query parameters are used to classify without modifying the received *URI* path (query parameters are kept as received).
+  * *Ignore*: if received, query parameters are ignored during classification (removed from *URI* path and not taken into account to match provisions). Note that query parameters are stored to be accessible on provision transformations, because this filter is only considered to classify traffic.
+* *separator*:
+  * *Ampersand*: this is the <u>default behavior</u> (if whole _uriPathQueryParameters_ object is not configured) and consists in split received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs.
+  * *Semicolon*: using *semicolon* (`';'`) as query parameters pairs separator is rare but still applies on older systems.
 
 ##### rgx & fmt
 
@@ -1324,16 +1327,20 @@ These arguments are configured by default with the label "**initial**", used by 
 
 So, "**initial**" is a reserved value which is mandatory to debut any kind of provisioned transaction. Remember that an empty string will be also converted to this special state for both `inState` and `outState` fields.
 
+Important note:
+
 Let's see an example to clarify:
 
-* Provision *X* (match m, `inState`="*initial*"): `outState`="*second*", `response` *XX*
-* Provision *Y* (match m, `inState`="*second*"): `outState`="*initial*", `response` *YY*
+* Provision *X* (match *m*, `inState`="*initial*"): `outState`="*second*", `response` *XX*
+* Provision *Y* (match *m*, `inState`="*second*"): `outState`="*initial*", `response` *YY*
 * Reception matches *m* and internal context map (server data) is empty: as we assume state "*initial*", we look for this  `inState` value for match *m*, which is provision *X*.
 * Response *XX* is sent. Internal state will take the provision *X* `outState`, which is "*second*".
 * Reception matches *m* and internal context map stores state "*second*", we look for this  `inState` value for match *m*, which is provision Y.
 * Response *YY* is sent. Internal state will take the provision *Y* `outState`, which is "*initial*".
 
 Further similar matches (*m*), will repeat the cycle again and again.
+
+<u>Important note</u>: match *m* refers to matching key, that is to say: provision `method` and `uri`, but states are linked to real *URIs* received (coincide with match key `uri` for *FullMatching* classification algorithm, but not for others). So, there is a different state machine definition for each specific provision and so, a different current state for each specific events fulfilling such provision (this is much better that limiting the whole mock configuration with a global *FSM*, as for example, some events could fail due to *SUT* bugs and states would evolve different for their corresponding keys). If your mock receives several requests with different *URIs* for an specific test stage name, consider to name their provision states with the same identifier (with the stage name, for example), because different provisions will evolve at the "same time" and those names does not collide because they are different state machines (different matches). This could ease the flow understanding as those requests are received in a known test stage.
 
 <u>Special **purge** state</u>:  stateful scenarios normally require access to former events (available at server data storage) to evolve through different provisions, so disabling server data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that server data related to an event history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
 
@@ -1447,10 +1454,10 @@ The **source** of information is classified after parsing the following possible
 
   - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
   - `<var id prefix>`.uri: event *URI* selected.
-  - `<var id prefix>`.number: position selected (*1..N*) within events requests list.
+  - `<var id prefix>`.number: position selected (*1..N*; *-1 for last*) within events requests list.
   - `<var id prefix>`.path: `json` document path within selection.
 
-  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `body` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
+  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `requestBody` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
 
   <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
 
@@ -1496,7 +1503,7 @@ The **source** of information is classified after parsing the following possible
 
   ​	`ev1.path` = "/requestBody"
 
-  Then, the event source would store this `json` object:
+  Then, the event source (`event.ev1`) would store this `json` object:
 
   ```json
   {
@@ -1505,6 +1512,8 @@ The **source** of information is classified after parsing the following possible
     "year": 2021
   }
   ```
+
+  In the same way you could address internal event nested objects and also leaf nodes with basic types (`ev1.path` = "/requestBody/engine" would retrieve "tdi" string as the event data source).
 
 - inState: current processing state.
 

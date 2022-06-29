@@ -60,8 +60,10 @@ public:
 
     // Algorithm type
     enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex };
-    // UriPathQueryParametersFilter type
-    enum UriPathQueryParametersFilterType { SortAmpersand = 0, SortSemicolon, PassBy, Ignore };
+    // UriPathQueryParameters filter type
+    enum UriPathQueryParametersFilterType { Sort = 0, PassBy, Ignore };
+    // UriPathQueryParameters separator type
+    enum UriPathQueryParametersSeparatorType { Ampersand = 0, Semicolon };
 
     // Load result
     enum LoadResult { Success = 0, BadSchema, BadContent };
@@ -85,6 +87,11 @@ public:
     UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const {
         read_guard_t guard(rw_mutex_);
         return uri_path_query_parameters_filter_;
+    }
+
+    UriPathQueryParametersSeparatorType getUriPathQueryParametersSeparator() const {
+        read_guard_t guard(rw_mutex_);
+        return uri_path_query_parameters_separator_;
     }
 
     /**
@@ -125,6 +132,7 @@ private:
     std::regex rgx_{};
     std::string fmt_{};
     UriPathQueryParametersFilterType uri_path_query_parameters_filter_{};
+    UriPathQueryParametersSeparatorType uri_path_query_parameters_separator_{};
 };
 
 }
