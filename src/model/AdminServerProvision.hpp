@@ -77,7 +77,7 @@ class AdminServerProvision
     nlohmann::json json_{}; // provision reference
 
     admin_server_provision_key_t key_{}; // calculated in every load()
-    std::regex regex_{}; // precompile key as possible regex for PriorityMatchingRegex algorithm
+    std::regex regex_{}; // precompile key as possible regex for RegexMatching algorithm
 
     // Cached information:
     std::string request_method_{};
@@ -120,7 +120,7 @@ class AdminServerProvision
                         const std::map<std::string, std::string> &requestQueryParametersMap,
                         bool requestBodyJsonOrString,
                         const nlohmann::json &requestBodyJson, // if json
-                        const std::string &requestBody, // if string
+                        std::shared_ptr<std::stringstream> requestBody, // if string
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;
@@ -177,7 +177,7 @@ public:
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
                     const std::map<std::string, std::string> &requestQueryParametersMap,
-                    const std::string &requestBody,
+                    std::shared_ptr<std::stringstream> requestBody,
                     const nghttp2::asio_http2::header_map &requestHeaders,
                     std::uint64_t generalUniqueServerSequence,
 

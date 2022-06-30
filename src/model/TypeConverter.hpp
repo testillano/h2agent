@@ -93,11 +93,7 @@ public:
     *
     * @param str String assigned
     */
-    void setString(const std::string &str) {
-        clear();
-        s_value_ = str;
-        native_type_ = NativeType::String;
-    }
+    void setString(const std::string &str);
 
     /**
     * Sets string to vault replacing variables in form @{varname}
@@ -113,44 +109,28 @@ public:
     *
     * @param i Number assigned
     */
-    void setInteger(const std::int64_t i) {
-        clear();
-        i_value_ = i;
-        native_type_ = NativeType::Integer;
-    }
+    void setInteger(const std::int64_t i);
 
     /**
     * Sets unsigned integer to vault
     *
     * @param u Unsigned integer assigned
     */
-    void setUnsigned(const std::uint64_t u) {
-        clear();
-        u_value_ = u;
-        native_type_ = NativeType::Unsigned;
-    }
+    void setUnsigned(const std::uint64_t u);
 
     /**
     * Sets float number to vault
     *
     * @param f float number assigned
     */
-    void setFloat(const double f) {
-        clear();
-        f_value_ = f;
-        native_type_ = NativeType::Float;
-    }
+    void setFloat(const double f);
 
     /**
     * Sets boolean to vault
     *
     * @param boolean Boolean assigned
     */
-    void setBoolean(bool boolean) {
-        clear();
-        b_value_ = boolean;
-        native_type_ = NativeType::Boolean;
-    }
+    void setBoolean(bool boolean);
 
     /**
     * Sets object to vault

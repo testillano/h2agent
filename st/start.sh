@@ -18,20 +18,26 @@ H2AGENT__BIND_ADDRESS__dflt=0.0.0.0
 H2AGENT__RESPONSE_DELAY_MS__dflt=0
 
 ST_REQUEST_METHOD__dflt="POST"
-ST_REQUEST_URL__dflt="/load-test/v1/id-21"
+ST_REQUEST_URL__dflt="/app/v1/load-test/v1/id-21"
 ST_LAUNCHER__dflt=h2load
 
 H2LOAD__ITERATIONS__dflt=100000
 H2LOAD__CLIENTS__dflt=1
 #H2LOAD__THREADS__dflt=1
 H2LOAD__CONCURRENT_STREAMS__dflt=100
+#H2LOAD__EXTRA_ARGS="-w 20 -W 20" # max=30 by default
 
 HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
 HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 
+# Hermes image
+HERMES_IMG=jgomezselles/hermes:0.0.2
+
+ST_REQUEST_BODY__dflt='{"id":"1a8b8863","name":"Ada Lovelace","email":"ada@geemail.com","bio":"First programmer. No big deal.","age":198,"avatar":"http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg"}'
+ST_REQUEST_BODY=${ST_REQUEST_BODY-${ST_REQUEST_BODY__dflt}}
+
 # Fixed values
-ST_REQUEST_BODY='{ "id": "1a8b8863", "name": "Ada Lovelace", "email": "ada@geemail.com", "bio": "First programmer. No big deal.", "age": 198, "avatar": "http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg" }'
 H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
@@ -190,6 +196,41 @@ read_value "H2agent response delay in milliseconds" H2AGENT__RESPONSE_DELAY_MS
 
 read_value "Request method" ST_REQUEST_METHOD "PUT|DELETE|HEAD|POST|GET" || exit 1
 
+if [ "${ST_REQUEST_METHOD}" = "POST" ]
+then
+  if [ "${ST_REQUEST_BODY}" != "${ST_REQUEST_BODY__dflt}" ]
+  then
+    echo
+    echo "POST request body has been redefined on current shell:"
+    echo
+    echo "ST_REQUEST_BODY=${ST_REQUEST_BODY}"
+    echo
+    echo "To restore default request body: unset ST_REQUEST_BODY"
+    echo
+  else
+    cat << EOF
+
+POST request body defaults to:
+   ${ST_REQUEST_BODY__dflt}
+
+To override this content from shell, paste the following snippet:
+
+# Define helper function:
+random_request() {
+   echo "Input desired size in bytes [3000]:"
+   read bytes
+   [ -z "\${bytes}" ] && bytes=3000
+   local size=\$((bytes/15)) # aproximation
+   export ST_REQUEST_BODY="{"\$(k=0 ; while [ \$k -lt \$size ]; do k=\$((k+1)); echo -n "\"id\${RANDOM}\":\${RANDOM}"; [ \${k} -lt \$size ] && echo -n "," ; done)"}"
+}
+
+# Invoke the function:
+random_request
+
+EOF
+  fi
+fi
+
 read_value "Request url" ST_REQUEST_URL
 ST_REQUEST_URL=$(echo ${ST_REQUEST_URL} | sed -e 's/^\///') # normalize to not have leading slash
 
@@ -260,7 +301,7 @@ then
   echo
   echo
   set -x
-  time h2load -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__TRAFFIC_PORT}/${ST_REQUEST_URL} ${s_DATA_OPT} | tee -a ${REPORT}
+  time h2load ${H2LOAD__EXTRA_ARGS} -t${H2LOAD__THREADS} -n${H2LOAD__ITERATIONS} -c${H2LOAD__CLIENTS} -m${H2LOAD__CONCURRENT_STREAMS} http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__TRAFFIC_PORT}/${ST_REQUEST_URL} ${s_DATA_OPT} | tee -a ${REPORT}
   set +x
 
 elif [ "${ST_LAUNCHER}" = "hermes" ] ################################################# HERMES
@@ -302,7 +343,7 @@ EOF
   echo "   sudo kill -SIGKILL \$(pgrep hermes)"
   echo
   set -x
-  time docker run -it --network host -v ${TMP_DIR}/scripts:/etc/scripts --entrypoint /hermes/hermes jgomezselles/hermes:0.0.1 -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
+  time docker run -it --network host -v ${TMP_DIR}/scripts:/etc/scripts --entrypoint /hermes/hermes ${HERMES_IMG} -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
   set +x
 fi
 

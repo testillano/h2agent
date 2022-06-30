@@ -2,7 +2,20 @@
 import base64
 from collections import defaultdict
 import glob
+
+# https://stackoverflow.com/questions/72032032/importerror-cannot-import-name-iterable-from-collections-in-python
+# https://github.com/testillano/h2agent/issues/xxxx Hyper import failing since alpine 3.16 (latest on May 22) because of python 3.10 packaged
+# THIS IS BACKWARD COMPATIBLE (works on previous alpine 3.15)
+
+import collections.abc
+#hyper needs the four following aliases to be done manually.
+collections.Iterable = collections.abc.Iterable
+collections.Mapping = collections.abc.Mapping
+collections.MutableSet = collections.abc.MutableSet
+collections.MutableMapping = collections.abc.MutableMapping
+#Now import hyper
 from hyper import HTTP20Connection
+
 import inspect
 import json
 import logging
@@ -23,6 +36,7 @@ H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.enviro
 ADMIN_URI_PREFIX = '/admin/v1/'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_GLOBAL_VARIABLE_URI = ADMIN_URI_PREFIX + 'global-variable'
+ADMIN_LOGGING_URI = ADMIN_URI_PREFIX + 'logging'
 ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_SERVER_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_SERVER_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
@@ -155,7 +169,10 @@ class RestClient(object):
     def parse(self, response):
         response_body = response.read(decode_content=True).decode('utf-8')
         if len(response_body) != 0:
-          response_body_dict = json.loads(response_body)
+          try:
+            response_body_dict = json.loads(response_body)
+          except:
+            response_body_dict = response_body
         else:
           response_body_dict = ''
         response_data = { "status":response.status, "body":response_body_dict, "headers":response.headers }

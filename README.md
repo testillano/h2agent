@@ -31,7 +31,10 @@ So, `h2agent` could be used as:
 * **Server** mock: fully implemented
 * **Client** mock: design ongoing (roadmap planned for 3.x.x).
 
-Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests.
+Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
+
+* **Traffic plane**: application flows.
+* **Control plane**: traffic flow orchestration, mocks behavior control and SUT surroundings monitoring and inspection.
 
 Check the [releases](https://github.com/testillano/h2agent/releases) to get latest packages, or read the following sections to build all the artifacts needed to start playing:
 
@@ -151,7 +154,17 @@ $ ./build.sh --project
 
 ## Build project natively
 
-This is a cmake-based building library, so you may install cmake:
+It may be hard to collect every dependency, so there is a native build **automation script**:
+
+```bash
+$> ./build-native.sh
+```
+
+Note: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
+
+
+
+Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
 
 ```bash
 $ sudo apt-get install cmake
@@ -347,10 +360,29 @@ Input H2agent response delay in milliseconds
  (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 0
 
 Input Request method (PUT|DELETE|HEAD|POST|GET)
- (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]: POST
+ (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]:
+POST
+
+POST request body defaults to:
+   {"id":"1a8b8863","name":"Ada Lovelace","email":"ada@geemail.com","bio":"First programmer. No big deal.","age":198,"avatar":"http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg"}
+
+To override this content from shell, paste the following snippet:
+
+# Define helper function:
+random_request() {
+   echo "Input desired size in bytes [3000]:"
+   read bytes
+   [ -z "${bytes}" ] && bytes=3000
+   local size=$((bytes/15)) # aproximation
+   export ST_REQUEST_BODY="{"$(k=0 ; while [ $k -lt $size ]; do k=$((k+1)); echo -n "\"id${RANDOM}\":${RANDOM}"; [ ${k} -lt $size ] && echo -n "," ; done)"}"
+}
+
+# Invoke the function:
+random_request
+
 
 Input Request url
- (or set 'ST_REQUEST_URL' to be non-interactive) [/load-test/v1/id-21]: /load-test/v1/id-21
+ (or set 'ST_REQUEST_URL' to be non-interactive) [/app/v1/load-test/v1/id-21]:
 
 Server data configuration:
 {"purgeExecution":"false","storeEvents":"false","storeEventsKeyHistory":"false"}
@@ -454,8 +486,8 @@ Options:
   into account other process threads considered busy.
 
 [-t|--traffic-server-threads <threads>]
-  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)
-  (admin server always uses 1 nghttp2 thread). This option is exploited
+  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)
+  (admin server hardcodes 2 nghttp2 threads). This option is exploited
   by multiple clients.
 
 [-k|--traffic-server-key <path file>]
@@ -503,7 +535,7 @@ Options:
   Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
 
 [--prometheus-port <port>]
-  Prometheus <port>; defaults to 8080 (-1 to disable metrics).
+  Prometheus <port>; defaults to 8080.
 
 [--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
@@ -512,6 +544,9 @@ Options:
 
 [--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
+
+[--disable-metrics]
+  Disables prometheus scrape port (enabled by default).
 
 [-v|--version]
   Program version.
@@ -669,7 +704,7 @@ Traffic server bind address: 0.0.0.0
 Traffic server port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
-Traffic server threads (nghttp2): 1
+Traffic server threads (nghttp2): 2
 Traffic server worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
@@ -734,7 +769,7 @@ We will start describing **general** mock operations:
 
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
 * Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
-* Logging: dynamic logger configuration.
+* Logging: dynamic logger configuration (update and check).
 
 Then, we will describe **traffic server mock** features:
 
@@ -983,9 +1018,21 @@ Deletes all the global variables registered.
 
 No response body.
 
+### GET /admin/v1/logging
+
+Retrieves the current logging level of the `h2agent` process: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+String containing the current log level name.
+
 ### PUT /admin/v1/logging?level=`<level>`
 
-Changes the log level of the `h2agent` process to any of the levels described in [command line](#command-line) section: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+Changes the log level of the `h2agent` process to any of the available levels (this can be also configured on start as described in [command line](#command-line) section). So, `level` query parameter value could be any of the valid log levels: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
 #### Response status code
 
@@ -1015,7 +1062,7 @@ You can swap this algorithm safely keeping the existing provisions without side-
   "properties": {
     "algorithm": {
       "type": "string",
-        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex"]
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex", "RegexMatching"]
     },
     "rgx": {
       "type": "string"
@@ -1023,34 +1070,37 @@ You can swap this algorithm safely keeping the existing provisions without side-
     "fmt": {
       "type": "string"
     },
-    "uriPathQueryParametersFilter": {
-      "type": "string",
-        "enum": ["SortAmpersand", "SortSemicolon", "PassBy", "Ignore"]
+    "uriPathQueryParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "type": "string",
+            "enum": ["Sort", "PassBy", "Ignore"]
+        },
+        "separator": {
+          "type": "string",
+            "enum": ["Ampersand", "Semicolon"]
+        }
+      },
+      "required": [ "filter" ]
     }
   },
   "required": [ "algorithm" ]
 }
 ```
 
-##### uriPathQueryParametersFilter
+##### uriPathQueryParameters
 
-Optional argument used to specify the transformation for query parameters received in the *URI* path.
+Optional object used to specify the transformation used for traffic classification, of query parameters received in the *URI* path. It contains two fields, a mandatory _filter_ and an optional _separator_:
 
-###### SortAmpersand
-
-This is the <u>default behavior</u> and consists in sorting received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs. Provisions will be more predictable as input does.
-
-###### SortSemicolon
-
-Same as SortAmpersand, but using *semicolon* (`';'`) as query parameters pairs separator.
-
-###### PassBy
-
-If received, query parameters are kept without modifying the received *URI* path.
-
-###### Ignore
-
-If received, query parameters are ignored during classification (removed from *URI* path and not taken into account to match provisions), but they are, as always, stored to be accessible in further transformations. Anyway, take into account that they will be tokenized by ampersand (semicolon is not eligible as it is considered rare, so not implemented at the moment).
+* *filter*:
+  * *Sort*: this is the <u>default behavior</u>, which sorts, if received, query parameters to make provisions predictable for unordered inputs.
+  * *PassBy*: if received, query parameters are used to classify without modifying the received *URI* path (query parameters are kept as received).
+  * *Ignore*: if received, query parameters are ignored during classification (removed from *URI* path and not taken into account to match provisions). Note that query parameters are stored to be accessible on provision transformations, because this filter is only considered to classify traffic.
+* *separator*:
+  * *Ampersand*: this is the <u>default behavior</u> (if whole _uriPathQueryParameters_ object is not configured) and consists in split received query parameters keys using *ampersand* (`'&'`) as separator for key-value pairs.
+  * *Semicolon*: using *semicolon* (`';'`) as query parameters pairs separator is rare but still applies on older systems.
 
 ##### rgx & fmt
 
@@ -1058,9 +1108,19 @@ Optional arguments used in `FullMatchingRegexReplace` algorithm.
 
 ##### algorithm
 
+There are three classification algorithms. Two of them classify the traffic by single identification of the provision key (`method`, `uri` and `inState`): `FullMatching` matches directly, and `FullMatchingRegexReplace` matches directly after transformation. The other one, `RegexMatching` is not matching by identification but for regular expression.
+
+Although we will explain them in detail, in summary we could consider those algorithms depending on the use cases tested:
+
+* `FullMatching`: when <u>all</u> the *method/URIs* are completely <u>predictable</u>.
+
+* `FullMatchingRegexReplace`: when <u>some</u> *URIs* should be <u>transformed</u> to get <u>predictable</u> ones (for example, timestamps trimming, variables in path or query parameters, etc.), and <u>other</u> *URIs* are disjoint with them, but also <u>predictable</u>.
+
+* `RegexMatching`: when we have an <u>mix</u> of <u>unpredictable</u> *URIs* in our test plan.
+
 ###### FullMatching
 
-Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
+Arguments `rgx`and `fmt` are not used here, so not allowed. The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
 
 This is the default algorithm. Internal provision is stored in a map indexed with real requests information to compose an aggregated key (normally containing the requests *method* and *URI*, but as future proof, we could add `expected request` fingerprint). Then, when a request is received, the map key is calculated and retrieved directly to be processed.
 
@@ -1068,7 +1128,9 @@ This algorithm is very good and easy to use for predictable functional tests (as
 
 ###### FullMatchingRegexReplace
 
-Both `rgx` and `fmt` arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. For example, you could trim an *URI* received in different ways:
+Both `rgx` and `fmt` arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. Previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation due to the filter step.
+
+For example, you could trim an *URI* received in different ways:
 
 `URI` example:
 
@@ -1090,13 +1152,17 @@ rgx = "(/ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
-So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used. Also, `regex-replace` could act as a direct *full matching* algorithm when no replacements are possible, so it can be used as a fall back to cover non-strictly matched receptions.
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
 
-The previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation.
+Also, `regex-replace` could act as a virtual *full matching* algorithm when the transformation fails (the result will be the original tested key), because it can be used as a <u>fall back to cover non-strictly matched receptions</u>. The limitation here is when those unmatched receptions have variable parts (it is impossible/unpractical to provision all the possibilities). So, this fall back has sense to provision constant reception keys (fixed and predictable *URIs*), and of course, strict provision keys matching the result of `regex-replace` transformation on their reception keys which does not fit the other fall back ones.
 
-###### PriorityMatchingRegex
+###### RegexMatching
 
-Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
+Deprecates `PriorityMatchingRegex`.
+
+Arguments `rgx`and `fmt` are not used here, so not allowed. Provision keys are in this case, regular expressions to match reception keys. As we cannot search the real key in the provision map, we must check the reception sequentially against the list of regular expressions, and this is done assuming the first match as the valid one. So, this identification algorithm relies in the configured provision order to match the receptions and select the first valid occurrence.
+
+This algorithm allows to provision with priority. For example, consider 3 provision operations which are provided sequentially in the following order:
 
 1. `/ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
 2. `/ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
@@ -1104,7 +1170,7 @@ Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user expe
 
 If the `URI` "*/ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
 
-As provision key is built combining *inState*, *method* and *uri* fields, a regular expression could also be provided for *inState* (*method* is strictly checked), although this is not usual.
+Note: in case of large provisions, this algorithm could be not recommended (sequential iteration through provision keys is slower that map search performed in *full matching* procedures).
 
 #### Response status code
 
@@ -1277,10 +1343,12 @@ These arguments are configured by default with the label "**initial**", used by 
 
 So, "**initial**" is a reserved value which is mandatory to debut any kind of provisioned transaction. Remember that an empty string will be also converted to this special state for both `inState` and `outState` fields.
 
+Important note:
+
 Let's see an example to clarify:
 
-* Provision *X* (match m, `inState`="*initial*"): `outState`="*second*", `response` *XX*
-* Provision *Y* (match m, `inState`="*second*"): `outState`="*initial*", `response` *YY*
+* Provision *X* (match *m*, `inState`="*initial*"): `outState`="*second*", `response` *XX*
+* Provision *Y* (match *m*, `inState`="*second*"): `outState`="*initial*", `response` *YY*
 * Reception matches *m* and internal context map (server data) is empty: as we assume state "*initial*", we look for this  `inState` value for match *m*, which is provision *X*.
 * Response *XX* is sent. Internal state will take the provision *X* `outState`, which is "*second*".
 * Reception matches *m* and internal context map stores state "*second*", we look for this  `inState` value for match *m*, which is provision Y.
@@ -1288,7 +1356,9 @@ Let's see an example to clarify:
 
 Further similar matches (*m*), will repeat the cycle again and again.
 
-<u>Dynamic server data purge</u>:  the keyword '**purge**' is a reserved out-state used to indicate that server data related to an event history must be dropped. This mechanism is useful in long-term load tests to avoid high memory consumption removing those scenarios which have been successfully completed, putting this special out-state at the last scenario stage provision. If they wouldn't be successful, post-verification and troubleshooting would be obviously limited (as future proof, a purge dump file could be configured on command line to store the information on file system before removal). There is another important difference between purging scenarios and disabling the data key history. In the first one, all the failed scenarios will be available for further analysis, as normally, the purge operation is performed at the last scenario stage which won't be reached normally in case of fail.
+<u>Important note</u>: match *m* refers to matching key, that is to say: provision `method` and `uri`, but states are linked to real *URIs* received (coincide with match key `uri` for *FullMatching* classification algorithm, but not for others). So, there is a different state machine definition for each specific provision and so, a different current state for each specific events fulfilling such provision (this is much better that limiting the whole mock configuration with a global *FSM*, as for example, some events could fail due to *SUT* bugs and states would evolve different for their corresponding keys). If your mock receives several requests with different *URIs* for an specific test stage name, consider to name their provision states with the same identifier (with the stage name, for example), because different provisions will evolve at the "same time" and those names does not collide because they are different state machines (different matches). This could ease the flow understanding as those requests are received in a known test stage.
+
+<u>Special **purge** state</u>:  stateful scenarios normally require access to former events (available at server data storage) to evolve through different provisions, so disabling server data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that server data related to an event history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
 
 ##### requestMethod
 
@@ -1400,10 +1470,10 @@ The **source** of information is classified after parsing the following possible
 
   - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
   - `<var id prefix>`.uri: event *URI* selected.
-  - `<var id prefix>`.number: position selected (*1..N*) within events requests list.
+  - `<var id prefix>`.number: position selected (*1..N*; *-1 for last*) within events requests list.
   - `<var id prefix>`.path: `json` document path within selection.
 
-  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `body` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
+  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `requestBody` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
 
   <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
 
@@ -1449,7 +1519,7 @@ The **source** of information is classified after parsing the following possible
 
   ​	`ev1.path` = "/requestBody"
 
-  Then, the event source would store this `json` object:
+  Then, the event source (`event.ev1`) would store this `json` object:
 
   ```json
   {
@@ -1458,6 +1528,8 @@ The **source** of information is classified after parsing the following possible
     "year": 2021
   }
   ```
+
+  In the same way you could address internal event nested objects and also leaf nodes with basic types (`ev1.path` = "/requestBody/engine" would retrieve "tdi" string as the event data source).
 
 - inState: current processing state.
 
@@ -1669,6 +1741,16 @@ Filters give you the chance to make complex transformations:
 
   In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs. For more complex operations, you may use the `math` source.
 
+  This filter is also useful to sequence a subscriber number:
+
+  ```json
+  {
+    "source": "recvseq",
+    "target": "var.subscriber",
+    "filter": { "Sum" : 555000000 }
+  }
+  ```
+
 
 
 - Multiply: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):
@@ -1685,26 +1767,26 @@ Filters give you the chance to make complex transformations:
 
 
 
-- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. If the variable is not defined, the condition is false. All the variables are strings in origin, and are converted to target selected types, but in this case the variable value is adapted as string to the boolean result following this procedure: empty string means *false*, any other situation is *true* (note that a variable containing the literal "false" would be interpreted as *true*). This decision allows to use, directly, regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter).
+- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. All the variables are strings in origin, and are converted to target selected types, but in this case the string variable value is adapted to boolean result in this way: if the variable is not defined or it is empty, the condition is *false*. It will be *true*  in the rest of cases.
 
-  ```json
-  {
-    "source": "value.500",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "transfer-500-to-status-code" }
-  }
-  ```
+  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string.
 
-  The variable used for the condition should be defined in a previous transformation, for example:
+  This behavior invite to use regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter). for example:
 
   ```json
   {
     "source": "request.body./forceErrors/internalServerError",
-    "target": "var.transfer-500-to-status-code"
+    "target": "var.internalServerError"
+  },
+  {
+    "source": "value.500",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "internalServerError" }
   }
   ```
 
-  In this example, the request body dictates the responses' status code to receive in the node path "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
+  In this example, the request body dictates the responses' status code depending on value (empty or not) received at "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
+
 
 
 
@@ -2149,7 +2231,7 @@ Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.
             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
-Usage: trace [-h|--help] <level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>; Sets h2agent tracing level.
+Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent tracing level.
 Usage: metrics [-h|--help]; Prometheus metrics.
 Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
 Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)

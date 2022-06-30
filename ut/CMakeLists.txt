@@ -11,33 +11,31 @@ set_property(TARGET ert_metrics PROPERTY IMPORTED_LOCATION /usr/local/lib/ert/li
 target_link_libraries( unit-test
 PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}
+        gtest
+        gmock
+        gtest_main
+
         h2agent-http2
         h2agent-model
         ert_logger
         ert_http2comm
         ert_metrics
 
-        boost_system   #Needed by nghttp2_asio
-        nghttp2_asio   #Needed by nghttp2
-        nghttp2
-        pthread        #Needed by boost::asio
-        ssl            #Needed by boost_system
-        crypto         #Needed by ssl, and need to be appended after ssl
-        dl             #Needed by crypto
-
         prometheus-cpp-pull
         prometheus-cpp-core
         z
 
+        boost_system   #Needed by nghttp2_asio
+        nghttp2_asio   #Needed by nghttp2
+        nghttp2
+        ssl            #Needed by boost_system
+        crypto         #Needed by ssl, and need to be appended after ssl
+        pthread        #Needed by boost::asio
+        dl             #Needed by crypto
+
         h2agent-jsonSchema
         nlohmann_json_schema_validator
 
-        #boost_thread
-        #boost_filesystem
-        #boost_system
-        gtest
-        gmock
-        gtest_main
 )
 
 add_subdirectory(jsonSchema)

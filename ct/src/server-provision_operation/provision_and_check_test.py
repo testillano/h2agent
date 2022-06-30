@@ -98,8 +98,8 @@ def test_008_i_want_to_check_fullmatchingregexreplace_on_traffic_interface(admin
 @pytest.mark.server
 def test_009_i_want_to_check_prioritymatchingregex_on_traffic_interface(admin_cleanup, admin_server_provision, h2ac_traffic):
 
-  # Cleanup and set PriorityMatchingRegex matching algorithm:
-  admin_cleanup(matchingContent={ "algorithm":"PriorityMatchingRegex" })
+  # Cleanup and set RegexMatching matching algorithm:
+  admin_cleanup(matchingContent={ "algorithm":"RegexMatching" })
 
   # Provisions
   admin_server_provision(string2dict(REGEX_FOO_BAR_PROVISION_TEMPLATE, id=55500, trailing=4))
@@ -130,7 +130,7 @@ def test_010_i_want_to_get_answer_for_default_provision_on_traffic_interface(adm
 def test_011_multiple_provisions_operation(admin_cleanup, admin_server_provision, h2ac_admin):
 
   # Provisions from scratch, and force order for provisions check:
-  admin_cleanup(matchingContent={ "algorithm":"PriorityMatchingRegex" })
+  admin_cleanup(matchingContent={ "algorithm":"RegexMatching" })
 
   provisions = [{"requestMethod":"GET","requestUri":"/app/v1/foo/bar/1","responseBody":{"foo":"bar-1"},"responseCode":200,"responseHeaders":{"content-type":"text/html","x-version":"1.0.0"}},{"requestMethod":"GET","requestUri":"/app/v1/foo/bar/2","responseBody":{"foo":"bar-2"},"responseCode":200,"responseHeaders":{"content-type":"text/html","x-version":"1.0.0"}}]
   admin_server_provision(provisions, responseBodyRef=VALID_PROVISIONS__RESPONSE_BODY)

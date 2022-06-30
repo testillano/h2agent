@@ -396,34 +396,63 @@ bool Transformation::load(const nlohmann::json &j) {
         return false;
     }
 
-
-    LOGDEBUG(
-        std::stringstream ss;
-
-        ss << "TRANSFORMATION| source_type_: " << source_type_ << " (RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState)"
-        << " | source_: " << source_ << " (RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, Math, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event)"
-        << " | source_i1_: " << source_i1_ << " (GeneralRandom min)"
-        << " | source_i2_: " << source_i2_ << " (GeneralRandom max)"
-        << " | target_type_: " << target_type_ << " (ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState)"
-        << " | target_: " << target_ << " (ResponseBodyString/Number/Unsigned/Float/Boolean/Object(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState(empty: current method, method: another))"
-        << " | target2_: " << target2_ << " (OutState(empty: current uri, uri: another))";
-
-    if (has_filter_) {
-
-    ss << " |FILTER| filter_type_: " << filter_type_ << " (RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar)"
-       /*<< " | filter_rgx_: ?"*/
-       << " | filter_ " << filter_ << " (RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar)"
-       << " | filter_number_type_ for Sum/Multiply: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
-       << " | filter_i_: " << filter_i_ << " (Sum, Multiply)"
-       << " | filter_u_: " << filter_u_ << " (Sum, Multiply)"
-       << " | filter_f_: " << filter_f_ << " (Sum, Multiply)";
-}
-
-ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
-
-);
+    //LOGDEBUG(ert::tracing::Logger::debug(asString(), ERT_FILE_LOCATION));
 
     return true;
+}
+
+std::string Transformation::asString() const {
+
+    std::stringstream ss;
+
+
+    // SOURCE
+    ss << "SourceType: " << SourceTypeAsText(source_type_);
+    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::GeneralUnique && source_type_ != SourceType::InState) {
+        ss << " | source_: " << source_;
+
+        if (source_type_ == SourceType::RequestBody || source_type_ == SourceType::ResponseBody) {
+            ss << " (empty: whole, path: node)";
+        }
+        else if (source_type_ == SourceType::GeneralRandom) {
+            ss << " | source_i1_: " << source_i1_ << " (GeneralRandom min)" << " | source_i2_: " << source_i2_ << " (GeneralRandom max)";
+        }
+    }
+
+    // TARGET
+    ss << " | TargetType: " << TargetTypeAsText(target_type_);
+    if (target_type_ != TargetType::ResponseStatusCode && target_type_ != TargetType::ResponseDelayMs) {
+        ss << " | target_: " << target_;
+
+        if (target_type_ == TargetType::ResponseBodyString || target_type_ == TargetType::ResponseBodyInteger || target_type_ == TargetType::ResponseBodyUnsigned || target_type_ == TargetType::ResponseBodyFloat || target_type_ == TargetType::ResponseBodyBoolean || target_type_ == TargetType::ResponseBodyObject) {
+            ss << " (empty: whole, path: node)";
+        }
+        else if (target_type_ == TargetType::OutState) {
+            ss << " (empty: current method, method: another)" << " | target2_: " << target2_ << "(empty: current uri, uri: another)";
+        }
+    }
+
+    // FILTER
+    if (has_filter_) {
+        ss << " | FilterType: " << FilterTypeAsText(filter_type_);
+        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply) {
+            /*<< " | filter_rgx_: ?"*/
+            ss << " | filter_ " << filter_;
+
+            if (filter_type_ == FilterType::RegexReplace) {
+                ss << " (fmt)";
+            }
+            else if (filter_type_ == FilterType::RegexCapture) {
+                ss << " (literal, although not actually needed, but useful to access & print on traces)";
+            }
+        }
+        else {
+            ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
+               << " | filter_i_: " << filter_i_ << " | filter_u_: " << filter_u_ << " | filter_f_: " << filter_f_;
+        }
+    }
+
+    return ss.str();
 }
 
 

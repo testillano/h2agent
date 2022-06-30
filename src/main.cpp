@@ -142,7 +142,6 @@ void stopAgent()
         timersIoService->stop();
         //delete(timersIoService);
     }
-
     if (myAdminHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
@@ -158,7 +157,7 @@ void stopAgent()
     }
 }
 
-void _exit(int rc)
+void myExit(int rc)
 {
     LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Terminating with exit code %d", rc), ERT_FILE_LOCATION));
 
@@ -173,7 +172,7 @@ void _exit(int rc)
 void sighndl(int signal)
 {
     LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Signal received: %d", signal), ERT_FILE_LOCATION));
-    _exit(EXIT_FAILURE);
+    myExit(EXIT_FAILURE);
 }
 
 ////////////////////////////
@@ -220,8 +219,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  into account other process threads considered busy.\n\n"
 
        << "[-t|--traffic-server-threads <threads>]\n"
-       << "  Number of nghttp2 traffic server threads; defaults to 1 (1 connection)\n"
-       << "  (admin server always uses 1 nghttp2 thread). This option is exploited\n"
+       << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
+       << "  (admin server hardcodes 2 nghttp2 threads). This option is exploited\n"
        << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
@@ -278,7 +277,7 @@ void usage(int rc, const std::string &errorMessage = "")
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-port <port>]\n"
-       << "  Prometheus <port>; defaults to 8080 (-1 to disable metrics).\n\n"
+       << "  Prometheus <port>; defaults to 8080.\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
@@ -291,6 +290,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n\n"
        //<< "  This affects to both mock 'server internal/client external' message size values,\n"
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+
+       << "[--disable-metrics]\n"
+       << "  Disables prometheus scrape port (enabled by default).\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -306,7 +308,7 @@ void usage(int rc, const std::string &errorMessage = "")
         ss << errorMessage << '\n';
     }
 
-    _exit(rc);
+    myExit(rc);
 }
 
 int toNumber(const std::string& value)
@@ -350,6 +352,8 @@ int main(int argc, char* argv[])
 
     progname = basename(argv[0]);
 
+    ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
+
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
     std::string bind_address = "";
@@ -358,7 +362,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
-    int traffic_server_threads = 1;
+    int traffic_server_threads = 2;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
@@ -374,6 +378,7 @@ int main(int argc, char* argv[])
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
+    bool disable_metrics = false;
     ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
     ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
 
@@ -531,12 +536,20 @@ int main(int argc, char* argv[])
         prometheus_message_size_bytes_histogram_boundaries = loadHistogramBoundaries(value, messageSizeBytesHistogramBucketBoundaries);
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--disable-metrics", value))
+    {
+        disable_metrics = true;
+    }
+
+    // Logger verbosity
+    ert::tracing::Logger::verbose(verbose);
+
     std::string gitVersion = h2agent::GIT_VERSION;
     if (cmdOptionExists(argv, argv + argc, "-v", value)
             || cmdOptionExists(argv, argv + argc, "--version", value))
     {
         std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
-        _exit(EXIT_SUCCESS);
+        myExit(EXIT_SUCCESS);
     }
 
     // Secure options
@@ -602,8 +615,10 @@ int main(int argc, char* argv[])
         std::cout << "Traffic server provision configuration file: " << ((traffic_server_provision_file != "") ? traffic_server_provision_file : "<not provided>") << '\n';
     }
 
-    if (prometheus_port != "-1") {
-
+    if (disable_metrics) {
+        std::cout << "Metrics (prometheus): disabled" << '\n';
+    }
+    else {
         std::cout << "Prometheus bind address: " << bind_address_prometheus_exposer << '\n';
         std::cout << "Prometheus port: " << prometheus_port << '\n';
         if (!responseDelaySecondsHistogramBucketBoundaries.empty()) {
@@ -613,34 +628,28 @@ int main(int argc, char* argv[])
             std::cout << "Prometheus 'message size bytes' histogram boundaries: " << prometheus_message_size_bytes_histogram_boundaries << '\n';
         }
     }
-    else {
-        std::cout << "Metrics (prometheus): disabled" << '\n';
-    }
 
     // Flush:
     std::cout << std::endl;
 
-    ert::tracing::Logger::initialize(progname);
-    ert::tracing::Logger::verbose(verbose);
+    // Capture TERM/INT signals for graceful exit:
+    signal(SIGTERM, sighndl);
+    signal(SIGINT, sighndl);
 
     // Prometheus
-    ert::metrics::Metrics *p_metrics = ((prometheus_port != "-1") ? new ert::metrics::Metrics : nullptr);
+    ert::metrics::Metrics *p_metrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
     if (p_metrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {
             std::cerr << getLocaltime().c_str() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
-            _exit(EXIT_FAILURE);
+            myExit(EXIT_FAILURE);
         }
     }
 
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(1); // 1 nghttp2 server thread
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
-
-    // Capture TERM/INT signals for graceful exit:
-    signal(SIGTERM, sighndl);
-    signal(SIGINT, sighndl);
 
     timersIoService = new boost::asio::io_service();
     std::thread tt([&] {
@@ -764,14 +773,14 @@ int main(int argc, char* argv[])
     });
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for rc1/rc2 update from threads
-    if (rc1 != EXIT_SUCCESS) _exit(rc1);
-    if (rc2 != EXIT_SUCCESS) _exit(rc2);
+    if (rc1 != EXIT_SUCCESS) myExit(rc1);
+    if (rc2 != EXIT_SUCCESS) myExit(rc2);
 
     // Join threads
     tt.join();
     t1.join();
     t2.join();
 
-    _exit(EXIT_SUCCESS);
+    myExit(EXIT_SUCCESS);
 }
 

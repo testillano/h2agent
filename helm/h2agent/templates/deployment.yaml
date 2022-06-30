@@ -83,6 +83,9 @@ spec:
             - "--prometheus-message-size-bytes-histogram-boundaries"
             - {{ .Values.h2agent_cl.prometheus_message_size_bytes_histogram_boundaries | quote }}
             {{- end }}
+            {{- if not .Values.h2agent_cl.metrics.enabled }}
+            - "--disable-metrics"
+            {{- end }}
 
           # livenessProbe & readinessProbe look for admin port, as main app is
           #  blocking on startup and will restart the container in case of crash.

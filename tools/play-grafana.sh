@@ -7,7 +7,8 @@ REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
 
 NAMESPACE="ns-h2agent-grafana"
-SCRAPE_PORT=8080
+SCRAPE_PORT=$(kubectl get service -n ns-ct-h2agent -l app.kubernetes.io/name=h2agent -o=jsonpath='{.items[0].spec.ports[?(@.name=="http-metrics")].port}')
+SCRAPE_PORT=${SCRAPE_PORT:-8080}
 PM_PORT=9090
 GF_PORT=3000
 

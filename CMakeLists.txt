@@ -66,7 +66,7 @@ set_cmake_compiler_flags()
 ## We will point to a lighter repository to speed up the process:
 #FetchContent_Declare(nlohmann_json
 #  GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
-#  GIT_TAG v3.9.1)
+#  GIT_TAG v3.10.5)
 #message(STATUS  "Fetching nlohmann_json ... this may take a while")
 #FetchContent_GetProperties(nlohmann_json)
 #

@@ -81,6 +81,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
+    std::atomic<int> max_busy_threads_{0};
+
 public:
     MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
     ~MyTrafficHttp2Server();
@@ -102,7 +104,7 @@ public:
     bool checkHeaders(const nghttp2::asio_http2::server::request& req);
 
     void receive(const nghttp2::asio_http2::server::request& req,
-                 const std::string& requestBody,
+                 std::shared_ptr<std::stringstream> requestBody,
                  const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);

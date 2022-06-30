@@ -105,7 +105,7 @@ public:
     /**
     * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
     * know if current state exists for the reception.
-    * The algorithm is PriorityMatchingRegex, so ordered search is applied.
+    * The algorithm is RegexMatching, so ordered search is applied.
     *
     * @param inState Request input state if proceeed
     * @param method Request method received
@@ -113,7 +113,7 @@ public:
     *
     * @return Provision information or null if missing
     */
-    std::shared_ptr<AdminServerProvision> findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const;
+    std::shared_ptr<AdminServerProvision> findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const;
 
     /**
     * Gets provision schema
@@ -124,7 +124,7 @@ public:
 
 private:
 
-    std::vector<admin_server_provision_key_t> ordered_keys_{}; // this is used to keep the insertion order which shall be used in PriorityMatchingRegex algorithm
+    std::vector<admin_server_provision_key_t> ordered_keys_{}; // this is used to keep the insertion order which shall be used in RegexMatching algorithm
     h2agent::jsonschema::JsonSchema server_provision_schema_{};
 
     LoadResult loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured);

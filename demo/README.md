@@ -71,7 +71,7 @@ These are the **specifications**:
 
 ## Analysis
 
-As we need to identify bad *URI's*, we will use the matching algorithm <u>*PriorityMatchingRegex*</u>, including firstly the known registers, then the "valid but unassigned" ones, and finally a fall back default provision for `GET` method with the *bad request (400)* configuration.
+As we need to identify bad *URI's*, we will use the matching algorithm <u>*RegexMatching*</u>, including firstly the known registers, then the "valid but unassigned" ones, and finally a fall back default provision for `GET` method with the *bad request (400)* configuration.
 
 Note that regular expression *URI's*, <u>MUST ESCAPE</u> slashes and question marks:
 

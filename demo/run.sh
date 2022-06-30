@@ -26,7 +26,7 @@ cd $(dirname $0)
 TMPDIR=$(mktemp -d)
 trap "rm -rf ${TMPDIR}" EXIT
 
-# Load test functions:
+# Load common resources:
 source ../tools/common.src
 
 echo
@@ -45,10 +45,10 @@ test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
 EXPECTED_STATUS_CODES=201
-CURL_OPTS="-d'{ \"algorithm\":\"PriorityMatchingRegex\" }' -H \"content-type: application/json\""
+CURL_OPTS="-d'{ \"algorithm\":\"RegexMatching\" }' -H \"content-type: application/json\""
 test_query "Step 1. Server matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
 
-EXPECTED_RESPONSE="{\"algorithm\":\"PriorityMatchingRegex\"}"
+EXPECTED_RESPONSE="{\"algorithm\":\"RegexMatching\"}"
 EXPECTED_STATUS_CODES=200
 test_query "Step 2. Check server matching configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
 

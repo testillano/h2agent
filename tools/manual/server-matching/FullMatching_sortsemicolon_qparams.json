@@ -1,4 +1,7 @@
 {
   "algorithm":"FullMatching",
-  "uriPathQueryParametersFilter":"SortSemicolon"
+  "uriPathQueryParameters": {
+    "filter":"Sort",
+    "separator":"Semicolon"
+  }
 }

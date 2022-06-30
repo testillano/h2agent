@@ -60,10 +60,10 @@ menu() {
   case ${MENU_STATE} in
     ConfigureMatching) pdir=server-matching ; operation=server-matching ;;
     ConfigureProvision) pdir=tests ; operation=server-provision ;;
-    TestTraffic) pdir=tests ;;
+    TestTraffic) pdir=tests ; operation=server-data ;;
   esac
 
-  local files=( $(ls -1 ${pdir}/* 2>/dev/null) )
+  local files=( $(find ${pdir} -not -path '*/.*' -type f 2>/dev/null) )
   local action=$(echo ${MENU_STATE} | sed 's/[A-Z]/ \L&/g')
 
   echo
@@ -76,7 +76,8 @@ menu() {
     count=$((count+1))
   done
   echo
-  [ "${MENU_STATE}" = "ConfigureProvision" ] && echo " r. Reset"
+  [ "${MENU_STATE}" = "ConfigureProvision" ] && echo " d. Delete provisions"
+  [ "${MENU_STATE}" = "TestTraffic" ] && echo " d. Delete server data"
   echo " s. Skip"
   echo " 0. Exit"
   echo
@@ -89,13 +90,24 @@ menu() {
   [ "${opt}" = "0" ] && exit 0
   [ "${opt}" = "s" ] && nextState && return 0
 
-  if [ "${MENU_STATE}" = "ConfigureProvision" -a "${opt}" = "r" ]
+  if [ "${opt}" = "d" ]
   then
-    echo "Press ENTER to confirm deletion for provisions and internal data ..."
-    read -r dummy
-    curl -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}s
-    echo "Done !"
-    return 0
+    if [ "${MENU_STATE}" = "ConfigureProvision" ]
+    then
+      echo "Press ENTER to confirm deletion for provisions ..."
+      read -r dummy
+      curl -i -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}
+      echo "Done !"
+      return 0
+    fi
+    if [ "${MENU_STATE}" = "TestTraffic" ]
+    then
+      echo "Press ENTER to confirm deletion for server data ..."
+      read -r dummy
+      curl -i -XDELETE --http2-prior-knowledge http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}
+      echo "Done !"
+      return 0
+    fi
   fi
 
   local file
@@ -109,14 +121,15 @@ menu() {
   [ -z "${file}" ] && echo "Invalid option" && return 0
   local dataFile=$(dirname ${file})/.$(basename ${file})
   cp ${file} ${dataFile} # default for server-matching
-  [ "${MENU_STATE}" = "ConfigureProvision" ] && { cat ${file}; OPT__DFLT=${opt}; }
+  [ "${MENU_STATE}" = "ConfigureProvision" ] && OPT__DFLT=${opt}
 
   if [ "${MENU_STATE}" != "ConfigureMatching" ]
   then
     dataFile+=".json"
-    sed -n '/^PROVISION/,/^REQUEST_BODY/p' ${file} | grep -vE '^PROVISION|^REQUEST_BODY' | sed '/^$/d' > ${dataFile} # provision
+    sed -n '/^SERVER_PROVISION/,/^REQUEST_BODY/p' ${file} | grep -vE '^SERVER_PROVISION|^REQUEST_BODY' | sed '/^$/d' > ${dataFile} # provision
     local method=$(jq -r '.requestMethod' ${dataFile})
     local uri=$(jq -r '.requestUri' ${dataFile})
+    [ "${MENU_STATE}" = "ConfigureProvision" ] && echo -e "\nProvision planned:" && cat ${dataFile}
   fi
 
   if [ "${MENU_STATE}" = "TestTraffic" ]
@@ -138,24 +151,29 @@ menu() {
     echo "Method:         ${method}"
     echo "Uri:            ${uri}"
     echo "Headers:        ${headers}"
-    echo "Curl data Opts: ${curlDataOpt}"
+    [ -s "${dataFile}" ] && echo "Request body:" && cat ${dataFile}
     echo
     echo "Press ENTER to test traffic, CTRL-C to abort ..."
     read -r dummy
     set -x
     curl -i -X${method} --http2-prior-knowledge ${curlDataOpt} ${headers} http://${H2AGENT_TRAFFIC_ENDPOINT}${uri}
     set +x
-    echo "Press ENTER to continue ..."
-    read -r dummy
   else
-    echo
-    echo "Press ENTER to confirm, CTRL-C to abort ..."
-    read -r dummy
+    if [ "${MENU_STATE}" = "ConfigureProvision" ]
+      then
+      echo
+      echo "Press ENTER to confirm, CTRL-C to abort ..."
+      read -r dummy
+    fi
     # -XPOST not necessary (already inferred)
     set -x
     curl -i --http2-prior-knowledge -d @${dataFile} -H "content-type: application/json" http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/${operation}
     set +x
   fi
+
+  echo
+  echo "Press ENTER to continue ..."
+  read -r dummy
 
   nextState
 }

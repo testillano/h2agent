@@ -18,8 +18,8 @@
 // Matching configuration:
 const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({ "algorithm": "FullMatching" })"_json;
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__Success = R"({ "algorithm": "FullMatchingRegexReplace", "rgx":"([0-9]{3})-([a-z]{2})-foo-bar", "fmt":"$1"})"_json;
-const nlohmann::json MatchingConfiguration_PriorityMatchingRegex__Success = R"({ "algorithm": "PriorityMatchingRegex" })"_json;
-//const nlohmann::json MatchingConfiguration_uriPathQueryParametersFilter__Success4 = R"({ "algorithm": "FullMatching", "uriPathQueryParametersFilter":"Ignore" })"_json;
+const nlohmann::json MatchingConfiguration_RegexMatching__Success = R"({ "algorithm": "RegexMatching" })"_json;
+//const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success4 = R"({ "algorithm": "FullMatching", "uriPathQueryParameters":{"filter":"Ignore"} })"_json;
 
 // https://www.geeksforgeeks.org/raw-string-literal-c/
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
@@ -297,7 +297,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
 
     std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision);
-    //auto provision = Transform_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
     provision->setMockServerEventsData(events_data_); // could be used by event source
     provision->setGlobalVariable(global_variable_);
 
@@ -307,7 +307,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters("name=test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::string requestBody = request.dump();
+    std::shared_ptr<std::stringstream> requestBody = std::make_shared<std::stringstream>(request.dump());
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
@@ -358,7 +358,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "math-calculation": 19
     }
     )"_json;
-    for(auto i: { "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {
+    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {
         expectedJson[i] = assertedJson[i];
     }
     EXPECT_EQ(assertedJson, expectedJson);
@@ -375,7 +375,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
 
     std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/2?name=test");
     ASSERT_TRUE(provision);
-    //auto provision = Transform_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
     provision->setMockServerEventsData(events_data_); // could be used by event source
     provision->setGlobalVariable(global_variable_);
 
@@ -387,7 +387,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(qmap["name"], "test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::string requestBody = request.dump();
+    std::shared_ptr<std::stringstream> requestBody = std::make_shared<std::stringstream>(request.dump());
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});

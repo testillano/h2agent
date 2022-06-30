@@ -97,7 +97,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::map<std::string, std::string> &requestQueryParametersMap,
         bool requestBodyJsonOrString,
         const nlohmann::json &requestBodyJson, // if json
-        const std::string &requestBody, // if string
+        std::shared_ptr<std::stringstream> requestBody, // if string
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -132,7 +132,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             }
         }
         else {
-            sourceVault.setString(requestBody);
+            sourceVault.setString(requestBody->str());
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
@@ -685,7 +685,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 void AdminServerProvision::transform( const std::string &requestUri,
                                       const std::string &requestUriPath,
                                       const std::map<std::string, std::string> &requestQueryParametersMap,
-                                      const std::string &requestBody,
+                                      std::shared_ptr<std::stringstream> requestBody,
                                       const nghttp2::asio_http2::header_map &requestHeaders,
                                       std::uint64_t generalUniqueServerSequence,
 
@@ -719,6 +719,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
             return std::tolower(c);
         });
         requestBodyJsonOrString = (ct == "application/json"); // still need to check if it is a valid json
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("CONTENT TYPE: %s", ct.c_str()), ERT_FILE_LOCATION));
+        //LOGINFORMATIONAL(if (!requestBodyJsonOrString) ert::tracing::Logger::informational("Request body won't be interpreted as json", ERT_FILE_LOCATION));
     }
 
     // Find out if request body will need to be parsed:
@@ -731,7 +733,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         else {
             for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
                 if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                    if (!requestBody.empty()) {
+                    if (requestBody->rdbuf()->in_avail()) {
                         requestBodyJsonRequired = true;
                     }
                     else {
@@ -744,7 +746,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         if (requestBodyJsonRequired) {
             // if fails to parse, we will consider it as an string ignoring the content-type:
-            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
+            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody->str(), requestBodyJson);
         }
     }
 
@@ -796,6 +798,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         auto transformation = (*it);
         bool eraser = false;
+
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
@@ -925,13 +929,13 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRe
     calculateAdminServerProvisionKey(key_, in_state_, request_method_, request_uri_);
 
     if (priorityMatchingRegexConfigured) {
-        // Precompile regex with key, only for 'PriorityMatchingRegex' algorithm:
+        // Precompile regex with key, only for 'RegexMatching' algorithm:
         try {
             regex_.assign(key_, std::regex::optimize);
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-            ert::tracing::Logger::error("Invalid regular expression (detected when joining 'inState' and/or 'requestUri' from provision) for current 'PriorityMatchingRegex' server matching algorithm", ERT_FILE_LOCATION);
+            ert::tracing::Logger::error("Invalid regular expression (detected when joining 'inState' and/or 'requestUri' from provision) for current 'RegexMatching' server matching algorithm", ERT_FILE_LOCATION);
             return false;
         }
     }

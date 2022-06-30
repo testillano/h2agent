@@ -19,7 +19,7 @@ def test_001_i_want_to_provision_a_set_of_requests_on_admin_interface(admin_serv
 def test_002_i_want_to_retrieve_current_provisions_on_admin_interface(admin_server_matching, h2ac_admin):
 
   # Configure to have provisions ordered:
-  admin_server_matching({ "algorithm":"PriorityMatchingRegex" })
+  admin_server_matching({ "algorithm":"RegexMatching" })
 
   # Send GET
   response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI)

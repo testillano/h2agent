@@ -33,6 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <cinttypes> // PRIi64, etc.
 
 #include <ert/tracing/Logger.hpp>
 
@@ -76,6 +77,42 @@ void searchReplaceValueVariables(const std::map<std::string, std::string> &varma
     }
 }
 
+
+void TypeConverter::setString(const std::string &str) {
+    clear();
+    s_value_ = str;
+    native_type_ = NativeType::String;
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("String value: %s", s_value_.c_str()), ERT_FILE_LOCATION));
+}
+
+void TypeConverter::setInteger(const std::int64_t i) {
+    clear();
+    i_value_ = i;
+    native_type_ = NativeType::Integer;
+    LOGDEBUG(std::string fmt = std::string("Integer value: %") + PRIi64; ert::tracing::Logger::debug(ert::tracing::Logger::asString(fmt.c_str(), i_value_), ERT_FILE_LOCATION));
+}
+
+void TypeConverter::setUnsigned(const std::uint64_t u) {
+    clear();
+    u_value_ = u;
+    native_type_ = NativeType::Unsigned;
+    LOGDEBUG(std::string fmt = std::string("Unsigned value: %") + PRIu64; ert::tracing::Logger::debug(ert::tracing::Logger::asString(fmt.c_str(), u_value_), ERT_FILE_LOCATION));
+}
+
+void TypeConverter::setFloat(const double f) {
+    clear();
+    f_value_ = f;
+    native_type_ = NativeType::Float;
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Float value: %lf", f_value_), ERT_FILE_LOCATION));
+}
+
+void TypeConverter::setBoolean(bool boolean) {
+    clear();
+    b_value_ = boolean;
+    native_type_ = NativeType::Boolean;
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false"), ERT_FILE_LOCATION));
+}
+
 void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables) {
 
     setString(str);
@@ -95,10 +132,15 @@ const std::string &TypeConverter::getString(bool &success) {
     else if (native_type_ == NativeType::Boolean) s_value_ = b_value_ ? "true":"false";
 
     LOGDEBUG(
-    if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get string representation for source: %s", asString().c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::string msg;
+    if (success) {
+    msg = ert::tracing::Logger::asString("String value: %s", s_value_.c_str());
     }
+    else {
+        msg = ert::tracing::Logger::asString("Unable to get string representation for source: %s", asString().c_str());
+    }
+
+    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
     return s_value_;
@@ -127,10 +169,16 @@ std::int64_t TypeConverter::getInteger(bool &success) {
     else if (native_type_ == NativeType::Boolean) i_value_ = std::int64_t(b_value_ ? 1:0);
 
     LOGDEBUG(
-    if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get integer representation for source: %s", asString().c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::string msg;
+    if (success) {
+    std::string fmt = std::string("Integer value: %") + PRIi64;
+        msg = ert::tracing::Logger::asString(fmt.c_str(), i_value_);
     }
+    else {
+        msg = ert::tracing::Logger::asString("Unable to get integer representation for source: %s", asString().c_str());
+    }
+
+    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
     return i_value_;
@@ -159,10 +207,16 @@ std::uint64_t TypeConverter::getUnsigned(bool &success) {
     else if (native_type_ == NativeType::Boolean) u_value_ = std::uint64_t(b_value_ ? 1:0);
 
     LOGDEBUG(
-    if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get unsigned integer representation for source: %s", asString().c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::string msg;
+    if (success) {
+    std::string fmt = std::string("Unsigned value: %") + PRIu64;
+        msg = ert::tracing::Logger::asString(fmt.c_str(), u_value_);
     }
+    else {
+        msg = ert::tracing::Logger::asString("Unable to get unsigned integer representation for source: %s", asString().c_str());
+    }
+
+    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
     return u_value_;
@@ -191,10 +245,15 @@ double TypeConverter::getFloat(bool &success) {
     else if (native_type_ == NativeType::Boolean) f_value_ = double(b_value_ ? 1:0);
 
     LOGDEBUG(
-    if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get float number representation for source: %s", asString().c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::string msg;
+    if (success) {
+    msg = ert::tracing::Logger::asString("Float value: %lf", f_value_);
     }
+    else {
+        msg = ert::tracing::Logger::asString("Unable to get float number representation for source: %s", asString().c_str());
+    }
+
+    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
     return f_value_;
@@ -213,10 +272,15 @@ bool TypeConverter::getBoolean(bool &success) {
     else if (native_type_ == NativeType::Float) b_value_ = ((f_value_ != (double)0) ? true:false);
 
     LOGDEBUG(
-    if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get boolean representation for source: %s", asString().c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::string msg;
+    if (success) {
+    msg = ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false");
     }
+    else {
+        msg = ert::tracing::Logger::asString("Unable to get boolean representation for source: %s", asString().c_str());
+    }
+
+    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
     return b_value_;
@@ -227,10 +291,15 @@ const nlohmann::json &TypeConverter::getObject(bool &success) {
     success = (native_type_ == NativeType::Object);
 
     LOGDEBUG(
-    if (!success) {
-    std::string msg = ert::tracing::Logger::asString("Unable to get json object from source: %s", asString().c_str());
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        std::string msg;
+    if (success) {
+    msg = ert::tracing::Logger::asString("Json object value: %s", j_value_.dump().c_str());
     }
+    else {
+        msg = ert::tracing::Logger::asString("Unable to get json object from source: %s", asString().c_str());
+    }
+
+    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
     return j_value_;
@@ -248,6 +317,12 @@ void TypeConverter::clear() {
 
 bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::string &path) {
     clear();
+
+    LOGDEBUG(
+        std::string msg = ert::tracing::Logger::asString("Json path: %s | Json object: %s", path.c_str(), jsonSource.dump().c_str());
+        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+    );
+
     try {
         nlohmann::json::json_pointer j_ptr(path);
         // operator[] aborts in debug compilation when the json pointer path is not found.

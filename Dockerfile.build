@@ -8,9 +8,9 @@ WORKDIR /code/build
 
 ARG make_procs=4
 ARG build_type=Release
-ARG nlohmann_json_ver=v3.9.1
+ARG nlohmann_json_ver=v3.10.5
 ARG pboettch_jsonschemavalidator_ver=2.1.0
-ARG google_test_ver=v1.10.0
+ARG google_test_ver=v1.11.0
 ARG arashpartow_exprtk=0.0.1
 
 RUN apk update && apk add \
@@ -28,7 +28,7 @@ RUN set -x && \
     wget https://github.com/pboettch/json-schema-validator/archive/${pboettch_jsonschemavalidator_ver}.tar.gz && \
     tar xvf ${pboettch_jsonschemavalidator_ver}.tar.gz && cd json-schema-validator*/ && mkdir build && cd build && \
     cmake .. && make -j${make_procs} && make install && \
-    cd .. && rm -rf * && \
+    cd ../.. && rm -rf * && \
     set +x
 
 # google test framework

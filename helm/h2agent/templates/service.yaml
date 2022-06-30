@@ -4,6 +4,10 @@ metadata:
   name: {{ include "h2agent.name" . }}
   labels:
     {{- include "h2agent.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/path: metrics
+    prometheus.io/port: {{ .Values.service.prometheus_port | quote }}
+    prometheus.io/scrape: {{ .Values.h2agent_cl.metrics.enabled | quote }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -15,10 +19,12 @@ spec:
       targetPort: {{ .Values.service.traffic_port }}
       protocol: TCP
       name: http2-traffic
+    {{- if .Values.h2agent_cl.metrics.enabled }}
     - port: {{ .Values.service.prometheus_port }}
       targetPort: {{ .Values.service.prometheus_port }}
       protocol: TCP
       name: http-metrics
+    {{- end }}
   selector:
     {{- include "h2agent.selectorLabels" . | nindent 4 }}
   publishNotReadyAddresses: true
