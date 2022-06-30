@@ -91,7 +91,7 @@ const nlohmann::json server_matching = R"(
   "properties": {
     "algorithm": {
       "type": "string",
-        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex"]
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex", "RegexMatching"]
     },
     "rgx": {
       "type": "string"

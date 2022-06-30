@@ -351,7 +351,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = 200;
     }
     else if (pathSuffix == "server-provision") {
-        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::PriorityMatchingRegex);
+        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
         responseBody = admin_data_->getProvisionData().asJsonString(ordered);
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }

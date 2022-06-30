@@ -226,13 +226,16 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         );
         provision = provisionData.find(inState, method, transformedUri);
     }
-    else if (algorithmType == h2agent::model::AdminServerMatchingData::PriorityMatchingRegex) {
+    else if (algorithmType == h2agent::model::AdminServerMatchingData::RegexMatching) {
 
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Searching 'PriorityMatchingRegex' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uri.c_str(), inState.c_str());
+            std::string msg = ert::tracing::Logger::asString("Searching 'RegexMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-        provision = provisionData.findWithPriorityMatchingRegex(inState, method, uri);
+
+        // as provision key is built combining inState, method and uri fields, a regular expression could also be provided for inState
+        //  (method is strictly checked). TODO could we avoid this rare and unpredictable usage ?
+        provision = provisionData.findRegexMatching(inState, method, uri);
     }
 
     // Fall back to possible default provision (empty URI):

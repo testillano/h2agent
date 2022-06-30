@@ -133,12 +133,16 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
         }
         algorithm_ = FullMatchingRegexReplace;
     }
-    else if (*algorithm_it == "PriorityMatchingRegex") {
+    else if (*algorithm_it == "RegexMatching" || *algorithm_it == "PriorityMatchingRegex") {
         if (hasRgx || hasFmt) {
-            ert::tracing::Logger::error("PriorityMatchingRegex does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
+            ert::tracing::Logger::error("RegexMatching does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
             return BadContent;
         }
-        algorithm_ = PriorityMatchingRegex;
+        if (*algorithm_it == "PriorityMatchingRegex") {
+            LOGWARNING(ert::tracing::Logger::warning("'PriorityMatchingRegex' classification algorithm is deprecated. Use 'RegexMatching' instead.", ERT_FILE_LOCATION));
+            json_["algorithm"] = "RegexMatching";
+        }
+        algorithm_ = RegexMatching;
     }
 
 

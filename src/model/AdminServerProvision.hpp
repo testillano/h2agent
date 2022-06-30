@@ -77,7 +77,7 @@ class AdminServerProvision
     nlohmann::json json_{}; // provision reference
 
     admin_server_provision_key_t key_{}; // calculated in every load()
-    std::regex regex_{}; // precompile key as possible regex for PriorityMatchingRegex algorithm
+    std::regex regex_{}; // precompile key as possible regex for RegexMatching algorithm
 
     // Cached information:
     std::string request_method_{};
