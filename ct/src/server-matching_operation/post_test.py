@@ -17,7 +17,7 @@ def test_001_i_want_to_identify_wrong_schema_for_server_matching_operation_on_ad
 def test_002_i_want_to_identify_wrong_content_for_server_matching_operation_on_admin_interface(admin_server_matching):
 
   admin_server_matching({ "algorithm":"FullMatching", "rgx":"whatever", "fmt":"whatever" }, responseBodyRef = INVALID_MATCHING_DATA__RESPONSE_BODY, responseStatusRef = 400)
-  admin_server_matching({ "algorithm":"PriorityMatchingRegex", "rgx":"whatever", "fmt":"whatever" }, responseBodyRef = INVALID_MATCHING_DATA__RESPONSE_BODY, responseStatusRef = 400)
+  admin_server_matching({ "algorithm":"RegexMatching", "rgx":"whatever", "fmt":"whatever" }, responseBodyRef = INVALID_MATCHING_DATA__RESPONSE_BODY, responseStatusRef = 400)
   admin_server_matching({ "algorithm":"FullMatchingRegexReplace" }, responseBodyRef = INVALID_MATCHING_DATA__RESPONSE_BODY, responseStatusRef = 400)
 
 

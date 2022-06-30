@@ -929,13 +929,13 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRe
     calculateAdminServerProvisionKey(key_, in_state_, request_method_, request_uri_);
 
     if (priorityMatchingRegexConfigured) {
-        // Precompile regex with key, only for 'PriorityMatchingRegex' algorithm:
+        // Precompile regex with key, only for 'RegexMatching' algorithm:
         try {
             regex_.assign(key_, std::regex::optimize);
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-            ert::tracing::Logger::error("Invalid regular expression (detected when joining 'inState' and/or 'requestUri' from provision) for current 'PriorityMatchingRegex' server matching algorithm", ERT_FILE_LOCATION);
+            ert::tracing::Logger::error("Invalid regular expression (detected when joining 'inState' and/or 'requestUri' from provision) for current 'RegexMatching' server matching algorithm", ERT_FILE_LOCATION);
             return false;
         }
     }

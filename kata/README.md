@@ -44,7 +44,7 @@ Exercises documentation links:
 
 [2 Matching Algorithms II (FullMatchingRegexReplace)](./02.Matching_Algorithms_II___FullMatchingRegexReplace/README.md)
 
-[3 Matching Algorithms III (PriorityMatchingRegex)](./03.Matching_Algorithms_III__PriorityMatchingRegex/README.md)
+[3 Matching Algorithms III (RegexMatching)](./03.Matching_Algorithms_III__RegexMatching/README.md)
 
 [4 Capture Regular Expression](./04.Capture_Regular_Expression/README.md)
 

@@ -1062,7 +1062,7 @@ You can swap this algorithm safely keeping the existing provisions without side-
   "properties": {
     "algorithm": {
       "type": "string",
-        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex"]
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex", "RegexMatching"]
     },
     "rgx": {
       "type": "string"
@@ -1108,9 +1108,19 @@ Optional arguments used in `FullMatchingRegexReplace` algorithm.
 
 ##### algorithm
 
+There are three classification algorithms. Two of them classify the traffic by single identification of the provision key (`method`, `uri` and `inState`): `FullMatching` matches directly, and `FullMatchingRegexReplace` matches directly after transformation. The other one, `RegexMatching` is not matching by identification but for regular expression.
+
+Although we will explain them in detail, in summary we could consider those algorithms depending on the use cases tested:
+
+* `FullMatching`: when <u>all</u> the *method/URIs* are completely <u>predictable</u>.
+
+* `FullMatchingRegexReplace`: when <u>some</u> *URIs* should be <u>transformed</u> to get <u>predictable</u> ones (for example, timestamps trimming, variables in path or query parameters, etc.), and <u>other</u> *URIs* are disjoint with them, but also <u>predictable</u>.
+
+* `RegexMatching`: when we have an <u>mix</u> of <u>unpredictable</u> *URIs* in our test plan.
+
 ###### FullMatching
 
-Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
+Arguments `rgx`and `fmt` are not used here, so not allowed. The incoming request is fully translated into key without any manipulation, and then searched in internal provision map.
 
 This is the default algorithm. Internal provision is stored in a map indexed with real requests information to compose an aggregated key (normally containing the requests *method* and *URI*, but as future proof, we could add `expected request` fingerprint). Then, when a request is received, the map key is calculated and retrieved directly to be processed.
 
@@ -1118,7 +1128,9 @@ This algorithm is very good and easy to use for predictable functional tests (as
 
 ###### FullMatchingRegexReplace
 
-Both `rgx` and `fmt` arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. For example, you could trim an *URI* received in different ways:
+Both `rgx` and `fmt` arguments are required. This algorithm is based in [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) transformation. The first one (*rgx*) is the matching regular expression, and the second one (*fmt*) is the format specifier string which defines the transformation. Previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation due to the filter step.
+
+For example, you could trim an *URI* received in different ways:
 
 `URI` example:
 
@@ -1140,13 +1152,17 @@ rgx = "(/ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
-So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used. Also, `regex-replace` could act as a direct *full matching* algorithm when no replacements are possible, so it can be used as a fall back to cover non-strictly matched receptions.
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
 
-The previous *full matching* algorithm could be simulated here using empty strings for `rgx` and `fmt`, but having obviously a performance degradation.
+Also, `regex-replace` could act as a virtual *full matching* algorithm when the transformation fails (the result will be the original tested key), because it can be used as a <u>fall back to cover non-strictly matched receptions</u>. The limitation here is when those unmatched receptions have variable parts (it is impossible/unpractical to provision all the possibilities). So, this fall back has sense to provision constant reception keys (fixed and predictable *URIs*), and of course, strict provision keys matching the result of `regex-replace` transformation on their reception keys which does not fit the other fall back ones.
 
-###### PriorityMatchingRegex
+###### RegexMatching
 
-Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user experience). This identification algorithm relies in the original provision order to match the receptions and reach the first valid occurrence. For example, consider 3 provision operations which are provided sequentially in the following order:
+Deprecates `PriorityMatchingRegex`.
+
+Arguments `rgx`and `fmt` are not used here, so not allowed. Provision keys are in this case, regular expressions to match reception keys. As we cannot search the real key in the provision map, we must check the reception sequentially against the list of regular expressions, and this is done assuming the first match as the valid one. So, this identification algorithm relies in the configured provision order to match the receptions and select the first valid occurrence.
+
+This algorithm allows to provision with priority. For example, consider 3 provision operations which are provided sequentially in the following order:
 
 1. `/ctrl/v2/id-55500[0-9]{4}/ts-[0-9]{10}`
 2. `/ctrl/v2/id-5551122[0-9]{2}/ts-[0-9]{10}`
@@ -1154,7 +1170,7 @@ Arguments `rgx`and `fmt` are not used here, so not allowed (to enforce user expe
 
 If the `URI` "*/ctrl/v2/id-555112244/ts-1615562841*" is received, the second one is the first positive match and then, selected to mock the provisioned answer. Even being the third one more accurate, this algorithm establish an ordered priority to match the information.
 
-As provision key is built combining *inState*, *method* and *uri* fields, a regular expression could also be provided for *inState* (*method* is strictly checked), although this is not usual.
+Note: in case of large provisions, this algorithm could be not recommended (sequential iteration through provision keys is slower that map search performed in *full matching* procedures).
 
 #### Response status code
 

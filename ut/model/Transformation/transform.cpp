@@ -18,7 +18,7 @@
 // Matching configuration:
 const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({ "algorithm": "FullMatching" })"_json;
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__Success = R"({ "algorithm": "FullMatchingRegexReplace", "rgx":"([0-9]{3})-([a-z]{2})-foo-bar", "fmt":"$1"})"_json;
-const nlohmann::json MatchingConfiguration_PriorityMatchingRegex__Success = R"({ "algorithm": "PriorityMatchingRegex" })"_json;
+const nlohmann::json MatchingConfiguration_RegexMatching__Success = R"({ "algorithm": "RegexMatching" })"_json;
 //const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success4 = R"({ "algorithm": "FullMatching", "uriPathQueryParameters":{"filter":"Ignore"} })"_json;
 
 // https://www.geeksforgeeks.org/raw-string-literal-c/
@@ -297,7 +297,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
 
     std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision);
-    //auto provision = Transform_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
     provision->setMockServerEventsData(events_data_); // could be used by event source
     provision->setGlobalVariable(global_variable_);
 
@@ -375,7 +375,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
 
     std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/2?name=test");
     ASSERT_TRUE(provision);
-    //auto provision = Transform_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
     provision->setMockServerEventsData(events_data_); // could be used by event source
     provision->setGlobalVariable(global_variable_);
 

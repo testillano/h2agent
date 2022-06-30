@@ -87,7 +87,7 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         // Push the key in the map:
         admin_server_provision_key_t key = provision->getKey();
 
-        // Push the key just in case we configure ordered algorithm 'PriorityMatchingRegex'.
+        // Push the key just in case we configure ordered algorithm 'RegexMatching'.
         // So, we always have both lists available; as each algorithm finds within the proper
         // list, we don't need to drop provisions when swaping the matching mode on the fly:
         write_guard_t guard(rw_mutex_);
@@ -142,7 +142,7 @@ std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::
     return nullptr;
 }
 
-std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findWithPriorityMatchingRegex(const std::string &inState, const std::string &method, const std::string &uri) const {
+std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const {
     admin_server_provision_key_t key{};
     calculateAdminServerProvisionKey(key, inState, method, uri);
 

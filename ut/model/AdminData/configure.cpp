@@ -11,7 +11,7 @@
 // Matching configuration:
 const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({"algorithm":"FullMatching"})"_json;
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__Success = R"({"algorithm":"FullMatchingRegexReplace","rgx":"([0-9]{3})-([a-z]{2})-foo-bar","fmt":"$1"})"_json;
-const nlohmann::json MatchingConfiguration_PriorityMatchingRegex__Success = R"({"algorithm":"PriorityMatchingRegex"})"_json;
+const nlohmann::json MatchingConfiguration_RegexMatching__Success = R"({"algorithm":"RegexMatching"})"_json;
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success = R"({"algorithm":"FullMatching"})"_json; // default is Sort + Ampersand
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success2 = R"({"algorithm":"FullMatching","uriPathQueryParameters":{"filter":"Sort","separator":"Semicolon"}})"_json;
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success3 = R"({"algorithm":"FullMatching","uriPathQueryParameters":{"filter":"PassBy"}})"_json;
@@ -25,9 +25,9 @@ const nlohmann::json MatchingConfiguration_uriPathQueryParameters__BadSchema2 = 
 const nlohmann::json MatchingConfiguration_FullMatching__BadContent = R"({"algorithm":"FullMatching","rgx":"whatever"})"_json;
 const nlohmann::json MatchingConfiguration_FullMatching__BadContent2 = R"({"algorithm":"FullMatching","fmt":"whatever"})"_json;
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__BadContent = R"({"algorithm":"FullMatchingRegexReplace"})"_json;
-const nlohmann::json MatchingConfiguration_PriorityMatchingRegex__BadContent = R"({"algorithm":"PriorityMatchingRegex","rgx":"whatever"})"_json;
-const nlohmann::json MatchingConfiguration_PriorityMatchingRegex__BadContent2 = R"({"algorithm":"PriorityMatchingRegex","fmt":"whatever"})"_json;
-const nlohmann::json MatchingConfiguration_PriorityMatchingRegex__BadContent3 = R"({"algorithm":"PriorityMatchingRegex","rgx":"("})"_json;
+const nlohmann::json MatchingConfiguration_RegexMatching__BadContent = R"({"algorithm":"RegexMatching","rgx":"whatever"})"_json;
+const nlohmann::json MatchingConfiguration_RegexMatching__BadContent2 = R"({"algorithm":"RegexMatching","fmt":"whatever"})"_json;
+const nlohmann::json MatchingConfiguration_RegexMatching__BadContent3 = R"({"algorithm":"RegexMatching","rgx":"("})"_json;
 
 // Provision configuration:
 const nlohmann::json ProvisionConfiguration__Success = R"(
@@ -237,7 +237,7 @@ TEST_F(Configure_test, LoadMatching)
 
     //EXPECT_EQ(Configure_test::adata_.getMatchingData().getRgx(), re);
 
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_uriPathQueryParameters__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.getMatchingData().getUriPathQueryParametersFilter(), h2agent::model::AdminServerMatchingData::Sort);
     EXPECT_EQ(Configure_test::adata_.getMatchingData().getUriPathQueryParametersSeparator(), h2agent::model::AdminServerMatchingData::Ampersand);
@@ -253,9 +253,9 @@ TEST_F(Configure_test, LoadMatching)
     EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_FullMatching__BadContent), h2agent::model::AdminServerMatchingData::BadContent);
     EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_FullMatching__BadContent2), h2agent::model::AdminServerMatchingData::BadContent);
     EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_FullMatchingRegexReplace__BadContent), h2agent::model::AdminServerMatchingData::BadContent);
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__BadContent), h2agent::model::AdminServerMatchingData::BadContent);
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__BadContent2), h2agent::model::AdminServerMatchingData::BadContent);
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__BadContent3), h2agent::model::AdminServerMatchingData::BadContent);
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__BadContent), h2agent::model::AdminServerMatchingData::BadContent);
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__BadContent2), h2agent::model::AdminServerMatchingData::BadContent);
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__BadContent3), h2agent::model::AdminServerMatchingData::BadContent);
 }
 
 TEST_F(Configure_test, LoadProvisionSuccess)
@@ -287,8 +287,8 @@ TEST_F(Configure_test, LoadProvisionFail)
     EXPECT_EQ(Configure_test::adata_.getProvisionData().getSchema().getJson(), h2agent::adminSchemas::server_provision);
     EXPECT_FALSE(Configure_test::adata_.clearProvisions());
 
-    // Bad content due to bad regex (using PriorityMatchingRegex):
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminServerMatchingData::Success);
+    // Bad content due to bad regex (using RegexMatching):
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadProvision(ProvisionConfiguration__BadContent), h2agent::model::AdminServerProvisionData::BadContent);
     // Bad content with empty request schema id:
     EXPECT_EQ(Configure_test::adata_.loadProvision(ProvisionConfiguration__BadContent2), h2agent::model::AdminServerProvisionData::BadContent);
@@ -298,28 +298,28 @@ TEST_F(Configure_test, LoadProvisionFail)
     EXPECT_FALSE(Configure_test::adata_.clearProvisions());
 
     // Bad content array:
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadProvision(ProvisionConfiguration__BadContentArray), h2agent::model::AdminServerProvisionData::BadContent);
     EXPECT_TRUE(Configure_test::adata_.clearProvisions());
 }
 
 TEST_F(Configure_test, FindProvisionRegex)
 {
-    // Bad content only happens for PriorityMatchingRegex:
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminServerMatchingData::Success);
+    // Bad content only happens for RegexMatching:
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadProvision(ProvisionConfiguration__SuccessRegex), h2agent::model::AdminServerProvisionData::Success);
 
-    EXPECT_TRUE(Configure_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/foo/bar/123") != nullptr);
-    EXPECT_FALSE(Configure_test::adata_.getProvisionData().findWithPriorityMatchingRegex("missing", "GET", "/foo/bar/123") != nullptr);
-    EXPECT_FALSE(Configure_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "POST", "/foo/bar/123") != nullptr);
-    EXPECT_FALSE(Configure_test::adata_.getProvisionData().findWithPriorityMatchingRegex("initial", "GET", "/foo/bar/12345") != nullptr);
+    EXPECT_TRUE(Configure_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/foo/bar/123") != nullptr);
+    EXPECT_FALSE(Configure_test::adata_.getProvisionData().findRegexMatching("missing", "GET", "/foo/bar/123") != nullptr);
+    EXPECT_FALSE(Configure_test::adata_.getProvisionData().findRegexMatching("initial", "POST", "/foo/bar/123") != nullptr);
+    EXPECT_FALSE(Configure_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/foo/bar/12345") != nullptr);
     EXPECT_TRUE(Configure_test::adata_.clearProvisions());
 }
 
 TEST_F(Configure_test, FindProvision)
 {
-    // Bad content only happens for PriorityMatchingRegex:
-    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_PriorityMatchingRegex__Success), h2agent::model::AdminServerMatchingData::Success);
+    // Bad content only happens for RegexMatching:
+    EXPECT_EQ(Configure_test::adata_.loadMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadProvision(ProvisionConfiguration__Success), h2agent::model::AdminServerProvisionData::Success);
 
     EXPECT_FALSE(Configure_test::adata_.getProvisionData().find("missing", "GET", "/app/v1/foo/bar/1?name=test") != nullptr);

@@ -80,7 +80,7 @@ public:
      * @return Boolean about success operation
      */
     AdminServerProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminServerMatchingData::AlgorithmType::PriorityMatchingRegex));
+        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminServerMatchingData::AlgorithmType::RegexMatching));
     }
 
     /**
