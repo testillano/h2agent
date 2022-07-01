@@ -33,6 +33,7 @@
 ├── ssl
 │   ├── create_all.sh
 │   └── create_self-signed_certificate.sh
+├── training.sh
 └── valgrind.sh
 ```
 
@@ -50,4 +51,5 @@
 * play-grafana.sh: prometheus server and grafana deployment to provide an `h2agent` metrics front-end.
 * schemas.sh: shows all the schemas available (also requests schema if configured).
 * ssl: utilities to create certificates and test the server with tls/ssl enabled.
+* training.sh: helper to run training docker image.
 * valgrind.sh: helper to launch the application using valgrind.

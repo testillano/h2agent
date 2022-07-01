@@ -19,5 +19,7 @@ FROM ${scratch_img}:${scratch_img_tag}
 ARG build_type=Release
 COPY --from=builder /code/build/${build_type}/bin/h2agent /opt/h2agent
 
+RUN apk update && apk add bash
+
 ENTRYPOINT ["/opt/h2agent"]
 CMD []
