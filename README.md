@@ -80,12 +80,10 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h
   ```
 
-  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils`:
+  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils` and automatically sourced on `bash` shell:
 
   ```bash
-  $> kubectl exec -it ${pod} -- sh
-  / # source /opt/utils/helpers.src # type help in any moment after sourcing
-  / # server_example # follow instructions or just source it: source <(server_example)
+  $> kubectl exec -it ${pod} -- bash
   ```
 
 
