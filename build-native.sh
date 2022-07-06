@@ -9,7 +9,7 @@ REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 
 # Dependencies
 nghttp2_ver=1.48.0
-boost_ver=1.76.0
+boost_ver=1.76.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
 ert_nghttp2_ver=v1.2.1 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
 ert_logger_ver=v1.0.10
 jupp0r_prometheuscpp_ver=v0.13.0

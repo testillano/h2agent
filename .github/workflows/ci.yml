@@ -79,6 +79,7 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
+        build-args: base_os=ubuntu
         context: .
         push: true
     -
@@ -91,7 +92,7 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent:local
         file: Dockerfile
-        build-args: base_tag=local
+        build-args: base_os=ubuntu,base_tag=local
         context: .
         push: true
     -
@@ -116,7 +117,7 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent_training:local
         file: Dockerfile.training
-        build-args: img_tag=local
+        build-args: base_os=ubuntu,img_tag=local
         context: .
         push: true
     -
@@ -147,7 +148,7 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
         file: Dockerfile.coverage
-        build-args: base_tag=local
+        build-args: base_os=ubuntu,base_tag=local
         context: .
         push: true
     -
