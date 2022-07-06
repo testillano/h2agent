@@ -155,26 +155,27 @@ jobs:
       name: Image digest
       run: echo ${{ steps.docker_build5.outputs.digest }}
 
-  unit_tests_and_coverage:
-    needs: build_coverage
-    name: Run unit tests and upload coverage info
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/testillano/h2agent:latest-cov
-      options: "--entrypoint sh"
-    steps:
-    -
-      name: Run coverage script
-      run: /var/coverage.sh
-    -
-      name: Upload coverage to Coveralls
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: total-coverage.info
+  #unit_tests_and_coverage:
+  #  needs: build_coverage
+  #  name: Run unit tests and upload coverage info
+  #  runs-on: ubuntu-latest
+  #  container:
+  #    image: ghcr.io/testillano/h2agent:latest-cov
+  #    options: "--entrypoint sh"
+  #  steps:
+  #  -
+  #    name: Run coverage script
+  #    run: /var/coverage.sh
+  #  -
+  #    name: Upload coverage to Coveralls
+  #    uses: coverallsapp/github-action@master
+  #    with:
+  #      github-token: ${{ secrets.GITHUB_TOKEN }}
+  #      path-to-lcov: total-coverage.info
 
   push_docker_images_as_latest:
-    needs: unit_tests_and_coverage
+    needs: build_coverage
+  #  needs: unit_tests_and_coverage
     name: Push docker images to Docker/Github Hubs as latest
     runs-on: ubuntu-latest
     #if: github.event_name == 'push'

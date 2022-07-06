@@ -16,10 +16,10 @@ ARG make_procs=4
 RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
 
 RUN printf %b "#!/bin/sh\n\
-/usr/bin/lcov -i --capture --directory \"/code/src/\" --output-file base-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\"  --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
+lcov -i --capture --directory \"/code/src/\" --output-file base-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\"  --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
 /code/build/Debug/bin/unit-test\n\
-/usr/bin/lcov --capture --directory \"/code/src/\" --output-file test-coverage.info --no-external --directory \"./\" --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
-/usr/bin/lcov -a base-coverage.info  -a test-coverage.info  -o total-coverage.info\n\
+lcov --capture --directory \"/code/src/\" --output-file test-coverage.info --no-external --directory \"./\" --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
+lcov -a base-coverage.info  -a test-coverage.info  -o total-coverage.info\n\
 genhtml total-coverage.info -o coverage" > /var/coverage.sh
 
 RUN chmod a+x /var/coverage.sh
