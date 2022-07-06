@@ -105,4 +105,4 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: ["/bin/sh", "-c", "ln -s {{ .Values.utilsMountPath }}/helpers.src /etc/profile.d/helpers.sh"]
+                command: ["/bin/sh", "-c", "echo source '{{ .Values.utilsMountPath }}/helpers.src' >> ~/.bashrc"]

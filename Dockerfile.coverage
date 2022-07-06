@@ -1,12 +1,11 @@
 ARG base_tag=latest
-ARG scratch_img=alpine
-ARG scratch_img_tag=latest
 FROM ghcr.io/testillano/h2agent_builder:${base_tag}
 MAINTAINER testillano
 
 LABEL testillano.h2agent.description="Docker image for h2agent coverage"
 
-RUN apk add lcov --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/
+ARG base_os=ubuntu
+RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add lcov --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y lcov && apt-get clean ; fi
 
 COPY . /code
 WORKDIR /code

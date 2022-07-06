@@ -419,19 +419,19 @@ progress: 80% done
 progress: 90% done
 progress: 100% done
 
-finished in 2.18s, 45926.73 req/s, 47.61MB/s
+finished in 1.57s, 63542.98 req/s, 66.30MB/s
 requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
 status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-traffic: 103.67MB (108707642) total, 293.07KB (300104) headers (space savings 95.77%), 101.66MB (106600000) data
+traffic: 104.34MB (109407063) total, 293.03KB (300058) headers (space savings 95.77%), 102.33MB (107300000) data
                      min         max         mean         sd        +/- sd
-time for request:      899us      6.65ms      2.15ms       434us    80.28%
-time for connect:      156us       156us       156us         0us   100.00%
-time to 1st byte:     4.91ms      4.91ms      4.91ms         0us   100.00%
-req/s           :   45933.22    45933.22    45933.22        0.00   100.00%
+time for request:      658us      2.88ms      1.56ms       176us    83.99%
+time for connect:      148us       148us       148us         0us   100.00%
+time to 1st byte:     1.10ms      1.10ms      1.10ms         0us   100.00%
+req/s           :   63552.33    63552.33    63552.33        0.00   100.00%
 
-real    0m2.183s
-user    0m0.231s
-sys     0m0.175s
+real    0m1.579s
+user    0m0.126s
+sys     0m0.107s
 + set +x
 
 Created test report:
