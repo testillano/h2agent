@@ -227,6 +227,9 @@ jobs:
           done
         done
 
+        docker pull ghcr.io/testillano/h2agent:latest-cov
+        docker push ghcr.io/testillano/h2agent:latest-cov
+
   helm_publish:
     needs: push_docker_images_as_latest
     runs-on: ubuntu-latest
