@@ -106,6 +106,7 @@ $ ./build.sh --project-image
 ```
 
 This image is built with `./Dockerfile`.
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ## Build project with docker
 
@@ -125,6 +126,7 @@ $ ./build.sh --builder-image
 ```
 
 This image is built with `./Dockerfile.build`.
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ### Usage
 
@@ -262,6 +264,8 @@ You can execute it after project building, for example for `Release` target: `./
 #### Coverage
 
 Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
+
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ### Component test
 
@@ -758,6 +762,7 @@ The training image is already available at `github container registry` and `dock
 ```bash
 $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ## Management interface
 
