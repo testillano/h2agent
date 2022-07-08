@@ -42,6 +42,7 @@ SOFTWARE.
 
 #include <Map.hpp>
 #include <MockServerKeyEvents.hpp>
+#include <BodyData.hpp>
 
 #include <JsonSchema.hpp>
 
@@ -79,8 +80,8 @@ public:
      * @param state Request state
      * @param method Request method
      * @param uri Request URI path
-     * @param headers Request headers
-     * @param body Request body
+     * @param requestHeaders Request headers
+     * @param requestBody Request body
      * @param receptionTimestampUs Microseconds reception timestamp
      *
      * @param responseStatusCode Response status code
@@ -93,7 +94,7 @@ public:
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void loadRequest(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+    void loadRequest(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &requestHeaders, const BodyData &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
 
     /** Clears internal data
      *
