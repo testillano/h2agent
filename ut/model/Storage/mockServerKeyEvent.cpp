@@ -1,4 +1,5 @@
 #include <MockServerKeyEvent.hpp>
+#include <BodyData.hpp>
 
 #include <map>
 #include <string>
@@ -17,7 +18,7 @@ public:
     std::string previous_state_;
     std::string state_;
     nghttp2::asio_http2::header_map request_headers_, response_headers_;
-    std::string request_body_;
+    h2agent::model::BodyData request_body_;
     std::chrono::microseconds reception_timestamp_us_;
     std::string response_body_;
 
@@ -30,6 +31,7 @@ public:
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
         request_body_ = "{\"foo\":1}";
+        //request_body_ = R"({ "foo": 1 })"_json;
         reception_timestamp_us_ = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
         response_body_ = "{\"bar\":2}";
 
@@ -42,20 +44,20 @@ TEST_F(MockServerKeyEvent_test, load)
     EXPECT_EQ(data_.getState(), state_);
 }
 
-TEST_F(MockServerKeyEvent_test, getHeaders)
+TEST_F(MockServerKeyEvent_test, getRequestHeaders)
 {
     for(auto suffix: {
                 "1", "2"
             }) {
-        auto it = data_.getHeaders().find(std::string("request-header") + suffix);
-        EXPECT_TRUE(it != data_.getHeaders().end());
+        auto it = data_.getRequestHeaders().find(std::string("request-header") + suffix);
+        EXPECT_TRUE(it != data_.getRequestHeaders().end());
         EXPECT_EQ(it->second.value, std::string("req-h") + suffix);
     }
 }
 
-TEST_F(MockServerKeyEvent_test, getBody)
+TEST_F(MockServerKeyEvent_test, getRequestBody)
 {
-    EXPECT_EQ(data_.getBody(), request_body_);
+    EXPECT_EQ(data_.getRequestBody(), request_body_);
 }
 
 TEST_F(MockServerKeyEvent_test, getJson)
@@ -66,6 +68,7 @@ TEST_F(MockServerKeyEvent_test, getJson)
     eventJson["previousState"] = previous_state_;
     eventJson["receptionTimestampUs"] = data_.getJson()["receptionTimestampUs"]; // unpredictable
     eventJson["requestBody"] = nlohmann::json::parse(request_body_);
+    //eventJson["requestBody"] = request_body_;
     eventJson["requestHeaders"] = nlohmann::json::parse("{\"request-header1\":\"req-h1\",\"request-header2\":\"req-h2\"}");
     eventJson["responseBody"] = nlohmann::json::parse(response_body_);
     eventJson["responseDelayMs"] = 20;

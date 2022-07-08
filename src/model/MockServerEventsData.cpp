@@ -83,7 +83,7 @@ bool MockServerEventsData::checkSelection(const std::string &requestMethod, cons
     return true;
 }
 
-void MockServerEventsData::loadRequest(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerEventsData::loadRequest(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &requestHeaders, const BodyData &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
 
     // Find MockServerKeyEvents
@@ -102,7 +102,7 @@ void MockServerEventsData::loadRequest(const std::string &previousState, const s
         requests = std::make_shared<MockServerKeyEvents>();
     }
 
-    requests->loadRequest(previousState, state, method, uri, headers, body, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
+    requests->loadRequest(previousState, state, method, uri, requestHeaders, requestBody, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
     if (it == end()) add(key, requests); // push the key in the map:
 }

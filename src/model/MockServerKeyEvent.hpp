@@ -41,6 +41,8 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <BodyData.hpp>
+
 
 namespace h2agent
 {
@@ -54,8 +56,8 @@ class MockServerKeyEvent
     std::string state_{};
 
     std::uint64_t reception_timestamp_us_{};
-    nghttp2::asio_http2::header_map headers_{};
-    std::string body_{};
+    nghttp2::asio_http2::header_map request_headers_{};
+    BodyData request_body_{};
 
     unsigned int response_status_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
@@ -82,8 +84,8 @@ public:
      *
      * @param previousState Previous request state
      * @param state Request state
-     * @param headers Request headers
-     * @param body Request body
+     * @param requestHeaders Request headers
+     * @param requestBody Request body
      * @param receptionTimestampUs Microseconds reception timestamp
      *
      * @param responseStatusCode Response status code
@@ -95,7 +97,7 @@ public:
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+    void load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, const BodyData &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
 
 
     // getters:
@@ -112,16 +114,16 @@ public:
      *
      * @return Request headers
      */
-    const nghttp2::asio_http2::header_map &getHeaders() const {
-        return headers_;
+    const nghttp2::asio_http2::header_map &getRequestHeaders() const {
+        return request_headers_;
     }
 
     /** Request body
      *
      * @return Request body
      */
-    const std::string &getBody() const {
-        return body_;
+    const BodyData &getRequestBody() const {
+        return request_body_;
     }
 
     /**
