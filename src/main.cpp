@@ -251,6 +251,10 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--traffic-server-provision <path file>]\n"
        << "  Path file for optional startup traffic server provision configuration.\n\n"
 
+       << "[--traffic-server-ignore-request-body]\n"
+       << "  Ignores traffic server request body reception processing as optimization in\n"
+       << "  case that its content is not required by planned provisions (enabled by default).\n\n"
+
        << "[--discard-data]\n"
        << "  Disables data storage for events processed (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
@@ -367,6 +371,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
     bool admin_secured = false;
+    bool traffic_server_ignore_request_body = false;
     bool discard_data = false;
     bool discard_data_key_history = false;
     bool disable_purge = false;
@@ -505,6 +510,11 @@ int main(int argc, char* argv[])
         global_variable_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-ignore-request-body", value))
+    {
+        traffic_server_ignore_request_body = true;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--discard-data", value))
     {
         discard_data = true;
@@ -606,6 +616,7 @@ int main(int argc, char* argv[])
     std::cout << "Global variables configuration file: " << ((global_variable_file != "") ? global_variable_file :
               "<not provided>") << '\n';
 
+    std::cout << "Traffic server ignore request body: " << (traffic_server_ignore_request_body ? "true":"false") << '\n';
     std::cout << "Data storage: " << (!discard_data ? "enabled":"disabled") << '\n';
     std::cout << "Data key history storage: " << (!discard_data_key_history ? "enabled":"disabled") << '\n';
     std::cout << "Purge execution: " << (disable_purge ? "disabled":"enabled") << '\n';
@@ -717,6 +728,9 @@ int main(int argc, char* argv[])
                 std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
             }
         }
+
+        // Server configuration:
+        myTrafficHttp2Server->receiveRequestBody(!traffic_server_ignore_request_body);
 
         // Server data configuration:
         myTrafficHttp2Server->discardData(discard_data);

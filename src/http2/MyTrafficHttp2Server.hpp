@@ -71,7 +71,6 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     model::MockServerEventsData *mock_server_events_data_{};
     model::GlobalVariable *global_variable_{};
     model::AdminData *admin_data_{};
-    std::atomic<std::uint64_t> general_unique_server_sequence_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
@@ -82,6 +81,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
     std::atomic<int> max_busy_threads_{0};
+    std::atomic<bool> receive_request_body_{true};
 
 public:
     MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
@@ -103,12 +103,14 @@ public:
 
     bool checkHeaders(const nghttp2::asio_http2::server::request& req);
 
-    void receive(const nghttp2::asio_http2::server::request& req,
+    bool receiveDataLen(const nghttp2::asio_http2::server::request& req);
+
+    void receive(const std::uint64_t &receptionId,
+                 const nghttp2::asio_http2::server::request& req,
                  std::shared_ptr<std::stringstream> requestBody,
                  const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
-
 
     model::MockServerEventsData *getMockServerEventsData() const {
         return mock_server_events_data_;
@@ -124,10 +126,7 @@ public:
     }
 
     std::string serverDataConfigurationAsJsonString() const;
-
-    const std::atomic<std::uint64_t> &getGeneralUniqueServerSequence() const {
-        return general_unique_server_sequence_;
-    }
+    std::string serverConfigurationAsJsonString() const;
 
     void discardData(bool discard = true) {
         server_data_ = !discard;
@@ -139,6 +138,10 @@ public:
 
     void disablePurge(bool disable = true) {
         purge_execution_ = !disable;
+    }
+
+    void receiveRequestBody(bool receive = true) {
+        receive_request_body_.store(receive);
     }
 };
 

@@ -349,6 +349,9 @@ Input Provision configuration
 Input Global variable(s) configuration
  (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]: global-variable.json
 
+Input Server configuration to ignore request body (true|false)
+ (or set 'H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION' to be non-interactive) [false]: false
+
 Input Server data storage configuration (discard-all|discard-history|keep-all)
  (or set 'H2AGENT__DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
 
@@ -518,6 +521,10 @@ Options:
 
 [--traffic-server-provision <path file>]
   Path file for optional startup traffic server provision configuration.
+
+[--traffic-server-ignore-request-body]
+  Ignores traffic server request body reception processing as optimization in
+  case that its content is not required by planned provisions (enabled by default).
 
 [--discard-data]
   Disables data storage for events processed (enabled by default).
@@ -716,6 +723,7 @@ Traffic secured: no
 Admin secured: no
 Schema configuration file: <not provided>
 Global variables configuration file: <not provided>
+Traffic server ignore request body: false
 Data storage: enabled
 Data key history storage: enabled
 Purge execution: enabled
@@ -773,6 +781,7 @@ We will start describing **general** mock operations:
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
 * Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
 * Logging: dynamic logger configuration (update and check).
+* General configuration (server).
 
 Then, we will describe **traffic server mock** features:
 
@@ -780,7 +789,7 @@ Then, we will describe **traffic server mock** features:
 
 * Server provision configuration: here we will define the mock behavior regarding the request received, and the transformations done over it to build the final response and evolve, if proceed, to another state for further receptions.
 
-* Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations).
+* Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations). Also storage configuration will be described.
 
 
 
@@ -1040,6 +1049,37 @@ Changes the log level of the `h2agent` process to any of the available levels (t
 #### Response status code
 
 **200** (OK) or **400** (Bad Request).
+
+### PUT /admin/v1/server/configuration?receiveRequestBody=`<true|false>`
+
+Request body reception can be disabled. This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions. You could do this through the corresponding query parameter:
+
+* `receiveRequestBody=true`: data received will be processed.
+* `receiveRequestBody=false`: data received will be ignored.
+
+The `h2agent` starts with request body reception enabled by default, but you could also change this through command-line (`--traffic-server-ignore-request-body`).
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/server/configuration
+
+Retrieve the general server configuration.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "receiveRequestBody": "true"
+}
+```
 
 
 
@@ -2198,12 +2238,13 @@ CURL="curl -i --http2-prior-knowledge"
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
                                             (http://localhost:8074/admin/v1/schema).
-Usage: schema_schema [-h|--help]; Gets the schema configuration schema
-                                  (http://localhost:8074/admin/v1/schema/schema).
 Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration
                                                      (http://localhost:8074/admin/v1/global-variable).
-Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema
-                                           (http://localhost:8074/admin/v1/global-variable/schema).
+Usage: configuration [-h|--help]; Manages agent configuration (gets current status by default).
+                          [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic
+                                                                    server receptions.
+                          [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
+                                                                    server receptions.
 Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
                           [--discard-all]     ; Sets data configuration to discard all the events processed.
                           [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
@@ -2212,15 +2253,12 @@ Usage: data_configuration [-h|--help]; Manages agent data configuration (gets cu
                                                 'purge' state is reached.
                           [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on
                                                 'purge' state is reached.
+
 === Traffic server ===
 Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
                                     (http://localhost:8074/admin/v1/server-matching).
-Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema
-                                           (http://localhost:8074/admin/v1/server-matching/schema).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
-Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
-                                            (http://localhost:8074/admin/v1/server-provision/schema).
 Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
                    [method] [uri] [[-]request number]; Restricts shown data with given positional filters.
                                                        Request number may be negative to access by reverse chronological order.
@@ -2229,6 +2267,17 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                    [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the                                                        selection.
 Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
                                                                                retrieved in previous server_data() call.
+
+=== Schemas ===
+Usage: schema_schema [-h|--help]; Gets the schema configuration schema
+                                  (http://localhost:8074/admin/v1/schema/schema).
+Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema
+                                           (http://localhost:8074/admin/v1/global-variable/schema).
+Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema
+                                           (http://localhost:8074/admin/v1/server-matching/schema).
+Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
+                                            (http://localhost:8074/admin/v1/server-provision/schema).
+
 === Auxiliary ===
 Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.

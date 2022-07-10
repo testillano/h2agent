@@ -54,6 +54,25 @@ global_variable_schema() {
   do_curl "${ADMIN_URL}/global-variable/schema"
 }
 
+configuration() {
+
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: configuration [-h|--help]; Manages agent configuration (gets current status by default)."
+    echo "                          [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
+    echo "                          [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
+    return 0
+  elif [ "$1" = "--traffic-server-ignore-request-body" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=false"
+  elif [ "$1" = "--traffic-server-receive-request-body" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=true"
+  else
+    do_curl ${ADMIN_URL}/server/configuration
+  fi
+}
+
 data_configuration() {
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
@@ -223,6 +242,8 @@ snapshot() {
   schema_schema && json > ${dir}/schema_schema.json
   global_variable && json > ${dir}/global-variable.json
   global_variable_schema && json > ${dir}/global-variable_schema.json
+  configuration && json > ${dir}/configuration.json
+  data_configuration && json > ${dir}/data-configuration.json
   server_matching && json > ${dir}/server-matching.json
   server_matching_schema && json > ${dir}/server-matching_schema.json
   server_provision && json > ${dir}/server-provision.json
@@ -320,18 +341,21 @@ help() {
   echo
   echo "=== General ==="
   schema -h
-  schema_schema -h
   global_variable -h
-  global_variable_schema -h
+  configuration -h
   data_configuration -h
   echo
   echo "=== Traffic server ==="
   server_matching -h
-  server_matching_schema -h
   server_provision -h
-  server_provision_schema -h
   server_data -h
   server_data_sequence -h
+  echo
+  echo "=== Schemas ==="
+  schema_schema -h
+  global_variable_schema -h
+  server_matching_schema -h
+  server_provision_schema -h
   echo
   echo "=== Auxiliary ==="
   json -h
@@ -340,6 +364,7 @@ help() {
   snapshot -h
   server_example -h
   echo "Usage: help; This help. Overview: help | grep ^Usage"
+  echo
 }
 
 #############
