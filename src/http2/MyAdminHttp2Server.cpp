@@ -377,6 +377,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
+    else if (pathSuffix == "server/configuration") {
+        responseBody = getHttp2Server()->serverConfigurationAsJsonString();
+        statusCode = 200;
+    }
     else if (pathSuffix == "server-data/configuration") {
         responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
         statusCode = 200;
@@ -460,6 +464,22 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
         //);
     }
+    else if (pathSuffix == "server/configuration") {
+        std::string receiveRequestBody;
+
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            auto it = qmap.find("receiveRequestBody");
+            if (it != qmap.end()) receiveRequestBody = it->second;
+        }
+
+        bool b_receiveRequestBody = (receiveRequestBody == "true");
+        success = (receiveRequestBody == "true" || receiveRequestBody == "false");
+        if (success) {
+            getHttp2Server()->receiveRequestBody(b_receiveRequestBody);
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server receive request body: %s", b_receiveRequestBody ? "true":"false"), ERT_FILE_LOCATION));
+        }
+    }
     else if (pathSuffix == "server-data/configuration") {
 
         std::string discard;
@@ -512,7 +532,8 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     statusCode = success ? 200:400;
 }
 
-void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
+void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
+                                 const nghttp2::asio_http2::server::request&
                                  req,
                                  std::shared_ptr<std::stringstream> requestBody,
                                  const std::chrono::microseconds &receptionTimestampUs,
