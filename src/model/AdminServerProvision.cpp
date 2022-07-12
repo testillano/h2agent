@@ -779,12 +779,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
     }
     else {
-        if (getResponseBody().is_null()) { // if not an object, get the string representation
-            responseBody = getResponseBodyString();
-        }
-        else {
-            responseBody = getResponseBody().dump();
-        }
+        responseBody = getResponseBodyString();
     }
 
     // Dynamic variables map: inherited along the transformation chain
@@ -890,6 +885,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRe
     if (it != j.end()) {
         if (it->is_object() || it->is_array()) {
             response_body_ = *it;
+            response_body_string_ = response_body_.dump(); // valid as cache for static responses (not updated with transformations)
         }
         else if (it->is_string()) {
             response_body_string_ = *it;
