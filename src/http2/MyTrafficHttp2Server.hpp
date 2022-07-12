@@ -107,7 +107,7 @@ public:
 
     void receive(const std::uint64_t &receptionId,
                  const nghttp2::asio_http2::server::request& req,
-                 std::shared_ptr<std::stringstream> requestBody,
+                 const std::string &requestBody,
                  const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);

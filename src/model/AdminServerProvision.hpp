@@ -120,7 +120,7 @@ class AdminServerProvision
                         const std::map<std::string, std::string> &requestQueryParametersMap,
                         bool requestBodyJsonOrString,
                         const nlohmann::json &requestBodyJson, // if json
-                        std::shared_ptr<std::stringstream> requestBody, // if string
+                        const std::string &requestBody, // if string
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;
@@ -177,7 +177,7 @@ public:
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
                     const std::map<std::string, std::string> &requestQueryParametersMap,
-                    std::shared_ptr<std::stringstream> requestBody,
+                    const std::string &requestBody,
                     const nghttp2::asio_http2::header_map &requestHeaders,
                     std::uint64_t generalUniqueServerSequence,
 
