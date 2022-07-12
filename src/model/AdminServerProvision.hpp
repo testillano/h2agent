@@ -288,9 +288,13 @@ public:
         return response_body_;
     }
 
-    /** Provisioned response body when it is an string,
-     *  or could be converted into string, instead of
-     *  a json object.
+    /** Provisioned response body as string.
+     *
+     * This is useful as cached response data when the provision
+     * response is not modified with transformation items.
+     *
+     * When the object is not a valid json, the data is
+     * assumed as a readable string (TODO: refactor for multipart support)
      *
      * @return Response body string
      */
