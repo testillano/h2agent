@@ -477,7 +477,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         success = (receiveRequestBody == "true" || receiveRequestBody == "false");
         if (success) {
             getHttp2Server()->receiveRequestBody(b_receiveRequestBody);
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server receive request body: %s", b_receiveRequestBody ? "true":"false"), ERT_FILE_LOCATION));
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server request body reception: %s", b_receiveRequestBody ? "processed":"ignored"), ERT_FILE_LOCATION));
         }
     }
     else if (pathSuffix == "server-data/configuration") {
@@ -535,7 +535,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
 void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
                                  const nghttp2::asio_http2::server::request&
                                  req,
-                                 std::shared_ptr<std::stringstream> requestBody,
+                                 const std::string &requestBody,
                                  const std::chrono::microseconds &receptionTimestampUs,
                                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                                  std::string& responseBody, unsigned int &responseDelayMs)
@@ -564,8 +564,8 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         if (!uriQuery.empty()) {
             ss << " | Query Params: " << uriQuery;
         }
-        if (requestBody->rdbuf()->in_avail()) {
-            std::string requestBodyWithoutNewlines = requestBody->str(); // administrative interface receives json bodies in POST requests, so we normalize for logging
+        if (!requestBody.empty()) {
+            std::string requestBodyWithoutNewlines = requestBody; // administrative interface receives json bodies in POST requests, so we normalize for logging
             requestBodyWithoutNewlines.erase(std::remove(requestBodyWithoutNewlines.begin(), requestBodyWithoutNewlines.end(), '\n'), requestBodyWithoutNewlines.end());
             ss << " | Body: " << requestBodyWithoutNewlines;
         }
@@ -593,7 +593,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         return;
     }
     else if (method == "POST") {
-        receivePOST(pathSuffix, requestBody->str(), statusCode, headers, responseBody);
+        receivePOST(pathSuffix, requestBody, statusCode, headers, responseBody);
         return;
     }
     else if (method == "PUT") {
