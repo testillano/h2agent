@@ -828,7 +828,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 }
 
-bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfigured) {
 
     // Store whole document (useful for GET operation)
     json_ = j;
@@ -924,7 +924,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRe
     // Store key:
     calculateAdminServerProvisionKey(key_, in_state_, request_method_, request_uri_);
 
-    if (priorityMatchingRegexConfigured) {
+    if (regexMatchingConfigured) {
         // Precompile regex with key, only for 'RegexMatching' algorithm:
         try {
             regex_.assign(key_, std::regex::optimize);

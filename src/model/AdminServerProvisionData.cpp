@@ -73,7 +73,7 @@ std::string AdminServerProvisionData::asJsonString(bool ordered) const {
     return (result.dump());
 }
 
-AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool regexMatchingConfigured) {
 
     if (!server_provision_schema_.validate(j)) {
         return BadSchema;
@@ -82,7 +82,7 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
     // Provision object to fill:
     auto provision = std::make_shared<AdminServerProvision>();
 
-    if (provision->load(j, priorityMatchingRegexConfigured)) {
+    if (provision->load(j, regexMatchingConfigured)) {
 
         // Push the key in the map:
         admin_server_provision_key_t key = provision->getKey();
@@ -91,7 +91,12 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         // So, we always have both lists available; as each algorithm finds within the proper
         // list, we don't need to drop provisions when swaping the matching mode on the fly:
         write_guard_t guard(rw_mutex_);
-        ordered_keys_.push_back(key);
+
+        // https://github.com/testillano/h2agent/issues/52
+        auto key_it = get(key);
+        if (key_it == end()) {
+            ordered_keys_.push_back(key);
+        }
 
         add(key, provision);
 
@@ -101,12 +106,12 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
     return BadContent;
 }
 
-AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohmann::json &j, bool regexMatchingConfigured) {
 
     if (j.is_array()) {
         for (auto it : j) // "it" is of type json::reference and has no key() member
         {
-            LoadResult result = loadSingle(it, priorityMatchingRegexConfigured);
+            LoadResult result = loadSingle(it, regexMatchingConfigured);
             if (result != Success)
                 return result;
         }
@@ -114,7 +119,7 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohma
         return Success;
     }
 
-    return loadSingle(j, priorityMatchingRegexConfigured);
+    return loadSingle(j, regexMatchingConfigured);
 }
 
 bool AdminServerProvisionData::clear()
