@@ -13,6 +13,7 @@ H2AGENT_SERVER_MATCHING__dflt=server-matching.json
 H2AGENT_SERVER_PROVISION__dflt=server-provision.json
 H2AGENT_GLOBAL_VARIABLE__dflt=global-variable.json
 H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION__dflt=false
+H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION__dflt=false
 H2AGENT__DATA_STORAGE_CONFIGURATION__dflt=discard-all
 H2AGENT__DATA_PURGE_CONFIGURATION__dflt=disable-purge
 H2AGENT__BIND_ADDRESS__dflt=0.0.0.0
@@ -43,7 +44,7 @@ H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
 # Common variables
-COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -190,6 +191,7 @@ read_value "Provision configuration" H2AGENT_SERVER_PROVISION
 read_value "Global variable(s) configuration" H2AGENT_GLOBAL_VARIABLE
 [ ! -f "${H2AGENT_GLOBAL_VARIABLE}" ] &&  echo "ERROR: missing file '${H2AGENT_GLOBAL_VARIABLE}' !" && exit 1
 read_value "Server configuration to ignore request body" H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION "true|false" || exit 1
+read_value "Server configuration to perform dynamic request body allocation" H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION "true|false" || exit 1
 read_value "Server data storage configuration" H2AGENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
 read_value "Server data purge configuration" H2AGENT__DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
 read_value "H2agent endpoint address" H2AGENT__BIND_ADDRESS
@@ -224,6 +226,8 @@ random_request() {
    [ -z "\${bytes}" ] && bytes=3000
    local size=\$((bytes/15)) # aproximation
    export ST_REQUEST_BODY="{"\$(k=0 ; while [ \$k -lt \$size ]; do k=\$((k+1)); echo -n "\"id\${RANDOM}\":\${RANDOM}"; [ \${k} -lt \$size ] && echo -n "," ; done)"}"
+   echo "Random request created has \$(echo \${ST_REQUEST_BODY} | wc -c) bytes (~ \${bytes})"
+   echo "If you need as file: echo \\\${ST_REQUEST_BODY} > request-\${bytes}b.json"
 }
 
 # Invoke the function:
@@ -258,7 +262,11 @@ case ${H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION} in
   false) RECEIVE_REQUEST_BODY=true ;;
   true) RECEIVE_REQUEST_BODY=false ;;
 esac
-h2a_admin_curl PUT "admin/v1/server/configuration?receiveRequestBody=${RECEIVE_REQUEST_BODY}" 200 || exit 1
+case ${H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION} in
+  false) PRE_RESERVE_REQUEST_BODY=true ;;
+  true) PRE_RESERVE_REQUEST_BODY=false ;;
+esac
+h2a_admin_curl PUT "admin/v1/server/configuration?receiveRequestBody=${RECEIVE_REQUEST_BODY}&preReserveRequestBody=${PRE_RESERVE_REQUEST_BODY}" 200 || exit 1
 echo -e "\nServer configuration:"
 h2a_admin_curl GET "admin/v1/server/configuration" || exit 1
 cat ${TMP_DIR}/curl.output

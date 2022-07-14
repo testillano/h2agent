@@ -255,6 +255,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Ignores traffic server request body reception processing as optimization in\n"
        << "  case that its content is not required by planned provisions (enabled by default).\n\n"
 
+       << "[--traffic-server-dynamic-request-body-allocation]\n"
+       << "  When data chunks are received, the server appends them into the final request body.\n"
+       << "  In order to minimize reallocations over internal container, a pre reserve could be\n"
+       << "  executed (by design, the maximum received request body size is allocated).\n"
+       << "  Depending on your traffic profile this could be counterproductive, so this option\n"
+       << "  disables the default behavior to do a dynamic reservation of the memory.\n\n"
+
        << "[--discard-data]\n"
        << "  Disables data storage for events processed (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
@@ -372,6 +379,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_crt_file = "";
     bool admin_secured = false;
     bool traffic_server_ignore_request_body = false;
+    bool traffic_server_dynamic_request_body_allocation = false;
     bool discard_data = false;
     bool discard_data_key_history = false;
     bool disable_purge = false;
@@ -515,6 +523,11 @@ int main(int argc, char* argv[])
         traffic_server_ignore_request_body = true;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-dynamic-request-body-allocation", value))
+    {
+        traffic_server_dynamic_request_body_allocation = true;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--discard-data", value))
     {
         discard_data = true;
@@ -616,7 +629,8 @@ int main(int argc, char* argv[])
     std::cout << "Global variables configuration file: " << ((global_variable_file != "") ? global_variable_file :
               "<not provided>") << '\n';
 
-    std::cout << "Traffic server ignore request body: " << (traffic_server_ignore_request_body ? "true":"false") << '\n';
+    std::cout << "Traffic server process request body: " << (!traffic_server_ignore_request_body ? "true":"false") << '\n';
+    std::cout << "Traffic server pre reserve request body: " << (!traffic_server_dynamic_request_body_allocation ? "true":"false") << '\n';
     std::cout << "Data storage: " << (!discard_data ? "enabled":"disabled") << '\n';
     std::cout << "Data key history storage: " << (!discard_data_key_history ? "enabled":"disabled") << '\n';
     std::cout << "Purge execution: " << (disable_purge ? "disabled":"enabled") << '\n';
@@ -730,7 +744,8 @@ int main(int argc, char* argv[])
         }
 
         // Server configuration:
-        myTrafficHttp2Server->receiveRequestBody(!traffic_server_ignore_request_body);
+        myTrafficHttp2Server->setReceiveRequestBody(!traffic_server_ignore_request_body);
+        myTrafficHttp2Server->setPreReserveRequestBody(!traffic_server_dynamic_request_body_allocation);
 
         // Server data configuration:
         myTrafficHttp2Server->discardData(discard_data);
