@@ -78,11 +78,11 @@ public:
      * Loads server provision operation data
      *
      * @param j Json document from operation body request
-     * @param priorityMatchingRegexConfigured provision load depends on matching configuration (priority regexp)
+     * @param regexMatchingConfigured provision load depends on matching configuration (priority regexp)
      *
      * @return Load operation result
      */
-    LoadResult load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+    LoadResult load(const nlohmann::json &j, bool regexMatchingConfigured);
 
     /** Clears internal data (map and ordered keys vector)
      *
@@ -127,7 +127,7 @@ private:
     std::vector<admin_server_provision_key_t> ordered_keys_{}; // this is used to keep the insertion order which shall be used in RegexMatching algorithm
     h2agent::jsonschema::JsonSchema server_provision_schema_{};
 
-    LoadResult loadSingle(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+    LoadResult loadSingle(const nlohmann::json &j, bool regexMatchingConfigured);
 
     mutable mutex_t rw_mutex_{};
 };
