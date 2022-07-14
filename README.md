@@ -53,7 +53,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 * Run <u>project executable</u> natively (standalone):
 
   ```bash
-  $> build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
   ```
 
   You may play with native helpers functions and examples:
@@ -95,14 +95,14 @@ Next sections will describe in detail, how to build [project image](#project-ima
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent:<tag>
+$> docker pull ghcr.io/testillano/h2agent:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$ ./build.sh --project-image
+$> ./build.sh --project-image
 ```
 
 This image is built with `./Dockerfile`.
@@ -115,14 +115,14 @@ Both `ubuntu` and `alpine` base images are supported, but the official image upl
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent_builder:<tag>
+$> docker pull ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$ ./build.sh --builder-image
+$> ./build.sh --builder-image
 ```
 
 This image is built with `./Dockerfile.build`.
@@ -133,23 +133,23 @@ Both `ubuntu` and `alpine` base images are supported, but the official image upl
 Builder image is used to build the executable. To run compilation over this image, again, just run with `docker`:
 
 ```bash
-$ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
-$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         ghcr.io/testillano/h2agent_builder:<tag>
+$> envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
+$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+          ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
 
 ```bash
-$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         ghcr.io/testillano/h2agent_builder::<tag> "" doc
+$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+          ghcr.io/testillano/h2agent_builder::<tag> "" doc
 ```
 
 You could also build the library using the script `./build.sh` located at project root:
 
 
 ```bash
-$ ./build.sh --project
+$> ./build.sh --project
 ```
 
 ## Build project natively
@@ -167,32 +167,32 @@ Note: this script is tested on `ubuntu bionic`, then some requirements could be 
 Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
 
 ```bash
-$ sudo apt-get install cmake
+$> sudo apt-get install cmake
 ```
 
 And then generate the makefiles from project root directory:
 
 ```bash
-$ cmake .
+$> cmake .
 ```
 
 You could specify type of build, 'Debug' or 'Release', for example:
 
 ```bash
-$ cmake -DCMAKE_BUILD_TYPE=Debug .
-$ cmake -DCMAKE_BUILD_TYPE=Release .
+$> cmake -DCMAKE_BUILD_TYPE=Debug .
+$> cmake -DCMAKE_BUILD_TYPE=Release .
 ```
 
 You could also change the compilers used:
 
 ```bash
-$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
+$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
 ```
 
 or
 
 ```bash
-$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
+$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
 ```
 
 ### Requirements
@@ -210,24 +210,24 @@ nghttp2 (https://github.com/testillano/nghttp2)
 ### Build
 
 ```bash
-$ make
+$> make
 ```
 
 ### Clean
 
 ```bash
-$ make clean
+$> make clean
 ```
 
 ### Documentation
 
 ```bash
-$ make doc
+$> make doc
 ```
 
 ```bash
-$ cd docs/doxygen
-$ tree -L 1
+$> cd docs/doxygen
+$> tree -L 1
      .
      ├── Doxyfile
      ├── html
@@ -238,20 +238,20 @@ $ tree -L 1
 ### Install
 
 ```bash
-$ sudo make install
+$> sudo make install
 ```
 
 Optionally you could specify another prefix for installation:
 
 ```bash
-$ cmake -DMY_OWN_INSTALL_PREFIX=$HOME/myPrograms/http2
-$ make install
+$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/myPrograms/http2
+$> make install
 ```
 
 ### Uninstall
 
 ```bash
-$ cat install_manifest.txt | sudo xargs rm
+$> cat install_manifest.txt | sudo xargs rm
 ```
 
 ## Testing
@@ -272,45 +272,46 @@ Both `ubuntu` and `alpine` base images are supported, but the official image upl
 Component test is based in `pytest` framework. Just execute `ct/test.sh` to deploy the component test chart. Some cloud-native technologies are required: `docker`, `kubectl`, `minikube` and `helm`, for example:
 
 ```bash
-$ docker version
+$> docker version
 Client: Docker Engine - Community
- Version:           19.03.11
- API version:       1.40
- Go version:        go1.13.10
- Git commit:        42e35e61f3
- Built:             Mon Jun  1 09:12:22 2020
+ Version:           20.10.17
+ API version:       1.41
+ Go version:        go1.17.11
+ Git commit:        100c701
+ Built:             Mon Jun  6 23:02:56 2022
  OS/Arch:           linux/amd64
- Experimental:      false
+ Context:           default
+ Experimental:      true
 
 Server: Docker Engine - Community
  Engine:
-  Version:          19.03.11
-  API version:      1.40 (minimum version 1.12)
-  Go version:       go1.13.10
-  Git commit:       42e35e61f3
-  Built:            Mon Jun  1 09:10:54 2020
+  Version:          20.10.17
+  API version:      1.41 (minimum version 1.12)
+  Go version:       go1.17.11
+  Git commit:       a89b842
+  Built:            Mon Jun  6 23:01:02 2022
   OS/Arch:          linux/amd64
   Experimental:     false
  containerd:
-  Version:          1.4.3
-  GitCommit:        269548fa27e0089a8b8278fc4fc781d7f65a939b
+  Version:          1.6.6
+  GitCommit:        10c12954828e7c7c9b6e0ea9b0c02b01407d3ae1
  runc:
-  Version:          1.0.0-rc92
-  GitCommit:        ff819c7e9184c13b7c2607fe6c30ae19403a7aff
+  Version:          1.1.2
+  GitCommit:        v1.1.2-0-ga916309
  docker-init:
-  Version:          0.18.0
-  GitCommit:        fec3683
+  Version:          0.19.0
+  GitCommit:        de40ad0
 
-$ kubectl version
-Client Version: version.Info{Major:"1", Minor:"18", GitVersion:"v1.18.9", GitCommit:"94f372e501c973a7fa9eb40ec9ebd2fe7ca69848", GitTreeState:"clean", BuildDate:"2020-09-16T13:56:40Z", GoVersion:"go1.13.15", Compiler:"gc", Platform:"linux/amd64"}
-Server Version: version.Info{Major:"1", Minor:"18", GitVersion:"v1.18.9", GitCommit:"94f372e501c973a7fa9eb40ec9ebd2fe7ca69848", GitTreeState:"clean", BuildDate:"2020-09-16T13:47:43Z", GoVersion:"go1.13.15", Compiler:"gc", Platform:"linux/amd64"}
+$> kubectl version
+Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.4", GitCommit:"b695d79d4f967c403a96986f1750a35eb75e75f1", GitTreeState:"clean", BuildDate:"2021-11-17T15:48:33Z", GoVersion:"go1.16.10", Compiler:"gc", Platform:"linux/amd64"}
+Server Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitCommit:"8b5a19147530eaac9476b0ab82980b4088bbc1b2", GitTreeState:"clean", BuildDate:"2021-09-15T21:32:41Z", GoVersion:"go1.16.8", Compiler:"gc", Platform:"linux/amd64"}
 
-$ minikube version
-minikube version: v1.12.3
-commit: 2243b4b97c131e3244c5f014faedca0d846599f5-dirty
+$> minikube version
+minikube version: v1.23.2
+commit: 0a0ad764652082477c00d51d2475284b5d39ceed
 
-$ helm version
-version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b2a68ce0", GitTreeState:"clean", GoVersion:"go1.14.9"}
+$> helm version
+version.BuildInfo{Version:"v3.7.1", GitCommit:"1d11fcb5d3f3bf00dbe6fe31b8412839a96b3dc4", GitTreeState:"clean", GoVersion:"go1.16.9"}
 ```
 
 ### Benchmarking test
@@ -331,38 +332,57 @@ Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load
 
 Also, `st/last.sh` script repeats the last execution in headless mode.
 
-As schema validation is normally used only for function tests, it will be disabled here:
+As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#oam):
 
 ```bash
-$ st/start.sh -y
+$> ./build/Release/bin/h2agent --verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3"
+```
+
+In other shell we launch the benchmark test:
+
+```bash
+$> st/start.sh -y
 
 
 Input Validate schemas (y|n)
- (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]: n
+ (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]:
+n
 
 Input Matching configuration
- (or set 'H2AGENT_SERVER_MATCHING' to be non-interactive) [server-matching.json]: server-matching.json
+ (or set 'H2AGENT_SERVER_MATCHING' to be non-interactive) [server-matching.json]:
+server-matching.json
 
 Input Provision configuration
- (or set 'H2AGENT_SERVER_PROVISION' to be non-interactive) [server-provision.json]: server-provision.json
+ (or set 'H2AGENT_SERVER_PROVISION' to be non-interactive) [server-provision.json]:
+server-provision.json
 
 Input Global variable(s) configuration
- (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]: global-variable.json
+ (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]:
+global-variable.json
 
 Input Server configuration to ignore request body (true|false)
- (or set 'H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION' to be non-interactive) [false]: false
+ (or set 'H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION' to be non-interactive) [false]:
+false
+
+Input Server configuration to perform dynamic request body allocation (true|false)
+ (or set 'H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION' to be non-interactive) [false]:
+false
 
 Input Server data storage configuration (discard-all|discard-history|keep-all)
- (or set 'H2AGENT__DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
+ (or set 'H2AGENT__DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]:
+discard-all
 
 Input Server data purge configuration (enable-purge|disable-purge)
- (or set 'H2AGENT__DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]: disable-purge
+ (or set 'H2AGENT__DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]:
+disable-purge
 
 Input H2agent endpoint address
- (or set 'H2AGENT__BIND_ADDRESS' to be non-interactive) [0.0.0.0]: 0.0.0.0
+ (or set 'H2AGENT__BIND_ADDRESS' to be non-interactive) [0.0.0.0]:
+0.0.0.0
 
 Input H2agent response delay in milliseconds
- (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 0
+ (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]:
+0
 
 Input Request method (PUT|DELETE|HEAD|POST|GET)
  (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]:
@@ -380,6 +400,8 @@ random_request() {
    [ -z "${bytes}" ] && bytes=3000
    local size=$((bytes/15)) # aproximation
    export ST_REQUEST_BODY="{"$(k=0 ; while [ $k -lt $size ]; do k=$((k+1)); echo -n "\"id${RANDOM}\":${RANDOM}"; [ ${k} -lt $size ] && echo -n "," ; done)"}"
+   echo "Random request created has $(echo ${ST_REQUEST_BODY} | wc -c) bytes (~ ${bytes})"
+   echo "If you need as file: echo \${ST_REQUEST_BODY} > request-${bytes}b.json"
 }
 
 # Invoke the function:
@@ -389,6 +411,8 @@ random_request
 Input Request url
  (or set 'ST_REQUEST_URL' to be non-interactive) [/app/v1/load-test/v1/id-21]:
 
+Server configuration:
+{"preReserveRequestBody":"true","receiveRequestBody":"true"}
 Server data configuration:
 {"purgeExecution":"false","storeEvents":"false","storeEventsKeyHistory":"false"}
 
@@ -426,19 +450,19 @@ progress: 80% done
 progress: 90% done
 progress: 100% done
 
-finished in 1.57s, 63542.98 req/s, 66.30MB/s
+finished in 784.31ms, 127501.09 req/s, 133.03MB/s
 requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
 status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
 traffic: 104.34MB (109407063) total, 293.03KB (300058) headers (space savings 95.77%), 102.33MB (107300000) data
                      min         max         mean         sd        +/- sd
-time for request:      658us      2.88ms      1.56ms       176us    83.99%
-time for connect:      148us       148us       148us         0us   100.00%
-time to 1st byte:     1.10ms      1.10ms      1.10ms         0us   100.00%
-req/s           :   63552.33    63552.33    63552.33        0.00   100.00%
+time for request:      230us     11.70ms       757us       215us    91.98%
+time for connect:      136us       136us       136us         0us   100.00%
+time to 1st byte:     1.02ms      1.02ms      1.02ms         0us   100.00%
+req/s           :  127529.30   127529.30   127529.30        0.00   100.00%
 
-real    0m1.579s
-user    0m0.126s
-sys     0m0.107s
+real    0m0,790s
+user    0m0,217s
+sys     0m0,073s
 + set +x
 
 Created test report:
@@ -451,8 +475,8 @@ Created test report:
 
 You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/h2agent -h|--help`:
 
-```
-./build/Release/bin/h2agent -h
+```bash
+$> ./build/Release/bin/h2agent -h
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
@@ -525,6 +549,13 @@ Options:
 [--traffic-server-ignore-request-body]
   Ignores traffic server request body reception processing as optimization in
   case that its content is not required by planned provisions (enabled by default).
+
+[--traffic-server-dynamic-request-body-allocation]
+  When data chunks are received, the server appends them into the final request body.
+  In order to minimize reallocations over internal container, a pre reserve could be
+  executed (by design, the maximum received request body size is allocated).
+  Depending on your traffic profile this could be counterproductive, so this option
+  disables the default behavior to do a dynamic reservation of the memory.
 
 [--discard-data]
   Disables data storage for events processed (enabled by default).
@@ -701,7 +732,7 @@ More information about implemented counters [here](#OAM).
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
 ```bash
-$ ./h2agent --verbose &
+$> ./h2agent --verbose &
 [1] 27407
 [03/04/21 20:49:35 CEST] Starting h2agent v1.0.0-93-g0ab2129
 Log level: Warning
@@ -723,7 +754,8 @@ Traffic secured: no
 Admin secured: no
 Schema configuration file: <not provided>
 Global variables configuration file: <not provided>
-Traffic server ignore request body: false
+Traffic server process request body: true
+Traffic server pre reserve request body: true
 Data storage: enabled
 Data key history storage: enabled
 Purge execution: enabled
@@ -768,7 +800,7 @@ So you could find useful to run the corresponding docker container using the scr
 The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent_training:<tag>
+$> docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
@@ -1050,14 +1082,21 @@ Changes the log level of the `h2agent` process to any of the available levels (t
 
 **200** (OK) or **400** (Bad Request).
 
-### PUT /admin/v1/server/configuration?receiveRequestBody=`<true|false>`
+### PUT /admin/v1/server/configuration?receiveRequestBody=`<true|false>`&preReserveRequestBody=`<true|false>`
 
 Request body reception can be disabled. This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions. You could do this through the corresponding query parameter:
 
 * `receiveRequestBody=true`: data received will be processed.
 * `receiveRequestBody=false`: data received will be ignored.
 
-The `h2agent` starts with request body reception enabled by default, but you could also change this through command-line (`--traffic-server-ignore-request-body`).
+The `h2agent` starts with request body reception enabled by default, but you could also disable this through command-line (`--traffic-server-ignore-request-body`).
+
+Also, request body memory pre-reservation could be disabled to be dynamic. This simplifies the model behind (`http2comm` library) disabling the default optimization which minimizes reallocations done when data chunks are processed:
+
+* `preReserveRequestBody=true`: pre reserves memory for the expected request body (with the maximum message size received in a given moment).
+* `preReserveRequestBody=false`: allocates memory dynamically during append operations for data chunks processed.
+
+The `h2agent` starts with memory pre reservation enabled by default, but you could also disable this through command-line (`--traffic-server-dynamic-request-body-allocation`).
 
 #### Response status code
 
@@ -1077,6 +1116,7 @@ For example:
 
 ```json
 {
+    "preReserveRequestBody": "true",
     "receiveRequestBody": "true"
 }
 ```
@@ -1928,17 +1968,19 @@ No response body.
 There are three valid configurations for storage configuration behavior, depending on the query parameters provided:
 
 * `discard=true&discardKeyHistory=true`: nothing is stored.
-*  `discard=false&discardKeyHistory=true`: no key history stored (only the last event for a key, except for unprovisioned events, which history is always respected for troubleshooting purposes).
+* `discard=false&discardKeyHistory=true`: no key history stored (only the last event for a key, except for unprovisioned events, which history is always respected for troubleshooting purposes).
 * `discard=false&discardKeyHistory=false`: everything is stored: events and key history.
 
 The combination `discard=true&discardKeyHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
+
+The `h2agent` starts with full data storage enabled by default, but you could also disable this through command-line (`--discard-data` / `--discard-data-key-history`).
 
 And regardless the previous combinations, you could enable or disable the purge execution when this reserved state is reached for a specific provision. Take into account that this stage has no sense if no data is stored but you could configure it anyway:
 
 * `disablePurge=true`: provisions with `purge` state will ignore post-removal operation when this state is reached.
 * `disablePurge=false`: provisions with `purge` state will process post-removal operation when this state is reached.
 
-The `h2agent` starts with purge stage enabled by default, but you could also change this through command-line (`--disable-purge`).
+The `h2agent` starts with purge stage enabled by default, but you could also disable this through command-line (`--disable-purge`).
 
 Be careful using this `PUT`operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
 
@@ -2200,12 +2242,12 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
    ```yaml
    dependencies:
      - name: h2agent
-       version: 2.2.0
+       version: 1.0.0
        repository: alias:erthelm
        alias: h2server
 
      - name: h2agent
-       version: 2.2.0
+       version: 1.0.0
        repository: alias:erthelm
        alias: h2server2
    ```
@@ -2223,7 +2265,7 @@ Some [command line](#command-line) arguments used by the `h2agent` process are f
 As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
-source tools/helpers.src
+$> source ./tools/helpers.src
 
 ===== h2agent operation helpers =====
 Shortcut helpers (sourced variables and functions)
@@ -2245,6 +2287,10 @@ Usage: configuration [-h|--help]; Manages agent configuration (gets current stat
                                                                     server receptions.
                           [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
                                                                     server receptions.
+                          [--traffic-server-dynamic-request-body-allocation] ; Sets configuration to do dynamic request body
+                                                                               memory allocation on traffic server receptions.
+                          [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body
+                                                                               memory on traffic server receptions.
 Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
                           [--discard-all]     ; Sets data configuration to discard all the events processed.
                           [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
@@ -2292,31 +2338,36 @@ Usage: help; This help. Overview: help | grep ^Usage
 
 ### OAM
 
-You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions). For example, after *component test* execution this could be the metrics snapshot obtained:
+You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions): `metrics`.
+
+So, a direct scrape (for example towards the agent after its *component test*) would be something like this:
 
 ```bash
-$ kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "apk add curl && curl http://localhost:8080/metrics"
+$> kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "curl http://localhost:8080/metrics"
+```
 
-fetch https://dl-cdn.alpinelinux.org/alpine/v3.14/main/x86_64/APKINDEX.tar.gz
-fetch https://dl-cdn.alpinelinux.org/alpine/v3.14/community/x86_64/APKINDEX.tar.gz
-(1/5) Installing ca-certificates (20191127-r5)
-(2/5) Installing brotli-libs (1.0.9-r5)
-(3/5) Installing nghttp2-libs (1.43.0-r0)
-(4/5) Installing libcurl (7.79.1-r0)
-(5/5) Installing curl (7.79.1-r0)
-Executing busybox-1.33.1-r3.trigger
-Executing ca-certificates-20191127-r5.trigger
-OK: 8 MiB in 19 packages
+On native execution, it is just a simple `curl` native request:
+
+```bash
+$> curl http://localhost:8080/metrics
+```
+
+This is an example of metrics snapshot captured after [benchmark test](#benchmarking-test) execution:
+
+```bash
+$> source ./tools/helpers.src
+...
+$> metrics
 # HELP exposer_transferred_bytes_total Transferred bytes to metrics services
 # TYPE exposer_transferred_bytes_total counter
-exposer_transferred_bytes_total 0
+exposer_transferred_bytes_total 6715
 # HELP exposer_scrapes_total Number of times metrics were scraped
 # TYPE exposer_scrapes_total counter
-exposer_scrapes_total 0
+exposer_scrapes_total 1
 # HELP exposer_request_latencies Latencies of serving scrape requests, in microseconds
 # TYPE exposer_request_latencies summary
-exposer_request_latencies_count 0
-exposer_request_latencies_sum 0
+exposer_request_latencies_count 1
+exposer_request_latencies_sum 124
 exposer_request_latencies{quantile="0.5"} Nan
 exposer_request_latencies{quantile="0.9"} Nan
 exposer_request_latencies{quantile="0.99"} Nan
@@ -2328,12 +2379,12 @@ AdminHttp2Server_observed_requests_total{method="other",success="false"} 0
 AdminHttp2Server_observed_requests_total{method="PUT",success="false"} 0
 AdminHttp2Server_observed_requests_total{method="HEAD"} 0
 AdminHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="POST",success="false"} 2
+AdminHttp2Server_observed_requests_total{method="POST",success="false"} 0
 AdminHttp2Server_observed_requests_total{method="other"} 0
-AdminHttp2Server_observed_requests_total{method="DELETE"} 31
-AdminHttp2Server_observed_requests_total{method="PUT"} 6
-AdminHttp2Server_observed_requests_total{method="GET"} 23
-AdminHttp2Server_observed_requests_total{method="POST"} 77
+AdminHttp2Server_observed_requests_total{method="DELETE"} 1
+AdminHttp2Server_observed_requests_total{method="PUT"} 2
+AdminHttp2Server_observed_requests_total{method="GET"} 2
+AdminHttp2Server_observed_requests_total{method="POST"} 3
 # HELP MockHttp2Server_observed_requests_total Http2 total requests observed in MockHttp2Server
 # TYPE MockHttp2Server_observed_requests_total counter
 MockHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
@@ -2344,61 +2395,70 @@ MockHttp2Server_observed_requests_total{method="HEAD"} 0
 MockHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
 MockHttp2Server_observed_requests_total{method="POST",success="false"} 0
 MockHttp2Server_observed_requests_total{method="other"} 0
-MockHttp2Server_observed_requests_total{method="DELETE"} 1
+MockHttp2Server_observed_requests_total{method="DELETE"} 0
 MockHttp2Server_observed_requests_total{method="PUT"} 0
-MockHttp2Server_observed_requests_total{method="GET"} 30
-MockHttp2Server_observed_requests_total{method="POST"} 25
+MockHttp2Server_observed_requests_total{method="GET"} 0
+MockHttp2Server_observed_requests_total{method="POST"} 100000
 # HELP h2agent_observed_requests_total Http2 total requests observed in h2agent
 # TYPE h2agent_observed_requests_total counter
-h2agent_observed_requests_total{result="unprovisioned"} 7
-h2agent_observed_requests_total{result="processed"} 49
+h2agent_observed_requests_total{result="unprovisioned"} 0
+h2agent_observed_requests_total{result="processed"} 100000
 # HELP h2agent_purged_contexts_total Total contexts purged in h2agent
 # TYPE h2agent_purged_contexts_total counter
 h2agent_purged_contexts_total{result="failed"} 0
-h2agent_purged_contexts_total{result="successful"} 1
+h2agent_purged_contexts_total{result="successful"} 0
 # HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
 # TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
-AdminHttp2Server_responses_delay_seconds_gauge 0.000581
+AdminHttp2Server_responses_delay_seconds_gauge 7.2e-05
 # HELP AdminHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in AdminHttp2Server
 # TYPE AdminHttp2Server_messages_size_bytes_gauge gauge
-AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 103
-AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 503
+AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 104
+AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 81
 # HELP MockHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in MockHttp2Server
 # TYPE MockHttp2Server_responses_delay_seconds_gauge gauge
-MockHttp2Server_responses_delay_seconds_gauge 0.000198
+MockHttp2Server_responses_delay_seconds_gauge 0.000132
 # HELP MockHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in MockHttp2Server
 # TYPE MockHttp2Server_messages_size_bytes_gauge gauge
-MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 53
-MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 0
+MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 1073
+MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 177
 # HELP AdminHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in AdminHttp2Server
 # TYPE AdminHttp2Server_responses_delay_seconds_histogram histogram
-AdminHttp2Server_responses_delay_seconds_histogram_count 137
-AdminHttp2Server_responses_delay_seconds_histogram_sum 0.09854099999999998
-AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 137
+AdminHttp2Server_responses_delay_seconds_histogram_count 8
+AdminHttp2Server_responses_delay_seconds_histogram_sum 0.0007709999999999999
+AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 8
 # HELP AdminHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in AdminHttp2Server
 # TYPE AdminHttp2Server_messages_size_bytes_histogram histogram
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 137
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 11869
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 137
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 137
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17259
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 137
+AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 8
+AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 450
+AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 8
+AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 8
+AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 2167
+AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 8
 # HELP MockHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in MockHttp2Server
 # TYPE MockHttp2Server_responses_delay_seconds_histogram histogram
-MockHttp2Server_responses_delay_seconds_histogram_count 56
-MockHttp2Server_responses_delay_seconds_histogram_sum 0.02644799999999999
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 56
+MockHttp2Server_responses_delay_seconds_histogram_count 100000
+MockHttp2Server_responses_delay_seconds_histogram_sum 28.36501700000122
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0001"} 2177
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0002"} 13031
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0003"} 58585
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0004"} 96855
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0005"} 99607
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.001"} 99893
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.005"} 99999
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.01"} 100000
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.02"} 100000
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 100000
 # HELP MockHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in MockHttp2Server
 # TYPE MockHttp2Server_messages_size_bytes_histogram histogram
-MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 56
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 1930
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 56
-MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 56
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 796
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 56
+MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 100000
+MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 107300000
+MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 100000
+MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 100000
+MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17700000
+MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 100000
 ```
 
- So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
+So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
 
 #### Counters
 

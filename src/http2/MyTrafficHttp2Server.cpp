@@ -135,6 +135,7 @@ std::string MyTrafficHttp2Server::serverConfigurationAsJsonString() const {
     nlohmann::json result;
 
     result["receiveRequestBody"] = receive_request_body_ ? "true":"false";
+    result["preReserveRequestBody"] = pre_reserve_request_body_ ? "true":"false";
 
     return result.dump();
 }
@@ -148,6 +149,10 @@ bool MyTrafficHttp2Server::receiveDataLen(const nghttp2::asio_http2::server::req
     // http2comm library through this virtual method).
 
     return receive_request_body_.load();
+}
+
+bool MyTrafficHttp2Server::preReserveRequestBody() {
+    return pre_reserve_request_body_.load();
 }
 
 void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,

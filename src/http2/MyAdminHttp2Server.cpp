@@ -466,18 +466,34 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     }
     else if (pathSuffix == "server/configuration") {
         std::string receiveRequestBody;
+        std::string preReserveRequestBody;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("receiveRequestBody");
             if (it != qmap.end()) receiveRequestBody = it->second;
+            it = qmap.find("preReserveRequestBody");
+            if (it != qmap.end()) preReserveRequestBody = it->second;
         }
 
         bool b_receiveRequestBody = (receiveRequestBody == "true");
-        success = (receiveRequestBody == "true" || receiveRequestBody == "false");
-        if (success) {
-            getHttp2Server()->receiveRequestBody(b_receiveRequestBody);
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server request body reception: %s", b_receiveRequestBody ? "processed":"ignored"), ERT_FILE_LOCATION));
+        bool b_preReserveRequestBody = (preReserveRequestBody == "true");
+
+        success = true;
+        if (!receiveRequestBody.empty()) {
+            success = (receiveRequestBody == "true" || receiveRequestBody == "false");
+            if (success) {
+                getHttp2Server()->setReceiveRequestBody(b_receiveRequestBody);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server request body reception: %s", b_receiveRequestBody ? "processed":"ignored"), ERT_FILE_LOCATION));
+            }
+        }
+
+        if (!preReserveRequestBody.empty()) {
+            success = (preReserveRequestBody == "true" || preReserveRequestBody == "false");
+            if (success) {
+                getHttp2Server()->setPreReserveRequestBody(b_preReserveRequestBody);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server dynamic request body allocation: %s", b_preReserveRequestBody ? "false":"true"), ERT_FILE_LOCATION));
+            }
         }
     }
     else if (pathSuffix == "server-data/configuration") {

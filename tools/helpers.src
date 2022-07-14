@@ -61,6 +61,8 @@ configuration() {
     echo "Usage: configuration [-h|--help]; Manages agent configuration (gets current status by default)."
     echo "                          [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
     echo "                          [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
+    echo "                          [--traffic-server-dynamic-request-body-allocation]  ; Sets configuration to do dynamic request body memory allocation on traffic server receptions."
+    echo "                          [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body memory on traffic server receptions."
     return 0
   elif [ "$1" = "--traffic-server-ignore-request-body" ]
   then
@@ -68,6 +70,12 @@ configuration() {
   elif [ "$1" = "--traffic-server-receive-request-body" ]
   then
     do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=true"
+  elif [ "$1" = "--traffic-server-dynamic-request-body-allocation" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?preReserveRequestBody=false"
+  elif [ "$1" = "--traffic-server-initial-request-body-allocation" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?preReserveRequestBody=true"
   else
     do_curl ${ADMIN_URL}/server/configuration
   fi

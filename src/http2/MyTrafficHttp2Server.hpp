@@ -82,6 +82,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
 
     std::atomic<int> max_busy_threads_{0};
     std::atomic<bool> receive_request_body_{true};
+    std::atomic<bool> pre_reserve_request_body_{true};
 
 public:
     MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
@@ -103,7 +104,8 @@ public:
 
     bool checkHeaders(const nghttp2::asio_http2::server::request& req);
 
-    bool receiveDataLen(const nghttp2::asio_http2::server::request& req);
+    bool receiveDataLen(const nghttp2::asio_http2::server::request& req); //virtual
+    bool preReserveRequestBody(); //virtual
 
     void receive(const std::uint64_t &receptionId,
                  const nghttp2::asio_http2::server::request& req,
@@ -140,8 +142,12 @@ public:
         purge_execution_ = !disable;
     }
 
-    void receiveRequestBody(bool receive = true) {
+    void setReceiveRequestBody(bool receive = true) {
         receive_request_body_.store(receive);
+    }
+
+    void setPreReserveRequestBody(bool preReserve = true) {
+        pre_reserve_request_body_.store(preReserve);
     }
 };
 
