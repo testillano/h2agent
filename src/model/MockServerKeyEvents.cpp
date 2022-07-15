@@ -127,7 +127,9 @@ nlohmann::json MockServerKeyEvents::getJson() const {
 
 const std::string &MockServerKeyEvents::getLastRegisteredRequestState() const {
     read_guard_t guard(rw_mutex_);
-    return requests_.back()->getState(); // when invoked, always exists at least 1 request in the history
+    // By design, there are no keys without history (at least 1 exists and the key is removed if it is finally deleted).
+    // Then, back() is a valid iterator (https://github.com/testillano/h2agent/issues/53).
+    return requests_.back()->getState();
 }
 
 }
