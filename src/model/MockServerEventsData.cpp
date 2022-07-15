@@ -139,6 +139,7 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
             return false;
 
         somethingDeleted = it->second->removeMockServerKeyEvent(u_requestNumber, reverse);
+        if (it->second->size() == 0) remove(it); // remove key when history is dropped (https://github.com/testillano/h2agent/issues/53).
     }
     else {
         somethingDeleted = true;
@@ -286,7 +287,7 @@ bool MockServerEventsData::findLastRegisteredRequestState(const std::string &met
 
     auto it = get(key);
     if (it != end()) {
-        state = it->second->getLastRegisteredRequestState();
+        state = it->second->getLastRegisteredRequestState(); // by design, a key always contains at least one history event (https://github.com/testillano/h2agent/issues/53).
         return true;
     }
 
