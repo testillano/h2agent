@@ -60,12 +60,15 @@ public:
     ~GlobalVariable() = default;
 
     /**
-     * Loads variable and value
+     * Loads variable and value.
+     * Append is done if variable already exists. This allows to use global variables
+     * as memory buckets. To reset them, use 'eraser' source or just delete from
+     * REST API.
      *
      * @param variable variable name
-     * @param value variable value
+     * @param value value to append into variable
      */
-    void loadVariable(const std::string &variable, const std::string &value);
+    void load(const std::string &variable, const std::string &value);
 
     /**
      * Loads server data global operation data

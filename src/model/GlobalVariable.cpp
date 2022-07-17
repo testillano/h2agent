@@ -49,8 +49,10 @@ GlobalVariable::GlobalVariable() {
     global_variable_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
 }
 
-void GlobalVariable::loadVariable(const std::string &variable, const std::string &value) {
-    add(variable, value);
+void GlobalVariable::load(const std::string &variable, const std::string &value) {
+    bool exists;
+    std::string currentValue = getValue(variable, exists);
+    add(variable, currentValue + value);
 }
 
 bool GlobalVariable::loadJson(const nlohmann::json &j) {

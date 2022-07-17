@@ -970,7 +970,7 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Loads global variables for future usage.
+Loads global variables for future usage. Load is done through append, so if some variable exists, the new loaded value is appended. This allows to use global variables as memory buckets.
 
 #### Request body schema
 
@@ -1656,7 +1656,7 @@ The **target** of information is classified after parsing the following possible
 
 - var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
-- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**.
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch. 
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 

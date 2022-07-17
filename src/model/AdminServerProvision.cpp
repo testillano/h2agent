@@ -641,12 +641,12 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                 std::string varname;
                 if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
-                    global_variable_->loadVariable(target, matches.str(0)); // variable "as is" stores the entire match
+                    global_variable_->load(target, matches.str(0)); // variable "as is" stores the entire match
                     for(size_t i=1; i < matches.size(); i++) {
                         varname = target;
                         varname += ".";
                         varname += std::to_string(i);
-                        global_variable_->loadVariable(varname, matches.str(i));
+                        global_variable_->load(varname, matches.str(i));
                         LOGDEBUG(
                             std::stringstream ss;
                             ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
@@ -660,7 +660,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 targetS = sourceVault.getString(success);
                 if (!success) return false;
                 // assignment
-                global_variable_->loadVariable(target, targetS);
+                global_variable_->load(target, targetS);
             }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::OutState) {
