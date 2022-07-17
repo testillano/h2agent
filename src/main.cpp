@@ -44,8 +44,6 @@ SOFTWARE.
 #include <thread>
 #include <chrono>
 
-#include <boost/bind.hpp>
-
 // Project
 #include "version.hpp"
 #include <functions.hpp>

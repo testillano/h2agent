@@ -60,8 +60,6 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=1")
   response["status"] = 200
 
-  # Even not GET survives, although the key remains (without requests node):
+  # Even not GET survives:
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
-  key = next(item for item in response["body"] if item["method"] == "GET")
-  assert key["uri"] == "/app/v1/foo/bar/1"
-
+  response["status"] = 204
