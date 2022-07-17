@@ -635,8 +635,9 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         }
         else if (transformation->getTargetType() == Transformation::TargetType::TGVar) {
             if (eraser) {
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s'", target.c_str()), ERT_FILE_LOCATION));
-                global_variable_->removeVariable(target);
+                bool exists;
+                global_variable_->removeVariable(target, exists);
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s' (%s)", target.c_str(), exists ? "removed":"missing"), ERT_FILE_LOCATION));
             }
             else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                 std::string varname;

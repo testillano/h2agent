@@ -1028,19 +1028,25 @@ Retrieves the global variables schema.
 
 Json object document containing server data global schema.
 
-### GET /admin/v1/global-variable
+### GET /admin/v1/global-variable?name=`<variable name>`
 
-Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created:
+Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created, or using the query parameter `name`, the specific variable selected:
 
 #### Response status code
 
-**200** (OK) or **204** (No Content).
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 
-Json object document with variable fields and their values, when something is stored (no-content response has no body).
+When querying a specific variable, its value as string response body is retrieved:
 
-Take the following `json` as an example:
+```
+<variable_value>
+```
+
+A variable used as memory bucket, could store even binary data and it may be obtained with this `REST API`operation.
+
+When requesting the whole variables list, a Json object document with variable fields and their values (when something is stored, as no-content response has no body) is retrieved. Take the following `json` as an example of global list:
 
 ```json
 {
@@ -1050,13 +1056,13 @@ Take the following `json` as an example:
 }
 ```
 
-### DELETE /admin/v1/global-variable
+### DELETE /admin/v1/global-variable?name=`<variable name>`
 
-Deletes all the global variables registered.
+Deletes all the global variables registered or the selected one when query parameter is provided.
 
 #### Response status code
 
-**200** (OK) or **204** (No Content).
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 
@@ -2207,7 +2213,7 @@ Take the following `json` as an example:
 }
 ```
 
-### DELETE /admin/v1/server-data
+### DELETE /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 

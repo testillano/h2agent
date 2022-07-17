@@ -34,7 +34,8 @@ TEST_F(GlobalVariable_test, LoadGlobalVariableSuccess)
     bool exists = false;
     EXPECT_EQ(GlobalVariable_test::gvars_.getValue("variable_name_2", exists), "variable_value_2");
     EXPECT_TRUE(exists);
-    GlobalVariable_test::gvars_.removeVariable("variable_name_2");
+    GlobalVariable_test::gvars_.removeVariable("variable_name_2", exists);
+    EXPECT_TRUE(exists);
     EXPECT_EQ(GlobalVariable_test::gvars_.getValue("variable_name_2", exists), std::string(""));
     EXPECT_FALSE(exists);
     GlobalVariable_test::gvars_.load("another_variable", "another_value");
