@@ -21,7 +21,17 @@ def test_001_i_want_to_check_global_data_on_admin_interface(h2ac_admin, admin_gl
   response = h2ac_admin.get(ADMIN_GLOBAL_VARIABLE_URI)
   h2ac_admin.assert_response__status_body_headers(response, 200, string2dict(GLOBAL_VARIABLE_1_2_3))
 
-  # Delete and check again:
+  # Now, get specific variable:
+  response = h2ac_admin.get(ADMIN_GLOBAL_VARIABLE_URI + "?name=var1")
+  h2ac_admin.assert_response__status_body_headers(response, 200, "value1")
+
+  # Delete var1 twice to check 200 and 204:
+  response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI + "?name=var1")
+  assert response["status"] == 200
+  response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI + "?name=var1")
+  assert response["status"] == 204
+
+  # Global deletion twice to check 200 and 204:
   response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI)
   assert response["status"] == 200
   response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI)

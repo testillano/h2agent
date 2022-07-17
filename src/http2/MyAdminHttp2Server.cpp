@@ -336,8 +336,27 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = 200;
     }
     else if (pathSuffix == "global-variable") {
-        responseBody = getHttp2Server()->getGlobalVariable()->asJsonString();
-        statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+        std::string name = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            auto it = qmap.find("name");
+            if (it != qmap.end()) name = it->second;
+            if (name.empty()) {
+                statusCode = 400;
+                responseBody = "";
+            }
+        }
+        if (statusCode != 400) {
+            if (name.empty()) {
+                responseBody = getHttp2Server()->getGlobalVariable()->asJsonString();
+                statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+            }
+            else {
+                bool exists;
+                responseBody = getHttp2Server()->getGlobalVariable()->getValue(name, exists);
+                statusCode = (exists ? 200:204); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+            }
+        }
     }
     else if (pathSuffix == "global-variable/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
@@ -429,7 +448,26 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         statusCode = (success ? (serverDataDeleted ? 200:204):400);
     }
     else if (pathSuffix == "global-variable") {
-        statusCode = (getHttp2Server()->getGlobalVariable()->clear() ? 200:204);
+        bool globalVariableDeleted = false;
+        std::string name = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            auto it = qmap.find("name");
+            if (it != qmap.end()) name = it->second;
+            if (name.empty()) {
+                statusCode = 400;
+            }
+        }
+        if (statusCode != 400) {
+            if (name.empty()) {
+                statusCode = (getHttp2Server()->getGlobalVariable()->clear() ? 200:204);
+            }
+            else {
+                bool exists;
+                getHttp2Server()->getGlobalVariable()->removeVariable(name, exists);
+                statusCode = (exists ? 200:204);
+            }
+        }
     }
     else {
         statusCode = 400;

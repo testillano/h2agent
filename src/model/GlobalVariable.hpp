@@ -106,8 +106,9 @@ public:
      * Removes the variable name provided from map
      *
      * @param variableName Variable name to be removed
+     * @param exists Variable was found (true) or missing (false)
      */
-    void removeVariable(const std::string &variableName);
+    void removeVariable(const std::string &variableName, bool &exists);
 
     /**
      * Builds json document for class information

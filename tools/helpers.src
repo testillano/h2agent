@@ -39,13 +39,21 @@ schema_schema() {
 }
 
 global_variable() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
   [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/global-variable && return 0
+  local queryParam=
   if [ "$1" = "--clean" ]
   then
-    do_curl -XDELETE ${ADMIN_URL}/global-variable
+    [ -n "$2" ] && queryParam="?name=$2"
+    do_curl -XDELETE ${ADMIN_URL}/global-variable${queryParam}
   else
-    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/global-variable
+    [ -n "$1" ] && queryParam="?name=$1"
+    if [ -f "$1" ]
+    then
+      do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/global-variable
+    else
+      do_curl ${curl_method} ${ADMIN_URL}/global-variable${queryParam}
+    fi
   fi
 }
 

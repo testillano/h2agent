@@ -94,7 +94,8 @@ std::string GlobalVariable::getValue(const std::string &variableName, bool &exis
     return (exists ? (it->second):"");
 }
 
-void GlobalVariable::removeVariable(const std::string &variableName) {
+void GlobalVariable::removeVariable(const std::string &variableName, bool &exists) {
+    exists = (get(variableName) != end());
     remove(variableName);
 }
 
