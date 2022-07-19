@@ -6,6 +6,10 @@
 DEFAULTS=
 [ "$1" = "-y" ] && DEFAULTS=true
 
+# Log file dropped (long-term file in provision does not remove possible existing one):
+PROVISION_LONG_TERM_LOGFILE=/tmp/h2agent_benchmark_timestamp_usecs.log
+rm -f ${PROVISION_LONG_TERM_LOGFILE}
+
 # Default values
 H2AGENT_VALIDATE_SCHEMAS__dflt=n
 H2AGENT_SCHEMA__dflt=schema.json
@@ -252,6 +256,7 @@ then
   jq 'del (.[0].requestSchemaId,.[0].responseSchemaId)' ${TMP_DIR}/server-provision.json > ${TMP_DIR}/server-provision.json2
   mv ${TMP_DIR}/server-provision.json2 ${TMP_DIR}/server-provision.json
 fi
+sed -i 's|__PROVISION_LONG_TERM_LOGFILE__|'${PROVISION_LONG_TERM_LOGFILE}'|' ${TMP_DIR}/server-provision.json
 
 [ "${H2AGENT_VALIDATE_SCHEMAS}" = "y" ] && { h2a_admin_curl POST admin/v1/schema 201 ${H2AGENT_SCHEMA} || exit 1 ; }
 h2a_admin_curl POST admin/v1/server-matching 201 ${H2AGENT_SERVER_MATCHING} || exit 1

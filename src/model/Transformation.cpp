@@ -147,7 +147,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // Interpret source/target:
 
     // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser,
-    //                           Math, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState };)
+    //                           Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
@@ -160,7 +160,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // - eraser: this is used to indicate that the *response node target* specified.
     // + math.`<expression>`: this source is based in Arash Partow's exprtk math library compilation.
     // + random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
-    // + timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+    // + timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
     // + strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
     // - recvseq: sequence id increased for every mock reception (starts on *1* when the *h2agent* is started).
     // + var.<id>: general purpose variable.
@@ -176,7 +176,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex math("^math.(.*)", std::regex::optimize);
     static std::regex random("^random\\.([-+]{0,1}[0-9]+)\\.([-+]{0,1}[0-9]+)$", std::regex::optimize); // no need to validate min/max as it was done at schema
     static std::regex randomSet("^randomset.(.*)", std::regex::optimize);
-    static std::regex timestamp("^timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/ns as it was done at schema
+    static std::regex timestamp("^timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/us/ns as it was done at schema
     static std::regex strftime("^strftime.(.*)", std::regex::optimize); // free format, errors captured
     static std::regex varId("^var.(.*)", std::regex::optimize);
     static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
@@ -226,7 +226,7 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (std::regex_match(sourceSpec, matches, random)) { // range "<min>.<max>", i.e.: "-3.8", "0.100", "-15.+2", etc. These go to -> [source_i1_] and [source_i2_]
             source_i1_ = stoi(matches.str(1));
             source_i2_ = stoi(matches.str(2));
-            source_type_ = SourceType::GeneralRandom;
+            source_type_ = SourceType::Random;
         }
         else if (std::regex_match(sourceSpec, matches, randomSet)) { // random set given by tokenized pipe-separated list of values
             source_ = matches.str(1);
@@ -235,18 +235,18 @@ bool Transformation::load(const nlohmann::json &j) {
                                     std::sregex_token_iterator{begin(source_), end(source_), pipedRgx, -1},
                                     std::sregex_token_iterator{}
                                 );
-            source_type_ = SourceType::GeneralRandomSet;
+            source_type_ = SourceType::RandomSet;
         }
-        else if (std::regex_match(sourceSpec, matches, timestamp)) { // unit (s: seconds, ms: milliseconds, ns: nanoseconds)
+        else if (std::regex_match(sourceSpec, matches, timestamp)) { // unit (s: seconds, ms: milliseconds, us: microseconds, ns: nanoseconds)
             source_ = matches.str(1);
-            source_type_ = SourceType::GeneralTimestamp;
+            source_type_ = SourceType::Timestamp;
         }
         else if (std::regex_match(sourceSpec, matches, strftime)) { // current date/time formatted by as described in https://www.cplusplus.com/reference/ctime/strftime/
             source_ = matches.str(1);
-            source_type_ = SourceType::GeneralStrftime;
+            source_type_ = SourceType::Strftime;
         }
         else if (sourceSpec == "recvseq") {
-            source_type_ = SourceType::GeneralUnique;
+            source_type_ = SourceType::Recvseq;
         }
         else if (std::regex_match(sourceSpec, matches, varId)) { // variable id
             source_ = matches.str(1);
@@ -428,14 +428,14 @@ std::string Transformation::asString() const {
 
     // SOURCE
     ss << "SourceType: " << SourceTypeAsText(source_type_);
-    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::GeneralUnique && source_type_ != SourceType::InState) {
+    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::Recvseq && source_type_ != SourceType::InState) {
         ss << " | source_: " << source_;
 
         if (source_type_ == SourceType::RequestBody || source_type_ == SourceType::ResponseBody) {
             ss << " (empty: whole, path: node)";
         }
-        else if (source_type_ == SourceType::GeneralRandom) {
-            ss << " | source_i1_: " << source_i1_ << " (GeneralRandom min)" << " | source_i2_: " << source_i2_ << " (GeneralRandom max)";
+        else if (source_type_ == SourceType::Random) {
+            ss << " | source_i1_: " << source_i1_ << " (Random min)" << " | source_i2_: " << source_i2_ << " (Random max)";
         }
     }
 

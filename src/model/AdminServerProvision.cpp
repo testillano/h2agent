@@ -184,25 +184,28 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         parser.compile(expressionString, expression);
         sourceVault.setFloat(expression.value());
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandom) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Random) {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
         sourceVault.setInteger(transformation->getSourceI1() + (rand() % range));
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandomSet) {
+    else if (transformation->getSourceType() == Transformation::SourceType::RandomSet) {
         sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], variables); // replace variables if they exist
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralTimestamp) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Timestamp) {
         if (transformation->getSource() == "s") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
         else if (transformation->getSource() == "ms") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
+        else if (transformation->getSource() == "us") {
+            sourceVault.setInteger(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+        }
         else if (transformation->getSource() == "ns") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralStrftime) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Strftime) {
         std::time_t unixTime = 0;
         std::time (&unixTime);
         char buffer[100] = {0};
@@ -214,7 +217,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         sourceVault.setStringReplacingVariables(std::string(buffer), variables); // replace variables if they exist
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralUnique) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Recvseq) {
         sourceVault.setUnsigned(generalUniqueServerSequence);
     }
     else if (transformation->getSourceType() == Transformation::SourceType::SVar) {
@@ -829,7 +832,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, Event, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 

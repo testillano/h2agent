@@ -44,7 +44,7 @@ TEST_F(SafeFile_test, SafeFileWithCloseDelayed)
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
 
     // 1 file opened:
-    h2agent::model::SafeFile fileCloseDelayed(SafeFileJson["path"], timers_io_service_, 500);
+    h2agent::model::SafeFile fileCloseDelayed(SafeFileJson["path"], timers_io_service_, nullptr /* metrics */, 500);
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 1);
     fileCloseDelayed.empty(); // empty to ensure
     fileCloseDelayed.write(SafeFileContent);
@@ -82,7 +82,7 @@ TEST_F(SafeFile_test, SafeFileWithInstantClose)
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
 
     // 1 file opened:
-    h2agent::model::SafeFile fileInstantClose(SafeFileJson["path"], nullptr /* no timers io service will be used */, 0 /* instant close */);
+    h2agent::model::SafeFile fileInstantClose(SafeFileJson["path"], nullptr /* no timers io service will be used */, nullptr /* metrics */, 0 /* instant close */);
     SafeFileJson.erase("closeDelayUsecs");
 
     // No timers io service will be used regardless close delay value:

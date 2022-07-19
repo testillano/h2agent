@@ -387,7 +387,7 @@ int main(int argc, char* argv[])
     // Traces
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
-    // General resources: timer IO service, configuration, global variables and file manager:
+    // General resources: timer IO service, configuration and global variables and file manager:
     myTimersIoService = new boost::asio::io_service();
     myConfiguration = new h2agent::model::Configuration();
     myGlobalVariable = new h2agent::model::GlobalVariable();
@@ -721,6 +721,9 @@ int main(int argc, char* argv[])
             myExit(EXIT_FAILURE);
         }
     }
+
+    // FileManager/SafeFile metrics
+    myFileManager->enableMetrics(p_metrics);
 
     // Admin server
     myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread

@@ -48,14 +48,27 @@ std::atomic<int> SafeFile::CurrentOpenedFiles(0);
 std::mutex SafeFile::MutexOpenedFiles;
 std::condition_variable SafeFile::OpenedFilesCV;
 
-SafeFile::SafeFile (const std::string& path, boost::asio::io_service *timersIoService, unsigned int closeDelayUs, std::ios_base::openmode mode):
+SafeFile::SafeFile (const std::string& path, boost::asio::io_service *timersIoService, ert::metrics::Metrics *metrics, unsigned int closeDelayUs, std::ios_base::openmode mode):
     path_(path),
     io_service_(timersIoService),
+    metrics_(metrics),
     close_delay_us_(closeDelayUs),
     opened_(false),
     timer_(nullptr)
 {
     max_open_files_ = sysconf(_SC_OPEN_MAX /* 1024 probably */) - 10 /* margin just in case the process open other files */;
+
+    if (metrics_) {
+        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily("FileSystem_observed_operations_total", "H2agent file system operations");
+        observed_open_operation_counter_ = &(cf.Add({{"operation", "open"}}));
+        observed_close_operation_counter_ = &(cf.Add({{"operation", "close"}}));
+        observed_write_operation_counter_ = &(cf.Add({{"operation", "write"}}));
+        observed_empty_operation_counter_ = &(cf.Add({{"operation", "empty"}}));
+        observed_delayed_close_operation_counter_ = &(cf.Add({{"operation", "delayedClose"}}));
+        observed_instant_close_operation_counter_ = &(cf.Add({{"operation", "instantClose"}}));
+        observed_error_open_operation_counter_ = &(cf.Add({{"success", "false"}, {"operation", "open"}}));
+    }
+
     open(mode);
 }
 
@@ -66,6 +79,9 @@ SafeFile::~SafeFile() {
 
 void SafeFile::delayedClose() {
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Close delay is: %lu", close_delay_us_), ERT_FILE_LOCATION));
+
+    // metrics
+    if (metrics_) observed_delayed_close_operation_counter_->Increment();
 
     //if (!io_service_) return; // protection
     if (!timer_) timer_ = new boost::asio::deadline_timer(*io_service_, boost::posix_time::microseconds(close_delay_us_));
@@ -93,9 +109,13 @@ bool SafeFile::open(std::ios_base::openmode mode) {
         opened_ = true;
         CurrentOpenedFiles++;
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("'%s' opened for writting (currently opened: %d)", path_.c_str(), CurrentOpenedFiles.load()), ERT_FILE_LOCATION));
+        // metrics
+        if (metrics_) observed_open_operation_counter_->Increment();
     }
     else {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed open to write operation for '%s'", path_.c_str()), ERT_FILE_LOCATION));
+        // metrics
+        if (metrics_) observed_error_open_operation_counter_->Increment();
         return false;
     }
     //lock.unlock();
@@ -111,6 +131,8 @@ void SafeFile::close() {
     opened_ = false;
     CurrentOpenedFiles--;
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("'%s' closed (currently opened: %d)", path_.c_str(), CurrentOpenedFiles.load()), ERT_FILE_LOCATION));
+    // metrics
+    if (metrics_) observed_close_operation_counter_->Increment();
 
     lock.unlock();
     OpenedFilesCV.notify_one();
@@ -120,6 +142,8 @@ void SafeFile::empty() {
     close();
     open(std::ofstream::out | std::ofstream::trunc);
     close();
+    // metrics
+    if (metrics_) observed_empty_operation_counter_->Increment();
 }
 
 std::string SafeFile::read(bool &success, std::ios_base::openmode mode) {
@@ -137,6 +161,9 @@ std::string SafeFile::read(bool &success, std::ios_base::openmode mode) {
 
     // close the file after reading it:
     close();
+
+    // metrics (not needed by h2agent)
+    //if (metrics_) ?->Increment();
 
     return result;
 }
@@ -175,12 +202,18 @@ void SafeFile::write (const std::string& data) {
     file_.write(data.c_str(), data.size());
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Data written into '%s'", path_.c_str()), ERT_FILE_LOCATION));
 
+    // metrics
+    if (metrics_) observed_write_operation_counter_->Increment();
+
     // Close file:
     if (io_service_ && close_delay_us_ != 0) {
         delayedClose();
     }
     else {
         close();
+
+        // metrics
+        if (metrics_) observed_instant_close_operation_counter_->Increment();
     }
 }
 
