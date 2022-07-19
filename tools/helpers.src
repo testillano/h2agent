@@ -62,15 +62,34 @@ global_variable_schema() {
   do_curl "${ADMIN_URL}/global-variable/schema"
 }
 
-configuration() {
-
+files() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: configuration [-h|--help]; Manages agent configuration (gets current status by default)."
-    echo "                          [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
-    echo "                          [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
-    echo "                          [--traffic-server-dynamic-request-body-allocation]  ; Sets configuration to do dynamic request body memory allocation on traffic server receptions."
-    echo "                          [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body memory on traffic server receptions."
+    echo "Usage: files [-h|--help]; Gets the files processed."
+    return 0
+  else
+    do_curl ${ADMIN_URL}/files
+  fi
+}
+
+configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: configuration [-h|--help]; Gets agent general configuration."
+    return 0
+  else
+    do_curl ${ADMIN_URL}/configuration
+  fi
+}
+
+server_configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default)."
+    echo "                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
+    echo "                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
+    echo "                            [--traffic-server-dynamic-request-body-allocation]  ; Sets configuration to do dynamic request body memory allocation on traffic server receptions."
+    echo "                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body memory on traffic server receptions."
     return 0
   elif [ "$1" = "--traffic-server-ignore-request-body" ]
   then
@@ -89,11 +108,10 @@ configuration() {
   fi
 }
 
-data_configuration() {
-
+server_data_configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
+    echo "Usage: server_data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
     echo "                          [--discard-all]     ; Sets data configuration to discard all the events processed."
     echo "                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key."
     echo "                          [--keep-all]        ; Sets data configuration to keep all the events processed."
@@ -358,8 +376,10 @@ help() {
   echo "=== General ==="
   schema -h
   global_variable -h
+  files -h
   configuration -h
-  data_configuration -h
+  server_configuration -h
+  server_data_configuration -h
   echo
   echo "=== Traffic server ==="
   server_matching -h

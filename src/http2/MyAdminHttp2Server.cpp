@@ -50,7 +50,9 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 #include <functions.hpp>
 
 
@@ -396,13 +398,21 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
+    else if (pathSuffix == "configuration") {
+        responseBody = getConfiguration()->asJsonString();
+        statusCode = 200;
+    }
     else if (pathSuffix == "server/configuration") {
-        responseBody = getHttp2Server()->serverConfigurationAsJsonString();
+        responseBody = getHttp2Server()->configurationAsJsonString();
         statusCode = 200;
     }
     else if (pathSuffix == "server-data/configuration") {
-        responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
+        responseBody = getHttp2Server()->dataConfigurationAsJsonString();
         statusCode = 200;
+    }
+    else if (pathSuffix == "files") {
+        responseBody = getHttp2Server()->getFileManager()->asJsonString();
+        statusCode = ((responseBody == "[]") ? 204:200);
     }
     else if (pathSuffix == "logging") {
         responseBody = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
@@ -481,7 +491,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     bool success = false;
 
     if (pathSuffix == "logging") {
-        std::string level = "";
+        std::string level = "?";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("level");
@@ -489,7 +499,10 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
 
         std::string previousLevel = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
-        success = ert::tracing::Logger::setLevel(level);
+        if (level != "?") {
+            success = ert::tracing::Logger::setLevel(level);
+        }
+
         //LOGWARNING(
         if (success) {
             if (level != previousLevel)
@@ -517,7 +530,8 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         bool b_receiveRequestBody = (receiveRequestBody == "true");
         bool b_preReserveRequestBody = (preReserveRequestBody == "true");
 
-        success = true;
+        success = (!receiveRequestBody.empty() || !preReserveRequestBody.empty());
+
         if (!receiveRequestBody.empty()) {
             success = (receiveRequestBody == "true" || receiveRequestBody == "false");
             if (success) {
@@ -526,7 +540,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             }
         }
 
-        if (!preReserveRequestBody.empty()) {
+        if (success && !preReserveRequestBody.empty()) {
             success = (preReserveRequestBody == "true" || preReserveRequestBody == "false");
             if (success) {
                 getHttp2Server()->setPreReserveRequestBody(b_preReserveRequestBody);
@@ -554,9 +568,12 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         bool b_discardKeyHistory = (discardKeyHistory == "true");
         bool b_disablePurge = (disablePurge == "true");
 
-        success = true;
-        if (!discard.empty() && !discardKeyHistory.empty())
-            success = !(b_discard && !b_discardKeyHistory); // it has no sense to try to keep history if whole data is discarded
+        success = (!discard.empty() || !discardKeyHistory.empty() || !disablePurge.empty());
+
+        if (success) {
+            if (!discard.empty() && !discardKeyHistory.empty())
+                success = !(b_discard && !b_discardKeyHistory); // it has no sense to try to keep history if whole data is discarded
+        }
 
         if (success) {
             if (!discard.empty()) {

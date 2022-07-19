@@ -11,6 +11,7 @@
 #include <AdminSchemas.hpp>
 #include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 
 #include <ert/http2comm/Http2Headers.hpp>
 
@@ -144,6 +145,10 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     {
       "source": "math.1+2+3+5+8",
       "target": "response.body.integer./math-calculation"
+    },
+    {
+      "source": "eraser",
+      "target": "txtFile./tmp/h2agent.ut.@{myvar}.txt"
     }
   ]
 }
@@ -276,16 +281,19 @@ public:
     h2agent::model::AdminData adata_{};
     h2agent::model::MockServerEventsData *events_data_{};
     h2agent::model::GlobalVariable *global_variable_{};
+    h2agent::model::FileManager *file_manager_{};
 
     Transform_test() {
         // Reserve memory for storage data and global variables, just in case they are used:
         events_data_ = new h2agent::model::MockServerEventsData();
         global_variable_ = new h2agent::model::GlobalVariable();
+        file_manager_ = new h2agent::model::FileManager(nullptr);
     }
 
     ~Transform_test() {
         delete(events_data_);
         delete(global_variable_);
+        delete(file_manager_);
     }
 };
 
@@ -300,6 +308,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
     provision->setMockServerEventsData(events_data_); // could be used by event source
     provision->setGlobalVariable(global_variable_);
+    provision->setFileManager(file_manager_);
 
     // Simulate event on transformation:
     std::string requestUri = "/app/v1/foo/bar/1?name=test";

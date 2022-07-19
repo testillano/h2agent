@@ -69,7 +69,9 @@ typedef std::string admin_server_provision_key_t;
 void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
 class MockServerEventsData;
+class Configuration;
 class GlobalVariable;
+class FileManager;
 
 
 class AdminServerProvision
@@ -104,7 +106,9 @@ class AdminServerProvision
     std::string response_schema_id_{};
 
     model::MockServerEventsData *mock_server_events_data_{}; // just in case it is used
+    model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
+    model::FileManager *file_manager_{}; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
@@ -212,11 +216,27 @@ public:
     }
 
     /**
+     * Sets the configuration reference,
+     * just in case it is used in event target
+     */
+    void setConfiguration(model::Configuration *p) {
+        configuration_ = p;
+    }
+
+    /**
      * Sets the global variables data reference,
      * just in case it is used in event source
      */
     void setGlobalVariable(model::GlobalVariable *p) {
         global_variable_ = p;
+    }
+
+    /**
+     * Sets the file manager reference,
+     * just in case it is used in event target
+     */
+    void setFileManager(model::FileManager *p) {
+        file_manager_ = p;
     }
 
     // getters:

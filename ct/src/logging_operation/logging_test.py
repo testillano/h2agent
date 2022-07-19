@@ -9,10 +9,11 @@ def test_000_cleanup(admin_cleanup):
   admin_cleanup()
 
 
+@pytest.mark.admin
 def test_001_i_want_to_configure_invalid_logging_level(h2ac_admin):
 
   # Send PUT
-  response = h2ac_admin.put(ADMIN_LOGGING_URI + '?level=invalidlevel')
+  response = h2ac_admin.put(ADMIN_LOGGING_URI + "?level=invalidlevel")
   h2ac_admin.assert_response__status_body_headers(response, 400, "")
 
 
@@ -20,7 +21,7 @@ def test_001_i_want_to_configure_invalid_logging_level(h2ac_admin):
 def test_002_i_want_to_configure_informational_logging_level(h2ac_admin):
 
   # Send PUT
-  response = h2ac_admin.put(ADMIN_LOGGING_URI + '?level=Informational')
+  response = h2ac_admin.put(ADMIN_LOGGING_URI + "?level=Informational")
   h2ac_admin.assert_response__status_body_headers(response, 200, "")
 
   # Send GET
@@ -29,10 +30,19 @@ def test_002_i_want_to_configure_informational_logging_level(h2ac_admin):
   assert response["body"] == "Informational"
 
   # Send PUT (restore Warning level)
-  response = h2ac_admin.put(ADMIN_LOGGING_URI + '?level=Warning')
+  response = h2ac_admin.put(ADMIN_LOGGING_URI + "?level=Warning")
   h2ac_admin.assert_response__status_body_headers(response, 200, "")
 
   # Send GET
   response = h2ac_admin.get(ADMIN_LOGGING_URI)
   assert response["status"] == 200
   assert response["body"] == "Warning"
+
+
+@pytest.mark.admin
+def test_003_i_want_to_set_invalid_logging_configuration(h2ac_admin):
+
+  # Configure
+  response = h2ac_admin.put(ADMIN_LOGGING_URI + "?foo=bar")
+  assert response["status"] == 400
+

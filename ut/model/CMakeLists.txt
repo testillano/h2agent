@@ -1,3 +1,5 @@
 add_subdirectory(AdminData)
 add_subdirectory(Transformation)
 add_subdirectory(Storage)
+add_subdirectory(Configuration)
+add_subdirectory(FileSystem)

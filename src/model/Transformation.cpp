@@ -180,7 +180,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex strftime("^strftime.(.*)", std::regex::optimize); // free format, errors captured
     static std::regex varId("^var.(.*)", std::regex::optimize);
     static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
-    static std::regex value("^value.(.*)", std::regex::optimize);
+    static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
     static std::regex event("^event.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
@@ -267,6 +267,10 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (sourceSpec == "inState") {
             source_type_ = SourceType::InState;
         }
+        else { // some things could reach this (strange characters within value.* for example):
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
     }
     catch (std::regex_error &e) {
         ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
@@ -299,6 +303,8 @@ bool Transformation::load(const nlohmann::json &j) {
     // + globalVar.<id> *[string (or number as string)]*: general purpose global variable.
     // - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
     // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
+    // + txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided.
+    // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
 
     // Regex needed:
     static std::regex responseBodyStringNode("^response.body.string.(.*)", std::regex::optimize);
@@ -310,6 +316,8 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)", std::regex::optimize);
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
     static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
+    static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
+    static std::regex binFile("^binFile.(.*)", std::regex::optimize);
 
     try {
         if (targetSpec == "response.body.string") { // whole document
@@ -390,6 +398,18 @@ bool Transformation::load(const nlohmann::json &j) {
             }
             target_type_ = TargetType::OutState;
         }
+        else if (std::regex_match(targetSpec, matches, txtFile)) { // path file
+            target_ = matches.str(1);
+            target_type_ = TargetType::TxtFile;
+        }
+        else if (std::regex_match(targetSpec, matches, binFile)) { // path file
+            target_ = matches.str(1);
+            target_type_ = TargetType::BinFile;
+        }
+        else { // very strange to reach this:
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
     }
     catch (std::regex_error &e) {
         ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
@@ -429,6 +449,9 @@ std::string Transformation::asString() const {
         }
         else if (target_type_ == TargetType::OutState) {
             ss << " (empty: current method, method: another)" << " | target2_: " << target2_ << "(empty: current uri, uri: another)";
+        }
+        else if (target_type_ == TargetType::TxtFile || target_type_ == TargetType::BinFile) {
+            ss << " (path file)";
         }
     }
 

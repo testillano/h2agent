@@ -48,7 +48,9 @@ SOFTWARE.
 
 #include <AdminServerProvision.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 
 #include <functions.hpp>
 
@@ -86,7 +88,7 @@ void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const s
 
 AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
-    response_delay_ms_(0), mock_server_events_data_(nullptr), global_variable_(nullptr) {;}
+    response_delay_ms_(0), mock_server_events_data_(nullptr) {;}
 
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
@@ -672,6 +674,36 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             outState = targetS;
             outStateMethod = target; // empty on regular usage
             outStateUri = target2; // empty on regular usage
+        }
+        else if (transformation->getTargetType() == Transformation::TargetType::TxtFile) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+
+            if (eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into text file '%s'", target.c_str()), ERT_FILE_LOCATION));
+                file_manager_->empty(target/*path*/);
+            }
+            else {
+                // assignments
+                bool shortTerm = (target != transformation->getTarget()); // something was replaced in target: path is considered arbitrary and dynamic: short term files
+                file_manager_->write(target/*path*/, targetS/*data*/, true/*text*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
+            }
+        }
+        else if (transformation->getTargetType() == Transformation::TargetType::BinFile) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+
+            if (eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into binary file '%s'", target.c_str()), ERT_FILE_LOCATION));
+                file_manager_->empty(target/*path*/);
+            }
+            else {
+                // assignments
+                bool shortTerm = (target != transformation->getTarget()); // something was replaced in target: path is considered arbitrary and dynamic: short term files
+                file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
+            }
         }
     }
     catch (std::exception& e)
