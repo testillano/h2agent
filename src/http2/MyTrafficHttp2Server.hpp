@@ -55,7 +55,9 @@ namespace h2agent
 namespace model
 {
 class MockServerEventsData;
+class Configuration;
 class GlobalVariable;
+class FileManager;
 class AdminData;
 }
 
@@ -69,9 +71,10 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     bool purge_execution_{};
 
     model::MockServerEventsData *mock_server_events_data_{};
+    model::Configuration *configuration_{};
     model::GlobalVariable *global_variable_{};
+    model::FileManager *file_manager_{};
     model::AdminData *admin_data_{};
-    std::atomic<std::uint64_t> general_unique_server_sequence_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
@@ -82,6 +85,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
     std::atomic<int> max_busy_threads_{0};
+    std::atomic<bool> receive_request_body_{true};
+    std::atomic<bool> pre_reserve_request_body_{true};
 
 public:
     MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
@@ -103,19 +108,41 @@ public:
 
     bool checkHeaders(const nghttp2::asio_http2::server::request& req);
 
-    void receive(const nghttp2::asio_http2::server::request& req,
-                 std::shared_ptr<std::stringstream> requestBody,
+    bool receiveDataLen(const nghttp2::asio_http2::server::request& req); //virtual
+    bool preReserveRequestBody(); //virtual
+
+    void receive(const std::uint64_t &receptionId,
+                 const nghttp2::asio_http2::server::request& req,
+                 const std::string &requestBody,
                  const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
-
     model::MockServerEventsData *getMockServerEventsData() const {
         return mock_server_events_data_;
+    }
+
+    void setConfiguration(model::Configuration *p) {
+        configuration_ = p;
+    }
+    model::Configuration *getConfiguration() const {
+        return configuration_;
+    }
+
+    void setGlobalVariable(model::GlobalVariable *p) {
+        global_variable_ = p;
     }
     model::GlobalVariable *getGlobalVariable() const {
         return global_variable_;
     }
+
+    void setFileManager(model::FileManager *p) {
+        file_manager_ = p;
+    }
+    model::FileManager *getFileManager() const {
+        return file_manager_;
+    }
+
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;
     }
@@ -123,11 +150,8 @@ public:
         return admin_data_;
     }
 
-    std::string serverDataConfigurationAsJsonString() const;
-
-    const std::atomic<std::uint64_t> &getGeneralUniqueServerSequence() const {
-        return general_unique_server_sequence_;
-    }
+    std::string dataConfigurationAsJsonString() const;
+    std::string configurationAsJsonString() const;
 
     void discardData(bool discard = true) {
         server_data_ = !discard;
@@ -139,6 +163,14 @@ public:
 
     void disablePurge(bool disable = true) {
         purge_execution_ = !disable;
+    }
+
+    void setReceiveRequestBody(bool receive = true) {
+        receive_request_body_.store(receive);
+    }
+
+    void setPreReserveRequestBody(bool preReserve = true) {
+        pre_reserve_request_body_.store(preReserve);
     }
 };
 

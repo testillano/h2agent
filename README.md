@@ -53,7 +53,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 * Run <u>project executable</u> natively (standalone):
 
   ```bash
-  $> build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
   ```
 
   You may play with native helpers functions and examples:
@@ -80,12 +80,10 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h
   ```
 
-  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils`:
+  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils` and automatically sourced on `bash` shell:
 
   ```bash
-  $> kubectl exec -it ${pod} -- sh
-  / # source /opt/utils/helpers.src # type help in any moment after sourcing
-  / # server_example # follow instructions or just source it: source <(server_example)
+  $> kubectl exec -it ${pod} -- bash
   ```
 
 
@@ -97,17 +95,18 @@ Next sections will describe in detail, how to build [project image](#project-ima
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent:<tag>
+$> docker pull ghcr.io/testillano/h2agent:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$ ./build.sh --project-image
+$> ./build.sh --project-image
 ```
 
 This image is built with `./Dockerfile`.
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ## Build project with docker
 
@@ -116,40 +115,41 @@ This image is built with `./Dockerfile`.
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent_builder:<tag>
+$> docker pull ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$ ./build.sh --builder-image
+$> ./build.sh --builder-image
 ```
 
 This image is built with `./Dockerfile.build`.
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ### Usage
 
 Builder image is used to build the executable. To run compilation over this image, again, just run with `docker`:
 
 ```bash
-$ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
-$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         ghcr.io/testillano/h2agent_builder:<tag>
+$> envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
+$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+          ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
 
 ```bash
-$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-         ghcr.io/testillano/h2agent_builder::<tag> "" doc
+$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+          ghcr.io/testillano/h2agent_builder::<tag> "" doc
 ```
 
 You could also build the library using the script `./build.sh` located at project root:
 
 
 ```bash
-$ ./build.sh --project
+$> ./build.sh --project
 ```
 
 ## Build project natively
@@ -167,32 +167,32 @@ Note: this script is tested on `ubuntu bionic`, then some requirements could be 
 Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
 
 ```bash
-$ sudo apt-get install cmake
+$> sudo apt-get install cmake
 ```
 
 And then generate the makefiles from project root directory:
 
 ```bash
-$ cmake .
+$> cmake .
 ```
 
 You could specify type of build, 'Debug' or 'Release', for example:
 
 ```bash
-$ cmake -DCMAKE_BUILD_TYPE=Debug .
-$ cmake -DCMAKE_BUILD_TYPE=Release .
+$> cmake -DCMAKE_BUILD_TYPE=Debug .
+$> cmake -DCMAKE_BUILD_TYPE=Release .
 ```
 
 You could also change the compilers used:
 
 ```bash
-$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
+$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
 ```
 
 or
 
 ```bash
-$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
+$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
 ```
 
 ### Requirements
@@ -210,24 +210,24 @@ nghttp2 (https://github.com/testillano/nghttp2)
 ### Build
 
 ```bash
-$ make
+$> make
 ```
 
 ### Clean
 
 ```bash
-$ make clean
+$> make clean
 ```
 
 ### Documentation
 
 ```bash
-$ make doc
+$> make doc
 ```
 
 ```bash
-$ cd docs/doxygen
-$ tree -L 1
+$> cd docs/doxygen
+$> tree -L 1
      .
      ├── Doxyfile
      ├── html
@@ -238,20 +238,20 @@ $ tree -L 1
 ### Install
 
 ```bash
-$ sudo make install
+$> sudo make install
 ```
 
 Optionally you could specify another prefix for installation:
 
 ```bash
-$ cmake -DMY_OWN_INSTALL_PREFIX=$HOME/myPrograms/http2
-$ make install
+$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/myPrograms/http2
+$> make install
 ```
 
 ### Uninstall
 
 ```bash
-$ cat install_manifest.txt | sudo xargs rm
+$> cat install_manifest.txt | sudo xargs rm
 ```
 
 ## Testing
@@ -265,50 +265,53 @@ You can execute it after project building, for example for `Release` target: `./
 
 Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
 
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+
 ### Component test
 
 Component test is based in `pytest` framework. Just execute `ct/test.sh` to deploy the component test chart. Some cloud-native technologies are required: `docker`, `kubectl`, `minikube` and `helm`, for example:
 
 ```bash
-$ docker version
+$> docker version
 Client: Docker Engine - Community
- Version:           19.03.11
- API version:       1.40
- Go version:        go1.13.10
- Git commit:        42e35e61f3
- Built:             Mon Jun  1 09:12:22 2020
+ Version:           20.10.17
+ API version:       1.41
+ Go version:        go1.17.11
+ Git commit:        100c701
+ Built:             Mon Jun  6 23:02:56 2022
  OS/Arch:           linux/amd64
- Experimental:      false
+ Context:           default
+ Experimental:      true
 
 Server: Docker Engine - Community
  Engine:
-  Version:          19.03.11
-  API version:      1.40 (minimum version 1.12)
-  Go version:       go1.13.10
-  Git commit:       42e35e61f3
-  Built:            Mon Jun  1 09:10:54 2020
+  Version:          20.10.17
+  API version:      1.41 (minimum version 1.12)
+  Go version:       go1.17.11
+  Git commit:       a89b842
+  Built:            Mon Jun  6 23:01:02 2022
   OS/Arch:          linux/amd64
   Experimental:     false
  containerd:
-  Version:          1.4.3
-  GitCommit:        269548fa27e0089a8b8278fc4fc781d7f65a939b
+  Version:          1.6.6
+  GitCommit:        10c12954828e7c7c9b6e0ea9b0c02b01407d3ae1
  runc:
-  Version:          1.0.0-rc92
-  GitCommit:        ff819c7e9184c13b7c2607fe6c30ae19403a7aff
+  Version:          1.1.2
+  GitCommit:        v1.1.2-0-ga916309
  docker-init:
-  Version:          0.18.0
-  GitCommit:        fec3683
+  Version:          0.19.0
+  GitCommit:        de40ad0
 
-$ kubectl version
-Client Version: version.Info{Major:"1", Minor:"18", GitVersion:"v1.18.9", GitCommit:"94f372e501c973a7fa9eb40ec9ebd2fe7ca69848", GitTreeState:"clean", BuildDate:"2020-09-16T13:56:40Z", GoVersion:"go1.13.15", Compiler:"gc", Platform:"linux/amd64"}
-Server Version: version.Info{Major:"1", Minor:"18", GitVersion:"v1.18.9", GitCommit:"94f372e501c973a7fa9eb40ec9ebd2fe7ca69848", GitTreeState:"clean", BuildDate:"2020-09-16T13:47:43Z", GoVersion:"go1.13.15", Compiler:"gc", Platform:"linux/amd64"}
+$> kubectl version
+Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.4", GitCommit:"b695d79d4f967c403a96986f1750a35eb75e75f1", GitTreeState:"clean", BuildDate:"2021-11-17T15:48:33Z", GoVersion:"go1.16.10", Compiler:"gc", Platform:"linux/amd64"}
+Server Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitCommit:"8b5a19147530eaac9476b0ab82980b4088bbc1b2", GitTreeState:"clean", BuildDate:"2021-09-15T21:32:41Z", GoVersion:"go1.16.8", Compiler:"gc", Platform:"linux/amd64"}
 
-$ minikube version
-minikube version: v1.12.3
-commit: 2243b4b97c131e3244c5f014faedca0d846599f5-dirty
+$> minikube version
+minikube version: v1.23.2
+commit: 0a0ad764652082477c00d51d2475284b5d39ceed
 
-$ helm version
-version.BuildInfo{Version:"v3.3.3", GitCommit:"55e3ca022e40fe200fbc855938995f40b2a68ce0", GitTreeState:"clean", GoVersion:"go1.14.9"}
+$> helm version
+version.BuildInfo{Version:"v3.7.1", GitCommit:"1d11fcb5d3f3bf00dbe6fe31b8412839a96b3dc4", GitTreeState:"clean", GoVersion:"go1.16.9"}
 ```
 
 ### Benchmarking test
@@ -329,35 +332,57 @@ Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load
 
 Also, `st/last.sh` script repeats the last execution in headless mode.
 
-As schema validation is normally used only for function tests, it will be disabled here:
+As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#oam):
 
 ```bash
-$ st/start.sh -y
+$> ./build/Release/bin/h2agent --verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3"
+```
+
+In other shell we launch the benchmark test:
+
+```bash
+$> st/start.sh -y
 
 
 Input Validate schemas (y|n)
- (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]: n
+ (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]:
+n
 
 Input Matching configuration
- (or set 'H2AGENT_SERVER_MATCHING' to be non-interactive) [server-matching.json]: server-matching.json
+ (or set 'H2AGENT_SERVER_MATCHING' to be non-interactive) [server-matching.json]:
+server-matching.json
 
 Input Provision configuration
- (or set 'H2AGENT_SERVER_PROVISION' to be non-interactive) [server-provision.json]: server-provision.json
+ (or set 'H2AGENT_SERVER_PROVISION' to be non-interactive) [server-provision.json]:
+server-provision.json
 
 Input Global variable(s) configuration
- (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]: global-variable.json
+ (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]:
+global-variable.json
+
+Input Server configuration to ignore request body (true|false)
+ (or set 'H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION' to be non-interactive) [false]:
+false
+
+Input Server configuration to perform dynamic request body allocation (true|false)
+ (or set 'H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION' to be non-interactive) [false]:
+false
 
 Input Server data storage configuration (discard-all|discard-history|keep-all)
- (or set 'H2AGENT__DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]: discard-all
+ (or set 'H2AGENT__DATA_STORAGE_CONFIGURATION' to be non-interactive) [discard-all]:
+discard-all
 
 Input Server data purge configuration (enable-purge|disable-purge)
- (or set 'H2AGENT__DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]: disable-purge
+ (or set 'H2AGENT__DATA_PURGE_CONFIGURATION' to be non-interactive) [disable-purge]:
+disable-purge
 
 Input H2agent endpoint address
- (or set 'H2AGENT__BIND_ADDRESS' to be non-interactive) [0.0.0.0]: 0.0.0.0
+ (or set 'H2AGENT__BIND_ADDRESS' to be non-interactive) [0.0.0.0]:
+0.0.0.0
 
 Input H2agent response delay in milliseconds
- (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]: 0
+ (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]:
+0
 
 Input Request method (PUT|DELETE|HEAD|POST|GET)
  (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]:
@@ -375,6 +400,8 @@ random_request() {
    [ -z "${bytes}" ] && bytes=3000
    local size=$((bytes/15)) # aproximation
    export ST_REQUEST_BODY="{"$(k=0 ; while [ $k -lt $size ]; do k=$((k+1)); echo -n "\"id${RANDOM}\":${RANDOM}"; [ ${k} -lt $size ] && echo -n "," ; done)"}"
+   echo "Random request created has $(echo ${ST_REQUEST_BODY} | wc -c) bytes (~ ${bytes})"
+   echo "If you need as file: echo \${ST_REQUEST_BODY} > request-${bytes}b.json"
 }
 
 # Invoke the function:
@@ -384,8 +411,10 @@ random_request
 Input Request url
  (or set 'ST_REQUEST_URL' to be non-interactive) [/app/v1/load-test/v1/id-21]:
 
+Server configuration:
+{"preReserveRequestBody":true,"receiveRequestBody":true}
 Server data configuration:
-{"purgeExecution":"false","storeEvents":"false","storeEventsKeyHistory":"false"}
+{"purgeExecution":false,"storeEvents":false,"storeEventsKeyHistory":false}
 
 Removing current server data information ... done !
 
@@ -421,19 +450,19 @@ progress: 80% done
 progress: 90% done
 progress: 100% done
 
-finished in 2.18s, 45926.73 req/s, 47.61MB/s
+finished in 784.31ms, 127501.09 req/s, 133.03MB/s
 requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout
 status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-traffic: 103.67MB (108707642) total, 293.07KB (300104) headers (space savings 95.77%), 101.66MB (106600000) data
+traffic: 104.34MB (109407063) total, 293.03KB (300058) headers (space savings 95.77%), 102.33MB (107300000) data
                      min         max         mean         sd        +/- sd
-time for request:      899us      6.65ms      2.15ms       434us    80.28%
-time for connect:      156us       156us       156us         0us   100.00%
-time to 1st byte:     4.91ms      4.91ms      4.91ms         0us   100.00%
-req/s           :   45933.22    45933.22    45933.22        0.00   100.00%
+time for request:      230us     11.70ms       757us       215us    91.98%
+time for connect:      136us       136us       136us         0us   100.00%
+time to 1st byte:     1.02ms      1.02ms      1.02ms         0us   100.00%
+req/s           :  127529.30   127529.30   127529.30        0.00   100.00%
 
-real    0m2.183s
-user    0m0.231s
-sys     0m0.175s
+real    0m0,790s
+user    0m0,217s
+sys     0m0,073s
 + set +x
 
 Created test report:
@@ -446,8 +475,8 @@ Created test report:
 
 You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/h2agent -h|--help`:
 
-```
-./build/Release/bin/h2agent -h
+```bash
+$> ./build/Release/bin/h2agent -h
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
@@ -517,6 +546,17 @@ Options:
 [--traffic-server-provision <path file>]
   Path file for optional startup traffic server provision configuration.
 
+[--traffic-server-ignore-request-body]
+  Ignores traffic server request body reception processing as optimization in
+  case that its content is not required by planned provisions (enabled by default).
+
+[--traffic-server-dynamic-request-body-allocation]
+  When data chunks are received, the server appends them into the final request body.
+  In order to minimize reallocations over internal container, a pre reserve could be
+  executed (by design, the maximum received request body size is allocated).
+  Depending on your traffic profile this could be counterproductive, so this option
+  disables the default behavior to do a dynamic reservation of the memory.
+
 [--discard-data]
   Disables data storage for events processed (enabled by default).
   This invalidates some features like FSM related ones (in-state, out-state)
@@ -547,6 +587,19 @@ Options:
 
 [--disable-metrics]
   Disables prometheus scrape port (enabled by default).
+
+[--long-term-files-close-delay-usecs <microseconds>]
+  Close delay after write operation for those target files with constant paths provided.
+  Normally used for logging files: we should have few of them. By default, 1000000
+  usecs are configured. Delay is useful to avoid I/O overhead under normal conditions.
+  Zero value means that close operation is done just after writting the file.
+
+[--short-term-files-close-delay-usecs <microseconds>]
+  Close delay after write operation for those target files with variable paths provided.
+  Normally used for provision debugging: we could have multiple of them. Traffic rate
+  could constraint the final delay configured to avoid reach the maximum opened files
+  limit allowed. By default, it is configured to 0 usecs.
+  Zero value means that close operation is done just after writting the file.
 
 [-v|--version]
   Program version.
@@ -692,7 +745,7 @@ More information about implemented counters [here](#OAM).
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
 ```bash
-$ ./h2agent --verbose &
+$> ./h2agent --verbose &
 [1] 27407
 [03/04/21 20:49:35 CEST] Starting h2agent v1.0.0-93-g0ab2129
 Log level: Warning
@@ -714,6 +767,8 @@ Traffic secured: no
 Admin secured: no
 Schema configuration file: <not provided>
 Global variables configuration file: <not provided>
+Traffic server process request body: true
+Traffic server pre reserve request body: true
 Data storage: enabled
 Data key history storage: enabled
 Purge execution: enabled
@@ -758,8 +813,9 @@ So you could find useful to run the corresponding docker container using the scr
 The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent_training:<tag>
+$> docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
+Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 ## Management interface
 
@@ -770,6 +826,7 @@ We will start describing **general** mock operations:
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
 * Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
 * Logging: dynamic logger configuration (update and check).
+* General configuration (server).
 
 Then, we will describe **traffic server mock** features:
 
@@ -777,7 +834,7 @@ Then, we will describe **traffic server mock** features:
 
 * Server provision configuration: here we will define the mock behavior regarding the request received, and the transformations done over it to build the final response and evolve, if proceed, to another state for further receptions.
 
-* Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations).
+* Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations). Also storage configuration will be described.
 
 
 
@@ -926,7 +983,7 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Loads global variables for future usage.
+Loads global variables for future usage. Load is done through append, so if some variable exists, the new loaded value is appended. This allows to use global variables as memory buckets.
 
 #### Request body schema
 
@@ -984,19 +1041,25 @@ Retrieves the global variables schema.
 
 Json object document containing server data global schema.
 
-### GET /admin/v1/global-variable
+### GET /admin/v1/global-variable?name=`<variable name>`
 
-Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created:
+Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created, or using the query parameter `name`, the specific variable selected:
 
 #### Response status code
 
-**200** (OK) or **204** (No Content).
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 
-Json object document with variable fields and their values, when something is stored (no-content response has no body).
+When querying a specific variable, its value as string response body is retrieved:
 
-Take the following `json` as an example:
+```
+<variable_value>
+```
+
+A variable used as memory bucket, could store even binary data and it may be obtained with this `REST API`operation.
+
+When requesting the whole variables list, a Json object document with variable fields and their values (when something is stored, as no-content response has no body) is retrieved. Take the following `json` as an example of global list:
 
 ```json
 {
@@ -1006,9 +1069,21 @@ Take the following `json` as an example:
 }
 ```
 
-### DELETE /admin/v1/global-variable
+### DELETE /admin/v1/global-variable?name=`<variable name>`
 
-Deletes all the global variables registered.
+Deletes all the global variables registered or the selected one when query parameter is provided.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+No response body.
+
+### GET /admin/v1/files
+
+This operation retrieves the whole list of files processed and their current status.
 
 #### Response status code
 
@@ -1016,7 +1091,26 @@ Deletes all the global variables registered.
 
 #### Response body
 
-No response body.
+A `json` array with the list of files processed is retrieved. For example:
+
+```json
+[
+  {
+    "bytes": 1791,
+    "closeDelayUsecs": 1000000,
+    "path": "Mozart.txt",
+    "state": "closed"
+  },
+  {
+    "bytes": 1770,
+    "closeDelayUsecs": 1000000,
+    "path": "Beethoven.txt",
+    "state": "opened"
+  }
+]
+```
+
+An already managed file could be externally removed or corrupted. In that case, the state "missing" will be shown.
 
 ### GET /admin/v1/logging
 
@@ -1037,6 +1131,64 @@ Changes the log level of the `h2agent` process to any of the available levels (t
 #### Response status code
 
 **200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/configuration
+
+Retrieve the general process configuration.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "longTermFilesCloseDelayUsecs": 1000000,
+    "shortTermFilesCloseDelayUsecs": 0
+}
+```
+
+### PUT /admin/v1/server/configuration?receiveRequestBody=`<true|false>`&preReserveRequestBody=`<true|false>`
+
+Request body reception can be disabled. This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions. You could do this through the corresponding query parameter:
+
+* `receiveRequestBody=true`: data received will be processed.
+* `receiveRequestBody=false`: data received will be ignored.
+
+The `h2agent` starts with request body reception enabled by default, but you could also disable this through command-line (`--traffic-server-ignore-request-body`).
+
+Also, request body memory pre-reservation could be disabled to be dynamic. This simplifies the model behind (`http2comm` library) disabling the default optimization which minimizes reallocations done when data chunks are processed:
+
+* `preReserveRequestBody=true`: pre reserves memory for the expected request body (with the maximum message size received in a given moment).
+* `preReserveRequestBody=false`: allocates memory dynamically during append operations for data chunks processed.
+
+The `h2agent` starts with memory pre reservation enabled by default, but you could also disable this through command-line (`--traffic-server-dynamic-request-body-allocation`).
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/server/configuration
+
+Retrieve the general server configuration.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "preReserveRequestBody": true,
+    "receiveRequestBody": true
+}
+```
 
 
 
@@ -1314,11 +1466,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$"
+            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
           }
         },
         "additionalProperties" : {
@@ -1454,7 +1606,7 @@ The **source** of information is classified after parsing the following possible
 
 - randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
 
-- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
 
 - strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
 
@@ -1464,7 +1616,7 @@ The **source** of information is classified after parsing the following possible
 
 - globalVar.`<id>`: general purpose global variable (readable from any provision). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
-- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**.
+- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
 - event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 
@@ -1573,13 +1725,17 @@ The **target** of information is classified after parsing the following possible
 
 - var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
-- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**.
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
 - outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
+
+- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution took place on the path provided it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). Delays in microseconds are configurable on process startup. Check  [command line](#command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
+
+- binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
 
 
@@ -1885,17 +2041,19 @@ No response body.
 There are three valid configurations for storage configuration behavior, depending on the query parameters provided:
 
 * `discard=true&discardKeyHistory=true`: nothing is stored.
-*  `discard=false&discardKeyHistory=true`: no key history stored (only the last event for a key, except for unprovisioned events, which history is always respected for troubleshooting purposes).
+* `discard=false&discardKeyHistory=true`: no key history stored (only the last event for a key, except for unprovisioned events, which history is always respected for troubleshooting purposes).
 * `discard=false&discardKeyHistory=false`: everything is stored: events and key history.
 
 The combination `discard=true&discardKeyHistory=false` is incoherent, as it is not possible to store requests history with general events discarded. In this case, an status code *400 (Bad Request)* is returned.
+
+The `h2agent` starts with full data storage enabled by default, but you could also disable this through command-line (`--discard-data` / `--discard-data-key-history`).
 
 And regardless the previous combinations, you could enable or disable the purge execution when this reserved state is reached for a specific provision. Take into account that this stage has no sense if no data is stored but you could configure it anyway:
 
 * `disablePurge=true`: provisions with `purge` state will ignore post-removal operation when this state is reached.
 * `disablePurge=false`: provisions with `purge` state will process post-removal operation when this state is reached.
 
-The `h2agent` starts with purge stage enabled by default, but you could also change this through command-line (`--disable-purge`).
+The `h2agent` starts with purge stage enabled by default, but you could also disable this through command-line (`--disable-purge`).
 
 Be careful using this `PUT`operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
 
@@ -1917,9 +2075,9 @@ For example:
 
 ```json
 {
-    "purgeExecution": "true",
-    "storeEvents": "true",
-    "storeEventsKeyHistory": "true"
+    "purgeExecution": true,
+    "storeEvents": true,
+    "storeEventsKeyHistory": true
 }
 ```
 
@@ -2122,7 +2280,7 @@ Take the following `json` as an example:
 }
 ```
 
-### DELETE /admin/v1/server-data
+### DELETE /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
@@ -2157,12 +2315,12 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
    ```yaml
    dependencies:
      - name: h2agent
-       version: 2.2.0
+       version: 1.0.0
        repository: alias:erthelm
        alias: h2server
 
      - name: h2agent
-       version: 2.2.0
+       version: 1.0.0
        repository: alias:erthelm
        alias: h2server2
    ```
@@ -2180,7 +2338,7 @@ Some [command line](#command-line) arguments used by the `h2agent` process are f
 As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
-source tools/helpers.src
+$> source ./tools/helpers.src
 
 ===== h2agent operation helpers =====
 Shortcut helpers (sourced variables and functions)
@@ -2195,12 +2353,18 @@ CURL="curl -i --http2-prior-knowledge"
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
                                             (http://localhost:8074/admin/v1/schema).
-Usage: schema_schema [-h|--help]; Gets the schema configuration schema
-                                  (http://localhost:8074/admin/v1/schema/schema).
 Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration
                                                      (http://localhost:8074/admin/v1/global-variable).
-Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema
-                                           (http://localhost:8074/admin/v1/global-variable/schema).
+Usage: configuration [-h|--help]; Gets agent general configuration.
+Usage: server_configuration [-h|--help]; Manages agent configuration (gets current status by default).
+                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic
+                                                                      server receptions.
+                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
+                                                                      server receptions.
+                            [--traffic-server-dynamic-request-body-allocation] ; Sets configuration to do dynamic request body
+                                                                                 memory allocation on traffic server receptions.
+                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body
+                                                                                 memory on traffic server receptions.
 Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
                           [--discard-all]     ; Sets data configuration to discard all the events processed.
                           [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
@@ -2209,15 +2373,12 @@ Usage: data_configuration [-h|--help]; Manages agent data configuration (gets cu
                                                 'purge' state is reached.
                           [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on
                                                 'purge' state is reached.
+
 === Traffic server ===
 Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
                                     (http://localhost:8074/admin/v1/server-matching).
-Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema
-                                           (http://localhost:8074/admin/v1/server-matching/schema).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
-Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
-                                            (http://localhost:8074/admin/v1/server-provision/schema).
 Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
                    [method] [uri] [[-]request number]; Restricts shown data with given positional filters.
                                                        Request number may be negative to access by reverse chronological order.
@@ -2226,6 +2387,17 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                    [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the                                                        selection.
 Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
                                                                                retrieved in previous server_data() call.
+
+=== Schemas ===
+Usage: schema_schema [-h|--help]; Gets the schema configuration schema
+                                  (http://localhost:8074/admin/v1/schema/schema).
+Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema
+                                           (http://localhost:8074/admin/v1/global-variable/schema).
+Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema
+                                           (http://localhost:8074/admin/v1/server-matching/schema).
+Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
+                                            (http://localhost:8074/admin/v1/server-provision/schema).
+
 === Auxiliary ===
 Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.
@@ -2240,31 +2412,36 @@ Usage: help; This help. Overview: help | grep ^Usage
 
 ### OAM
 
-You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions). For example, after *component test* execution this could be the metrics snapshot obtained:
+You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions): `metrics`.
+
+So, a direct scrape (for example towards the agent after its *component test*) would be something like this:
 
 ```bash
-$ kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "apk add curl && curl http://localhost:8080/metrics"
+$> kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "curl http://localhost:8080/metrics"
+```
 
-fetch https://dl-cdn.alpinelinux.org/alpine/v3.14/main/x86_64/APKINDEX.tar.gz
-fetch https://dl-cdn.alpinelinux.org/alpine/v3.14/community/x86_64/APKINDEX.tar.gz
-(1/5) Installing ca-certificates (20191127-r5)
-(2/5) Installing brotli-libs (1.0.9-r5)
-(3/5) Installing nghttp2-libs (1.43.0-r0)
-(4/5) Installing libcurl (7.79.1-r0)
-(5/5) Installing curl (7.79.1-r0)
-Executing busybox-1.33.1-r3.trigger
-Executing ca-certificates-20191127-r5.trigger
-OK: 8 MiB in 19 packages
+On native execution, it is just a simple `curl` native request:
+
+```bash
+$> curl http://localhost:8080/metrics
+```
+
+This is an example of metrics snapshot captured after [benchmark test](#benchmarking-test) execution:
+
+```bash
+$> source ./tools/helpers.src
+...
+$> metrics
 # HELP exposer_transferred_bytes_total Transferred bytes to metrics services
 # TYPE exposer_transferred_bytes_total counter
-exposer_transferred_bytes_total 0
+exposer_transferred_bytes_total 6715
 # HELP exposer_scrapes_total Number of times metrics were scraped
 # TYPE exposer_scrapes_total counter
-exposer_scrapes_total 0
+exposer_scrapes_total 1
 # HELP exposer_request_latencies Latencies of serving scrape requests, in microseconds
 # TYPE exposer_request_latencies summary
-exposer_request_latencies_count 0
-exposer_request_latencies_sum 0
+exposer_request_latencies_count 1
+exposer_request_latencies_sum 124
 exposer_request_latencies{quantile="0.5"} Nan
 exposer_request_latencies{quantile="0.9"} Nan
 exposer_request_latencies{quantile="0.99"} Nan
@@ -2276,12 +2453,12 @@ AdminHttp2Server_observed_requests_total{method="other",success="false"} 0
 AdminHttp2Server_observed_requests_total{method="PUT",success="false"} 0
 AdminHttp2Server_observed_requests_total{method="HEAD"} 0
 AdminHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="POST",success="false"} 2
+AdminHttp2Server_observed_requests_total{method="POST",success="false"} 0
 AdminHttp2Server_observed_requests_total{method="other"} 0
-AdminHttp2Server_observed_requests_total{method="DELETE"} 31
-AdminHttp2Server_observed_requests_total{method="PUT"} 6
-AdminHttp2Server_observed_requests_total{method="GET"} 23
-AdminHttp2Server_observed_requests_total{method="POST"} 77
+AdminHttp2Server_observed_requests_total{method="DELETE"} 1
+AdminHttp2Server_observed_requests_total{method="PUT"} 2
+AdminHttp2Server_observed_requests_total{method="GET"} 2
+AdminHttp2Server_observed_requests_total{method="POST"} 3
 # HELP MockHttp2Server_observed_requests_total Http2 total requests observed in MockHttp2Server
 # TYPE MockHttp2Server_observed_requests_total counter
 MockHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
@@ -2292,61 +2469,79 @@ MockHttp2Server_observed_requests_total{method="HEAD"} 0
 MockHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
 MockHttp2Server_observed_requests_total{method="POST",success="false"} 0
 MockHttp2Server_observed_requests_total{method="other"} 0
-MockHttp2Server_observed_requests_total{method="DELETE"} 1
+MockHttp2Server_observed_requests_total{method="DELETE"} 0
 MockHttp2Server_observed_requests_total{method="PUT"} 0
-MockHttp2Server_observed_requests_total{method="GET"} 30
-MockHttp2Server_observed_requests_total{method="POST"} 25
-# HELP h2agent_observed_requests_total Http2 total requests observed in h2agent
-# TYPE h2agent_observed_requests_total counter
-h2agent_observed_requests_total{result="unprovisioned"} 7
-h2agent_observed_requests_total{result="processed"} 49
-# HELP h2agent_purged_contexts_total Total contexts purged in h2agent
-# TYPE h2agent_purged_contexts_total counter
-h2agent_purged_contexts_total{result="failed"} 0
-h2agent_purged_contexts_total{result="successful"} 1
+MockHttp2Server_observed_requests_total{method="GET"} 0
+MockHttp2Server_observed_requests_total{method="POST"} 100000
+# HELP ServerData_observed_requests_total Http2 total requests observed in h2agent server
+# TYPE ServerData_observed_requests_total counter
+ServerData_observed_requests_total{result="unprovisioned"} 0
+ServerData_observed_requests_total{result="processed"} 100000
+# HELP ServerData_purged_contexts_total Total contexts purged in h2agent server
+# TYPE ServerData_purged_contexts_total counter
+ServerData_purged_contexts_total{result="failed"} 0
+ServerData_purged_contexts_total{result="successful"} 0
+# HELP FileSystem_observed_operations_total H2agent file system operations
+# TYPE FileSystem_observed_operations_total counter
+FileSystem_observed_operations_total{operation="open",success="false"} 0
+FileSystem_observed_operations_total{operation="instantClose"} 0
+FileSystem_observed_operations_total{operation="delayedClose"} 100000
+FileSystem_observed_operations_total{operation="write"} 100000
+FileSystem_observed_operations_total{operation="close"} 1
+FileSystem_observed_operations_total{operation="empty"} 0
+FileSystem_observed_operations_total{operation="open"} 1
 # HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
 # TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
-AdminHttp2Server_responses_delay_seconds_gauge 0.000581
+AdminHttp2Server_responses_delay_seconds_gauge 7.2e-05
 # HELP AdminHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in AdminHttp2Server
 # TYPE AdminHttp2Server_messages_size_bytes_gauge gauge
-AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 103
-AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 503
+AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 104
+AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 81
 # HELP MockHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in MockHttp2Server
 # TYPE MockHttp2Server_responses_delay_seconds_gauge gauge
-MockHttp2Server_responses_delay_seconds_gauge 0.000198
+MockHttp2Server_responses_delay_seconds_gauge 0.000132
 # HELP MockHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in MockHttp2Server
 # TYPE MockHttp2Server_messages_size_bytes_gauge gauge
-MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 53
-MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 0
+MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 1073
+MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 177
 # HELP AdminHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in AdminHttp2Server
 # TYPE AdminHttp2Server_responses_delay_seconds_histogram histogram
-AdminHttp2Server_responses_delay_seconds_histogram_count 137
-AdminHttp2Server_responses_delay_seconds_histogram_sum 0.09854099999999998
-AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 137
+AdminHttp2Server_responses_delay_seconds_histogram_count 8
+AdminHttp2Server_responses_delay_seconds_histogram_sum 0.0007709999999999999
+AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 8
 # HELP AdminHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in AdminHttp2Server
 # TYPE AdminHttp2Server_messages_size_bytes_histogram histogram
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 137
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 11869
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 137
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 137
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17259
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 137
+AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 8
+AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 450
+AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 8
+AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 8
+AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 2167
+AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 8
 # HELP MockHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in MockHttp2Server
 # TYPE MockHttp2Server_responses_delay_seconds_histogram histogram
-MockHttp2Server_responses_delay_seconds_histogram_count 56
-MockHttp2Server_responses_delay_seconds_histogram_sum 0.02644799999999999
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 56
+MockHttp2Server_responses_delay_seconds_histogram_count 100000
+MockHttp2Server_responses_delay_seconds_histogram_sum 28.36501700000122
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0001"} 2177
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0002"} 13031
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0003"} 58585
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0004"} 96855
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0005"} 99607
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.001"} 99893
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.005"} 99999
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.01"} 100000
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.02"} 100000
+MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 100000
 # HELP MockHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in MockHttp2Server
 # TYPE MockHttp2Server_messages_size_bytes_histogram histogram
-MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 56
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 1930
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 56
-MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 56
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 796
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 56
+MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 100000
+MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 107300000
+MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 100000
+MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 100000
+MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17700000
+MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 100000
 ```
 
- So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
+So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
 
 #### Counters
 

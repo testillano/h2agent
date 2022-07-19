@@ -38,8 +38,16 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
-#include <JsonSchema.hpp>
+#include <SafeFile.hpp>
 
+
+namespace ert
+{
+namespace metrics
+{
+class Metrics;
+}
+}
 
 namespace h2agent
 {
@@ -47,37 +55,68 @@ namespace model
 {
 
 /**
- * This class stores the global variables list.
+ * This class stores a list of safe files.
  */
-class GlobalVariable : public Map<std::string, std::string>
+class FileManager : public Map<std::string, std::shared_ptr<SafeFile>>
 {
     mutable mutex_t rw_mutex_{};
+    boost::asio::io_service *io_service_{};
 
-    h2agent::jsonschema::JsonSchema global_variable_schema_{};
+    // metrics (will be passed to SafeFile):
+    ert::metrics::Metrics *metrics_{};
 
 public:
-    GlobalVariable();
-    ~GlobalVariable() = default;
+    /**
+    * File manager class
+    *
+    * @param timersIoService timers IO service needed to schedule delayed close operations.
+    * If you never schedule close operations (@see write) it may be 'nullptr'.
+    * @param metrics underlaying reference for SafeFile in order to compute prometheus metrics
+    * about I/O operations. It may be 'nullptr' if no metrics are enabled.
+    *
+    * @see SafeFile
+    */
+    FileManager(boost::asio::io_service *timersIoService = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_service_(timersIoService), metrics_(metrics) {;}
+    ~FileManager() = default;
 
     /**
-     * Loads variable and value.
-     * Append is done if variable already exists. This allows to use global variables
-     * as memory buckets. To reset them, use 'eraser' source or just delete from
-     * REST API.
-     *
-     * @param variable variable name
-     * @param value value to append into variable
-     */
-    void load(const std::string &variable, const std::string &value);
+    * Set metrics reference
+    *
+    * @param metrics Optional metrics object to compute counters
+    */
+    void enableMetrics(ert::metrics::Metrics *metrics) {
+        metrics_ = metrics;
+    }
 
     /**
-     * Loads server data global operation data
+     * Write file
      *
-     * @param j Json document from operation body request
-     *
-     * @return Load operation result
+     * @param path path file to write. Can be relative (to execution directory) or absolute.
+     * @param data data string to write.
+     * @param textOrBinary open file to write text (true) or binary (false) data.
+     * @param closeDelayUs delay after last write operation, to close the file.
+     * Zero value means that no planned close is scheduled, so the file is opened,
+     * written and closed in the same moment.
      */
-    bool loadJson(const nlohmann::json &j);
+    void write(const std::string &path, const std::string &data, bool textOrBinary, unsigned int closeDelayUs);
+
+    /**
+    * Read the file content.
+    *
+    * @param success success of the read operation.
+    * @param path path file to read. Can be relative (to execution directory) or absolute.
+    * @param textOrBinary open file to read text (true) or binary (false) data.
+    *
+    * @return Content read. Empty if failed to read.
+    */
+    std::string read(bool &success, const std::string &path, bool textOrBinary);
+
+    /**
+     * Empty file
+     *
+     * @param path path file to empty. Can be relative (to execution directory) or absolute.
+     */
+    void empty(const std::string &path);
 
     /** Clears list
      *
@@ -88,27 +127,9 @@ public:
     /**
      * Json string representation for class information (json object)
      *
-     * @return Json string representation ('{}' for empty object).
+     * @return Json string representation ('[]' for empty object).
      */
     std::string asJsonString() const;
-
-    /**
-     * Gets the variable value for the variable name provided
-     *
-     * @param variableName Variable name for which the query was performed
-     * @param exists Variable was found (true) or missing (false)
-     *
-     * @return variable value
-     */
-    std::string getValue(const std::string &variableName, bool &exists) const;
-
-    /**
-     * Removes the variable name provided from map
-     *
-     * @param variableName Variable name to be removed
-     * @param exists Variable was found (true) or missing (false)
-     */
-    void removeVariable(const std::string &variableName, bool &exists);
 
     /**
      * Builds json document for class information
@@ -116,13 +137,6 @@ public:
      * @return Json object
      */
     nlohmann::json getJson() const;
-
-    /**
-    * Gets global variables schema
-    */
-    const h2agent::jsonschema::JsonSchema& getSchema() const {
-        return global_variable_schema_;
-    }
 };
 
 }

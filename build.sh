@@ -4,8 +4,9 @@
 # VARIABLES #
 #############
 image_tag__dflt=latest
+base_os__dflt=ubuntu
 base_tag__dflt=latest
-scratch_img__dflt=alpine
+scratch_img__dflt=${base_os__dflt}
 scratch_img_tag__dflt=latest
 make_procs__dflt=$(grep processor /proc/cpuinfo -c)
 build_type__dflt=Release
@@ -35,7 +36,7 @@ usage() {
          For headless mode you may prepend or export asked/environment variables for the corresponding
          docker procedure:
 
-         --builder-image: image_tag, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
+         --builder-image: image_tag, base_os, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
          --project:       make_procs, build_type, base_tag (h2agent_builder)
          --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
          --ct-image:      image_tag, base_tag (alpine)
@@ -47,8 +48,9 @@ usage() {
 
          Examples:
 
-         build_type=Debug $0 --builder-image
-         image_tag=test1 $0 --auto
+         base_os=alpine $0 --auto
+         image_tag=test1 $0 --builder-image
+         build_type=Debug $0 --auto
          DBUILD_XTRA_OPTS=--no-cache $0 --auto
 
 EOF
@@ -77,6 +79,7 @@ build_builder_image() {
   echo "=== Build h2agent_builder image ==="
   echo
   _read image_tag
+  _read base_os
   _read base_tag
   _read make_procs
   _read build_type
@@ -84,7 +87,8 @@ build_builder_image() {
   _read pboettch_jsonschemavalidator_ver
   _read google_test_ver
 
-  bargs="--build-arg base_tag=${base_tag}"
+  bargs="--build-arg base_os=${base_os}"
+  bargs+=" --build-arg base_tag=${base_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
   bargs+=" --build-arg build_type=${build_type}"
   bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
@@ -128,13 +132,16 @@ build_project_image() {
   echo "=== Build h2agent image ==="
   echo
   _read image_tag
+  _read base_os
   _read base_tag
-  _read scratch_img
+  #_read scratch_img
+  scratch_img=${base_os}
   _read scratch_img_tag
   _read make_procs
   _read build_type
 
-  bargs="--build-arg base_tag=${base_tag}"
+  bargs="--build-arg base_os=${base_os}"
+  bargs+=" --build-arg base_tag=${base_tag}"
   bargs+=" --build-arg scratch_img=${scratch_img}"
   bargs+=" --build-arg scratch_img_tag=${scratch_img_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
@@ -165,15 +172,15 @@ build_ct_image() {
 build_auto() {
   # export defaults to automate, but allow possible environment values:
   # shellcheck disable=SC1090
-  source <(grep -E '^[0a-z_]+__dflt' "$0" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([0a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
+  source <(grep -E '^[0a-z_]+__dflt' "${SCR}" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([0a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
   build_builder_image && build_project && build_project_image && build_ct_image
 }
 
 #############
 # EXECUTION #
 #############
-# shellcheck disable=SC2164
-cd "$(dirname "$0")"
+SCR="$(readlink -f "$0")"
+cd "$(dirname "${SCR}")"
 
 case "$1" in
   --builder-image) build_builder_image ;;

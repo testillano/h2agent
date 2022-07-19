@@ -5,7 +5,7 @@ add_subdirectory(model)
 add_executable( ${H2AGENT_TARGET_NAME}
         # Keep the list of files sorted.
         main.cpp
-        ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
+        version.cpp
         ) # add_executable h2agent
 
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':

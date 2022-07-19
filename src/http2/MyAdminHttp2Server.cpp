@@ -50,7 +50,9 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 #include <functions.hpp>
 
 
@@ -336,8 +338,27 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = 200;
     }
     else if (pathSuffix == "global-variable") {
-        responseBody = getHttp2Server()->getGlobalVariable()->asJsonString();
-        statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+        std::string name = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            auto it = qmap.find("name");
+            if (it != qmap.end()) name = it->second;
+            if (name.empty()) {
+                statusCode = 400;
+                responseBody = "";
+            }
+        }
+        if (statusCode != 400) {
+            if (name.empty()) {
+                responseBody = getHttp2Server()->getGlobalVariable()->asJsonString();
+                statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+            }
+            else {
+                bool exists;
+                responseBody = getHttp2Server()->getGlobalVariable()->getValue(name, exists);
+                statusCode = (exists ? 200:204); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+            }
+        }
     }
     else if (pathSuffix == "global-variable/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
@@ -377,9 +398,21 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
-    else if (pathSuffix == "server-data/configuration") {
-        responseBody = getHttp2Server()->serverDataConfigurationAsJsonString();
+    else if (pathSuffix == "configuration") {
+        responseBody = getConfiguration()->asJsonString();
         statusCode = 200;
+    }
+    else if (pathSuffix == "server/configuration") {
+        responseBody = getHttp2Server()->configurationAsJsonString();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "server-data/configuration") {
+        responseBody = getHttp2Server()->dataConfigurationAsJsonString();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "files") {
+        responseBody = getHttp2Server()->getFileManager()->asJsonString();
+        statusCode = ((responseBody == "[]") ? 204:200);
     }
     else if (pathSuffix == "logging") {
         responseBody = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
@@ -425,7 +458,26 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         statusCode = (success ? (serverDataDeleted ? 200:204):400);
     }
     else if (pathSuffix == "global-variable") {
-        statusCode = (getHttp2Server()->getGlobalVariable()->clear() ? 200:204);
+        bool globalVariableDeleted = false;
+        std::string name = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            auto it = qmap.find("name");
+            if (it != qmap.end()) name = it->second;
+            if (name.empty()) {
+                statusCode = 400;
+            }
+        }
+        if (statusCode != 400) {
+            if (name.empty()) {
+                statusCode = (getHttp2Server()->getGlobalVariable()->clear() ? 200:204);
+            }
+            else {
+                bool exists;
+                getHttp2Server()->getGlobalVariable()->removeVariable(name, exists);
+                statusCode = (exists ? 200:204);
+            }
+        }
     }
     else {
         statusCode = 400;
@@ -439,7 +491,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     bool success = false;
 
     if (pathSuffix == "logging") {
-        std::string level = "";
+        std::string level = "?";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
             auto it = qmap.find("level");
@@ -447,7 +499,10 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
 
         std::string previousLevel = ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel());
-        success = ert::tracing::Logger::setLevel(level);
+        if (level != "?") {
+            success = ert::tracing::Logger::setLevel(level);
+        }
+
         //LOGWARNING(
         if (success) {
             if (level != previousLevel)
@@ -459,6 +514,39 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid log level provided (%s). Keeping current (%s)", level.c_str(), previousLevel.c_str()), ERT_FILE_LOCATION);
         }
         //);
+    }
+    else if (pathSuffix == "server/configuration") {
+        std::string receiveRequestBody;
+        std::string preReserveRequestBody;
+
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            auto it = qmap.find("receiveRequestBody");
+            if (it != qmap.end()) receiveRequestBody = it->second;
+            it = qmap.find("preReserveRequestBody");
+            if (it != qmap.end()) preReserveRequestBody = it->second;
+        }
+
+        bool b_receiveRequestBody = (receiveRequestBody == "true");
+        bool b_preReserveRequestBody = (preReserveRequestBody == "true");
+
+        success = (!receiveRequestBody.empty() || !preReserveRequestBody.empty());
+
+        if (!receiveRequestBody.empty()) {
+            success = (receiveRequestBody == "true" || receiveRequestBody == "false");
+            if (success) {
+                getHttp2Server()->setReceiveRequestBody(b_receiveRequestBody);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server request body reception: %s", b_receiveRequestBody ? "processed":"ignored"), ERT_FILE_LOCATION));
+            }
+        }
+
+        if (success && !preReserveRequestBody.empty()) {
+            success = (preReserveRequestBody == "true" || preReserveRequestBody == "false");
+            if (success) {
+                getHttp2Server()->setPreReserveRequestBody(b_preReserveRequestBody);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Traffic server dynamic request body allocation: %s", b_preReserveRequestBody ? "false":"true"), ERT_FILE_LOCATION));
+            }
+        }
     }
     else if (pathSuffix == "server-data/configuration") {
 
@@ -480,9 +568,12 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         bool b_discardKeyHistory = (discardKeyHistory == "true");
         bool b_disablePurge = (disablePurge == "true");
 
-        success = true;
-        if (!discard.empty() && !discardKeyHistory.empty())
-            success = !(b_discard && !b_discardKeyHistory); // it has no sense to try to keep history if whole data is discarded
+        success = (!discard.empty() || !discardKeyHistory.empty() || !disablePurge.empty());
+
+        if (success) {
+            if (!discard.empty() && !discardKeyHistory.empty())
+                success = !(b_discard && !b_discardKeyHistory); // it has no sense to try to keep history if whole data is discarded
+        }
 
         if (success) {
             if (!discard.empty()) {
@@ -512,9 +603,10 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     statusCode = success ? 200:400;
 }
 
-void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
+void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
+                                 const nghttp2::asio_http2::server::request&
                                  req,
-                                 std::shared_ptr<std::stringstream> requestBody,
+                                 const std::string &requestBody,
                                  const std::chrono::microseconds &receptionTimestampUs,
                                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                                  std::string& responseBody, unsigned int &responseDelayMs)
@@ -543,8 +635,8 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         if (!uriQuery.empty()) {
             ss << " | Query Params: " << uriQuery;
         }
-        if (requestBody->rdbuf()->in_avail()) {
-            std::string requestBodyWithoutNewlines = requestBody->str(); // administrative interface receives json bodies in POST requests, so we normalize for logging
+        if (!requestBody.empty()) {
+            std::string requestBodyWithoutNewlines = requestBody; // administrative interface receives json bodies in POST requests, so we normalize for logging
             requestBodyWithoutNewlines.erase(std::remove(requestBodyWithoutNewlines.begin(), requestBodyWithoutNewlines.end(), '\n'), requestBodyWithoutNewlines.end());
             ss << " | Body: " << requestBodyWithoutNewlines;
         }
@@ -572,7 +664,7 @@ void MyAdminHttp2Server::receive(const nghttp2::asio_http2::server::request&
         return;
     }
     else if (method == "POST") {
-        receivePOST(pathSuffix, requestBody->str(), statusCode, headers, responseBody);
+        receivePOST(pathSuffix, requestBody, statusCode, headers, responseBody);
         return;
     }
     else if (method == "PUT") {

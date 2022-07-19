@@ -33,71 +33,28 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <string>
-
 #include <ert/tracing/Logger.hpp>
 
-#include <GlobalVariable.hpp>
-#include <AdminSchemas.hpp>
+#include <Configuration.hpp>
 
 namespace h2agent
 {
 namespace model
 {
 
-GlobalVariable::GlobalVariable() {
-    global_variable_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
+std::string Configuration::asJsonString() const {
+
+    return getJson().dump(); // server data is shown as an object
 }
 
-void GlobalVariable::load(const std::string &variable, const std::string &value) {
-    bool exists;
-    std::string currentValue = getValue(variable, exists);
-    add(variable, currentValue + value);
-}
+nlohmann::json Configuration::getJson() const {
 
-bool GlobalVariable::loadJson(const nlohmann::json &j) {
+    nlohmann::json result;
 
-    if (!global_variable_schema_.validate(j)) {
-        return false;
-    }
-
-    add(j);
-
-    return true;
-}
-
-bool GlobalVariable::clear()
-{
-    write_guard_t guard(rw_mutex_);
-    bool result = (map_.size() > 0); // something deleted
-
-    map_.clear();
+    result["longTermFilesCloseDelayUsecs"] = long_term_files_close_delay_us_;
+    result["shortTermFilesCloseDelayUsecs"] = short_term_files_close_delay_us_;
 
     return result;
-}
-
-std::string GlobalVariable::asJsonString() const {
-
-    return ((size() != 0) ? getJson().dump() : "{}"); // server data is shown as an object
-}
-
-std::string GlobalVariable::getValue(const std::string &variableName, bool &exists) const {
-
-    read_guard_t guard(rw_mutex_);
-
-    auto it = get(variableName);
-    exists = (it != end());
-
-    return (exists ? (it->second):"");
-}
-
-void GlobalVariable::removeVariable(const std::string &variableName, bool &exists) {
-    exists = (get(variableName) != end());
-    remove(variableName);
-}
-
-nlohmann::json GlobalVariable::getJson() const {
-    return get();
 }
 
 }

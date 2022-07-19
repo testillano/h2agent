@@ -69,7 +69,9 @@ typedef std::string admin_server_provision_key_t;
 void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
 
 class MockServerEventsData;
+class Configuration;
 class GlobalVariable;
+class FileManager;
 
 
 class AdminServerProvision
@@ -104,7 +106,9 @@ class AdminServerProvision
     std::string response_schema_id_{};
 
     model::MockServerEventsData *mock_server_events_data_{}; // just in case it is used
+    model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
+    model::FileManager *file_manager_{}; // just in case it is used
 
     void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
@@ -120,7 +124,7 @@ class AdminServerProvision
                         const std::map<std::string, std::string> &requestQueryParametersMap,
                         bool requestBodyJsonOrString,
                         const nlohmann::json &requestBodyJson, // if json
-                        std::shared_ptr<std::stringstream> requestBody, // if string
+                        const std::string &requestBody, // if string
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;
@@ -177,7 +181,7 @@ public:
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
                     const std::map<std::string, std::string> &requestQueryParametersMap,
-                    std::shared_ptr<std::stringstream> requestBody,
+                    const std::string &requestBody,
                     const nghttp2::asio_http2::header_map &requestHeaders,
                     std::uint64_t generalUniqueServerSequence,
 
@@ -201,7 +205,7 @@ public:
      *
      * @return Operation success
      */
-    bool load(const nlohmann::json &j, bool priorityMatchingRegexConfigured);
+    bool load(const nlohmann::json &j, bool regexMatchingConfigured);
 
     /**
      * Sets the internal mock server data,
@@ -212,11 +216,27 @@ public:
     }
 
     /**
+     * Sets the configuration reference,
+     * just in case it is used in event target
+     */
+    void setConfiguration(model::Configuration *p) {
+        configuration_ = p;
+    }
+
+    /**
      * Sets the global variables data reference,
      * just in case it is used in event source
      */
     void setGlobalVariable(model::GlobalVariable *p) {
         global_variable_ = p;
+    }
+
+    /**
+     * Sets the file manager reference,
+     * just in case it is used in event target
+     */
+    void setFileManager(model::FileManager *p) {
+        file_manager_ = p;
     }
 
     // getters:
@@ -288,9 +308,13 @@ public:
         return response_body_;
     }
 
-    /** Provisioned response body when it is an string,
-     *  or could be converted into string, instead of
-     *  a json object.
+    /** Provisioned response body as string.
+     *
+     * This is useful as cached response data when the provision
+     * response is not modified with transformation items.
+     *
+     * When the object is not a valid json, the data is
+     * assumed as a readable string (TODO: refactor for multipart support)
      *
      * @return Response body string
      */

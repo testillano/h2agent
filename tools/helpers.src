@@ -39,13 +39,21 @@ schema_schema() {
 }
 
 global_variable() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
   [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/global-variable && return 0
+  local queryParam=
   if [ "$1" = "--clean" ]
   then
-    do_curl -XDELETE ${ADMIN_URL}/global-variable
+    [ -n "$2" ] && queryParam="?name=$2"
+    do_curl -XDELETE ${ADMIN_URL}/global-variable${queryParam}
   else
-    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/global-variable
+    [ -n "$1" ] && queryParam="?name=$1"
+    if [ -f "$1" ]
+    then
+      do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/global-variable
+    else
+      do_curl ${curl_method} ${ADMIN_URL}/global-variable${queryParam}
+    fi
   fi
 }
 
@@ -54,11 +62,56 @@ global_variable_schema() {
   do_curl "${ADMIN_URL}/global-variable/schema"
 }
 
-data_configuration() {
-
+files() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
+    echo "Usage: files [-h|--help]; Gets the files processed."
+    return 0
+  else
+    do_curl ${ADMIN_URL}/files
+  fi
+}
+
+configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: configuration [-h|--help]; Gets agent general configuration."
+    return 0
+  else
+    do_curl ${ADMIN_URL}/configuration
+  fi
+}
+
+server_configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default)."
+    echo "                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
+    echo "                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
+    echo "                            [--traffic-server-dynamic-request-body-allocation]  ; Sets configuration to do dynamic request body memory allocation on traffic server receptions."
+    echo "                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body memory on traffic server receptions."
+    return 0
+  elif [ "$1" = "--traffic-server-ignore-request-body" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=false"
+  elif [ "$1" = "--traffic-server-receive-request-body" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=true"
+  elif [ "$1" = "--traffic-server-dynamic-request-body-allocation" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?preReserveRequestBody=false"
+  elif [ "$1" = "--traffic-server-initial-request-body-allocation" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/server/configuration?preReserveRequestBody=true"
+  else
+    do_curl ${ADMIN_URL}/server/configuration
+  fi
+}
+
+server_data_configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: server_data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
     echo "                          [--discard-all]     ; Sets data configuration to discard all the events processed."
     echo "                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key."
     echo "                          [--keep-all]        ; Sets data configuration to keep all the events processed."
@@ -223,6 +276,8 @@ snapshot() {
   schema_schema && json > ${dir}/schema_schema.json
   global_variable && json > ${dir}/global-variable.json
   global_variable_schema && json > ${dir}/global-variable_schema.json
+  configuration && json > ${dir}/configuration.json
+  data_configuration && json > ${dir}/data-configuration.json
   server_matching && json > ${dir}/server-matching.json
   server_matching_schema && json > ${dir}/server-matching_schema.json
   server_provision && json > ${dir}/server-provision.json
@@ -320,18 +375,23 @@ help() {
   echo
   echo "=== General ==="
   schema -h
-  schema_schema -h
   global_variable -h
-  global_variable_schema -h
-  data_configuration -h
+  files -h
+  configuration -h
+  server_configuration -h
+  server_data_configuration -h
   echo
   echo "=== Traffic server ==="
   server_matching -h
-  server_matching_schema -h
   server_provision -h
-  server_provision_schema -h
   server_data -h
   server_data_sequence -h
+  echo
+  echo "=== Schemas ==="
+  schema_schema -h
+  global_variable_schema -h
+  server_matching_schema -h
+  server_provision_schema -h
   echo
   echo "=== Auxiliary ==="
   json -h
@@ -340,6 +400,7 @@ help() {
   snapshot -h
   server_example -h
   echo "Usage: help; This help. Overview: help | grep ^Usage"
+  echo
 }
 
 #############

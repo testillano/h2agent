@@ -44,13 +44,14 @@ SOFTWARE.
 #include <thread>
 #include <chrono>
 
-#include <boost/bind.hpp>
-
 // Project
 #include "version.hpp"
 #include <functions.hpp>
-#include "MyAdminHttp2Server.hpp"
-#include "MyTrafficHttp2Server.hpp"
+#include <MyAdminHttp2Server.hpp>
+#include <MyTrafficHttp2Server.hpp>
+#include <Configuration.hpp>
+#include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -63,7 +64,10 @@ namespace
 {
 h2agent::http2::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // incoming traffic
-boost::asio::io_service *timersIoService = nullptr;
+boost::asio::io_service *myTimersIoService = nullptr;
+h2agent::model::Configuration* myConfiguration = nullptr;
+h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
+h2agent::model::FileManager* myFileManager = nullptr;
 
 const char* AdminApiName = "admin";
 const char* AdminApiVersion = "v1";
@@ -135,12 +139,12 @@ std::string getLocaltime()
 
 void stopAgent()
 {
-    if (timersIoService)
+    if (myTimersIoService)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
                        "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
-        timersIoService->stop();
-        //delete(timersIoService);
+        myTimersIoService->stop();
+        //delete(myTimersIoService);
     }
     if (myAdminHttp2Server)
     {
@@ -155,6 +159,10 @@ void stopAgent()
                        "Stopping h2agent traffic service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         myTrafficHttp2Server->stop();
     }
+
+    delete(myConfiguration);
+    delete(myGlobalVariable);
+    delete(myFileManager);
 }
 
 void myExit(int rc)
@@ -251,6 +259,17 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--traffic-server-provision <path file>]\n"
        << "  Path file for optional startup traffic server provision configuration.\n\n"
 
+       << "[--traffic-server-ignore-request-body]\n"
+       << "  Ignores traffic server request body reception processing as optimization in\n"
+       << "  case that its content is not required by planned provisions (enabled by default).\n\n"
+
+       << "[--traffic-server-dynamic-request-body-allocation]\n"
+       << "  When data chunks are received, the server appends them into the final request body.\n"
+       << "  In order to minimize reallocations over internal container, a pre reserve could be\n"
+       << "  executed (by design, the maximum received request body size is allocated).\n"
+       << "  Depending on your traffic profile this could be counterproductive, so this option\n"
+       << "  disables the default behavior to do a dynamic reservation of the memory.\n\n"
+
        << "[--discard-data]\n"
        << "  Disables data storage for events processed (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
@@ -293,6 +312,19 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "[--disable-metrics]\n"
        << "  Disables prometheus scrape port (enabled by default).\n\n"
+
+       << "[--long-term-files-close-delay-usecs <microseconds>]\n"
+       << "  Close delay after write operation for those target files with constant paths provided.\n"
+       << "  Normally used for logging files: we should have few of them. By default, " << myConfiguration->getLongTermFilesCloseDelayUsecs() << "\n"
+       << "  usecs are configured. Delay is useful to avoid I/O overhead under normal conditions.\n"
+       << "  Zero value means that close operation is done just after writting the file.\n\n"
+
+       << "[--short-term-files-close-delay-usecs <microseconds>]\n"
+       << "  Close delay after write operation for those target files with variable paths provided.\n"
+       << "  Normally used for provision debugging: we could have multiple of them. Traffic rate\n"
+       << "  could constraint the final delay configured to avoid reach the maximum opened files\n"
+       << "  limit allowed. By default, it is configured to " << myConfiguration->getShortTermFilesCloseDelayUsecs() << " usecs.\n"
+       << "  Zero value means that close operation is done just after writting the file.\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -352,7 +384,14 @@ int main(int argc, char* argv[])
 
     progname = basename(argv[0]);
 
+    // Traces
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
+
+    // General resources: timer IO service, configuration and global variables and file manager:
+    myTimersIoService = new boost::asio::io_service();
+    myConfiguration = new h2agent::model::Configuration();
+    myGlobalVariable = new h2agent::model::GlobalVariable();
+    myFileManager = new h2agent::model::FileManager(myTimersIoService);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
@@ -367,6 +406,8 @@ int main(int argc, char* argv[])
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
     bool admin_secured = false;
+    bool traffic_server_ignore_request_body = false;
+    bool traffic_server_dynamic_request_body_allocation = false;
     bool discard_data = false;
     bool discard_data_key_history = false;
     bool disable_purge = false;
@@ -381,6 +422,7 @@ int main(int argc, char* argv[])
     bool disable_metrics = false;
     ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
     ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
+
 
     std::string value;
 
@@ -505,6 +547,16 @@ int main(int argc, char* argv[])
         global_variable_file = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-ignore-request-body", value))
+    {
+        traffic_server_ignore_request_body = true;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-dynamic-request-body-allocation", value))
+    {
+        traffic_server_dynamic_request_body_allocation = true;
+    }
+
     if (cmdOptionExists(argv, argv + argc, "--discard-data", value))
     {
         discard_data = true;
@@ -539,6 +591,26 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "--disable-metrics", value))
     {
         disable_metrics = true;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
+    {
+        int iValue = toNumber(value);
+        if (iValue < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--long-term-files-close-delay-usecs' value. Must be greater or equal than 0.");
+        }
+        myConfiguration->setLongTermFilesCloseDelayUsecs(iValue);
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--short-term-files-close-delay-usecs", value))
+    {
+        int iValue = toNumber(value);
+        if (iValue < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--short-term-files-close-delay-usecs' value. Must be greater or equal than 0.");
+        }
+        myConfiguration->setShortTermFilesCloseDelayUsecs(iValue);
     }
 
     // Logger verbosity
@@ -606,6 +678,8 @@ int main(int argc, char* argv[])
     std::cout << "Global variables configuration file: " << ((global_variable_file != "") ? global_variable_file :
               "<not provided>") << '\n';
 
+    std::cout << "Traffic server process request body: " << (!traffic_server_ignore_request_body ? "true":"false") << '\n';
+    std::cout << "Traffic server pre reserve request body: " << (!traffic_server_dynamic_request_body_allocation ? "true":"false") << '\n';
     std::cout << "Data storage: " << (!discard_data ? "enabled":"disabled") << '\n';
     std::cout << "Data key history storage: " << (!discard_data_key_history ? "enabled":"disabled") << '\n';
     std::cout << "Purge execution: " << (disable_purge ? "disabled":"enabled") << '\n';
@@ -628,6 +702,8 @@ int main(int argc, char* argv[])
             std::cout << "Prometheus 'message size bytes' histogram boundaries: " << prometheus_message_size_bytes_histogram_boundaries << '\n';
         }
     }
+    std::cout << "Long-term files close delay (usecs): " << myConfiguration->getLongTermFilesCloseDelayUsecs() << '\n';
+    std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -646,25 +722,35 @@ int main(int argc, char* argv[])
         }
     }
 
+    // FileManager/SafeFile metrics
+    myFileManager->enableMetrics(p_metrics);
+
+    // Admin server
     myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread
     myAdminHttp2Server->enableMetrics(p_metrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
+    myAdminHttp2Server->setConfiguration(myConfiguration);
 
-    timersIoService = new boost::asio::io_service();
+    // Timers thread:
     std::thread tt([&] {
-        boost::asio::io_service::work work(*timersIoService);
-        timersIoService->run();
+        boost::asio::io_service::work work(*myTimersIoService);
+        myTimersIoService->run();
     });
 
+    // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, timersIoService);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, myTimersIoService);
         myTrafficHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(p_metrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
+        myTrafficHttp2Server->setConfiguration(myConfiguration);
+        myTrafficHttp2Server->setGlobalVariable(myGlobalVariable);
+        myTrafficHttp2Server->setFileManager(myFileManager);
     }
 
+    // Schema configuration
     std::string fileContent;
     nlohmann::json jsonObject;
     bool success = false;
@@ -685,7 +771,10 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Traffic configuration
     if (traffic_server_enabled) {
+
+        // Matching configuration
         if (traffic_server_matching_file != "") {
             success = h2agent::http2::getFileContent(traffic_server_matching_file, fileContent);
             std::string log = "Server matching configuration load failed and will be ignored";
@@ -702,6 +791,7 @@ int main(int argc, char* argv[])
             }
         }
 
+        // Provision configuration
         if (traffic_server_provision_file != "") {
             success = h2agent::http2::getFileContent(traffic_server_provision_file, fileContent);
             std::string log = "Server provision configuration load failed and will be ignored";
@@ -718,15 +808,21 @@ int main(int argc, char* argv[])
             }
         }
 
+        // Server configuration:
+        myTrafficHttp2Server->setReceiveRequestBody(!traffic_server_ignore_request_body);
+        myTrafficHttp2Server->setPreReserveRequestBody(!traffic_server_dynamic_request_body_allocation);
+
         // Server data configuration:
         myTrafficHttp2Server->discardData(discard_data);
         myTrafficHttp2Server->discardDataKeyHistory(discard_data_key_history);
         myTrafficHttp2Server->disablePurge(disable_purge);
     }
 
+    // Set the traffic server reference (if used) to the admin server
     myAdminHttp2Server->setHttp2Server(myTrafficHttp2Server);
 
-    // Now that myTrafficHttp2Server is referenced, I wil have access to global variables:
+    // Global variables
+    // Now that myTrafficHttp2Server is referenced, I will have access to global variables object:
     if (global_variable_file != "") {
         success = h2agent::http2::getFileContent(global_variable_file, fileContent);
         std::string log = "Global variables configuration load failed and will be ignored";

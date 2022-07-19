@@ -8,13 +8,14 @@ REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
 
 # Dependencies
-nghttp2_ver=1.47.0
-boost_ver=1.76.0
+nghttp2_ver=1.48.0
+boost_ver=1.76.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
+ert_nghttp2_ver=v1.2.2 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
 ert_logger_ver=v1.0.10
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
 ert_metrics_ver=v1.0.1
-ert_http2comm_ver=v1.2.1
+ert_http2comm_ver=v1.4.2
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
@@ -22,7 +23,7 @@ arashpartow_exprtk_ver=0.0.1
 
 # Build requirements
 cmake_ver=3.23.2
-build_type=${BUILD_TYPE:-Debug}
+build_type=${BUILD_TYPE:-Release}
 make_procs=$(grep processor /proc/cpuinfo -c)
 SUDO=${SUDO:-sudo}
 
@@ -89,9 +90,11 @@ ${SUDO} apt-get install -y libssl-dev
 
 (
 # nghttp2
-# Ignore testillano/nghttp2 patches to simplify
 set -x && \
-wget https://github.com/nghttp2/nghttp2/releases/download/v${nghttp2_ver}/nghttp2-${nghttp2_ver}.tar.bz2 && tar xf nghttp2* && cd nghttp2*/ && \
+wget https://github.com/testillano/nghttp2/archive/${ert_nghttp2_ver}.tar.gz && tar xvf ${ert_nghttp2_ver}.tar.gz && \
+cp nghttp2*/deps/patches/nghttp2/${nghttp2_ver}/*.patch . && rm -rf nghttp2* && \
+wget https://github.com/nghttp2/nghttp2/releases/download/v${nghttp2_ver}/nghttp2-${nghttp2_ver}.tar.bz2 && tar xvf nghttp2* && \
+cd nghttp2*/ && for patch in ../*.patch; do patch -p1 < ${patch}; done && \
 ./configure --enable-asio-lib --disable-shared --enable-python-bindings=no && ${SUDO} make -j${make_procs} install && \
 cd .. && rm -rf * && \
 set +x

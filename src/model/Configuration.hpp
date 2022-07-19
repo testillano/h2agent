@@ -37,8 +37,7 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
-#include <Map.hpp>
-#include <JsonSchema.hpp>
+#include <Configuration.hpp>
 
 
 namespace h2agent
@@ -47,68 +46,69 @@ namespace model
 {
 
 /**
- * This class stores the global variables list.
+ * This class stores general process static configuration
  */
-class GlobalVariable : public Map<std::string, std::string>
+class Configuration
 {
-    mutable mutex_t rw_mutex_{};
-
-    h2agent::jsonschema::JsonSchema global_variable_schema_{};
+    unsigned int long_term_files_close_delay_us_{};
+    unsigned int short_term_files_close_delay_us_{};
 
 public:
-    GlobalVariable();
-    ~GlobalVariable() = default;
+    /**
+    * Constructor
+    */
+    Configuration() {
+        long_term_files_close_delay_us_ = 1000000; // 1 second
+        short_term_files_close_delay_us_ = 0; // instant close
+    }
 
     /**
-     * Loads variable and value.
-     * Append is done if variable already exists. This allows to use global variables
-     * as memory buckets. To reset them, use 'eraser' source or just delete from
-     * REST API.
-     *
-     * @param variable variable name
-     * @param value value to append into variable
-     */
-    void load(const std::string &variable, const std::string &value);
+    * Destructor
+    */
+    ~Configuration() {;}
 
     /**
-     * Loads server data global operation data
+     * Set long-term files category close delay (microseconds)
      *
-     * @param j Json document from operation body request
-     *
-     * @return Load operation result
+     * @param usecs close delay in microseconds for long-term files category
      */
-    bool loadJson(const nlohmann::json &j);
+    void setLongTermFilesCloseDelayUsecs(unsigned int usecs) {
+        long_term_files_close_delay_us_ = usecs;
+    }
 
-    /** Clears list
+    /**
+     * Set short-term files category close delay (microseconds)
      *
-     * @return Boolean about success of operation (something removed, nothing removed: already empty)
+     * @param usecs close delay in microseconds for short-term files category
      */
-    bool clear();
+    void setShortTermFilesCloseDelayUsecs(unsigned int usecs) {
+        short_term_files_close_delay_us_ = usecs;
+    }
+
+    /**
+     * Get long-term files category close delay (microseconds)
+     *
+     * @return usecs close delay in microseconds for long-term files category
+     */
+    unsigned int getLongTermFilesCloseDelayUsecs() const {
+        return long_term_files_close_delay_us_;
+    }
+
+    /**
+     * Get short-term files category close delay (microseconds)
+     *
+     * @return usecs close delay in microseconds for short-term files category
+     */
+    unsigned int getShortTermFilesCloseDelayUsecs() const {
+        return short_term_files_close_delay_us_;
+    }
 
     /**
      * Json string representation for class information (json object)
      *
-     * @return Json string representation ('{}' for empty object).
+     * @return Json string representation
      */
     std::string asJsonString() const;
-
-    /**
-     * Gets the variable value for the variable name provided
-     *
-     * @param variableName Variable name for which the query was performed
-     * @param exists Variable was found (true) or missing (false)
-     *
-     * @return variable value
-     */
-    std::string getValue(const std::string &variableName, bool &exists) const;
-
-    /**
-     * Removes the variable name provided from map
-     *
-     * @param variableName Variable name to be removed
-     * @param exists Variable was found (true) or missing (false)
-     */
-    void removeVariable(const std::string &variableName, bool &exists);
 
     /**
      * Builds json document for class information
@@ -116,13 +116,6 @@ public:
      * @return Json object
      */
     nlohmann::json getJson() const;
-
-    /**
-    * Gets global variables schema
-    */
-    const h2agent::jsonschema::JsonSchema& getSchema() const {
-        return global_variable_schema_;
-    }
 };
 
 }

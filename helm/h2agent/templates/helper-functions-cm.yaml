@@ -24,10 +24,6 @@ data:
     # EXECUTION #
     #############
 
-    # Install container dependencies:
-    if ! type curl &>/dev/null; then echo "Installing missing dependency (curl) ..." ; apk add curl ; fi
-    if ! type jq &>/dev/null; then echo "Installing missing dependency (jq) ..." ; apk add jq ; fi
-
     # Source native helpers:
     source "{{ .Values.utilsMountPath }}/native-helpers.src"
 

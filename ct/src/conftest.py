@@ -35,8 +35,11 @@ H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.enviro
 # Api Path
 ADMIN_URI_PREFIX = '/admin/v1/'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
+ADMIN_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'configuration'
 ADMIN_GLOBAL_VARIABLE_URI = ADMIN_URI_PREFIX + 'global-variable'
+ADMIN_FILES_URI = ADMIN_URI_PREFIX + 'files'
 ADMIN_LOGGING_URI = ADMIN_URI_PREFIX + 'logging'
+ADMIN_SERVER_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'server/configuration'
 ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_SERVER_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_SERVER_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
@@ -534,6 +537,24 @@ GLOBAL_VARIABLE_1_2_3='''
   "var1": "value1",
   "var2": "value2",
   "var3": "value3"
+}
+'''
+
+FILE_GENERATION_PROVISION='''
+{
+  "requestMethod": "GET",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "eraser",
+      "target": "txtFile./tmp/example.txt"
+    },
+    {
+      "source": "value.hello",
+      "target": "txtFile./tmp/example.txt"
+    }
+  ]
 }
 '''
 

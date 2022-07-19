@@ -60,7 +60,7 @@ TEST_F(http2Server_test, jsonContentSerialization)
 {
     std::string json_str = http2Server_test::json_doc_.dump();
     std::ofstream jfile;
-    std::string jfilePath = "/tmp/example.json";
+    std::string jfilePath = "/tmp/h2agent.ut.example.json";
     jfile.open (jfilePath);
     jfile << json_str;
     jfile.close();

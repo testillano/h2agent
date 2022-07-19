@@ -48,7 +48,9 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 #include <functions.hpp>
 
 namespace h2agent
@@ -59,11 +61,9 @@ namespace http2
 
 MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService):
     ert::http2comm::Http2Server("MockHttp2Server", workerThreads, timersIoService),
-    admin_data_(nullptr),
-    general_unique_server_sequence_(1) {
+    admin_data_(nullptr) {
 
     mock_server_events_data_ = new model::MockServerEventsData();
-    global_variable_ = new model::GlobalVariable();
 
     server_data_ = true;
     server_data_key_history_ = true;
@@ -72,7 +72,6 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
 
 MyTrafficHttp2Server::~MyTrafficHttp2Server() {
     delete (mock_server_events_data_);
-    delete (global_variable_);
 }
 
 void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
@@ -80,12 +79,12 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily(std::string("h2agent_observed_requests_total"), "Http2 total requests observed in h2agent");
+        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent server");
 
         observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
         observed_requests_unprovisioned_counter_ = &(cf.Add({{"result", "unprovisioned"}}));
 
-        ert::metrics::counter_family_ref_t cf2 = metrics->addCounterFamily(std::string("h2agent_purged_contexts_total"), "Total contexts purged in h2agent");
+        ert::metrics::counter_family_ref_t cf2 = metrics->addCounterFamily(std::string("ServerData_purged_contexts_total"), "Total contexts purged in h2agent server");
 
         purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
@@ -122,18 +121,43 @@ bool MyTrafficHttp2Server::checkHeaders(const nghttp2::asio_http2::server::reque
     */
 }
 
-std::string MyTrafficHttp2Server::serverDataConfigurationAsJsonString() const {
+std::string MyTrafficHttp2Server::dataConfigurationAsJsonString() const {
     nlohmann::json result;
 
-    result["storeEvents"] = server_data_ ? "true":"false";
-    result["storeEventsKeyHistory"] = server_data_key_history_ ? "true":"false";
-    result["purgeExecution"] = purge_execution_ ? "true":"false";
+    result["storeEvents"] = server_data_;
+    result["storeEventsKeyHistory"] = server_data_key_history_;
+    result["purgeExecution"] = purge_execution_;
 
     return result.dump();
 }
 
-void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& req,
-                                   std::shared_ptr<std::stringstream> requestBody,
+std::string MyTrafficHttp2Server::configurationAsJsonString() const {
+    nlohmann::json result;
+
+    result["receiveRequestBody"] = receive_request_body_.load();
+    result["preReserveRequestBody"] = pre_reserve_request_body_.load();
+
+    return result.dump();
+}
+
+bool MyTrafficHttp2Server::receiveDataLen(const nghttp2::asio_http2::server::request& req) {
+    LOGDEBUG(ert::tracing::Logger::debug("receiveRequestBody()",  ERT_FILE_LOCATION));
+
+    // TODO: we could analyze req to get the provision and find out if request body is actually needed.
+    // To cache the analysis, we should use complete URI as map key (data/len could be received in
+    // chunks and that's why data/len reception sequence id is not valid and it is not provided by
+    // http2comm library through this virtual method).
+
+    return receive_request_body_.load();
+}
+
+bool MyTrafficHttp2Server::preReserveRequestBody() {
+    return pre_reserve_request_body_.load();
+}
+
+void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
+                                   const nghttp2::asio_http2::server::request& req,
+                                   const std::string &requestBody,
                                    const std::chrono::microseconds &receptionTimestampUs,
                                    unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                                    std::string& responseBody, unsigned int &responseDelayMs)
@@ -158,7 +182,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         }
 
         LOGINFORMATIONAL(
-        if (general_unique_server_sequence_ % 5000 == 0) {
+        if (receptionId % 5000 == 0) {
         std::string msg = ert::tracing::Logger::asString("Current/maximum busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
             ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
         }
@@ -188,11 +212,13 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
     LOGDEBUG(
         std::stringstream ss;
-        ss << "TRAFFIC REQUEST RECEIVED | Method: " << method
+        ss << "TRAFFIC REQUEST RECEIVED"
+        << " | Reception id (general unique server sequence): " << receptionId
+        << " | Method: " << method
         << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
         << " | Query parameters: " << ((getAdminData()->getMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
-        if (requestBody->rdbuf()->in_avail()) ss << " | Body: " << requestBody->str();
+        if (!requestBody.empty()) ss << " | Body: " << requestBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
@@ -275,8 +301,10 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
         // PREPARE & TRANSFORM
         provision->setMockServerEventsData(mock_server_events_data_); // could be used by event source
+        provision->setConfiguration(configuration_);
         provision->setGlobalVariable(global_variable_);
-        provision->transform(uri, uriPath, qmap, requestBody, req.header(), getGeneralUniqueServerSequence(),
+        provision->setFileManager(file_manager_);
+        provision->transform(uri, uriPath, qmap, requestBody, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
@@ -298,8 +326,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
 
             // Store request event context information
             if (server_data_) {
-                std::string requestBodyStr = requestBody->str();
-                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBodyStr, receptionTimestampUs, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBody, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
@@ -310,7 +337,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
                         outStateUri = uri; // by default
                     }
 
-                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBodyStr, receptionTimestampUs, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
+                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBody, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }
@@ -324,7 +351,7 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody->str(), receptionTimestampUs, statusCode, headers, responseBody, general_unique_server_sequence_, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBody, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {
@@ -339,9 +366,6 @@ void MyTrafficHttp2Server::receive(const nghttp2::asio_http2::server::request& r
         if (!responseBody.empty()) ss << " | Body: " << responseBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
-
-// Move to next sequence value:
-    general_unique_server_sequence_++;
 }
 
 }

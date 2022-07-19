@@ -11,6 +11,7 @@
 #include <AdminSchemas.hpp>
 #include <MockServerEventsData.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 
 #include <ert/http2comm/Http2Headers.hpp>
 
@@ -94,6 +95,10 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "response.body.string./unix_ms"
     },
     {
+      "source": "timestamp.us",
+      "target": "response.body.string./unix_us"
+    },
+    {
       "source": "timestamp.ns",
       "target": "response.body.string./unix_ns"
     },
@@ -144,6 +149,10 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     {
       "source": "math.1+2+3+5+8",
       "target": "response.body.integer./math-calculation"
+    },
+    {
+      "source": "eraser",
+      "target": "txtFile./tmp/h2agent.ut.@{myvar}.txt"
     }
   ]
 }
@@ -276,16 +285,19 @@ public:
     h2agent::model::AdminData adata_{};
     h2agent::model::MockServerEventsData *events_data_{};
     h2agent::model::GlobalVariable *global_variable_{};
+    h2agent::model::FileManager *file_manager_{};
 
     Transform_test() {
         // Reserve memory for storage data and global variables, just in case they are used:
         events_data_ = new h2agent::model::MockServerEventsData();
         global_variable_ = new h2agent::model::GlobalVariable();
+        file_manager_ = new h2agent::model::FileManager(nullptr);
     }
 
     ~Transform_test() {
         delete(events_data_);
         delete(global_variable_);
+        delete(file_manager_);
     }
 };
 
@@ -300,6 +312,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
     provision->setMockServerEventsData(events_data_); // could be used by event source
     provision->setGlobalVariable(global_variable_);
+    provision->setFileManager(file_manager_);
 
     // Simulate event on transformation:
     std::string requestUri = "/app/v1/foo/bar/1?name=test";
@@ -307,7 +320,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters("name=test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::shared_ptr<std::stringstream> requestBody = std::make_shared<std::stringstream>(request.dump());
+    std::string requestBody = request.dump();
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
@@ -353,12 +366,13 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       },
       "strftime": "Now it's 02:56AM.",
       "unix_ms": "1653872192363",
+      "unix_us": "1653872192363705",
       "unix_ns": "1653872192363705636",
       "unix_s": "1653872192",
       "math-calculation": 19
     }
     )"_json;
-    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {
+    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_us", "unix_ns", "unix_s" }) {
         expectedJson[i] = assertedJson[i];
     }
     EXPECT_EQ(assertedJson, expectedJson);
@@ -387,7 +401,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(qmap["name"], "test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::shared_ptr<std::stringstream> requestBody = std::make_shared<std::stringstream>(request.dump());
+    std::string requestBody = request.dump();
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});

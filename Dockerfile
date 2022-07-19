@@ -1,5 +1,5 @@
 ARG base_tag=latest
-ARG scratch_img=alpine
+ARG scratch_img=ubuntu
 ARG scratch_img_tag=latest
 FROM ghcr.io/testillano/h2agent_builder:${base_tag} as builder
 MAINTAINER testillano
@@ -18,6 +18,11 @@ RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=TRUE . && make -j${m
 FROM ${scratch_img}:${scratch_img_tag}
 ARG build_type=Release
 COPY --from=builder /code/build/${build_type}/bin/h2agent /opt/h2agent
+
+# We add curl & jq for helpers.src
+# Ubuntu has bash already installed, but vim is missing
+ARG base_os=ubuntu
+RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add bash curl jq && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq && apt-get clean ; fi
 
 ENTRYPOINT ["/opt/h2agent"]
 CMD []

@@ -48,7 +48,9 @@ SOFTWARE.
 
 #include <AdminServerProvision.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 
 #include <functions.hpp>
 
@@ -86,7 +88,7 @@ void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const s
 
 AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
-    response_delay_ms_(0), mock_server_events_data_(nullptr), global_variable_(nullptr) {;}
+    response_delay_ms_(0), mock_server_events_data_(nullptr) {;}
 
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
@@ -97,7 +99,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::map<std::string, std::string> &requestQueryParametersMap,
         bool requestBodyJsonOrString,
         const nlohmann::json &requestBodyJson, // if json
-        std::shared_ptr<std::stringstream> requestBody, // if string
+        const std::string &requestBody, // if string
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -132,7 +134,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             }
         }
         else {
-            sourceVault.setString(requestBody->str());
+            sourceVault.setString(requestBody);
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
@@ -182,25 +184,28 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         parser.compile(expressionString, expression);
         sourceVault.setFloat(expression.value());
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandom) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Random) {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
         sourceVault.setInteger(transformation->getSourceI1() + (rand() % range));
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralRandomSet) {
+    else if (transformation->getSourceType() == Transformation::SourceType::RandomSet) {
         sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], variables); // replace variables if they exist
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralTimestamp) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Timestamp) {
         if (transformation->getSource() == "s") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
         else if (transformation->getSource() == "ms") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
+        else if (transformation->getSource() == "us") {
+            sourceVault.setInteger(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+        }
         else if (transformation->getSource() == "ns") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralStrftime) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Strftime) {
         std::time_t unixTime = 0;
         std::time (&unixTime);
         char buffer[100] = {0};
@@ -212,7 +217,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         sourceVault.setStringReplacingVariables(std::string(buffer), variables); // replace variables if they exist
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::GeneralUnique) {
+    else if (transformation->getSourceType() == Transformation::SourceType::Recvseq) {
         sourceVault.setUnsigned(generalUniqueServerSequence);
     }
     else if (transformation->getSourceType() == Transformation::SourceType::SVar) {
@@ -635,18 +640,19 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         }
         else if (transformation->getTargetType() == Transformation::TargetType::TGVar) {
             if (eraser) {
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s'", target.c_str()), ERT_FILE_LOCATION));
-                global_variable_->removeVariable(target);
+                bool exists;
+                global_variable_->removeVariable(target, exists);
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s' (%s)", target.c_str(), exists ? "removed":"missing"), ERT_FILE_LOCATION));
             }
             else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                 std::string varname;
                 if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
-                    global_variable_->loadVariable(target, matches.str(0)); // variable "as is" stores the entire match
+                    global_variable_->load(target, matches.str(0)); // variable "as is" stores the entire match
                     for(size_t i=1; i < matches.size(); i++) {
                         varname = target;
                         varname += ".";
                         varname += std::to_string(i);
-                        global_variable_->loadVariable(varname, matches.str(i));
+                        global_variable_->load(varname, matches.str(i));
                         LOGDEBUG(
                             std::stringstream ss;
                             ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
@@ -660,7 +666,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 targetS = sourceVault.getString(success);
                 if (!success) return false;
                 // assignment
-                global_variable_->loadVariable(target, targetS);
+                global_variable_->load(target, targetS);
             }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::OutState) {
@@ -671,6 +677,36 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             outState = targetS;
             outStateMethod = target; // empty on regular usage
             outStateUri = target2; // empty on regular usage
+        }
+        else if (transformation->getTargetType() == Transformation::TargetType::TxtFile) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+
+            if (eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into text file '%s'", target.c_str()), ERT_FILE_LOCATION));
+                file_manager_->empty(target/*path*/);
+            }
+            else {
+                // assignments
+                bool shortTerm = (target != transformation->getTarget()); // something was replaced in target: path is considered arbitrary and dynamic: short term files
+                file_manager_->write(target/*path*/, targetS/*data*/, true/*text*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
+            }
+        }
+        else if (transformation->getTargetType() == Transformation::TargetType::BinFile) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+
+            if (eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into binary file '%s'", target.c_str()), ERT_FILE_LOCATION));
+                file_manager_->empty(target/*path*/);
+            }
+            else {
+                // assignments
+                bool shortTerm = (target != transformation->getTarget()); // something was replaced in target: path is considered arbitrary and dynamic: short term files
+                file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
+            }
         }
     }
     catch (std::exception& e)
@@ -685,7 +721,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 void AdminServerProvision::transform( const std::string &requestUri,
                                       const std::string &requestUriPath,
                                       const std::map<std::string, std::string> &requestQueryParametersMap,
-                                      std::shared_ptr<std::stringstream> requestBody,
+                                      const std::string &requestBody,
                                       const nghttp2::asio_http2::header_map &requestHeaders,
                                       std::uint64_t generalUniqueServerSequence,
 
@@ -733,7 +769,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         else {
             for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
                 if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                    if (requestBody->rdbuf()->in_avail()) {
+                    if (!requestBody.empty()) {
                         requestBodyJsonRequired = true;
                     }
                     else {
@@ -746,7 +782,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         if (requestBodyJsonRequired) {
             // if fails to parse, we will consider it as an string ignoring the content-type:
-            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody->str(), requestBodyJson);
+            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBody, requestBodyJson);
         }
     }
 
@@ -779,12 +815,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
     }
     else {
-        if (getResponseBody().is_null()) { // if not an object, get the string representation
-            responseBody = getResponseBodyString();
-        }
-        else {
-            responseBody = getResponseBody().dump();
-        }
+        responseBody = getResponseBodyString();
     }
 
     // Dynamic variables map: inherited along the transformation chain
@@ -801,7 +832,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGvar, Value, Event, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, Event, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBody, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 
@@ -833,7 +864,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 }
 
-bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRegexConfigured) {
+bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfigured) {
 
     // Store whole document (useful for GET operation)
     json_ = j;
@@ -890,6 +921,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRe
     if (it != j.end()) {
         if (it->is_object() || it->is_array()) {
             response_body_ = *it;
+            response_body_string_ = response_body_.dump(); // valid as cache for static responses (not updated with transformations)
         }
         else if (it->is_string()) {
             response_body_string_ = *it;
@@ -928,7 +960,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool priorityMatchingRe
     // Store key:
     calculateAdminServerProvisionKey(key_, in_state_, request_method_, request_uri_);
 
-    if (priorityMatchingRegexConfigured) {
+    if (regexMatchingConfigured) {
         // Precompile regex with key, only for 'RegexMatching' algorithm:
         try {
             regex_.assign(key_, std::regex::optimize);

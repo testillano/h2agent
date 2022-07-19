@@ -50,6 +50,7 @@ namespace model
 {
 class AdminData;
 class MockServerEventsData;
+class Configuration;
 }
 
 namespace http2
@@ -59,7 +60,9 @@ class MyTrafficHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
+    model::Configuration *configuration_{};
     model::AdminData *admin_data_{};
+
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
@@ -85,11 +88,22 @@ public:
 
     bool checkHeaders(const nghttp2::asio_http2::server::request& req);
 
-    void receive(const nghttp2::asio_http2::server::request& req,
-                 std::shared_ptr<std::stringstream> requestBody,
+    void receive(const std::uint64_t &receptionId,
+                 const nghttp2::asio_http2::server::request& req,
+                 const std::string &requestBody,
                  const std::chrono::microseconds &receptionTimestampUs,
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
+
+    //bool receiveDataLen(const nghttp2::asio_http2::server::request& req); // virtual: default implementation (true) is required (request bodies are present in many operations).
+    //bool preReserveRequestBody(); //virtual: default implementation (true) is acceptable for us (really, it does not matter).
+
+    void setConfiguration(model::Configuration *p) {
+        configuration_ = p;
+    }
+    model::Configuration *getConfiguration() const {
+        return configuration_;
+    }
 
     model::AdminData *getAdminData() const {
         return admin_data_;
