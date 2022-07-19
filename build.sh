@@ -172,15 +172,15 @@ build_ct_image() {
 build_auto() {
   # export defaults to automate, but allow possible environment values:
   # shellcheck disable=SC1090
-  source <(grep -E '^[0a-z_]+__dflt' "$0" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([0a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
+  source <(grep -E '^[0a-z_]+__dflt' "${SCR}" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([0a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
   build_builder_image && build_project && build_project_image && build_ct_image
 }
 
 #############
 # EXECUTION #
 #############
-# shellcheck disable=SC2164
-cd "$(dirname "$0")"
+SCR="$(readlink -f "$0")"
+cd "$(dirname "${SCR}")"
 
 case "$1" in
   --builder-image) build_builder_image ;;

@@ -48,7 +48,9 @@ SOFTWARE.
 
 #include <AdminData.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <FileManager.hpp>
 #include <functions.hpp>
 
 namespace h2agent
@@ -62,7 +64,6 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
     admin_data_(nullptr) {
 
     mock_server_events_data_ = new model::MockServerEventsData();
-    global_variable_ = new model::GlobalVariable();
 
     server_data_ = true;
     server_data_key_history_ = true;
@@ -71,7 +72,6 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io
 
 MyTrafficHttp2Server::~MyTrafficHttp2Server() {
     delete (mock_server_events_data_);
-    delete (global_variable_);
 }
 
 void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
@@ -121,21 +121,21 @@ bool MyTrafficHttp2Server::checkHeaders(const nghttp2::asio_http2::server::reque
     */
 }
 
-std::string MyTrafficHttp2Server::serverDataConfigurationAsJsonString() const {
+std::string MyTrafficHttp2Server::dataConfigurationAsJsonString() const {
     nlohmann::json result;
 
-    result["storeEvents"] = server_data_ ? "true":"false";
-    result["storeEventsKeyHistory"] = server_data_key_history_ ? "true":"false";
-    result["purgeExecution"] = purge_execution_ ? "true":"false";
+    result["storeEvents"] = server_data_;
+    result["storeEventsKeyHistory"] = server_data_key_history_;
+    result["purgeExecution"] = purge_execution_;
 
     return result.dump();
 }
 
-std::string MyTrafficHttp2Server::serverConfigurationAsJsonString() const {
+std::string MyTrafficHttp2Server::configurationAsJsonString() const {
     nlohmann::json result;
 
-    result["receiveRequestBody"] = receive_request_body_ ? "true":"false";
-    result["preReserveRequestBody"] = pre_reserve_request_body_ ? "true":"false";
+    result["receiveRequestBody"] = receive_request_body_.load();
+    result["preReserveRequestBody"] = pre_reserve_request_body_.load();
 
     return result.dump();
 }
@@ -301,7 +301,9 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
 
         // PREPARE & TRANSFORM
         provision->setMockServerEventsData(mock_server_events_data_); // could be used by event source
+        provision->setConfiguration(configuration_);
         provision->setGlobalVariable(global_variable_);
+        provision->setFileManager(file_manager_);
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 

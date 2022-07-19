@@ -67,10 +67,10 @@ public:
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TxtFile, BinFile };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyInteger", "ResponseBodyUnsigned", "ResponseBodyFloat", "ResponseBodyBoolean", "ResponseBodyObject", "ResponseBodyJsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyInteger", "ResponseBodyUnsigned", "ResponseBodyFloat", "ResponseBodyBoolean", "ResponseBodyObject", "ResponseBodyJsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TxtFile", "BinFile" };
         return text [type];
     }
 
@@ -105,12 +105,14 @@ public:
 private:
 
     SourceType source_type_{};
-    std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node), RequestHeader, Math, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event
+    std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
+    // RequestHeader, Math, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event
     std::vector<std::string> source_tokenized_{}; // GeneralRandomSet
     int source_i1_{}, source_i2_{}; // GeneralRandom
 
     TargetType target_type_{};
-    std::string target_{}; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node), ResponseHeader, TVar, TGVar, OutState (foreign method part)
+    std::string target_{}; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
+    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TxtFile(path), BinFile (path)
     std::string target2_{}; // OutState (foreign uri part)
 
     bool has_filter_{};
@@ -180,12 +182,15 @@ public:
     int getFilterNumberType() const {
         return filter_number_type_;
     }
+    /** Integer container for sum/multiply */
     std::int64_t getFilterI() const {
         return filter_i_;
     }
+    /** Unsigned integer container for sum/multiply */
     std::uint64_t getFilterU() const {
         return filter_u_;
     }
+    /** Float container for sum/multiply */
     double getFilterF() const {
         return filter_f_;
     }

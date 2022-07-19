@@ -33,71 +33,96 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <string>
+#include <memory>
 
 #include <ert/tracing/Logger.hpp>
 
-#include <GlobalVariable.hpp>
-#include <AdminSchemas.hpp>
+#include <FileManager.hpp>
 
 namespace h2agent
 {
 namespace model
 {
 
-GlobalVariable::GlobalVariable() {
-    global_variable_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
-}
+void FileManager::write(const std::string &path, const std::string &data, bool textOrBinary, unsigned int closeDelayUs) {
 
-void GlobalVariable::load(const std::string &variable, const std::string &value) {
-    bool exists;
-    std::string currentValue = getValue(variable, exists);
-    add(variable, currentValue + value);
-}
+    std::shared_ptr<SafeFile> safeFile;
 
-bool GlobalVariable::loadJson(const nlohmann::json &j) {
+    auto it = get(path);
+    if (it != end()) {
+        safeFile = it->second;
+    }
+    else {
+        std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app; // for text files
+        if (!textOrBinary) mode |= std::ios::binary;
 
-    if (!global_variable_schema_.validate(j)) {
-        return false;
+        safeFile = std::make_shared<SafeFile>(path, io_service_, closeDelayUs, mode);
+        add(path, safeFile);
     }
 
-    add(j);
-
-    return true;
+    safeFile->write(data);
 }
 
-bool GlobalVariable::clear()
+std::string FileManager::read(bool &success, const std::string &path, bool textOrBinary) {
+
+    std::shared_ptr<SafeFile> safeFile;
+    std::ios_base::openmode mode = std::ifstream::in; // for text files
+
+    auto it = get(path);
+    if (it != end()) {
+        safeFile = it->second;
+    }
+    else {
+        if (!textOrBinary) mode |= std::ios::binary;
+
+        safeFile = std::make_shared<SafeFile>(path, io_service_, 0, mode);
+        add(path, safeFile);
+    }
+
+    return safeFile->read(success, mode);
+}
+
+void FileManager::empty(const std::string &path) {
+
+    std::shared_ptr<SafeFile> safeFile;
+
+    auto it = get(path);
+    if (it != end()) {
+        safeFile = it->second;
+    }
+    else {
+        safeFile = std::make_shared<SafeFile>(path, io_service_);
+        add(path, safeFile);
+    }
+
+    safeFile->empty();
+}
+
+bool FileManager::clear()
 {
-    write_guard_t guard(rw_mutex_);
     bool result = (map_.size() > 0); // something deleted
 
-    map_.clear();
+    map_.clear(); // shared_ptr dereferenced too
 
     return result;
 }
 
-std::string GlobalVariable::asJsonString() const {
+std::string FileManager::asJsonString() const {
 
-    return ((size() != 0) ? getJson().dump() : "{}"); // server data is shown as an object
+    return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
 }
 
-std::string GlobalVariable::getValue(const std::string &variableName, bool &exists) const {
+nlohmann::json FileManager::getJson() const {
+
+    nlohmann::json result;
 
     read_guard_t guard(rw_mutex_);
 
-    auto it = get(variableName);
-    exists = (it != end());
+    for (auto it = begin(); it != end(); it++) {
+        result.push_back(it->second->getJson());
+    };
 
-    return (exists ? (it->second):"");
-}
-
-void GlobalVariable::removeVariable(const std::string &variableName, bool &exists) {
-    exists = (get(variableName) != end());
-    remove(variableName);
-}
-
-nlohmann::json GlobalVariable::getJson() const {
-    return get();
+    return result;
 }
 
 }

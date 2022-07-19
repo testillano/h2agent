@@ -412,9 +412,9 @@ Input Request url
  (or set 'ST_REQUEST_URL' to be non-interactive) [/app/v1/load-test/v1/id-21]:
 
 Server configuration:
-{"preReserveRequestBody":"true","receiveRequestBody":"true"}
+{"preReserveRequestBody":true,"receiveRequestBody":true}
 Server data configuration:
-{"purgeExecution":"false","storeEvents":"false","storeEventsKeyHistory":"false"}
+{"purgeExecution":false,"storeEvents":false,"storeEventsKeyHistory":false}
 
 Removing current server data information ... done !
 
@@ -587,6 +587,19 @@ Options:
 
 [--disable-metrics]
   Disables prometheus scrape port (enabled by default).
+
+[--long-term-files-close-delay-usecs <microseconds>]
+  Close delay after write operation for those target files with constant paths provided.
+  Normally used for logging files: we should have few of them. By default, 1000000
+  usecs are configured. Delay is useful to avoid I/O overhead under normal conditions.
+  Zero value means that close operation is done just after writting the file.
+
+[--short-term-files-close-delay-usecs <microseconds>]
+  Close delay after write operation for those target files with variable paths provided.
+  Normally used for provision debugging: we could have multiple of them. Traffic rate
+  could constraint the final delay configured to avoid reach the maximum opened files
+  limit allowed. By default, it is configured to 0 usecs.
+  Zero value means that close operation is done just after writting the file.
 
 [-v|--version]
   Program version.
@@ -1068,6 +1081,37 @@ Deletes all the global variables registered or the selected one when query param
 
 No response body.
 
+### GET /admin/v1/files
+
+This operation retrieves the whole list of files processed and their current status.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+A `json` array with the list of files processed is retrieved. For example:
+
+```json
+[
+  {
+    "bytes": 1791,
+    "closeDelayUsecs": 1000000,
+    "path": "Mozart.txt",
+    "state": "closed"
+  },
+  {
+    "bytes": 1770,
+    "closeDelayUsecs": 1000000,
+    "path": "Beethoven.txt",
+    "state": "opened"
+  }
+]
+```
+
+An already managed file could be externally removed or corrupted. In that case, the state "missing" will be shown.
+
 ### GET /admin/v1/logging
 
 Retrieves the current logging level of the `h2agent` process: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
@@ -1087,6 +1131,25 @@ Changes the log level of the `h2agent` process to any of the available levels (t
 #### Response status code
 
 **200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/configuration
+
+Retrieve the general process configuration.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "longTermFilesCloseDelayUsecs": 1000000,
+    "shortTermFilesCloseDelayUsecs": 0
+}
+```
 
 ### PUT /admin/v1/server/configuration?receiveRequestBody=`<true|false>`&preReserveRequestBody=`<true|false>`
 
@@ -1122,8 +1185,8 @@ For example:
 
 ```json
 {
-    "preReserveRequestBody": "true",
-    "receiveRequestBody": "true"
+    "preReserveRequestBody": true,
+    "receiveRequestBody": true
 }
 ```
 
@@ -1407,7 +1470,7 @@ Defines the response behavior for an incoming request matching some basic condit
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$"
+            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
           }
         },
         "additionalProperties" : {
@@ -1553,7 +1616,7 @@ The **source** of information is classified after parsing the following possible
 
 - globalVar.`<id>`: general purpose global variable (readable from any provision). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
-- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**.
+- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
 - event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 
@@ -1662,13 +1725,17 @@ The **target** of information is classified after parsing the following possible
 
 - var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
-- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch. 
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
 - outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
+
+- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution took place on the path provided it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). Delays in microseconds are configurable on process startup. Check  [command line](#command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
+
+- binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
 
 
@@ -2008,9 +2075,9 @@ For example:
 
 ```json
 {
-    "purgeExecution": "true",
-    "storeEvents": "true",
-    "storeEventsKeyHistory": "true"
+    "purgeExecution": true,
+    "storeEvents": true,
+    "storeEventsKeyHistory": true
 }
 ```
 
@@ -2288,15 +2355,16 @@ Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema c
                                             (http://localhost:8074/admin/v1/schema).
 Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration
                                                      (http://localhost:8074/admin/v1/global-variable).
-Usage: configuration [-h|--help]; Manages agent configuration (gets current status by default).
-                          [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic
-                                                                    server receptions.
-                          [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
-                                                                    server receptions.
-                          [--traffic-server-dynamic-request-body-allocation] ; Sets configuration to do dynamic request body
-                                                                               memory allocation on traffic server receptions.
-                          [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body
-                                                                               memory on traffic server receptions.
+Usage: configuration [-h|--help]; Gets agent general configuration.
+Usage: server_configuration [-h|--help]; Manages agent configuration (gets current status by default).
+                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic
+                                                                      server receptions.
+                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
+                                                                      server receptions.
+                            [--traffic-server-dynamic-request-body-allocation] ; Sets configuration to do dynamic request body
+                                                                                 memory allocation on traffic server receptions.
+                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body
+                                                                                 memory on traffic server receptions.
 Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
                           [--discard-all]     ; Sets data configuration to discard all the events processed.
                           [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
