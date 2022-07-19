@@ -413,7 +413,7 @@ def test_031_replaceVariablesAtValueAndTransferToResponseBodyStringPath(admin_se
 
 
 @pytest.mark.transform
-def test_032_replaceVariablesAtGeneralStrftimeAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
+def test_032_replaceVariablesAtStrftimeAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p and var1 is @{var1}.", target="response.body.string./result"))
@@ -428,7 +428,7 @@ def test_032_replaceVariablesAtGeneralStrftimeAndTransferToResponseBodyStringPat
 
 
 @pytest.mark.transform
-def test_033_replaceVariablesAtGeneralRandomsetAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
+def test_033_replaceVariablesAtRandomsetAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.@{var1}|@{var2}", target="response.body.string./result"))

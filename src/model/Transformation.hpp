@@ -59,10 +59,10 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, GeneralRandom, GeneralRandomSet, GeneralTimestamp, GeneralStrftime, GeneralUnique, SVar, SGVar, Value, Event, InState };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "GeneralRandom", "GeneralRandomSet", "GeneralTimestamp", "GeneralStrftime", "GeneralUnique", "SVar", "SGVar", "Value", "Event", "InState" };
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "Event", "InState" };
         return text [type];
     }
 
@@ -106,9 +106,9 @@ private:
 
     SourceType source_type_{};
     std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
-    // RequestHeader, Math, GeneralTimestamp, GeneralStrftime, SVar, SGVar, Value, Event
-    std::vector<std::string> source_tokenized_{}; // GeneralRandomSet
-    int source_i1_{}, source_i2_{}; // GeneralRandom
+    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, Event
+    std::vector<std::string> source_tokenized_{}; // RandomSet
+    int source_i1_{}, source_i2_{}; // Random
 
     TargetType target_type_{};
     std::string target_{}; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),

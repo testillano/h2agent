@@ -95,6 +95,10 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "response.body.string./unix_ms"
     },
     {
+      "source": "timestamp.us",
+      "target": "response.body.string./unix_us"
+    },
+    {
       "source": "timestamp.ns",
       "target": "response.body.string./unix_ns"
     },
@@ -362,12 +366,13 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       },
       "strftime": "Now it's 02:56AM.",
       "unix_ms": "1653872192363",
+      "unix_us": "1653872192363705",
       "unix_ns": "1653872192363705636",
       "unix_s": "1653872192",
       "math-calculation": 19
     }
     )"_json;
-    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_ns", "unix_s" }) {
+    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_us", "unix_ns", "unix_s" }) {
         expectedJson[i] = assertedJson[i];
     }
     EXPECT_EQ(assertedJson, expectedJson);

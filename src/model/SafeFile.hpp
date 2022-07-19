@@ -46,6 +46,8 @@ SOFTWARE.
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <nlohmann/json.hpp>
 
+#include <ert/metrics/Metrics.hpp>
+
 
 namespace h2agent
 {
@@ -70,6 +72,16 @@ class SafeFile {
     unsigned int close_delay_us_;
     boost::asio::io_service *io_service_{};
 
+    ert::metrics::Metrics *metrics_{};
+
+    ert::metrics::counter_t *observed_open_operation_counter_{};
+    ert::metrics::counter_t *observed_close_operation_counter_{};
+    ert::metrics::counter_t *observed_write_operation_counter_{};
+    ert::metrics::counter_t *observed_empty_operation_counter_{};
+    ert::metrics::counter_t *observed_delayed_close_operation_counter_{};
+    ert::metrics::counter_t *observed_instant_close_operation_counter_{};
+    ert::metrics::counter_t *observed_error_open_operation_counter_{};
+
     void delayedClose();
 
 public:
@@ -82,6 +94,8 @@ public:
     * operations with the intention to reduce overhead in some scenarios. By default
     * it is not used (if not provided in constructor), so delay is not performed
     * regardless the close delay configured.
+    * @param metrics underlaying reference for SafeFile in order to compute prometheus metrics
+    * about I/O operations. It may be 'nullptr' if no metrics are enabled.
     * @param closeDelayUs delay after last write operation, to close the file. By default
     * it is configured to 1 second, something appropiate to log over long term files.
     * Zero value means that no planned close is scheduled, so the file is opened,
@@ -96,6 +110,7 @@ public:
     */
     SafeFile (const std::string& path,
               boost::asio::io_service *timersIoService = nullptr,
+              ert::metrics::Metrics *metrics = nullptr,
               unsigned int closeDelayUs = 1000000 /* 1 second */,
               std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app);
 

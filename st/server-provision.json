@@ -69,6 +69,14 @@
       {
         "source": "globalVar.EMAIL.@{name}",
         "target": "response.body.string./email"
+      },
+      {
+        "source": "timestamp.us",
+        "target": "var.usecs"
+      },
+      {
+        "source": "value.@{usecs}\n",
+        "target": "txtFile.__PROVISION_LONG_TERM_LOGFILE__"
       }
     ]
   }

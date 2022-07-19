@@ -1466,7 +1466,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
           },
           "target": {
             "type": "string",
@@ -1606,7 +1606,7 @@ The **source** of information is classified after parsing the following possible
 
 - randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
 
-- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds) or `ns` (nanoseconds).
+- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
 
 - strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
 
@@ -2473,14 +2473,23 @@ MockHttp2Server_observed_requests_total{method="DELETE"} 0
 MockHttp2Server_observed_requests_total{method="PUT"} 0
 MockHttp2Server_observed_requests_total{method="GET"} 0
 MockHttp2Server_observed_requests_total{method="POST"} 100000
-# HELP h2agent_observed_requests_total Http2 total requests observed in h2agent
-# TYPE h2agent_observed_requests_total counter
-h2agent_observed_requests_total{result="unprovisioned"} 0
-h2agent_observed_requests_total{result="processed"} 100000
-# HELP h2agent_purged_contexts_total Total contexts purged in h2agent
-# TYPE h2agent_purged_contexts_total counter
-h2agent_purged_contexts_total{result="failed"} 0
-h2agent_purged_contexts_total{result="successful"} 0
+# HELP ServerData_observed_requests_total Http2 total requests observed in h2agent server
+# TYPE ServerData_observed_requests_total counter
+ServerData_observed_requests_total{result="unprovisioned"} 0
+ServerData_observed_requests_total{result="processed"} 100000
+# HELP ServerData_purged_contexts_total Total contexts purged in h2agent server
+# TYPE ServerData_purged_contexts_total counter
+ServerData_purged_contexts_total{result="failed"} 0
+ServerData_purged_contexts_total{result="successful"} 0
+# HELP FileSystem_observed_operations_total H2agent file system operations
+# TYPE FileSystem_observed_operations_total counter
+FileSystem_observed_operations_total{operation="open",success="false"} 0
+FileSystem_observed_operations_total{operation="instantClose"} 0
+FileSystem_observed_operations_total{operation="delayedClose"} 100000
+FileSystem_observed_operations_total{operation="write"} 100000
+FileSystem_observed_operations_total{operation="close"} 1
+FileSystem_observed_operations_total{operation="empty"} 0
+FileSystem_observed_operations_total{operation="open"} 1
 # HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
 # TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
 AdminHttp2Server_responses_delay_seconds_gauge 7.2e-05

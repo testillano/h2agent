@@ -56,7 +56,7 @@ void FileManager::write(const std::string &path, const std::string &data, bool t
         std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app; // for text files
         if (!textOrBinary) mode |= std::ios::binary;
 
-        safeFile = std::make_shared<SafeFile>(path, io_service_, closeDelayUs, mode);
+        safeFile = std::make_shared<SafeFile>(path, io_service_, metrics_, closeDelayUs, mode);
         add(path, safeFile);
     }
 
@@ -75,7 +75,7 @@ std::string FileManager::read(bool &success, const std::string &path, bool textO
     else {
         if (!textOrBinary) mode |= std::ios::binary;
 
-        safeFile = std::make_shared<SafeFile>(path, io_service_, 0, mode);
+        safeFile = std::make_shared<SafeFile>(path, io_service_, metrics_, 0, mode);
         add(path, safeFile);
     }
 
@@ -91,7 +91,7 @@ void FileManager::empty(const std::string &path) {
         safeFile = it->second;
     }
     else {
-        safeFile = std::make_shared<SafeFile>(path, io_service_);
+        safeFile = std::make_shared<SafeFile>(path, io_service_, metrics_);
         add(path, safeFile);
     }
 
