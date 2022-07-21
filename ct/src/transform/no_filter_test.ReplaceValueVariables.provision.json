@@ -20,7 +20,7 @@
     },
     {
       "source": "value.My name is @{name} @{surname}",
-      "target": "response.body.string./whoAreYou"
+      "target": "response.body.json.string./whoAreYou"
     }
   ]
 }

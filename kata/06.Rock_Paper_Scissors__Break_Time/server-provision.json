@@ -5,7 +5,7 @@
   "transform": [
     {
       "source": "randomset.rock|paper|scissors",
-      "target": "response.body.string"
+      "target": "response.body.json.string"
     }
   ]
 }

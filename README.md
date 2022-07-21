@@ -1553,11 +1553,11 @@ Optional response delay simulation in milliseconds.
 
 ##### transform
 
-Sorted list of transformations to modify incoming information and build the dynamic response to be sent.
+Sorted list of transformation items to modify incoming information and build the dynamic response to be sent.
 
 Each transformation has a `source`, a `target` and an optional `filter` algorithm. <u>The filters are applied over sources and sent to targets</u> (all the available filters at the moment act over sources in string format, so they need to be converted if they are not strings in origin).
 
-A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped to move to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
+A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped going to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
 
 Let's start describing the available sources of data: regardless the native or normal representation for every kind of target, the fact is that conversions may be done to almost every other type:
 
@@ -1567,7 +1567,7 @@ Let's start describing the available sources of data: regardless the native or n
 
 - *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (only response body nodes could include a boolean).
 
-- *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body node.
+- *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body json node.
 
 
 
@@ -1585,13 +1585,13 @@ The **source** of information is classified after parsing the following possible
 
 - request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
-- request.body: request body document from *root*.
+- request.body: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*.
 
-- request.body.`/<node1>/../<nodeN>`: request body node path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` root.
+- request.body.`/<node1>/../<nodeN>`: request body node `json` path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` root.
 
-- response.body: response body document from *root*. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
 
-- response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 - request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
@@ -1612,9 +1612,9 @@ The **source** of information is classified after parsing the following possible
 
 - recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
-- var.`<id>`: general purpose variable (accessible within transformation chain). Cannot refer json objects. This source variable identifier **admits variables substitution**.
+- var.`<id>`: general purpose variable (readable at transformation chain, provision-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**.
 
-- globalVar.`<id>`: general purpose global variable (readable from any provision). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
+- globalVar.`<id>`: general purpose global variable (readable from anywhere, process-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
@@ -1689,33 +1689,33 @@ The **source** of information is classified after parsing the following possible
 
 The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
 
-- response.body.string *[string]*: response body document storing expected string at *root*.
+- response.body.json.string *[string]*: response body document storing expected string at *root*.
 
-- response.body.integer *[integer]*: response body document storing expected integer at *root*.
+- response.body.json.integer *[integer]*: response body document storing expected integer at *root*.
 
-- response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
+- response.body.json.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
 
-- response.body.float *[float number]*: response body document storing expected float number at *root*.
+- response.body.json.float *[float number]*: response body document storing expected float number at *root*.
 
-- response.body.boolean *[boolean]*: response body document storing expected boolean at *root*.
+- response.body.json.boolean *[boolean]*: response body document storing expected boolean at *root*.
 
-- response.body.object *[json object]*: response body document storing expected object as *root* node.
+- response.body.json.object *[json object]*: response body document storing expected object as *root* node.
 
-- response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
+- response.body.json.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
-- response.body.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
+- response.body.json.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
+- response.body.json.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
+- response.body.json.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
+- response.body.json.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+- response.body.json.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
 
-- response.body.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+- response.body.json.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
 
-- response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
+- response.body.json.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
 - response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**. Take into account that header fields values are sent [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
@@ -1723,9 +1723,9 @@ The **target** of information is classified after parsing the following possible
 
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
+- var.`<id>` *[string (or number as string)]*: general purpose variable (writable at transformation chain and intended to be used later, as source, within provision-level scope). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
-- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
@@ -1772,7 +1772,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.string.category",
+    "target": "response.body.json.string.category",
     "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
   }
   ```
@@ -1788,7 +1788,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.unsigned.data.timestamp",
+    "target": "response.body.json.unsigned.data.timestamp",
     "filter": {
       "RegexReplace" : {
         "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
@@ -2353,26 +2353,21 @@ CURL="curl -i --http2-prior-knowledge"
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
                                             (http://localhost:8074/admin/v1/schema).
-Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration
-                                                     (http://localhost:8074/admin/v1/global-variable).
+Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration
+                                                          (http://localhost:8074/admin/v1/global-variable).
+Usage: files [-h|--help]; Gets the files processed.
 Usage: configuration [-h|--help]; Gets agent general configuration.
-Usage: server_configuration [-h|--help]; Manages agent configuration (gets current status by default).
-                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic
-                                                                      server receptions.
-                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
-                                                                      server receptions.
-                            [--traffic-server-dynamic-request-body-allocation] ; Sets configuration to do dynamic request body
-                                                                                 memory allocation on traffic server receptions.
-                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body
-                                                                                 memory on traffic server receptions.
-Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
-                          [--discard-all]     ; Sets data configuration to discard all the events processed.
-                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
-                          [--keep-all]        ; Sets data configuration to keep all the events processed.
-                          [--disable-purge]   ; Sets data configuration to skip events post-removal when a provision on
-                                                'purge' state is reached.
-                          [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on
-                                                'purge' state is reached.
+Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default).
+       [--traffic-server-ignore-request-body]  ; Ignores request body on server receptions.
+       [--traffic-server-receive-request-body] ; Processes request body on server receptions.
+       [--traffic-server-dynamic-request-body-allocation] ; Does dynamic request body memory allocation on server receptions.
+       [--traffic-server-initial-request-body-allocation] ; Pre reserves request body memory on server receptions.
+Usage: server_data_configuration [-h|--help]; Manages agent server data configuration (gets current status by default).
+                                 [--discard-all]     ; Discards all the events processed.
+                                 [--discard-history] ; Keeps only the last event processed for a key.
+                                 [--keep-all]        ; Keeps all the events processed.
+                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached.
+                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached.
 
 === Traffic server ===
 Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
@@ -2403,7 +2398,8 @@ Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.
             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
-Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent tracing level.
+Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent
+                                                                                                     tracing level.
 Usage: metrics [-h|--help]; Prometheus metrics.
 Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
 Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)

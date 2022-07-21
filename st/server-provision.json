@@ -56,11 +56,11 @@
     "transform": [
       {
         "source": "request.uri.path",
-        "target": "response.body.string./uriPath"
+        "target": "response.body.json.string./uriPath"
       },
       {
         "source": "globalVar.COMPANY NAME",
-        "target": "response.body.string./company"
+        "target": "response.body.json.string./company"
       },
       {
         "source": "response.body./name",
@@ -68,7 +68,7 @@
       },
       {
         "source": "globalVar.EMAIL.@{name}",
-        "target": "response.body.string./email"
+        "target": "response.body.json.string./email"
       },
       {
         "source": "timestamp.us",

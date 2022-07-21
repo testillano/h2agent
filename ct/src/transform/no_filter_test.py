@@ -14,7 +14,7 @@ def test_000_cleanup(admin_cleanup):
 def test_001_random(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="random.10.30", target="response.body.integer./randomBetween10and30"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="random.10.30", target="response.body.json.integer./randomBetween10and30"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -27,7 +27,7 @@ def test_001_random(admin_server_provision, h2ac_traffic):
 def test_002_randomset(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.rock|paper|scissors", target="response.body.string./randomset"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.rock|paper|scissors", target="response.body.json.string./randomset"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -40,7 +40,7 @@ def test_002_randomset(admin_server_provision, h2ac_traffic):
 def test_003_recvseq(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="recvseq", target="response.body.unsigned./recvseq"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="recvseq", target="response.body.json.unsigned./recvseq"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -54,7 +54,7 @@ def test_003_recvseq(admin_server_provision, h2ac_traffic):
 def test_004_strftime(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p.", target="response.body.string./strftime"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p.", target="response.body.json.string./strftime"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -67,7 +67,7 @@ def test_004_strftime(admin_server_provision, h2ac_traffic):
 def test_005_timestampNs(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="timestamp.ns", target="response.body.unsigned./nanoseconds-timestamp"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="timestamp.ns", target="response.body.json.unsigned./nanoseconds-timestamp"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -81,7 +81,7 @@ def test_005_timestampNs(admin_server_provision, h2ac_traffic):
 def test_006_inState(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="inState", target="response.body.string./in-state"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="inState", target="response.body.json.string./in-state"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -94,7 +94,7 @@ def test_006_inState(admin_server_provision, h2ac_traffic):
 def test_007_inStateToResponseBodyBoolean(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="inState", target="response.body./boolean"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="inState", target="response.body.json.boolean./boolean"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -108,7 +108,7 @@ def test_007_inStateToResponseBodyBoolean(admin_server_provision, h2ac_traffic):
 def test_008_inStateToResponseBodyBooleanPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="inState", target="response.body.boolean./inStateAsBool"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="inState", target="response.body.json.boolean./inStateAsBool"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -120,7 +120,7 @@ def test_008_inStateToResponseBodyBooleanPath(admin_server_provision, h2ac_traff
 def test_009_valueToResponseBodyFloatPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.3.14", target="response.body.float./transferredValue"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.3.14", target="response.body.json.float./transferredValue"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -132,7 +132,7 @@ def test_009_valueToResponseBodyFloatPath(admin_server_provision, h2ac_traffic):
 def test_010_valueToResponseBodyIntegerPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.3", target="response.body.integer./transferredValue"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.3", target="response.body.json.integer./transferredValue"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -144,7 +144,7 @@ def test_010_valueToResponseBodyIntegerPath(admin_server_provision, h2ac_traffic
 def test_011_objectToResponseBodyObjectPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./node1", target="response.body.object./targetForRequestNode1"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./node1", target="response.body.json.object./targetForRequestNode1"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -156,7 +156,7 @@ def test_011_objectToResponseBodyObjectPath(admin_server_provision, h2ac_traffic
 def test_012_requestToResponseObject(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.object"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.json.object"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -168,7 +168,7 @@ def test_012_requestToResponseObject(admin_server_provision, h2ac_traffic):
 def test_013_valueToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.some text", target="response.body.string./transferredValue"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.some text", target="response.body.json.string./transferredValue"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -180,7 +180,7 @@ def test_013_valueToResponseBodyStringPath(admin_server_provision, h2ac_traffic)
 def test_014_valueToResponseBodyUnsignedPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.111", target="response.body.unsigned./transferredValue"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.111", target="response.body.json.unsigned./transferredValue"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -192,7 +192,7 @@ def test_014_valueToResponseBodyUnsignedPath(admin_server_provision, h2ac_traffi
 def test_015_objectPathToResponsePath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./node1/node2", target="response.body.string./request/node1/node2"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./node1/node2", target="response.body.json.string./request/node1/node2"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -204,7 +204,7 @@ def test_015_objectPathToResponsePath(admin_server_provision, h2ac_traffic):
 def test_016_requestHeader(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.header.test-id", target="response.body.object./request-header-test-id"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.header.test-id", target="response.body.json.string./request-header-test-id"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), { "test-type":"development", "test-id":"general" })
@@ -216,7 +216,7 @@ def test_016_requestHeader(admin_server_provision, h2ac_traffic):
 def test_017_requestUriParamToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='?name=test', source="request.uri.param.name", target="response.body.string./parameter-name"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='?name=test', source="request.uri.param.name", target="response.body.json.string./parameter-name"))
 
   # Traffic
   response = h2ac_traffic.post("/app/v1/foo/bar/1?name=test")
@@ -228,7 +228,7 @@ def test_017_requestUriParamToResponseBodyStringPath(admin_server_provision, h2a
 def test_018_requestUriPathToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='?name=test', source="request.uri.path", target="response.body.string./requestUriPath"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='?name=test', source="request.uri.path", target="response.body.json.string./requestUriPath"))
 
   # Traffic
   response = h2ac_traffic.post("/app/v1/foo/bar/1?name=test")
@@ -253,7 +253,7 @@ def test_019_recvseqThroughVariableToResponseBodyUnsignedPath(admin_server_provi
 def test_020_valueToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.This is a test", target="response.body.string./value"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.This is a test", target="response.body.json.string./value"))
 
   # Traffic
   response = h2ac_traffic.post("/app/v1/foo/bar/1")
@@ -265,7 +265,7 @@ def test_020_valueToResponseBodyStringPath(admin_server_provision, h2ac_traffic)
 def test_021_emptyValueToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.", target="response.body.string./value"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.", target="response.body.json.string./value"))
 
   # Traffic
   response = h2ac_traffic.post("/app/v1/foo/bar/1")
@@ -277,7 +277,7 @@ def test_021_emptyValueToResponseBodyStringPath(admin_server_provision, h2ac_tra
 def test_022_valueToResponseBodyJsonStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.[{\\\"id\\\":\\\"2000\\\"},{\\\"id\\\":\\\"2001\\\"}]", target="response.body.jsonstring./array"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.[{\\\"id\\\":\\\"2000\\\"},{\\\"id\\\":\\\"2001\\\"}]", target="response.body.json.jsonstring./array"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -380,7 +380,7 @@ def test_028_eraseResponseBodyNodeValue(admin_server_provision, h2ac_traffic):
 def test_029_responseObjectToResponseBodyObjectPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="response.body./foo", target="response.body.object./fooAgain"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="response.body./foo", target="response.body.json.object./fooAgain"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -392,7 +392,7 @@ def test_029_responseObjectToResponseBodyObjectPath(admin_server_provision, h2ac
 def test_030_responseToResponseBodyObjectPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="response.body", target="response.body.object./responseAgain"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="response.body", target="response.body.json.object./responseAgain"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -404,7 +404,7 @@ def test_030_responseToResponseBodyObjectPath(admin_server_provision, h2ac_traff
 def test_031_replaceVariablesAtValueAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.@{var1}-@{var2}", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.@{var1}-@{var2}", target="response.body.json.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -416,7 +416,7 @@ def test_031_replaceVariablesAtValueAndTransferToResponseBodyStringPath(admin_se
 def test_032_replaceVariablesAtStrftimeAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p and var1 is @{var1}.", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p and var1 is @{var1}.", target="response.body.json.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -431,7 +431,7 @@ def test_032_replaceVariablesAtStrftimeAndTransferToResponseBodyStringPath(admin
 def test_033_replaceVariablesAtRandomsetAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.@{var1}|@{var2}", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.@{var1}|@{var2}", target="response.body.json.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -445,7 +445,7 @@ def test_033_replaceVariablesAtRandomsetAndTransferToResponseBodyStringPath(admi
 def test_034_replaceVariablesAtRequestBodyPathAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./@{var1}/@{var2}", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./@{var1}/@{var2}", target="response.body.json.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_VAR1_VAR2_REQUEST))
@@ -457,7 +457,7 @@ def test_034_replaceVariablesAtRequestBodyPathAndTransferToResponseBodyStringPat
 def test_035_replaceVariablesAtResponseBodyPathAndTransferToResponseBodyStringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE, id=1, queryp='', source="response.body./@{var1}/@{var2}", target="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE, id=1, queryp='', source="response.body./@{var1}/@{var2}", target="response.body.json.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -469,7 +469,7 @@ def test_035_replaceVariablesAtResponseBodyPathAndTransferToResponseBodyStringPa
 def test_036_transferFixedValueToResponseBodyPathWithReplacedVariablesAsString(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.hello", target="response.body.string./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.hello", target="response.body.json.string./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -481,7 +481,7 @@ def test_036_transferFixedValueToResponseBodyPathWithReplacedVariablesAsString(a
 def test_037_transferFixedValueToResponseBodyPathWithReplacedVariablesAsInteger(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.-1", target="response.body.integer./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.-1", target="response.body.json.integer./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -493,7 +493,7 @@ def test_037_transferFixedValueToResponseBodyPathWithReplacedVariablesAsInteger(
 def test_038_transferFixedValueToResponseBodyPathWithReplacedVariablesAsUnsigned(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.1", target="response.body.unsigned./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.1", target="response.body.json.unsigned./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -505,7 +505,7 @@ def test_038_transferFixedValueToResponseBodyPathWithReplacedVariablesAsUnsigned
 def test_039_transferFixedValueToResponseBodyPathWithReplacedVariablesAsFloat(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.3.14", target="response.body.float./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.3.14", target="response.body.json.float./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -517,7 +517,7 @@ def test_039_transferFixedValueToResponseBodyPathWithReplacedVariablesAsFloat(ad
 def test_040_transferFixedValueToResponseBodyPathWithReplacedVariablesAsBoolean(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.true", target="response.body.boolean./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.true", target="response.body.json.boolean./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -529,7 +529,7 @@ def test_040_transferFixedValueToResponseBodyPathWithReplacedVariablesAsBoolean(
 def test_041_transferFixedValueToResponseBodyPathWithReplacedVariablesAsObject(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.hello", target="response.body.object./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.hello", target="response.body.json.object./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -541,7 +541,7 @@ def test_041_transferFixedValueToResponseBodyPathWithReplacedVariablesAsObject(a
 def test_042_transferFixedValueToResponseBodyPathWithReplacedVariablesAsJsonstring(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.[\\\"aa\\\",\\\"bb\\\"]", target="response.body.jsonstring./@{var1}/@{var2}"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="value.[\\\"aa\\\",\\\"bb\\\"]", target="response.body.json.jsonstring./@{var1}/@{var2}"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -567,7 +567,7 @@ def test_043_transferFixedValueToHeaderNameWithReplacedVariables(admin_server_pr
 def test_044_transferFixedValueToVariableNameWithReplacedVariables(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE, id=1, queryp='', source="value.var1valuevalue", target="var.@{var1}", source2="var.@{var1}", target2="response.body.string./result"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE, id=1, queryp='', source="value.var1valuevalue", target="var.@{var1}", source2="var.@{var1}", target2="response.body.json.string./result"))
 
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
@@ -579,7 +579,7 @@ def test_044_transferFixedValueToVariableNameWithReplacedVariables(admin_server_
 def test_045_requestBodyStringToResponseObject(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.object"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.json.object"))
 
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), requestHeaders=None) # request body will be interpreted as string
   responseBodyRef = "{\"node1\":{\"node2\":\"value-of-node1-node2\"}}"
@@ -590,7 +590,7 @@ def test_045_requestBodyStringToResponseObject(admin_server_provision, h2ac_traf
 def test_046_requestBodyStringToResponseString(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.json.string"))
 
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST), requestHeaders=None) # request body will be interpreted as string
   responseBodyRef = "{\"node1\":{\"node2\":\"value-of-node1-node2\"}}" # although it seems a json, application/json content-type was missing,
@@ -602,7 +602,7 @@ def test_046_requestBodyStringToResponseString(admin_server_provision, h2ac_traf
 def test_047_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.json.string"))
 
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
   responseBodyRef = { "foo":"bar-1" } # request body json is ignored as cannot be set as target string. The template request body is configured instead
@@ -613,7 +613,7 @@ def test_047_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffi
 def test_048_mathCalculationToResponseInteger(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="math.1+2+3+5+8", target="response.body.integer./math-calculation"))
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, id=1, queryp='', source="math.1+2+3+5+8", target="response.body.json.integer./math-calculation"))
 
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
   responseBodyRef = { "foo":"bar-1", "math-calculation":19 }

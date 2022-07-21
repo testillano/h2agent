@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.string./requestUri"
+      "target": "response.body.json.string./requestUri"
     }
   ]
 }

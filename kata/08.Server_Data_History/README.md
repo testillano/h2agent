@@ -82,7 +82,7 @@ Now, just configure a provision to extract such object and transfer it to wherev
     },
     {
       "source": "event.ev1",
-      "target": "response.body.object"
+      "target": "response.body.json.object"
     }
   ]
 }

@@ -40,75 +40,75 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.string./requestUri"
+      "target": "response.body.json.string./requestUri"
     },
     {
       "source": "request.uri.path",
-      "target": "response.body.string./requestUriPath"
+      "target": "response.body.json.string./requestUriPath"
     },
     {
       "source": "request.uri.param.name",
-      "target": "response.body.string./requestUriQueryParam"
+      "target": "response.body.json.string./requestUriQueryParam"
     },
     {
       "source": "request.body",
-      "target": "response.body.object./requestBody"
+      "target": "response.body.json.object./requestBody"
     },
     {
       "source": "request.body./missing/path",
-      "target": "response.body.object./notprocessed"
+      "target": "response.body.json.object./notprocessed"
     },
     {
       "source": "response.body",
-      "target": "response.body.object./responseBody"
+      "target": "response.body.json.object./responseBody"
     },
     {
       "source": "response.body./missing/path",
-      "target": "response.body.object./notprocessed"
+      "target": "response.body.json.object./notprocessed"
     },
     {
       "source": "request.header.x-version",
-      "target": "response.body.object./requestHeader"
+      "target": "response.body.json.object./requestHeader"
     },
     {
       "source": "request.header.missing-header",
-      "target": "response.body.object./notprocessed"
+      "target": "response.body.json.object./notprocessed"
     },
     {
       "source": "eraser",
-      "target": "response.body.object./responseBody/remove-me"
+      "target": "response.body.json.object./responseBody/remove-me"
     },
     {
       "source": "random.20.30",
-      "target": "response.body.string./random"
+      "target": "response.body.json.string./random"
     },
     {
       "source": "randomset.rock|paper|scissors",
-      "target": "response.body.string./randomset"
+      "target": "response.body.json.string./randomset"
     },
     {
       "source": "timestamp.s",
-      "target": "response.body.string./unix_s"
+      "target": "response.body.json.string./unix_s"
     },
     {
       "source": "timestamp.ms",
-      "target": "response.body.string./unix_ms"
+      "target": "response.body.json.string./unix_ms"
     },
     {
       "source": "timestamp.us",
-      "target": "response.body.string./unix_us"
+      "target": "response.body.json.string./unix_us"
     },
     {
       "source": "timestamp.ns",
-      "target": "response.body.string./unix_ns"
+      "target": "response.body.json.string./unix_ns"
     },
     {
       "source": "strftime.Now it's %I:%M%p.",
-      "target": "response.body.string./strftime"
+      "target": "response.body.json.string./strftime"
     },
     {
       "source": "recvseq",
-      "target": "response.body.integer./recvseq"
+      "target": "response.body.json.integer./recvseq"
     },
     {
       "source": "value.myvarvalue",
@@ -116,15 +116,15 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     },
     {
       "source": "var.myvar",
-      "target": "response.body.string./myvar"
+      "target": "response.body.json.string./myvar"
     },
     {
       "source": "var.missing-var",
-      "target": "response.body.string./notprocessed"
+      "target": "response.body.json.string./notprocessed"
     },
     {
       "source": "inState",
-      "target": "response.body.string./instate"
+      "target": "response.body.json.string./instate"
     },
     {
       "source": "value.myglobalvarvalue",
@@ -132,7 +132,7 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     },
     {
       "source": "globalVar.myglobalvar",
-      "target": "response.body.string./myglobalvar"
+      "target": "response.body.json.string./myglobalvar"
     },
     {
       "source": "eraser",
@@ -144,11 +144,11 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     { "source": "value./body/node1/node2", "target": "var.persistEvent.path" },
     {
       "source": "event.persistEvent",
-      "target": "response.body.object./event"
+      "target": "response.body.json.object./event"
     },
     {
       "source": "math.1+2+3+5+8",
-      "target": "response.body.integer./math-calculation"
+      "target": "response.body.json.integer./math-calculation"
     },
     {
       "source": "eraser",
@@ -175,18 +175,18 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
   "transform": [
     {
       "source": "request.body",
-      "target": "response.body.object"
+      "target": "response.body.json.object"
     },
     {
       "source": "request.uri",
-      "target": "response.body.string./nodeA/nodeB/nodeS",
+      "target": "response.body.json.string./nodeA/nodeB/nodeS",
       "filter": {
         "RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)"
       }
     },
     {
       "source": "request.uri.path",
-      "target": "response.body.integer./nodeA/nodeI",
+      "target": "response.body.json.integer./nodeA/nodeI",
       "filter": {
         "RegexReplace": {
           "rgx": "(/app/v1/foo/bar/)([0-9]*)",
@@ -207,7 +207,7 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
     },
     {
       "source": "value.fieldvalue",
-      "target": "response.body.string./field"
+      "target": "response.body.json.string./field"
     },
     {
       "source": "request.header.x-version",
@@ -215,39 +215,39 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
     },
     {
       "source": "var.x-value",
-      "target": "response.body.string./x-version"
+      "target": "response.body.json.string./x-version"
     },
     {
       "source": "random.-3.-3",
-      "target": "response.body.string./random-will-be-2",
+      "target": "response.body.json.string./random-will-be-2",
       "filter": {
         "Sum": 5
       }
     },
     {
       "source": "timestamp.ns",
-      "target": "response.body.unsigned./zeroed",
+      "target": "response.body.json.unsigned./zeroed",
       "filter": {
         "Multiply": 0
       }
     },
     {
       "source": "strftime.predictable",
-      "target": "response.body.string./time",
+      "target": "response.body.json.string./time",
       "filter": {
         "Prepend": "Now it's "
       }
     },
     {
       "source": "value.10",
-      "target": "response.body.integer./one",
+      "target": "response.body.json.integer./one",
       "filter": {
         "Multiply": 0.1
       }
     },
     {
       "source": "inState",
-      "target": "response.body.string./instate",
+      "target": "response.body.json.string./instate",
       "filter": {
         "Append": " state"
       }
@@ -267,7 +267,7 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
     },
     {
       "source": "request.uri.path",
-      "target": "response.body.string./captureBarIdFromURI",
+      "target": "response.body.json.string./captureBarIdFromURI",
       "filter": {
         "RegexReplace": {
           "rgx": "/app/v1/foo/bar/([0-9]*)",

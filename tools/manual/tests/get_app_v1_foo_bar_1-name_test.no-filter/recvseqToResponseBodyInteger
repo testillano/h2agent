@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "recvseq",
-      "target": "response.body.integer"
+      "target": "response.body.json.integer"
     }
   ]
 }

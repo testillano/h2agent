@@ -17,7 +17,7 @@ SERVER_PROVISION
     { "source": "value./body", "target": "var.ev1.path" },
     {
       "source": "event.ev1",
-      "target": "response.body.object./firstRequestBody"
+      "target": "response.body.json.object./firstRequestBody"
     }
   ]
 }

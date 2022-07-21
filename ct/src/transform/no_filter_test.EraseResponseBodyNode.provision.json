@@ -17,7 +17,7 @@
   "transform": [
     {
       "source": "eraser",
-      "target": "response.body.object./item/planet"
+      "target": "response.body.json.object./item/planet"
     }
   ]
 }

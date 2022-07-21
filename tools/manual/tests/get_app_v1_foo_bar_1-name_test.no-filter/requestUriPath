@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "request.uri.path",
-      "target": "response.body.string./requestUriPath"
+      "target": "response.body.json.string./requestUriPath"
     }
   ]
 }

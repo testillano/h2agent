@@ -93,7 +93,7 @@ So we would transfer the query parameters (`request.uri.param.<qp key>`) into va
     },
     {
       "source": "randomset.@{label1}|@{label2}",
-      "target": "response.body.string"
+      "target": "response.body.json.string"
     }
   ]
 }
@@ -128,7 +128,7 @@ Now, returning to our `rock, paper, scissors` game, the list is static so we hav
   "transform": [
     {
       "source": "randomset.rock|paper|scissors",
-      "target": "response.body.string"
+      "target": "response.body.json.string"
     }
   ]
 }

@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "inState",
-      "target": "response.body.string./in-state"
+      "target": "response.body.json.string./in-state"
     }
   ]
 }
