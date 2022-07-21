@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "request.uri.param.name",
-      "target": "response.body.string./parameter-name"
+      "target": "response.body.json.string./parameter-name"
     }
   ]
 }

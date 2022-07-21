@@ -565,7 +565,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             else {
                 if (target.empty()) {
-                    responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.object
+                    responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.json.object
                 }
                 else {
                     responseBodyJson[j_ptr] = obj;
@@ -585,7 +585,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 
             // assignment
             if (target.empty()) {
-                responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.object
+                responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.json.object
             }
             else {
                 responseBodyJson[j_ptr] = obj;

@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "request.uri",
-      "target": "response.body.string./captureBarIdFromURI",
+      "target": "response.body.json.string./captureBarIdFromURI",
       "filter": {
         "RegexCapture": "/app/v1/foo/bar/([0-9]*)"
       }

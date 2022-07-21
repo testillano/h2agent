@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "recvseq",
-      "target": "response.body.boolean"
+      "target": "response.body.json.boolean"
     }
   ]
 }

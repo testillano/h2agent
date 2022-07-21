@@ -16,7 +16,7 @@ The parser/compiler is provided by [Arash Partow's exprtk](https://github.com/Ar
     },
     {
       "source": "math.@{expression}",
-      "target": "response.body.float"
+      "target": "response.body.json.float"
     }
   ]
 }

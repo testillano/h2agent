@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "request./body",
-      "target": "response.body.object./request"
+      "target": "response.body.json.object./request"
     }
   ]
 }

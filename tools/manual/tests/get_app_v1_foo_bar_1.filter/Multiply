@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "recvseq",
-      "target": "response.body.integer./recvseqMultipliedBy2",
+      "target": "response.body.json.integer./recvseqMultipliedBy2",
       "filter": {
         "Multiply": 2
       }

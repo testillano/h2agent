@@ -86,10 +86,10 @@ server_configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default)."
-    echo "                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
-    echo "                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
-    echo "                            [--traffic-server-dynamic-request-body-allocation]  ; Sets configuration to do dynamic request body memory allocation on traffic server receptions."
-    echo "                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body memory on traffic server receptions."
+    echo "                            [--traffic-server-ignore-request-body]             ; Ignores request body on server receptions."
+    echo "                            [--traffic-server-receive-request-body]            ; Processes request body on server receptions."
+    echo "                            [--traffic-server-dynamic-request-body-allocation] ; Does dynamic request body memory allocation on server receptions."
+    echo "                            [--traffic-server-initial-request-body-allocation] ; Pre reserves request body memory on server receptions."
     return 0
   elif [ "$1" = "--traffic-server-ignore-request-body" ]
   then
@@ -111,12 +111,12 @@ server_configuration() {
 server_data_configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: server_data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
-    echo "                          [--discard-all]     ; Sets data configuration to discard all the events processed."
-    echo "                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key."
-    echo "                          [--keep-all]        ; Sets data configuration to keep all the events processed."
-    echo "                          [--disable-purge]   ; Sets data configuration to skip events post-removal when a provision on 'purge' state is reached."
-    echo "                          [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on 'purge' state is reached."
+    echo "Usage: server_data_configuration [-h|--help]; Manages agent server data configuration (gets current status by default)."
+    echo "                                 [--discard-all]     ; Discards all the events processed."
+    echo "                                 [--discard-history] ; Keeps only the last event processed for a key."
+    echo "                                 [--keep-all]        ; Keeps all the events processed."
+    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
+    echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
     return 0
   elif [ "$1" = "--discard-all" ]
   then
@@ -345,7 +345,7 @@ server_example() {
       "content-type": "application/json"
     },
     "transform": [
-      { "source": "request.body", "target": "response.body.object" }
+      { "source": "request.body", "target": "response.body.json.object" }
     ]
   }
 !

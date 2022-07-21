@@ -17,7 +17,7 @@ SERVER_PROVISION
     },
     {
       "source": "request.uri",
-      "target": "response.body.string./uri-appended",
+      "target": "response.body.json.string./uri-appended",
       "filter": {
         "AppendVar": "suffix"
       }

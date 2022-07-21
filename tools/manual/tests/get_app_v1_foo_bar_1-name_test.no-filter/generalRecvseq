@@ -13,7 +13,7 @@ SERVER_PROVISION
   "transform": [
     {
       "source": "recvseq",
-      "target": "response.body.unsigned./recvseq"
+      "target": "response.body.json.unsigned./recvseq"
     }
   ]
 }

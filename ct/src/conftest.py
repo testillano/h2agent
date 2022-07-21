@@ -581,7 +581,7 @@ GLOBAL_VARIABLE_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
     }},
     {{
       "source": "globalVar.{gvaranswered}",
-      "target": "response.body.string./gvaranswered"
+      "target": "response.body.json.string./gvaranswered"
     }}
   ]
 }}
