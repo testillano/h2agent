@@ -102,7 +102,7 @@ public:
     * @param str String assigned
     * @param variables Variables map
     */
-    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables);
+    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &variables);
 
     /**
     * Sets integer to vault
