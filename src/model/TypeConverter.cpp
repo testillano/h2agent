@@ -113,7 +113,7 @@ void TypeConverter::setBoolean(bool boolean) {
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false"), ERT_FILE_LOCATION));
 }
 
-void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables) {
+void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &variables) {
 
     setString(str);
     searchReplaceValueVariables(variables, s_value_);
