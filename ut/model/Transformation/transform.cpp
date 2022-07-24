@@ -51,6 +51,10 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "response.body.json.string./requestUriQueryParam"
     },
     {
+      "source": "request.uri.param.missingParam",
+      "target": "response.body.json.string./requestUriQueryParamMissing"
+    },
+    {
       "source": "request.body",
       "target": "response.body.json.object./requestBody"
     },
@@ -137,6 +141,14 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     {
       "source": "eraser",
       "target": "globalVar.myglobalvar"
+    },
+    {
+      "source": "value.thisWillBeIgnoredDueToPriorityForLocalVariable",
+      "target": "globalVar.myvar"
+    },
+    {
+      "source": "value.@{myvar}",
+      "target": "response.body.json.string./myvar-priority"
     },
     { "source": "value.POST", "target": "var.persistEvent.method" },
     { "source": "value./app/v1/foo/bar/1", "target": "var.persistEvent.uri" },
@@ -282,6 +294,7 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
 class Transform_test : public ::testing::Test
 {
 public:
+    h2agent::model::Transformation transformation_{};
     h2agent::model::AdminData adata_{};
     h2agent::model::MockServerEventsData *events_data_{};
     h2agent::model::GlobalVariable *global_variable_{};
@@ -303,7 +316,6 @@ public:
 
 TEST_F(Transform_test, TransformWithSources) // test different sources
 {
-
     EXPECT_EQ(Transform_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Transform_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminServerProvisionData::Success);
 
@@ -347,6 +359,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "instate": "initial",
       "myglobalvar": "myglobalvarvalue",
       "myvar": "myvarvalue",
+      "myvar-priority": "myvarvalue",
       "random": "20",
       "randomset": "scissors",
       "recvseq": 74,
@@ -452,5 +465,31 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(outState, "new-state-for-POST");
     EXPECT_EQ(outStateMethod, "POST");
     EXPECT_EQ(outStateUri, "/this/uri");
+}
+
+TEST_F(Transform_test, transformationAsString) // test different sources
+{
+    int transformationItems = ProvisionConfiguration_Sources["transform"].size();
+
+    EXPECT_EQ(transformationItems, 35);
+    for (int k = 0; k < transformationItems; k++) {
+      EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
+    }
+
+    // Last one:
+    EXPECT_EQ(transformation_.asString(), "SourceType: Eraser | TargetType: TxtFile | target_: /tmp/h2agent.ut.@{myvar}.txt (path file) | target variables: myvar");
+}
+
+TEST_F(Transform_test, transformationWithFilterAsString) // test different sources
+{
+    int transformationItems = ProvisionConfiguration_Filters["transform"].size();
+
+    EXPECT_EQ(transformationItems, 17);
+    for (int k = 0; k < transformationItems; k++) {
+      EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Filters["transform"][k]));
+    }
+
+    // Last one:
+    EXPECT_EQ(transformation_.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyString | target_: /captureBarIdFromURI (empty: whole, path: node) | FilterType: RegexReplace | filter_ $1 (fmt)");
 }
 

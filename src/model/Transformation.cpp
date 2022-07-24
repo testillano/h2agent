@@ -46,6 +46,21 @@ namespace h2agent
 namespace model
 {
 
+void Transformation::collectVariablePatterns(const std::string &str, std::map<std::string, std::string> &patterns) {
+
+    static std::regex re("@\\{[^\\{\\}]*\\}"); // @{[^{}]*} with curly braces escaped
+    // or: R"(@\{[^\{\}]*\})"
+
+    std::string::const_iterator it(str.cbegin());
+    std::smatch matches;
+    std::string pattern;
+    patterns.clear();
+    while (std::regex_search(it, str.cend(), matches, re)) {
+        it = matches.suffix().first;
+        pattern = matches[0];
+        patterns[pattern] = pattern.substr(2, pattern.size()-3); // @{foo} -> foo
+    }
+}
 
 bool Transformation::load(const nlohmann::json &j) {
 
@@ -418,6 +433,11 @@ bool Transformation::load(const nlohmann::json &j) {
 
     //LOGDEBUG(ert::tracing::Logger::debug(asString(), ERT_FILE_LOCATION));
 
+    // Variable patterns:
+    collectVariablePatterns(source_, source_patterns_);
+    collectVariablePatterns(target_, target_patterns_);
+    collectVariablePatterns(target2_, target2_patterns_);
+
     return true;
 }
 
@@ -437,6 +457,13 @@ std::string Transformation::asString() const {
         else if (source_type_ == SourceType::Random) {
             ss << " | source_i1_: " << source_i1_ << " (Random min)" << " | source_i2_: " << source_i2_ << " (Random max)";
         }
+
+        if (!source_patterns_.empty()) {
+            ss << " | source variables:";
+            for (auto it = source_patterns_.begin(); it != source_patterns_.end(); it ++) {
+                ss << " " << it->second;
+            }
+        }
     }
 
     // TARGET
@@ -449,9 +476,22 @@ std::string Transformation::asString() const {
         }
         else if (target_type_ == TargetType::OutState) {
             ss << " (empty: current method, method: another)" << " | target2_: " << target2_ << "(empty: current uri, uri: another)";
+            if (!target2_patterns_.empty()) {
+                ss << " | target2 variables:";
+                for (auto it = target2_patterns_.begin(); it != target2_patterns_.end(); it ++) {
+                    ss << " " << it->second;
+                }
+            }
         }
         else if (target_type_ == TargetType::TxtFile || target_type_ == TargetType::BinFile) {
             ss << " (path file)";
+        }
+
+        if (!target_patterns_.empty()) {
+            ss << " | target variables:";
+            for (auto it = target_patterns_.begin(); it != target_patterns_.end(); it ++) {
+                ss << " " << it->second;
+            }
         }
     }
 

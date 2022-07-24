@@ -1,6 +1,7 @@
 #include <TypeConverter.hpp>
 
 #include <map>
+#include <unordered_map>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -13,11 +14,13 @@ class TypeConverter_test : public ::testing::Test
 public:
     h2agent::model::TypeConverter tconv_{};
     std::map<std::string, std::string> vars_{};
+    std::unordered_map<std::string, std::string> gvars_{};
     nlohmann::json json_{};
 
     TypeConverter_test() {
         vars_["var1"] = "value1";
         vars_["var2"] = "value2";
+        gvars_["gvar1"] = "gvalue1";
         json_ = R"({
             "path_to_basics": {
               "string": "hello",
@@ -45,13 +48,17 @@ TEST_F(TypeConverter_test, searchReplaceAll)
     EXPECT_EQ(result, expected);
 }
 
-TEST_F(TypeConverter_test, searchReplaceValueVariables)
+TEST_F(TypeConverter_test, replaceVariables)
 {
-    std::string source = "var1=@{var1}; var2=@{var2}; var1var2=@{var1}@{var2}";
-    std::string expected = "var1=value1; var2=value2; var1var2=value1value2";
+    std::string source = "var1=@{var1}; var2=@{var2}; var1var2=@{var1}@{var2}; gvar1=@{gvar1}";
+    std::string expected = "var1=value1; var2=value2; var1var2=value1value2; gvar1=gvalue1";
+    std::map<std::string, std::string> patterns;
+    patterns["@{var1}"] = "var1";
+    patterns["@{var2}"] = "var2";
+    patterns["@{gvar1}"] = "gvar1";
 
     std::string result = source;
-    h2agent::model::searchReplaceValueVariables(vars_, result);
+    h2agent::model::replaceVariables(result, patterns, vars_, gvars_);
 
     EXPECT_EQ(result, expected);
 }
@@ -96,7 +103,9 @@ TEST_F(TypeConverter_test, setString)
 TEST_F(TypeConverter_test, setStringReplacingVariables)
 {
     std::string value = "@{var1}";
-    tconv_.setStringReplacingVariables(value, vars_);
+    std::map<std::string, std::string> patterns;
+    patterns[value] = "var1";
+    tconv_.setStringReplacingVariables(value, patterns, vars_, gvars_);
 
     bool success;
 

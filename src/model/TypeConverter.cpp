@@ -65,18 +65,33 @@ void searchReplaceAll(std::string& str,
     );
 }
 
-void searchReplaceValueVariables(const std::map<std::string, std::string> &varmap, std::string &source) {
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars) {
 
-    static std::string token_op("@{");
-    static std::string token_cl("}");
+    if (patterns.empty()) return;
+    if (vars.empty() && gvars.empty()) return;
 
-    if (source.find(token_op) == std::string::npos) return;
+    std::map<std::string,std::string>::const_iterator it;
+    std::unordered_map<std::string,std::string>::const_iterator git;
 
-    for(auto it = varmap.begin(); it != varmap.end(); it++) {
-        searchReplaceAll(source, token_op + it->first + token_cl, it->second);
+    for (auto pit = patterns.begin(); pit != patterns.end(); pit++) {
+
+        // local var has priority over a global var with the same name
+        if (!vars.empty()) {
+            it = vars.find(pit->second);
+            if (it != vars.end()) {
+                searchReplaceAll(str, pit->first, it->second);
+                continue; // all is done
+            }
+        }
+
+        if (!gvars.empty()) { // this is much more efficient that find() == end() below
+            git = gvars.find(pit->second);
+            if (git != gvars.end()) {
+                searchReplaceAll(str, pit->first, git->second);
+            }
+        }
     }
 }
-
 
 void TypeConverter::setString(const std::string &str) {
     clear();
@@ -113,10 +128,10 @@ void TypeConverter::setBoolean(bool boolean) {
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false"), ERT_FILE_LOCATION));
 }
 
-void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &variables) {
+void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars) {
 
     setString(str);
-    searchReplaceValueVariables(variables, s_value_);
+    replaceVariables(s_value_, patterns, vars, gvars);
 }
 
 const std::string &TypeConverter::getString(bool &success) {
