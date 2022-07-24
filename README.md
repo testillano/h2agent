@@ -983,7 +983,7 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Loads global variables for future usage. Load is done through append, so if some variable exists, the new loaded value is appended. This allows to use global variables as memory buckets.
+Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. In any case, load operation is done appending provided data to the current one (in case that the variable already exists). This allows to use global variables as memory buckets, typical when they are managed from transformation steps (within provision context). But this operation is more focused on the use of global variables as constants for the whole execution (although they could be reloaded or reset from provisions, as commented, or even appended by other `POST` operations):
 
 #### Request body schema
 
@@ -1043,7 +1043,7 @@ Json object document containing server data global schema.
 
 ### GET /admin/v1/global-variable?name=`<variable name>`
 
-Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created, or using the query parameter `name`, the specific variable selected:
+This operation retrieves the whole list of global variables created, or using the query parameter `name`, the specific variable selected:
 
 #### Response status code
 
@@ -1573,7 +1573,7 @@ Let's start describing the available sources of data: regardless the native or n
 
 *Variables substitution:*
 
-Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist (**only normal variables can be used in that form**: global ones are excluded to avoid possible performance impact on load testing, but you could transfer a global variable into normal one to overcome this limitation). In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by local provision variables and global variables. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
 
 

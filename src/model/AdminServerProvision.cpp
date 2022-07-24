@@ -124,7 +124,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
         if(requestBodyJsonOrString) {
             std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
-            searchReplaceValueVariables(variables, path);
+            replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
             if (!sourceVault.setObject(requestBodyJson, path)) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
@@ -139,7 +139,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
         std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
-        searchReplaceValueVariables(variables, path);
+        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
         if (!sourceVault.setObject(getResponseBody(), path)) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from response body (it is null) in transformation item", transformation->getSource().c_str());
@@ -165,7 +165,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     }
     else if (transformation->getSourceType() == Transformation::SourceType::Math) {
         std::string expressionString = transformation->getSource();
-        searchReplaceValueVariables(variables, expressionString);
+        replaceVariables(expressionString, transformation->getSourcePatterns(), variables, global_variable_->get());
 
         /*
            We don't use builtin variables as we can parse h2agent ones which is easier to implement:
@@ -189,7 +189,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setInteger(transformation->getSourceI1() + (rand() % range));
     }
     else if (transformation->getSourceType() == Transformation::SourceType::RandomSet) {
-        sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], variables); // replace variables if they exist
+        sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
     }
     else if (transformation->getSourceType() == Transformation::SourceType::Timestamp) {
         if (transformation->getSource() == "s") {
@@ -215,14 +215,14 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         //    sprintf(buffer + size - 2, ":%s", minute);
         //}
 
-        sourceVault.setStringReplacingVariables(std::string(buffer), variables); // replace variables if they exist
+        sourceVault.setStringReplacingVariables(std::string(buffer), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
     }
     else if (transformation->getSourceType() == Transformation::SourceType::Recvseq) {
         sourceVault.setUnsigned(generalUniqueServerSequence);
     }
     else if (transformation->getSourceType() == Transformation::SourceType::SVar) {
         std::string varname = transformation->getSource();
-        searchReplaceValueVariables(variables, varname);
+        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_->get());
         auto iter = variables.find(varname);
         if (iter != variables.end()) sourceVault.setString(iter->second);
         else {
@@ -235,7 +235,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     }
     else if (transformation->getSourceType() == Transformation::SourceType::SGVar) {
         std::string varname = transformation->getSource();
-        searchReplaceValueVariables(variables, varname);
+        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_->get());
         bool exists = false;
         std::string globalVariableValue = global_variable_->getValue(varname, exists);
         if (exists) sourceVault.setString(globalVariableValue);
@@ -248,7 +248,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::Value) {
-        sourceVault.setStringReplacingVariables(transformation->getSource(), variables); // replace variables if they exist
+        sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
     }
     else if (transformation->getSourceType() == Transformation::SourceType::Event) {
         std::string var_id_prefix = transformation->getSource();
@@ -468,9 +468,9 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         std::string target = transformation->getTarget();
         std::string target2 = transformation->getTarget2(); // foreign outState URI
 
-        searchReplaceValueVariables(variables, target);
+        replaceVariables(target, transformation->getTargetPatterns(), variables, global_variable_->get());
         if (!target2.empty()) {
-            searchReplaceValueVariables(variables, target2);
+            replaceVariables(target2, transformation->getTarget2Patterns(), variables, global_variable_->get());
         }
 
         if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyString) {
