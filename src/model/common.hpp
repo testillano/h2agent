@@ -45,6 +45,19 @@ namespace h2agent
 namespace model
 {
 
+class Configuration;
+class GlobalVariable;
+class FileManager;
+class MockServerEventsData;
+
+typedef struct {
+    Configuration *ConfigurationPtr;
+    GlobalVariable *GlobalVariablePtr;
+    FileManager *FileManagerPtr;
+    MockServerEventsData *MockServerEventsDataPtr;
+
+} common_resources_t;
+
 using mutex_t = std::shared_mutex;
 using read_guard_t = std::shared_lock<mutex_t>;
 using write_guard_t = std::unique_lock<mutex_t>;

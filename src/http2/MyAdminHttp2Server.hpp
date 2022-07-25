@@ -43,14 +43,17 @@ SOFTWARE.
 #include <ert/metrics/Metrics.hpp>
 
 #include <ert/http2comm/Http2Server.hpp>
+#include <common.hpp>
 
 namespace h2agent
 {
 namespace model
 {
+class Configuration;
+class GlobalVariable;
+class FileManager;
 class AdminData;
 class MockServerEventsData;
-class Configuration;
 }
 
 namespace http2
@@ -60,8 +63,8 @@ class MyTrafficHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
-    model::Configuration *configuration_{};
     model::AdminData *admin_data_{};
+    model::common_resources_t common_resources_{}; // general configuration, global variables, file manager and mock server events data
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
@@ -99,14 +102,35 @@ public:
     //bool preReserveRequestBody(); //virtual: default implementation (true) is acceptable for us (really, it does not matter).
 
     void setConfiguration(model::Configuration *p) {
-        configuration_ = p;
+        common_resources_.ConfigurationPtr = p;
     }
     model::Configuration *getConfiguration() const {
-        return configuration_;
+        return common_resources_.ConfigurationPtr;
+    }
+
+    void setGlobalVariable(model::GlobalVariable *p) {
+        common_resources_.GlobalVariablePtr = p;
+    }
+    model::GlobalVariable *getGlobalVariable() const {
+        return common_resources_.GlobalVariablePtr;
+    }
+
+    void setFileManager(model::FileManager *p) {
+        common_resources_.FileManagerPtr = p;
+    }
+    model::FileManager *getFileManager() const {
+        return common_resources_.FileManagerPtr;
     }
 
     model::AdminData *getAdminData() const {
         return admin_data_;
+    }
+
+    void setMockServerEventsData(model::MockServerEventsData *p) {
+        common_resources_.MockServerEventsDataPtr = p;
+    }
+    model::MockServerEventsData *getMockServerEventsData() const {
+        return common_resources_.MockServerEventsDataPtr;
     }
 
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {

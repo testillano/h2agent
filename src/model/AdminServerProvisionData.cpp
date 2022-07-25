@@ -73,7 +73,7 @@ std::string AdminServerProvisionData::asJsonString(bool ordered) const {
     return (result.dump());
 }
 
-AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool regexMatchingConfigured) {
+AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr) {
 
     if (!server_provision_schema_.validate(j)) {
         return BadSchema;
@@ -100,18 +100,24 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
 
         add(key, provision);
 
+        // Set common resources:
+        provision->setConfiguration(cr.ConfigurationPtr);
+        provision->setGlobalVariable(cr.GlobalVariablePtr);
+        provision->setFileManager(cr.FileManagerPtr);
+        provision->setMockServerEventsData(cr.MockServerEventsDataPtr);
+
         return Success;
     }
 
     return BadContent;
 }
 
-AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohmann::json &j, bool regexMatchingConfigured) {
+AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr) {
 
     if (j.is_array()) {
         for (auto it : j) // "it" is of type json::reference and has no key() member
         {
-            LoadResult result = loadSingle(it, regexMatchingConfigured);
+            LoadResult result = loadSingle(it, regexMatchingConfigured, cr);
             if (result != Success)
                 return result;
         }
@@ -119,7 +125,7 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohma
         return Success;
     }
 
-    return loadSingle(j, regexMatchingConfigured);
+    return loadSingle(j, regexMatchingConfigured, cr);
 }
 
 bool AdminServerProvisionData::clear()

@@ -70,11 +70,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     bool server_data_key_history_{};
     bool purge_execution_{};
 
-    model::MockServerEventsData *mock_server_events_data_{};
-    model::Configuration *configuration_{};
-    model::GlobalVariable *global_variable_{};
-    model::FileManager *file_manager_{};
     model::AdminData *admin_data_{};
+    model::MockServerEventsData *mock_server_events_data_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
@@ -118,36 +115,18 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
-    model::MockServerEventsData *getMockServerEventsData() const {
-        return mock_server_events_data_;
-    }
-
-    void setConfiguration(model::Configuration *p) {
-        configuration_ = p;
-    }
-    model::Configuration *getConfiguration() const {
-        return configuration_;
-    }
-
-    void setGlobalVariable(model::GlobalVariable *p) {
-        global_variable_ = p;
-    }
-    model::GlobalVariable *getGlobalVariable() const {
-        return global_variable_;
-    }
-
-    void setFileManager(model::FileManager *p) {
-        file_manager_ = p;
-    }
-    model::FileManager *getFileManager() const {
-        return file_manager_;
-    }
-
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;
     }
     model::AdminData *getAdminData() const {
         return admin_data_;
+    }
+
+    void setMockServerEventsData(model::MockServerEventsData *p) {
+        mock_server_events_data_ = p;
+    }
+    model::MockServerEventsData *getMockServerEventsData() const {
+        return mock_server_events_data_;
     }
 
     std::string dataConfigurationAsJsonString() const;
