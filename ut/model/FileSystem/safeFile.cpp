@@ -34,7 +34,8 @@ public:
 
     ~SafeFile_test() {
         timers_io_service_->stop();
-        //delete(timers_io_service_);
+        delete(timers_io_service_);
+        delete(timers_thread_);
     }
 };
 

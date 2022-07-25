@@ -182,7 +182,7 @@ bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObjec
 {
     log = "server-matching operation; ";
 
-    h2agent::model::AdminServerMatchingData::LoadResult loadResult = admin_data_->loadMatching(configurationObject);
+    h2agent::model::AdminServerMatchingData::LoadResult loadResult = admin_data_->loadServerMatching(configurationObject);
     bool result = (loadResult == h2agent::model::AdminServerMatchingData::Success);
 
     if (loadResult == h2agent::model::AdminServerMatchingData::Success) {
@@ -202,7 +202,7 @@ bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObje
 {
     log = "server-provision operation; ";
 
-    h2agent::model::AdminServerProvisionData::LoadResult loadResult = admin_data_->loadProvision(configurationObject);
+    h2agent::model::AdminServerProvisionData::LoadResult loadResult = admin_data_->loadServerProvision(configurationObject, common_resources_);
     bool result = (loadResult == h2agent::model::AdminServerProvisionData::Success);
 
     bool isArray = configurationObject.is_array();
@@ -223,7 +223,7 @@ bool MyAdminHttp2Server::globalVariable(const nlohmann::json &configurationObjec
 {
     log = "global-variable operation; ";
 
-    bool result = getHttp2Server()->getGlobalVariable()->loadJson(configurationObject);
+    bool result = getGlobalVariable()->loadJson(configurationObject);
     log += (result ? "valid schema and global variables received":"invalid schema");
 
     return result;
@@ -307,14 +307,14 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
 
     if (pathSuffix == "server-matching/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = admin_data_->getMatchingData().getSchema().getJson();
+        nlohmann::json jsonSchema = admin_data_->getServerMatchingData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-provision/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = admin_data_->getProvisionData().getSchema().getJson();
+        nlohmann::json jsonSchema = admin_data_->getServerProvisionData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = 200;
@@ -350,30 +350,30 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         }
         if (statusCode != 400) {
             if (name.empty()) {
-                responseBody = getHttp2Server()->getGlobalVariable()->asJsonString();
+                responseBody = getGlobalVariable()->asJsonString();
                 statusCode = ((responseBody == "{}") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
             else {
                 bool exists;
-                responseBody = getHttp2Server()->getGlobalVariable()->getValue(name, exists);
+                responseBody = getGlobalVariable()->getValue(name, exists);
                 statusCode = (exists ? 200:204); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
         }
     }
     else if (pathSuffix == "global-variable/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getHttp2Server()->getGlobalVariable()->getSchema().getJson();
+        nlohmann::json jsonSchema = getGlobalVariable()->getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-matching") {
-        responseBody = admin_data_->getMatchingData().getJson().dump();
+        responseBody = admin_data_->getServerMatchingData().getJson().dump();
         statusCode = 200;
     }
     else if (pathSuffix == "server-provision") {
-        bool ordered = (admin_data_->getMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
-        responseBody = admin_data_->getProvisionData().asJsonString(ordered);
+        bool ordered = (admin_data_->getServerMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
+        responseBody = admin_data_->getServerProvisionData().asJsonString(ordered);
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "schema") {
@@ -411,7 +411,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = 200;
     }
     else if (pathSuffix == "files") {
-        responseBody = getHttp2Server()->getFileManager()->asJsonString();
+        responseBody = getFileManager()->asJsonString();
         statusCode = ((responseBody == "[]") ? 204:200);
     }
     else if (pathSuffix == "logging") {
@@ -433,7 +433,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     LOGDEBUG(ert::tracing::Logger::debug("receiveDELETE()",  ERT_FILE_LOCATION));
 
     if (pathSuffix == "server-provision") {
-        statusCode = (admin_data_->clearProvisions() ? 200:204);
+        statusCode = (admin_data_->clearServerProvisions() ? 200:204);
     }
     else if (pathSuffix == "schema") {
         statusCode = (admin_data_->clearSchemas() ? 200:204);
@@ -470,11 +470,11 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         }
         if (statusCode != 400) {
             if (name.empty()) {
-                statusCode = (getHttp2Server()->getGlobalVariable()->clear() ? 200:204);
+                statusCode = (getGlobalVariable()->clear() ? 200:204);
             }
             else {
                 bool exists;
-                getHttp2Server()->getGlobalVariable()->removeVariable(name, exists);
+                getGlobalVariable()->removeVariable(name, exists);
                 statusCode = (exists ? 200:204);
             }
         }

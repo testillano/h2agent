@@ -10,6 +10,7 @@
 #include <AdminServerProvisionData.hpp>
 #include <AdminSchemas.hpp>
 #include <MockServerEventsData.hpp>
+#include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
 
@@ -296,35 +297,32 @@ class Transform_test : public ::testing::Test
 public:
     h2agent::model::Transformation transformation_{};
     h2agent::model::AdminData adata_{};
-    h2agent::model::MockServerEventsData *events_data_{};
-    h2agent::model::GlobalVariable *global_variable_{};
-    h2agent::model::FileManager *file_manager_{};
+    h2agent::model::common_resources_t common_resources_{};
 
     Transform_test() {
         // Reserve memory for storage data and global variables, just in case they are used:
-        events_data_ = new h2agent::model::MockServerEventsData();
-        global_variable_ = new h2agent::model::GlobalVariable();
-        file_manager_ = new h2agent::model::FileManager(nullptr);
+        common_resources_.ConfigurationPtr = new h2agent::model::Configuration();
+        common_resources_.GlobalVariablePtr = new h2agent::model::GlobalVariable();
+        common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
+        common_resources_.MockServerEventsDataPtr = new h2agent::model::MockServerEventsData();
     }
 
     ~Transform_test() {
-        delete(events_data_);
-        delete(global_variable_);
-        delete(file_manager_);
+        delete(common_resources_.ConfigurationPtr);
+        delete(common_resources_.GlobalVariablePtr);
+        delete(common_resources_.FileManagerPtr);
+        delete(common_resources_.MockServerEventsDataPtr);
     }
 };
 
 TEST_F(Transform_test, TransformWithSources) // test different sources
 {
-    EXPECT_EQ(Transform_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
-    EXPECT_EQ(Transform_test::adata_.loadProvision(ProvisionConfiguration_Sources), h2agent::model::AdminServerProvisionData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerProvision(ProvisionConfiguration_Sources, common_resources_), h2agent::model::AdminServerProvisionData::Success);
 
-    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision);
-    //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
-    provision->setMockServerEventsData(events_data_); // could be used by event source
-    provision->setGlobalVariable(global_variable_);
-    provision->setFileManager(file_manager_);
+    //auto provision = Transform_test::adata_.getServerProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
 
     // Simulate event on transformation:
     std::string requestUri = "/app/v1/foo/bar/1?name=test";
@@ -348,7 +346,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
 
     provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
-    EXPECT_TRUE(Transform_test::adata_.clearProvisions());
+    EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 
     EXPECT_EQ(statusCode, 200);
     EXPECT_EQ(ert::http2comm::headersAsString(headers), "[content-type: text/html][x-version: 1.0.0]");
@@ -397,14 +395,12 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
 
 TEST_F(Transform_test, TransformWithSourcesAndFilters)
 {
-    EXPECT_EQ(Transform_test::adata_.loadMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
-    EXPECT_EQ(Transform_test::adata_.loadProvision(ProvisionConfiguration_Filters), h2agent::model::AdminServerProvisionData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerProvision(ProvisionConfiguration_Filters, common_resources_), h2agent::model::AdminServerProvisionData::Success);
 
-    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getProvisionData().find("initial", "GET", "/app/v1/foo/bar/2?name=test");
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/2?name=test");
     ASSERT_TRUE(provision);
-    //auto provision = Transform_test::adata_.getProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
-    provision->setMockServerEventsData(events_data_); // could be used by event source
-    provision->setGlobalVariable(global_variable_);
+    //auto provision = Transform_test::adata_.getServerProvisionData().findRegexMatching("initial", "GET", "/app/v1/foo/bar/1?name=test");
 
     // Simulate event on transformation:
     std::string requestUri = "/app/v1/foo/bar/2?name=test";
@@ -430,7 +426,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
 
     provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
-    EXPECT_TRUE(Transform_test::adata_.clearProvisions());
+    EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 
     EXPECT_EQ(statusCode, 500);
     EXPECT_EQ(ert::http2comm::headersAsString(headers), "[content-type: text/html][my-header: headervalue][response-header-field-name: test.mysuffix][x-version: 1.0.0]");

@@ -52,6 +52,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <MockServerEventsData.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -68,6 +69,7 @@ boost::asio::io_service *myTimersIoService = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
+h2agent::model::MockServerEventsData* myMockServerEventsData = nullptr;
 
 const char* AdminApiName = "admin";
 const char* AdminApiVersion = "v1";
@@ -163,6 +165,7 @@ void stopAgent()
     delete(myConfiguration);
     delete(myGlobalVariable);
     delete(myFileManager);
+    delete(myMockServerEventsData);
 }
 
 void myExit(int rc)
@@ -731,6 +734,8 @@ int main(int argc, char* argv[])
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
     myAdminHttp2Server->setConfiguration(myConfiguration);
+    myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
+    myAdminHttp2Server->setFileManager(myFileManager);
 
     // Timers thread:
     std::thread tt([&] {
@@ -745,9 +750,10 @@ int main(int argc, char* argv[])
         myTrafficHttp2Server->enableMyMetrics(p_metrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
-        myTrafficHttp2Server->setConfiguration(myConfiguration);
-        myTrafficHttp2Server->setGlobalVariable(myGlobalVariable);
-        myTrafficHttp2Server->setFileManager(myFileManager);
+
+        myMockServerEventsData = new h2agent::model::MockServerEventsData();
+        myTrafficHttp2Server->setMockServerEventsData(myMockServerEventsData);
+        myAdminHttp2Server->setMockServerEventsData(myMockServerEventsData); // stored at administrative class to pass through created server provisions
     }
 
     // Schema configuration

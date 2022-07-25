@@ -192,10 +192,10 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     // Query parameters transformation:
     std::map<std::string, std::string> qmap; // query parameters map
     if (!uriQuery.empty()) {
-        char separator = ((getAdminData()->getMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
+        char separator = ((getAdminData()->getServerMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
         qmap = h2agent::http2::extractQueryParameters(uriQuery, separator);
 
-        h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getMatchingData().getUriPathQueryParametersFilter();
+        h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter();
         if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
             uriQuery = "";
         }
@@ -217,14 +217,14 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         << " | Method: " << method
         << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
-        << " | Query parameters: " << ((getAdminData()->getMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
+        << " | Query parameters: " << ((getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
         if (!requestBody.empty()) ss << " | Body: " << requestBody;
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
 // Admin provision & matching configuration:
-    const h2agent::model::AdminServerProvisionData & provisionData = getAdminData()->getProvisionData();
-    const h2agent::model::AdminServerMatchingData & matchingData = getAdminData()->getMatchingData();
+    const h2agent::model::AdminServerProvisionData & provisionData = getAdminData()->getServerProvisionData();
+    const h2agent::model::AdminServerMatchingData & matchingData = getAdminData()->getServerMatchingData();
 
 // Find mock context:
     std::string inState;
@@ -299,11 +299,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
             );
         }
 
-        // PREPARE & TRANSFORM
-        provision->setMockServerEventsData(mock_server_events_data_); // could be used by event source
-        provision->setConfiguration(configuration_);
-        provision->setGlobalVariable(global_variable_);
-        provision->setFileManager(file_manager_);
+        // Process provision
         provision->transform(uri, uriPath, qmap, requestBody, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 

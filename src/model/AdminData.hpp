@@ -44,6 +44,7 @@ SOFTWARE.
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
 #include <AdminSchemaData.hpp>
+#include <common.hpp>
 
 namespace h2agent
 {
@@ -52,8 +53,8 @@ namespace model
 
 class AdminData
 {
-    AdminServerMatchingData matching_data_{};
-    AdminServerProvisionData provision_data_{};
+    AdminServerMatchingData server_matching_data_{};
+    AdminServerProvisionData server_provision_data_{};
     AdminSchemaData schema_data_{};
 
 public:
@@ -64,29 +65,30 @@ public:
     /**
      * Loads admin matching operation data
      *
-     * @param j Json document from operation body request
+     * @param j json document from operation body request
      *
      * @return Boolean about success operation
      */
-    AdminServerMatchingData::LoadResult loadMatching(const nlohmann::json &j) {
-        return matching_data_.load(j);
+    AdminServerMatchingData::LoadResult loadServerMatching(const nlohmann::json &j) {
+        return server_matching_data_.load(j);
     }
 
     /**
-     * Loads admin provision operation data
+     * Loads admin server provision operation data
      *
-     * @param j Json document from operation body request
+     * @param j json document from operation body request
+     * @param cr common resources references (general configuration, global variables, file manager, mon server events data)
      *
      * @return Boolean about success operation
      */
-    AdminServerProvisionData::LoadResult loadProvision(const nlohmann::json &j) {
-        return provision_data_.load(j, (matching_data_.getAlgorithm() == AdminServerMatchingData::AlgorithmType::RegexMatching));
+    AdminServerProvisionData::LoadResult loadServerProvision(const nlohmann::json &j, const common_resources_t &cr) {
+        return server_provision_data_.load(j, (server_matching_data_.getAlgorithm() == AdminServerMatchingData::AlgorithmType::RegexMatching), cr);
     }
 
     /**
      * Loads admin schema operation data
      *
-     * @param j Json document from operation body request
+     * @param j json document from operation body request
      *
      * @return Boolean about success operation
      */
@@ -99,8 +101,8 @@ public:
      *
      * @return True if something was removed, false if already empty
      */
-    bool clearProvisions() {
-        return provision_data_.clear();
+    bool clearServerProvisions() {
+        return server_provision_data_.clear();
     }
 
     /**
@@ -115,15 +117,15 @@ public:
     /**
      * Gets admin matching data
      */
-    const AdminServerMatchingData& getMatchingData() const {
-        return matching_data_;
+    const AdminServerMatchingData& getServerMatchingData() const {
+        return server_matching_data_;
     }
 
     /**
      * Gets admin provision data
      */
-    const AdminServerProvisionData& getProvisionData() const {
-        return provision_data_;
+    const AdminServerProvisionData& getServerProvisionData() const {
+        return server_provision_data_;
     }
 
     /**
