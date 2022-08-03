@@ -276,13 +276,14 @@ snapshot() {
   schema_schema && json > ${dir}/schema_schema.json
   global_variable && json > ${dir}/global-variable.json
   global_variable_schema && json > ${dir}/global-variable_schema.json
+  files && json > ${dir}/files.json
   configuration && json > ${dir}/configuration.json
-  data_configuration && json > ${dir}/data-configuration.json
+  server_configuration && json > ${dir}/server-configuration.json
+  server_data_configuration && json > ${dir}/server-data-configuration.json
   server_matching && json > ${dir}/server-matching.json
   server_matching_schema && json > ${dir}/server-matching_schema.json
   server_provision && json > ${dir}/server-provision.json
   server_provision_schema && json > ${dir}/server-provision_schema.json
-  server_data --conf && json > ${dir}/server-data-configuration.json
   server_data --summary -1 && json > ${dir}/server-data-summary.json
   echo | server_data && json > ${dir}/server-data.json
   mkdir ${dir}/server-data-sequences
@@ -290,6 +291,7 @@ snapshot() {
   for s in $(cat ${dir}/server-data-sequences.txt); do
     jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
   done
+  metrics > ${dir}/metrics.txt
 
   echo
   echo "Created snapshot at:"
