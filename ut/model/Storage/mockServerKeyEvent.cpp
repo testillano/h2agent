@@ -30,7 +30,7 @@ public:
         request_headers_.emplace("request-header2", nghttp2::asio_http2::header_value{"req-h2"});
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
-        request_body_ = "{\"foo\":1}";
+        request_body_.assign("{\"foo\":1}");
         //request_body_ = R"({ "foo": 1 })"_json;
         reception_timestamp_us_ = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
         response_body_ = "{\"bar\":2}";
@@ -67,7 +67,7 @@ TEST_F(MockServerKeyEvent_test, getJson)
     nlohmann::json eventJson{};
     eventJson["previousState"] = previous_state_;
     eventJson["receptionTimestampUs"] = data_.getJson()["receptionTimestampUs"]; // unpredictable
-    eventJson["requestBody"] = nlohmann::json::parse(request_body_);
+    eventJson["requestBody"] = nlohmann::json::parse(request_body_.str());
     //eventJson["requestBody"] = request_body_;
     eventJson["requestHeaders"] = nlohmann::json::parse("{\"request-header1\":\"req-h1\",\"request-header2\":\"req-h2\"}");
     eventJson["responseBody"] = nlohmann::json::parse(response_body_);

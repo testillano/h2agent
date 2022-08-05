@@ -85,8 +85,8 @@ void MockServerKeyEvent::saveJson() {
             hdrs[x.first] = x.second.value;
         json_["requestHeaders"] = hdrs;
     }
-    if (!request_body_.empty()) {
-        h2agent::http2::parseJsonContent(request_body_, json_["requestBody"], true /* write exception */);
+    if (!request_body_.str().empty()) {
+        h2agent::http2::parseJsonContent(request_body_.str(), json_["requestBody"], true /* write exception */);
     }
     //json_["requestBody"] = request_body_;
 

@@ -13,6 +13,7 @@
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <BodyData.hpp>
 
 #include <ert/http2comm/Http2Headers.hpp>
 
@@ -330,7 +331,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters("name=test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::string requestBody = request.dump();
+    h2agent::model::BodyData requestBodyData(request.dump());
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
@@ -344,7 +345,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     std::string outStateMethod;
     std::string outStateUri;
 
-    provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyData, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
     EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 
@@ -410,7 +411,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(qmap["name"], "test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
-    std::string requestBody = request.dump();
+    h2agent::model::BodyData requestBodyData(request.dump());
     nghttp2::asio_http2::header_map requestHeaders;
     requestHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
@@ -424,7 +425,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     std::string outStateMethod;
     std::string outStateUri;
 
-    provision->transform(requestUri, requestUriPath, qmap, requestBody, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyData, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
     EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 
