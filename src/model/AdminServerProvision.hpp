@@ -48,6 +48,7 @@ SOFTWARE.
 #include <AdminSchema.hpp>
 #include <Transformation.hpp>
 #include <TypeConverter.hpp>
+#include <BodyData.hpp>
 
 
 #define DEFAULT_ADMIN_SERVER_PROVISION_STATE "initial"
@@ -123,8 +124,8 @@ class AdminServerProvision
                         const std::string &requestUriPath,
                         const std::map<std::string, std::string> &requestQueryParametersMap,
                         bool requestBodyJsonOrString,
-                        const nlohmann::json &requestBodyJson, // if json
-                        const std::string &requestBody, // if string
+                        const nlohmann::json &requestBodyJson, // if json XXXXXXXXXXXXXXX
+                        const BodyData &requestBodyData, // if string XXXXXXXXXXXXX
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;
@@ -164,7 +165,7 @@ public:
      * @param requestUri Request URI
      * @param requestUriPath Request URI path part
      * @param requestQueryParametersMap Query Parameters Map (if exists)
-     * @param requestBody Request Body received
+     * @param requestBodyData Request Body data received
      * @param requestHeaders Request Headers Received
      * @param generalUniqueServerSequence HTTP/2 server monotonically increased sequence for every reception (unique)
      *
@@ -181,7 +182,7 @@ public:
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
                     const std::map<std::string, std::string> &requestQueryParametersMap,
-                    const std::string &requestBody,
+                    const BodyData &requestBodyData,
                     const nghttp2::asio_http2::header_map &requestHeaders,
                     std::uint64_t generalUniqueServerSequence,
 
