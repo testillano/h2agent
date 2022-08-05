@@ -33,11 +33,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <ert/tracing/Logger.hpp>
+#pragma once
 
-#include <functions.hpp>
+#include <nghttp2/asio_http2_server.h>
 
-#include <BodyData.hpp>
+#include <string>
+
+#include <nlohmann/json.hpp>
 
 
 namespace h2agent
@@ -45,6 +47,77 @@ namespace h2agent
 namespace model
 {
 
+class DataPart {
+    std::string str_;
+    nlohmann::json json_;
+
+    //std::vector<DataPart> v_; // multipart support
+
+public:
+    /** Default constructor */
+    DataPart() {;}
+
+    /** String constructor */
+    DataPart(const std::string &str) : str_(str) {;}
+
+    /** Move string constructor */
+    DataPart(std::string &&str) : str_(std::move(str)) {;}
+
+    /** Constructor */
+    DataPart(const DataPart &bd) {
+        *this = bd;
+    }
+
+    /** Move constructor */
+    DataPart(DataPart &&bd) {
+        *this = std::move(bd);
+    }
+
+    /** Destructor */
+    ~DataPart() {;}
+
+    /** Copy assignment */
+    DataPart& operator=(const DataPart& other) noexcept {
+        if (this != &other) {
+            str_ = other.str_;
+        }
+        return *this;
+    }
+
+    /** Move assignment */
+    DataPart& operator=(DataPart&& other) noexcept {
+        if (this != &other) {
+            str_ = std::move(other.str_);
+        }
+        return *this;
+    }
+
+    /** comparison operator */
+    bool operator==(const DataPart &other) const {
+        return str() == other.str();
+    }
+
+    /** getter for class data */
+    const std::string &str() const {
+        return str_;
+    }
+
+    /** getter for class data representation in json propietary format */
+    const nlohmann::json &getJson() const {
+        return json_;
+    }
+
+    /** setters for class data */
+    void assign(std::string &&str) {
+        str_ = std::move(str);
+    }
+    void assign(const std::string &str) {
+        str_ = str;
+    }
+
+    /** decode string data depending on content type */
+    //void decode(const ContentType& ct);
+};
 
 }
 }

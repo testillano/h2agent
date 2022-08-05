@@ -71,7 +71,7 @@ mock_server_events_key_t MockServerKeyEvents::getKey() const {
 
 void MockServerKeyEvents::loadRequest(const std::string &previousState, const std::string &state,
                                       const std::string &method, const std::string &uri,
-                                      const nghttp2::asio_http2::header_map &requestHeaders, const BodyData &requestBody,
+                                      const nghttp2::asio_http2::header_map &requestHeaders, const DataPart &requestBody,
                                       const std::chrono::microseconds &receptionTimestampUs,
                                       unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody,
                                       std::uint64_t serverSequence, unsigned int responseDelayMs,

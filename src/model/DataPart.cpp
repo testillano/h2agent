@@ -33,13 +33,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include <ert/tracing/Logger.hpp>
 
-#include <nghttp2/asio_http2_server.h>
+#include <functions.hpp>
 
-#include <string>
-
-#include <nlohmann/json.hpp>
+#include <DataPart.hpp>
 
 
 namespace h2agent
@@ -47,66 +45,6 @@ namespace h2agent
 namespace model
 {
 
-class BodyData {
-    std::string str_;
-
-public:
-    /** Default constructor */
-    BodyData() {;}
-
-    /** String constructor */
-    BodyData(const std::string &str) : str_(str) {;}
-
-    /** Move string constructor */
-    BodyData(std::string &&str) : str_(std::move(str)) {;}
-
-    /** Constructor */
-    BodyData(const BodyData &bd) {
-        *this = bd;
-    }
-
-    /** Move constructor */
-    BodyData(BodyData &&bd) {
-        *this = std::move(bd);
-    }
-
-    /** Destructor */
-    ~BodyData() {;}
-
-    /** Copy assignment */
-    BodyData& operator=(const BodyData& other) noexcept {
-        if (this != &other) {
-            str_ = other.str_;
-        }
-        return *this;
-    }
-
-    /** Move assignment */
-    BodyData& operator=(BodyData&& other) noexcept {
-        if (this != &other) {
-            str_ = std::move(other.str_);
-        }
-        return *this;
-    }
-
-    /** comparison operator */
-    bool operator==(const BodyData &other) const {
-        return str() == other.str();
-    }
-
-    /** getter for class data */
-    const std::string &str() const {
-        return str_;
-    }
-
-    /** setters for class data */
-    void assign(std::string &&str) {
-        str_ = std::move(str);
-    }
-    void assign(const std::string &str) {
-        str_ = str;
-    }
-};
 
 }
 }

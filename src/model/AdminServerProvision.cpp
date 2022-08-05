@@ -99,7 +99,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::map<std::string, std::string> &requestQueryParametersMap,
         bool requestBodyJsonOrString,
         const nlohmann::json &requestBodyJson, // if json XXXXXXXXXXX
-        const BodyData &requestBodyData, // if string XXXXXXXXXXXXXX
+        const DataPart &requestBodyDataPart, // if string XXXXXXXXXXXXXX
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -134,7 +134,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             }
         }
         else {
-            sourceVault.setString(requestBodyData.str());
+            sourceVault.setString(requestBodyDataPart.str());
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
@@ -721,7 +721,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 void AdminServerProvision::transform( const std::string &requestUri,
                                       const std::string &requestUriPath,
                                       const std::map<std::string, std::string> &requestQueryParametersMap,
-                                      const BodyData &requestBodyData,
+                                      const DataPart &requestBodyDataPart,
                                       const nghttp2::asio_http2::header_map &requestHeaders,
                                       std::uint64_t generalUniqueServerSequence,
 
@@ -769,7 +769,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         else {
             for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
                 if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                    if (!requestBodyData.str().empty()) {
+                    if (!requestBodyDataPart.str().empty()) {
                         requestBodyJsonRequired = true;
                     }
                     else {
@@ -782,7 +782,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         if (requestBodyJsonRequired) {
             // if fails to parse, we will consider it as an string ignoring the content-type:
-            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBodyData.str(), requestBodyJson);
+            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBodyDataPart.str(), requestBodyJson);
         }
     }
 
@@ -833,7 +833,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, Event, InState
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBodyData, requestHeaders, eraser, generalUniqueServerSequence))
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 
         std::smatch matches; // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671

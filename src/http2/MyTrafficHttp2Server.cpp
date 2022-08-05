@@ -173,7 +173,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     //std::string reqUriFragment = req.uri().fragment; // https://stackoverflow.com/a/65198345/2576671
 
     // Move request body to internal encoded body data:
-    h2agent::model::BodyData requestBodyData(std::move(requestBody));
+    h2agent::model::DataPart requestBodyDataPart(std::move(requestBody));
 
     // Busy threads:
     int currentBusyThreads = busyThreads();
@@ -221,7 +221,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
         << " | Query parameters: " << ((getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
-        if (!requestBodyData.str().empty()) ss << " | Body: " << requestBodyData.str();
+        if (!requestBodyDataPart.str().empty()) ss << " | Body: " << requestBodyDataPart.str();
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
@@ -303,7 +303,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         }
 
         // Process provision
-        provision->transform(uri, uriPath, qmap, requestBodyData, req.header(), receptionId,
+        provision->transform(uri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
@@ -325,7 +325,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
 
             // Store request event context information
             if (server_data_) {
-                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBodyData, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
@@ -336,7 +336,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
                         outStateUri = uri; // by default
                     }
 
-                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBodyData, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
+                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
                 }
             }
         }
@@ -350,7 +350,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBodyData, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {

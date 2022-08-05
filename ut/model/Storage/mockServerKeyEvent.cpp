@@ -1,5 +1,5 @@
 #include <MockServerKeyEvent.hpp>
-#include <BodyData.hpp>
+#include <DataPart.hpp>
 
 #include <map>
 #include <string>
@@ -18,7 +18,7 @@ public:
     std::string previous_state_;
     std::string state_;
     nghttp2::asio_http2::header_map request_headers_, response_headers_;
-    h2agent::model::BodyData request_body_;
+    h2agent::model::DataPart request_body_;
     std::chrono::microseconds reception_timestamp_us_;
     std::string response_body_;
 
