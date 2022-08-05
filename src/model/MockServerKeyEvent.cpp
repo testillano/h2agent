@@ -46,7 +46,7 @@ namespace model
 {
 
 
-void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, const BodyData &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, const DataPart &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
     reception_timestamp_us_ = receptionTimestampUs.count();
 
