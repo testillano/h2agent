@@ -81,3 +81,15 @@ TEST_F(DataPart_test, DecodeJson)
     EXPECT_EQ(dp_json_.getJson(), FooBarJson);
 }
 
+TEST_F(DataPart_test, AsAsciiStringReadable)
+{
+    dp_binary_.assignFromHex(HelloWorldAsHexString);
+    EXPECT_EQ(dp_binary_.asAsciiString(), HelloWorld);
+}
+
+TEST_F(DataPart_test, AsAsciiStringNonReadable)
+{
+    dp_binary_.assignFromHex(IpAsHexString);
+    EXPECT_EQ(dp_binary_.asAsciiString(), "....");
+}
+

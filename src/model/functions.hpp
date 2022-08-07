@@ -90,6 +90,16 @@ bool getFileContent(const std::string &filePath, std::string &content);
 bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bool writeException = false);
 
 /**
+ * Represents the input as ascii string (non printable characters are dots).
+ *
+ * @param input string to convert
+ * @param output result passed by reference
+ *
+ * @return Boolean about if input is printable.
+ */
+bool asAsciiString(const std::string &input, std::string &output);
+
+/**
  * Represents the input as hexadecimal string.
  *
  * @param input string to convert

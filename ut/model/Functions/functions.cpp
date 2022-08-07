@@ -125,6 +125,7 @@ TEST_F(functions_test, ValidHexStringToOctetStreamWith0xPrefix)
 TEST_F(functions_test, InvalidHexStringToOctetStream_error1)
 {
     std::string output;
+
     EXPECT_FALSE(h2agent::model::fromHexString("0x68656c6c6fr0", output)); // 'r' is not hex symbol
     EXPECT_EQ(output, "hello"); // decodes until fail
 }
@@ -132,6 +133,7 @@ TEST_F(functions_test, InvalidHexStringToOctetStream_error1)
 TEST_F(functions_test, InvalidHexStringToOctetStream_error2)
 {
     std::string output;
+
     EXPECT_FALSE(h2agent::model::fromHexString("0x68656c6c6f0r", output)); // 'r' is not hex symbol
     EXPECT_EQ(output, "hello"); // decodes until fail
 }
@@ -139,6 +141,25 @@ TEST_F(functions_test, InvalidHexStringToOctetStream_error2)
 TEST_F(functions_test, InvalidHexString_oddSize)
 {
     std::string output;
+
     EXPECT_FALSE(h2agent::model::fromHexString("0x686", output));
+}
+
+TEST_F(functions_test, AsAsciiString)
+{
+    std::string mixed = "c030"; // first byte is not readable (0xc0), second one is '0' (0x30), so readable
+    std::string data, output;
+
+    EXPECT_TRUE(h2agent::model::fromHexString(mixed, data));
+    EXPECT_FALSE(h2agent::model::asAsciiString(data, output));
+    EXPECT_EQ(output, ".0");
+}
+
+TEST_F(functions_test, EmptyAsAsciiString)
+{
+    std::string output;
+
+    EXPECT_FALSE(h2agent::model::asAsciiString("", output));
+    EXPECT_EQ(output, "<null>");
 }
 
