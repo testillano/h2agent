@@ -47,9 +47,70 @@ namespace h2agent
 namespace model
 {
 
+/**
+ * DataPart to store request/response body data
+ * Also provides a way to represent data in json format, even for basic string values.
+ *
+ * So, when the body data is human-readable, the field "<request|response>Body"
+ * will be the string itself as readable string:
+ *
+ * <pre>
+ * "<request|response>Body": "this is human-readable text content"
+ * </pre>
+ *
+ * When the body data is not human-readable, the field "<request|response>Body"
+ * will be the data itself as hexadecimal string with prefix '0x':
+ *
+ * <pre>
+ * "<request|response>Body": "0xc0a80100"
+ * </pre>
+ *
+ * It is important to know the content-type, to understand that '0x' is not
+ * part of an arbitrary string but an indicator of binary internal data which
+ * could not be represented directly.
+ *
+ * When the body data is json content, the field "<request|response>Body"
+ * will be the json object itself:
+ *
+ * <pre>
+ * "<request|response>Body": { "foo": "bar" }
+ * </pre>
+ *
+ * Other complex types like multipart could have a proprietary json representation
+ * like this:
+ *
+ * <pre>
+ * "<request|response>Body": {
+ *   "multipart.1": {
+ *     "content-type": "text/html",
+ *     "content-data": "<h2 class=\"fg-white\">"
+ *   },
+ *   "multipart.2": {
+ *     "content-type": "application/octet-stream",
+ *     "content-data": "0xc0a80100"
+ *   },
+ *   "multipart.3": {
+ *     "content-type": "application/json",
+ *     "content-data": { "foo": "bar" }
+ *   }
+ * }
+ * </pre>
+ */
 class DataPart {
-    std::string str_;
-    nlohmann::json json_;
+    std::string str_; // raw data content: always filled with the original data received
+
+    nlohmann::json json_; // data json representation valid for:
+    // 1) parse json strings received (application/json)
+    // 2) represent proprietary multipart json structure (multipart/?)
+    // 3) represent human-readable strings (https://stackoverflow.com/questions/7487869/is-this-simple-string-considered-valid-json)
+    // 4) represent non human-readable strings, as hex string prefixed with '0x'.
+
+    // Note that 3) and 4) are using nlohmann::json to store a string, which is a shortcut for class json representation.
+    // You shall cast it to string or use special library getters:
+    //   std::string content = doc["example"]
+    //   - or -
+    //   doc["example"].get<std::string>()
+
 
     //std::vector<DataPart> v_; // multipart support
 
@@ -80,6 +141,7 @@ public:
     DataPart& operator=(const DataPart& other) noexcept {
         if (this != &other) {
             str_ = other.str_;
+            json_ = other.json_;
         }
         return *this;
     }
@@ -88,6 +150,7 @@ public:
     DataPart& operator=(DataPart&& other) noexcept {
         if (this != &other) {
             str_ = std::move(other.str_);
+            json_ = std::move(other.json_);
         }
         return *this;
     }
@@ -114,9 +177,10 @@ public:
     void assign(const std::string &str) {
         str_ = str;
     }
+    bool assignFromHex(const std::string &strAsHex);
 
     /** decode string data depending on content type */
-    //void decode(const ContentType& ct);
+    void decode(const std::string& contentType);
 };
 
 }

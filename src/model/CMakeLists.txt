@@ -1,4 +1,5 @@
 add_library (h2agent-model
+    ${CMAKE_CURRENT_LIST_DIR}/functions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TypeConverter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Transformation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockServerKeyEvent.cpp

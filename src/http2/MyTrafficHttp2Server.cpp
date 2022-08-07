@@ -196,14 +196,14 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     std::map<std::string, std::string> qmap; // query parameters map
     if (!uriQuery.empty()) {
         char separator = ((getAdminData()->getServerMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
-        qmap = h2agent::http2::extractQueryParameters(uriQuery, separator);
+        qmap = h2agent::model::extractQueryParameters(uriQuery, separator);
 
         h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter();
         if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
             uriQuery = "";
         }
         else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Sort) {
-            uriQuery = h2agent::http2::sortQueryParameters(qmap, separator);
+            uriQuery = h2agent::model::sortQueryParameters(qmap, separator);
         }
     }
 

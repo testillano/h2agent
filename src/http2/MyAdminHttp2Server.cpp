@@ -263,7 +263,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 
     // Admin schema validation:
     nlohmann::json requestJson;
-    bool success = h2agent::http2::parseJsonContent(requestBody, requestJson);
+    bool success = h2agent::model::parseJsonContent(requestBody, requestJson);
 
     if (success) {
         if (pathSuffix == "server-matching") {
@@ -329,7 +329,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     else if (pathSuffix == "server-data/summary") {
         std::string maxKeys = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("maxKeys");
             if (it != qmap.end()) maxKeys = it->second;
         }
@@ -340,7 +340,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     else if (pathSuffix == "global-variable") {
         std::string name = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("name");
             if (it != qmap.end()) name = it->second;
             if (name.empty()) {
@@ -385,7 +385,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         std::string requestUri = "";
         std::string requestNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
             if (it != qmap.end()) requestMethod = it->second;
             it = qmap.find("requestUri");
@@ -444,7 +444,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         std::string requestUri = "";
         std::string requestNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
             if (it != qmap.end()) requestMethod = it->second;
             it = qmap.find("requestUri");
@@ -461,7 +461,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         bool globalVariableDeleted = false;
         std::string name = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("name");
             if (it != qmap.end()) name = it->second;
             if (name.empty()) {
@@ -493,7 +493,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
     if (pathSuffix == "logging") {
         std::string level = "?";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("level");
             if (it != qmap.end()) level = it->second;
         }
@@ -520,7 +520,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         std::string preReserveRequestBody;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("receiveRequestBody");
             if (it != qmap.end()) receiveRequestBody = it->second;
             it = qmap.find("preReserveRequestBody");
@@ -555,7 +555,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         std::string disablePurge;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
-            std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters(queryParams);
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("discard");
             if (it != qmap.end()) discard = it->second;
             it = qmap.find("discardKeyHistory");

@@ -1,3 +1,5 @@
+add_subdirectory(Functions)
+add_subdirectory(DataPart)
 add_subdirectory(AdminData)
 add_subdirectory(Transformation)
 add_subdirectory(Storage)

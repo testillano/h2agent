@@ -45,7 +45,7 @@ SOFTWARE.
 
 namespace h2agent
 {
-namespace http2
+namespace model
 {
 
 /**
@@ -68,7 +68,6 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
  */
 std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator = '&' /* maybe ';' */);
 
-
 /**
  * Loads file into string content
  *
@@ -78,7 +77,6 @@ std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, 
  * @return Boolean with operation success
  */
 bool getFileContent(const std::string &filePath, std::string &content);
-
 
 /**
  * Parses json string to json object
@@ -91,6 +89,28 @@ bool getFileContent(const std::string &filePath, std::string &content);
  */
 bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bool writeException = false);
 
+/**
+ * Represents the input as hexadecimal string.
+ *
+ * @param input string to convert
+ * @param output result passed by reference
+ *
+ * @return Boolean about if input is printable.
+ * A printable character is a character that occupies a printing position on a display.
+ * Check https://cplusplus.com/reference/cctype/isprint/
+ */
+bool asHexString(const std::string &input, std::string &output);
+
+/**
+ * Interpret the input as hexadecimal string.
+ *
+ * @param input hex string to convert (prefix '0x' can be provided, i.e.: 0xa4cd02").
+ * So, this string is an hexadecimal octet sequence representation with even number of digits.
+ * @param output result passed by reference
+ *
+ * @return Boolean about successful operation
+ */
+bool fromHexString(const std::string &input, std::string &output);
 
 }
 }

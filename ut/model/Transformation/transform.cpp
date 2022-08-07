@@ -328,7 +328,7 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     // Simulate event on transformation:
     std::string requestUri = "/app/v1/foo/bar/1?name=test";
     std::string requestUriPath = "/app/v1/foo/bar/1";
-    std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters("name=test");
+    std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters("name=test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
 
     h2agent::model::DataPart requestBodyDataPart(request.dump());
@@ -406,7 +406,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     // Simulate event on transformation:
     std::string requestUri = "/app/v1/foo/bar/2?name=test";
     std::string requestUriPath = "/app/v1/foo/bar/2";
-    std::map<std::string, std::string> qmap = h2agent::http2::extractQueryParameters("name=test");
+    std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters("name=test");
     EXPECT_EQ(qmap.size(), 1);
     EXPECT_EQ(qmap["name"], "test");
     const nlohmann::json request = R"({"node1":{"node2":"value-of-node1-node2","delaymilliseconds":25}})"_json;
