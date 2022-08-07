@@ -580,7 +580,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
-            if (!h2agent::http2::parseJsonContent(targetS, obj))
+            if (!h2agent::model::parseJsonContent(targetS, obj))
                 return false;
 
             // assignment
@@ -782,7 +782,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         if (requestBodyJsonRequired) {
             // if fails to parse, we will consider it as an string ignoring the content-type:
-            requestBodyJsonOrString = h2agent::http2::parseJsonContent(requestBodyDataPart.str(), requestBodyJson);
+            requestBodyJsonOrString = h2agent::model::parseJsonContent(requestBodyDataPart.str(), requestBodyJson);
         }
     }
 

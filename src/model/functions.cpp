@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <fstream>
+#include <ctype.h>
 
 #include <functions.hpp>
 
@@ -41,7 +42,7 @@ SOFTWARE.
 
 namespace h2agent
 {
-namespace http2
+namespace model
 {
 
 std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator) {
@@ -147,6 +148,63 @@ bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bo
     return true;
 }
 
+bool asHexString(const std::string &input, std::string &output) {
+
+    bool result = true;
+
+    int byte;
+    output = "0x";
+
+    std::for_each(input.begin(), input.end(), [&] (char const &c) {
+
+        byte = (c & 0xf0) >> 4;
+        output += (byte >= 0 && byte <= 9) ? (byte + '0') : ((byte - 0xa) + 'a');
+        byte = (c & 0x0f);
+        output += (byte >= 0 && byte <= 9) ? (byte + '0') : ((byte - 0xa) + 'a');
+
+        if (!isprint(c)) result = false;
+    });
+
+    return result;
+}
+
+bool fromHexString(const std::string &input, std::string &output) {
+
+    bool result = true;
+
+    bool has0x = (input.rfind("0x", 0) == 0);
+
+    if((input.length() % 2) != 0) {
+        LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid hexadecimal string due to odd length (%d): %s", input.length(), input.c_str()), ERT_FILE_LOCATION));
+        return false;
+    }
+
+    output = "";
+    const char* src = input.data(); // fastest that accessing input[ii]
+    unsigned char hex;
+    int aux;
+
+    for(int ii = 1 + (has0x ? 2:0), maxii = input.length(); ii < maxii; ii += 2) {
+        if(isxdigit(aux = src[ii-1]) == 0) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid hexadecimal string: %s", input.c_str()), ERT_FILE_LOCATION));
+            return false;
+        }
+
+        hex = ((aux >= '0' && aux <= '9') ? (aux - '0') : ((aux - 'a') + 0x0a)) << 4;
+
+        if(isxdigit(aux = src[ii]) == 0) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid hexadecimal string: %s", input.c_str()), ERT_FILE_LOCATION));
+            return false;
+        }
+
+        hex |= (aux >= '0' && aux <= '9') ? (aux - '0') : ((aux - 'a') + 0x0a);
+        output += hex;
+    }
+
+    return result;
+}
+
 
 }
 }
+

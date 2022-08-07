@@ -86,14 +86,14 @@ void MockServerKeyEvent::saveJson() {
         json_["requestHeaders"] = hdrs;
     }
     if (!request_body_.str().empty()) {
-        h2agent::http2::parseJsonContent(request_body_.str(), json_["requestBody"], true /* write exception */);
+        h2agent::model::parseJsonContent(request_body_.str(), json_["requestBody"], true /* write exception */);
     }
     //json_["requestBody"] = request_body_;
 
     // Additional information
     if (!previous_state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
     if (!response_body_.empty()) {
-        h2agent::http2::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
+        h2agent::model::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
     }
     //json_["responseBody"] = response_body_;
     json_["responseDelayMs"] = (unsigned int)response_delay_ms_;

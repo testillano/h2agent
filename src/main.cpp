@@ -762,10 +762,10 @@ int main(int argc, char* argv[])
     bool success = false;
 
     if (schema_file != "") {
-        success = h2agent::http2::getFileContent(schema_file, fileContent);
+        success = h2agent::model::getFileContent(schema_file, fileContent);
         std::string log = "Schema configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
@@ -782,10 +782,10 @@ int main(int argc, char* argv[])
 
         // Matching configuration
         if (traffic_server_matching_file != "") {
-            success = h2agent::http2::getFileContent(traffic_server_matching_file, fileContent);
+            success = h2agent::model::getFileContent(traffic_server_matching_file, fileContent);
             std::string log = "Server matching configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -799,10 +799,10 @@ int main(int argc, char* argv[])
 
         // Provision configuration
         if (traffic_server_provision_file != "") {
-            success = h2agent::http2::getFileContent(traffic_server_provision_file, fileContent);
+            success = h2agent::model::getFileContent(traffic_server_provision_file, fileContent);
             std::string log = "Server provision configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -830,10 +830,10 @@ int main(int argc, char* argv[])
     // Global variables
     // Now that myTrafficHttp2Server is referenced, I will have access to global variables object:
     if (global_variable_file != "") {
-        success = h2agent::http2::getFileContent(global_variable_file, fileContent);
+        success = h2agent::model::getFileContent(global_variable_file, fileContent);
         std::string log = "Global variables configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
