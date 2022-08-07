@@ -45,11 +45,23 @@ namespace h2agent
 namespace model
 {
 
+std::string DataPart::asAsciiString() const {
+    std::string result;
+    h2agent::model::asAsciiString(str_, result);
+    return result;
+}
+
 bool DataPart::assignFromHex(const std::string &strAsHex) {
+    decoded_ = false;
     return h2agent::model::fromHexString(strAsHex, str_);
 }
 
 void DataPart::decode(const std::string& contentType) {
+
+    if (decoded_) {
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("The content-type '%s' was already decoded. Skipping operation !", contentType.c_str()), ERT_FILE_LOCATION));
+        return;
+    }
 
     //// Normalize content-type:
     //std::string ct = contentType;
@@ -75,6 +87,8 @@ void DataPart::decode(const std::string& contentType) {
             json_ = std::move(output);
         }
     }
+
+    decoded_ = true;
 }
 
 }

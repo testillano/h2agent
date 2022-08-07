@@ -148,9 +148,29 @@ bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bo
     return true;
 }
 
+bool asAsciiString(const std::string &input, std::string &output) {
+
+    bool result = true; // supposed printable by default
+
+    if(input.empty()) {
+        output = "<null>";
+        return false;
+    }
+
+    std::for_each(input.begin(), input.end(), [&] (char const &c) {
+
+        int printable = isprint(c);
+        output += (printable ? c:'.');
+
+        if(!printable) result = false;
+    });
+
+    return result;
+}
+
 bool asHexString(const std::string &input, std::string &output) {
 
-    bool result = true;
+    bool result = true; // supposed printable by default
 
     int byte;
     output = "0x";
@@ -170,7 +190,7 @@ bool asHexString(const std::string &input, std::string &output) {
 
 bool fromHexString(const std::string &input, std::string &output) {
 
-    bool result = true;
+    bool result = true; // supposed successful by default
 
     bool has0x = (input.rfind("0x", 0) == 0);
 

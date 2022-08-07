@@ -98,6 +98,7 @@ namespace model
  */
 class DataPart {
     std::string str_; // raw data content: always filled with the original data received
+    bool decoded_; // lazy decode indicator to skip multiple decode operations
 
     nlohmann::json json_; // data json representation valid for:
     // 1) parse json strings received (application/json)
@@ -116,13 +117,13 @@ class DataPart {
 
 public:
     /** Default constructor */
-    DataPart() {;}
+    DataPart() : decoded_(false) {;}
 
     /** String constructor */
-    DataPart(const std::string &str) : str_(str) {;}
+    DataPart(const std::string &str) : str_(str), decoded_(false) {;}
 
     /** Move string constructor */
-    DataPart(std::string &&str) : str_(std::move(str)) {;}
+    DataPart(std::string &&str) : str_(std::move(str)), decoded_(false) {;}
 
     /** Constructor */
     DataPart(const DataPart &bd) {
@@ -141,6 +142,7 @@ public:
     DataPart& operator=(const DataPart& other) noexcept {
         if (this != &other) {
             str_ = other.str_;
+            decoded_ = other.decoded_;
             json_ = other.json_;
         }
         return *this;
@@ -151,6 +153,7 @@ public:
         if (this != &other) {
             str_ = std::move(other.str_);
             json_ = std::move(other.json_);
+            decoded_ = std::move(other.decoded_);
         }
         return *this;
     }
@@ -165,6 +168,9 @@ public:
         return str_;
     }
 
+    /** str as ascii string */
+    std::string asAsciiString() const;
+
     /** getter for class data representation in json propietary format */
     const nlohmann::json &getJson() const {
         return json_;
@@ -173,9 +179,11 @@ public:
     /** setters for class data */
     void assign(std::string &&str) {
         str_ = std::move(str);
+        decoded_ = false;
     }
     void assign(const std::string &str) {
         str_ = str;
+        decoded_ = false;
     }
     bool assignFromHex(const std::string &strAsHex);
 

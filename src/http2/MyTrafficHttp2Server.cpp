@@ -220,8 +220,8 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         << " | Method: " << method
         << " | Headers: " << ert::http2comm::headersAsString(req.header())
         << " | Uri: " << req.uri().scheme << "://" << req.uri().host << uri
-        << " | Query parameters: " << ((getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored");
-        if (!requestBodyDataPart.str().empty()) ss << " | Body: " << requestBodyDataPart.str();
+        << " | Query parameters: " << ((getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored")
+        << " | Body (as ascii string, dots for non-printable): " << requestBodyDataPart.asAsciiString();
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
