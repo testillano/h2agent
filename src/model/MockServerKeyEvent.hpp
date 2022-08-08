@@ -61,7 +61,7 @@ class MockServerKeyEvent
 
     unsigned int response_status_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
-    std::string response_body_{};
+    DataPart response_body_data_part_{};
     std::uint64_t server_sequence_{};
     unsigned int response_delay_ms_{};
 

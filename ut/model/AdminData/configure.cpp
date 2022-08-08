@@ -330,7 +330,7 @@ TEST_F(Configure_test, FindProvision)
     auto provision = Configure_test::adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     EXPECT_TRUE(provision != nullptr);
 
-    EXPECT_EQ(provision->getResponseBodyString(), "{\"foo\":\"bar-1\"}");
+    EXPECT_EQ(provision->getResponseBodyAsString(), "{\"foo\":\"bar-1\"}");
     EXPECT_EQ(provision->getRequestSchemaId(), "myRequestsSchema");
     EXPECT_EQ(provision->getResponseSchemaId(), "myResponsesSchema");
 

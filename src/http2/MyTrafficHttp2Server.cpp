@@ -362,8 +362,12 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     LOGDEBUG(
         std::stringstream ss;
         ss << "RESPONSE TO SEND| StatusCode: " << statusCode << " | Headers: " << ert::http2comm::headersAsString(headers);
-        if (!responseBody.empty()) ss << " | Body: " << responseBody;
-        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+    if (!responseBody.empty()) {
+    std::string output;
+    h2agent::model::asAsciiString(responseBody, output);
+        ss << " | Body (as ascii string, dots for non-printable): " << output;
+    }
+    ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 }
 

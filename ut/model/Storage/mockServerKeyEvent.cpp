@@ -29,6 +29,7 @@ public:
         request_headers_.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
         request_headers_.emplace("request-header1", nghttp2::asio_http2::header_value{"req-h1"});
         request_headers_.emplace("request-header2", nghttp2::asio_http2::header_value{"req-h2"});
+        response_headers_.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
         request_body_.assign("{\"foo\":1}");
@@ -78,7 +79,7 @@ TEST_F(MockServerKeyEvent_test, getJson)
     eventJson["requestHeaders"] = nlohmann::json::parse("{\"content-type\":\"application/json\",\"request-header1\":\"req-h1\",\"request-header2\":\"req-h2\"}");
     eventJson["responseBody"] = nlohmann::json::parse(response_body_);
     eventJson["responseDelayMs"] = 20;
-    eventJson["responseHeaders"] = nlohmann::json::parse("{\"response-header1\":\"res-h1\",\"response-header2\":\"res-h2\"}");
+    eventJson["responseHeaders"] = nlohmann::json::parse("{\"content-type\":\"application/json\",\"response-header1\":\"res-h1\",\"response-header2\":\"res-h2\"}");
     eventJson["responseStatusCode"] = 201;
     eventJson["serverSequence"] = 111;
     eventJson["state"] = state_;

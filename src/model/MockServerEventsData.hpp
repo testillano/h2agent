@@ -120,6 +120,8 @@ public:
      * @param validQuery Boolean result passed by reference.
      *
      * @return Json string representation ('[]' for empty array).
+     * @warning This method may throw exception due to dump() when unexpected data is stored on json wrap: execute under try/catch block.
+
      */
     std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const;
 

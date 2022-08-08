@@ -395,7 +395,14 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         }
 
         bool validQuery = false;
-        responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+        try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
+            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+        }
+        catch (const std::exception& e)
+        {
+            //validQuery = false; // will be 200 with empty result (corner case)
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+        }
         statusCode = validQuery ? ((responseBody == "[]") ? 204:200):400; // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "configuration") {

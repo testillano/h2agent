@@ -33,6 +33,7 @@ public:
         request_headers_.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
         request_headers_.emplace("request-header1", nghttp2::asio_http2::header_value{"req-h1"});
         request_headers_.emplace("request-header2", nghttp2::asio_http2::header_value{"req-h2"});
+        response_headers_.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
         request_body_data_part_.assign("{\"foo\":1}");
@@ -63,6 +64,7 @@ public:
           },
           "responseDelayMs": 20,
           "responseHeaders": {
+            "content-type": "application/json",
             "response-header1": "res-h1",
             "response-header2": "res-h2"
           },

@@ -446,6 +446,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         bool hasFilter,
         unsigned int &responseStatusCode,
         nlohmann::json &responseBodyJson,
+        std::string &responseBodyAsString,
         nghttp2::asio_http2::header_map &responseHeaders,
         unsigned int &responseDelayMs,
         std::string &outState,
@@ -476,10 +477,24 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             targetS = sourceVault.getString(success);
             if (!success) return false;
             // assignment
+            responseBodyAsString = targetS;
+        }
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyHexString) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+            // assignment
+            if (!h2agent::model::fromHexString(targetS, responseBodyAsString)) return false;
+        }
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_String) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+            // assignment
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetS;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyInteger) {
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer) {
             // extraction
             targetI = sourceVault.getInteger(success);
             if (!success) return false;
@@ -487,7 +502,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetI;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyUnsigned) {
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned) {
             // extraction
             targetU = sourceVault.getUnsigned(success);
             if (!success) return false;
@@ -495,7 +510,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetU;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyFloat) {
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float) {
             // extraction
             targetF = sourceVault.getFloat(success);
             if (!success) return false;
@@ -503,7 +518,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetF;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyBoolean) {
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean) {
             // extraction
             boolean = sourceVault.getBoolean(success);
             if (!success) return false;
@@ -511,7 +526,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = boolean;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyObject) {
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object) {
 
             if (eraser) {
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into json path '%s'", target.c_str()), ERT_FILE_LOCATION));
@@ -570,7 +585,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 }
             }
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
+        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
 
             // assignment for valid extraction
             nlohmann::json::json_pointer j_ptr(target);
@@ -774,27 +789,27 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // Find out if response body will need to be cloned (this is true if any transformation uses it as target):
-    bool usesResponseBodyAsTransformationTarget = false;
+    bool usesResponseBodyAsTransformationJsonTarget = false;
     for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-        if ((*it)->getTargetType() == Transformation::TargetType::ResponseBodyString ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyInteger ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyUnsigned ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyFloat ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyBoolean ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyObject ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJsonString) {
-            usesResponseBodyAsTransformationTarget = true;
+        if ((*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_String ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object ||
+                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
+            usesResponseBodyAsTransformationJsonTarget = true;
             break;
         }
     }
 
     nlohmann::json responseBodyJson;
-    if (usesResponseBodyAsTransformationTarget) {
+    if (usesResponseBodyAsTransformationJsonTarget) {
         responseBodyJson = getResponseBody();   // clone provision response body to manipulate this copy and finally we will dump() it over 'responseBody':
-        // if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
+        // if(usesResponseBodyAsTransformationJsonTarget) responseBody = responseBodyJson.dump(); <--- place this after transformations (*)
     }
     else {
-        responseBody = getResponseBodyString();
+        responseBody = getResponseBodyAsString(); // this could be overwritten by targets ResponseBodyString or ResponseBodyHexString
     }
 
     // Dynamic variables map: inherited along the transformation chain
@@ -826,14 +841,14 @@ void AdminServerProvision::transform( const std::string &requestUri,
                 continue;
         }
 
-        // TARGETS: ResponseBodyString, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri))
+        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri))
             continue;
 
     }
 
     // (*) Regenerate final responseBody after transformations:
-    if(usesResponseBodyAsTransformationTarget) {
+    if(usesResponseBodyAsTransformationJsonTarget) {
         try {
             responseBody = responseBodyJson.dump(); // this may arise type error, for example in case of trying to set json field value with binary data:
             // When having a provision transformation from 'request.body' to 'response.body.json.string./whatever':
@@ -847,9 +862,9 @@ void AdminServerProvision::transform( const std::string &requestUri,
         }
     }
 
-    // Response schema validation:
+    // Response schema validation (not supported for response body created by non-json targets, to simplify the fact to parse need on ResponseBodyString/ResponseBodyHexString):
     if (responseSchema) {
-        if (!responseSchema->validate(usesResponseBodyAsTransformationTarget ? responseBodyJson:getResponseBody())) {
+        if (!responseSchema->validate(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson:getResponseBody())) {
             responseStatusCode = 500; // built response will be anyway sent although status code is overwritten with internal server error.
         }
     }
