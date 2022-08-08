@@ -1,3 +1,5 @@
+#include <nghttp2/asio_http2_server.h>
+
 #include <DataPart.hpp>
 
 #include <gmock/gmock.h>
@@ -58,27 +60,39 @@ TEST_F(DataPart_test, Operators)
 
 TEST_F(DataPart_test, DecodeText)
 {
-    dp_text_.decode("text/plain");
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"text/plain"});
+    dp_text_.decode(headers);
     EXPECT_EQ(dp_text_.getJson(), nlohmann::json(HelloWorld));
+    EXPECT_FALSE(dp_text_.isJson());
 }
 
 TEST_F(DataPart_test, DecodeBinary)
 {
-    dp_binary_.decode("application/octet-stream");
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/octet-stream"});
+    dp_binary_.decode(headers);
     EXPECT_EQ(dp_binary_.getJson(), nlohmann::json(IpAsHexString));
+    EXPECT_FALSE(dp_binary_.isJson());
 }
 
 TEST_F(DataPart_test, DecodeBinaryPrintable)
 {
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/octet-stream"});
     dp_binary_.assignFromHex(HelloWorldAsHexString);
-    dp_binary_.decode("application/octet-stream");
+    dp_binary_.decode(headers);
     EXPECT_EQ(dp_binary_.getJson(), nlohmann::json(HelloWorld));
+    EXPECT_FALSE(dp_binary_.isJson());
 }
 
 TEST_F(DataPart_test, DecodeJson)
 {
-    dp_json_.decode("application/json");
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+    dp_json_.decode(headers);
     EXPECT_EQ(dp_json_.getJson(), FooBarJson);
+    EXPECT_TRUE(dp_json_.isJson());
 }
 
 TEST_F(DataPart_test, AsAsciiStringReadable)

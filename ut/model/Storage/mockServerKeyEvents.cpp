@@ -1,4 +1,5 @@
 #include <MockServerKeyEvents.hpp>
+#include <DataPart.hpp>
 
 #include <map>
 #include <string>
@@ -16,7 +17,7 @@ public:
     std::string previous_state_;
     std::string state_;
     nghttp2::asio_http2::header_map request_headers_, response_headers_;
-    std::string request_body_;
+    h2agent::model::DataPart request_body_data_part_;
     std::chrono::microseconds reception_timestamp_us_;
     std::string response_body_;
 
@@ -28,19 +29,20 @@ public:
         // Example
         previous_state_ = "previous-state";
         state_ = "state";
+        request_headers_.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
         request_headers_.emplace("request-header1", nghttp2::asio_http2::header_value{"req-h1"});
         request_headers_.emplace("request-header2", nghttp2::asio_http2::header_value{"req-h2"});
         response_headers_.emplace("response-header1", nghttp2::asio_http2::header_value{"res-h1"});
         response_headers_.emplace("response-header2", nghttp2::asio_http2::header_value{"res-h2"});
-        request_body_ = "{\"foo\":1}";
+        request_body_data_part_.assign("{\"foo\":1}");
         reception_timestamp_us_ = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
         response_body_ = "{\"bar\":2}";
 
         // Three events, one real and two virtual, indexed by DELETE#/the/uri/222
         // Server sequence will be ignored although being incoherent here (always 111):
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual1");
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual2");
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual1");
+        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual2");
 
         real_event_ = R"(
         {
@@ -50,6 +52,7 @@ public:
             "foo": 1
           },
           "requestHeaders": {
+            "content-type": "application/json",
             "request-header1": "req-h1",
             "request-header2": "req-h2"
           },
@@ -122,7 +125,7 @@ TEST_F(MockServerKeyEvents_test, removeVirtual1)
 TEST_F(MockServerKeyEvents_test, getLastRegisteredRequestState)
 {
     // Add real event (now it will be in fourth position), but with another state:
-    data_.loadRequest(previous_state_, "latest_state", "DELETE", "/the/uri/222", request_headers_, request_body_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+    data_.loadRequest(previous_state_, "latest_state", "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
 
     // Check content (skip whole comparison):
     EXPECT_EQ(data_.size(), 4);

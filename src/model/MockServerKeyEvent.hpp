@@ -57,7 +57,7 @@ class MockServerKeyEvent
 
     std::uint64_t reception_timestamp_us_{};
     nghttp2::asio_http2::header_map request_headers_{};
-    DataPart request_body_{};
+    nlohmann::json request_body_{};
 
     unsigned int response_status_code_{};
     nghttp2::asio_http2::header_map response_headers_{};
@@ -85,7 +85,7 @@ public:
      * @param previousState Previous request state
      * @param state Request state
      * @param requestHeaders Request headers
-     * @param requestBody Request body
+     * @param requestBodyDataPart Request body
      * @param receptionTimestampUs Microseconds reception timestamp
      *
      * @param responseStatusCode Response status code
@@ -97,7 +97,7 @@ public:
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, const DataPart &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+    void load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
 
 
     // getters:
@@ -122,7 +122,7 @@ public:
      *
      * @return Request body
      */
-    const DataPart &getRequestBody() const {
+    const nlohmann::json &getRequestBody() const {
         return request_body_;
     }
 
