@@ -142,7 +142,8 @@ class AdminServerProvision
                         bool eraser,
                         bool hasFilter,
                         unsigned int &responseStatusCode,
-                        nlohmann::json &responseBodyJson,
+                        nlohmann::json &responseBodyJson, // to manipulate json
+                        std::string &responseBodyAsString, // to set native data (readable or not)
                         nghttp2::asio_http2::header_map &responseHeaders,
                         unsigned int &responseDelayMs,
                         std::string &outState,
@@ -299,9 +300,9 @@ public:
         return response_headers_;
     }
 
-    /** Provisioned response body
+    /** Provisioned response body as json representation
      *
-     * @return Response body
+     * @return Response body as json representation
      */
     const nlohmann::json &getResponseBody() const {
         return response_body_;
@@ -317,7 +318,7 @@ public:
      *
      * @return Response body string
      */
-    const std::string &getResponseBodyString() const {
+    const std::string &getResponseBodyAsString() const {
         return response_body_string_;
     }
 

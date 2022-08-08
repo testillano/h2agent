@@ -293,6 +293,50 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
 }
 )delim"_json;
 
+const nlohmann::json ProvisionConfiguration_ResponseBodyString = R"(
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1?name=test",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1",
+    "remove-me": 0
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.plain text",
+      "target": "response.body.string"
+    }
+  ]
+}
+)"_json;
+
+const nlohmann::json ProvisionConfiguration_ResponseBodyHexString = R"(
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1?name=test",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1",
+    "remove-me": 0
+  },
+  "responseHeaders": {
+    "content-type": "application/octet-stream",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.0xc0a8",
+      "target": "response.body.hexstring"
+    }
+  ]
+}
+)"_json;
+
 class Transform_test : public ::testing::Test
 {
 public:
@@ -338,19 +382,19 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
     std::uint64_t generalUniqueServerSequence = 74;
     // outputs:
     unsigned int statusCode = 0;
-    nghttp2::asio_http2::header_map headers;
+    nghttp2::asio_http2::header_map responseHeaders;
     std::string responseBody;
     unsigned int responseDelayMs = 0;
     std::string outState;
     std::string outStateMethod;
     std::string outStateUri;
 
-    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, responseHeaders, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
     EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 
     EXPECT_EQ(statusCode, 200);
-    EXPECT_EQ(ert::http2comm::headersAsString(headers), "[content-type: text/html][x-version: 1.0.0]");
+    EXPECT_EQ(ert::http2comm::headersAsString(responseHeaders), "[content-type: text/html][x-version: 1.0.0]");
     nlohmann::json assertedJson = nlohmann::json::parse(responseBody);
     nlohmann::json expectedJson = R"(
     {
@@ -384,7 +428,9 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "math-calculation": 19
     }
     )"_json;
-    for(auto i: { "random", "randomset", "strftime", "unix_ms", "unix_us", "unix_ns", "unix_s" }) {
+    for(auto i: {
+                "random", "randomset", "strftime", "unix_ms", "unix_us", "unix_ns", "unix_s"
+            }) {
         expectedJson[i] = assertedJson[i];
     }
     EXPECT_EQ(assertedJson, expectedJson);
@@ -418,19 +464,19 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     std::uint64_t generalUniqueServerSequence = 74;
     // outputs:
     unsigned int statusCode = 0;
-    nghttp2::asio_http2::header_map headers;
+    nghttp2::asio_http2::header_map responseHeaders;
     std::string responseBody;
     unsigned int responseDelayMs = 0;
     std::string outState;
     std::string outStateMethod;
     std::string outStateUri;
 
-    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, responseHeaders, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
 
     EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 
     EXPECT_EQ(statusCode, 500);
-    EXPECT_EQ(ert::http2comm::headersAsString(headers), "[content-type: text/html][my-header: headervalue][response-header-field-name: test.mysuffix][x-version: 1.0.0]");
+    EXPECT_EQ(ert::http2comm::headersAsString(responseHeaders), "[content-type: text/html][my-header: headervalue][response-header-field-name: test.mysuffix][x-version: 1.0.0]");
     nlohmann::json assertedJson = nlohmann::json::parse(responseBody);
     // add original responseBody, which is joined (merge by default)
     nlohmann::json expectedJson = R"(
@@ -470,7 +516,7 @@ TEST_F(Transform_test, transformationAsString) // test different sources
 
     EXPECT_EQ(transformationItems, 35);
     for (int k = 0; k < transformationItems; k++) {
-      EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
+        EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
     }
 
     // Last one:
@@ -483,10 +529,119 @@ TEST_F(Transform_test, transformationWithFilterAsString) // test different sourc
 
     EXPECT_EQ(transformationItems, 17);
     for (int k = 0; k < transformationItems; k++) {
-      EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Filters["transform"][k]));
+        EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Filters["transform"][k]));
     }
 
     // Last one:
-    EXPECT_EQ(transformation_.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyString | target_: /captureBarIdFromURI (empty: whole, path: node) | FilterType: RegexReplace | filter_ $1 (fmt)");
+    EXPECT_EQ(transformation_.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyJson_String | target_: /captureBarIdFromURI (empty: whole, path: node) | FilterType: RegexReplace | filter_ $1 (fmt)");
+}
+
+TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyString)
+{
+    EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerProvision(ProvisionConfiguration_ResponseBodyString, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision);
+
+    // Simulate event on transformation:
+    std::string requestUri = "/app/v1/foo/bar/1?name=test";
+    std::string requestUriPath = "/app/v1/foo/bar/1";
+    std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters("name=test");
+
+    h2agent::model::DataPart requestBodyDataPart;
+    nghttp2::asio_http2::header_map requestHeaders;
+    requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
+    std::uint64_t generalUniqueServerSequence = 74;
+    // outputs:
+    unsigned int statusCode = 0;
+    nghttp2::asio_http2::header_map responseHeaders;
+    std::string responseBody;
+    unsigned int responseDelayMs = 0;
+    std::string outState;
+    std::string outStateMethod;
+    std::string outStateUri;
+
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, responseHeaders, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+
+    EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
+
+    EXPECT_EQ(statusCode, 200);
+    EXPECT_EQ(ert::http2comm::headersAsString(responseHeaders), "[content-type: text/html][x-version: 1.0.0]");
+    EXPECT_EQ(responseBody, "plain text");
+}
+
+TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyHexString)
+{
+    EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerProvision(ProvisionConfiguration_ResponseBodyHexString, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision);
+
+    // Simulate event on transformation:
+    std::string requestUri = "/app/v1/foo/bar/1?name=test";
+    std::string requestUriPath = "/app/v1/foo/bar/1";
+    std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters("name=test");
+
+    h2agent::model::DataPart requestBodyDataPart;
+    nghttp2::asio_http2::header_map requestHeaders;
+    requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
+    std::uint64_t generalUniqueServerSequence = 74;
+    // outputs:
+    unsigned int statusCode = 0;
+    nghttp2::asio_http2::header_map responseHeaders;
+    std::string responseBody;
+    unsigned int responseDelayMs = 0;
+    std::string outState;
+    std::string outStateMethod;
+    std::string outStateUri;
+
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, responseHeaders, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+
+    EXPECT_EQ(statusCode, 200);
+    EXPECT_EQ(ert::http2comm::headersAsString(responseHeaders), "[content-type: application/octet-stream][x-version: 1.0.0]");
+    EXPECT_EQ(responseBody, "\xC0\xA8");
+
+    EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
+}
+
+TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyHexString_BadHexString)
+{
+    // Overwrite value to have an invalid hex string (odd number of hex digits):
+    nlohmann::json badHexStringProvision = ProvisionConfiguration_ResponseBodyHexString;
+    badHexStringProvision["transform"][0]["source"] = "value.0xc0a";
+
+    EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Transform_test::adata_.loadServerProvision(badHexStringProvision, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+
+    std::shared_ptr<h2agent::model::AdminServerProvision> provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision);
+
+    // Simulate event on transformation:
+    std::string requestUri = "/app/v1/foo/bar/1?name=test";
+    std::string requestUriPath = "/app/v1/foo/bar/1";
+    std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters("name=test");
+
+    h2agent::model::DataPart requestBodyDataPart;
+    nghttp2::asio_http2::header_map requestHeaders;
+    requestHeaders.emplace("x-version", nghttp2::asio_http2::header_value{"1.0.0"});
+    std::uint64_t generalUniqueServerSequence = 74;
+    // outputs:
+    unsigned int statusCode = 0;
+    nghttp2::asio_http2::header_map responseHeaders;
+    std::string responseBody;
+    unsigned int responseDelayMs = 0;
+    std::string outState;
+    std::string outStateMethod;
+    std::string outStateUri;
+
+    provision->transform(requestUri, requestUriPath, qmap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, statusCode, responseHeaders, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, nullptr, nullptr);
+
+    EXPECT_EQ(statusCode, 200);
+    EXPECT_EQ(ert::http2comm::headersAsString(responseHeaders), "[content-type: application/octet-stream][x-version: 1.0.0]");
+    EXPECT_EQ(responseBody, "{\"foo\":\"bar-1\",\"remove-me\":0}"); // original response template because transformation was discarded due to fail
+
+    EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 }
 

@@ -1470,7 +1470,7 @@ Defines the response behavior for an incoming request matching some basic condit
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
           }
         },
         "additionalProperties" : {
@@ -1688,6 +1688,10 @@ The **source** of information is classified after parsing the following possible
 
 
 The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
+
+- response.body.string *[string]*: response body storing expected string processed.
+
+- response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
 
 - response.body.json.string *[string]*: response body document storing expected string at *root*.
 

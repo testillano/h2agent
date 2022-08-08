@@ -11,6 +11,10 @@ So, you have these sources of information when it comes to use `json` paths:
 
 And the targets:
 
+- response.body.string *[string]*: response body storing expected string processed.
+
+- response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
+
 - response.body.json.string *[string]*: response body document storing expected string at *root*.
 
 - response.body.json.integer *[integer]*: response body document storing expected integer at *root*.

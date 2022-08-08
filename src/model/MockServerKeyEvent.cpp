@@ -61,7 +61,10 @@ void MockServerKeyEvent::load(const std::string &previousState, const std::strin
 
     response_status_code_ = responseStatusCode;
     response_headers_ = responseHeaders;
-    response_body_ = responseBody;
+
+    response_body_data_part_.assign(std::move(responseBody));
+    response_body_data_part_.decode(responseHeaders);
+
     server_sequence_ = serverSequence;
     response_delay_ms_ = responseDelayMs;
 
@@ -94,10 +97,9 @@ void MockServerKeyEvent::saveJson() {
 
     // Additional information
     if (!previous_state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
-    if (!response_body_.empty()) {
-        h2agent::model::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
+    if (!response_body_data_part_.str().empty()) {
+        json_["responseBody"] = response_body_data_part_.getJson();
     }
-    //json_["responseBody"] = response_body_;
     json_["responseDelayMs"] = (unsigned int)response_delay_ms_;
     json_["responseStatusCode"] = (unsigned int)response_status_code_;
     if (response_headers_.size()) {

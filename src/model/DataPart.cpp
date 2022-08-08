@@ -104,7 +104,18 @@ void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
     }
 
     decoded_ = true;
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("DataPart json representation: %s", json_.dump().c_str()), ERT_FILE_LOCATION));
+
+    LOGDEBUG(
+        std::string msg;
+    try {
+        msg = json_.dump();
+    }
+    catch (const std::exception& e)
+    {
+        msg = e.what();
+    }
+    ert::tracing::Logger::debug(ert::tracing::Logger::asString("DataPart json representation: %s", msg.c_str()), ERT_FILE_LOCATION);
+    );
 }
 
 }

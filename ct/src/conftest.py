@@ -490,7 +490,7 @@ BASIC_FOO_BAR_PROVISION_TEMPLATE='''
     "foo":"bar-{id}"
   }},
   "responseHeaders": {{
-    "content-type":"text/html",
+    "content-type":"application/json",
     "x-version":"1.0.0"
   }}
 }}
@@ -678,6 +678,24 @@ TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE='''
     {{
       "source": "{source}",
       "target": "{target}"
+    }}
+  ]
+}}
+'''
+
+TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode":200,
+  "responseHeaders": {{
+    "content-type":"{ct}",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "value.{value}",
+      "target": "response.body.{what}"
     }}
   ]
 }}
