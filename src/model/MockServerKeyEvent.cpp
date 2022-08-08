@@ -46,7 +46,7 @@ namespace model
 {
 
 
-void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, const DataPart &requestBody, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
     reception_timestamp_us_ = receptionTimestampUs.count();
 
@@ -54,7 +54,10 @@ void MockServerKeyEvent::load(const std::string &previousState, const std::strin
 
     state_ = state;
     request_headers_ = requestHeaders;
-    request_body_ = requestBody;
+
+
+    requestBodyDataPart.decode(requestHeaders);
+    request_body_ = requestBodyDataPart.getJson();
 
     response_status_code_ = responseStatusCode;
     response_headers_ = responseHeaders;
@@ -85,10 +88,9 @@ void MockServerKeyEvent::saveJson() {
             hdrs[x.first] = x.second.value;
         json_["requestHeaders"] = hdrs;
     }
-    if (!request_body_.str().empty()) {
-        h2agent::model::parseJsonContent(request_body_.str(), json_["requestBody"], true /* write exception */);
+    if (!request_body_.empty()) {
+        json_["requestBody"] = request_body_;
     }
-    //json_["requestBody"] = request_body_;
 
     // Additional information
     if (!previous_state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;

@@ -97,9 +97,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const std::string &requestUri,
         const std::string &requestUriPath,
         const std::map<std::string, std::string> &requestQueryParametersMap,
-        bool requestBodyJsonOrString,
-        const nlohmann::json &requestBodyJson, // if json XXXXXXXXXXX
-        const DataPart &requestBodyDataPart, // if string XXXXXXXXXXXXXX
+        const DataPart &requestBodyDataPart,
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
@@ -122,10 +120,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
     }
     else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
-        if(requestBodyJsonOrString) {
+        if (requestBodyDataPart.isJson()) {
             std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
             replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
-            if (!sourceVault.setObject(requestBodyJson, path)) {
+            if (!sourceVault.setObject(requestBodyDataPart.getJson(), path)) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
                     ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -721,7 +719,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 void AdminServerProvision::transform( const std::string &requestUri,
                                       const std::string &requestUriPath,
                                       const std::map<std::string, std::string> &requestQueryParametersMap,
-                                      const DataPart &requestBodyDataPart,
+                                      DataPart &requestBodyDataPart,
                                       const nghttp2::asio_http2::header_map &requestHeaders,
                                       std::uint64_t generalUniqueServerSequence,
 
@@ -745,50 +743,31 @@ void AdminServerProvision::transform( const std::string &requestUri,
     outStateMethod = "";
     outStateUri = "";
 
-    // Find out if request body is a valid json or just a string
-    nlohmann::json requestBodyJson;
-    auto ct_it = requestHeaders.find("content-type");
-    bool requestBodyJsonOrString = false;
-    if (ct_it != requestHeaders.end()) {
-        std::string ct = ct_it->second.value;
-        std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
-            return std::tolower(c);
-        });
-        requestBodyJsonOrString = (ct == "application/json"); // still need to check if it is a valid json
-        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("CONTENT TYPE: %s", ct.c_str()), ERT_FILE_LOCATION));
-        //LOGINFORMATIONAL(if (!requestBodyJsonOrString) ert::tracing::Logger::informational("Request body won't be interpreted as json", ERT_FILE_LOCATION));
+    // Check if the request body must be decoded:
+    bool mustDecodeRequestBody = false;
+    if (requestSchema) {
+        mustDecodeRequestBody = true;
     }
-
-    // Find out if request body will need to be parsed:
-    if (requestBodyJsonOrString) {
-        bool requestBodyJsonRequired = false;
-
-        if (requestSchema != nullptr) {
-            requestBodyJsonRequired = true;
-        }
-        else {
-            for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-                if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
-                    if (!requestBodyDataPart.str().empty()) {
-                        requestBodyJsonRequired = true;
-                    }
-                    else {
-                        LOGINFORMATIONAL(ert::tracing::Logger::informational("Empty request body received: some transformations will be ignored", ERT_FILE_LOCATION));
-                    }
-                    break;
+    else {
+        for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+            if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
+                if (!requestBodyDataPart.str().empty()) {
+                    mustDecodeRequestBody = true;
                 }
+                else {
+                    LOGINFORMATIONAL(ert::tracing::Logger::informational("Empty request body received: some transformations will be ignored", ERT_FILE_LOCATION));
+                }
+                break;
             }
         }
-
-        if (requestBodyJsonRequired) {
-            // if fails to parse, we will consider it as an string ignoring the content-type:
-            requestBodyJsonOrString = h2agent::model::parseJsonContent(requestBodyDataPart.str(), requestBodyJson);
-        }
+    }
+    if (mustDecodeRequestBody) {
+        requestBodyDataPart.decode(requestHeaders);
     }
 
-    // Request schema validation:
-    if (requestSchema && requestBodyJsonOrString) {
-        if (!requestSchema->validate(requestBodyJson)) {
+    // Request schema validation (normally used to validate native json received, but can also be used to validate the agent json representation (multipart, text, etc.)):
+    if (requestSchema) {
+        if (!requestSchema->validate(requestBodyDataPart.getJson())) {
             responseStatusCode = 400; // bad request
             return; // INTERRUPT TRANSFORMATIONS
         }
@@ -833,7 +812,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, Event, InState
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyJsonOrString, requestBodyJson, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence))
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence))
             continue;
 
         std::smatch matches; // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
@@ -854,7 +833,19 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // (*) Regenerate final responseBody after transformations:
-    if(usesResponseBodyAsTransformationTarget) responseBody = responseBodyJson.dump();
+    if(usesResponseBodyAsTransformationTarget) {
+        try {
+            responseBody = responseBodyJson.dump(); // this may arise type error, for example in case of trying to set json field value with binary data:
+            // When having a provision transformation from 'request.body' to 'response.body.json.string./whatever':
+            // echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "$TRAFFIC_URL/uri" --data-binary @-
+            //
+            // This is not valid and must be protected. The user should use another kind of target to store binary.
+        }
+        catch (const std::exception& e)
+        {
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+        }
+    }
 
     // Response schema validation:
     if (responseSchema) {

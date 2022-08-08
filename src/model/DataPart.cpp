@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <ert/tracing/Logger.hpp>
+#include <ert/http2comm/Http2Headers.hpp>
 
 #include <functions.hpp>
 
@@ -56,11 +57,24 @@ bool DataPart::assignFromHex(const std::string &strAsHex) {
     return h2agent::model::fromHexString(strAsHex, str_);
 }
 
-void DataPart::decode(const std::string& contentType) {
+void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
 
     if (decoded_) {
-        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("The content-type '%s' was already decoded. Skipping operation !", contentType.c_str()), ERT_FILE_LOCATION));
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Data part already decoded (%s). Skipping operation !", ert::http2comm::headersAsString(headers).c_str()), ERT_FILE_LOCATION));
         return;
+    }
+
+    if (str_.empty()) {
+        decoded_ = true;
+        str_is_json_ = false;
+        return;
+    }
+
+    std::string contentType;
+    auto ct_it = headers.find("content-type");
+    if (ct_it != headers.end()) {
+        contentType = ct_it->second.value;
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("content-type: %s", contentType.c_str()), ERT_FILE_LOCATION));
     }
 
     //// Normalize content-type:
@@ -70,7 +84,8 @@ void DataPart::decode(const std::string& contentType) {
     //});
 
     if (contentType == "application/json") {
-        h2agent::model::parseJsonContent(str_, json_, true /* write exception message */);
+        /*str_is_json_ = */h2agent::model::parseJsonContent(str_, json_, true /* write exception message */);
+        str_is_json_ = true; // even if json is invalid, we prefer to show the error description, but obey the content-type
     }
     else if (contentType.rfind("text/", 0) == 0) {
         json_ = str_;
@@ -89,6 +104,7 @@ void DataPart::decode(const std::string& contentType) {
     }
 
     decoded_ = true;
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("DataPart json representation: %s", json_.dump().c_str()), ERT_FILE_LOCATION));
 }
 
 }

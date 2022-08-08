@@ -338,18 +338,23 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
-    try {
-        nlohmann::json::json_pointer j_ptr(path);
-        // operator[] aborts in debug compilation when the json pointer path is not found.
-        // It is safer to use at() method which has "bounds checking":
-        // j_value_ = jsonSource[j_ptr];
-        j_value_ = jsonSource.at(j_ptr);
-        if (j_value_.empty()) return false; // null extracted (path not found)
+    if (path.empty()) {
+        j_value_ = jsonSource;
     }
-    catch (std::exception& e)
-    {
-        ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-        return false;
+    else {
+        try {
+            nlohmann::json::json_pointer j_ptr(path);
+            // operator[] aborts in debug compilation when the json pointer path is not found.
+            // It is safer to use at() method which has "bounds checking":
+            // j_value_ = jsonSource[j_ptr];
+            j_value_ = jsonSource.at(j_ptr);
+            if (j_value_.empty()) return false; // null extracted (path not found)
+        }
+        catch (std::exception& e)
+        {
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     if (j_value_.is_object()) {

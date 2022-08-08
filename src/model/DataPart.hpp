@@ -99,6 +99,7 @@ namespace model
 class DataPart {
     std::string str_; // raw data content: always filled with the original data received
     bool decoded_; // lazy decode indicator to skip multiple decode operations
+    bool str_is_json_; // if not, we will use str_ as native source instead of json representation decoded
 
     nlohmann::json json_; // data json representation valid for:
     // 1) parse json strings received (application/json)
@@ -117,13 +118,13 @@ class DataPart {
 
 public:
     /** Default constructor */
-    DataPart() : decoded_(false) {;}
+    DataPart() : decoded_(false), str_is_json_(false) {;}
 
     /** String constructor */
-    DataPart(const std::string &str) : str_(str), decoded_(false) {;}
+    DataPart(const std::string &str) : str_(str), decoded_(false), str_is_json_(false) {;}
 
     /** Move string constructor */
-    DataPart(std::string &&str) : str_(std::move(str)), decoded_(false) {;}
+    DataPart(std::string &&str) : str_(std::move(str)), decoded_(false), str_is_json_(false) {;}
 
     /** Constructor */
     DataPart(const DataPart &bd) {
@@ -143,6 +144,7 @@ public:
         if (this != &other) {
             str_ = other.str_;
             decoded_ = other.decoded_;
+            str_is_json_ = other.str_is_json_;
             json_ = other.json_;
         }
         return *this;
@@ -153,7 +155,8 @@ public:
         if (this != &other) {
             str_ = std::move(other.str_);
             json_ = std::move(other.json_);
-            decoded_ = std::move(other.decoded_);
+            decoded_ = other.decoded_; // it has no sense to move
+            str_is_json_ = other.str_is_json_; // it has no sense to move
         }
         return *this;
     }
@@ -168,6 +171,11 @@ public:
         return str_;
     }
 
+    /** getter to know if data was decoded as json */
+    bool isJson() const {
+        return str_is_json_;
+    }
+
     /** str as ascii string */
     std::string asAsciiString() const;
 
@@ -180,15 +188,17 @@ public:
     void assign(std::string &&str) {
         str_ = std::move(str);
         decoded_ = false;
+        str_is_json_ = false;
     }
     void assign(const std::string &str) {
         str_ = str;
         decoded_ = false;
+        str_is_json_ = false;
     }
     bool assignFromHex(const std::string &strAsHex);
 
     /** decode string data depending on content type */
-    void decode(const std::string& contentType);
+    void decode(const nghttp2::asio_http2::header_map &headers /* to get the content-type */);
 };
 
 }
