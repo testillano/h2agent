@@ -165,6 +165,14 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "response.body.json.integer./math-calculation"
     },
     {
+      "source": "value.file content",
+      "target": "txtFile./tmp/h2agent.ut.@{myvar}.txt"
+    },
+    {
+      "source": "txtFile./tmp/h2agent.ut.@{myvar}.txt",
+      "target": "response.body.json.string./file-content"
+    },
+    {
       "source": "eraser",
       "target": "txtFile./tmp/h2agent.ut.@{myvar}.txt"
     }
@@ -425,7 +433,8 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "unix_us": "1653872192363705",
       "unix_ns": "1653872192363705636",
       "unix_s": "1653872192",
-      "math-calculation": 19
+      "math-calculation": 19,
+      "file-content": "file content"
     }
     )"_json;
     for(auto i: {
@@ -514,13 +523,13 @@ TEST_F(Transform_test, TransformationAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Sources["transform"].size();
 
-    EXPECT_EQ(transformationItems, 35);
+    EXPECT_EQ(transformationItems, 37);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
     }
 
     // Last one:
-    EXPECT_EQ(transformation_.asString(), "SourceType: Eraser | TargetType: TxtFile | target_: /tmp/h2agent.ut.@{myvar}.txt (path file) | target variables: myvar");
+    EXPECT_EQ(transformation_.asString(), "SourceType: Eraser | TargetType: TTxtFile | target_: /tmp/h2agent.ut.@{myvar}.txt (path file) | target variables: myvar");
 }
 
 TEST_F(Transform_test, TransformationWithFilterAsString) // test different sources

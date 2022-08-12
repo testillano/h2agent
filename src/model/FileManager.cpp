@@ -63,7 +63,9 @@ void FileManager::write(const std::string &path, const std::string &data, bool t
     safeFile->write(data);
 }
 
-std::string FileManager::read(bool &success, const std::string &path, bool textOrBinary) {
+bool FileManager::read(const std::string &path, std::string &data, bool textOrBinary) {
+
+    bool result;
 
     std::shared_ptr<SafeFile> safeFile;
     std::ios_base::openmode mode = std::ifstream::in; // for text files
@@ -79,7 +81,9 @@ std::string FileManager::read(bool &success, const std::string &path, bool textO
         add(path, safeFile);
     }
 
-    return safeFile->read(success, mode);
+    data = safeFile->read(result, mode);
+
+    return result;
 }
 
 void FileManager::empty(const std::string &path) {

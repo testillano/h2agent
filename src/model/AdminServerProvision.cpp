@@ -290,6 +290,22 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     else if (transformation->getSourceType() == Transformation::SourceType::InState) {
         sourceVault.setString(getInState());
     }
+    else if (transformation->getSourceType() == Transformation::SourceType::STxtFile) {
+        std::string path = transformation->getSource();
+        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
+
+        std::string content;
+        file_manager_->read(path, content, true/*text*/);
+        sourceVault.setString(std::move(content));
+    }
+    else if (transformation->getSourceType() == Transformation::SourceType::SBinFile) {
+        std::string path = transformation->getSource();
+        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
+
+        std::string content;
+        file_manager_->read(path, content, false/*binary*/);
+        sourceVault.setString(std::move(content));
+    }
 
 
     return true;
@@ -691,7 +707,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             outStateMethod = target; // empty on regular usage
             outStateUri = target2; // empty on regular usage
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::TxtFile) {
+        else if (transformation->getTargetType() == Transformation::TargetType::TTxtFile) {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
@@ -706,7 +722,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 file_manager_->write(target/*path*/, targetS/*data*/, true/*text*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
             }
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::BinFile) {
+        else if (transformation->getTargetType() == Transformation::TargetType::TBinFile) {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;

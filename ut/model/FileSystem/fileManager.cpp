@@ -50,15 +50,15 @@ TEST_F(FileManager_test, FileManager)
     fm.write(path1, FileManagerSafeFileContent, true /* text */, 0);
 
     // read:
-    bool success;
-    std::string content = fm.read(success, path1, true /* text */);
+    std::string content;
+    bool success = fm.read(path1, content, true /* text */);
     EXPECT_EQ(content, FileManagerSafeFileContent);
     EXPECT_TRUE(success);
 
     // empty:
     fm.empty(path1);
     fm.empty(path2);
-    content = fm.read(success, path1, true /* text */);
+    success = fm.read(path1, content, true /* text */);
     EXPECT_EQ(content, "");
     EXPECT_TRUE(success);
 

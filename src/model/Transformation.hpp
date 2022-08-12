@@ -59,18 +59,18 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState, STxtFile, SBinFile };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "Event", "InState" };
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "Event", "InState", "STxtFile", "SBinFile" };
         return text [type];
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TxtFile, BinFile };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TxtFile", "BinFile" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile" };
         return text [type];
     }
 
@@ -106,13 +106,13 @@ private:
 
     SourceType source_type_{};
     std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
-    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, Event
+    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, Event, STxtFile(path), SBinFile (path)
     std::vector<std::string> source_tokenized_{}; // RandomSet
     int source_i1_{}, source_i2_{}; // Random
 
     TargetType target_type_{};
     std::string target_{}; // ResponseBodyJson_String/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
-    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TxtFile(path), BinFile (path)
+    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path)
     std::string target2_{}; // OutState (foreign uri part)
 
     bool has_filter_{};
