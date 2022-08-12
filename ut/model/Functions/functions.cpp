@@ -56,7 +56,7 @@ TEST_F(functions_test, QueryParameters)
     EXPECT_EQ(qmap_bkey.size(), 0);
 }
 
-TEST_F(functions_test, jsonContentSerialization)
+TEST_F(functions_test, JsonContentSerialization)
 {
     std::string json_str = functions_test::json_doc_.dump();
     std::ofstream jfile;
@@ -122,7 +122,7 @@ TEST_F(functions_test, ValidHexStringToOctetStreamWith0xPrefix)
     EXPECT_EQ(input, hexIP);
 }
 
-TEST_F(functions_test, InvalidHexStringToOctetStream_error1)
+TEST_F(functions_test, InvalidHexStringToOctetStreamError1)
 {
     std::string output;
 
@@ -130,7 +130,7 @@ TEST_F(functions_test, InvalidHexStringToOctetStream_error1)
     EXPECT_EQ(output, "hello"); // decodes until fail
 }
 
-TEST_F(functions_test, InvalidHexStringToOctetStream_error2)
+TEST_F(functions_test, InvalidHexStringToOctetStreamError2)
 {
     std::string output;
 
@@ -138,7 +138,7 @@ TEST_F(functions_test, InvalidHexStringToOctetStream_error2)
     EXPECT_EQ(output, "hello"); // decodes until fail
 }
 
-TEST_F(functions_test, InvalidHexString_oddSize)
+TEST_F(functions_test, InvalidHexStringOddSize)
 {
     std::string output;
 

@@ -70,6 +70,7 @@ h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
 h2agent::model::MockServerEventsData* myMockServerEventsData = nullptr;
+ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
 const char* AdminApiVersion = "v1";
@@ -146,7 +147,6 @@ void stopAgent()
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
                        "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         myTimersIoService->stop();
-        //delete(myTimersIoService);
     }
     if (myAdminHttp2Server)
     {
@@ -162,10 +162,30 @@ void stopAgent()
         myTrafficHttp2Server->stop();
     }
 
-    delete(myConfiguration);
-    delete(myGlobalVariable);
-    delete(myFileManager);
     delete(myMockServerEventsData);
+    myMockServerEventsData = nullptr;
+
+    // TODO (fix): free(): double free detected in tcache 2
+    //delete(myTrafficHttp2Server);
+    //myTrafficHttp2Server = nullptr;
+
+    delete(myAdminHttp2Server);
+    myAdminHttp2Server = nullptr;
+
+    delete(myMetrics);
+    myMetrics = nullptr;
+
+    delete(myFileManager);
+    myFileManager = nullptr;
+
+    delete(myGlobalVariable);
+    myGlobalVariable = nullptr;
+
+    delete(myConfiguration);
+    myConfiguration = nullptr;
+
+    delete(myTimersIoService);
+    myTimersIoService = nullptr;
 }
 
 void myExit(int rc)
@@ -177,6 +197,7 @@ void myExit(int rc)
     LOGWARNING(ert::tracing::Logger::warning("Stopping logger", ERT_FILE_LOCATION));
 
     ert::tracing::Logger::terminate();
+
     exit(rc);
 }
 
@@ -716,21 +737,21 @@ int main(int argc, char* argv[])
     signal(SIGINT, sighndl);
 
     // Prometheus
-    ert::metrics::Metrics *p_metrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
-    if (p_metrics) {
+    myMetrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
+    if (myMetrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
-        if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {
+        if(!myMetrics->serve(bind_address_port_prometheus_exposer)) {
             std::cerr << getLocaltime().c_str() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             myExit(EXIT_FAILURE);
         }
     }
 
     // FileManager/SafeFile metrics
-    myFileManager->enableMetrics(p_metrics);
+    myFileManager->enableMetrics(myMetrics);
 
     // Admin server
     myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread
-    myAdminHttp2Server->enableMetrics(p_metrics);
+    myAdminHttp2Server->enableMetrics(myMetrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
     myAdminHttp2Server->setConfiguration(myConfiguration);
@@ -746,8 +767,8 @@ int main(int argc, char* argv[])
     // Traffic server
     if (traffic_server_enabled) {
         myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, myTimersIoService);
-        myTrafficHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
-        myTrafficHttp2Server->enableMyMetrics(p_metrics);
+        myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
+        myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
 
@@ -878,8 +899,10 @@ int main(int argc, char* argv[])
     if (rc1 != EXIT_SUCCESS) myExit(rc1);
     if (rc2 != EXIT_SUCCESS) myExit(rc2);
 
-    // Join threads
+    // Join timers thread
     tt.join();
+
+    // Join synchronous nghttp2 serve() threads
     t1.join();
     t2.join();
 

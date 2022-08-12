@@ -80,7 +80,7 @@ public:
 };
 
 /*
-TEST_F(MockServerEventsData_test, string2uint64andSign)
+TEST_F(MockServerEventsData_test, String2uint64andSign)
 {
     std::uint64_t output = 0;
     bool negative = false;
@@ -89,7 +89,7 @@ TEST_F(MockServerEventsData_test, string2uint64andSign)
 }
 */
 
-TEST_F(MockServerEventsData_test, clearFails)
+TEST_F(MockServerEventsData_test, ClearFails)
 {
     bool somethingDeleted = false;
     bool success = false;
@@ -129,7 +129,7 @@ TEST_F(MockServerEventsData_test, clearFails)
     EXPECT_TRUE(somethingDeleted);
 }
 
-TEST_F(MockServerEventsData_test, asJsonString)
+TEST_F(MockServerEventsData_test, AsJsonString)
 {
     bool validQuery = false;
     nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", validQuery)); // normalize to have safer comparisons
@@ -141,7 +141,7 @@ TEST_F(MockServerEventsData_test, asJsonString)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, summary)
+TEST_F(MockServerEventsData_test, Summary)
 {
     nlohmann::json assertedJson = nlohmann::json::parse(data_.summary()); // normalize to have safer comparisons
     nlohmann::json expectedJson = R"(
@@ -169,7 +169,7 @@ TEST_F(MockServerEventsData_test, summary)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, getMockServerKeyEvent)
+TEST_F(MockServerEventsData_test, GetMockServerKeyEvent)
 {
     nlohmann::json assertedJson = data_.getMockServerKeyEvent("DELETE", "/the/uri/222", "-1")->getJson(); // last for uri '/the/uri/222'
     std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
@@ -180,7 +180,7 @@ TEST_F(MockServerEventsData_test, getMockServerKeyEvent)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, getJson)
+TEST_F(MockServerEventsData_test, GetJson)
 {
     nlohmann::json assertedJson = data_.getJson();
     std::uint64_t receptionTimestampUs_0_0 = assertedJson[0]["requests"][0]["receptionTimestampUs"]; // unpredictable
@@ -219,7 +219,7 @@ TEST_F(MockServerEventsData_test, getJson)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, findLastRegisteredRequestState)
+TEST_F(MockServerEventsData_test, FindLastRegisteredRequestState)
 {
     data_.loadRequest(previous_state_, "most_recent_state", "PUT", "/the/put/uri", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
 
@@ -231,7 +231,7 @@ TEST_F(MockServerEventsData_test, findLastRegisteredRequestState)
     EXPECT_EQ(latestState, "state");
 }
 
-TEST_F(MockServerEventsData_test, loadRequestsSchema)
+TEST_F(MockServerEventsData_test, LoadRequestsSchema)
 {
     nlohmann::json schema = R"(
     {

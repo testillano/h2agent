@@ -510,7 +510,7 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
     EXPECT_EQ(outStateUri, "/this/uri");
 }
 
-TEST_F(Transform_test, transformationAsString) // test different sources
+TEST_F(Transform_test, TransformationAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Sources["transform"].size();
 
@@ -523,7 +523,7 @@ TEST_F(Transform_test, transformationAsString) // test different sources
     EXPECT_EQ(transformation_.asString(), "SourceType: Eraser | TargetType: TxtFile | target_: /tmp/h2agent.ut.@{myvar}.txt (path file) | target variables: myvar");
 }
 
-TEST_F(Transform_test, transformationWithFilterAsString) // test different sources
+TEST_F(Transform_test, TransformationWithFilterAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Filters["transform"].size();
 
@@ -536,7 +536,7 @@ TEST_F(Transform_test, transformationWithFilterAsString) // test different sourc
     EXPECT_EQ(transformation_.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyJson_String | target_: /captureBarIdFromURI (empty: whole, path: node) | FilterType: RegexReplace | filter_ $1 (fmt)");
 }
 
-TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyString)
+TEST_F(Transform_test, ProvisionConfigurationResponseBodyString)
 {
     EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Transform_test::adata_.loadServerProvision(ProvisionConfiguration_ResponseBodyString, common_resources_), h2agent::model::AdminServerProvisionData::Success);
@@ -571,7 +571,7 @@ TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyString)
     EXPECT_EQ(responseBody, "plain text");
 }
 
-TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyHexString)
+TEST_F(Transform_test, ProvisionConfigurationResponseBodyHexString)
 {
     EXPECT_EQ(Transform_test::adata_.loadServerMatching(MatchingConfiguration_FullMatching__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Transform_test::adata_.loadServerProvision(ProvisionConfiguration_ResponseBodyHexString, common_resources_), h2agent::model::AdminServerProvisionData::Success);
@@ -606,7 +606,7 @@ TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyHexString)
     EXPECT_TRUE(Transform_test::adata_.clearServerProvisions());
 }
 
-TEST_F(Transform_test, ProvisionConfiguration_ResponseBodyHexString_BadHexString)
+TEST_F(Transform_test, ProvisionConfigurationResponseBodyHexStringBadHexString)
 {
     // Overwrite value to have an invalid hex string (odd number of hex digits):
     nlohmann::json badHexStringProvision = ProvisionConfiguration_ResponseBodyHexString;

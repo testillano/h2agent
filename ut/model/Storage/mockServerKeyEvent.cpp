@@ -42,12 +42,12 @@ public:
     }
 };
 
-TEST_F(MockServerKeyEvent_test, load)
+TEST_F(MockServerKeyEvent_test, Load)
 {
     EXPECT_EQ(data_.getState(), state_);
 }
 
-TEST_F(MockServerKeyEvent_test, getRequestHeaders)
+TEST_F(MockServerKeyEvent_test, GetRequestHeaders)
 {
     for(auto suffix: {
                 "1", "2"
@@ -62,12 +62,12 @@ TEST_F(MockServerKeyEvent_test, getRequestHeaders)
     EXPECT_EQ(it->second.value, "application/json");
 }
 
-TEST_F(MockServerKeyEvent_test, getRequestBody)
+TEST_F(MockServerKeyEvent_test, GetRequestBody)
 {
     EXPECT_EQ(data_.getRequestBody(), request_body_.getJson());
 }
 
-TEST_F(MockServerKeyEvent_test, getJson)
+TEST_F(MockServerKeyEvent_test, GetJson)
 {
     std::stringstream ss;
 

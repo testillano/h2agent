@@ -71,7 +71,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
 
-    void receiveEMPTY(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
+    void receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
@@ -141,10 +141,10 @@ public:
         return http2_server_;
     }
 
-    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
     bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
     bool globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
+    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

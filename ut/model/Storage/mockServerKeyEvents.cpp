@@ -79,7 +79,7 @@ public:
     }
 };
 
-TEST_F(MockServerKeyEvents_test, calculateMockServerKeyEventsKey)
+TEST_F(MockServerKeyEvents_test, CalculateMockServerKeyEventsKey)
 {
     h2agent::model::mock_server_events_key_t key;
     h2agent::model::calculateMockServerKeyEventsKey(key, "POST", "/the/uri");
@@ -88,7 +88,7 @@ TEST_F(MockServerKeyEvents_test, calculateMockServerKeyEventsKey)
 }
 
 
-TEST_F(MockServerKeyEvents_test, sizeKeyMethodAndUri)
+TEST_F(MockServerKeyEvents_test, SizeKeyMethodAndUri)
 {
     EXPECT_EQ(data_.size(), 3);
     EXPECT_EQ(data_.getKey(), "DELETE#/the/uri/222");
@@ -96,7 +96,7 @@ TEST_F(MockServerKeyEvents_test, sizeKeyMethodAndUri)
     EXPECT_EQ(data_.getUri(), "/the/uri/222");
 }
 
-TEST_F(MockServerKeyEvents_test, removeVirtual1)
+TEST_F(MockServerKeyEvents_test, RemoveVirtual1)
 {
     // Remove the second (real, virtual1, virtual2 -> real, virtual2):
     data_.removeMockServerKeyEvent(2, false);
@@ -124,7 +124,7 @@ TEST_F(MockServerKeyEvents_test, removeVirtual1)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerKeyEvents_test, getLastRegisteredRequestState)
+TEST_F(MockServerKeyEvents_test, GetLastRegisteredRequestState)
 {
     // Add real event (now it will be in fourth position), but with another state:
     data_.loadRequest(previous_state_, "latest_state", "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
@@ -134,7 +134,7 @@ TEST_F(MockServerKeyEvents_test, getLastRegisteredRequestState)
     EXPECT_EQ(data_.getLastRegisteredRequestState(), "latest_state");
 }
 
-TEST_F(MockServerKeyEvents_test, removeFirstUsingReverse)
+TEST_F(MockServerKeyEvents_test, RemoveFirstUsingReverse)
 {
     // Remove the first from tail (real, virtual1, virtual2 -> virtual1, virtual2):
     size_t currentSize = data_.size();
