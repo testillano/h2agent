@@ -103,13 +103,13 @@ public:
     /**
     * Read the file content.
     *
-    * @param success success of the read operation.
     * @param path path file to read. Can be relative (to execution directory) or absolute.
+    * @param data data read by reference.
     * @param textOrBinary open file to read text (true) or binary (false) data.
     *
-    * @return Content read. Empty if failed to read.
+    * @return Boolean about success of the read operation
     */
-    std::string read(bool &success, const std::string &path, bool textOrBinary);
+    bool read(const std::string &path, std::string &data, bool textOrBinary);
 
     /**
      * Empty file

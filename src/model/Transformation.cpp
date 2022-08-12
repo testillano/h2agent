@@ -182,6 +182,8 @@ bool Transformation::load(const nlohmann::json &j) {
     // + globalVar.<id>: general purpose global variable.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.
+    // + txtFile.`<path>`: reads text content from file with the path provided.
+    // + binFile.`<path>`: reads binary content from file with the path provided.
 
     // Regex needed:
     static std::regex requestUriParam("^request.uri.param.(.*)", std::regex::optimize); // no need to escape dots as this is validated in schema
@@ -197,6 +199,8 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
     static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
     static std::regex event("^event.(.*)", std::regex::optimize);
+    static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
+    static std::regex binFile("^binFile.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
     // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
@@ -282,6 +286,14 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (sourceSpec == "inState") {
             source_type_ = SourceType::InState;
         }
+        else if (std::regex_match(sourceSpec, matches, txtFile)) { // path file
+            source_ = matches.str(1);
+            source_type_ = SourceType::STxtFile;
+        }
+        else if (std::regex_match(sourceSpec, matches, binFile)) { // path file
+            source_ = matches.str(1);
+            source_type_ = SourceType::SBinFile;
+        }
         else { // some things could reach this (strange characters within value.* for example):
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
             return false;
@@ -333,8 +345,6 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseBodyJson_JsonStringNode("^response.body.json.jsonstring.(.*)", std::regex::optimize);
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
     static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
-    static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
-    static std::regex binFile("^binFile.(.*)", std::regex::optimize);
 
     try {
         if (targetSpec == "response.body.string") {
@@ -423,11 +433,11 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, txtFile)) { // path file
             target_ = matches.str(1);
-            target_type_ = TargetType::TxtFile;
+            target_type_ = TargetType::TTxtFile;
         }
         else if (std::regex_match(targetSpec, matches, binFile)) { // path file
             target_ = matches.str(1);
-            target_type_ = TargetType::BinFile;
+            target_type_ = TargetType::TBinFile;
         }
         else { // very strange to reach this:
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
@@ -465,6 +475,9 @@ std::string Transformation::asString() const {
         else if (source_type_ == SourceType::Random) {
             ss << " | source_i1_: " << source_i1_ << " (Random min)" << " | source_i2_: " << source_i2_ << " (Random max)";
         }
+        else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::SBinFile) {
+            ss << " (path file)";
+        }
 
         if (!source_patterns_.empty()) {
             ss << " | source variables:";
@@ -495,7 +508,7 @@ std::string Transformation::asString() const {
                 }
             }
         }
-        else if (target_type_ == TargetType::TxtFile || target_type_ == TargetType::BinFile) {
+        else if (target_type_ == TargetType::TTxtFile || target_type_ == TargetType::TBinFile) {
             ss << " (path file)";
         }
 
