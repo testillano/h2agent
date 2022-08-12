@@ -36,12 +36,12 @@ TEST_F(Configuration_test, Getters)
     EXPECT_EQ(Configuration_test::configuration_.getShortTermFilesCloseDelayUsecs(), 5000);
 }
 
-TEST_F(Configuration_test, getJson)
+TEST_F(Configuration_test, GetJson)
 {
     EXPECT_EQ(Configuration_test::configuration_.getJson(), DefaultConfiguration);
 }
 
-TEST_F(Configuration_test, asJsonString)
+TEST_F(Configuration_test, AsJsonString)
 {
     EXPECT_EQ(Configuration_test::configuration_.asJsonString(), DefaultConfiguration.dump());
 }

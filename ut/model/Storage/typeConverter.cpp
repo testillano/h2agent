@@ -37,7 +37,7 @@ public:
     }
 };
 
-TEST_F(TypeConverter_test, searchReplaceAll)
+TEST_F(TypeConverter_test, SearchReplaceAll)
 {
     std::string source = "var=@{var}; var=@{var}";
     std::string expected = "var=value; var=value";
@@ -48,7 +48,7 @@ TEST_F(TypeConverter_test, searchReplaceAll)
     EXPECT_EQ(result, expected);
 }
 
-TEST_F(TypeConverter_test, replaceVariables)
+TEST_F(TypeConverter_test, ReplaceVariables)
 {
     std::string source = "var1=@{var1}; var2=@{var2}; var1var2=@{var1}@{var2}; gvar1=@{gvar1}";
     std::string expected = "var1=value1; var2=value2; var1var2=value1value2; gvar1=gvalue1";
@@ -63,7 +63,7 @@ TEST_F(TypeConverter_test, replaceVariables)
     EXPECT_EQ(result, expected);
 }
 
-TEST_F(TypeConverter_test, setString)
+TEST_F(TypeConverter_test, SetString)
 {
     std::string value = "hello";
     tconv_.setString(value);
@@ -100,7 +100,7 @@ TEST_F(TypeConverter_test, setString)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setStringReplacingVariables)
+TEST_F(TypeConverter_test, SetStringReplacingVariables)
 {
     std::string value = "@{var1}";
     std::map<std::string, std::string> patterns;
@@ -121,7 +121,7 @@ TEST_F(TypeConverter_test, setStringReplacingVariables)
     //EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setInteger)
+TEST_F(TypeConverter_test, SetInteger)
 {
     std::int64_t value = -111;
     tconv_.setInteger(value);
@@ -158,7 +158,7 @@ TEST_F(TypeConverter_test, setInteger)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setUnsigned)
+TEST_F(TypeConverter_test, SetUnsigned)
 {
     std::uint64_t value = 111;
     tconv_.setUnsigned(value);
@@ -195,7 +195,7 @@ TEST_F(TypeConverter_test, setUnsigned)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setFloat)
+TEST_F(TypeConverter_test, SetFloat)
 {
     double value = 3.14;
     tconv_.setFloat(value);
@@ -232,7 +232,7 @@ TEST_F(TypeConverter_test, setFloat)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setBoolean)
+TEST_F(TypeConverter_test, SetBoolean)
 {
     bool value = true;
     tconv_.setBoolean(value);
@@ -269,7 +269,7 @@ TEST_F(TypeConverter_test, setBoolean)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setObject)
+TEST_F(TypeConverter_test, SetObject)
 {
     bool success;
 

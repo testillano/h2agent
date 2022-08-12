@@ -165,9 +165,9 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
     return result;
 }
 
-void MyAdminHttp2Server::receiveEMPTY(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
+void MyAdminHttp2Server::receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
-    LOGDEBUG(ert::tracing::Logger::debug("receiveEMPTY()",  ERT_FILE_LOCATION));
+    LOGDEBUG(ert::tracing::Logger::debug("receiveNOOP()",  ERT_FILE_LOCATION));
     // Response document:
     // {
     //   "result":"<true or false>",
@@ -656,7 +656,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
 
     // No operation provided:
     if (noPathSuffix) {
-        receiveEMPTY(statusCode, headers, responseBody);
+        receiveNOOP(statusCode, headers, responseBody);
         return;
     }
 

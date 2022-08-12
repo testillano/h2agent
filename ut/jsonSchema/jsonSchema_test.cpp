@@ -23,14 +23,14 @@ public:
     h2agent::jsonschema::JsonSchema json_schema_{};
 };
 
-TEST_F(jsonSchema_test, invalidSchema)
+TEST_F(jsonSchema_test, InvalidSchema)
 {
     nlohmann::json not_an_schema;
     EXPECT_FALSE(jsonSchema_test::json_schema_.setJson(not_an_schema));
     EXPECT_FALSE(jsonSchema_test::json_schema_.isAvailable());
 }
 
-TEST_F(jsonSchema_test, checkSchemaMatching)
+TEST_F(jsonSchema_test, CheckSchemaMatching)
 {
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_matching));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
@@ -38,7 +38,7 @@ TEST_F(jsonSchema_test, checkSchemaMatching)
     EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ServerMatchingJson));
 }
 
-TEST_F(jsonSchema_test, checkSchemaProvision)
+TEST_F(jsonSchema_test, CheckSchemaProvision)
 {
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_provision));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
@@ -47,7 +47,7 @@ TEST_F(jsonSchema_test, checkSchemaProvision)
     EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ServerProvisionJson_nok));
 }
 
-TEST_F(jsonSchema_test, checkSchemaSchema)
+TEST_F(jsonSchema_test, CheckSchemaSchema)
 {
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::schema));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
@@ -56,7 +56,7 @@ TEST_F(jsonSchema_test, checkSchemaSchema)
     EXPECT_FALSE(jsonSchema_test::json_schema_.validate(SchemaJson_nok));
 }
 
-TEST_F(jsonSchema_test, checkGlobalVariableSchema)
+TEST_F(jsonSchema_test, CheckGlobalVariableSchema)
 {
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_data_global));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());

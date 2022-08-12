@@ -1,5 +1,10 @@
 add_executable( unit-test "")
 
+add_subdirectory(jsonSchema)
+add_subdirectory(http2Server)
+#add_subdirectory(http2Client)
+add_subdirectory(model)
+
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':
 add_library(ert_logger STATIC IMPORTED)
 add_library(ert_http2comm STATIC IMPORTED)
@@ -38,7 +43,3 @@ ${CMAKE_EXE_LINKER_FLAGS}
 
 )
 
-add_subdirectory(jsonSchema)
-add_subdirectory(http2Server)
-#add_subdirectory(http2Client)
-add_subdirectory(model)
