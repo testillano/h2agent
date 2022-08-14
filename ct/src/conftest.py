@@ -540,7 +540,7 @@ GLOBAL_VARIABLE_1_2_3='''
 }
 '''
 
-FILE_GENERATION_PROVISION='''
+FILE_MANAGER_PROVISION='''
 {
   "requestMethod": "GET",
   "requestUri":"/app/v1/foo/bar",
@@ -551,8 +551,16 @@ FILE_GENERATION_PROVISION='''
       "target": "txtFile./tmp/example.txt"
     },
     {
+      "source": "value./tmp/example.txt",
+      "target": "var.file"
+    },
+    {
       "source": "value.hello",
-      "target": "txtFile./tmp/example.txt"
+      "target": "txtFile.@{file}"
+    },
+    {
+      "source": "txtFile./tmp/example.txt",
+      "target": "response.body.string"
     }
   ]
 }

@@ -620,7 +620,7 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
     {
         int iValue = toNumber(value);
-        if (iValue < 1)
+        if (iValue < 0)
         {
             usage(EXIT_FAILURE, "Invalid '--long-term-files-close-delay-usecs' value. Must be greater or equal than 0.");
         }
@@ -630,7 +630,7 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "--short-term-files-close-delay-usecs", value))
     {
         int iValue = toNumber(value);
-        if (iValue < 1)
+        if (iValue < 0)
         {
             usage(EXIT_FAILURE, "Invalid '--short-term-files-close-delay-usecs' value. Must be greater or equal than 0.");
         }

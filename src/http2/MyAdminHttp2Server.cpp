@@ -417,6 +417,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getHttp2Server()->dataConfigurationAsJsonString();
         statusCode = 200;
     }
+    else if (pathSuffix == "files/configuration") {
+        responseBody = getFileManager()->configurationAsJsonString();
+        statusCode = 200;
+    }
     else if (pathSuffix == "files") {
         responseBody = getFileManager()->asJsonString();
         statusCode = ((responseBody == "[]") ? 204:200);
@@ -604,6 +608,23 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
         else {
             ert::tracing::Logger::error("Cannot keep requests history if data storage is discarded", ERT_FILE_LOCATION);
+        }
+    }
+    else if (pathSuffix == "files/configuration") {
+        std::string readCache;
+
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("readCache");
+            if (it != qmap.end()) readCache = it->second;
+
+            success = (readCache == "true" || readCache == "false");
+        }
+
+        if (success) {
+            bool b_readCache = (readCache == "true");
+            getFileManager()->enableReadCache(b_readCache);
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("File read cache: %s", b_readCache ? "true":"false"), ERT_FILE_LOCATION));
         }
     }
 

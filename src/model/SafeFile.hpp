@@ -46,13 +46,12 @@ SOFTWARE.
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <nlohmann/json.hpp>
 
-#include <ert/metrics/Metrics.hpp>
-
 
 namespace h2agent
 {
 namespace model
 {
+class FileManager;
 
 /**
  * This class allows safe writting of text/binary files.
@@ -69,49 +68,33 @@ class SafeFile {
     std::mutex mutex_; // write file mutex
     bool opened_;
     boost::asio::deadline_timer *timer_{};
-    unsigned int close_delay_us_;
     boost::asio::io_service *io_service_{};
 
-    ert::metrics::Metrics *metrics_{};
+    std::string data_; // used for read cache, but never shown in json string representation (just in case it is huge)
+    bool read_cached_;
 
-    ert::metrics::counter_t *observed_open_operation_counter_{};
-    ert::metrics::counter_t *observed_close_operation_counter_{};
-    ert::metrics::counter_t *observed_write_operation_counter_{};
-    ert::metrics::counter_t *observed_empty_operation_counter_{};
-    ert::metrics::counter_t *observed_delayed_close_operation_counter_{};
-    ert::metrics::counter_t *observed_instant_close_operation_counter_{};
-    ert::metrics::counter_t *observed_error_open_operation_counter_{};
+    FileManager *file_manager_{};
 
-    void delayedClose();
+    void delayedClose(unsigned int closeDelayUs);
 
 public:
 
     /**
     * Constructor
     *
+    * @param fileManager parent reference to file manager.
     * @param path file path to write. It could be relative (to execution path) or absolute.
     * @param timersIoService asio io service which will be used to delay close
     * operations with the intention to reduce overhead in some scenarios. By default
     * it is not used (if not provided in constructor), so delay is not performed
     * regardless the close delay configured.
-    * @param metrics underlaying reference for SafeFile in order to compute prometheus metrics
     * about I/O operations. It may be 'nullptr' if no metrics are enabled.
-    * @param closeDelayUs delay after last write operation, to close the file. By default
-    * it is configured to 1 second, something appropiate to log over long term files.
-    * Zero value means that no planned close is scheduled, so the file is opened,
-    * written and closed in the same moment. This could be interesting for write
-    * many different files when they are not rewritten. If they need to append
-    * data later, use @setCloseDelay to configure them as short term files
-    * taking into account the maximum number of files that your system could
-    * open simultaneously. This class will blocks new open operations when that
-    * limit is reached, to prevent file system errors.
     * @param mode open mode. By default, text files and append is selected. You
     * could anyway add other flags, for example for binary dumps: std::ios::binary
     */
-    SafeFile (const std::string& path,
+    SafeFile (FileManager *fileManager,
+              const std::string& path,
               boost::asio::io_service *timersIoService = nullptr,
-              ert::metrics::Metrics *metrics = nullptr,
-              unsigned int closeDelayUs = 1000000 /* 1 second */,
               std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app);
 
     ~SafeFile();
@@ -147,30 +130,11 @@ public:
     * @param success success of the read operation.
     * @param mode open mode. By default, text files are assumed, but you could
     * pass binary flag: std::ios::binary
+    * @param cached enable cache mode to retrieve data
     *
-    * @return Content read. Empty if failed to read.
+    * @return Content read. Empty if failed to read. with cache enabled, empty data could be returned with success (no way no know if the file was empty or failed to read).
     */
-    std::string read(bool &success, std::ios_base::openmode mode = std::ifstream::in);
-
-    /**
-    * Set the delay in microseconds to close an opened file after writting over it.
-    *
-    * A value of zero will disable the delayed procedure, and close will be done
-    * after write operation (instant close).
-    *
-    * The class constructor sets 1 second by default, appropiate for logging
-    * oriented files which represent the most common and reasonable usage.
-    *
-    * We could consider 'short term files' those which are going to be rewritten
-    * (like long term ones) but when there are many of them and maximum opened
-    * files limit is a factor to take into account. So if your application is
-    * writting many different files, to optimize for example a load traffic rate
-    * of 200k req/s with a limit of 1024 concurrent files, we need a maximum
-    * delay of 1024/200000 = 0,00512 = 5 msecs.
-    *
-    * @param usecs microseconds of delay. Zero disables planned close and will be done instantly.
-    */
-    void setCloseDelayUs(unsigned int usecs);
+    std::string read(bool &success, std::ios_base::openmode mode = std::ifstream::in, bool cached = false);
 
     /**
     * Json representation of the class instance
@@ -182,9 +146,21 @@ public:
     * Close could be delayed.
     *
     * @param data data to write
-    * @see setCloseDelay()
+    * @param closeDelayUs delay, after write operation, to close the file. By default
+    * it is configured to 1 second, something appropiate to log over long term files.
+    * Zero value means that no planned close is scheduled, so the file is opened,
+    * written and closed in the same moment. This could be interesting for write
+    * many different files when they are not rewritten. If they need to append
+    * data later, you could provide a smaller value to indicate that it is a
+    * short term file, but you may take into account the maximum number of files
+    * that your system could open simultaneously. This class will blocks new open
+    * operations when that limit is reached, to prevent file system errors, and this
+    * will be exposed as performance drop. So if your application is writting many
+    * different files, to optimize for example a load traffic rate of 200k req/s
+    * with a limit of 1024 concurrent files, we need a maximum delay of 1024 divided
+    * by 200000, that is to say, 0,00512 seconds = 5000 microseconds.
     */
-    void write (const std::string& data);
+    void write(const std::string& data, unsigned int closeDelayUs = 1000000);
 };
 
 }
