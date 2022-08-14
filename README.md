@@ -360,6 +360,10 @@ Input Global variable(s) configuration
  (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]:
 global-variable.json
 
+Input File manager configuration to enable read cache (true|false)
+ (or set 'H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION' to be non-interactive) [true]:
+true
+
 Input Server configuration to ignore request body (true|false)
  (or set 'H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION' to be non-interactive) [false]:
 false
@@ -1741,7 +1745,7 @@ The **target** of information is classified after parsing the following possible
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
 
-- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution took place on the path provided it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). Delays in microseconds are configurable on process startup. Check  [command line](#command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
+- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
@@ -2364,6 +2368,9 @@ Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema c
 Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration
                                                           (http://localhost:8074/admin/v1/global-variable).
 Usage: files [-h|--help]; Gets the files processed.
+Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
+                            [--enable-read-cache]  ; Enables cache for read operations.
+                            [--disable-read-cache] ; Disables cache for read operations.
 Usage: configuration [-h|--help]; Gets agent general configuration.
 Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default).
        [--traffic-server-ignore-request-body]  ; Ignores request body on server receptions.

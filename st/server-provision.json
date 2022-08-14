@@ -77,6 +77,10 @@
       {
         "source": "value.@{usecs}\n",
         "target": "txtFile.__PROVISION_LONG_TERM_LOGFILE__"
+      },
+      {
+        "source": "txtFile.__SOURCE_FILE__",
+        "target": "response.body.json.string./sourceFileContent"
       }
     ]
   }

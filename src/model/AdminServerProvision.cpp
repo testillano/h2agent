@@ -718,8 +718,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             else {
                 // assignments
-                bool shortTerm = (target != transformation->getTarget()); // something was replaced in target: path is considered arbitrary and dynamic: short term files
-                file_manager_->write(target/*path*/, targetS/*data*/, true/*text*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
+                bool longTerm =(transformation->getTargetPatterns().empty()); // path is considered fixed (long term files), instead of arbitrary and dynamic (short term files)
+                // even if @{varname} is missing (empty value) we consider the intention to allow force short term
+                // files type.
+                file_manager_->write(target/*path*/, targetS/*data*/, true/*text*/, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
             }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::TBinFile) {
@@ -733,8 +735,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             else {
                 // assignments
-                bool shortTerm = (target != transformation->getTarget()); // something was replaced in target: path is considered arbitrary and dynamic: short term files
-                file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (shortTerm ? configuration_->getShortTermFilesCloseDelayUsecs():configuration_->getLongTermFilesCloseDelayUsecs()));
+                bool longTerm =(transformation->getTargetPatterns().empty()); // path is considered fixed (long term files), instead of arbitrary and dynamic (short term files)
+                // even if @{varname} is missing (empty value) we consider the intention to allow force short term
+                // files type.
+                file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
             }
         }
     }

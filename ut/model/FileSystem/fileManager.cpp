@@ -11,7 +11,8 @@ nlohmann::json FileManagerJson = R"(
   {
     "bytes": 0,
     "path": "/tmp/h2agent.ut.Beethoven.txt",
-    "state": "closed"
+    "state": "closed",
+    "readCache": "true"
   },
   {
     "bytes": 0,
@@ -55,14 +56,28 @@ TEST_F(FileManager_test, FileManager)
     EXPECT_EQ(content, FileManagerSafeFileContent);
     EXPECT_TRUE(success);
 
+    // read with cache:
+    fm.enableReadCache(true);
+    success = fm.read(path1, content, true /* text */);
+    EXPECT_EQ(content, FileManagerSafeFileContent);
+    EXPECT_TRUE(success);
+
     // empty:
     fm.empty(path1);
     fm.empty(path2);
+
+    // read path1 (was cached)
     success = fm.read(path1, content, true /* text */);
+    EXPECT_EQ(content, FileManagerSafeFileContent);
+    EXPECT_TRUE(success);
+
+    // read path2 (not cached: will be read again)
+    fm.enableReadCache(false);
+    success = fm.read(path2, content, true /* text */);
     EXPECT_EQ(content, "");
     EXPECT_TRUE(success);
 
-    sleep(1);
+    //sleep(1);
 
     // Check json representation:
     EXPECT_EQ(fm.getJson(), FileManagerJson);
@@ -72,5 +87,8 @@ TEST_F(FileManager_test, FileManager)
 
     // Check empty:
     EXPECT_EQ(fm.asJsonString(), "[]");
+
+    // Check configuration:
+    EXPECT_EQ(fm.configurationAsJsonString(), "{\"readCache\":\"disabled\"}");
 }
 

@@ -44,6 +44,51 @@ namespace h2agent
 namespace model
 {
 
+
+void FileManager::enableMetrics(ert::metrics::Metrics *metrics) {
+
+    metrics_ = metrics;
+
+    if (metrics_) {
+        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily("FileSystem_observed_operations_total", "H2agent file system operations");
+        observed_open_operation_counter_ = &(cf.Add({{"operation", "open"}}));
+        observed_close_operation_counter_ = &(cf.Add({{"operation", "close"}}));
+        observed_write_operation_counter_ = &(cf.Add({{"operation", "write"}}));
+        observed_empty_operation_counter_ = &(cf.Add({{"operation", "empty"}}));
+        observed_delayed_close_operation_counter_ = &(cf.Add({{"operation", "delayedClose"}}));
+        observed_instant_close_operation_counter_ = &(cf.Add({{"operation", "instantClose"}}));
+        observed_error_open_operation_counter_ = &(cf.Add({{"success", "false"}, {"operation", "open"}}));
+    }
+}
+
+void FileManager::incrementObservedOpenOperationCounter() {
+    if (metrics_) observed_open_operation_counter_->Increment();
+}
+
+void FileManager::incrementObservedCloseOperationCounter() {
+    if (metrics_) observed_close_operation_counter_->Increment();
+}
+
+void FileManager::incrementObservedWriteOperationCounter() {
+    if (metrics_) observed_write_operation_counter_->Increment();
+}
+
+void FileManager::incrementObservedEmptyOperationCounter() {
+    if (metrics_) observed_empty_operation_counter_->Increment();
+}
+
+void FileManager::incrementObservedDelayedCloseOperationCounter() {
+    if (metrics_) observed_delayed_close_operation_counter_->Increment();
+}
+
+void FileManager::incrementObservedInstantCloseOperationCounter() {
+    if (metrics_) observed_instant_close_operation_counter_->Increment();
+}
+
+void FileManager::incrementObservedErrorOpenOperationCounter() {
+    if (metrics_) observed_error_open_operation_counter_->Increment();
+}
+
 void FileManager::write(const std::string &path, const std::string &data, bool textOrBinary, unsigned int closeDelayUs) {
 
     std::shared_ptr<SafeFile> safeFile;
@@ -56,11 +101,11 @@ void FileManager::write(const std::string &path, const std::string &data, bool t
         std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app; // for text files
         if (!textOrBinary) mode |= std::ios::binary;
 
-        safeFile = std::make_shared<SafeFile>(path, io_service_, metrics_, closeDelayUs, mode);
+        safeFile = std::make_shared<SafeFile>(this, path, io_service_, mode);
         add(path, safeFile);
     }
 
-    safeFile->write(data);
+    safeFile->write(data, closeDelayUs);
 }
 
 bool FileManager::read(const std::string &path, std::string &data, bool textOrBinary) {
@@ -77,11 +122,11 @@ bool FileManager::read(const std::string &path, std::string &data, bool textOrBi
     else {
         if (!textOrBinary) mode |= std::ios::binary;
 
-        safeFile = std::make_shared<SafeFile>(path, io_service_, metrics_, 0, mode);
+        safeFile = std::make_shared<SafeFile>(this, path, io_service_, mode);
         add(path, safeFile);
     }
 
-    data = safeFile->read(result, mode);
+    data = safeFile->read(result, mode, read_cache_);
 
     return result;
 }
@@ -95,7 +140,7 @@ void FileManager::empty(const std::string &path) {
         safeFile = it->second;
     }
     else {
-        safeFile = std::make_shared<SafeFile>(path, io_service_, metrics_);
+        safeFile = std::make_shared<SafeFile>(this, path, io_service_);
         add(path, safeFile);
     }
 
@@ -111,9 +156,17 @@ bool FileManager::clear()
     return result;
 }
 
-std::string FileManager::asJsonString() const {
+nlohmann::json FileManager::getConfigurationJson() const {
 
-    return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
+    nlohmann::json result;
+    result["readCache"] = read_cache_ ? "enabled":"disabled";
+
+    return result;
+}
+
+std::string FileManager::configurationAsJsonString() const {
+
+    return (getConfigurationJson().dump());
 }
 
 nlohmann::json FileManager::getJson() const {
@@ -128,6 +181,12 @@ nlohmann::json FileManager::getJson() const {
 
     return result;
 }
+
+std::string FileManager::asJsonString() const {
+
+    return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
+}
+
 
 }
 }
