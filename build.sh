@@ -13,6 +13,8 @@ build_type__dflt=Release
 nlohmann_json_ver__dflt=v3.10.5
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.11.0
+# arash partow version is quite frozen
+ert_multipart_ver__dflt=v1.0.0
 registry=ghcr.io/testillano
 
 #############
@@ -36,7 +38,7 @@ usage() {
          For headless mode you may prepend or export asked/environment variables for the corresponding
          docker procedure:
 
-         --builder-image: image_tag, base_os, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
+         --builder-image: image_tag, base_os, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver, ert_multipart_ver
          --project:       make_procs, build_type, base_tag (h2agent_builder)
          --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
          --ct-image:      image_tag, base_tag (alpine)
@@ -86,6 +88,7 @@ build_builder_image() {
   _read nlohmann_json_ver
   _read pboettch_jsonschemavalidator_ver
   _read google_test_ver
+  _read ert_multipart_ver
 
   bargs="--build-arg base_os=${base_os}"
   bargs+=" --build-arg base_tag=${base_tag}"
@@ -94,6 +97,7 @@ build_builder_image() {
   bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
   bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
   bargs+=" --build-arg google_test_ver=${google_test_ver}"
+  bargs+=" --build-arg ert_multipart_ver=${ert_multipart_ver}"
 
   set -x
   rm -f CMakeCache.txt

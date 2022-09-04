@@ -46,6 +46,42 @@ namespace h2agent
 namespace model
 {
 
+// MyMultipartConsumer
+
+// {
+//   "multipart.1": {
+//     "content": "<h2 class=\"fg-white\">",
+//     "headers": { "content-type": "text/html" }
+//   },
+//   "multipart.2": {
+//     "content": "0xc0a80100",
+//     "headers": { "content-type": "application/octet-stream" }
+//   },
+//   "multipart.3": {
+//     "content": { "foo": "bar" },
+//     "headers": { "content-type": "application/json" }
+//   }
+// }
+
+void MyMultipartConsumer::receiveHeader(const std::string &name, const std::string &value) {
+
+    std::string n = name;
+    std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    if (n == "content-type") content_type_ = value;
+    data_part_->json_["multipart." + std::to_string(data_count_)]["headers"][name] = value;
+}
+
+void MyMultipartConsumer::receiveData(const std::string &data) {
+    nlohmann::json content;
+    data_part_->decodeContent(data, content_type_, content);
+    data_part_->json_["multipart." + std::to_string(data_count_)]["content"] = std::move(content);
+    data_count_++;
+}
+
+// DataPart
+
 std::string DataPart::asAsciiString() const {
     std::string result;
     h2agent::model::asAsciiString(str_, result);
@@ -57,6 +93,46 @@ bool DataPart::assignFromHex(const std::string &strAsHex) {
     return h2agent::model::fromHexString(strAsHex, str_);
 }
 
+void DataPart::decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &jsonRepresentation) {
+
+    //// Normalize content-type:
+    //std::string ct = contentType;
+    //std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
+    //    return std::tolower(c);
+    //});
+
+    if (contentType == "application/json") {
+        /*is_json_ = */h2agent::model::parseJsonContent(content, jsonRepresentation, true /* write exception message */);
+        is_json_ = true; // even if json is invalid, we prefer to show the error description, but obey the content-type
+    }
+    else if (contentType.rfind("text/", 0) == 0) {
+        jsonRepresentation = content;
+    }
+    else if (contentType.rfind("multipart/", 0) == 0) { // i.e.: multipart/related; boundary=abcdef12345
+        size_t pos = contentType.find("boundary=");
+        std::string boundary = (pos != std::string::npos) ? contentType.substr(pos + 9) : "";
+
+        if (boundary.empty()) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid multipart boundary received: '%s'", boundary.c_str()), ERT_FILE_LOCATION);
+        }
+        else {
+            is_json_ = true; // multipart decoded will always be represented by h2agent proprietary json:
+            MyMultipartConsumer mpConsumer(boundary, this);
+            mpConsumer.decode(content);
+        }
+    }
+    else {
+        LOGINFORMATIONAL(ert::tracing::Logger::informational(ert::tracing::Logger::asString("Unsupported content-type '%s' decoding for json representation. Generic procedure will be applied (hex string for non printable data received)", contentType.c_str()), ERT_FILE_LOCATION));
+        std::string output;
+        if (h2agent::model::asHexString(content, output)) {
+            jsonRepresentation = content;
+        }
+        else {
+            jsonRepresentation = std::move(output);
+        }
+    }
+}
+
 void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
 
     if (decoded_) {
@@ -66,7 +142,7 @@ void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
 
     if (str_.empty()) {
         decoded_ = true;
-        str_is_json_ = false;
+        is_json_ = false;
         return;
     }
 
@@ -77,31 +153,7 @@ void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("content-type: %s", contentType.c_str()), ERT_FILE_LOCATION));
     }
 
-    //// Normalize content-type:
-    //std::string ct = contentType;
-    //std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
-    //    return std::tolower(c);
-    //});
-
-    if (contentType == "application/json") {
-        /*str_is_json_ = */h2agent::model::parseJsonContent(str_, json_, true /* write exception message */);
-        str_is_json_ = true; // even if json is invalid, we prefer to show the error description, but obey the content-type
-    }
-    else if (contentType.rfind("text/", 0) == 0) {
-        json_ = str_;
-    }
-    //else if (contentType.rfind("multipart/", 0) == 0) {
-    //}
-    else {
-        LOGINFORMATIONAL(ert::tracing::Logger::informational(ert::tracing::Logger::asString("Unsupported content-type '%s' decoding for json representation. Generic procedure will be applied (hex string for non printable data received)", contentType.c_str()), ERT_FILE_LOCATION));
-        std::string output;
-        if (h2agent::model::asHexString(str_, output)) {
-            json_ = str_;
-        }
-        else {
-            json_ = std::move(output);
-        }
-    }
+    decodeContent(str_, contentType, json_);
 
     decoded_ = true;
 

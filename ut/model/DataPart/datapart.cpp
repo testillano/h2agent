@@ -8,7 +8,9 @@
 const nlohmann::json FooBarJson = R"({"foo":"bar"})"_json;
 const std::string HelloWorld = "hello world !";
 const std::string HelloWorldAsHexString = "0x68656c6c6f20776f726c642021";
+const std::string MultipartAsHexString = "0x2d2d61626364656631323334350d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6a736f6e0d0a0d0a7b226e314e6f74696679537562736372697074696f6e4964223a226e6f74696679537562736372697074696f6e49443030303031222c226e314d657373616765436f6e7461696e6572223a7b226e314d657373616765436c617373223a2255504450222c226e314d657373616765436f6e74656e74223a7b22636f6e74656e744964223a227565506f6c227d7d7d0d0a2d2d61626364656631323334350d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6f637465742d73747265616d0d0a0d0a268001260d0a2d2d61626364656631323334352d2d";
 const std::string IpAsHexString = "0xc0a80001";
+const nlohmann::json MultipartJson = R"({"multipart.1":{"content":{"n1MessageContainer":{"n1MessageClass":"UPDP","n1MessageContent":{"contentId":"uePol"}},"n1NotifySubscriptionId":"notifySubscriptionID00001"},"headers":{"Content-Type":"application/json"}},"multipart.2":{"content":"0x26800126","headers":{"Content-Type":"application/octet-stream"}}})"_json;
 
 class DataPart_test : public ::testing::Test
 {
@@ -16,11 +18,13 @@ public:
     h2agent::model::DataPart dp_text_{};
     h2agent::model::DataPart dp_binary_{};
     h2agent::model::DataPart dp_json_{};
+    h2agent::model::DataPart dp_multipart_{};
 
     DataPart_test() {
         dp_text_.assign(HelloWorld);
         dp_binary_.assignFromHex(IpAsHexString);
         dp_json_.assign(FooBarJson.dump());
+        dp_multipart_.assign(FooBarJson.dump());
     }
 };
 
@@ -105,5 +109,15 @@ TEST_F(DataPart_test, AsAsciiStringNonReadable)
 {
     dp_binary_.assignFromHex(IpAsHexString);
     EXPECT_EQ(dp_binary_.asAsciiString(), "....");
+}
+
+TEST_F(DataPart_test, DecodeMultipart)
+{
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"multipart/related; boundary=abcdef12345"});
+    dp_multipart_.assignFromHex(MultipartAsHexString);
+    dp_multipart_.decode(headers);
+    EXPECT_EQ(dp_multipart_.getJson(), nlohmann::json(MultipartJson));
+    EXPECT_TRUE(dp_multipart_.isJson());
 }
 

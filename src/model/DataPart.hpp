@@ -41,11 +41,30 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <ert/multipart/Consumer.hpp>
 
 namespace h2agent
 {
 namespace model
 {
+
+class DataPart;
+
+/**
+ * Multipart consumer specialization for h2agent
+ */
+class MyMultipartConsumer : public ert::multipart::Consumer {
+    DataPart *data_part_;
+    std::string content_type_;
+    int data_count_;
+
+public:
+    MyMultipartConsumer(const std::string &boundary, DataPart *dp) : ert::multipart::Consumer(boundary), data_part_(dp), data_count_(1) {;}
+    ~MyMultipartConsumer() {;}
+
+    void receiveHeader(const std::string &name, const std::string &value);
+    void receiveData(const std::string &data);
+};
 
 /**
  * DataPart to store request/response body data
@@ -76,22 +95,22 @@ namespace model
  * "<request|response>Body": { "foo": "bar" }
  * </pre>
  *
- * Other complex types like multipart could have a proprietary json representation
+ * Other complex types like multipart could have an h2agent proprietary json representation
  * like this:
  *
  * <pre>
  * "<request|response>Body": {
  *   "multipart.1": {
- *     "content-type": "text/html",
- *     "content-data": "<h2 class=\"fg-white\">"
+ *     "headers": [ { "content-type": "text/html" } ]
+ *     "content": "<h2 class=\"fg-white\">"
  *   },
  *   "multipart.2": {
- *     "content-type": "application/octet-stream",
- *     "content-data": "0xc0a80100"
+ *     "headers": [ { "content-type": "application/octet-stream" } ]
+ *     "content": "0xc0a80100"
  *   },
  *   "multipart.3": {
- *     "content-type": "application/json",
- *     "content-data": { "foo": "bar" }
+ *     "headers": [ { "content-type": "application/json" } ]
+ *     "content": { "foo": "bar" }
  *   }
  * }
  * </pre>
@@ -99,7 +118,7 @@ namespace model
 class DataPart {
     std::string str_; // raw data content: always filled with the original data received
     bool decoded_; // lazy decode indicator to skip multiple decode operations
-    bool str_is_json_; // if not, we will use str_ as native source instead of json representation decoded
+    bool is_json_; // if not, we will use str_ as native source instead of json representation
 
     nlohmann::json json_; // data json representation valid for:
     // 1) parse json strings received (application/json)
@@ -113,18 +132,15 @@ class DataPart {
     //   - or -
     //   doc["example"].get<std::string>()
 
-
-    //std::vector<DataPart> v_; // multipart support
-
 public:
     /** Default constructor */
-    DataPart() : decoded_(false), str_is_json_(false) {;}
+    DataPart() : decoded_(false), is_json_(false) {;}
 
     /** String constructor */
-    DataPart(const std::string &str) : str_(str), decoded_(false), str_is_json_(false) {;}
+    DataPart(const std::string &str) : str_(str), decoded_(false), is_json_(false) {;}
 
     /** Move string constructor */
-    DataPart(std::string &&str) : str_(std::move(str)), decoded_(false), str_is_json_(false) {;}
+    DataPart(std::string &&str) : str_(std::move(str)), decoded_(false), is_json_(false) {;}
 
     /** Constructor */
     DataPart(const DataPart &bd) {
@@ -144,7 +160,7 @@ public:
         if (this != &other) {
             str_ = other.str_;
             decoded_ = other.decoded_;
-            str_is_json_ = other.str_is_json_;
+            is_json_ = other.is_json_;
             json_ = other.json_;
         }
         return *this;
@@ -156,7 +172,7 @@ public:
             str_ = std::move(other.str_);
             json_ = std::move(other.json_);
             decoded_ = other.decoded_; // it has no sense to move
-            str_is_json_ = other.str_is_json_; // it has no sense to move
+            is_json_ = other.is_json_; // it has no sense to move
         }
         return *this;
     }
@@ -171,15 +187,15 @@ public:
         return str_;
     }
 
-    /** getter to know if data was decoded as json */
+    /** getter to know if data was decoded as json (multipart is always representable as json) */
     bool isJson() const {
-        return str_is_json_;
+        return is_json_;
     }
 
     /** str as ascii string */
     std::string asAsciiString() const;
 
-    /** getter for class data representation in json propietary format */
+    /** getter for class data representation in json proprietary format */
     const nlohmann::json &getJson() const {
         return json_;
     }
@@ -188,17 +204,22 @@ public:
     void assign(std::string &&str) {
         str_ = std::move(str);
         decoded_ = false;
-        str_is_json_ = false;
+        is_json_ = false;
     }
     void assign(const std::string &str) {
         str_ = str;
         decoded_ = false;
-        str_is_json_ = false;
+        is_json_ = false;
     }
     bool assignFromHex(const std::string &strAsHex);
 
+    /** save json data decoded */
+    void decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &j);
+
     /** decode string data depending on content type */
     void decode(const nghttp2::asio_http2::header_map &headers /* to get the content-type */);
+
+    friend class MyMultipartConsumer;
 };
 
 }
