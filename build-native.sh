@@ -15,6 +15,7 @@ ert_logger_ver=v1.0.10
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
 ert_metrics_ver=v1.0.1
+ert_multipart_ver=v1.0.0
 ert_http2comm_ver=v1.4.3
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
@@ -132,6 +133,15 @@ set +x
 set -x && \
 wget https://github.com/testillano/metrics/archive/${ert_metrics_ver}.tar.gz && tar xvf ${ert_metrics_ver}.tar.gz && cd metrics-*/ && \
 cmake -DERT_METRICS_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && ${SUDO} make install && \
+cd .. && rm -rf * && \
+set +x
+) || failed $? && \
+
+(
+# ert_multipart
+set -x && \
+wget https://github.com/testillano/multipart/archive/${ert_multipart_ver}.tar.gz && tar xvf ${ert_multipart_ver}.tar.gz && cd multipart-*/ && \
+cmake -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && ${SUDO} make install && \
 cd .. && rm -rf * && \
 set +x
 ) || failed $? && \
