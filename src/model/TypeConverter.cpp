@@ -136,10 +136,10 @@ void TypeConverter::setStringReplacingVariables(const std::string &str, const st
 
 const std::string &TypeConverter::getString(bool &success) {
 
-    success = true;
+    success = true; // actually, always true
 
     if (native_type_ == NativeType::Object) {
-        success = false;
+        s_value_ = j_value_.dump();
     }
     else if (native_type_ == NativeType::Integer) s_value_ = std::to_string(i_value_);
     else if (native_type_ == NativeType::Unsigned) s_value_ = std::to_string(u_value_);
