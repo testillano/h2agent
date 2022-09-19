@@ -288,6 +288,16 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
       "filter": { "ConditionVar" : "transfer-500-to-status-code" }
     },
     {
+      "source": "value.hello",
+      "target": "var.isHello",
+      "filter": { "EqualTo" : "hello" }
+    },
+    {
+      "source": "value.hi",
+      "target": "response.body.json.string./hello",
+      "filter": { "ConditionVar" : "isHello" }
+    },
+    {
       "source": "request.uri.path",
       "target": "response.body.json.string./captureBarIdFromURI",
       "filter": {
@@ -508,7 +518,8 @@ TEST_F(Transform_test, TransformWithSourcesAndFilters)
       "time": "Now it's predictable",
       "one": 1,
       "instate": "initial state",
-      "captureBarIdFromURI": "2"
+      "captureBarIdFromURI": "2",
+      "hello": "hi"
     }
     )"_json;
     EXPECT_EQ(assertedJson, expectedJson);
@@ -536,7 +547,7 @@ TEST_F(Transform_test, TransformationWithFilterAsString) // test different sourc
 {
     int transformationItems = ProvisionConfiguration_Filters["transform"].size();
 
-    EXPECT_EQ(transformationItems, 17);
+    EXPECT_EQ(transformationItems, 19);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Filters["transform"][k]));
     }

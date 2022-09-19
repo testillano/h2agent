@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
     parser_t       parser;
 
     parser.compile(expression_string, expression);
-    std::cout << "Result: " << expression.value() << std::endl;
+    std::cout << "Result: " << expression.value() << std::endl; // string stream formatter involved
 
     //exit(match ? EXIT_SUCCESS:EXIT_FAILURE);
     exit(EXIT_SUCCESS);

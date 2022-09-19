@@ -143,7 +143,13 @@ const std::string &TypeConverter::getString(bool &success) {
     }
     else if (native_type_ == NativeType::Integer) s_value_ = std::to_string(i_value_);
     else if (native_type_ == NativeType::Unsigned) s_value_ = std::to_string(u_value_);
-    else if (native_type_ == NativeType::Float) s_value_ = std::to_string(f_value_);
+    else if (native_type_ == NativeType::Float) {
+        s_value_ = std::to_string(f_value_); // we should remove trailing decimal zeroes:
+        // Using stringstream formatter is less efficient than post-processing its result:
+        //  (https://stackoverflow.com/questions/13686482/c11-stdto-stringdouble-no-trailing-zeros)
+        s_value_.erase ( s_value_.find_last_not_of('0') + 1, std::string::npos );
+        s_value_.erase ( s_value_.find_last_not_of('.') + 1, std::string::npos );
+    }
     else if (native_type_ == NativeType::Boolean) s_value_ = b_value_ ? "true":"false";
 
     LOGDEBUG(

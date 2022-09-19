@@ -330,7 +330,7 @@ Reference:
 
 Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information).
 
-Also, `st/last.sh` script repeats the last execution in headless mode.
+Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
 As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#oam):
 
@@ -1390,7 +1390,8 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
-        {"required": ["ConditionVar"]}
+        {"required": ["ConditionVar"]},
+        {"required": ["EqualTo"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -1413,7 +1414,8 @@ Defines the response behavior for an incoming request matching some basic condit
         "PrependVar": { "type": "string" },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string" }
+        "ConditionVar": { "type": "string" },
+        "EqualTo": { "type": "string" }
       }
     }
   },
@@ -1955,6 +1957,46 @@ Filters give you the chance to make complex transformations:
 
   In this example, the request body dictates the responses' status code depending on value (empty or not) received at "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
 
+
+
+- EqualTo: conditional transfer from source to target based in string comparison with the provided value. The result will be "yes" when source and reference string are the same, and transformation is skipped when differ, so variable target will be undefined and other transformations are simply ignored. This filter is normally used together with `ConditionVar`, and eases matching for strings against `RegexCapture` which would need complex equivalent regular expressions for them (for example to match `json` content):
+
+  ```json
+  {
+    "source": "request.body",
+    "target": "var.expectedBody",
+    "filter": { "EqualTo" : "{\"foo\":1}" }
+  },
+  {
+    "source": "value.500",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "expectedBody" }
+  }
+  ```
+  Math library also have the possibility to use functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wildcards), but the point here is the way to define or not a variable to be used as condition variable.
+
+  In the following example, we translate a logical math expression (which results in `1` (true) or `0` (false)) into conditional variable:
+
+  ```json
+  {
+    "source": "recvseq",
+    "target": "var.recvseq"
+  },
+  {
+    "source": "math.@{recvseq} > 10",
+    "target": "var.greater",
+    "filter": { "EqualTo" : "1" }
+  },
+  {
+    "source": "value.Sequence @{recvseq} is lesser or equal than 10",
+    "target": "response.body.string"
+  },
+  {
+    "source": "value.Sequence @{recvseq} is greater than 10",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "greater" }
+  }
+  ```
 
 
 

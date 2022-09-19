@@ -88,6 +88,7 @@ bool Transformation::load(const nlohmann::json &j) {
         //   Sum                 amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   Multiply            amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   ConditionVar        variable name -> [filter_]
+        //   EqualTo             value -> [filter_]
 
         auto f_it = it->find("RegexCapture");
 
@@ -151,6 +152,10 @@ bool Transformation::load(const nlohmann::json &j) {
             else if ((f_it = it->find("ConditionVar")) != it->end()) {
                 filter_ = *f_it;
                 filter_type_ = FilterType::ConditionVar;
+            }
+            else if ((f_it = it->find("EqualTo")) != it->end()) {
+                filter_ = *f_it;
+                filter_type_ = FilterType::EqualTo;
             }
         }
         catch (std::regex_error &e) {

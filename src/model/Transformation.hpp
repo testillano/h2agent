@@ -75,10 +75,10 @@ public:
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar", "EqualTo" };
         return text [type];
     }
 
@@ -117,7 +117,7 @@ private:
 
     bool has_filter_{};
     FilterType filter_type_{};
-    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar
+    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar, EqualTo
     std::regex filter_rgx_{}; // RegexCapture, RegexReplace
     int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
     std::int64_t filter_i_{}; // Sum, Multiply

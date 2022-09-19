@@ -203,7 +203,7 @@ TEST_F(TypeConverter_test, SetFloat)
     bool success;
 
     std::string res_string = tconv_.getString(success);
-    EXPECT_EQ(res_string, "3.140000");
+    EXPECT_EQ(res_string, "3.14");
     EXPECT_TRUE(success);
 
     std::int64_t res_integer = tconv_.getInteger(success);
@@ -228,7 +228,7 @@ TEST_F(TypeConverter_test, SetFloat)
     EXPECT_FALSE(success);
 
     // TypeConverter class representation:
-    std::string str = "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): 3 | String: 3.140000 | Integer: 3 | Unsigned: 3 | FLOAT: 3.14 | Boolean: true | Object: null";
+    std::string str = "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): 3 | String: 3.14 | Integer: 3 | Unsigned: 3 | FLOAT: 3.14 | Boolean: true | Object: null";
     EXPECT_EQ(tconv_.asString(), str);
 }
 
