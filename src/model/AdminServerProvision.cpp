@@ -444,6 +444,13 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             else
                 return false;
         }
+        else if (transformation->getFilterType() == Transformation::FilterType::EqualTo) {
+            // Get value for the comparison 'transformation->getFilter()':
+            if (source == transformation->getFilter())
+                sourceVault.setString("yes");
+            else
+                return false;
+        }
     }
     catch (std::exception& e)
     {
@@ -847,23 +854,29 @@ void AdminServerProvision::transform( const std::string &requestUri,
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, Event, InState
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence))
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence)) {
+            LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
             continue;
+        }
 
         std::smatch matches; // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
         // So, we can't use 'matches' as container because source may change: BUT, using that source exclusively, it will work (*)
         std::string source; // Now, this never will be out of scope, and 'matches' will be valid.
 
-        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar
+        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
-            if (!processFilters(transformation, sourceVault, variables, matches, source, eraser))
+            if (!processFilters(transformation, sourceVault, variables, matches, source, eraser)) {
+                LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
                 continue;
+            }
         }
 
         // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri))
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri)) {
+            LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;
+        }
 
     }
 
