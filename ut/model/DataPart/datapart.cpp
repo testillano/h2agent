@@ -8,9 +8,10 @@
 const nlohmann::json FooBarJson = R"({"foo":"bar"})"_json;
 const std::string HelloWorld = "hello world !";
 const std::string HelloWorldAsHexString = "0x68656c6c6f20776f726c642021";
-const std::string MultipartAsHexString = "0x2d2d61626364656631323334350d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6a736f6e0d0a0d0a7b226e314e6f74696679537562736372697074696f6e4964223a226e6f74696679537562736372697074696f6e49443030303031222c226e314d657373616765436f6e7461696e6572223a7b226e314d657373616765436c617373223a2255504450222c226e314d657373616765436f6e74656e74223a7b22636f6e74656e744964223a227565506f6c227d7d7d0d0a2d2d61626364656631323334350d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6f637465742d73747265616d0d0a0d0a268001260d0a2d2d61626364656631323334352d2d";
+const std::string MultipartAsHexString = "0x2d2d374d41345957786b54725a753067570d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6a736f6e0d0a0d0a7b22666f6f223a22626172227d0d0a2d2d374d41345957786b54725a753067570d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6f637465742d73747265616d0d0a0d0a268001260d0a2d2d374d41345957786b54725a753067572d2d";
+
 const std::string IpAsHexString = "0xc0a80001";
-const nlohmann::json MultipartJson = R"({"multipart.1":{"content":{"n1MessageContainer":{"n1MessageClass":"UPDP","n1MessageContent":{"contentId":"uePol"}},"n1NotifySubscriptionId":"notifySubscriptionID00001"},"headers":{"Content-Type":"application/json"}},"multipart.2":{"content":"0x26800126","headers":{"Content-Type":"application/octet-stream"}}})"_json;
+const nlohmann::json MultipartJson = R"({"multipart.1":{"content":{"foo":"bar"},"headers":{"Content-Type":"application/json"}},"multipart.2":{"content":"0x26800126","headers":{"Content-Type":"application/octet-stream"}}})"_json;
 
 class DataPart_test : public ::testing::Test
 {
@@ -114,7 +115,7 @@ TEST_F(DataPart_test, AsAsciiStringNonReadable)
 TEST_F(DataPart_test, DecodeMultipart)
 {
     nghttp2::asio_http2::header_map headers;
-    headers.emplace("content-type", nghttp2::asio_http2::header_value{"multipart/related; boundary=abcdef12345"});
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"multipart/related; boundary=7MA4YWxkTrZu0gW"});
     dp_multipart_.assignFromHex(MultipartAsHexString);
     dp_multipart_.decode(headers);
     EXPECT_EQ(dp_multipart_.getJson(), nlohmann::json(MultipartJson));

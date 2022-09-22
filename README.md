@@ -682,6 +682,8 @@ Examples:
    arashpartow-helper --expression "(1+sqrt(5))/2"
    arashpartow-helper --expression "404 == 404"
    arashpartow-helper --expression "cos(3.141592)"
+
+Arash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/readme.txt
 ```
 
 Execution example:
@@ -1591,9 +1593,30 @@ The **source** of information is classified after parsing the following possible
 
 - request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
-- request.body: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*.
+- request.body: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*. In case of `multipart` reception, a proprietary `json` structure is built to ease accessibility, for example:
 
-- request.body.`/<node1>/../<nodeN>`: request body node `json` path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` root.
+  ```json
+  {
+    "multipart.1": {
+      "content": {
+        "foo": "bar"
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "multipart.2": {
+      "content": "0x268aff26",
+      "headers": {
+        "Content-Type": "application/octet-stream"
+      }
+    }
+  }
+  ```
+
+  So, every part is labeled as `multipart.<number>` with nested `content` and `headers` (the content representation depends again on the content type received in the nested headers field). The drawback for `multipart` reception is that we cannot access the original raw data through this `request.body` source because it is transformed into `json` nature as an usability assumption. Anyway, proprietary structure is more useful and probable to be needed, so future proof for raw access is less priority.
+
+- request.body.`/<node1>/../<nodeN>`: request body node `json` path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` Also, `multipart` content can be accessed to retrieve any of the nested parts in the proprietary `json` representation commented above.
 
 - response.body: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
 
