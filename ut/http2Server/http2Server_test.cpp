@@ -130,15 +130,15 @@ public:
         });
 
         // Start prometheus server:
-        metrics_->serve("127.0.0.1:880");
+        EXPECT_TRUE(metrics_->serve("127.0.0.1:8080"));
 
         // Start server asynchronously:
-        admin_http2_server_->serve("127.0.0.1", "8074", "", "", 1, true /* asynchronous */);
+        EXPECT_EQ(admin_http2_server_->serve("127.0.0.1", "8074", "", "", 1, true /* asynchronous */), EXIT_SUCCESS);
         admin_client_connection_ = std::make_shared<ert::http2comm::Http2Connection>("127.0.0.1", "8074", false /* secure */);
         admin_client_ = std::make_shared<ert::http2comm::Http2Client>(admin_client_connection_);
         admin_client_connection_->waitToBeConnected();
 
-        traffic_http2_server_->serve("127.0.0.1", "8000", "", "", 1, true /* asynchronous */);
+        EXPECT_EQ(traffic_http2_server_->serve("127.0.0.1", "8000", "", "", 1, true /* asynchronous */), EXIT_SUCCESS);
         traffic_client_connection_ = std::make_shared<ert::http2comm::Http2Connection>("127.0.0.1", "8000", false /* secure */);
         traffic_client_ = std::make_shared<ert::http2comm::Http2Client>(traffic_client_connection_);
         traffic_client_connection_->waitToBeConnected();
@@ -152,6 +152,7 @@ public:
         admin_http2_server_->stop();
         traffic_http2_server_->stop();
         delete(timers_io_service_);
+        delete(metrics_);
     }
 
     void tearDown() {
@@ -317,7 +318,6 @@ TEST_F(http2Server_test, ProvisionedEvent)
     auto it = response.headers.find("content-type");
     EXPECT_TRUE(it != response.headers.end());
     EXPECT_EQ(it->second.value, "application/json");
-
     /////////////
     // Traffic //
     /////////////
@@ -329,10 +329,11 @@ TEST_F(http2Server_test, ProvisionedEvent)
     // Check headers
     it = response.headers.find("content-type");
     EXPECT_TRUE(it != response.headers.end());
-    EXPECT_EQ(it->second.value, "application/json");
+    if (it != response.headers.end()) { EXPECT_EQ(it->second.value, "application/json"); }
+
     it = response.headers.find("x-version");
     EXPECT_TRUE(it != response.headers.end());
-    EXPECT_EQ(it->second.value, "1.0.0");
+    if (it != response.headers.end()) { EXPECT_EQ(it->second.value, "1.0.0"); }
 
     tearDown();
 }
@@ -517,3 +518,4 @@ TEST_F(http2Server_test, SchemaNOK)
 
     tearDown();
 }
+

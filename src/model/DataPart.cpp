@@ -95,6 +95,12 @@ bool DataPart::assignFromHex(const std::string &strAsHex) {
 
 void DataPart::decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &jsonRepresentation) {
 
+    LOGDEBUG(
+        std::string output;
+        bool printable = h2agent::model::asHexString(content, output);
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Content (which is %sprintable) as hex: %s", (printable ? "":"non-"), output.c_str()), ERT_FILE_LOCATION);
+    );
+
     //// Normalize content-type:
     //std::string ct = contentType;
     //std::transform(ct.begin(), ct.end(), ct.begin(), [](unsigned char c) {
