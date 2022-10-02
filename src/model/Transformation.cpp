@@ -189,6 +189,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // - inState: current processing state.
     // + txtFile.`<path>`: reads text content from file with the path provided.
     // + binFile.`<path>`: reads binary content from file with the path provided.
+    // + command.`<command>`: executes command on process shell and captures the standard output.
 
     // Regex needed:
     static std::regex requestUriParam("^request.uri.param.(.*)", std::regex::optimize); // no need to escape dots as this is validated in schema
@@ -206,6 +207,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex event("^event.(.*)", std::regex::optimize);
     static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
     static std::regex binFile("^binFile.(.*)", std::regex::optimize);
+    static std::regex command("^command.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
     // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
@@ -298,6 +300,10 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (std::regex_match(sourceSpec, matches, binFile)) { // path file
             source_ = matches.str(1);
             source_type_ = SourceType::SBinFile;
+        }
+        else if (std::regex_match(sourceSpec, matches, command)) { // command string
+            source_ = matches.str(1);
+            source_type_ = SourceType::Command;
         }
         else { // some things could reach this (strange characters within value.* for example):
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
@@ -482,6 +488,9 @@ std::string Transformation::asString() const {
         }
         else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::SBinFile) {
             ss << " (path file)";
+        }
+        else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::Command) {
+            ss << " (shell command expression)";
         }
 
         if (!source_patterns_.empty()) {

@@ -175,6 +175,14 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     {
       "source": "eraser",
       "target": "txtFile./tmp/h2agent.ut.@{myvar}.txt"
+    },
+    {
+      "source": "command.echo -n foo",
+      "target": "response.body.json.string./command-output"
+    },
+    {
+      "source": "var.rc",
+      "target": "response.body.json.string./command-rc"
     }
   ]
 }
@@ -444,7 +452,9 @@ TEST_F(Transform_test, TransformWithSources) // test different sources
       "unix_ns": "1653872192363705636",
       "unix_s": "1653872192",
       "math-calculation": 19,
-      "file-content": "file content"
+      "file-content": "file content",
+      "command-output": "foo",
+      "command-rc": "0"
     }
     )"_json;
     for(auto i: {
@@ -534,13 +544,13 @@ TEST_F(Transform_test, TransformationAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Sources["transform"].size();
 
-    EXPECT_EQ(transformationItems, 37);
+    EXPECT_EQ(transformationItems, 39);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
     }
 
     // Last one:
-    EXPECT_EQ(transformation_.asString(), "SourceType: Eraser | TargetType: TTxtFile | target_: /tmp/h2agent.ut.@{myvar}.txt (path file) | target variables: myvar");
+    EXPECT_EQ(transformation_.asString(), "SourceType: SVar | source_: rc | TargetType: ResponseBodyJson_String | target_: /command-rc (empty: whole, path: node)");
 }
 
 TEST_F(Transform_test, TransformationWithFilterAsString) // test different sources

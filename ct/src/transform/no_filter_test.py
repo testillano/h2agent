@@ -1,7 +1,7 @@
 import pytest
 import json
 from conftest import BASIC_FOO_BAR_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_PROVISIONS__RESPONSE_BODY
-from conftest import NESTED_NODE1_NODE2_REQUEST, NESTED_VAR1_VAR2_REQUEST, TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_PROVISION_TEMPLATE
+from conftest import NESTED_NODE1_NODE2_REQUEST, NESTED_VAR1_VAR2_REQUEST, TRANSFORM_FOO_BAR_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_COMMAND_PROVISION_TEMPLATE
 
 
 @pytest.mark.transform
@@ -650,4 +650,15 @@ def test_050_valueToResponseBodyBadHexStringOddNumber(admin_server_provision, h2
 #  # Traffic
 #  response = h2ac_traffic.postDict("/app/v1/foo/bar")
 #  h2ac_traffic.assert_response__status_body_headers(response, 200, "")
+
+
+def test_051_commandExecutionToResponseBodyString(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_COMMAND_PROVISION_TEMPLATE, ct="text/html", command="echo -n foo"))
+
+  # Traffic
+  response = h2ac_traffic.postDict("/app/v1/foo/bar")
+  responseBodyRef = { "output":"foo", "rc":0 }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 

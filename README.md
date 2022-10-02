@@ -15,8 +15,8 @@ It is mainly designed for testing, but could even simulate or complement advance
 It is recommended to complete the following points first:
 
 * A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
-* A ***[demo](./README.md#demo)*** exercise which presents a basic use case to better understand the project essentials.
-* And finally, a ***[kata](./README.md#kata)*** training to adquire better knowledge of project capabilities.
+* A ***[demo](./README.md#Demo)*** exercise which presents a basic use case to better understand the project essentials.
+* And finally, a ***[kata](./README.md#Kata)*** training to adquire better knowledge of project capabilities.
 
 ## Scope
 
@@ -29,7 +29,7 @@ When developing a network service, one often needs to integrate it with other se
 So, `h2agent` could be used as:
 
 * **Server** mock: fully implemented
-* **Client** mock: design ongoing (roadmap planned for 3.x.x).
+* **Client** mock: design ongoing (roadmap planned for 4.x.x).
 
 Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
 
@@ -63,7 +63,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> server_example # follow instructions or just source it: source <(server_example)
   ```
 
-  You could also provide `-h` or `--help` to get **process help**: more information [here](#execution-of-main-agent).
+  You could also provide `-h` or `--help` to get **process help**: more information [here](#Execution-of-main-agent).
 
 * Run <u>project image</u> with docker:
 
@@ -71,7 +71,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> docker run --network=host --rm -it ghcr.io/testillano/h2agent:latest & # you may play native helpers again, on host
   ```
 
-* Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#how-it-is-delivered) section, but in summary, you could do the following:
+* Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
   ```bash
   $> # helm dependency update helm/h2agent # no dependencies at the moment
@@ -88,7 +88,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 
 
 
-Next sections will describe in detail, how to build [project image](#project-image) and project executable ([using docker](#build-project-with-docker) or [natively](#build-project-natively)).
+Next sections will describe in detail, how to build [project image](#Project-image) and project executable ([using docker](#Build-project-with-docker) or [natively](#Build-project-natively)).
 
 ## Project image
 
@@ -332,7 +332,7 @@ Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load
 
 Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
-As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#oam):
+As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#OAM):
 
 ```bash
 $> ./build/Release/bin/h2agent --verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3"
@@ -742,7 +742,7 @@ HTTP/2 501
 
 ## Metrics
 
-Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
+Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#Command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
 More information about implemented counters [here](#OAM).
 
@@ -1132,7 +1132,7 @@ String containing the current log level name.
 
 ### PUT /admin/v1/logging?level=`<level>`
 
-Changes the log level of the `h2agent` process to any of the available levels (this can be also configured on start as described in [command line](#command-line) section). So, `level` query parameter value could be any of the valid log levels: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+Changes the log level of the `h2agent` process to any of the available levels (this can be also configured on start as described in [command line](#Command-line) section). So, `level` query parameter value could be any of the valid log levels: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
 #### Response status code
 
@@ -1474,7 +1474,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
@@ -1497,7 +1497,7 @@ Defines the response behavior for an incoming request matching some basic condit
 
 ##### inState and outState
 
-We could label a provision specification to take advantage of internal *FSM* (finite state machine) for matched occurrences. When a reception matches a provision specification, the real context is searched internally to get the current state ("**initial**" if missing or empty string provided) and then get the  `inState` provision for that value. Then, the specific provision is processed and the new state will get the `outState` provided value. This makes possible to program complex flows which depends on some conditions, not only related to matching keys, but also consequence from [transformation filters](#transform) which could manipulate those states.
+We could label a provision specification to take advantage of internal *FSM* (finite state machine) for matched occurrences. When a reception matches a provision specification, the real context is searched internally to get the current state ("**initial**" if missing or empty string provided) and then get the  `inState` provision for that value. Then, the specific provision is processed and the new state will get the `outState` provided value. This makes possible to program complex flows which depends on some conditions, not only related to matching keys, but also consequence from [transformation filters](#Transform) which could manipulate those states.
 
 These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed. Also, if the next state configured (`outState` provisioned or transformed) has not a corresponding `inState` value, the flow will be broken/stopped.
 
@@ -1532,7 +1532,7 @@ Request *URI* path (percent-encoded) to match depending on the algorithm selecte
 
 ##### requestSchemaId
 
-We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
 ##### responseHeaders
 
@@ -1714,9 +1714,23 @@ The **source** of information is classified after parsing the following possible
 
 - inState: current processing state.
 
-- txtFile.`<path>`: reads text content from file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing files will fail to open.
+- txtFile.`<path>`: reads text content from file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing files will fail to open. This source enables the `h2agent` capability to serve files.
 
 - binFile.`<path>`: same as `txtFile` but reading binary data.
+
+- command.`<command>`: executes command on process shell and captures the standard output/error ([popen](https://man7.org/linux/man-pages/man3/popen.3.html)() is used behind). Also, the return code is saved into provision local variable `rc`. You may call external scripts or executables, and do whatever needed as if you would be using the shell environment.
+
+  - Important notes:
+    - **Be aware about security problems**, as you could provision via `REST API` any instruction accessible by a running `h2agent` to extract information or break things without interface restriction (remember anyway that `h2agent` supports [secured connection](#Execution-with-TLS-support)).
+    - **This operation could impact performance** as external procedures will block the working thread during execution (it is different than response delays which are managed asynchronously), so perhaps you should increase the number of working threads (check [command line](#Command-line)). This operation is mainly designed to run administrative procedures within the testing flow, but not as part of regular provisions to define mock behavior. So, having an additional working thread (`--traffic-server-worker-threads 2`) should be enough to handle dedicated `URIs` for that kind of work reserving another thread for normal traffic.
+
+  - Examples:
+    - `/any/procedure 2>&1`: `stderr` is also captured together with standard output (if not, the `h2agent` process will show the error message in console).
+    - `ls /the/file 2>/dev/null || /bin/true`: always success (`rc` stores 0) even if file is missing. Path captured when the file path exists.
+    - `/opt/tools/checkCondition &>/dev/null && echo fulfilled`: prepare transformation to capture non-empty content ("fulfilled") when condition is successful.
+    - `/path/to/getJpg >/var/log/image.jpg 2>/var/log/getJpg.err`: arbitrary procedure executed and standard output/error dumped into files which can be read in later step by mean `binFile`/`txtFile` sources.
+    - Shell commands accessible on environment path: security considerations are important but this functionality is worth it as it even allows us to simulate exceptional conditions within our test system. For example, we could provision a special `uri` to provoke the mock server crash using command source: `pkill -SIGSEGV h2agent` (suicide command).
+
 
 
 
@@ -1770,7 +1784,7 @@ The **target** of information is classified after parsing the following possible
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
 
-- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
+- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
@@ -2027,7 +2041,7 @@ Finally, after possible transformations, we could validate the response body:
 
 ##### responseSchemaId
 
-We could optionally validate built responses against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+We could optionally validate built responses against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
 #### Response status code
 
@@ -2406,13 +2420,13 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 
 ### Agent configuration files
 
-Some [command line](#command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
+Some [command line](#Command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
 
 ## Troubleshooting
 
 ### Helper functions
 
-As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
+As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
 $> source ./tools/helpers.src
@@ -2488,7 +2502,7 @@ Usage: help; This help. Overview: help | grep ^Usage
 
 ### OAM
 
-You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions): `metrics`.
+You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#Helper-functions): `metrics`.
 
 So, a direct scrape (for example towards the agent after its *component test*) would be something like this:
 
@@ -2502,7 +2516,7 @@ On native execution, it is just a simple `curl` native request:
 $> curl http://localhost:8080/metrics
 ```
 
-This is an example of metrics snapshot captured after [benchmark test](#benchmarking-test) execution:
+This is an example of metrics snapshot captured after [benchmark test](#Benchmarking-test) execution:
 
 ```bash
 $> source ./tools/helpers.src
