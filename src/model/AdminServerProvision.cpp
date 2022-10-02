@@ -40,6 +40,7 @@ SOFTWARE.
 #include <time.h>       /* time_t, struct tm, time, localtime, strftime */
 #include <string>
 #include <algorithm>
+//#include <fcntl.h> // non-blocking fgets call
 
 #include <nlohmann/json.hpp>
 #include <arashpartow/exprtk.hpp>
@@ -93,7 +94,7 @@ AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PR
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
         TypeConverter& sourceVault,
-        const std::map<std::string, std::string>& variables,
+        std::map<std::string, std::string>& variables,
         const std::string &requestUri,
         const std::string &requestUriPath,
         const std::map<std::string, std::string> &requestQueryParametersMap,
@@ -305,6 +306,35 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         std::string content;
         file_manager_->read(path, content, false/*binary*/);
         sourceVault.setString(std::move(content));
+    }
+    else if (transformation->getSourceType() == Transformation::SourceType::Command) {
+        std::string command = transformation->getSource();
+        replaceVariables(command, transformation->getSourcePatterns(), variables, global_variable_->get());
+
+        static char buffer[256];
+        std::string output;
+
+        FILE *fp = popen(command.c_str(), "r");
+        if (fp) {
+            /* This makes asyncronous the command execution, but we will have broken pipe and cannot capture anything.
+            // fgets is blocking (https://stackoverflow.com/questions/6055702/using-fgets-as-non-blocking-function-c/6055774#6055774)
+            int fd = fileno(fp);
+            int flags = fcntl(fd, F_GETFL, 0);
+            flags |= O_NONBLOCK;
+            fcntl(fd, F_SETFL, flags);
+            */
+
+            while(fgets(buffer, sizeof(buffer), fp))
+            {
+                output += buffer;
+            }
+            variables["rc"] = std::to_string(WEXITSTATUS(/* status = */pclose(fp))); // rc = status >>= 8; // divide by 256
+        }
+        else {
+            variables["rc"] = "-1";
+        }
+
+        sourceVault.setString(std::move(output));
     }
 
 

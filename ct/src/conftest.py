@@ -709,6 +709,28 @@ TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_PROVISION_TEMPLATE='''
 }}
 '''
 
+TRANSFORM_FOO_BAR_COMMAND_PROVISION_TEMPLATE='''
+{{
+  "requestMethod":"POST",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode":200,
+  "responseHeaders": {{
+    "content-type":"{ct}",
+    "x-version":"1.0.0"
+  }},
+  "transform": [
+    {{
+      "source": "command.{command}",
+      "target": "response.body.json.string./output"
+    }} ,
+    {{
+      "source": "var.rc",
+      "target": "response.body.json.integer./rc"
+    }}
+  ]
+}}
+'''
+
 NESTED_VAR1_VAR2_REQUEST='''
 {
   "var1value": {

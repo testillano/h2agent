@@ -119,7 +119,7 @@ class AdminServerProvision
     // Three processing stages: get sources, apply filters and store targets:
     bool processSources(std::shared_ptr<Transformation> transformation,
                         TypeConverter& sourceVault,
-                        const std::map<std::string, std::string>& variables,
+                        std::map<std::string, std::string>& variables,
                         const std::string &requestUri,
                         const std::string &requestUriPath,
                         const std::map<std::string, std::string> &requestQueryParametersMap,
