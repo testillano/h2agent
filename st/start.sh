@@ -171,7 +171,8 @@ init_report() {
   echo -e "\n----------------------------------------------------" > ${REPORT}
   for var in ${COMMON_VARS} $@
   do
-    echo "${var}=\"$(eval echo \$$var)\" \\"
+    local val=$(eval echo \$$var)
+    echo "${var}=\"\${${var}:-${val}}\" \\"
   done >> ${REPORT}
   echo -e "${PWD}/start.sh" >> ${REPORT}
   echo -e "----------------------------------------------------\n" >> ${REPORT}

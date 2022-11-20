@@ -114,7 +114,7 @@ public:
         admin_http2_server_->setMockServerEventsData(mock_server_events_data_); // stored at administrative class to pass through created server provisions
         admin_http2_server_->enableMetrics(metrics_);
 
-        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(1, timers_io_service_);
+        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(1, 1, timers_io_service_);
         traffic_http2_server_->setApiName("app");
         traffic_http2_server_->setApiVersion("v1");
         traffic_http2_server_->setMockServerEventsData(mock_server_events_data_);

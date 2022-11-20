@@ -59,8 +59,8 @@ namespace http2
 {
 
 
-MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService):
-    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, timersIoService),
+MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService):
+    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoService),
     admin_data_(nullptr) {
 
     mock_server_events_data_ = new model::MockServerEventsData();
@@ -186,7 +186,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
 
         LOGINFORMATIONAL(
         if (receptionId % 5000 == 0) {
-        std::string msg = ert::tracing::Logger::asString("Current/maximum busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
+        std::string msg = ert::tracing::Logger::asString("'Current/maximum reached' busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
             ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
         }
         );

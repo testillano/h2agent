@@ -62,7 +62,7 @@ namespace http2
 {
 
 MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
-    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, nullptr) {
+    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
 }

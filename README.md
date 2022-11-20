@@ -244,7 +244,7 @@ $> sudo make install
 Optionally you could specify another prefix for installation:
 
 ```bash
-$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/myPrograms/http2
+$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
 $> make install
 ```
 
@@ -258,7 +258,7 @@ $> cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-*Work ongoing*: check the badge above to know the current coverage level.
+Check the badge above to know the current coverage level.
 You can execute it after project building, for example for `Release` target: `./build/Release/bin/unit-test`.
 
 #### Coverage
@@ -515,8 +515,13 @@ Options:
 [-w|--traffic-server-worker-threads <threads>]
   Number of traffic server worker threads; defaults to 1, which should be enough
   even for complex logic provisioned (admin server always uses 1 worker thread).
-  It could be increased if hardware concurrency permits a greater margin taking
-  into account other process threads considered busy.
+  It could be increased if hardware concurrency (8) permits a greater margin taking
+  into account other process threads considered busy and I/O time spent by server
+  threads.
+
+[--traffic-server-max-worker-threads <threads>]
+  Number of traffic server maximum worker threads; defaults to the number of worker
+  threads but could be a higher number so they will be created when needed.
 
 [-t|--traffic-server-threads <threads>]
   Number of nghttp2 traffic server threads; defaults to 2 (2 connections)
@@ -753,7 +758,7 @@ Traces are managed by `syslog` by default, but could be shown verbosely at stand
 ```bash
 $> ./h2agent --verbose &
 [1] 27407
-[03/04/21 20:49:35 CEST] Starting h2agent v1.0.0-93-g0ab2129
+20/11/22 20:53:33 CET: Starting h2agent
 Log level: Warning
 Verbose (stdout): true
 IP stack: IPv4
@@ -765,6 +770,7 @@ Traffic server api name: <none>
 Traffic server api version: <none>
 Traffic server threads (nghttp2): 2
 Traffic server worker threads: 1
+Traffic server maximum worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
 Traffic server crt file: <not provided>
@@ -782,14 +788,16 @@ Traffic server matching configuration file: <not provided>
 Traffic server provision configuration file: <not provided>
 Prometheus bind address: 0.0.0.0
 Prometheus port: 8080
+Long-term files close delay (usecs): 1000000
+Short-term files close delay (usecs): 0
 
 $ kill $!
-[Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15
-[Warning]|/code/src/main.cpp:104(_exit)|Terminating with exit code 1
-[Warning]|/code/src/main.cpp:134(stopAgent)|Stopping h2agent timers service at 13/05/22 20:07:59 CEST
-[Warning]|/code/src/main.cpp:142(stopAgent)|Stopping h2agent admin service at 13/05/22 20:07:59 CEST
-[Warning]|/code/src/main.cpp:149(stopAgent)|Stopping h2agent traffic service at 13/05/22 20:07:59 CEST
-[Warning]|/code/src/main.cpp:160(_exit)|Stopping logger
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:207(sighndl)|Signal received: 15
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:194(myExit)|Terminating with exit code 1
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:148(stopAgent)|Stopping h2agent timers service at 20/11/22 20:53:37 CET
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:154(stopAgent)|Stopping h2agent admin service at 20/11/22 20:53:37 CET
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:161(stopAgent)|Stopping h2agent traffic service at 20/11/22 20:53:37 CET
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:198(myExit)|Stopping logger
 
 [1]+  Exit 1                  h2agent --verbose
 ```

@@ -8,7 +8,7 @@
 ├── common.src
 ├── coverage.sh
 ├── helpers.src
-├── manual
+├── play-h2agent
 │   ├── server-matching
 │   │   ├── FullMatching_ignore_qparams.json
 │   │   ├── FullMatching_passby_qparams.json
@@ -43,7 +43,7 @@
 * common.src: common functions used in `./demo` and `./kata`.
 * coverage.sh: automated coverage report based in unit tests.
 * helpers.src: helper functions to administrate and inspect the `h2agent` application.
-* manual: quick test-bed environment:
+* play-h2agent: quick test-bed environment:
   * server-matching: server matching configurations in `json` format.
   * test.sh: manual test script helper which manages server matching configuration (stored at ./server-matching) as well as server provisioning and traffic tests.
   * tests: each file within './tests' have three sections delimited with the tags: 'PROVISION', 'REQUEST_BODY' and 'REQUEST_HDRS'. Under them, the corresponding content will be used to provision the agent, and to know if the traffic request has a body and optional headers.
