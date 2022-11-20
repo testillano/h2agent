@@ -86,7 +86,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     std::atomic<bool> pre_reserve_request_body_{true};
 
 public:
-    MyTrafficHttp2Server(size_t workerThreads, boost::asio::io_service *timersIoService);
+    MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService);
     ~MyTrafficHttp2Server();
 
     /**

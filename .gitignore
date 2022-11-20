@@ -23,7 +23,7 @@ src/version.cpp
 *.swp
 
 # Test temporary files
-tools/manual/*/.*
+tools/play-h2agent/*/.*
 st/report*
 st/last
 

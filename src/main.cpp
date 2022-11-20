@@ -165,7 +165,7 @@ void stopAgent()
     delete(myMockServerEventsData);
     myMockServerEventsData = nullptr;
 
-    // TODO (fix): free(): double free detected in tcache 2
+    // TODO: sync delete to avoid: double free detected in tcache 2
     //delete(myTrafficHttp2Server);
     //myTrafficHttp2Server = nullptr;
 
@@ -184,8 +184,9 @@ void stopAgent()
     delete(myConfiguration);
     myConfiguration = nullptr;
 
-    delete(myTimersIoService);
-    myTimersIoService = nullptr;
+    // TODO: sync delete to avoid: free(): corrupted unsorted chunks -> Aborted
+    //delete(myTimersIoService);
+    //myTimersIoService = nullptr;
 }
 
 void myExit(int rc)
@@ -214,6 +215,7 @@ void sighndl(int signal)
 void usage(int rc, const std::string &errorMessage = "")
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
+    unsigned int hardwareConcurrency = std::thread::hardware_concurrency();
 
     ss << progname << " - HTTP/2 Agent service\n\n"
 
@@ -247,8 +249,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-w|--traffic-server-worker-threads <threads>]\n"
        << "  Number of traffic server worker threads; defaults to 1, which should be enough\n"
        << "  even for complex logic provisioned (admin server always uses 1 worker thread).\n"
-       << "  It could be increased if hardware concurrency permits a greater margin taking\n"
-       << "  into account other process threads considered busy.\n\n"
+       << "  It could be increased if hardware concurrency (" << hardwareConcurrency << ") permits a greater margin taking\n"
+       << "  into account other process threads considered busy and I/O time spent by server\n"
+       << "  threads.\n\n"
+
+       << "[--traffic-server-max-worker-threads <threads>]\n"
+       << "  Number of traffic server maximum worker threads; defaults to the number of worker\n"
+       << "  threads but could be a higher number so they will be created when needed.\n\n"
 
        << "[-t|--traffic-server-threads <threads>]\n"
        << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
@@ -425,6 +432,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
+    int traffic_server_max_worker_threads = 1;
     int traffic_server_threads = 2;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
@@ -512,6 +520,16 @@ int main(int argc, char* argv[])
         if (traffic_server_worker_threads < 1)
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-server-worker-threads' value. Must be greater than 0.");
+        }
+        traffic_server_max_worker_threads = traffic_server_worker_threads;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--traffic-server-max-worker-threads", value))
+    {
+        traffic_server_max_worker_threads = toNumber(value);
+        if (traffic_server_max_worker_threads < traffic_server_worker_threads)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-max-worker-threads' value. Must be greater or equal than traffic server worker threads.");
         }
     }
 
@@ -677,6 +695,7 @@ int main(int argc, char* argv[])
 
         std::cout << "Traffic server threads (nghttp2): " << traffic_server_threads << '\n';
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
+        std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
 
         // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
         // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + traffic_server_threads + traffic_server_worker_threads)
@@ -766,7 +785,7 @@ int main(int argc, char* argv[])
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, myTimersIoService);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoService);
         myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);

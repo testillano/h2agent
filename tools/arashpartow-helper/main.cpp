@@ -66,6 +66,8 @@ void usage(int rc)
        << "   " << progname << " --expression \"404 == 404\"" << '\n'
        << "   " << progname << " --expression \"cos(3.141592)\"" << '\n'
 
+       << "\nArash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/readme.txt"
+
        << '\n';
 
     exit(rc);
