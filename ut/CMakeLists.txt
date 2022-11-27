@@ -39,7 +39,7 @@ ${CMAKE_EXE_LINKER_FLAGS}
         ssl            #Needed by boost_system
         crypto         #Needed by ssl, and need to be appended after ssl
         pthread        #Needed by boost::asio
-        dl             #Needed by crypto
+        #dl             #Needed by crypto
 
         h2agent-jsonSchema
         nlohmann_json_schema_validator
