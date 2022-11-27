@@ -701,6 +701,76 @@ Expression: 404 == 404
 Result: 1
 ```
 
+## Execution of h2client helper utility
+
+This utility could be useful to test simple HTTP/2 requests.
+
+### Command line
+
+You may take a look to `h2client` command line by just typing the build path, for example for `Release` target:
+
+```bash
+$> ./build/Release/bin/h2client -h
+Usage: h2client [options]
+
+Options:
+
+[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
+  Set the logging level; defaults to warning.
+
+[--verbose]
+  Output log traces on console.
+
+[--timeout <value>]
+  Time in seconds to wait for request response. Defaults to 5.
+
+[--method <POST|GET|PUT|DELETE|HEAD>]
+  Request method. Defaults to 'GET'.
+
+[--header <value>]
+  Header in the form 'name:value'. This parameter can occur multiple times.
+
+[--body <value>]
+  Plain text for request body content.
+
+--uri <value>
+ URI to access.
+
+--secure
+ Use secure connection.
+
+--rc-probe
+  Forwards HTTP status code into equivalent program return code.
+  So, any code greater than or equal to 200 and less than 400
+  indicates success and will return 0 (1 in other case).
+  This allows to use the client as HTTP/2 command probe in
+  kubernetes where native probe is only supported for HTTP/1.
+
+[-h|--help]
+  This help.
+
+Examples: 
+   h2client --timeout 1 --uri http://localhost:8000/book/8472098362
+   h2client --method POST --header "content-type:application/json" --body '{"foo":"bar"}' --uri http://localhost:8000/data
+```
+
+Execution example:
+
+```bash
+$> build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
+
+Timeout: 1
+Secure connection: false
+Uri: http://localhost:8000/book/8472098362
+   Host: localhost
+   Port: 8000
+   Path: book/8472098362
+
+ Response status code: 200
+ Response body: {"author":"Ludwig von Mises"}
+ Response headers: [date: Sun, 27 Nov 2022 18:58:32 GMT]
+```
+
 ## Execution with TLS support
 
 `H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
