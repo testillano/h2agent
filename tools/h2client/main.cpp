@@ -69,6 +69,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--timeout <value>]\n"
        << "  Time in seconds to wait for request response. Defaults to 5.\n\n"
 
+       << "[--method <POST|GET|PUT|DELETE|HEAD>]\n"
+       << "  Request method. Defaults to 'GET'.\n\n"
+
        << "[--header <value>]\n"
        << "  Header in the form 'name:value'. This parameter can occur multiple times.\n\n"
 
@@ -92,8 +95,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --timeout 1 --header \"x-version:1.0\" --header \":method:GET\" --uri http://localhost:8000/healthcheck" << '\n'
-       << "   " << progname << " --header \"content-type:application/json\" --body '{\"foo\":\"bar\"}' --uri http://localhost:8000/data" << '\n'
+       << "   " << progname << " --timeout 1 --uri http://localhost:8000/book/8472098362" << '\n'
+       << "   " << progname << " --method POST --header \"content-type:application/json\" --body '{\"foo\":\"bar\"}' --uri http://localhost:8000/data" << '\n'
 
        << '\n';
 
@@ -153,6 +156,7 @@ int main(int argc, char* argv[])
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     int timeout = 5; // default
+    ert::http2comm::Http2Client::Method method = ert::http2comm::Http2Client::Method::GET;
     nghttp2::asio_http2::header_map headers;
     std::string body;
     std::string uri;
@@ -189,6 +193,22 @@ int main(int argc, char* argv[])
         {
             usage(EXIT_FAILURE, "Invalid '--timeout' value. Must be greater than 0.");
         }
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--method", value))
+    {
+        if (value == "POST")
+            method = ert::http2comm::Http2Client::Method::POST;
+        else if (value == "GET")
+            method = ert::http2comm::Http2Client::Method::GET;
+        else if (value == "PUT")
+            method = ert::http2comm::Http2Client::Method::PUT;
+        else if (value == "DELETE")
+            method = ert::http2comm::Http2Client::Method::DELETE;
+        else if (value == "HEAD")
+            method = ert::http2comm::Http2Client::Method::HEAD;
+        else
+            usage(EXIT_FAILURE, "Invalid '--method' value. Allowed: POST, GET, PUT, DELETE, HEAD.");
     }
 
     char **next = argv;
@@ -283,12 +303,12 @@ int main(int argc, char* argv[])
     // Create client class
     ert::http2comm::Http2Client client(host, port, secure);
 
-    ert::http2comm::Http2Client::response response = client.send(ert::http2comm::Http2Client::Method::GET, path, body, headers, std::chrono::milliseconds(timeout * 1000));
+    ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(timeout * 1000));
 
     int status = response.statusCode;
-    std::cout << "   Response status code: " << status << ((status == -1) ? " (connection error)":"") <<std::endl;
-    if (!response.body.empty()) std::cout << "   Response body: " << response.body << std::endl;
-    if (response.headers.size() != 0) std::cout << "   Response headers: " << ert::http2comm::headersAsString(response.headers) << '\n';
+    std::cout << "Response status code: " << status << ((status == -1) ? " (connection error)":"") <<std::endl;
+    if (!response.body.empty()) std::cout << "Response body: " << response.body << std::endl;
+    if (response.headers.size() != 0) std::cout << "Response headers: " << ert::http2comm::headersAsString(response.headers) << '\n';
 
     int rc = (status == -1) ? EXIT_FAILURE:EXIT_SUCCESS;
     if (rcProbe) rc = !(status >= 200 && status < 400);
