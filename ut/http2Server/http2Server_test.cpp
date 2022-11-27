@@ -1,6 +1,5 @@
 #include <nlohmann/json.hpp>
 
-#include <ert/http2comm/Http2Connection.hpp>
 #include <ert/http2comm/Http2Client.hpp>
 
 #include <MyAdminHttp2Server.hpp>
@@ -93,7 +92,6 @@ public:
     h2agent::model::MockServerEventsData* mock_server_events_data_{};
     ert::metrics::Metrics* metrics_{};
 
-    std::shared_ptr<ert::http2comm::Http2Connection> traffic_client_connection_{}, admin_client_connection_{};
     std::shared_ptr<ert::http2comm::Http2Client> traffic_client_{}, admin_client_{};
 
     http2Server_test() {
@@ -134,14 +132,10 @@ public:
 
         // Start server asynchronously:
         EXPECT_EQ(admin_http2_server_->serve("127.0.0.1", "8074", "", "", 1, true /* asynchronous */), EXIT_SUCCESS);
-        admin_client_connection_ = std::make_shared<ert::http2comm::Http2Connection>("127.0.0.1", "8074", false /* secure */);
-        admin_client_ = std::make_shared<ert::http2comm::Http2Client>(admin_client_connection_);
-        admin_client_connection_->waitToBeConnected();
+        admin_client_ = std::make_shared<ert::http2comm::Http2Client>("127.0.0.1", "8074", false /* secure */);
 
         EXPECT_EQ(traffic_http2_server_->serve("127.0.0.1", "8000", "", "", 1, true /* asynchronous */), EXIT_SUCCESS);
-        traffic_client_connection_ = std::make_shared<ert::http2comm::Http2Connection>("127.0.0.1", "8000", false /* secure */);
-        traffic_client_ = std::make_shared<ert::http2comm::Http2Client>(traffic_client_connection_);
-        traffic_client_connection_->waitToBeConnected();
+        traffic_client_ = std::make_shared<ert::http2comm::Http2Client>("127.0.0.1", "8000", false /* secure */);
     }
 
     ~http2Server_test() {
