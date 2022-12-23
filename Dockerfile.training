@@ -13,6 +13,9 @@ ARG base_os=ubuntu
 RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add dos2unix && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y dos2unix && apt-get clean ; fi
 
 RUN ln -s /opt/h2agent
+RUN ln -s /opt/h2client
+RUN ln -s /opt/matching-helper
+RUN ln -s /opt/arashpartow-helper
 
 ENTRYPOINT ["sleep", "infinity"]
 CMD []

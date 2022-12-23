@@ -40,7 +40,7 @@ Check the [releases](https://github.com/testillano/h2agent/releases) to get late
 
 ## How can you use it ?
 
-`H2agent` process may be used natively, as a `docker` container, or as part of `kubernetes` deployment.
+`H2agent` process (as well as other project binaries) may be used natively, as a `docker` container, or as part of `kubernetes` deployment.
 
 The easiest way to build the project is using [containers](https://en.wikipedia.org/wiki/LXC) technology (this project uses `docker`): **to generate all the artifacts**, just type the following:
 
@@ -48,27 +48,18 @@ The easiest way to build the project is using [containers](https://en.wikipedia.
 $> ./build.sh --auto
 ```
 
-The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally the <u>project executable</u> (`--project`). Then you will have everything available to run the process with three different modes:
-
-* Run <u>project executable</u> natively (standalone):
-
-  ```bash
-  $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
-  ```
-
-  You may play with native helpers functions and examples:
-
-  ```bash
-  $> source tools/helpers.src # type help in any moment after sourcing
-  $> server_example # follow instructions or just source it: source <(server_example)
-  ```
-
-  You could also provide `-h` or `--help` to get **process help**: more information [here](#Execution-of-main-agent).
+The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
 
 * Run <u>project image</u> with docker:
 
   ```bash
-  $> docker run --network=host --rm -it ghcr.io/testillano/h2agent:latest & # you may play native helpers again, on host
+  $> docker run --rm -it -p 8000:8000 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
+  ```
+
+  You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example:
+
+  ```bash
+  $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
@@ -77,18 +68,56 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> # helm dependency update helm/h2agent # no dependencies at the moment
   $> helm install h2agent-example helm/h2agent --wait
   $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
-  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h
+  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h # run, for example, h2agent help
   ```
 
-  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils` and automatically sourced on `bash` shell:
+  You may enter the pod and play with helpers functions and examples (deployed with the chart under `/opt/utils`) which are anyway, automatically sourced on `bash` shell:
 
   ```bash
   $> kubectl exec -it ${pod} -- bash
   ```
 
+It is also possible to build the project natively (not using containers) installing all the dependencies on the local host:
+
+```bash
+$> ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
+```
+
+So, you could run `h2agent` (or any other binary available under `./build/<build type>/bin`) directly:
 
 
-Next sections will describe in detail, how to build [project image](#Project-image) and project executable ([using docker](#Build-project-with-docker) or [natively](#Build-project-natively)).
+* Run <u>project executable</u> natively (standalone):
+
+  ```bash
+  $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  ```
+
+  Provide `-h` or `--help` to get **process help** (more information [here](#Execution-of-main-agent)) or execute any other project executable.
+
+  You may also play with project helpers functions and examples:
+
+  ```bash
+  $> source tools/helpers.src # type help in any moment after sourcing
+  $> server_example # follow instructions or just source it: source <(server_example)
+  ```
+
+
+## Static linking
+
+Both build helpers (`build.sh` and `build-native.sh` scripts) allow to force project static link, although this is [not recommended](https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged):
+
+```bash
+$> STATIC_LINKING=TRUE ./build.sh --auto
+- or -
+$> STATIC_LINKING=TRUE ./build-native.sh
+```
+
+So, you could run binaries regardless if needed libraries are available or not (including `glibc` with all its drawbacks).
+
+
+
+
+Next sections will describe in detail, how to build [project image](#Project-image) and project executables ([using docker](#Build-project-with-docker) or [natively](#Build-project-natively)).
 
 ## Project image
 
@@ -130,7 +159,7 @@ Both `ubuntu` and `alpine` base images are supported, but the official image upl
 
 ### Usage
 
-Builder image is used to build the executable. To run compilation over this image, again, just run with `docker`:
+Builder image is used to build the project. To run compilation over this image, again, just run with `docker`:
 
 ```bash
 $> envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
@@ -160,7 +189,11 @@ It may be hard to collect every dependency, so there is a native build **automat
 $> ./build-native.sh
 ```
 
-Note: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
+Note 1: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
+
+Note 2: once dependencies have been installed, you may just type `cmake . && make` to have incremental native builds.
+
+Note 3: if not stated otherwise, this document assumes that binaries (used on examples) are natively built.
 
 
 
@@ -259,7 +292,15 @@ $> cat install_manifest.txt | sudo xargs rm
 ### Unit test
 
 Check the badge above to know the current coverage level.
-You can execute it after project building, for example for `Release` target: `./build/Release/bin/unit-test`.
+You can execute it after project building, for example for `Release` target:
+
+```bash
+$> ./build/Release/bin/unit-test # native executable
+- or -
+$> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
+```
+
+
 
 #### Coverage
 
@@ -749,7 +790,7 @@ Options:
 [-h|--help]
   This help.
 
-Examples: 
+Examples:
    h2client --timeout 1 --uri http://localhost:8000/book/8472098362
    h2client --method POST --header "content-type:application/json" --body '{"foo":"bar"}' --uri http://localhost:8000/data
 ```
@@ -892,7 +933,7 @@ A kata is available at `./kata` directory. It is designed to guide through a set
 
 Sometimes, `github` access restrictions to build the project from scratch could be a handicap. Other times, you could simple prefer to run training stuff isolated.
 
-So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout.
+So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symlinks, main project executables.
 
 The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
