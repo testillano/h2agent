@@ -3,6 +3,9 @@
 #############
 # VARIABLES #
 #############
+
+STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged:
+
 image_tag__dflt=latest
 base_os__dflt=ubuntu
 base_tag__dflt=latest
@@ -120,7 +123,7 @@ build_project() {
   _read make_procs
   _read build_type
 
-  envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type} -e STATIC_LINKING=TRUE"
+  envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type} -e STATIC_LINKING=${STATIC_LINKING}"
 
   set -x
   rm -f CMakeCache.txt
