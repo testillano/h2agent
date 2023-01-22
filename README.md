@@ -56,7 +56,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> docker run --rm -it -p 8000:8000 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
   ```
 
-  You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example:
+  You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
   $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
@@ -68,7 +68,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> # helm dependency update helm/h2agent # no dependencies at the moment
   $> helm install h2agent-example helm/h2agent --wait
   $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
-  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h # run, for example, h2agent help
+  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
   ```
 
   You may enter the pod and play with helpers functions and examples (deployed with the chart under `/opt/utils`) which are anyway, automatically sourced on `bash` shell:
@@ -373,10 +373,23 @@ Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load
 
 Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
-As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#OAM):
+#### Considerations
+
+* As schema validation is normally used only for function tests, it will be disabled here.
+* `h2agent` could be for example started with 5 worker threads to discard application bottlenecks.
+* Add histogram boundaries to better classify internal answer latencies for [metrics](#OAM).
+* Data storage is disabled in the script by default to prevent memory from growing and improve server response times (remember that storage shall be kept when provisions require data persistence).
+* In general, even with high traffic rates, you could get sneaky snapshots just enabling and then quickly disabling data storage, for example using [function helpers](#Helper-functions): `server_data_configuration --keep-all && server_data_configuration --discard-all`
+
+
+
+So you may start the process, again, natively or using docker:
 
 ```bash
-$> ./build/Release/bin/h2agent --verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3"
+$> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3")
+$> ./build/Release/bin/h2agent "${OPTS[@]}" # native executable
+- or -
+$> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}"  # docker
 ```
 
 In other shell we launch the benchmark test:
@@ -518,10 +531,10 @@ Created test report:
 
 ### Command line
 
-You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/h2agent -h|--help`:
+You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2agent -h
+$> ./build/Release/bin/h2agent --help
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
@@ -664,10 +677,10 @@ This utility could be useful to test regular expressions before putting them at 
 
 ### Command line
 
-You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target:
+You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/matching-helper -h
+$> ./build/Release/bin/matching-helper --help
 Usage: matching-helper [options]
 
 Options:
@@ -710,10 +723,10 @@ This utility could be useful to test [Arash Partow's](https://github.com/ArashPa
 
 ### Command line
 
-You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target:
+You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/arashpartow-helper -h
+$> ./build/Release/bin/arashpartow-helper --help
 Usage: arashpartow-helper [options]
 
 Options:
@@ -748,10 +761,10 @@ This utility could be useful to test simple HTTP/2 requests.
 
 ### Command line
 
-You may take a look to `h2client` command line by just typing the build path, for example for `Release` target:
+You may take a look to `h2client` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2client -h
+$> ./build/Release/bin/h2client --help
 Usage: h2client [options]
 
 Options:
