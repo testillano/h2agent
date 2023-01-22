@@ -38,6 +38,7 @@ SOFTWARE.
 #include <nghttp2/asio_http2_server.h>
 
 #include <string>
+#include <chrono>
 
 #include <nlohmann/json.hpp>
 
