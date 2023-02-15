@@ -374,6 +374,7 @@ void usage(int rc, const std::string &errorMessage = "")
     myExit(rc);
 }
 
+// Turns string into number
 int toNumber(const std::string& value)
 {
     int result = 0;
@@ -390,18 +391,28 @@ int toNumber(const std::string& value)
     return result;
 }
 
-bool cmdOptionExists(char** begin, char** end, const std::string& option,
-                     std::string& value)
+// Read parameter without value associated
+bool readCmdLine(char** begin, char** end, const std::string& option)
+{
+    return (std::find(begin, end, option) != end);
+}
+
+// Read parameter with value associated
+bool readCmdLine(char** begin, char** end, const std::string& option, std::string& value)
 {
     char** itr = std::find(begin, end, option);
-    bool exists = (itr != end);
 
-    if (exists && ++itr != end)
-    {
-        value = *itr;
+    if (itr == end) return false;
+
+    if (++itr == end) {
+        std::string msg = "Missing mandatory value for '";
+        msg += option;
+        msg += "'";
+        usage(EXIT_FAILURE, msg);
     }
 
-    return exists;
+    value = *itr;
+    return true;
 }
 
 
@@ -458,14 +469,14 @@ int main(int argc, char* argv[])
 
     std::string value;
 
-    if (cmdOptionExists(argv, argv + argc, "-h", value)
-            || cmdOptionExists(argv, argv + argc, "--help", value))
+    if (readCmdLine(argv, argv + argc, "-h")
+            || readCmdLine(argv, argv + argc, "--help"))
     {
         usage(EXIT_SUCCESS);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-l", value)
-            || cmdOptionExists(argv, argv + argc, "--log-level", value))
+    if (readCmdLine(argv, argv + argc, "-l", value)
+            || readCmdLine(argv, argv + argc, "--log-level", value))
     {
         if (!ert::tracing::Logger::setLevel(value))
         {
@@ -473,48 +484,48 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--verbose", value))
+    if (readCmdLine(argv, argv + argc, "--verbose"))
     {
         verbose = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--ipv6", value))
+    if (readCmdLine(argv, argv + argc, "--ipv6"))
     {
         ipv6 = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-b", value)
-            || cmdOptionExists(argv, argv + argc, "--bind-address", value))
+    if (readCmdLine(argv, argv + argc, "-b", value)
+            || readCmdLine(argv, argv + argc, "--bind-address", value))
     {
         bind_address = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-a", value)
-            || cmdOptionExists(argv, argv + argc, "--admin-port", value))
+    if (readCmdLine(argv, argv + argc, "-a", value)
+            || readCmdLine(argv, argv + argc, "--admin-port", value))
     {
         admin_port = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-p", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-port", value))
+    if (readCmdLine(argv, argv + argc, "-p", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-port", value))
     {
         traffic_server_port = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-m", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-api-name", value))
+    if (readCmdLine(argv, argv + argc, "-m", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-api-name", value))
     {
         traffic_server_api_name = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-n", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-api-version", value))
+    if (readCmdLine(argv, argv + argc, "-n", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-api-version", value))
     {
         traffic_server_api_version = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-w", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-worker-threads", value))
+    if (readCmdLine(argv, argv + argc, "-w", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-worker-threads", value))
     {
         traffic_server_worker_threads = toNumber(value);
         if (traffic_server_worker_threads < 1)
@@ -524,7 +535,7 @@ int main(int argc, char* argv[])
         traffic_server_max_worker_threads = traffic_server_worker_threads;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-max-worker-threads", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-max-worker-threads", value))
     {
         traffic_server_max_worker_threads = toNumber(value);
         if (traffic_server_max_worker_threads < traffic_server_worker_threads)
@@ -535,8 +546,8 @@ int main(int argc, char* argv[])
 
     // Probably, this parameter is not useful as we release the server thread using our workers, so
     //  no matter if you launch more server threads here, no difference should be detected ...
-    if (cmdOptionExists(argv, argv + argc, "-t", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-threads", value))
+    if (readCmdLine(argv, argv + argc, "-t", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-threads", value))
     {
         traffic_server_threads = toNumber(value);
         if (traffic_server_threads < 1)
@@ -545,97 +556,97 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-k", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-key", value))
+    if (readCmdLine(argv, argv + argc, "-k", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-key", value))
     {
         traffic_server_key_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-d", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-key-password", value))
+    if (readCmdLine(argv, argv + argc, "-d", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-key-password", value))
     {
         traffic_server_key_password = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-c", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-crt", value))
+    if (readCmdLine(argv, argv + argc, "-c", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-crt", value))
     {
         traffic_server_crt_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-s", value)
-            || cmdOptionExists(argv, argv + argc, "--secure-admin", value))
+    if (readCmdLine(argv, argv + argc, "-s")
+            || readCmdLine(argv, argv + argc, "--secure-admin"))
     {
         admin_secured = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--schema", value))
+    if (readCmdLine(argv, argv + argc, "--schema", value))
     {
         schema_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-matching", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-matching", value))
     {
         traffic_server_matching_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-provision", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-provision", value))
     {
         traffic_server_provision_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--global-variable", value))
+    if (readCmdLine(argv, argv + argc, "--global-variable", value))
     {
         global_variable_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-ignore-request-body", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-ignore-request-body"))
     {
         traffic_server_ignore_request_body = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-dynamic-request-body-allocation", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-dynamic-request-body-allocation"))
     {
         traffic_server_dynamic_request_body_allocation = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--discard-data", value))
+    if (readCmdLine(argv, argv + argc, "--discard-data"))
     {
         discard_data = true;
         discard_data_key_history = true; // implicitly
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--discard-data-key-history", value))
+    if (readCmdLine(argv, argv + argc, "--discard-data-key-history"))
     {
         discard_data_key_history = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--disable-purge", value))
+    if (readCmdLine(argv, argv + argc, "--disable-purge"))
     {
         disable_purge = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--prometheus-port", value))
+    if (readCmdLine(argv, argv + argc, "--prometheus-port", value))
     {
         prometheus_port = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--prometheus-response-delay-seconds-histogram-boundaries", value))
+    if (readCmdLine(argv, argv + argc, "--prometheus-response-delay-seconds-histogram-boundaries", value))
     {
         prometheus_response_delay_seconds_histogram_boundaries = loadHistogramBoundaries(value, responseDelaySecondsHistogramBucketBoundaries);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--prometheus-message-size-bytes-histogram-boundaries", value))
+    if (readCmdLine(argv, argv + argc, "--prometheus-message-size-bytes-histogram-boundaries", value))
     {
         prometheus_message_size_bytes_histogram_boundaries = loadHistogramBoundaries(value, messageSizeBytesHistogramBucketBoundaries);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--disable-metrics", value))
+    if (readCmdLine(argv, argv + argc, "--disable-metrics"))
     {
         disable_metrics = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
+    if (readCmdLine(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
     {
         int iValue = toNumber(value);
         if (iValue < 0)
@@ -645,7 +656,7 @@ int main(int argc, char* argv[])
         myConfiguration->setLongTermFilesCloseDelayUsecs(iValue);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--short-term-files-close-delay-usecs", value))
+    if (readCmdLine(argv, argv + argc, "--short-term-files-close-delay-usecs", value))
     {
         int iValue = toNumber(value);
         if (iValue < 0)
@@ -659,8 +670,8 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::verbose(verbose);
 
     std::string gitVersion = h2agent::GIT_VERSION;
-    if (cmdOptionExists(argv, argv + argc, "-v", value)
-            || cmdOptionExists(argv, argv + argc, "--version", value))
+    if (readCmdLine(argv, argv + argc, "-v")
+            || readCmdLine(argv, argv + argc, "--version"))
     {
         std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
         myExit(EXIT_SUCCESS);
