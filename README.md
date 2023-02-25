@@ -301,7 +301,6 @@ $> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/
 ```
 
 
-
 #### Coverage
 
 Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
@@ -1719,7 +1718,7 @@ Before describing sources and targets (and filters), just to clarify that in som
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
+- request.uri: whole `url-decoded` request *URI* (path together with possible query parameters). This is the unmodified original *URI*, not necessarily the same as the classification *URI*.
 
 - request.uri.path: `url-decoded` request *URI* path part.
 
@@ -1940,17 +1939,17 @@ Filters give you the chance to make complex transformations:
 
 - RegexCapture: this filter provides a regular expression, including optionally capture groups which will be applied to the source and stored in the target. This filter is designed specially for general purpose variables, because each captured group *k* will be mapped to a new variable named `<id>.k` where `<id>` is the original source variable name. Also, the variable "as is" will store the entire match, same for any other type of target (used together with boolean target it is useful to write the match condition). Let's see some examples:
 
-   ```json
-   {
-     "source": "request.uri.path",
-     "target": "var.id_cat",
-     "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
-   }
-   ```
+  ```json
+  {
+    "source": "request.uri.path",
+    "target": "var.id_cat",
+    "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+  }
+  ```
 
-   In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="/api/v2/id-28/category-animal"*.
+  In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="/api/v2/id-28/category-animal"*.
 
-   Other example:
+  Other example:
 
   ```json
   {
@@ -1966,7 +1965,7 @@ Filters give you the chance to make complex transformations:
 
 
 
-- RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure. We provide `rgx` and `fmt` to transform the source into the target:
+- RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure (even the fact that it *falls back to source information when not matching is done*, something that differs from former `RegexCapture` algorithm which builds an empty string when regular expression is not fully matched). We provide `rgx` and `fmt` to transform the source into the target:
 
   ```json
   {
@@ -2001,7 +2000,6 @@ Filters give you the chance to make complex transformations:
   ```
 
   Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* or whatever), we don't consider at the moment that the probably better performance of such implementations, justify abandon the flexibility in the current abstraction that we achieve thanks to the *RegexReplace* filter.
-
 
 
 
@@ -2114,17 +2112,18 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.body./forceErrors/internalServerError",
-    "target": "var.internalServerError"
+    "source": "request.body./error",
+    "target": "var.error500",
+    "filter": { "RegexCapture" : "(500)" }
   },
   {
     "source": "value.500",
     "target": "response.statusCode",
-    "filter": { "ConditionVar" : "internalServerError" }
+    "filter": { "ConditionVar" : "error500" }
   }
   ```
 
-  In this example, the request body dictates the responses' status code depending on value (empty or not) received at "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
+  In this example, the request body dictates the responses' status code depending on `json` value (matching `500` or not) received at "*/error*" request body path. Of course there are many ways to set the condition variable depending on the needs, but this one is clear because the `RegexCapture` builds empty variable `error500` when the expected value is not matched, and that complies `ConditionVar` requirements. Now we will describe the `EqualsTo` filter which can be more intuitive than `RegexCapture` to build a condition variable:
 
 
 
@@ -2142,9 +2141,10 @@ Filters give you the chance to make complex transformations:
     "filter": { "ConditionVar" : "expectedBody" }
   }
   ```
+
   Math library also have the possibility to use functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wildcards), but the point here is the way to define or not a variable to be used as condition variable.
 
-  In the following example, we translate a logical math expression (which results in `1` (true) or `0` (false)) into conditional variable:
+  In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable:
 
   ```json
   {

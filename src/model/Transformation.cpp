@@ -171,7 +171,7 @@ bool Transformation::load(const nlohmann::json &j) {
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
-    // - request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
+    // - request.uri: whole `url-decoded` request *URI* (path together with possible query parameters). This is the unmodified original *URI*, not necessarily the same as the classification *URI*.
     // - request.uri.path: `url-decoded` request *URI* path part.
     // + request.uri.param.<name>: request URI specific parameter `<name>`.
     // - request.body: request body document.
