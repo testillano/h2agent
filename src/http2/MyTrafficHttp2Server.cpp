@@ -192,21 +192,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         );
     }
 
-    // Query parameters transformation:
-    std::map<std::string, std::string> qmap; // query parameters map
-    if (!uriQuery.empty()) {
-        char separator = ((getAdminData()->getServerMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
-        qmap = h2agent::model::extractQueryParameters(uriQuery, separator);
-
-        h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter();
-        if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Ignore) {
-            uriQuery = "";
-        }
-        else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Sort) {
-            uriQuery = h2agent::model::sortQueryParameters(qmap, separator);
-        }
-    }
-
+    // Original URI:
     std::string uri = uriPath;
     if (!uriQuery.empty()) {
         uri += "?";
@@ -225,13 +211,39 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
+    // Query parameters transformation:
+    std::map<std::string, std::string> qmap; // query parameters map
+    std::string classificationUri = uriPath;
+    if (!uriQuery.empty()) {
+        char separator = ((getAdminData()->getServerMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
+        qmap = h2agent::model::extractQueryParameters(uriQuery, separator);
+
+        h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter();
+        if (uriPathQueryParametersFilterType != h2agent::model::AdminServerMatchingData::Ignore) {
+            classificationUri += "?";
+            if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::PassBy) {
+                classificationUri += uriQuery;
+            }
+            else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Sort) {
+                classificationUri += h2agent::model::sortQueryParameters(qmap, separator);
+            }
+        }
+    }
+
+    LOGDEBUG(
+        std::stringstream ss;
+        ss << "Classification Uri: "
+        << " | Uri: " << req.uri().scheme << "://" << req.uri().host << classificationUri;
+        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+    );
+
 // Admin provision & matching configuration:
     const h2agent::model::AdminServerProvisionData & provisionData = getAdminData()->getServerProvisionData();
     const h2agent::model::AdminServerMatchingData & matchingData = getAdminData()->getServerMatchingData();
 
 // Find mock context:
     std::string inState;
-    /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequestState(method, uri, inState); // if not found, inState will be 'initial'
+    /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequestState(method, classificationUri, inState); // if not found, inState will be 'initial'
 
 // Matching algorithm:
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
@@ -239,18 +251,18 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
 
     if (algorithmType == h2agent::model::AdminServerMatchingData::FullMatching) {
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uri.c_str(), inState.c_str());
+            std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', classification uri '%s' and state '%s'", method.c_str(), classificationUri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
-        provision = provisionData.find(inState, method, uri);
+        provision = provisionData.find(inState, method, classificationUri);
     }
     else if (algorithmType == h2agent::model::AdminServerMatchingData::FullMatchingRegexReplace) {
 
-        std::string transformedUri = std::regex_replace (uri, matchingData.getRgx(), matchingData.getFmt());
+        std::string transformedUri = std::regex_replace (classificationUri, matchingData.getRgx(), matchingData.getFmt());
         LOGDEBUG(
             std::string msg = ert::tracing::Logger::asString("Uri after regex-replace transformation: '%s'", transformedUri.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            msg = ert::tracing::Logger::asString("Searching 'FullMatchingRegexReplace' provision for method '%s', uri '%s' and state '%s'", method.c_str(), transformedUri.c_str(), inState.c_str());
+            msg = ert::tracing::Logger::asString("Searching 'FullMatchingRegexReplace' provision for method '%s', transformed classification uri '%s' and state '%s'", method.c_str(), transformedUri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
         provision = provisionData.find(inState, method, transformedUri);
@@ -258,13 +270,13 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     else if (algorithmType == h2agent::model::AdminServerMatchingData::RegexMatching) {
 
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Searching 'RegexMatching' provision for method '%s', uri '%s' and state '%s'", method.c_str(), uri.c_str(), inState.c_str());
+            std::string msg = ert::tracing::Logger::asString("Searching 'RegexMatching' provision for method '%s', classification uri '%s' and state '%s'", method.c_str(), classificationUri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
 
         // as provision key is built combining inState, method and uri fields, a regular expression could also be provided for inState
         //  (method is strictly checked). TODO could we avoid this rare and unpredictable usage ?
-        provision = provisionData.findRegexMatching(inState, method, uri);
+        provision = provisionData.findRegexMatching(inState, method, classificationUri);
     }
 
     // Fall back to possible default provision (empty URI):
@@ -303,13 +315,13 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         }
 
         // Process provision
-        provision->transform(uri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
+        provision->transform(uri /* original uri */, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
             bool somethingDeleted = false;
-            bool success = getMockServerEventsData()->clear(somethingDeleted, method, uri);
+            bool success = getMockServerEventsData()->clear(somethingDeleted, method, classificationUri);
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -325,7 +337,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
 
             // Store request event context information
             if (server_data_) {
-                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, uri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerEventsData()->loadRequest(inState, (hasVirtualMethod ? provision->getOutState():outState), method, classificationUri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {
@@ -333,10 +345,10 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
                         if (outStateMethod == method && outStateUri.empty()) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Redundant 'outState' foreign method with current provision one: '%s'", method.c_str()), ERT_FILE_LOCATION);
                     );
                     if (outStateUri.empty()) {
-                        outStateUri = uri; // by default
+                        outStateUri = classificationUri; // by default
                     }
 
-                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, uri /* virtual uri origin */);
+                    getMockServerEventsData()->loadRequest(inState, outState, outStateMethod /* foreign method */, outStateUri /* foreign uri */, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, classificationUri /* virtual uri origin */);
                 }
             }
         }
@@ -350,7 +362,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         statusCode = 501; // not implemented
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, uri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            getMockServerEventsData()->loadRequest(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, classificationUri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
         }
         // metrics
         if(metrics_) {
