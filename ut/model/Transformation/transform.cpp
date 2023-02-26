@@ -155,7 +155,7 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
     { "source": "value.POST", "target": "var.persistEvent.method" },
     { "source": "value./app/v1/foo/bar/1", "target": "var.persistEvent.uri" },
     { "source": "value.-1", "target": "var.persistEvent.number" },
-    { "source": "value./body/node1/node2", "target": "var.persistEvent.path" },
+    { "source": "value./requestBody/node1/node2", "target": "var.persistEvent.path" },
     {
       "source": "event.persistEvent",
       "target": "response.body.json.object./event"
