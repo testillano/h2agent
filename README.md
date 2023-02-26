@@ -53,9 +53,10 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 * Run <u>project image</u> with docker:
 
   ```bash
-  $> docker run --rm -it -p 8000:8000 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
+  $> docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
   ```
 
+  Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080).
   You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
