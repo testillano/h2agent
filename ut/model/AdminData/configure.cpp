@@ -5,10 +5,12 @@
 
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
+#include <AdminClientEndpointData.hpp>
 #include <AdminSchemaData.hpp>
 #include <AdminSchemas.hpp>
+#include <Configuration.hpp>
 
-// Matching configuration:
+// Server Matching configuration:
 const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({"algorithm":"FullMatching"})"_json;
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__Success = R"({"algorithm":"FullMatchingRegexReplace","rgx":"([0-9]{3})-([a-z]{2})-foo-bar","fmt":"$1"})"_json;
 const nlohmann::json MatchingConfiguration_RegexMatching__Success = R"({"algorithm":"RegexMatching"})"_json;
@@ -29,7 +31,7 @@ const nlohmann::json MatchingConfiguration_RegexMatching__BadContent = R"({"algo
 const nlohmann::json MatchingConfiguration_RegexMatching__BadContent2 = R"({"algorithm":"RegexMatching","fmt":"whatever"})"_json;
 const nlohmann::json MatchingConfiguration_RegexMatching__BadContent3 = R"({"algorithm":"RegexMatching","rgx":"("})"_json;
 
-// Provision configuration:
+// Server Provision configuration:
 const nlohmann::json ProvisionConfiguration__Success = R"(
 {
   "requestMethod": "GET",
@@ -112,6 +114,87 @@ const nlohmann::json ProvisionConfiguration__BadContentArray = R"(
     "requestMethod": "GET",
     "requestUri": "bad regular expression due to the slash \\",
     "responseCode": 200
+  }
+]
+)"_json;
+
+// Client Endpoint configuration:
+const nlohmann::json ClientEndpointConfiguration__Success = R"(
+{
+  "id": "myServer",
+  "host": "localhost",
+  "port": 8000,
+  "secure": true,
+  "permit": false
+}
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__SuccessArray = R"(
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000
+  },
+  {
+    "id": "myServer2",
+    "host": "localhost2",
+    "port": 8000
+  }
+]
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__AcceptedArray = R"(
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000
+  },
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 9000
+  }
+]
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__BadSchema = R"({ "permit": true })"_json;
+const nlohmann::json ClientEndpointConfiguration__BadSchema2 = R"(
+{
+  "id": "myServer",
+  "host": "localhost",
+  "port": 389
+}
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__BadContent = R"(
+{
+  "id": "",
+  "host": "localhost",
+  "port": 8000
+}
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__BadContent2 = R"(
+{
+  "id": "myServer",
+  "host": "",
+  "port": 8000
+}
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__BadContentArray = R"(
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000
+  },
+  {
+    "id": "",
+    "host": "localhost2",
+    "port": 8000
   }
 ]
 )"_json;
@@ -208,16 +291,20 @@ const nlohmann::json SchemaConfiguration__BadContentArray = R"(
 )"_json;
 */
 
+
 class Configure_test : public ::testing::Test
 {
 public:
     h2agent::model::AdminData adata_{};
     h2agent::model::AdminSchema aschema_{};
     h2agent::model::common_resources_t common_resources_{}; // we won't execute provisions, but this is required by loadServerProvision
+    h2agent::model::Configuration configuration_{}; // process static configuration
 
     Configure_test() {
         ;
         //adata_.loadServerMatching(JsonMatching);
+        configuration_.setLazyClientConnection(true); // no client connection in unit-test
+        common_resources_.ConfigurationPtr = &configuration_;
     }
 };
 
@@ -295,7 +382,6 @@ TEST_F(Configure_test, LoadProvisionFail)
     EXPECT_EQ(Configure_test::adata_.loadServerProvision(ProvisionConfiguration__BadContent2, common_resources_), h2agent::model::AdminServerProvisionData::BadContent);
     // Bad content with empty response schema id:
     EXPECT_EQ(Configure_test::adata_.loadServerProvision(ProvisionConfiguration__BadContent3, common_resources_), h2agent::model::AdminServerProvisionData::BadContent);
-
     EXPECT_FALSE(Configure_test::adata_.clearServerProvisions());
 
     // Bad content array:
@@ -335,6 +421,91 @@ TEST_F(Configure_test, FindProvision)
     EXPECT_EQ(provision->getResponseSchemaId(), "myResponsesSchema");
 
     EXPECT_TRUE(Configure_test::adata_.clearServerProvisions());
+}
+
+TEST_F(Configure_test, Delete)
+{
+    // Bad content only happens for RegexMatching:
+    EXPECT_EQ(Configure_test::adata_.loadServerMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Configure_test::adata_.loadServerProvision(ProvisionConfiguration__Success, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+
+    EXPECT_TRUE(Configure_test::adata_.clearServerProvisions()); // 200
+    EXPECT_FALSE(Configure_test::adata_.clearServerProvisions()); // 204
+}
+
+TEST_F(Configure_test, LoadClientEndpointSuccess)
+{
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__Success, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+    nlohmann::json jarray = nlohmann::json::array();
+    jarray.push_back(ClientEndpointConfiguration__Success);
+    EXPECT_EQ(Configure_test::adata_.getClientEndpointData().asJsonString(), jarray.dump());
+    //EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+
+    // two client endpoints:
+    nlohmann::json anotherClientEndpoint = ClientEndpointConfiguration__Success;
+    anotherClientEndpoint["id"] = std::string(ClientEndpointConfiguration__Success["id"]) + "_bis";
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(anotherClientEndpoint, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+    jarray.push_back(anotherClientEndpoint);
+    // Reverse array to compare (not ordered map):
+    nlohmann::json rjarray = nlohmann::json::array();
+    for (auto it = jarray.rbegin(); it != jarray.rend(); it++) {
+        rjarray.push_back(*it);
+    }
+    EXPECT_EQ(Configure_test::adata_.getClientEndpointData().asJsonString(), rjarray.dump());
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+
+    // client endpoint array
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__SuccessArray, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+
+    // client endpoint accepted array
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArray, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+}
+
+TEST_F(Configure_test, LoadClientEndpointFail)
+{
+    // Bad schema
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__BadSchema, common_resources_), h2agent::model::AdminClientEndpointData::BadSchema);
+    EXPECT_EQ(Configure_test::adata_.getClientEndpointData().asJsonString(), "[]");
+    EXPECT_EQ(Configure_test::adata_.getClientEndpointData().getSchema().getJson(), h2agent::adminSchemas::client_endpoint);
+    // Bad Schema due to invalid port:
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__BadSchema2, common_resources_), h2agent::model::AdminClientEndpointData::BadSchema);
+    EXPECT_FALSE(Configure_test::adata_.clearClientEndpoints());
+
+    // Bad content due to empty id:
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__BadContent, common_resources_), h2agent::model::AdminClientEndpointData::BadContent);
+    // Bad content due to empty host:
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__BadContent2, common_resources_), h2agent::model::AdminClientEndpointData::BadContent);
+    EXPECT_FALSE(Configure_test::adata_.clearClientEndpoints());
+
+    // Bad content array:
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__BadContentArray, common_resources_), h2agent::model::AdminClientEndpointData::BadContent);
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+}
+
+TEST_F(Configure_test, FindClientEndpoint)
+{
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__Success, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+
+    auto clientEndpoint = Configure_test::adata_.getClientEndpointData().find("myServer");
+    EXPECT_TRUE(clientEndpoint != nullptr);
+
+    EXPECT_EQ(clientEndpoint->getKey(), "myServer");
+    EXPECT_EQ(clientEndpoint->getHost(), "localhost");
+    EXPECT_EQ(clientEndpoint->getPort(), 8000);
+    EXPECT_EQ(clientEndpoint->getSecure(), true);
+    EXPECT_EQ(clientEndpoint->getPermit(), false);
+
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+}
+
+TEST_F(Configure_test, DeleteClientEndpoint)
+{
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__Success, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints()); // 200
+    EXPECT_FALSE(Configure_test::adata_.clearClientEndpoints()); // 204
 }
 
 TEST_F(Configure_test, LoadSchemaSuccess)

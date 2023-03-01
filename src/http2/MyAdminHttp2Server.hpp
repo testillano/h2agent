@@ -59,6 +59,8 @@ class MockServerEventsData;
 namespace http2
 {
 
+bool statusCodeOK(int statusCode);
+
 class MyTrafficHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
@@ -141,10 +143,12 @@ public:
         return http2_server_;
     }
 
-    bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
-    bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
-    bool globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
-    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
+    int serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
+    int serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const;
+    //int clientProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
+    int schema(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }

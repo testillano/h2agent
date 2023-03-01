@@ -93,7 +93,7 @@ files_configuration() {
 configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: configuration [-h|--help]; Gets agent general configuration."
+    echo "Usage: configuration [-h|--help]; Gets agent general static configuration."
     return 0
   else
     do_curl ${ADMIN_URL}/configuration
@@ -245,6 +245,22 @@ server_data_sequence() {
   json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
 }
 
+client_endpoint() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration (${ADMIN_URL}/client-endpoint)." && return 0
+  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/client-endpoint && return 0
+  if [ "$1" = "--clean" ]
+  then
+    do_curl -XDELETE ${ADMIN_URL}/client-endpoint
+  else
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-endpoint
+  fi
+}
+
+client_endpoint_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema (${ADMIN_URL}/client-endpoint/schema)." && return 0
+  do_curl "${ADMIN_URL}/client-endpoint/schema"
+}
+
 json() {
   local jq_expr=${1:-.}
   if [ "$1" = "-h" -o "$1" = "--help" ]
@@ -297,6 +313,7 @@ snapshot() {
   files && json > ${dir}/files.json
   files_configuration && json > ${dir}/files-configuration.json
   configuration && json > ${dir}/configuration.json
+
   server_configuration && json > ${dir}/server-configuration.json
   server_data_configuration && json > ${dir}/server-data-configuration.json
   server_matching && json > ${dir}/server-matching.json
@@ -310,6 +327,8 @@ snapshot() {
   for s in $(cat ${dir}/server-data-sequences.txt); do
     jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
   done
+  client_endpoint && json > ${dir}/client_endpoint.json
+  client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
   metrics > ${dir}/metrics.txt
 
   echo
@@ -381,6 +400,13 @@ server_example() {
 EOF
 }
 
+client_example() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_example [-h|--help]; Basic client configuration examples. Try: source <(client_example)" && return 0
+
+  # Implementation pending
+  echo TODO
+}
+
 help() {
   echo
   echo "===== ${PNAME} operation helpers ====="
@@ -400,20 +426,24 @@ help() {
   files -h
   files_configuration -h
   configuration -h
-  server_configuration -h
-  server_data_configuration -h
   echo
   echo "=== Traffic server ==="
+  server_configuration -h
+  server_data_configuration -h
   server_matching -h
   server_provision -h
   server_data -h
   server_data_sequence -h
+  echo
+  echo "=== Traffic client ==="
+  client_endpoint -h
   echo
   echo "=== Schemas ==="
   schema_schema -h
   global_variable_schema -h
   server_matching_schema -h
   server_provision_schema -h
+  client_endpoint_schema -h
   echo
   echo "=== Auxiliary ==="
   json -h
@@ -421,6 +451,7 @@ help() {
   metrics -h
   snapshot -h
   server_example -h
+  client_example -h
   echo "Usage: help; This help. Overview: help | grep ^Usage"
   echo
 }

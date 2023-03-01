@@ -43,6 +43,8 @@ SOFTWARE.
 
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
+#include <AdminClientEndpointData.hpp>
+//#include <AdminClientProvisionData.hpp>
 #include <AdminSchemaData.hpp>
 #include <common.hpp>
 
@@ -55,6 +57,8 @@ class AdminData
 {
     AdminServerMatchingData server_matching_data_{};
     AdminServerProvisionData server_provision_data_{};
+    AdminClientEndpointData client_endpoint_data_{};
+    //AdminClientProvisionData client_provision_data_{};
     AdminSchemaData schema_data_{};
 
 public:
@@ -77,12 +81,24 @@ public:
      * Loads admin server provision operation data
      *
      * @param j json document from operation body request
-     * @param cr common resources references (general configuration, global variables, file manager, mon server events data)
+     * @param cr common resources references (general configuration, global variables, file manager, mock server events data)
      *
      * @return Boolean about success operation
      */
     AdminServerProvisionData::LoadResult loadServerProvision(const nlohmann::json &j, const common_resources_t &cr) {
         return server_provision_data_.load(j, (server_matching_data_.getAlgorithm() == AdminServerMatchingData::AlgorithmType::RegexMatching), cr);
+    }
+
+    /**
+     * Loads admin client endpoint operation data
+     *
+     * @param j json document from operation body request
+     * @param cr common resources references (general configuration, global variables, file manager, mock client events data)
+     *
+     * @return Boolean about success operation
+     */
+    AdminClientEndpointData::LoadResult loadClientEndpoint(const nlohmann::json &j, const common_resources_t &cr) {
+        return client_endpoint_data_.load(j, cr);
     }
 
     /**
@@ -106,6 +122,15 @@ public:
     }
 
     /**
+     * Clears admin client endpoints data
+     *
+     * @return True if something was removed, false if already empty
+     */
+    bool clearClientEndpoints() {
+        return client_endpoint_data_.clear();
+    }
+
+    /**
      * Clears admin schemas data
      *
      * @return True if something was removed, false if already empty
@@ -126,6 +151,13 @@ public:
      */
     const AdminServerProvisionData& getServerProvisionData() const {
         return server_provision_data_;
+    }
+
+    /**
+     * Gets admin client endpoint data
+     */
+    const AdminClientEndpointData& getClientEndpointData() const {
+        return client_endpoint_data_;
     }
 
     /**

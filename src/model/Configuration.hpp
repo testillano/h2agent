@@ -52,6 +52,7 @@ class Configuration
 {
     unsigned int long_term_files_close_delay_us_{};
     unsigned int short_term_files_close_delay_us_{};
+    bool lazy_client_connection_{};
 
 public:
     /**
@@ -60,6 +61,7 @@ public:
     Configuration() {
         long_term_files_close_delay_us_ = 1000000; // 1 second
         short_term_files_close_delay_us_ = 0; // instant close
+        lazy_client_connection_ = false;
     }
 
     /**
@@ -86,6 +88,15 @@ public:
     }
 
     /**
+     * Set lazy client connection
+     *
+     * @param lazy Lazy client connection boolean
+     */
+    void setLazyClientConnection(bool lazy) {
+        lazy_client_connection_ = lazy;
+    }
+
+    /**
      * Get long-term files category close delay (microseconds)
      *
      * @return usecs close delay in microseconds for long-term files category
@@ -101,6 +112,15 @@ public:
      */
     unsigned int getShortTermFilesCloseDelayUsecs() const {
         return short_term_files_close_delay_us_;
+    }
+
+    /**
+     * Get lazy client connection
+     *
+     * @return Lazy client connection boolean
+     */
+    bool getLazyClientConnection() const {
+        return lazy_client_connection_;
     }
 
     /**

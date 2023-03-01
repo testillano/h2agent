@@ -231,13 +231,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  IP stack configured for IPv6. Defaults to IPv4.\n\n"
 
        << "[-b|--bind-address <address>]\n"
-       << "  Servers bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).\n\n"
+       << "  Servers local bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).\n\n"
 
        << "[-a|--admin-port <port>]\n"
-       << "  Admin <port>; defaults to 8074.\n\n"
+       << "  Admin local <port>; defaults to 8074.\n\n"
 
        << "[-p|--traffic-server-port <port>]\n"
-       << "  Traffic server <port>; defaults to 8000. Set '-1' to disable\n"
+       << "  Traffic server local <port>; defaults to 8000. Set '-1' to disable\n"
        << "  (mock server service is enabled by default).\n\n"
 
        << "[-m|--traffic-server-api-name <name>]\n"
@@ -327,7 +327,7 @@ void usage(int rc, const std::string &errorMessage = "")
        //<< "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-port <port>]\n"
-       << "  Prometheus <port>; defaults to 8080.\n\n"
+       << "  Prometheus local <port>; defaults to 8080.\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
@@ -356,6 +356,10 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  could constraint the final delay configured to avoid reach the maximum opened files\n"
        << "  limit allowed. By default, it is configured to " << myConfiguration->getShortTermFilesCloseDelayUsecs() << " usecs.\n"
        << "  Zero value means that close operation is done just after writting the file.\n\n"
+
+       << "[--remote-servers-lazy-connection]\n"
+       << "  By default connections are performed when adding client endpoints.\n"
+       << "  This option configures remote addresses to be connected on demand.\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -666,6 +670,10 @@ int main(int argc, char* argv[])
         myConfiguration->setShortTermFilesCloseDelayUsecs(iValue);
     }
 
+    if (readCmdLine(argv, argv + argc, "--remote-servers-lazy-connection"))
+    {
+        myConfiguration->setLazyClientConnection(true);
+    }
     // Logger verbosity
     ert::tracing::Logger::verbose(verbose);
 
@@ -687,7 +695,7 @@ int main(int argc, char* argv[])
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
-    std::cout << "Admin port: " << admin_port << '\n';
+    std::cout << "Admin local port: " << admin_port << '\n';
 
     // Server bind address for servers
     std::string bind_address_prometheus_exposer = bind_address;
@@ -699,8 +707,8 @@ int main(int argc, char* argv[])
     std::cout << "Traffic server (mock server service): " << (traffic_server_enabled ? "enabled":"disabled") << '\n';
 
     if (traffic_server_enabled) {
-        std::cout << "Traffic server bind address: " << bind_address << '\n';
-        std::cout << "Traffic server port: " << traffic_server_port << '\n';
+        std::cout << "Traffic server local bind address: " << bind_address << '\n';
+        std::cout << "Traffic server local port: " << traffic_server_port << '\n';
         std::cout << "Traffic server api name: " << ((traffic_server_api_name != "") ?  traffic_server_api_name : "<none>") << '\n';
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
@@ -747,8 +755,8 @@ int main(int argc, char* argv[])
         std::cout << "Metrics (prometheus): disabled" << '\n';
     }
     else {
-        std::cout << "Prometheus bind address: " << bind_address_prometheus_exposer << '\n';
-        std::cout << "Prometheus port: " << prometheus_port << '\n';
+        std::cout << "Prometheus local bind address: " << bind_address_prometheus_exposer << '\n';
+        std::cout << "Prometheus local port: " << prometheus_port << '\n';
         if (!responseDelaySecondsHistogramBucketBoundaries.empty()) {
             std::cout << "Prometheus 'response delay seconds' histogram boundaries: " << prometheus_response_delay_seconds_histogram_boundaries << '\n';
         }
@@ -758,6 +766,7 @@ int main(int argc, char* argv[])
     }
     std::cout << "Long-term files close delay (usecs): " << myConfiguration->getLongTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
+    std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
 
     // Flush:
     std::cout << std::endl;
