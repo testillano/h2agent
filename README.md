@@ -28,8 +28,8 @@ When developing a network service, one often needs to integrate it with other se
 
 So, `h2agent` could be used as:
 
-* **Server** mock: fully implemented
-* **Client** mock: design ongoing (roadmap planned for 4.x.x).
+* **Server** mock: fully implemented.
+* **Client** mock: partially implemented (new features ongoing).
 
 Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
 
@@ -100,6 +100,7 @@ So, you could run `h2agent` (or any other binary available under `./build/<build
   ```bash
   $> source tools/helpers.src # type help in any moment after sourcing
   $> server_example # follow instructions or just source it: source <(server_example)
+  $> client_example # follow instructions or just source it: source <(client_example)
   ```
 
 
@@ -369,7 +370,7 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information).
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
 
 Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
@@ -551,13 +552,13 @@ Options:
   IP stack configured for IPv6. Defaults to IPv4.
 
 [-b|--bind-address <address>]
-  Servers bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).
+  Servers local bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).
 
 [-a|--admin-port <port>]
-  Admin <port>; defaults to 8074.
+  Admin local <port>; defaults to 8074.
 
 [-p|--traffic-server-port <port>]
-  Traffic server <port>; defaults to 8000. Set '-1' to disable
+  Traffic server local <port>; defaults to 8000. Set '-1' to disable
   (mock server service is enabled by default).
 
 [-m|--traffic-server-api-name <name>]
@@ -638,7 +639,7 @@ Options:
   Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
 
 [--prometheus-port <port>]
-  Prometheus <port>; defaults to 8080.
+  Prometheus local <port>; defaults to 8080.
 
 [--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
@@ -663,6 +664,10 @@ Options:
   could constraint the final delay configured to avoid reach the maximum opened files
   limit allowed. By default, it is configured to 0 usecs.
   Zero value means that close operation is done just after writting the file.
+
+[--remote-servers-lazy-connection]
+  By default connections are performed when adding client endpoints.
+  This option configures remote addresses to be connected on demand.
 
 [-v|--version]
   Program version.
@@ -869,6 +874,8 @@ $> curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://loc
 HTTP/2 501
 ```
 
+**TODO**: support secure client connection for client capabilities.
+
 ## Metrics
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#Command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
@@ -886,10 +893,10 @@ $> ./h2agent --verbose &
 Log level: Warning
 Verbose (stdout): true
 IP stack: IPv4
-Admin port: 8074
+Admin local port: 8074
 Traffic server (mock server service): enabled
-Traffic server bind address: 0.0.0.0
-Traffic server port: 8000
+Traffic server local bind address: 0.0.0.0
+Traffic server local port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
 Traffic server threads (nghttp2): 2
@@ -910,10 +917,11 @@ Data key history storage: enabled
 Purge execution: enabled
 Traffic server matching configuration file: <not provided>
 Traffic server provision configuration file: <not provided>
-Prometheus bind address: 0.0.0.0
-Prometheus port: 8080
+Prometheus local bind address: 0.0.0.0
+Prometheus local port: 8080
 Long-term files close delay (usecs): 1000000
 Short-term files close delay (usecs): 0
+Remote servers lazy connection: false
 
 $ kill $!
 20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:207(sighndl)|Signal received: 15
@@ -969,16 +977,16 @@ We will start describing **general** mock operations:
 Then, we will describe **traffic server mock** features:
 
 * Server matching configuration: classification algorithms to  split the incoming traffic and access to the final procedure which will be applied.
-
 * Server provision configuration: here we will define the mock behavior regarding the request received, and the transformations done over it to build the final response and evolve, if proceed, to another state for further receptions.
-
 * Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations). Also storage configuration will be described.
 
+And finally, **traffic client mock** features:
 
+* Client endpoints configuration: remote server addresses configured to be used by client provisions.
+* Client provision configuration: here we will define the mock behavior regarding the request sent, and the transformations done over it to build the final request and evolve, if proceed, to another flow for further sendings.
+* Client data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations). Also storage configuration will be described.
 
-___
-
-
+## Management interface - general
 
 ### POST /admin/v1/schema
 
@@ -1328,11 +1336,7 @@ For example:
 }
 ```
 
-
-
-___
-
-
+## Management interface - traffic server mock
 
 ### POST /admin/v1/server-matching
 
@@ -2222,7 +2226,7 @@ Provision of a set of provisions through an array object is allowed. So, instead
 ]
 ```
 
-Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message.
+Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message although previous valid provisions will be added.
 
 ### GET /admin/v1/server-provision/schema
 
@@ -2520,6 +2524,121 @@ Same restrictions apply here for deletion: query parameters could be omitted to 
 
 No response body.
 
+## Management interface - traffic client mock
+
+### POST /admin/v1/client-endpoint
+
+Defines client endpoint with the remote server information where `h2agent` may connect during test execution.
+
+By default, created endpoints will connect the defined remote server (except for lazy connection mode: `--remote-servers-lazy-connection`) but no reconnection procedure is implemented in case of fail. Instead, they will be reconnected on demand when a request is processed through such endpoint.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "host": {
+      "type": "string"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1025,
+      "maximum": 65536
+    },
+    "secure": {
+      "type": "boolean"
+    },
+    "permit": {
+      "type": "boolean"
+    }
+  },
+  "required": [ "id", "host", "port" ]
+}
+```
+
+Mandatory fields are `id`, `host` and `port`. Optional `secure` field is used to indicate the scheme used, *http* (default) or *https*, and `permit` field is used to process (default) or ignore a request through the client endpoint regardless if the connection is established or not (when permitted, a closed connection will be lazily restarted). Using `permit`, flows may be interrupted without having to disconnect the carrier.
+
+Endpoints could be updated through further *POST* requests to the same identifier `id`. When `host`, `port` and/or `secure` are modified for an existing endpoint, connection shall be dropped and re-created again towards the corresponding updated address. In this case, status code *Accepted* (202) will be returned.
+
+#### Response status code
+
+**201** (Created), **202** (Accepted) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /admin/v1/client-endpoint (multiple client endpoints)
+
+Configuration of a set of client endpoints through an array object is allowed. So, instead of launching *N* configurations separately, you could group them as in the following example:
+
+```json
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000
+  },
+  {
+    "id": "myServer2",
+    "host": "localhost2",
+    "port": 8000
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single configurations. A client endpoint set fails with the first failed item, giving a 'pluralized' version of the single configuration failed response message although previous valid client endpoints will be added.
+
+### GET /admin/v1/client-endpoint/schema
+
+Retrieves the client endpoint schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing client endpoint schema.
+
+### GET /admin/v1/client-endpoint
+
+Retrieves the current client endpoint configuration. An additional `status` filed will be answered in the response object for every client endpoint indicating the current connection status.
+
+#### Response status code
+
+**200** (OK), **204** (No Content).
+
+#### Response body
+
+Json object document containing client endpoint configuration. No content has no body.
+
+### DELETE /admin/v1/client-endpoint
+
+Deletes the whole process client endpoint configuration. All the established connections will be closed and client endpoints will be removed from the list.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+No response body.
+
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
@@ -2547,6 +2666,11 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
        version: 1.0.0
        repository: alias:erthelm
        alias: h2server2
+
+     - name: h2agent
+       version: 1.0.0
+       repository: alias:erthelm
+       alias: h2client
    ```
 
 3. Refer to `h2agent` values through the corresponding dependency alias, for example `.Values.h2server.image` to access process repository and tag.
@@ -2583,7 +2707,9 @@ Usage: files [-h|--help]; Gets the files processed.
 Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
                             [--enable-read-cache]  ; Enables cache for read operations.
                             [--disable-read-cache] ; Disables cache for read operations.
-Usage: configuration [-h|--help]; Gets agent general configuration.
+Usage: configuration [-h|--help]; Gets agent general static configuration.
+
+=== Traffic server ===
 Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default).
        [--traffic-server-ignore-request-body]  ; Ignores request body on server receptions.
        [--traffic-server-receive-request-body] ; Processes request body on server receptions.
@@ -2596,7 +2722,6 @@ Usage: server_data_configuration [-h|--help]; Manages agent server data configur
                                  [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached.
                                  [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached.
 
-=== Traffic server ===
 Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
                                     (http://localhost:8074/admin/v1/server-matching).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
@@ -2610,6 +2735,10 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
 Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
                                                                                retrieved in previous server_data() call.
 
+=== Traffic client ===
+Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration 
+                                                     (http://localhost:8074/admin/v1/client-endpoint).
+
 === Schemas ===
 Usage: schema_schema [-h|--help]; Gets the schema configuration schema
                                   (http://localhost:8074/admin/v1/schema/schema).
@@ -2619,6 +2748,8 @@ Usage: server_matching_schema [-h|--help]; Gets the server matching configuratio
                                            (http://localhost:8074/admin/v1/server-matching/schema).
 Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
                                             (http://localhost:8074/admin/v1/server-provision/schema).
+Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema
+                                           (http://localhost:8074/admin/v1/client-endpoint/schema).
 
 === Auxiliary ===
 Usage: json [-h|--help]; Beautifies previous operation json response content.
@@ -2630,6 +2761,7 @@ Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critic
 Usage: metrics [-h|--help]; Prometheus metrics.
 Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
 Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)
+Usage: client_example [-h|--help]; Basic client configuration examples. Try: source <(client_example)
 Usage: help; This help. Overview: help | grep ^Usage
 ```
 

@@ -61,6 +61,10 @@ namespace h2agent
 namespace http2
 {
 
+bool statusCodeOK(int statusCode) {
+    return (statusCode >= 200 && statusCode < 300);
+}
+
 MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
     ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, workerThreads, nullptr) {
 
@@ -178,12 +182,12 @@ void MyAdminHttp2Server::receiveNOOP(unsigned int& statusCode, nghttp2::asio_htt
     statusCode = 400;
 }
 
-bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "server-matching operation; ";
 
     h2agent::model::AdminServerMatchingData::LoadResult loadResult = admin_data_->loadServerMatching(configurationObject);
-    bool result = (loadResult == h2agent::model::AdminServerMatchingData::Success);
+    int result = ((loadResult == h2agent::model::AdminServerMatchingData::Success) ? 201:400);
 
     if (loadResult == h2agent::model::AdminServerMatchingData::Success) {
         log += "valid schema and matching data received";
@@ -198,12 +202,12 @@ bool MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObjec
     return result;
 }
 
-bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "server-provision operation; ";
 
     h2agent::model::AdminServerProvisionData::LoadResult loadResult = admin_data_->loadServerProvision(configurationObject, common_resources_);
-    bool result = (loadResult == h2agent::model::AdminServerProvisionData::Success);
+    int result = ((loadResult == h2agent::model::AdminServerProvisionData::Success) ? 201:400);
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
@@ -219,22 +223,49 @@ bool MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObje
     return result;
 }
 
-bool MyAdminHttp2Server::globalVariable(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const
 {
-    log = "global-variable operation; ";
+    log = "client-endpoint operation; ";
 
-    bool result = getGlobalVariable()->loadJson(configurationObject);
-    log += (result ? "valid schema and global variables received":"invalid schema");
+    h2agent::model::AdminClientEndpointData::LoadResult loadResult = admin_data_->loadClientEndpoint(configurationObject, common_resources_);
+    int result = 400;
+    if (loadResult == h2agent::model::AdminClientEndpointData::Success) {
+        result = 201;
+    }
+    else if (loadResult == h2agent::model::AdminClientEndpointData::Accepted) {
+        result = 202;
+    }
+
+    bool isArray = configurationObject.is_array();
+    if (loadResult == h2agent::model::AdminClientEndpointData::Success || loadResult == h2agent::model::AdminClientEndpointData::Accepted) {
+        log += (isArray ? "valid schemas and client endpoints data received":"valid schema and client endpoints data received");
+    }
+    else if (loadResult == h2agent::model::AdminClientEndpointData::BadSchema) {
+        log += (isArray ? "detected one invalid schema":"invalid schema");
+    }
+    else if (loadResult == h2agent::model::AdminClientEndpointData::BadContent) {
+        log += (isArray ? "detected one invalid client endpoint data received":"invalid client endpoint data received");
+    }
 
     return result;
 }
 
-bool MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::globalVariable(const nlohmann::json &configurationObject, std::string& log) const
+{
+    log = "global-variable operation; ";
+
+    int result = getGlobalVariable()->loadJson(configurationObject) ? 201:400;
+    log += (statusCodeOK(result) ? "valid schema and global variables received":"invalid schema");
+
+    return result;
+}
+
+int MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "schema operation; ";
 
     h2agent::model::AdminSchemaData::LoadResult loadResult = admin_data_->loadSchema(configurationObject);
-    bool result = (loadResult == h2agent::model::AdminSchemaData::Success);
+    int result = ((loadResult == h2agent::model::AdminSchemaData::Success) ? 201:400);
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminSchemaData::Success) {
@@ -255,7 +286,6 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
-    bool jsonResponse_result = false;
     std::string jsonResponse_response;
 
     // All responses are json content:
@@ -267,20 +297,19 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
 
     if (success) {
         if (pathSuffix == "server-matching") {
-            jsonResponse_result = serverMatching(requestJson, jsonResponse_response);
-            statusCode = jsonResponse_result ? 201:400;
+            statusCode = serverMatching(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "server-provision") {
-            jsonResponse_result = serverProvision(requestJson, jsonResponse_response);
-            statusCode = jsonResponse_result ? 201:400;
+            statusCode = serverProvision(requestJson, jsonResponse_response);
+        }
+        else if (pathSuffix == "client-endpoint") {
+            statusCode = clientEndpoint(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "schema") {
-            jsonResponse_result = schema(requestJson, jsonResponse_response);
-            statusCode = jsonResponse_result ? 201:400;
+            statusCode = schema(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "global-variable") {
-            jsonResponse_result = globalVariable(requestJson, jsonResponse_response);
-            statusCode = jsonResponse_result ? 201:400;
+            statusCode = globalVariable(requestJson, jsonResponse_response);
         }
         else {
             statusCode = 501;
@@ -295,7 +324,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     }
 
     // Build json response body:
-    responseBody = buildJsonResponse(jsonResponse_result, jsonResponse_response);
+    responseBody = buildJsonResponse(statusCodeOK(statusCode), jsonResponse_response);
 }
 
 void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
@@ -315,6 +344,13 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     else if (pathSuffix == "server-provision/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
         nlohmann::json jsonSchema = admin_data_->getServerProvisionData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
+        statusCode = 200;
+    }
+    else if (pathSuffix == "client-endpoint/schema") {
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = admin_data_->getClientEndpointData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = 200;
@@ -374,6 +410,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     else if (pathSuffix == "server-provision") {
         bool ordered = (admin_data_->getServerMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
         responseBody = admin_data_->getServerProvisionData().asJsonString(ordered);
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "client-endpoint") {
+        responseBody = admin_data_->getClientEndpointData().asJsonString();
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "schema") {
@@ -445,6 +485,9 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
 
     if (pathSuffix == "server-provision") {
         statusCode = (admin_data_->clearServerProvisions() ? 200:204);
+    }
+    else if (pathSuffix == "client-endpoint") {
+        statusCode = (admin_data_->clearClientEndpoints() ? 200:204);
     }
     else if (pathSuffix == "schema") {
         statusCode = (admin_data_->clearSchemas() ? 200:204);

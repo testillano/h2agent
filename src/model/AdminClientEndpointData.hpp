@@ -43,7 +43,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
-#include <AdminServerProvision.hpp>
+#include <AdminClientEndpoint.hpp>
 
 #include <JsonSchema.hpp>
 #include <AdminSchemas.hpp>
@@ -55,35 +55,31 @@ namespace model
 {
 
 // Map key will be string which has a hash function.
-// We will agregate method and uri in a single string for that.
-class AdminServerProvisionData : public Map<admin_server_provision_key_t, std::shared_ptr<AdminServerProvision>>
+class AdminClientEndpointData : public Map<admin_client_endpoint_key_t, std::shared_ptr<AdminClientEndpoint>>
 {
 public:
-    AdminServerProvisionData();
-    ~AdminServerProvisionData() = default;
+    AdminClientEndpointData();
+    ~AdminClientEndpointData() = default;
 
     // Load result
-    enum LoadResult { Success = 0, BadSchema, BadContent };
+    enum LoadResult { Success = 0, Accepted, BadSchema, BadContent };
 
     /**
      * Json string representation for class information (json array)
      *
-     * @param ordered Print json array elements following the insertion order
-     *
      * @return Json string representation ('[]' for empty array).
      */
-    std::string asJsonString(bool ordered = false) const;
+    std::string asJsonString() const;
 
     /**
-     * Loads server provision operation data
+     * Loads client endpoint operation data
      *
      * @param j json document from operation body request
-     * @param regexMatchingConfigured provision load depends on matching configuration (priority regexp)
-     * @param cr common resources references (general configuration, global variables, file manager, mock server events data)
+     * @param cr common resources references (general configuration, global variables, file manager, mock client events data)
      *
      * @return Load operation result
      */
-    LoadResult load(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr);
+    LoadResult load(const nlohmann::json &j, const common_resources_t &cr);
 
     /** Clears internal data (map and ordered keys vector)
      *
@@ -92,43 +88,26 @@ public:
     bool clear();
 
     /**
-     * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
-     * know if current state exists for the reception.
+     * Finds client endpoint item.
      *
-     * @param inState Request input state if proceeed
-     * @param method Request method received
-     * @param uri Request URI path received
+     * @param id Client endpoint identifier
      *
-     * @return Provision information or null if missing
+     * @return Client endpoint information or null if missing
      */
-    std::shared_ptr<AdminServerProvision> find(const std::string &inState, const std::string &method, const std::string &uri) const;
+    std::shared_ptr<AdminClientEndpoint> find(const admin_client_endpoint_key_t &id) const;
 
     /**
-    * Finds provision item for traffic reception. Previously, mock dynamic data should be checked to
-    * know if current state exists for the reception.
-    * The algorithm is RegexMatching, so ordered search is applied.
-    *
-    * @param inState Request input state if proceeed
-    * @param method Request method received
-    * @param uri Request URI path received
-    *
-    * @return Provision information or null if missing
-    */
-    std::shared_ptr<AdminServerProvision> findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const;
-
-    /**
-    * Gets provision schema
+    * Gets client endpoint schema
     */
     const h2agent::jsonschema::JsonSchema& getSchema() const {
-        return server_provision_schema_;
+        return client_endpoint_schema_;
     }
 
 private:
 
-    std::vector<admin_server_provision_key_t> ordered_keys_{}; // this is used to keep the insertion order which shall be used in RegexMatching algorithm
-    h2agent::jsonschema::JsonSchema server_provision_schema_{};
+    h2agent::jsonschema::JsonSchema client_endpoint_schema_{};
 
-    LoadResult loadSingle(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr);
+    LoadResult loadSingle(const nlohmann::json &j, const common_resources_t &cr);
 
     mutable mutex_t rw_mutex_{};
 };

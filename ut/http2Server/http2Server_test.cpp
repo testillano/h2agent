@@ -414,9 +414,9 @@ TEST_F(http2Server_test, ServerMatchingBadSchema)
     nlohmann::json configuration = R"({"foo":"bar"})"_json;
     std::string log;
 
-    bool result = admin_http2_server_->serverMatching(configuration, log);
+    int statusCode = admin_http2_server_->serverMatching(configuration, log);
 
-    EXPECT_FALSE(result);
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "server-matching operation; invalid schema");
 
     tearDown();
@@ -440,9 +440,9 @@ TEST_F(http2Server_test, ServerProvisionBadSchema)
     nlohmann::json configuration = R"({"requestUri": "/foo/bar", "responseCode": 200})"_json;
     std::string log;
 
-    bool result = admin_http2_server_->serverProvision(configuration, log);
+    int statusCode = admin_http2_server_->serverProvision(configuration, log);
 
-    EXPECT_FALSE(result);
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "server-provision operation; invalid schema");
 
     tearDown();
@@ -466,9 +466,9 @@ TEST_F(http2Server_test, GlobalVariableNOK1)
     nlohmann::json configuration = R"({"var1": 1})"_json;
     std::string log;
 
-    bool result = admin_http2_server_->globalVariable(configuration, log);
+    int statusCode = admin_http2_server_->globalVariable(configuration, log);
 
-    EXPECT_FALSE(result);
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "global-variable operation; invalid schema");
 
     tearDown();
@@ -479,9 +479,9 @@ TEST_F(http2Server_test, GlobalVariableNOK2)
     nlohmann::json configuration = R"({"var1": {"foo":"bar"}})"_json;
     std::string log;
 
-    bool result = admin_http2_server_->globalVariable(configuration, log);
+    int statusCode = admin_http2_server_->globalVariable(configuration, log);
 
-    EXPECT_FALSE(result);
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "global-variable operation; invalid schema");
 
     tearDown();
@@ -505,9 +505,9 @@ TEST_F(http2Server_test, SchemaNOK)
     nlohmann::json configuration = R"({"id": "myRequestsSchema"})"_json;
     std::string log;
 
-    bool result = admin_http2_server_->schema(configuration, log);
+    int statusCode = admin_http2_server_->schema(configuration, log);
 
-    EXPECT_FALSE(result);
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "schema operation; invalid schema");
 
     tearDown();

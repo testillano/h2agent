@@ -309,7 +309,7 @@ echo "done !"
 h2a_admin_curl POST admin/v1/global-variable 201 ${H2AGENT_GLOBAL_VARIABLE} || exit 1
 
 # Launcher type
-read_value "Launcher type" ST_LAUNCHER "h2load|hermes"
+read_value "Launcher type" ST_LAUNCHER "h2load|hermes" # TODO: |h2client
 
 if [ "${ST_LAUNCHER}" = "h2load" ] ################################################### H2LOAD
 then
