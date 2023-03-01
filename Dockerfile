@@ -11,6 +11,7 @@ WORKDIR /code
 
 ARG make_procs=4
 ARG build_type=Release
+ARG STATIC_LINKING=FALSE
 
 # We could duplicate from local build directory, but prefer to build from scratch:
 RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=${STATIC_LINKING} . && make -j${make_procs}
