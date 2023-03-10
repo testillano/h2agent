@@ -59,6 +59,9 @@ SOFTWARE.
 #include <ert/metrics/Metrics.hpp>
 
 
+// Recommendation for administrative interface is 1-5 client threads
+#define NGHTTP2_ADMIN_SERVER_THREADS 2
+
 const char* progname;
 
 namespace
@@ -259,7 +262,7 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "[-t|--traffic-server-threads <threads>]\n"
        << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
-       << "  (admin server hardcodes 2 nghttp2 threads). This option is exploited\n"
+       << "  (admin server hardcodes " << NGHTTP2_ADMIN_SERVER_THREADS << " nghttp2 threads). This option is exploited\n"
        << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
@@ -789,7 +792,7 @@ int main(int argc, char* argv[])
     myFileManager->enableMetrics(myMetrics);
 
     // Admin server
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(NGHTTP2_ADMIN_SERVER_THREADS);
     myAdminHttp2Server->enableMetrics(myMetrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
