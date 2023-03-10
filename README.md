@@ -2736,7 +2736,7 @@ Usage: server_data_sequence [-h|--help] [value (available values by default)]; E
                                                                                retrieved in previous server_data() call.
 
 === Traffic client ===
-Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration 
+Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration
                                                      (http://localhost:8074/admin/v1/client-endpoint).
 
 === Schemas ===
