@@ -238,7 +238,7 @@ int MyAdminHttp2Server::clientEndpoint(const nlohmann::json &configurationObject
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminClientEndpointData::Success || loadResult == h2agent::model::AdminClientEndpointData::Accepted) {
-        log += (isArray ? "valid schemas and client endpoints data received":"valid schema and client endpoints data received");
+        log += (isArray ? "valid schemas and client endpoints data received":"valid schema and client endpoint data received");
     }
     else if (loadResult == h2agent::model::AdminClientEndpointData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");

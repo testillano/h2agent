@@ -63,3 +63,4 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   # Even not GET survives:
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   response["status"] = 204
+

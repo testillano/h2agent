@@ -97,12 +97,18 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
                 if (!cr.ConfigurationPtr->getLazyClientConnection()) registeredClientEndpoint->connect(true /* from scratch */);
                 return Accepted;
             }
+
+            LOGINFORMATIONAL(
+                bool updated = (registeredClientEndpoint->getPermit() != clientEndpoint->getPermit());
+                ert::tracing::Logger::informational(ert::tracing::Logger::asString("Client endpoint '%s' has been updated%s", key.c_str(), updated ? "":" but no changes detected"), ERT_FILE_LOCATION);
+            );
         }
         else {
             add(key, clientEndpoint);
             if (!cr.ConfigurationPtr->getLazyClientConnection()) clientEndpoint->connect();
-            return Success;
         }
+
+        return Success;
 
     }
 

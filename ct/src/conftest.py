@@ -43,6 +43,7 @@ ADMIN_SERVER_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'server/configuration'
 ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_SERVER_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_SERVER_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
+ADMIN_CLIENT_ENDPOINT_URI = ADMIN_URI_PREFIX + 'client-endpoint'
 
 #########
 # HOOKS #
@@ -365,6 +366,7 @@ def admin_cleanup(h2ac_admin):
     response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_PROVISION_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI)
+    response = h2ac_admin.delete(ADMIN_CLIENT_ENDPOINT_URI)
 
     if matchingFile:
       response = h2ac_admin.post(ADMIN_SERVER_MATCHING_URI, files(matchingFile, callerDistance = 3))
@@ -397,11 +399,11 @@ def admin_server_matching(h2ac_admin, files):
 
   yield send
 
-# PROVISION
-VALID_PROVISION__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
-VALID_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schemas and provisions data received" }
-INVALID_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid schema" }
-INVALID_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid provision data received" }
+# SERVER PROVISION
+VALID_SERVER_PROVISION__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
+VALID_SERVER_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schemas and provisions data received" }
+INVALID_SERVER_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid schema" }
+INVALID_SERVER_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid provision data received" }
 @pytest.fixture(scope='session')
 def admin_server_provision(h2ac_admin, files):
   """
@@ -410,7 +412,7 @@ def admin_server_provision(h2ac_admin, files):
   responseStatusRef: response status code reference, 201 by default.
   kwargs: format arguments for file content. Dictionary must be already formatted.
   """
-  def send(content, responseBodyRef = VALID_PROVISION__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+  def send(content, responseBodyRef = VALID_SERVER_PROVISION__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
 
     request = content # assume content as dictionary
     if isinstance(content, str):
@@ -470,6 +472,30 @@ def admin_global_variable(h2ac_admin, files):
 
   yield send
 
+# CLIENT ENDPOINT
+VALID_CLIENT_ENDPOINT__RESPONSE_BODY = { "result":"true", "response":"client-endpoint operation; valid schema and client endpoint data received" }
+VALID_CLIENT_ENDPOINTS__RESPONSE_BODY = { "result":"true", "response":"client-endpoint operation; valid schemas and client endpoints data received" }
+INVALID_CLIENT_ENDPOINT_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"client-endpoint operation; invalid schema" }
+INVALID_CLIENT_ENDPOINT__RESPONSE_BODY = { "result":"false", "response":"client-endpoint operation; invalid client endpoint data received" }
+@pytest.fixture(scope='session')
+def admin_client_endpoint(h2ac_admin, files):
+  """
+  content: provide string or dictionary/list. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid client endpoint assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_CLIENT_ENDPOINT__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = files(content, callerDistance = 3)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_CLIENT_ENDPOINT_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_CLIENT_ENDPOINT_URI, request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
 
 # JSON TEMPLATES ###############################################
 
@@ -481,7 +507,7 @@ NESTED_NODE1_NODE2_REQUEST='''
 }
 '''
 
-BASIC_FOO_BAR_PROVISION_TEMPLATE='''
+BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"GET",
   "requestUri":"/app/v1/foo/bar/{id}",
@@ -496,7 +522,7 @@ BASIC_FOO_BAR_PROVISION_TEMPLATE='''
 }}
 '''
 
-SCHEMAS_PROVISION_TEMPLATE='''
+SCHEMAS_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar",
@@ -597,7 +623,7 @@ GLOBAL_VARIABLE_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
 
 # Transform better provision POST to give versatility
 # Variables var1="var1value" and var2="var2value" are added just in case could be used by the test
-TRANSFORM_FOO_BAR_PROVISION_TEMPLATE='''
+TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar/{id}{queryp}",
@@ -626,7 +652,7 @@ TRANSFORM_FOO_BAR_PROVISION_TEMPLATE='''
 }}
 '''
 
-TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE='''
+TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar/{id}{queryp}",
@@ -659,7 +685,7 @@ TRANSFORM_FOO_BAR_TWO_TRANSFERS_PROVISION_TEMPLATE='''
 }}
 '''
 
-TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE='''
+TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar/{id}{queryp}",
@@ -691,7 +717,7 @@ TRANSFORM_FOO_BAR_AND_VAR1_VAR2_PROVISION_TEMPLATE='''
 }}
 '''
 
-TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_PROVISION_TEMPLATE='''
+TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar",
@@ -709,7 +735,7 @@ TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_PROVISION_TEMPLATE='''
 }}
 '''
 
-TRANSFORM_FOO_BAR_COMMAND_PROVISION_TEMPLATE='''
+TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar",
@@ -739,7 +765,7 @@ NESTED_VAR1_VAR2_REQUEST='''
 }
 '''
 
-REGEX_FOO_BAR_PROVISION_TEMPLATE='''
+REGEX_FOO_BAR_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"GET",
   "requestUri":"/app/v1/id-{id}[0-9]{{{trailing}}}/ts-[0-9]{{10}}",
@@ -754,7 +780,7 @@ REGEX_FOO_BAR_PROVISION_TEMPLATE='''
 }}
 '''
 
-FALLBACK_DEFAULT_PROVISION='''
+FALLBACK_DEFAULT_SERVER_PROVISION='''
 {
   "requestMethod": "GET",
   "responseCode": 200,
@@ -767,6 +793,16 @@ FALLBACK_DEFAULT_PROVISION='''
     "x-version": "1.0.0"
   }
 }
+'''
+
+CLIENT_ENDPOINT_TEMPLATE='''
+{{
+  "id": "{id}",
+  "host": "0.0.0.0",
+  "port": {port},
+  "secure": false,
+  "permit": true
+}}
 '''
 
 # Convert to dictionary a string with format arguments

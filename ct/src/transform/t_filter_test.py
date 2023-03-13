@@ -128,6 +128,7 @@ def test_009_regexreplace(admin_server_provision, h2ac_traffic):
   responseBodyRef = { "foo":"bar-1", "captureBarIdFromURIAndAppendSuffix":"1-suffix" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
 @pytest.mark.transform
 @pytest.mark.filter
 def test_010_conditionVariable(admin_server_provision, h2ac_traffic):
@@ -139,6 +140,7 @@ def test_010_conditionVariable(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   responseBodyRef = { "foo":"bar-1", "must-be-in-response": "foo" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
 
 @pytest.mark.transform
 @pytest.mark.filter

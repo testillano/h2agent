@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import VALID_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI
+from conftest import VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI
 
 
 @pytest.mark.admin
@@ -13,7 +13,7 @@ def test_000_cleanup(admin_cleanup):
 def test_001_i_want_to_provision_two_uris_with_different_states_and_final_purge_on_admin_interface(admin_server_provision):
 
   # Provision
-  admin_server_provision("purge_on_termination_test.provision.json", responseBodyRef=VALID_PROVISIONS__RESPONSE_BODY)
+  admin_server_provision("purge_on_termination_test.provision.json", responseBodyRef=VALID_SERVER_PROVISIONS__RESPONSE_BODY)
 
 
 @pytest.mark.server

@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import BASIC_FOO_BAR_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI
+from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI
 
 
 @pytest.mark.admin
@@ -13,7 +13,8 @@ def test_000_cleanup(admin_cleanup):
 def test_001_i_want_to_provision_a_set_of_requests_on_admin_interface(admin_server_provision):
 
   for id in range(5):
-    admin_server_provision(string2dict(BASIC_FOO_BAR_PROVISION_TEMPLATE, id=id))
+    admin_server_provision(string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=id))
+
 
 @pytest.mark.admin
 def test_002_i_want_to_retrieve_current_provisions_on_admin_interface(admin_server_matching, h2ac_admin):
@@ -28,5 +29,5 @@ def test_002_i_want_to_retrieve_current_provisions_on_admin_interface(admin_serv
   assert response["status"] == 200
   for id in range(5):
     response_dict = response["body"][id]
-    assert response_dict == string2dict(BASIC_FOO_BAR_PROVISION_TEMPLATE, id=id)
+    assert response_dict == string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=id)
 
