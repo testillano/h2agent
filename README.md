@@ -50,7 +50,7 @@ $> ./build.sh --auto
 
 The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
 
-* Run <u>project image</u> with docker:
+* Run <u>project image</u> with docker (`./h2a.sh` script at root directory can also be used):
 
   ```bash
   $> docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
@@ -302,6 +302,7 @@ $> ./build/Release/bin/unit-test # native executable
 $> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
 ```
 
+ To shortcut docker run execution, `./ut.sh` script at root directory can also be used.
 
 #### Coverage
 
