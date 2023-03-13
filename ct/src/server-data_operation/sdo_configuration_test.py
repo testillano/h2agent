@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import BASIC_FOO_BAR_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_DATA_URI
+from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_DATA_URI
 
 
 @pytest.mark.admin

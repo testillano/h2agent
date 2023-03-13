@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import BASIC_FOO_BAR_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_DATA_URI
+from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_DATA_URI
 
 
 @pytest.mark.admin
@@ -17,7 +17,7 @@ def test_001_i_want_to_get_internal_data_on_admin_interface(h2ac_admin, h2ac_tra
   assert response["status"] == 204
 
   # Provision and traffic
-  admin_server_provision(string2dict(BASIC_FOO_BAR_PROVISION_TEMPLATE, id=1))
+  admin_server_provision(string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1))
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   responseBodyRef = { "foo":"bar-1" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
@@ -40,7 +40,7 @@ def test_001_i_want_to_get_internal_data_on_admin_interface(h2ac_admin, h2ac_tra
 def test_002_i_want_to_get_speficic_internal_data_on_admin_interface(h2ac_admin, h2ac_traffic, admin_server_provision):
 
   # Do a second provision:
-  admin_server_provision(string2dict(BASIC_FOO_BAR_PROVISION_TEMPLATE, id=2))
+  admin_server_provision(string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=2))
   response = h2ac_traffic.get("/app/v1/foo/bar/2")
   responseBodyRef = { "foo":"bar-2" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
