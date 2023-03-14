@@ -6,7 +6,7 @@ One of the most important `h2agent` features consists in the traffic classificat
 
 That classification filters the `URIs` received by mean an specific algorithm. The simplest one is the `FullMatching` transformation which basically does **nothing**:
 
-```
+```json
 {
   "algorithm": "FullMatching"
 }
@@ -14,7 +14,7 @@ That classification filters the `URIs` received by mean an specific algorithm. T
 
 That is to say, the `URI` received will be used <u>directly to search the corresponding provision</u>. So, for example, if a `POST` request on `/one/uri/path` is received, the following provision is selected to react to the incoming message:
 
-```
+```json
 {
   "requestMethod": "POST",
   "requestUri": "/one/uri/path",
@@ -28,7 +28,7 @@ For example, the previous provision would be never reached if the `URI` is like 
 
 If that is the case, just configure the matching algorithm to ignore the query parameters when they exist:
 
-```
+```json
 {
   "algorithm": "FullMatching",
   "uriPathQueryParameters": {

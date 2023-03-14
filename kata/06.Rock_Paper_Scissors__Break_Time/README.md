@@ -6,7 +6,7 @@ In order to take a rest, we will afford this section as a simple game to play wi
 
 Imagine that you want to simulate server delays. You could provision the following document:
 
-```
+```json
 {
   "requestMethod": "POST",
   "requestUri": "/one/uri/path",
@@ -19,7 +19,7 @@ But in order to be more realistic, response delays should be better modeled with
 
 For that, you could generate **random** integer numbers in a specific range and transfer the value to the `response.delayMs` target type:
 
-```
+```json
 {
   "requestMethod": "POST",
   "requestUri": "/one/uri/path",
@@ -37,7 +37,7 @@ That is an example of transformation filter to create dynamically the response d
 
 Filters are applied with the given order inside the `transform` node array. You could generate *float random numbers* just combining two integer random numbers by mean the dot symbol. There are many ways to do that, for example using variables to load integer and fractional parts and then parsing the result into another variable (which you could use later in further transformations omitted here, for example transferring it into response body or any other location):
 
-```
+```json
 {
   "requestMethod": "POST",
   "requestUri": "/one/uri/path",
@@ -59,9 +59,27 @@ Filters are applied with the given order inside the `transform` node array. You 
 }
 ```
 
+Random numbers have important applications. Used in conjunction with mathematical expressions we could build a discrete output set with <u>different weights</u>, for example to simulate service unavailability status code (503) with 5% of probability, you could configure the following:
 
+```json
+{
+  "requestMethod": "POST",
+  "requestUri": "/one/uri/path",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "random.0.100",
+      "target": "var.random"
+    },
+    {
+      "source": "math.200+(503-200)*(@{random} < 5)",
+      "target": "response.statusCode"
+    }
+  ]
+}
+```
 
-But there is another random generation method to get a value within a range of <u>fixed labels instead of numeric range</u>: that is the **random set**.
+But when weights are balanced (same probability for the possible values) is better to use another random generation method which gets a value within a range of <u>fixed labels instead of numeric range</u>: that is the **random set**.
 
 So, for example imagine three possible values: rock, paper and scissors. The source needed will be just:
 

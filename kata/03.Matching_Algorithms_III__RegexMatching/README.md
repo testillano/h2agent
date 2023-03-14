@@ -4,7 +4,7 @@
 
 The  `RegexMatching` algorithm acts checking matches for `URIs` received against the regular expressions configured in the provision ordered list. So, not only the match must validate the selection but the provision order is important because the first expression matched is the one used to rule the behavior.
 
-```
+```json
 {
   "algorithm": "RegexMatching"
 }
