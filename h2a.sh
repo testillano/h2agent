@@ -1,3 +1,3 @@
 #!/bin/bash
-# Optionally accepts additional arguments for h2agent executable: $@
-docker run --rm -it --network=host ghcr.io/testillano/h2agent:latest $@
+# Run './build.sh --auto' to have docker image available:
+docker run --rm -it --network=host ghcr.io/testillano/h2agent:latest $@ # accepts additional arguments
