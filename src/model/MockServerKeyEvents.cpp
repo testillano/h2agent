@@ -54,10 +54,10 @@ bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t requestNumber, 
 
     write_guard_t guard(rw_mutex_);
 
-    if (requests_.size() == 0 || requestNumber == 0) return false;
-    if (requestNumber > requests_.size()) return false;
+    if (events_.size() == 0 || requestNumber == 0) return false;
+    if (requestNumber > events_.size()) return false;
 
-    requests_.erase(requests_.begin() + (reverse ? (requests_.size() - requestNumber):(requestNumber - 1)));
+    events_.erase(events_.begin() + (reverse ? (events_.size() - requestNumber):(requestNumber - 1)));
 
     return true;
 }
@@ -85,11 +85,11 @@ void MockServerKeyEvents::loadRequest(const std::string &previousState, const st
 
     write_guard_t guard(rw_mutex_);
 
-    if (!historyEnabled && requests_.size() != 0) {
-        requests_[0] = request; // overwrite with this latest reception
+    if (!historyEnabled && events_.size() != 0) {
+        events_[0] = request; // overwrite with this latest reception
     }
     else {
-        requests_.push_back(request);
+        events_.push_back(request);
     }
 }
 
@@ -97,17 +97,17 @@ std::shared_ptr<MockServerKeyEvent> MockServerKeyEvents::getMockServerKeyEvent(s
 
     read_guard_t guard(rw_mutex_);
 
-    if (requests_.size() == 0) return nullptr;
+    if (events_.size() == 0) return nullptr;
     if (requestNumber == 0) return nullptr;
 
-    if (requestNumber > requests_.size()) return nullptr;
+    if (requestNumber > events_.size()) return nullptr;
 
     if (reverse) {
-        return *(requests_.begin() + (requests_.size() - requestNumber));
-        //return *(std::prev(requests_.end())); // this would be the last
+        return *(events_.begin() + (events_.size() - requestNumber));
+        //return *(std::prev(events_.end())); // this would be the last
     }
 
-    return *(requests_.begin() + (requestNumber - 1));
+    return *(events_.begin() + (requestNumber - 1));
 }
 
 
@@ -118,7 +118,7 @@ nlohmann::json MockServerKeyEvents::getJson() const {
     result["uri"] = uri_;
 
     read_guard_t guard(rw_mutex_);
-    for (auto it = requests_.begin(); it != requests_.end(); it ++) {
+    for (auto it = events_.begin(); it != events_.end(); it ++) {
         result["requests"].push_back((*it)->getJson());
     }
 
@@ -129,7 +129,7 @@ const std::string &MockServerKeyEvents::getLastRegisteredRequestState() const {
     read_guard_t guard(rw_mutex_);
     // By design, there are no keys without history (at least 1 exists and the key is removed if it is finally deleted).
     // Then, back() is a valid iterator (https://github.com/testillano/h2agent/issues/53).
-    return requests_.back()->getState();
+    return events_.back()->getState();
 }
 
 }

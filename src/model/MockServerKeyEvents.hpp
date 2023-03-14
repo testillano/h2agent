@@ -73,7 +73,7 @@ class MockServerKeyEvents
     std::string method_{};
     std::string uri_{};
 
-    std::vector<std::shared_ptr<MockServerKeyEvent>> requests_{};
+    std::vector<std::shared_ptr<MockServerKeyEvent>> events_{};
 
 public:
 
@@ -150,12 +150,12 @@ public:
     */
     const std::string &getLastRegisteredRequestState() const;
 
-    /** Number of requests
+    /** Number of events
     *
-    * @return Requests list size
+    * @return Events list size
     */
     size_t size() const {
-        return requests_.size();
+        return events_.size();
     }
 
     /** Get the method of the requests list
