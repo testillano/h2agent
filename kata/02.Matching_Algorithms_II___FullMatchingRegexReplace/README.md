@@ -10,7 +10,7 @@ Such function requires a regular expression where normally some capture groups a
 
 For example, given the `URI` `/ctrl/v2/id-555112233/ts-1615562841`, you could remove last timestamp with this matching configuration:
 
-```
+```json
 {
   "algorithm": "FullMatchingRegexReplace",
   "rgx": "(/ctrl/v2/id-[0-9]+)/(ts-[0-9]+)",
