@@ -41,9 +41,9 @@ public:
 
         // Three events, one real and two virtual, indexed by DELETE#/the/uri/222
         // Server sequence will be ignored although being incoherent here (always 111):
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual1");
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual2");
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual1");
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual2");
 
         real_event_ = R"(
         {
@@ -127,7 +127,7 @@ TEST_F(MockServerKeyEvents_test, RemoveVirtual1)
 TEST_F(MockServerKeyEvents_test, GetLastRegisteredRequestState)
 {
     // Add real event (now it will be in fourth position), but with another state:
-    data_.loadRequest(previous_state_, "latest_state", "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+    data_.loadEvent(previous_state_, "latest_state", "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
 
     // Check content (skip whole comparison):
     EXPECT_EQ(data_.size(), 4);
