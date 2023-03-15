@@ -53,6 +53,7 @@ nlohmann::json Configuration::getJson() const {
 
     result["longTermFilesCloseDelayUsecs"] = long_term_files_close_delay_us_;
     result["shortTermFilesCloseDelayUsecs"] = short_term_files_close_delay_us_;
+    result["lazyClientConnection"] = lazy_client_connection_;
 
     return result;
 }

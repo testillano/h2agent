@@ -14,7 +14,8 @@ const nlohmann::json SchemaJson_nok = R"({"id": "myRequestsSchema"})"_json; // m
 const nlohmann::json GlobalVariableJson = R"({"var1": "value1", "var2": "value2"})"_json;
 const nlohmann::json GlobalVariableJson_nok = R"({"var1": 1})"_json; // non-string value
 const nlohmann::json GlobalVariableJson_nok2 = R"({"var1": {"foo":"bar"}})"_json; // non-string value
-
+const nlohmann::json ClientEndpointJson = R"({"id": "myClientEndpoint", "host": "localhost", "port": 8000, "secure": false, "permit": true})"_json;
+const nlohmann::json ClientEndpointJson_nok = R"({"host": "localhost", "port": 8000, "secure": false, "permit": true})"_json; // mandatory missing: id
 
 
 class jsonSchema_test : public ::testing::Test
@@ -38,7 +39,7 @@ TEST_F(jsonSchema_test, CheckSchemaMatching)
     EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ServerMatchingJson));
 }
 
-TEST_F(jsonSchema_test, CheckSchemaProvision)
+TEST_F(jsonSchema_test, CheckSchemaServerProvision)
 {
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_provision));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
@@ -66,3 +67,22 @@ TEST_F(jsonSchema_test, CheckGlobalVariableSchema)
     EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok2));
 }
 
+TEST_F(jsonSchema_test, CheckSchemaClientEndpoint)
+{
+    EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::client_endpoint));
+    EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
+    EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::client_endpoint);
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ClientEndpointJson));
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ClientEndpointJson_nok));
+}
+
+/*
+TEST_F(jsonSchema_test, CheckSchemaClientProvision)
+{
+    EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::client_provision));
+    EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
+    EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::client_provision);
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ClientProvisionJson));
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ClientProvisionJson_nok));
+}
+*/

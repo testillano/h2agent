@@ -43,7 +43,7 @@ h2agent_cl:
   metrics:
     enabled: true
   remote_servers_lazy_connection:
-    enabled: true
+    enabled: false
 
 utilsMountPath: "/opt/utils"
 
