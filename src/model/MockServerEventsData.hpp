@@ -87,7 +87,7 @@ public:
      * @param responseStatusCode Response status code
      * @param responseHeaders Response headers
      * @param responseBody Response body
-     * @param serverSequence Server sequence
+     * @param serverSequence Server sequence (1..N)
      * @param responseDelayMs Response delay in milliseconds
      *
      * @param historyEnabled Requests complete history storage

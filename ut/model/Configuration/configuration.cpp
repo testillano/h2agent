@@ -7,7 +7,8 @@
 const nlohmann::json DefaultConfiguration = R"(
 {
   "longTermFilesCloseDelayUsecs": 1000000,
-  "shortTermFilesCloseDelayUsecs": 0
+  "shortTermFilesCloseDelayUsecs": 0,
+  "lazyClientConnection": false
 }
 )"_json;
 
@@ -25,6 +26,7 @@ TEST_F(Configuration_test, Defaults)
 {
     EXPECT_EQ(Configuration_test::configuration_.getLongTermFilesCloseDelayUsecs(), DefaultConfiguration["longTermFilesCloseDelayUsecs"]);
     EXPECT_EQ(Configuration_test::configuration_.getShortTermFilesCloseDelayUsecs(), DefaultConfiguration["shortTermFilesCloseDelayUsecs"]);
+    EXPECT_EQ(Configuration_test::configuration_.getLazyClientConnection(), DefaultConfiguration["lazyClientConnection"]);
 }
 
 TEST_F(Configuration_test, Getters)
@@ -34,6 +36,9 @@ TEST_F(Configuration_test, Getters)
 
     Configuration_test::configuration_.setShortTermFilesCloseDelayUsecs(5000);
     EXPECT_EQ(Configuration_test::configuration_.getShortTermFilesCloseDelayUsecs(), 5000);
+
+    Configuration_test::configuration_.setLazyClientConnection(false);
+    EXPECT_EQ(Configuration_test::configuration_.getLazyClientConnection(), false);
 }
 
 TEST_F(Configuration_test, GetJson)

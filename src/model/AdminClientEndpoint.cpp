@@ -113,11 +113,6 @@ nlohmann::json AdminClientEndpoint::asJson() const
     return result;
 }
 
-// send() {
-// // Lazy connection:
-// if (!client_) client_ = std::make_shared<ert::http2comm::Http2Client>(host_, std::to_string(port_), secure_);
-// }
-
 }
 }
 

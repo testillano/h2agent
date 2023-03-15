@@ -20,3 +20,5 @@ h2agent:
     #log_level: Debug
     verbose:
       enabled: true
+    remote_servers_lazy_connection:
+      enabled: true

@@ -1294,7 +1294,8 @@ For example:
 ```json
 {
     "longTermFilesCloseDelayUsecs": 1000000,
-    "shortTermFilesCloseDelayUsecs": 0
+    "shortTermFilesCloseDelayUsecs": 0,
+    "lazyClientConnection": true
 }
 ```
 
@@ -2464,7 +2465,7 @@ The information collected for a events item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
-* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
+* `serverSequence`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### GET /admin/v1/server-data/summary?maxKeys=`<number>`
 

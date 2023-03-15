@@ -92,7 +92,7 @@ public:
      * @param responseStatusCode Response status code
      * @param responseHeaders Response headers
      * @param responseBody Response body
-     * @param serverSequence Server sequence
+     * @param serverSequence Server sequence (1..N)
      * @param responseDelayMs Response delay in milliseconds
 
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
