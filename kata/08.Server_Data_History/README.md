@@ -8,7 +8,7 @@ Imagine the following current server data map:
 [
   {
     "method": "POST",
-    "requests": [
+    "events": [
       {
         "requestBody": {
           "engine": "tdi",

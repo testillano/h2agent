@@ -828,5 +828,5 @@ def assertUnprovisioned(serverDataEvent, requestBody = None, serverSequence = No
 def assertUnprovisionedServerDataItemRequestsIndex(serverDataItem, expectedMethod, expectedUri, requestsIndex, requestBody = None):
   assert serverDataItem["method"] == expectedMethod
   assert serverDataItem["uri"] == expectedUri
-  assertUnprovisioned(serverDataItem["requests"][requestsIndex], requestBody)
+  assertUnprovisioned(serverDataItem["events"][requestsIndex], requestBody)
 

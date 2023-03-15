@@ -183,22 +183,22 @@ TEST_F(MockServerEventsData_test, GetMockServerKeyEvent)
 TEST_F(MockServerEventsData_test, GetJson)
 {
     nlohmann::json assertedJson = data_.getJson();
-    std::uint64_t receptionTimestampUs_0_0 = assertedJson[0]["requests"][0]["receptionTimestampUs"]; // unpredictable
-    std::uint64_t receptionTimestampUs_0_1 = assertedJson[0]["requests"][1]["receptionTimestampUs"]; // unpredictable
-    std::uint64_t receptionTimestampUs_1_0 = assertedJson[1]["requests"][0]["receptionTimestampUs"]; // unpredictable
-    std::uint64_t receptionTimestampUs_1_1 = assertedJson[1]["requests"][1]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_0_0 = assertedJson[0]["events"][0]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_0_1 = assertedJson[0]["events"][1]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_1_0 = assertedJson[1]["events"][0]["receptionTimestampUs"]; // unpredictable
+    std::uint64_t receptionTimestampUs_1_1 = assertedJson[1]["events"][1]["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = R"(
     [
       {
         "method": "DELETE",
-        "requests": [
+        "events": [
         ],
         "uri": "/the/uri/222"
       },
       {
         "method": "DELETE",
-        "requests": [
+        "events": [
         ],
         "uri": "/the/uri/111"
       }
@@ -208,13 +208,13 @@ TEST_F(MockServerEventsData_test, GetJson)
     // Fix unpredictable timestamps:
     real_event_["receptionTimestampUs"] = receptionTimestampUs_0_0;
     virtual_event_["receptionTimestampUs"] = receptionTimestampUs_0_1;
-    expectedJson[0]["requests"].push_back(real_event_);
-    expectedJson[0]["requests"].push_back(virtual_event_);
+    expectedJson[0]["events"].push_back(real_event_);
+    expectedJson[0]["events"].push_back(virtual_event_);
 
     real_event_["receptionTimestampUs"] = receptionTimestampUs_1_0;
     virtual_event_["receptionTimestampUs"] = receptionTimestampUs_1_1;
-    expectedJson[1]["requests"].push_back(real_event_);
-    expectedJson[1]["requests"].push_back(virtual_event_);
+    expectedJson[1]["events"].push_back(real_event_);
+    expectedJson[1]["events"].push_back(virtual_event_);
 
     EXPECT_EQ(assertedJson, expectedJson);
 }

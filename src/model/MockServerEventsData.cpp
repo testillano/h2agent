@@ -87,7 +87,7 @@ void MockServerEventsData::loadRequest(const std::string &previousState, const s
 
 
     // Find MockServerKeyEvents
-    std::shared_ptr<MockServerKeyEvents> requests(nullptr);
+    std::shared_ptr<MockServerKeyEvents> events(nullptr);
 
     mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, method, uri);
@@ -96,15 +96,15 @@ void MockServerEventsData::loadRequest(const std::string &previousState, const s
 
     auto it = get(key);
     if (it != end()) {
-        requests = it->second;
+        events = it->second;
     }
     else {
-        requests = std::make_shared<MockServerKeyEvents>();
+        events = std::make_shared<MockServerKeyEvents>();
     }
 
-    requests->loadRequest(previousState, state, method, uri, requestHeaders, requestBodyDataPart, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
+    events->loadRequest(previousState, state, method, uri, requestHeaders, requestBodyDataPart, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
-    if (it == end()) add(key, requests); // push the key in the map:
+    if (it == end()) add(key, events); // push the key in the map:
 }
 
 bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber)

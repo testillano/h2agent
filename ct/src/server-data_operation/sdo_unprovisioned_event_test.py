@@ -22,7 +22,7 @@ def test_001_i_want_to_check_internal_data_after_unprovisioned_event(h2ac_admin,
   #[
   #  {
   #    "method": "GET",
-  #    "requests": [
+  #    "events": [
   #      {
   #        "requestHeaders": {
   #          "accept": "*/*",
