@@ -42,10 +42,10 @@ public:
 
         // Two events per key, real and virtual for each, indexed by DELETE#/the/uri/111 and DELETE#/the/uri/222 respectively:
         // Server sequence will be ignored although being incoherent here (always 111):
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadRequest(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
 
         real_event_ = R"(
         {
@@ -221,7 +221,7 @@ TEST_F(MockServerEventsData_test, GetJson)
 
 TEST_F(MockServerEventsData_test, FindLastRegisteredRequestState)
 {
-    data_.loadRequest(previous_state_, "most_recent_state", "PUT", "/the/put/uri", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+    data_.loadEvent(previous_state_, "most_recent_state", "PUT", "/the/put/uri", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
 
     std::string latestState;
     data_.findLastRegisteredRequestState("PUT", "/the/put/uri", latestState);

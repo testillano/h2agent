@@ -69,13 +69,13 @@ mock_server_events_key_t MockServerKeyEvents::getKey() const {
     return result;
 }
 
-void MockServerKeyEvents::loadRequest(const std::string &previousState, const std::string &state,
-                                      const std::string &method, const std::string &uri,
-                                      const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart,
-                                      const std::chrono::microseconds &receptionTimestampUs,
-                                      unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody,
-                                      std::uint64_t serverSequence, unsigned int responseDelayMs,
-                                      bool historyEnabled, const std::string virtualOriginComingFromMethod, const std::string virtualOriginComingFromUri) {
+void MockServerKeyEvents::loadEvent(const std::string &previousState, const std::string &state,
+                                    const std::string &method, const std::string &uri,
+                                    const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart,
+                                    const std::chrono::microseconds &receptionTimestampUs,
+                                    unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody,
+                                    std::uint64_t serverSequence, unsigned int responseDelayMs,
+                                    bool historyEnabled, const std::string virtualOriginComingFromMethod, const std::string virtualOriginComingFromUri) {
 
     method_ = method;
     uri_ = uri;
