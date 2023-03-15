@@ -1788,12 +1788,12 @@ The **source** of information is classified after parsing the following possible
 
 - event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 
-  - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
-  - `<var id prefix>`.uri: event *URI* selected.
-  - `<var id prefix>`.number: position selected (*1..N*; *-1 for last*) within events requests list.
-  - `<var id prefix>`.path: `json` document path within selection.
+  - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
+  - `<var id prefix>`.uri: event *URI* selected. Mandatory.
+  - `<var id prefix>`.number: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
+  - `<var id prefix>`.path: `json` document path within selection. Optional.
 
-  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `requestBody` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
+  Former definitions will retrieve a `json` object corresponding to a single event (given by `method`, `uri` and `number`) and optionally a node within that event object (given by `path` to narrow the selection). For example, `/requestBody` path, gives the request body received (check the example below to see the data storage definition). As you already will know the *method* and *uri* (used to address the event source), you don't need to extract them again, but any other information inside the event object would be a valid source, even the particular case of empty path which extracts the whole event structure. In general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), having few limitations (for example, do not support access to array elements), but they are powerful enough to access everything inside the event stored.
 
   <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
 
@@ -1803,7 +1803,7 @@ The **source** of information is classified after parsing the following possible
   [
     {
       "method": "POST",
-      "requests": [
+      "events": [
         {
           "requestBody": {
             "engine": "tdi",
@@ -2322,9 +2322,9 @@ Retrieves the current server internal data (requests received, their states and 
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
 
-The `json` document response shall contain three main nodes: `method`, `uri` and a `requests` object with the chronologically ordered list of events received for the given `method/uri` combination.
+The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events received for the given `method/uri` combination.
 
-Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the response `requests` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
+Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the `events` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
@@ -2344,7 +2344,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
 [
   {
     "method": "GET",
-    "requests": [
+    "events": [
       {
         "requestBody": {
           "node1": {
@@ -2415,7 +2415,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 [
   {
     "method": "GET",
-    "requests": [
+    "events": [
       {
         "requestBody": {
           "node1": {
@@ -2452,7 +2452,7 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 
 
 
-The information collected for a requests item is:
+The information collected for a events item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
 * `receptionTimestampUs`: event reception *timestamp*.
@@ -2478,7 +2478,7 @@ When a huge amount of events are stored, we can still troubleshoot an specific k
 
 A `json` object document with some practical information is built:
 
-* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history requests (`amount`) is shown.
+* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history events (`amount`) is shown.
 * `totalEvents`: this includes possible virtual events, although normally this kind of configuration is not usual and the value matches the total number of real receptions.
 * `totalKeys`: total different keys (method/uri) registered.
 

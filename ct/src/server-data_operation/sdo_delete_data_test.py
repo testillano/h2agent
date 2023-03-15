@@ -18,7 +18,7 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
 
   # Get this first server sequence:
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
-  seq_ini = response["body"][0]["requests"][0]["serverSequence"]
+  seq_ini = response["body"][0]["events"][0]["serverSequence"]
 
   response = h2ac_traffic.get("/app/v1/foo/bar/1") # this will be seq_ini + 1
   response = h2ac_traffic.postDict("/app/v1/foo/bar/2", { "foo-bar":"first" })  # this will be seq_ini + 2
@@ -39,14 +39,14 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   # Locate the survival GET key:
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   survival_get_key = next(item for item in response["body"] if item["method"] == "GET")
-  event = survival_get_key["requests"][0]
+  event = survival_get_key["events"][0]
   assert survival_get_key["uri"] == "/app/v1/foo/bar/1"
   assertUnprovisioned(event, None, seq_ini) # we removed the last, so the survival is the first sequence
 
   # Locate the POSTs key:
   posts_key = next(item for item in response["body"] if item["method"] == "POST")
-  event1 = posts_key["requests"][0]
-  event2 = posts_key["requests"][1]
+  event1 = posts_key["events"][0]
+  event2 = posts_key["events"][1]
   assert posts_key["uri"] == "/app/v1/foo/bar/2"
   assertUnprovisioned(event1, { "foo-bar":"first" }, seq_ini + 2)
   assertUnprovisioned(event2, { "foo-bar":"second" }, seq_ini + 3)

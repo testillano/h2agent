@@ -108,18 +108,18 @@ TEST_F(MockServerKeyEvents_test, RemoveVirtual1)
     nlohmann::json expectedJson = R"(
     {
       "method": "DELETE",
-      "requests": [
+      "events": [
       ],
       "uri": "/the/uri/222"
     }
     )"_json;
 
     // Fix unpredictable timestamps:
-    real_event_["receptionTimestampUs"] = assertedJson["requests"][0]["receptionTimestampUs"];
-    virtual_event2_["receptionTimestampUs"] = assertedJson["requests"][1]["receptionTimestampUs"];
+    real_event_["receptionTimestampUs"] = assertedJson["events"][0]["receptionTimestampUs"];
+    virtual_event2_["receptionTimestampUs"] = assertedJson["events"][1]["receptionTimestampUs"];
 
-    expectedJson["requests"].push_back(real_event_);
-    expectedJson["requests"].push_back(virtual_event2_);
+    expectedJson["events"].push_back(real_event_);
+    expectedJson["events"].push_back(virtual_event2_);
 
     EXPECT_EQ(assertedJson, expectedJson);
 }
@@ -147,18 +147,18 @@ TEST_F(MockServerKeyEvents_test, RemoveFirstUsingReverse)
     nlohmann::json expectedJson = R"(
     {
       "method": "DELETE",
-      "requests": [
+      "events": [
       ],
       "uri": "/the/uri/222"
     }
     )"_json;
 
     // Fix unpredictable timestamps:
-    virtual_event1_["receptionTimestampUs"] = assertedJson["requests"][0]["receptionTimestampUs"];
-    virtual_event2_["receptionTimestampUs"] = assertedJson["requests"][1]["receptionTimestampUs"];
+    virtual_event1_["receptionTimestampUs"] = assertedJson["events"][0]["receptionTimestampUs"];
+    virtual_event2_["receptionTimestampUs"] = assertedJson["events"][1]["receptionTimestampUs"];
 
-    expectedJson["requests"].push_back(virtual_event1_);
-    expectedJson["requests"].push_back(virtual_event2_);
+    expectedJson["events"].push_back(virtual_event1_);
+    expectedJson["events"].push_back(virtual_event2_);
 
     EXPECT_EQ(assertedJson, expectedJson);
 }

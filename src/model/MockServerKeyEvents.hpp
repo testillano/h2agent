@@ -82,7 +82,7 @@ public:
     // setters:
 
     /**
-     * Loads requests information
+     * Loads events information
      *
      * @param previousState Previous request state
      * @param state Request state
@@ -138,9 +138,9 @@ public:
     nlohmann::json getJson() const;
 
     /**
-     * Gets the mock requests key as '<request-method>|<request-uri>'
+     * Gets the mock events key as '<request-method>|<request-uri>'
      *
-     * @return Mock request key
+     * @return Mock event key
      */
     mock_server_events_key_t getKey() const;
 
@@ -158,17 +158,17 @@ public:
         return events_.size();
     }
 
-    /** Get the method of the requests list
+    /** Get the method of the events list
     *
-    * @return Requests method key
+    * @return Events method key
     */
     const std::string &getMethod() const {
         return method_;
     }
 
-    /** Get the uri of the requests list
+    /** Get the uri of the events list
     *
-    * @return Requests uri key
+    * @return Events uri key
     */
     const std::string &getUri() const {
         return uri_;

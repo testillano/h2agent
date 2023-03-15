@@ -119,7 +119,7 @@ nlohmann::json MockServerKeyEvents::getJson() const {
 
     read_guard_t guard(rw_mutex_);
     for (auto it = events_.begin(); it != events_.end(); it ++) {
-        result["requests"].push_back((*it)->getJson());
+        result["events"].push_back((*it)->getJson());
     }
 
     return result;

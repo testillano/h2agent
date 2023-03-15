@@ -241,8 +241,8 @@ server_data() {
 
 server_data_sequence() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
-  [ -z "$1" ] && json ".[].requests[].serverSequence" | sort -n && return 0
-  json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
+  [ -z "$1" ] && json ".[].events[].serverSequence" | sort -n && return 0
+  json ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
 }
 
 client_endpoint() {
@@ -323,9 +323,9 @@ snapshot() {
   server_data --summary -1 && json > ${dir}/server-data-summary.json
   echo | server_data && json > ${dir}/server-data.json
   mkdir ${dir}/server-data-sequences
-  (jq '.[].requests[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
+  (jq '.[].events[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
   for s in $(cat ${dir}/server-data-sequences.txt); do
-    jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
+    jq ".[] | select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
   done
   client_endpoint && json > ${dir}/client_endpoint.json
   client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
