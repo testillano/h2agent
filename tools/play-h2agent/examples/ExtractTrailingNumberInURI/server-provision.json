@@ -1,0 +1,17 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "request.uri",
+      "target": "response.body.json.string./capturedValue",
+      "filter": {
+        "RegexReplace": {
+          "rgx": "/app/v1/foo/bar/([0-9]*)",
+          "fmt": "$1"
+        }
+      }
+    }
+  ]
+}

@@ -299,12 +299,23 @@ metrics() {
 }
 
 snapshot() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration." && return 0
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration."
+    echo "                [target dir]; Directory where information is stored ('/tmp/snapshots/last' by default)."
+    return 0
+  fi
 
-  local dir=/tmp/snapshots/$(date +'%y%m%d.%H%M%S')
-  local last=/tmp/snapshots/last
-  mkdir -p ${dir}
-  rm -f ${last} && ln -s $(basename ${dir}) ${last}
+  local dir=${1:-"/tmp/snapshots/$(date +'%y%m%d.%H%M%S')"}
+  mkdir -p ${dir} || return 1
+
+  if [ -n "$1" ]
+  then
+    [ -n "$(ls -A ${dir})" ] && echo "Target directory '${dir}' is not empty !" && return 1
+  else
+    local last=/tmp/snapshots/last
+    rm -f ${last} && ln -s $(basename ${dir}) ${last}
+  fi
 
   schema && json > ${dir}/schema.json
   schema_schema && json > ${dir}/schema_schema.json
@@ -333,7 +344,12 @@ snapshot() {
 
   echo
   echo "Created snapshot at:"
-  ls -l ${last}
+  if [ -n "$1" ]
+  then
+    readlink -f ${dir}
+  else
+    ls -l ${last}
+  fi
 }
 
 server_example() {

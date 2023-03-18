@@ -1,0 +1,26 @@
+[
+  {
+    "inState": "initial",
+    "outState": "second",
+    "requestMethod": "GET",
+    "requestUri": "/next",
+    "responseCode": 200,
+    "responseBody": "this is the INITIAL state"
+  },
+  {
+    "inState": "second",
+    "outState": "third",
+    "requestMethod": "GET",
+    "requestUri": "/next",
+    "responseCode": 200,
+    "responseBody": "this is the SECOND state"
+  },
+  {
+    "inState": "third",
+    "outState": "initial",
+    "requestMethod": "GET",
+    "requestUri": "/next",
+    "responseCode": 200,
+    "responseBody": "this is the THIRD state"
+  }
+]

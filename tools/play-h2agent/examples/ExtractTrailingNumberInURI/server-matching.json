@@ -1,0 +1,5 @@
+{
+  "algorithm":"FullMatchingRegexReplace",
+  "rgx":"(/app/v1/foo/bar/)([0-9]*)",
+  "fmt":"$1"
+}

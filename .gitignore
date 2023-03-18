@@ -30,3 +30,6 @@ st/last
 
 # Coverage report
 coverage
+
+# play-h2agent
+tools/play-h2agent/examples/*/snapshot

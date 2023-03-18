@@ -1,0 +1,27 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/give/me/random/calculation",
+  "responseCode": 200,
+  "transform": [
+     {
+       "source": "random.0.9",
+       "target": "var.a"
+     },
+     {
+       "source": "random.0.9",
+       "target": "var.b"
+     },
+     {
+       "source": "random.0.9",
+       "target": "var.x"
+     },
+     {
+       "source": "math.@{a} + @{b}*@{x}",
+       "target": "var.result"
+     },
+     {
+       "source": "value.a + bx = @{result}, for a=@{a}, b=@{b} and x=@{x}",
+       "target": "response.body.string"
+     }
+  ]
+}
