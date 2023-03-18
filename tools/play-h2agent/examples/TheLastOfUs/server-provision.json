@@ -1,0 +1,46 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/divide/by/two",
+  "responseCode": 200,
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "value.100",
+      "target": "var.previous"
+    },
+    {
+      "source": "value.GET",
+      "target": "var.ev.method"
+    },
+    {
+      "source": "value./divide/by/two",
+      "target": "var.ev.uri"
+    },
+    {
+      "source": "value.-1",
+      "target": "var.ev.number"
+    },
+    {
+      "source": "value./responseBody/current",
+      "target": "var.ev.path"
+    },
+    {
+      "source": "event.ev",
+      "target": "var.previous"
+    },
+    {
+      "source": "math.@{previous}/2",
+      "target": "var.current"
+    },
+    {
+      "source": "value.@{previous}",
+      "target": "response.body.json.object./previous"
+    },
+    {
+      "source": "value.@{current}",
+      "target": "response.body.json.object./current"
+    }
+  ]
+}
