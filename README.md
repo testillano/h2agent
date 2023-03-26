@@ -63,6 +63,14 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
   ```
 
+  Or any other packaged utility:
+
+  ```bash
+  $> docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  ```
+
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
   ```bash
@@ -1727,7 +1735,7 @@ Before describing sources and targets (and filters), just to clarify that in som
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- request.uri: whole `url-decoded` request *URI* (path together with possible query parameters). This is the unmodified original *URI*, not necessarily the same as the classification *URI*.
+- request.uri: whole `url-decoded` and **normalized** request *URI* (path together with possible query parameters **sorted**). Not necessarily the same as the classification *URI* (which could ignore those query parameters, or even pass them by from *URI* with no order guaranteed) and in the same way, not necessarily the same as the original *URI* due to the same reason: query parameters order. Normalization makes the source more predictable, something useful to extract specific *URI* parts. For example, consider the *URI* `/composer?city=Bonn&author=Beethoven`, which normalized would turn into `/composer?author=Beethoven&city=Bonn` (because query parameters are sorted). Assuming that source format, you may use the regular expression `(/composer\?author=)([a-zA-Z]*)(&city=)([a-zA-Z]*)`, to extract the author name or city from that predictable normalized *URI* (second or fourth capture group) . This kind of transformation is very usual regardless if query parameters are processed or not.
 
 - request.uri.path: `url-decoded` request *URI* path part.
 
