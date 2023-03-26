@@ -192,24 +192,23 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         );
     }
 
-    // Original URI:
-    std::string originalUri = uriPath;
-    if (!uriQuery.empty()) {
-        originalUri += "?";
-        originalUri += uriQuery;
-    }
-
     LOGDEBUG(
         std::stringstream ss;
-        ss << "TRAFFIC REQUEST RECEIVED"
-        << " | Reception id (general unique server sequence): " << receptionId
-        << " | Method: " << method
-        << " | Headers: " << ert::http2comm::headersAsString(req.header())
-        << " | Uri: " << req.uri().scheme << "://" << req.uri().host << originalUri
-        << " | Query parameters: " << ((getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored")
-        << " | Body (as ascii string, dots for non-printable): " << requestBodyDataPart.asAsciiString();
-        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
-    );
+        // Original URI:
+        std::string originalUri = uriPath;
+    if (!uriQuery.empty()) {
+    originalUri += "?";
+    originalUri += uriQuery;
+}
+ss << "TRAFFIC REQUEST RECEIVED"
+   << " | Reception id (general unique server sequence): " << receptionId
+   << " | Method: " << method
+   << " | Headers: " << ert::http2comm::headersAsString(req.header())
+   << " | Uri: " << req.uri().scheme << "://" << req.uri().host << originalUri
+   << " | Query parameters: " << ((getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter() == h2agent::model::AdminServerMatchingData::Ignore) ? "ignored":"not ignored")
+   << " | Body (as ascii string, dots for non-printable): " << requestBodyDataPart.asAsciiString();
+   ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+);
 
     // Normalized URI: original URI with query parameters normalized (ordered) / Classification URI: may ignore, sort or pass by query parameters
     std::string normalizedUri = uriPath;
@@ -333,7 +332,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         }
 
         // Process provision
-        provision->transform(originalUri /* original uri */, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
+        provision->transform(normalizedUri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
 
         // Special out-states:
