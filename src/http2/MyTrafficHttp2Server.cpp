@@ -381,7 +381,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
 
-        statusCode = 501; // not implemented
+        statusCode = ert::http2comm::ResponseCode::NOT_IMPLEMENTED; // 501
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
             getMockServerEventsData()->loadEvent(""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, method, normalizedUri, req.header(), requestBodyDataPart, receptionTimestampUs, statusCode, headers, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
