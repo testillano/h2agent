@@ -46,6 +46,7 @@ SOFTWARE.
 #include <arashpartow/exprtk.hpp>
 
 #include <ert/tracing/Logger.hpp>
+#include <ert/http2comm/Http.hpp>
 
 #include <AdminServerProvision.hpp>
 #include <MockServerEventsData.hpp>
@@ -928,7 +929,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     // Response schema validation (not supported for response body created by non-json targets, to simplify the fact to parse need on ResponseBodyString/ResponseBodyHexString):
     if (responseSchema) {
         if (!responseSchema->validate(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson:getResponseBody())) {
-            responseStatusCode = 500; // built response will be anyway sent although status code is overwritten with internal server error.
+            responseStatusCode = ert::http2comm::ResponseCode::INTERNAL_SERVER_ERROR; // 500: built response will be anyway sent although status code is overwritten with internal server error.
         }
     }
 }
