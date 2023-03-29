@@ -316,7 +316,7 @@ def test_024_eventBodyToResponseBodyPath(admin_cleanup, admin_server_provision, 
 
   # Traffic
 
-  # First time, there is nothing (no request number 0 exists), so, responseBody won't add event information:
+  # First time, there is nothing (no event number 0 exists), so, responseBody won't add event information:
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", string2dict(NESTED_NODE1_NODE2_REQUEST))
   responseBodyRef = { "foo":"bar-1" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

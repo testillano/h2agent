@@ -50,14 +50,14 @@ void calculateMockServerKeyEventsKey(mock_server_events_key_t &key, const std::s
     key += uri;
 }
 
-bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t requestNumber, bool reverse) {
+bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t eventNumber, bool reverse) {
 
     write_guard_t guard(rw_mutex_);
 
-    if (events_.size() == 0 || requestNumber == 0) return false;
-    if (requestNumber > events_.size()) return false;
+    if (events_.size() == 0 || eventNumber == 0) return false;
+    if (eventNumber > events_.size()) return false;
 
-    events_.erase(events_.begin() + (reverse ? (events_.size() - requestNumber):(requestNumber - 1)));
+    events_.erase(events_.begin() + (reverse ? (events_.size() - eventNumber):(eventNumber - 1)));
 
     return true;
 }
@@ -93,21 +93,21 @@ void MockServerKeyEvents::loadEvent(const std::string &previousState, const std:
     }
 }
 
-std::shared_ptr<MockServerKeyEvent> MockServerKeyEvents::getMockServerKeyEvent(std::uint64_t requestNumber, bool reverse) const {
+std::shared_ptr<MockServerKeyEvent> MockServerKeyEvents::getMockServerKeyEvent(std::uint64_t eventNumber, bool reverse) const {
 
     read_guard_t guard(rw_mutex_);
 
     if (events_.size() == 0) return nullptr;
-    if (requestNumber == 0) return nullptr;
+    if (eventNumber == 0) return nullptr;
 
-    if (requestNumber > events_.size()) return nullptr;
+    if (eventNumber > events_.size()) return nullptr;
 
     if (reverse) {
-        return *(events_.begin() + (events_.size() - requestNumber));
+        return *(events_.begin() + (events_.size() - eventNumber));
         //return *(std::prev(events_.end())); // this would be the last
     }
 
-    return *(events_.begin() + (requestNumber - 1));
+    return *(events_.begin() + (eventNumber - 1));
 }
 
 

@@ -46,7 +46,7 @@ Check [here](https://chris.beams.io/posts/git-commit/) for a good reference of u
 Don't forget to include the trailer(s) referencing the issue(s) `URLs` to allow tracking the changes in the future. For example:
 
 ```
-Fix wrong requestNumber read
+Fix wrong read
 
 This change fix a bug when trying to ...
 ...

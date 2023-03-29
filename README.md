@@ -2323,17 +2323,17 @@ For example:
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
-### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
+### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`
 
 Retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent responds with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the received `uri` normalized</u> (having for example, a better predictable query parameters order during server data events search), not the `classification uri` (which could dispense with query parameters or variable parts depending on the matching algorithm), and could also be slightly different in some cases (specially when query parameters are involved) than original `uri` received on HTTP/2 interface.
 
-<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
+<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber*, for example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events received for the given `method/uri` combination.
 
-Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the `events` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
+Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *eventNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the `events` node will contain a single register in this case). So, the *eventNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
@@ -2345,7 +2345,7 @@ This operation is useful for testing post verification stages (validate content 
 
 Json array document containing all the selected event items, when something matches (no-content response has no body).
 
-When provided *method* and *uri*, server data will be filtered with that key. If request number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
+When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
 Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*'):
 
@@ -2418,7 +2418,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
 
 
 
-Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*') and a *requestNumber* (2):
+Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*') and a *eventNumber* (2):
 
 ```json
 [
@@ -2520,13 +2520,13 @@ Take the following `json` as an example:
 }
 ```
 
-### DELETE /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
+### DELETE /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
-Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *requestNumber* restricts optionally them.
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
 
 #### Response status code
 
@@ -2739,11 +2739,11 @@ Usage: server_matching [-h|--help]; Gets/updates current server matching configu
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
 Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
-                   [method] [uri] [[-]request number]; Restricts shown data with given positional filters.
-                                                       Request number may be negative to access by reverse chronological order.
-                   [--summary] [max keys]            ; Gets current server data summary to guide further queries.
-                                                       Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
-                   [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the                                                        selection.
+                   [method] [uri] [[-]event number]; Restricts shown data with given positional filters.
+                                                     Event number may be negative to access by reverse chronological order.
+                   [--summary] [max keys]          ; Gets current server data summary to guide further queries.
+                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
+                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the                                                        selection.
 Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
                                                                                retrieved in previous server_data() call.
 
