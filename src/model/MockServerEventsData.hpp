@@ -64,7 +64,7 @@ class MockServerEventsData : public Map<mock_server_events_key_t, std::shared_pt
 {
     h2agent::jsonschema::JsonSchema requests_schema_{};
 
-    bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+    bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber) const;
     bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) const;
 
     mutable mutex_t rw_mutex_{};
@@ -101,20 +101,20 @@ public:
      * @param somethingDeleted boolean to know if something was deleted, by reference
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param eventNumber Request history number (1..N) to filter selection.
      * If empty, whole history is removed for method/uri provided.
      * If provided '-1', the latest event is selected.
      *
      * @return Boolean about success of operation (not related to the number of events removed)
      */
-    bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &requestNumber = "");
+    bool clear(bool &somethingDeleted, const std::string &requestMethod = "", const std::string &requestUri = "", const std::string &eventNumber = "");
 
     /**
      * Json string representation for class information filtered (json array)
      *
      * @param requestMethod Request method to filter selection. Mandatory if 'requestUri' is provided:
      * @param requestUri Request URI path to filter selection. Mandatory if 'requestMethod' is provided.
-     * @param requestNumber Request history number (1..N) to filter selection. Optional, but cannot be provided alone (needs 'requestUri' and 'requestMethod').
+     * @param eventNumber Request history number (1..N) to filter selection. Optional, but cannot be provided alone (needs 'requestUri' and 'requestMethod').
      * If empty, whole history is selected for method/uri provided.
      * If provided '-1' (unsigned long long max), the latest event is selected.
      * @param validQuery Boolean result passed by reference.
@@ -123,7 +123,7 @@ public:
      * @warning This method may throw exception due to dump() when unexpected data is stored on json wrap: execute under try/catch block.
 
      */
-    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const;
+    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, bool &validQuery) const;
 
     /**
      * Json string representation for class summary (total number of events and first/last/random keys).
@@ -139,7 +139,7 @@ public:
      *
      * @param requestMethod Request method to filter selection
      * @param requestUri Request URI path to filter selection
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param eventNumber Request history number (1..N) to filter selection.
      * Value '-1' (unsigned long long max) selects the latest event.
      * Value '0' is not accepted, and null will be returned in this case.
      *
@@ -149,7 +149,7 @@ public:
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const;
+    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber) const;
 
     /**
      * Builds json document for class information

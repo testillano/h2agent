@@ -28,9 +28,9 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   # We have 2 GETs and 3 POSTs
 
   # We will delete partially both, for example, the last one of GETs and POSTs:
-  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=-1")
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&eventNumber=-1")
   response["status"] = 200
-  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar/2&requestNumber=-1")
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar/2&eventNumber=-1")
   response["status"] = 200
 
   # Now we have 1 GET and 2 POSTs (those with 'first' and 'second' body values for 'foo-bar'):
@@ -57,7 +57,7 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   with pytest.raises(StopIteration): posts_key = next(item for item in response["body"] if item["method"] == "POST")
 
   # Remove the first (and only) GET:
-  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&requestNumber=1")
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/1&eventNumber=1")
   response["status"] = 200
 
   # Even not GET survives:

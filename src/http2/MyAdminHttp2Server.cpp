@@ -419,20 +419,20 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     else if (pathSuffix == "server-data") {
         std::string requestMethod = "";
         std::string requestUri = "";
-        std::string requestNumber = "";
+        std::string eventNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
             if (it != qmap.end()) requestMethod = it->second;
             it = qmap.find("requestUri");
             if (it != qmap.end()) requestUri = it->second;
-            it = qmap.find("requestNumber");
-            if (it != qmap.end()) requestNumber = it->second;
+            it = qmap.find("eventNumber");
+            if (it != qmap.end()) eventNumber = it->second;
         }
 
         bool validQuery = false;
         try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
-            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, requestNumber, validQuery);
+            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, eventNumber, validQuery);
         }
         catch (const std::exception& e)
         {
@@ -492,18 +492,18 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         bool serverDataDeleted = false;
         std::string requestMethod = "";
         std::string requestUri = "";
-        std::string requestNumber = "";
+        std::string eventNumber = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
             if (it != qmap.end()) requestMethod = it->second;
             it = qmap.find("requestUri");
             if (it != qmap.end()) requestUri = it->second;
-            it = qmap.find("requestNumber");
-            if (it != qmap.end()) requestNumber = it->second;
+            it = qmap.find("eventNumber");
+            if (it != qmap.end()) eventNumber = it->second;
         }
 
-        bool success = getHttp2Server()->getMockServerEventsData()->clear(serverDataDeleted, requestMethod, requestUri, requestNumber);
+        bool success = getHttp2Server()->getMockServerEventsData()->clear(serverDataDeleted, requestMethod, requestUri, eventNumber);
 
         statusCode = (success ? (serverDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/):ert::http2comm::ResponseCode::BAD_REQUEST /*400*/);
     }

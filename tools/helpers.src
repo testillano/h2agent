@@ -189,11 +189,11 @@ server_data() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: server_data [-h|--help]; Inspects server data events (${ADMIN_URL}/server-data)."
-    echo "                   [method] [uri] [[-]request number]; Restricts shown data with given positional filters."
-    echo "                                                       Request number may be negative to access by reverse chronological order."
-    echo "                   [--summary] [max keys]            ; Gets current server data summary to guide further queries."
-    echo "                                                       Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
-    echo "                   [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
+    echo "                   [method] [uri] [[-]event number]; Restricts shown data with given positional filters."
+    echo "                                                     Event number may be negative to access by reverse chronological order."
+    echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
+    echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
+    echo "                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the selection."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -211,15 +211,15 @@ server_data() {
 
   local requestMethod=$1
   local requestUri=$2
-  local requestNumber=$3
+  local eventNumber=$3
 
   [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
-  [ -n "${requestNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
-  [ -n "${requestNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
+  [ -n "${eventNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
+  [ -n "${eventNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
 
   local queryParams=
   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
-  [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
+  [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
   if [ -z "${curl_method}" -a -z "${queryParams}" ]
   then
     echo

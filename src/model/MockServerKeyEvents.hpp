@@ -109,26 +109,26 @@ public:
      * Removes vector item for a given position
      * We could also access from the tail (reverse chronological order)
 
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param eventNumber Request history number (1..N) to filter selection.
      * @param reverse Reverse the order to get the request from the tail instead the head.
      *
      * @return Boolean about if something was deleted
      */
-    bool removeMockServerKeyEvent(std::uint64_t requestNumber, bool reverse);
+    bool removeMockServerKeyEvent(std::uint64_t eventNumber, bool reverse);
 
     // getters:
 
     /**
      * Gets the mock server key event in specific position (last by default)
      *
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param eventNumber Request history number (1..N) to filter selection.
      * Value '0' is not accepted, and null will be returned in this case.
      * @param reverse Reverse the order to get the request from the tail instead the head.
      *
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(std::uint64_t requestNumber, bool reverse) const;
+    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(std::uint64_t eventNumber, bool reverse) const;
 
     /**
      * Builds json document for class information
