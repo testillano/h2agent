@@ -59,8 +59,12 @@ SOFTWARE.
 #include <ert/metrics/Metrics.hpp>
 
 
-// Recommendation for administrative interface is 1-5 client threads
-#define NGHTTP2_ADMIN_SERVER_THREADS 2
+// Nghttp2 server threads: recommendation for administrative interface is 1-5 client threads
+#define ADMIN_SERVER_THREADS 2
+
+// In order to use queue dispatcher, we must set over 1, but performance is usually better without it:
+#define ADMIN_SERVER_WORKER_THREADS 1
+
 
 const char* progname;
 
@@ -251,7 +255,7 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "[-w|--traffic-server-worker-threads <threads>]\n"
        << "  Number of traffic server worker threads; defaults to 1, which should be enough\n"
-       << "  even for complex logic provisioned (admin server always uses 1 worker thread).\n"
+       << "  even for complex logic provisioned (admin server hardcodes " << ADMIN_SERVER_WORKER_THREADS << " worker thread(s)).\n"
        << "  It could be increased if hardware concurrency (" << hardwareConcurrency << ") permits a greater margin taking\n"
        << "  into account other process threads considered busy and I/O time spent by server\n"
        << "  threads.\n\n"
@@ -262,7 +266,7 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "[-t|--traffic-server-threads <threads>]\n"
        << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
-       << "  (admin server hardcodes " << NGHTTP2_ADMIN_SERVER_THREADS << " nghttp2 threads). This option is exploited\n"
+       << "  (admin server hardcodes " << ADMIN_SERVER_THREADS << " nghttp2 threads). This option is exploited\n"
        << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
@@ -307,27 +311,25 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--discard-data]\n"
        << "  Disables data storage for events processed (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
-       << "  or event-source transformations.\n\n"
-       //<< "  This affects to both mock server-data and client-data storages,\n"
-       //<< "  but normally both containers will not be used together in the same process instance.\n\n"
+       << "  or event-source transformations.\n"
+       << "  This affects to both mock server-data and client-data storages,\n"
+       << "  but normally both containers will not be used together in the same process instance.\n\n"
 
        << "[--discard-data-key-history]\n"
        << "  Disables data key history storage (enabled by default).\n"
-       << "  Only latest event (for each key 'method/uri') will be stored and will\n"
-       //<< "  Only latest event (for each key 'method/uri'/'endpoint') will be stored and will\n"
-       << "  be accessible for further analysis.\n"
+       << "  Only latest event (for each key '[client endpoint/]method/uri')\n"
+       << "  will be stored and will be accessible for further analysis.\n"
        << "  This limits some features like FSM related ones (in-state, out-state)\n"
-       << "  or event-source transformations.\n"
-       //<< "  , event-source transformations or client triggers.\n"
+       << "  or event-source transformations or client triggers.\n"
        << "  Implicitly disabled by option '--discard-data'.\n"
-       << "  Ignored for server-unprovisioned events (for troubleshooting purposes).\n\n"
-       //<< "  This affects to both mock server-data and client-data storages,\n"
-       //<< "  but normally both containers will not be used together in the same process instance.\n\n"
+       << "  Ignored for server-unprovisioned events (for troubleshooting purposes).\n"
+       << "  This affects to both mock server-data and client-data storages,\n"
+       << "  but normally both containers will not be used together in the same process instance.\n\n"
 
        << "[--disable-purge]\n"
        << "  Skips events post-removal when a provision on 'purge' state is reached (enabled by default).\n\n"
-       //<< "  This affects to both mock 'server internal/client external' purge procedures,\n"
-       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  This affects to both mock server-data and client-data purge procedures,\n"
+       << "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-port <port>]\n"
        << "  Prometheus local <port>; defaults to 8080.\n\n"
@@ -335,14 +337,14 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
        << "  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we\n"
-       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n\n"
-       //<< "  This affects to both mock 'server internal/client external' processing time values,\n"
-       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n"
+       << "  This affects to both mock server-data and client-data processing time values,\n"
+       << "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
-       << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n\n"
-       //<< "  This affects to both mock 'server internal/client external' message size values,\n"
-       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n"
+       << "  This affects to both mock 'server internal/client external' message size values,\n"
+       << "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--disable-metrics]\n"
        << "  Disables prometheus scrape port (enabled by default).\n\n"
@@ -792,7 +794,7 @@ int main(int argc, char* argv[])
     myFileManager->enableMetrics(myMetrics);
 
     // Admin server
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(NGHTTP2_ADMIN_SERVER_THREADS);
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(ADMIN_SERVER_WORKER_THREADS);
     myAdminHttp2Server->enableMetrics(myMetrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -926,7 +928,7 @@ int main(int argc, char* argv[])
 
     int rc1 = EXIT_SUCCESS;
     int rc2 = EXIT_SUCCESS;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", 1);});
+    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", ADMIN_SERVER_THREADS);});
 
     if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
     // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL

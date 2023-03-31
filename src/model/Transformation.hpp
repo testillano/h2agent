@@ -59,10 +59,10 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState, STxtFile, SBinFile, Command };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState, STxtFile, SBinFile, Command };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "Event", "InState", "STxtFile", "SBinFile", "Command" };
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "ServerEvent", "InState", "STxtFile", "SBinFile", "Command" };
         return text [type];
     }
 
@@ -106,7 +106,7 @@ private:
 
     SourceType source_type_{};
     std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
-    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, Event, STxtFile(path), SBinFile (path), Command(expression)
+    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, ServerEvent, STxtFile(path), SBinFile (path), Command(expression)
     std::vector<std::string> source_tokenized_{}; // RandomSet
     int source_i1_{}, source_i2_{}; // Random
 

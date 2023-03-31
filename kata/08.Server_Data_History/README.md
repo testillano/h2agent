@@ -1,6 +1,6 @@
 # Server Data History
 
-Server internal data (requests received and their states and other useful information like timing) are exposed through the agent `REST API`, but are also accessible at transformation filters using the source type `event`. Let's see an example.
+Server internal data (requests received and their states and other useful information like timing) are exposed through the agent `REST API`, but are also accessible at transformation filters using the source type `serverEvent`. Let's see an example.
 
 Imagine the following current server data map:
 
@@ -36,7 +36,7 @@ Imagine the following current server data map:
 
 **Note**: remember that `./tools/helpers.src` can be sourced to access some helper functions, for example you could execute `data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
 
-Now, you can prepare an event source `event.ev1`, just defining four variables to address the event whose names extend the event variable with *method*, *uri*, *number* and *path* suffixes:
+Now, you can prepare an event source `serverEvent.ev1`, just defining four variables to address the event whose names extend the event variable with *method*, *uri*, *number* and *path* suffixes:
 
 ​	`ev1.method` = "POST"
 
@@ -81,7 +81,7 @@ Now, just configure a provision to extract such object and transfer it to wherev
       "target": "var.ev1.path"
     },
     {
-      "source": "event.ev1",
+      "source": "serverEvent.ev1",
       "target": "response.body.json.object"
     }
   ]

@@ -225,7 +225,7 @@ const nlohmann::json server_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
@@ -402,7 +402,7 @@ const nlohmann::json client_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
@@ -425,7 +425,7 @@ const nlohmann::json client_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^(var|globalVar|event)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",

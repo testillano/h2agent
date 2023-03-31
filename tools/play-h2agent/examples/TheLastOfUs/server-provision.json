@@ -27,7 +27,7 @@
       "target": "var.ev.path"
     },
     {
-      "source": "event.ev",
+      "source": "serverEvent.ev",
       "target": "var.previous"
     },
     {

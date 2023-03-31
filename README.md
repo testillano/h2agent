@@ -578,7 +578,7 @@ Options:
 
 [-w|--traffic-server-worker-threads <threads>]
   Number of traffic server worker threads; defaults to 1, which should be enough
-  even for complex logic provisioned (admin server always uses 1 worker thread).
+  even for complex logic provisioned (admin server hardcodes 1 worker thread(s)).
   It could be increased if hardware concurrency (8) permits a greater margin taking
   into account other process threads considered busy and I/O time spent by server
   threads.
@@ -634,18 +634,25 @@ Options:
   Disables data storage for events processed (enabled by default).
   This invalidates some features like FSM related ones (in-state, out-state)
   or event-source transformations.
+  This affects to both mock server-data and client-data storages,
+  but normally both containers will not be used together in the same process instance.
 
 [--discard-data-key-history]
   Disables data key history storage (enabled by default).
-  Only latest event (for each key 'method/uri') will be stored and will
-  be accessible for further analysis.
+  Only latest event (for each key '[client endpoint/]method/uri')
+  will be stored and will be accessible for further analysis.
   This limits some features like FSM related ones (in-state, out-state)
-  or event-source transformations.
+  or event-source transformations or client triggers.
   Implicitly disabled by option '--discard-data'.
   Ignored for server-unprovisioned events (for troubleshooting purposes).
+  This affects to both mock server-data and client-data storages,
+  but normally both containers will not be used together in the same process instance.
 
 [--disable-purge]
   Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
+
+  This affects to both mock server-data and client-data purge procedures,
+  but normally both flows will not be used together in the same process instance.
 
 [--prometheus-port <port>]
   Prometheus local <port>; defaults to 8080.
@@ -654,9 +661,13 @@ Options:
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
   Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
   could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
+  This affects to both mock server-data and client-data processing time values,
+  but normally both flows will not be used together in the same process instance.
 
 [--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
+  This affects to both mock 'server internal/client external' message size values,
+  but normally both flows will not be used together in the same process instance.
 
 [--disable-metrics]
   Disables prometheus scrape port (enabled by default).
@@ -1622,7 +1633,7 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
@@ -1795,7 +1806,7 @@ The **source** of information is classified after parsing the following possible
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
-- event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
+- serverEvent.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
 
   - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - `<var id prefix>`.uri: event *URI* selected. Mandatory.
@@ -1838,7 +1849,7 @@ The **source** of information is classified after parsing the following possible
   ]
   ```
 
-  Then, you could define an event source like `event.ev1`. Assuming that the following variables are available when this source is processed:
+  Then, you could define an event source like `serverEvent.ev1`. Assuming that the following variables are available when this source is processed:
 
   ​	`ev1.method` = "POST"
 
@@ -1848,7 +1859,7 @@ The **source** of information is classified after parsing the following possible
 
   ​	`ev1.path` = "/requestBody"
 
-  Then, the event source (`event.ev1`) would store this `json` object:
+  Then, the event source (`serverEvent.ev1`) would store this `json` object:
 
   ```json
   {
@@ -2144,7 +2155,7 @@ Filters give you the chance to make complex transformations:
 
 
 
-- EqualTo: conditional transfer from source to target based in string comparison with the provided value. The result will be "yes" when source and reference string are the same, and transformation is skipped when differ, so variable target will be undefined and other transformations are simply ignored. This filter is normally used together with `ConditionVar`, and eases matching for strings against `RegexCapture` which would need complex equivalent regular expressions for them (for example to match `json` content):
+- EqualTo: conditional transfer from source to target based in string comparison with the provided value. The result will be "yes" when source and reference string are the same, and transformation is skipped when differ (variable will be undefined so can be used later as any other `ConditionVar` making matching easier regarding `RegexCapture` which would need complex equivalent regular expressions for them, for example to match `json` content):
 
   ```json
   {
