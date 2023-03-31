@@ -167,7 +167,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // Interpret source/target:
 
     // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser,
-    //                           Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState };)
+    //                           Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
@@ -204,7 +204,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex varId("^var.(.*)", std::regex::optimize);
     static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
     static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
-    static std::regex event("^event.(.*)", std::regex::optimize);
+    static std::regex serverEvent("^serverEvent.(.*)", std::regex::optimize);
     static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
     static std::regex binFile("^binFile.(.*)", std::regex::optimize);
     static std::regex command("^command.(.*)", std::regex::optimize);
@@ -286,9 +286,9 @@ bool Transformation::load(const nlohmann::json &j) {
             source_ = matches.str(1);
             source_type_ = SourceType::Value;
         }
-        else if (std::regex_match(sourceSpec, matches, event)) { // value content
+        else if (std::regex_match(sourceSpec, matches, serverEvent)) { // value content
             source_ = matches.str(1);
-            source_type_ = SourceType::Event;
+            source_type_ = SourceType::ServerEvent;
         }
         else if (sourceSpec == "inState") {
             source_type_ = SourceType::InState;

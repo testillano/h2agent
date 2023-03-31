@@ -250,7 +250,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     else if (transformation->getSourceType() == Transformation::SourceType::Value) {
         sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Event) {
+    else if (transformation->getSourceType() == Transformation::SourceType::ServerEvent) {
         std::string var_id_prefix = transformation->getSource();
 
         auto iter = variables.find(var_id_prefix + ".method");
@@ -270,7 +270,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         auto mockServerRequest = mock_server_events_data_->getMockServerKeyEvent(event_method, event_uri, event_number);
         if (!mockServerRequest) {
             LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Unable to extract event for variable '%s' in transformation item", transformation->getSource().c_str());
+                std::string msg = ert::tracing::Logger::asString("Unable to extract server event for variable '%s' in transformation item", transformation->getSource().c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
             return false;
@@ -278,14 +278,14 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         if (!sourceVault.setObject(mockServerRequest->getJson(), event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
             LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Unexpected error extracting event for variable '%s' in transformation item", transformation->getSource().c_str());
+                std::string msg = ert::tracing::Logger::asString("Unexpected error extracting server event for variable '%s' in transformation item", transformation->getSource().c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
             return false;
         }
 
         LOGDEBUG(
-            std::string msg = ert::tracing::Logger::asString("Extracted object from event: %s", sourceVault.asString().c_str());
+            std::string msg = ert::tracing::Logger::asString("Extracted object from server event: %s", sourceVault.asString().c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
     }
@@ -884,7 +884,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
-        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, Event, InState
+        // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, ServerEvent, InState
         if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
             continue;
