@@ -248,7 +248,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
     const h2agent::model::AdminServerMatchingData & matchingData = getAdminData()->getServerMatchingData();
 
 // Find mock context:
-    std::string inState;
+    std::string inState{};
     /*bool requestFound = */getMockServerEventsData()->findLastRegisteredRequestState(method, normalizedUri, inState); // if not found, inState will be 'initial'
 
 // Matching algorithm:

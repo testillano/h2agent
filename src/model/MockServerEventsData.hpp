@@ -163,7 +163,8 @@ public:
      *
      * @param method Request method which was received
      * @param uri Request URI path which was received
-     * @param state Request current state filled by reference. If nothing found, 'initial' will be set
+     * @param state Request current state filled by reference.
+     * If nothing found or no state (unprovisioned events), 'initial' will be set.
      *
      * @return Boolean about if the request is found or not
      */

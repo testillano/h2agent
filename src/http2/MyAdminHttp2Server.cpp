@@ -187,6 +187,14 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
 
     if (loadResult == h2agent::model::AdminServerMatchingData::Success) {
         log += "valid schema and matching data received";
+
+        // Warn in case previous server provisions exists:
+        if (admin_data_->getServerProvisionData().size() != 0)
+            LOGWARNING(
+            if (admin_data_->getServerProvisionData().size() != 0) {
+            ert::tracing::Logger::warning("There are current server provisions: remove/update them to avoid unexpected behavior (matching must be configured firstly !)", ERT_FILE_LOCATION);
+            }
+        );
     }
     else if (loadResult == h2agent::model::AdminServerMatchingData::BadSchema) {
         log += "invalid schema";
