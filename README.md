@@ -12,11 +12,17 @@ It is mainly designed for testing, but could even simulate or complement advance
 
 ## Quick start
 
-It is recommended to complete the following points first:
+**Theory**
 
 * A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
+
+**Practice**
+
+* Brief exercises to ***[play](./README.md#Play)*** with, showing basic configuration "games" to have a quick overview of project possibilities.
 * A ***[demo](./README.md#Demo)*** exercise which presents a basic use case to better understand the project essentials.
-* And finally, a ***[kata](./README.md#Kata)*** training to adquire better knowledge of project capabilities.
+* And finally, a ***[kata](./README.md#Kata)*** training to acquire better knowledge of project capabilities.
+
+Bullet list of exercises above, have a growing demand in terms of attention and dedicated time. For that reason, they are presented in the indicated order, facilitating and prioritizing simplicity for the user in the training process.
 
 ## Scope
 
@@ -955,6 +961,16 @@ $ kill $!
 ```
 
 ## Training
+
+### Play
+
+Different exercises at `./tools/play-h2agent` are presented and executed like a guided tour:
+
+```bash
+$> tool/play-h2agent/play.sh
+```
+
+Although this is a moderate set of examples, it will be expanded in the future as new exercises are considered useful to improve understanding of the process. The idea is to present use cases that are as practical and common as possible to avoid overwhelming the reader with information given the immense flexibility of the system and its possibilities.
 
 ### Demo
 
