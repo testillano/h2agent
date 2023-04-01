@@ -288,6 +288,10 @@ bool MockServerEventsData::findLastRegisteredRequestState(const std::string &met
     auto it = get(key);
     if (it != end()) {
         state = it->second->getLastRegisteredRequestState(); // by design, a key always contains at least one history event (https://github.com/testillano/h2agent/issues/53).
+        if (state.empty()) { // unprovisioned event must be understood as missing (ignore register)
+            state = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
+        }
+
         return true;
     }
 
