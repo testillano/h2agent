@@ -338,6 +338,7 @@ bool Transformation::load(const nlohmann::json &j) {
     target2_ = ""; // same
 
     // Target specifications:
+    // SERVER MODE
     // - response.body.string *[string]*: response body storing expected string processed.
     // - response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
     // - response.body.json.string *[string]*: response body document storing expected string.
@@ -365,8 +366,27 @@ bool Transformation::load(const nlohmann::json &j) {
     // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
     // + serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser`.
     // - break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
+    //
+    // CLIENT MODE ADDITIONAL TARGET TYPES:
+    // - request.body.string *[string]*: request body storing expected string processed.
+    // - request.body.hexstring *[string]*: request body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
+    // - request.body.json.string *[string]*: request body document storing expected string.
+    // - request.body.json.integer *[number]*: request body document storing expected integer.
+    // - request.body.json.unsigned *[unsigned number]*: request body document storing expected unsigned integer.
+    // - request.body.json.float *[float number]*: request body document storing expected float number.
+    // - request.body.json.boolean *[boolean]*: request body document storing expected booolean.
+    // - request.body.json.object *[json object]*: request body document storing expected object.
+    // - request.body.json.jsonstring *[json string]*: request body document storing expected object, extracted from json-parsed string, as root node.
+    // + request.body.json.string./<n1>/../<nN> *[string]*: request body node path storing expected string.
+    // + request.body.json.integer./<n1>/../<nN> *[number]*: request body node path storing expected integer.
+    // + request.body.json.unsigned./<n1>/../<nN> *[unsigned number]*: request body node path storing expected unsigned integer.
+    // + request.body.json.float./<n1>/../<nN> *[float number]*: request body node path storing expected float number.
+    // + request.body.json.boolean./<n1>/../<nN> *[boolean]*: request body node path storing expected booblean.
+    // + request.body.json.object./<n1>/../<nN> *[json object]*: request body node path storing expected object.
+    // + request.body.json.jsonstring./<n1>/../<nN> *[json string]*: request body node path storing expected object, extracted from json-parsed string, under provided path.
 
     // Regex needed:
+    // SERVER MODE:
     static std::regex responseBodyJson_StringNode("^response.body.json.string.(.*)", std::regex::optimize);
     static std::regex responseBodyJson_IntegerNode("^response.body.json.integer.(.*)", std::regex::optimize);
     static std::regex responseBodyJson_UnsignedNode("^response.body.json.unsigned.(.*)", std::regex::optimize);
@@ -377,8 +397,18 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
     static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
 
+    // CLIENT MODE:
+    static std::regex requestBodyJson_StringNode("^request.body.json.string.(.*)", std::regex::optimize);
+    static std::regex requestBodyJson_IntegerNode("^request.body.json.integer.(.*)", std::regex::optimize);
+    static std::regex requestBodyJson_UnsignedNode("^request.body.json.unsigned.(.*)", std::regex::optimize);
+    static std::regex requestBodyJson_FloatNode("^request.body.json.float.(.*)", std::regex::optimize);
+    static std::regex requestBodyJson_BooleanNode("^request.body.json.boolean.(.*)", std::regex::optimize);
+    static std::regex requestBodyJson_ObjectNode("^request.body.json.object.(.*)", std::regex::optimize);
+    static std::regex requestBodyJson_JsonStringNode("^request.body.json.jsonstring.(.*)", std::regex::optimize);
+
     // no need to try (controlled regex)
     //try {
+    // SERVER_MODE
     if (targetSpec == "response.body.string") {
         target_type_ = TargetType::ResponseBodyString;
     }
@@ -423,17 +453,74 @@ bool Transformation::load(const nlohmann::json &j) {
     else if (targetSpec == "response.body.json.object") { // whole document
         target_type_ = TargetType::ResponseBodyJson_Object;
     }
-    else if (targetSpec == "response.body.json.jsonstring") { // whole document
-        target_type_ = TargetType::ResponseBodyJson_JsonString;
-    }
     else if (std::regex_match(targetSpec, matches, responseBodyJson_ObjectNode)) { // nlohmann::json_pointer path
         target_ = matches.str(1);
         target_type_ = TargetType::ResponseBodyJson_Object;
+    }
+    else if (targetSpec == "response.body.json.jsonstring") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_JsonString;
     }
     else if (std::regex_match(targetSpec, matches, responseBodyJson_JsonStringNode)) { // nlohmann::json_pointer path
         target_ = matches.str(1);
         target_type_ = TargetType::ResponseBodyJson_JsonString;
     }
+    // CLIENT MODE
+    else if (targetSpec == "request.body.string") {
+        target_type_ = TargetType::RequestBodyString;
+    }
+    else if (targetSpec == "request.body.hexstring") {
+        target_type_ = TargetType::RequestBodyHexString;
+    }
+    else if (targetSpec == "request.body.json.string") { // whole document
+        target_type_ = TargetType::RequestBodyJson_String;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_StringNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_String;
+    }
+    else if (targetSpec == "request.body.json.integer") { // whole document
+        target_type_ = TargetType::RequestBodyJson_Integer;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_IntegerNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_Integer;
+    }
+    else if (targetSpec == "request.body.json.unsigned") { // whole document
+        target_type_ = TargetType::RequestBodyJson_Unsigned;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_UnsignedNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_Unsigned;
+    }
+    else if (targetSpec == "request.body.json.float") { // whole document
+        target_type_ = TargetType::RequestBodyJson_Float;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_FloatNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_Float;
+    }
+    else if (targetSpec == "request.body.json.boolean") { // whole document
+        target_type_ = TargetType::RequestBodyJson_Boolean;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_BooleanNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_Boolean;
+    }
+    else if (targetSpec == "request.body.json.object") { // whole document
+        target_type_ = TargetType::RequestBodyJson_Object;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_ObjectNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_Object;
+    }
+    else if (targetSpec == "request.body.json.jsonstring") { // whole document
+        target_type_ = TargetType::RequestBodyJson_JsonString;
+    }
+    else if (std::regex_match(targetSpec, matches, requestBodyJson_JsonStringNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestBodyJson_JsonString;
+    }
+
     else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
         target_ = matches.str(1);
         target_type_ = TargetType::ResponseHeader;

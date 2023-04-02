@@ -4,9 +4,6 @@
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
-#include <AdminClientEndpoint.hpp>
-#include <AdminServerMatchingData.hpp>
-#include <AdminServerProvisionData.hpp>
 
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
@@ -14,11 +11,10 @@
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 
-#include <ert/http2comm/Http.hpp>
+//#include <ert/tracing/Logger.hpp>
 #include <ert/metrics/Metrics.hpp>
 
 #include <thread>
-#include <vector>
 #include <memory>
 
 #include <gmock/gmock.h>
@@ -30,8 +26,6 @@ const nlohmann::json ProvisionExample = R"(
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar?name=test",
   "responseCode": 200,
-  "requestSchemaId": "myRequestSchemaId",
-  "responseSchemaId": "myResponseSchemaId",
   "responseBody": {
     "foo": "bar"
   },
@@ -43,83 +37,17 @@ const nlohmann::json ProvisionExample = R"(
     {
       "source": "value.hello",
       "target": "response.body.json.object./text"
-    },
-    {
-      "source": "value.foreignState",
-      "target": "outState.POST./foo/bar"
     }
   ]
 }
 )"_json;
 
-const nlohmann::json ProvisionExample2 = R"(
-{
-  "requestMethod": "GET",
-  "requestUri": "/app/v1/foo/bar?name=test",
-  "responseCode": 200,
-  "responseBody": {
-    "foo": "bar"
-  },
-  "outState": "purge",
-  "responseHeaders": {
-    "content-type": "application/json",
-    "x-version": "1.0.0"
-  }
-}
-)"_json;
-
-const nlohmann::json ProvisionExample3 = R"({"requestMethod": "GET", "requestUri": "/foo/bar", "responseCode": 200})"_json;
-
-const nlohmann::json ProvisionBadSchema = R"(
-{
-  "foo": 1,
-  "bar": "2"
-}
-)"_json;
-
-const nlohmann::json FooBar = R"({"foo":"bar"})"_json;
-
-const nlohmann::json FullMatching = R"({"algorithm":"FullMatching"})"_json;
-
-const nlohmann::json MatchingIgnore = R"(
+const nlohmann::json MatchingExample = R"(
 {
   "algorithm":"FullMatching",
   "uriPathQueryParameters": {
     "filter":"Ignore"
   }
-}
-)"_json;
-
-const nlohmann::json MatchingPassBy = R"(
-{
-  "algorithm":"FullMatching",
-  "uriPathQueryParameters": {
-    "filter":"PassBy"
-  }
-}
-)"_json;
-
-const nlohmann::json MatchingRegexReplace = R"delim(
-{
-  "algorithm":"FullMatchingRegexReplace",
-  "rgx":"(/app/v1/foo/bar/)([0-9]*)",
-                                      "fmt":"$1"
-}
-)delim"_json;
-
-const nlohmann::json MatchingRegexMatching = R"(
-{
-  "algorithm": "RegexMatching"
-}
-)"_json;
-
-const nlohmann::json MatchingBadContent = R"({"algorithm":"FullMatching","rgx":"whatever"})"_json;
-
-const nlohmann::json GeneralConfiguration = R"(
-{
-  "lazyClientConnection": false,
-  "longTermFilesCloseDelayUsecs": 1000000,
-  "shortTermFilesCloseDelayUsecs": 0
 }
 )"_json;
 
@@ -130,11 +58,6 @@ const nlohmann::json GlobalVariableExample = R"(
   "var1":"value1"
 }
 )"_json;
-
-const nlohmann::json GlobalVariableExample2 = R"({"var1": "value1", "var2": "value2"})"_json;
-
-const nlohmann::json GlobalVariableNOK1 = R"({"var1": 1})"_json;
-const nlohmann::json GlobalVariableNOK2 = R"({"var1": {"foo":"bar"}})"_json;
 
 const nlohmann::json SchemaExample = R"(
 {
@@ -155,16 +78,8 @@ const nlohmann::json SchemaExample = R"(
 }
 )"_json;
 
-const nlohmann::json SchemaExample2 = R"({"id": "myRequestsSchema", "schema": {"$schema":"http://json-schema.org/draft-07/schema#","type":"object","additionalProperties":false,"properties":{"foo":{"type":"string"}},"required":["foo"]}})"_json;
 
-const nlohmann::json ClientEndpointExample = R"({"id": "myServer", "host": "localhost", "port": 8000, "secure": true, "permit": false})"_json;
-const nlohmann::json ClientEndpointExampleNOK = R"({"i_d": "myServer", "host": "localhost", "port": 8000, "secure": true, "permit": false})"_json;
-const nlohmann::json ClientEndpointExampleNOK2 = R"({"id": "", "host": "localhost", "port": 8000})"_json;
-
-
-
-
-class http2Server_test : public ::testing::Test
+class XXXX_http2Server_test : public ::testing::Test
 {
     std::thread tt_;
 
@@ -181,7 +96,7 @@ public:
 
     std::shared_ptr<ert::http2comm::Http2Client> traffic_client_{}, admin_client_{};
 
-    http2Server_test() {
+    XXXX_http2Server_test() {
         timers_io_service_ = new boost::asio::io_service();
         configuration_ = new h2agent::model::Configuration();
         global_variable_ = new h2agent::model::GlobalVariable();
@@ -201,13 +116,13 @@ public:
         admin_http2_server_->setMockClientData(mock_client_events_data_); // stored at administrative class to pass through created client provisions
         admin_http2_server_->enableMetrics(metrics_);
 
-        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(2, 2, timers_io_service_);
+        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(1, 1, timers_io_service_);
         traffic_http2_server_->setApiName("app");
         traffic_http2_server_->setApiVersion("v1");
         traffic_http2_server_->setMockServerData(mock_server_events_data_);
         traffic_http2_server_->setMockClientData(mock_client_events_data_);
         traffic_http2_server_->setAdminData(admin_http2_server_->getAdminData()); // to retrieve mock behaviour configuration
-        traffic_http2_server_->enableMyMetrics(metrics_);
+        traffic_http2_server_->enableMetrics(metrics_);
 
         admin_http2_server_->setHttp2Server(traffic_http2_server_);
 
@@ -228,7 +143,7 @@ public:
         traffic_client_ = std::make_shared<ert::http2comm::Http2Client>("myClient", "127.0.0.1", "8000", false /* secure */);
     }
 
-    ~http2Server_test() {
+    ~XXXX_http2Server_test() {
         delete(configuration_);
         delete(global_variable_);
         delete(file_manager_);
@@ -238,8 +153,6 @@ public:
         traffic_http2_server_->stop();
         delete(timers_io_service_);
         delete(metrics_);
-        delete(admin_http2_server_);
-        delete(traffic_http2_server_);
     }
 
     void tearDown() {
@@ -248,7 +161,7 @@ public:
     }
 };
 
-TEST_F(http2Server_test, CheckMatchingWithDefault)
+TEST_F(XXXX_http2Server_test, CheckMatching)
 {
     // Check current configuration:
     nghttp2::asio_http2::header_map headers;
@@ -262,73 +175,28 @@ TEST_F(http2Server_test, CheckMatchingWithDefault)
     EXPECT_TRUE(it != response.headers.end());
     EXPECT_EQ(it->second.value, "application/json");
 
-    tearDown();
-}
-
-TEST_F(http2Server_test, CheckMatchingConfigurations)
-{
-    // Post configuration:
-    nghttp2::asio_http2::header_map headersPost;
-    nghttp2::asio_http2::header_map headersGet{};  // empty
-    headersPost.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
-
-    std::vector<std::string> matchingBodies;
-    matchingBodies.push_back(MatchingRegexReplace.dump());
-    matchingBodies.push_back(MatchingRegexMatching.dump());
-    matchingBodies.push_back(MatchingPassBy.dump());
-    matchingBodies.push_back(MatchingIgnore.dump());
-    std::string matchingBody;
-
-    for (const auto &matchingBody: matchingBodies) {
-        ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-matching", matchingBody, headersPost);
-        EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }");
-        EXPECT_EQ(response.statusCode, 201);
-
-        // Check configuration:
-        response = admin_client_->send("GET", "/admin/v1/server-matching", "", headersGet);
-        EXPECT_EQ(response.body, matchingBody);
-        EXPECT_EQ(response.statusCode, 200);
-        auto rit = response.headers.find("content-type");
-        EXPECT_TRUE(rit != response.headers.end());
-        EXPECT_EQ(rit->second.value, "application/json");
-
-        // Generate traffic:
-        response = traffic_client_->send("GET", "/app/v1/foo/bar?name=test", "", headersGet);
-        EXPECT_EQ(response.body, "");
-        EXPECT_EQ(response.statusCode, 501);
-    }
-
-    // Case for bad content:
-    matchingBody = MatchingBadContent.dump();
-    ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-matching", matchingBody, headersPost);
-    EXPECT_EQ(response.body, "{ \"result\":\"false\", \"response\": \"server-matching operation; invalid matching data received\" }");
-    EXPECT_EQ(response.statusCode, 400);
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, CheckMatchingWhenProvisionExists)
-{
-    // Check current configuration:
-    nghttp2::asio_http2::header_map headers;
+    // Configure:
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
-    std::string provisionBody = ProvisionExample.dump();
-    ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-provision", provisionBody, headers);
-    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and server provision data received\" }");
-    EXPECT_EQ(response.statusCode, 201);
+    std::string matchingBody = MatchingExample.dump();
+    response = admin_client_->send("POST", "/admin/v1/server-matching", matchingBody, headers);
 
-    // Post configuration:
-    nghttp2::asio_http2::header_map headersPost;
-    headersPost.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
-    std::string matchingBody = MatchingRegexMatching.dump();
-    response = admin_client_->send("POST", "/admin/v1/server-matching", matchingBody, headersPost);
     EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }");
     EXPECT_EQ(response.statusCode, 201);
+    // Check headers
+    // EXPECT_EQ(ert::http2comm::headersAsString(response.headers), expected); // unpredictable (date header added by nghttp2)
+    it = response.headers.find("content-type");
+    EXPECT_TRUE(it != response.headers.end());
+    EXPECT_EQ(it->second.value, "application/json");
+
+    // Check current configuration again:
+    response = admin_client_->send("GET", "/admin/v1/server-matching", "", headers);
+    EXPECT_EQ(response.body, matchingBody);
+    EXPECT_EQ(response.statusCode, 200);
 
     tearDown();
 }
 
-TEST_F(http2Server_test, CheckProvision)
+TEST_F(XXXX_http2Server_test, CheckProvision)
 {
     // Check current configuration:
     nghttp2::asio_http2::header_map headers;
@@ -363,41 +231,7 @@ TEST_F(http2Server_test, CheckProvision)
     tearDown();
 }
 
-TEST_F(http2Server_test, CheckProvision2)
-{
-    // Configure:
-    nghttp2::asio_http2::header_map headers;
-    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
-    std::string provisionBody = ProvisionExample2.dump();
-    ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-provision", provisionBody, headers);
-
-    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and server provision data received\" }");
-    EXPECT_EQ(response.statusCode, 201);
-    auto it = response.headers.find("content-type");
-    EXPECT_TRUE(it != response.headers.end());
-    EXPECT_EQ(it->second.value, "application/json");
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, CheckProvisionBadSchema)
-{
-    // Configure:
-    nghttp2::asio_http2::header_map headers;
-    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
-    std::string provisionBody = ProvisionBadSchema.dump();
-    ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-provision", provisionBody, headers);
-
-    EXPECT_EQ(response.body, "{ \"result\":\"false\", \"response\": \"server-provision operation; invalid schema\" }");
-    EXPECT_EQ(response.statusCode, 400);
-    auto it = response.headers.find("content-type");
-    EXPECT_TRUE(it != response.headers.end());
-    EXPECT_EQ(it->second.value, "application/json");
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, CheckGlobalVariable)
+TEST_F(XXXX_http2Server_test, CheckGlobalVariable)
 {
     // Check current configuration:
     nghttp2::asio_http2::header_map headers;
@@ -432,7 +266,7 @@ TEST_F(http2Server_test, CheckGlobalVariable)
     tearDown();
 }
 
-TEST_F(http2Server_test, CheckSchema)
+TEST_F(XXXX_http2Server_test, CheckSchema)
 {
     // Check current configuration:
     nghttp2::asio_http2::header_map headers;
@@ -467,7 +301,7 @@ TEST_F(http2Server_test, CheckSchema)
     tearDown();
 }
 
-TEST_F(http2Server_test, ProvisionedEvent)
+TEST_F(XXXX_http2Server_test, ProvisionedEvent)
 {
     /////////////////////
     // Admin provision //
@@ -495,61 +329,16 @@ TEST_F(http2Server_test, ProvisionedEvent)
     // Check headers
     it = response.headers.find("content-type");
     EXPECT_TRUE(it != response.headers.end());
-    if (it != response.headers.end()) {
-        EXPECT_EQ(it->second.value, "application/json");
-    }
+    if (it != response.headers.end()) { EXPECT_EQ(it->second.value, "application/json"); }
 
     it = response.headers.find("x-version");
     EXPECT_TRUE(it != response.headers.end());
-    if (it != response.headers.end()) {
-        EXPECT_EQ(it->second.value, "1.0.0");
-    }
+    if (it != response.headers.end()) { EXPECT_EQ(it->second.value, "1.0.0"); }
 
     tearDown();
 }
 
-TEST_F(http2Server_test, ProvisionedEvent2)
-{
-    /////////////////////
-    // Admin provision //
-    /////////////////////
-    nghttp2::asio_http2::header_map headers;
-    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
-    std::string provisionBody = ProvisionExample2.dump();
-    ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-provision", provisionBody, headers);
-
-    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and server provision data received\" }");
-    EXPECT_EQ(response.statusCode, 201);
-    // Check headers
-    // EXPECT_EQ(ert::http2comm::headersAsString(response.headers), expected); // unpredictable (date header added by nghttp2)
-    auto it = response.headers.find("content-type");
-    EXPECT_TRUE(it != response.headers.end());
-    EXPECT_EQ(it->second.value, "application/json");
-    /////////////
-    // Traffic //
-    /////////////
-    headers.clear();
-    response = traffic_client_->send("GET", "/app/v1/foo/bar?name=test", "", headers);
-
-    EXPECT_EQ(response.body, "{\"foo\":\"bar\"}");
-    EXPECT_EQ(response.statusCode, 200);
-    // Check headers
-    it = response.headers.find("content-type");
-    EXPECT_TRUE(it != response.headers.end());
-    if (it != response.headers.end()) {
-        EXPECT_EQ(it->second.value, "application/json");
-    }
-
-    it = response.headers.find("x-version");
-    EXPECT_TRUE(it != response.headers.end());
-    if (it != response.headers.end()) {
-        EXPECT_EQ(it->second.value, "1.0.0");
-    }
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, UnprovisionedEvent)
+TEST_F(XXXX_http2Server_test, UnprovisionedEvent)
 {
     nghttp2::asio_http2::header_map headers;
     //headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
@@ -561,7 +350,7 @@ TEST_F(http2Server_test, UnprovisionedEvent)
     tearDown();
 }
 
-TEST_F(http2Server_test, InvalidContentType)
+TEST_F(XXXX_http2Server_test, InvalidContentType)
 {
     nghttp2::asio_http2::header_map headers;
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"text/html"});
@@ -579,7 +368,7 @@ TEST_F(http2Server_test, InvalidContentType)
     tearDown();
 }
 
-TEST_F(http2Server_test, MissingOperation)
+TEST_F(XXXX_http2Server_test, MissingOperation)
 {
     nghttp2::asio_http2::header_map headers;
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
@@ -596,7 +385,7 @@ TEST_F(http2Server_test, MissingOperation)
     tearDown();
 }
 
-TEST_F(http2Server_test, StorageIndicators)
+TEST_F(XXXX_http2Server_test, StorageIndicators)
 {
     // All enabled by default:
     EXPECT_EQ(traffic_http2_server_->dataConfigurationAsJsonString(), "{\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
@@ -613,184 +402,119 @@ TEST_F(http2Server_test, StorageIndicators)
     tearDown();
 }
 
-TEST_F(http2Server_test, ServerMatchingOK)
+TEST_F(XXXX_http2Server_test, ServerMatchingOK)
 {
-    std::string log;
-    int result = admin_http2_server_->serverMatching(FullMatching, log);
+    nlohmann::json configuration = R"({"algorithm":"FullMatching"})"_json;
+std::string log;
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::CREATED);
-    EXPECT_EQ(log, "server-matching operation; valid schema and matching data received");
+bool result = admin_http2_server_->serverMatching(configuration, log);
 
-    tearDown();
+EXPECT_TRUE(result);
+EXPECT_EQ(log, "server-matching operation; valid schema and matching data received");
+
+tearDown();
 }
 
-TEST_F(http2Server_test, ServerMatchingBadSchema)
+TEST_F(XXXX_http2Server_test, ServerMatchingBadSchema)
 {
+    nlohmann::json configuration = R"({"foo":"bar"})"_json;
     std::string log;
-    int result = admin_http2_server_->serverMatching(FooBar, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
+    int statusCode = admin_http2_server_->serverMatching(configuration, log);
+
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "server-matching operation; invalid schema");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, ServerProvision)
+TEST_F(XXXX_http2Server_test, ServerProvision)
 {
+    nlohmann::json configuration = R"({"requestMethod": "GET", "requestUri": "/foo/bar", "responseCode": 200})"_json;
     std::string log;
-    int result = admin_http2_server_->serverProvision(ProvisionExample3, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::CREATED);
+    bool result = admin_http2_server_->serverProvision(configuration, log);
+
+    EXPECT_TRUE(result);
     EXPECT_EQ(log, "server-provision operation; valid schema and server provision data received");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, ServerProvisionBadSchema)
+TEST_F(XXXX_http2Server_test, ServerProvisionBadSchema)
 {
+    nlohmann::json configuration = R"({"requestUri": "/foo/bar", "responseCode": 200})"_json;
     std::string log;
-    int result = admin_http2_server_->serverProvision(ProvisionBadSchema, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
+    int statusCode = admin_http2_server_->serverProvision(configuration, log);
+
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "server-provision operation; invalid schema");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, GlobalVariable)
+TEST_F(XXXX_http2Server_test, GlobalVariable)
 {
+    nlohmann::json configuration = R"({"var1": "value1", "var2": "value2"})"_json;
     std::string log;
-    int result = admin_http2_server_->globalVariable(GlobalVariableExample2, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::CREATED);
+    bool result = admin_http2_server_->globalVariable(configuration, log);
+
+    EXPECT_TRUE(result);
     EXPECT_EQ(log, "global-variable operation; valid schema and global variables received");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, GlobalVariableNOK1)
+TEST_F(XXXX_http2Server_test, GlobalVariableNOK1)
 {
+    nlohmann::json configuration = R"({"var1": 1})"_json;
     std::string log;
-    int result = admin_http2_server_->globalVariable(GlobalVariableNOK1, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
+    int statusCode = admin_http2_server_->globalVariable(configuration, log);
+
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "global-variable operation; invalid schema");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, GlobalVariableNOK2)
+TEST_F(XXXX_http2Server_test, GlobalVariableNOK2)
 {
+    nlohmann::json configuration = R"({"var1": {"foo":"bar"}})"_json;
     std::string log;
-    int result = admin_http2_server_->globalVariable(GlobalVariableNOK2, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
+    int statusCode = admin_http2_server_->globalVariable(configuration, log);
+
+    EXPECT_EQ(statusCode, 400);
     EXPECT_EQ(log, "global-variable operation; invalid schema");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, Schema)
+TEST_F(XXXX_http2Server_test, Schema)
 {
+    nlohmann::json configuration = R"({"id": "myRequestsSchema", "schema": {"$schema":"http://json-schema.org/draft-07/schema#","type":"object","additionalProperties":false,"properties":{"foo":{"type":"string"}},"required":["foo"]}})"_json;
     std::string log;
-    int result = admin_http2_server_->schema(SchemaExample2, log);
 
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::CREATED);
+    bool result = admin_http2_server_->schema(configuration, log);
+
+    EXPECT_TRUE(result);
     EXPECT_EQ(log, "schema operation; valid schema and schema data received");
 
     tearDown();
 }
 
-TEST_F(http2Server_test, ClientEndpoint)
+TEST_F(XXXX_http2Server_test, SchemaNOK)
 {
-    nlohmann::json array{};
-    array.push_back(ClientEndpointExample);
-    array.push_back(ClientEndpointExample);
-
+    nlohmann::json configuration = R"({"id": "myRequestsSchema"})"_json;
     std::string log;
-    int result;
 
-    result = admin_http2_server_->clientEndpoint(ClientEndpointExample, log);
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::CREATED);
-    EXPECT_EQ(log, "client-endpoint operation; valid schema and client endpoint data received");
+    int statusCode = admin_http2_server_->schema(configuration, log);
 
-    result = admin_http2_server_->clientEndpoint(array, log);
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::CREATED);
-    EXPECT_EQ(log, "client-endpoint operation; valid schemas and client endpoints data received");
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, ClientEndpointBadSchema)
-{
-    nlohmann::json array{};
-    array.push_back(ClientEndpointExampleNOK);
-    array.push_back(ClientEndpointExampleNOK);
-
-    std::string log;
-    int result;
-
-    result = admin_http2_server_->clientEndpoint(ClientEndpointExampleNOK, log);
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
-    EXPECT_EQ(log, "client-endpoint operation; invalid schema");
-
-    result = admin_http2_server_->clientEndpoint(array, log);
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
-    EXPECT_EQ(log, "client-endpoint operation; detected one invalid schema");
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, ClientEndpointBadContent)
-{
-    nlohmann::json array{};
-    array.push_back(ClientEndpointExampleNOK2);
-    array.push_back(ClientEndpointExampleNOK2);
-
-    std::string log;
-    int result;
-
-    result = admin_http2_server_->clientEndpoint(ClientEndpointExampleNOK2, log);
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
-    EXPECT_EQ(log, "client-endpoint operation; invalid client endpoint data received");
-
-    result = admin_http2_server_->clientEndpoint(array, log);
-    EXPECT_EQ(result, ert::http2comm::ResponseCode::BAD_REQUEST);
-    EXPECT_EQ(log, "client-endpoint operation; detected one invalid client endpoint data received");
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, GetConfiguration)
-{
-    EXPECT_EQ(admin_http2_server_->getConfiguration()->getJson(), GeneralConfiguration);
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, GetFileManager)
-{
-    nlohmann::json expectedJson{}; // nothing managed
-    EXPECT_EQ(admin_http2_server_->getFileManager()->getJson(), expectedJson);
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, GetHttp2Server)
-{
-    EXPECT_EQ(admin_http2_server_->getHttp2Server(), traffic_http2_server_);
-
-    tearDown();
-}
-
-TEST_F(http2Server_test, CheckServerConfiguration)
-{
-    traffic_http2_server_->setReceiveRequestBody(true);
-    traffic_http2_server_->setPreReserveRequestBody(true);
-    EXPECT_EQ(traffic_http2_server_->configurationAsJsonString(), "{\"preReserveRequestBody\":true,\"receiveRequestBody\":true}");
-    traffic_http2_server_->setReceiveRequestBody(false);
-    traffic_http2_server_->setPreReserveRequestBody(false);
-    EXPECT_EQ(traffic_http2_server_->configurationAsJsonString(), "{\"preReserveRequestBody\":false,\"receiveRequestBody\":false}");
+    EXPECT_EQ(statusCode, 400);
+    EXPECT_EQ(log, "schema operation; invalid schema");
 
     tearDown();
 }

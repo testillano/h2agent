@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <fstream>
+#include <regex>
 #include <ctype.h>
 
 #include <functions.hpp>
@@ -303,6 +304,24 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
 
     LOGDEBUG(ert::tracing::Logger::debug("JsonConstraint SUCCEED", ERT_FILE_LOCATION));
     return true;
+}
+
+std::string fixMetricsName(const std::string &in) {
+
+    std::string result{}; // = std::regex_replace(key_, invalidMetricsNamesCharactersRegex, "_");
+
+    // https://prometheus.io/docs/instrumenting/writing_exporters/#naming
+    static std::regex validMetricsNamesCharactersRegex("[a-zA-Z0-9:_]", std::regex::optimize);
+
+    for (char c : in) {
+        if (std::regex_match(std::string(1, c), validMetricsNamesCharactersRegex)) {
+            result += c;
+        } else {
+            result += "_";
+        }
+    }
+
+    return result;
 }
 
 }

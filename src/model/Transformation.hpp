@@ -67,10 +67,10 @@ public:
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "ServerEventToPurge", "Break" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "ServerEventToPurge", "Break", "RequestBodyString", "RequestBodyHexString", "RequestBodyJson_String", "RequestBodyJson_Integer", "RequestBodyJson_Unsigned", "RequestBodyJson_Float", "RequestBodyJson_Boolean", "RequestBodyJson_Object", "RequestBodyJson_JsonString" };
         return text [type];
     }
 

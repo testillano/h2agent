@@ -39,8 +39,10 @@ SOFTWARE.
 #include <mutex>
 #include <shared_mutex>
 
+#include <ert/metrics/Metrics.hpp>
 
 #define DEFAULT_ADMIN_PROVISION_STATE "initial"
+#define DEFAULT_ADMIN_PROVISION_CLIENT_OUT_STATE "road-closed"
 
 
 namespace h2agent
@@ -52,12 +54,17 @@ class Configuration;
 class GlobalVariable;
 class FileManager;
 class MockServerData;
+class MockClientData;
 
 typedef struct {
     Configuration *ConfigurationPtr;
     GlobalVariable *GlobalVariablePtr;
     FileManager *FileManagerPtr;
     MockServerData *MockServerDataPtr;
+    MockClientData *MockClientDataPtr;
+    ert::metrics::Metrics *MetricsPtr;
+    ert::metrics::bucket_boundaries_t ResponseDelaySecondsHistogramBucketBoundaries;
+    ert::metrics::bucket_boundaries_t MessageSizeBytesHistogramBucketBoundaries;
 
 } common_resources_t;
 

@@ -35,13 +35,18 @@ SOFTWARE.
 
 #pragma once
 
+#include <vector>
 #include <string>
-#include <chrono>
+#include <mutex>
+#include <shared_mutex>
 
-#include <nghttp2/asio_http2_server.h>
 #include <nlohmann/json.hpp>
 
-#include <DataPart.hpp>
+#include <Map.hpp>
+#include <AdminClientProvision.hpp>
+
+#include <JsonSchema.hpp>
+#include <AdminSchemas.hpp>
 
 
 namespace h2agent
@@ -49,77 +54,64 @@ namespace h2agent
 namespace model
 {
 
-
-class MockEvent
+// Map key will be string which has a hash function.
+// We will agregate method and uri in a single string for that.
+class AdminClientProvisionData : public Map<admin_client_provision_key_t, std::shared_ptr<AdminClientProvision>>
 {
-    std::string previous_state_{};
-    std::string state_{};
-    std::uint64_t reception_timestamp_us_{};
-    unsigned int response_status_code_{};
-    nghttp2::asio_http2::header_map request_headers_{};
-    nghttp2::asio_http2::header_map response_headers_{};
-
-protected:
-
-    nlohmann::json json_{}; // kept synchronized on load()
-
 public:
+    AdminClientProvisionData();
+    ~AdminClientProvisionData() = default;
 
-    MockEvent() {;}
-
-    // setters:
-
-    /**
-     * Loads event information
-     *
-     * @param previousState Previous request state
-     * @param state Request state
-     * @param receptionTimestampUs Microseconds reception timestamp
-     * @param responseStatusCode Response status code
-     * @param requestHeaders Request headers
-     * @param responseHeaders Response headers
-     */
-    void load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders);
-
-    // getters:
-
-    /** Request state
-     *
-     * @return current state
-     */
-    const std::string &getState() const {
-        return state_;
-    }
-
-    /** Request headers
-     *
-     * @return Request headers
-     */
-    const nghttp2::asio_http2::header_map &getRequestHeaders() const {
-        return request_headers_;
-    }
-
-    /** Response headers
-     *
-     * @return Response headers
-     */
-    const nghttp2::asio_http2::header_map &getResponseHeaders() const {
-        return response_headers_;
-    }
+    // Load result
+    enum LoadResult { Success = 0, BadSchema, BadContent };
 
     /**
-     * Gets json document
+     * Json string representation for class information (json array)
      *
-     * @param path within the object to restrict selection (empty by default).
-     *
-     * @return Json object
+     * @return Json string representation ('[]' for empty array).
      */
-    const nlohmann::json &getJson(const std::string &path = "") const {
-        if (path.empty()) return json_;
+    std::string asJsonString() const;
 
-        nlohmann::json::json_pointer p(path);
-        return json_[p];
+    /**
+     * Loads client provision operation data
+     *
+     * @param j json document from operation body request
+     * @param cr common resources references (general configuration, global variables, file manager, mock client events data)
+     *
+     * @return Load operation result
+     */
+    LoadResult load(const nlohmann::json &j, const common_resources_t &cr);
+
+    /** Clears internal data map
+     *
+     * @return True if something was removed, false if already empty
+     */
+    bool clear();
+
+    /**
+     * Finds provision item for traffic requirement.
+     *
+     * @param inState provision input state
+     * @param clientProvisionId Provision identifier
+     *
+     * @return Provision information or null if missing
+     */
+    std::shared_ptr<AdminClientProvision> find(const std::string &inState, const std::string &clientProvisionId) const;
+
+    /**
+    * Gets provision schema
+    */
+    const h2agent::jsonschema::JsonSchema& getSchema() const {
+        return client_provision_schema_;
     }
+
+private:
+
+    h2agent::jsonschema::JsonSchema client_provision_schema_{};
+
+    LoadResult loadSingle(const nlohmann::json &j, const common_resources_t &cr);
+
+    mutable mutex_t rw_mutex_{};
 };
 
 }

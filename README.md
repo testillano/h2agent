@@ -605,11 +605,6 @@ Options:
   Number of traffic server maximum worker threads; defaults to the number of worker
   threads but could be a higher number so they will be created when needed.
 
-[-t|--traffic-server-threads <threads>]
-  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)
-  (admin server hardcodes 2 nghttp2 threads). This option is exploited
-  by multiple clients.
-
 [-k|--traffic-server-key <path file>]
   Path file for traffic server key to enable SSL/TLS; unsecured by default.
 
@@ -937,7 +932,6 @@ Traffic server local bind address: 0.0.0.0
 Traffic server local port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
-Traffic server threads (nghttp2): 2
 Traffic server worker threads: 1
 Traffic server maximum worker threads: 1
 Traffic server key password: <not provided>
@@ -2587,7 +2581,7 @@ Retrieves the current server internal data (requests received, their states and 
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
 
-The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events received for the given `method/uri` combination.
+The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `method/uri` combination.
 
 Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *eventNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the `events` node will contain a single register in this case). So, the *eventNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted. Also, *eventPath* has no sense alone and may be provided together with *eventNumber* because it refers to a path within the selected object for the specific position number described before.
 
@@ -2607,7 +2601,7 @@ Once internally decoded, the request *URI* will be matched against the `uri` <u>
 
 Json array document containing all the selected event items, when something matches (no-content response has no body).
 
-When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
+When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their events arrays are returned.
 
 Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*'):
 
@@ -2749,7 +2743,7 @@ The information collected for a events item is:
 
 ### GET /admin/v1/server-data/summary?maxKeys=`<number>`
 
-When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the server due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
+When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
 
 #### Response status code
 
@@ -2902,7 +2896,7 @@ Json object document containing client endpoint schema.
 
 ### GET /admin/v1/client-endpoint
 
-Retrieves the current client endpoint configuration. An additional `status` filed will be answered in the response object for every client endpoint indicating the current connection status.
+Retrieves the current client endpoint configuration. An additional `status` field will be answered in the response object for every client endpoint indicating the current connection status.
 
 #### Response status code
 
@@ -2919,6 +2913,714 @@ Deletes the whole process client endpoint configuration. All the established con
 #### Response status code
 
 **200** (OK) or **204** (No Content).
+
+#### Response body
+
+No response body.
+
+### POST /admin/v1/client-provision
+
+Client provisions are a fundamental part of the client mode configuration. Unlike server provisions, they are identified by the mandatory `id` identifier (in server mode, the primary identifier was the `method/uri` key) and the optional `inState` field (which defaults to "initial" when missing). In the client mode, there are no classification algorithms because the provisions are actively triggered through the *REST API*. In client mode, the meaning of `inState` is slightly different and represents the evolution for a given <u>identifier understood as specific test scenario</u>: the state shall transition for each of its stages (`outState` dictates the next provision key to be processed). The rest of the fields, defined by the `json` schema below, are self-explanatory, namely: request body and headers, delay before sending the configured request, allowable timeout to get response, endpoint to connect (which `id` was configured in previous *REST API* section: "client-endpoint"), request and response schemes to validate, etc.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "definitions": {
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {"required": ["RegexCapture"]},
+        {"required": ["RegexReplace"]},
+        {"required": ["Append"]},
+        {"required": ["Prepend"]},
+        {"required": ["Sum"]},
+        {"required": ["Multiply"]},
+        {"required": ["ConditionVar"]},
+        {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
+        {"required": ["JsonConstraint"]}
+      ],
+      "properties": {
+        "RegexCapture": { "type": "string" },
+        "RegexReplace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rgx": {
+              "type": "string"
+            },
+            "fmt": {
+              "type": "string"
+            }
+          },
+          "required": [ "rgx", "fmt" ]
+        },
+        "Append": { "type": "string" },
+        "Prepend": { "type": "string" },
+        "Sum": { "type": "number" },
+        "Multiply": { "type": "number" },
+        "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
+        "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
+        "JsonConstraint": { "type": "object" }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+
+  "properties": {
+    "id":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "inState":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "outState":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "endpoint":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "requestMethod": {
+      "type": "string",
+        "enum": ["POST", "GET", "PUT", "DELETE", "HEAD" ]
+    },
+    "requestUri": {
+      "type": "string"
+    },
+    "requestSchemaId": {
+      "type": "string"
+    },
+    "requestHeaders": {
+      "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+    },
+    "requestBody": {
+      "anyOf": [
+        {"type": "object"},
+        {"type": "array"},
+        {"type": "string"},
+        {"type": "integer"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "requestDelayMs": {
+      "type": "integer"
+    },
+    "timeoutMs": {
+      "type": "integer"
+    },
+    "transform" : {
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^request\\.(uri|body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
+    },
+    "onResponseTransform" : {
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^break$"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
+    },
+    "responseSchemaId": {
+      "type": "string"
+    }
+  },
+  "required": [ "id" ]
+}
+```
+
+**id**
+
+Client provision identifier.
+
+##### inState and outState
+
+As we mentioned above, states here represents scenario stages:
+
+Let's see an example to clarify:
+
+* `id`="*scenario1*", `inState`="*initial*", `outState`="*second*"
+* `id`="*scenario1*", `inState`="*second*", `outState`="*third*"
+* `id`="*scenario1*", `inState`="*third*", `outState`="*purge*"
+
+When *scenario1* is triggered, its current state is searched assuming "initial" when nothing is found in client data storage. So it will be processed and next stage is triggered automatically for the new combination `id` + `outState` when the response is received (timeout is a kind of response but normally user stops the scenario in this case). System test is possible because those stages are replicated by mean different instances of the same scenario evolving separately: this is driven by an internal sequence identifier which is used to calculate real request *method* and *uri*, the ones stored in the data base (this mechanism will be deeply explained later).
+
+The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning.
+
+<u>Special **purge** state</u>: stateful scenarios normally require access to former events (available at client data storage) to evolve through different provisions, so disabling client data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that client data related to an scenario (everything for a given `id` and internal sequence) history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
+
+**endpoint**
+
+Client endpoint identifier.
+
+##### requestMethod
+
+Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
+
+It can be omitted in the provision, but it is mandatory to be available (so it should be created on transformations) when preparing the request to be sent.
+
+##### requestUri
+
+Request *URI* path (percent-encoded). It includes possible query parameters to be replaced during transformations (previous to request sending).
+
+This is normally completed/appended by dynamic sequences in order to configure the final *URI* to be sent (variables or filters can be used to build that *URI*). So, transformation list may built a request *URI* different than provision template value, which will be the one to send and optionally register in client data storage events.
+
+It can be omitted in the provision, but it is mandatory to be available (so it should be created on transformations) when preparing the request to be sent.
+
+##### requestSchemaId
+
+We could optionally validate built request (after transformations) against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+##### requestHeaders
+
+Header fields for the request. For example:
+
+```json
+"requestHeaders":
+{
+  "content-type": "application/json"
+}
+```
+
+##### requestBody
+
+Request body. Currently supported: object (`json` and arrays), string, integer, number, boolean and null types.
+
+##### requestDelayMs
+
+Optional request delay simulation in milliseconds.
+
+##### timeoutMs
+
+Optional timeout for response in milliseconds.
+
+##### transform & onTransformResponse
+
+As in the server mode, we have transformations to be applied, but this time we can transform the context before sending (**onTransform** node), and when the response is received (**onTransformReponse** node).
+
+Items are already known. Most of them are described in the server mock section (server-provision). Here, work in the same way, but there are few new ones: sources *sendseq* and *seq*, targets *request.delayMs*, *request.timeoutMs* and *break*. The `outState` does not support foreign states, and request/response bodies here are swapped with server mode variants (request template is accessed as source and target on request transformation and source on response transformation, and response is accessed as source on response transformation).
+
+New **sources**:
+
+- sendseq: sequence id number increased for every mock sending over specific client endpoint (starts on *1* when the *h2agent* is started).
+
+- seq: sequence id number provided by client provision trigger procedure (we will explain later, the ways to generate a unique value or full range with given rate). This value is accessible for every provision processing and is used to create dynamically things like the final request *URI* sent (containing for example, a session identifier) and probably some parts of the request body content.
+
+
+New **targets**:
+
+- request.delayMs *[unsigned integer]*: simulated delay before sending the request: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- request.timeoutMs *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- break: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis).
+
+##### responseSchemaId
+
+We could optionally validate received responses against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /admin/v1/client-provision (multiple provisions)
+
+Provision of a set of provisions through an array object is allowed. So, instead of launching *N* provisions separately, you could group them as in the following example:
+
+```json
+[
+  {
+    "id": "test1",
+    "endpoint": "myClientEndpoint",
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/stock/madrid?loc=123",
+    "requestBody": {
+      "engine": "tdi",
+      "model": "audi",
+      "year": 2021
+    },
+    "requestHeaders": {
+      "accept": "*/*",
+      "content-length": "52",
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "curl/7.77.0"
+    },
+    "requestDelayMs": 20,
+    "timeoutMs": 2000
+  },
+  {
+    "id": "test2",
+    "endpoint": "myClientEndpoint2",
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/stock/malaga?loc=124",
+    "requestBody": {
+      "engine": "hdi",
+      "model": "peugeot",
+      "year": 2023
+    },
+    "requestHeaders": {
+      "accept": "*/*",
+      "content-length": "52",
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "curl/7.77.0"
+    },
+    "requestDelayMs": 20,
+    "timeoutMs": 2000
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message although previous valid provisions will be added.
+
+### GET /admin/v1/client-provision/schema
+
+Retrieves the client provision schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing client provision schema.
+
+### GET /admin/v1/client-provision
+
+Retrieves all the provisions configured.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all provisioned items, when something is configured (no-content response has no body).
+
+### DELETE /admin/v1/client-provision
+
+Deletes the whole process provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
+
+#### Response status code
+
+**200** (OK), **202** (Accepted) or **204** (No Content).
+
+#### Response body
+
+No response body.
+
+### GET /admin/v1/client-provision/`<id>`?inState=`<inState>`&sequenceBegin=`<number>`&sequenceEnd=`<number>`&rps=`<number>`&repeat=`<true|false>` (triggering)
+
+To trigger a client provision, we will use the *GET* method, providing its identifier in the *URI*.
+
+<u>**Work in progress for the following information (at the moment, only single request is implemented, so only functional testing may be driven):**</u>
+
+Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state, that is probably for debugging purposes.
+
+Also, optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200* used for single request sending). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
+
+Each client provision can evolve the range of values independently of others, and triggering process may be stopped (with `rps` zero-valued) and then resumed again with a positive rate. Also repeat mode is stored as part of provision trigger configuration with these defaults: range `[0, 0]`, rate of '0' and repeat 'false'.
+
+*Query parameters:*
+
+* `sequenceBegin`: initial `sequence` variable (non-negative value).
+* `sequenceEnd`: final `sequence` variable (non-negative value).
+* `rps`: rate in requests per second triggered (non-negative value, '0' to stop).
+* `repeat`: range repetition once exhausted (true or false).
+
+So, together with provision information configured, we store dynamic load configuration and state (current `sequence`):
+
+```json
+"dynamics": {
+  "repeat": false,
+  "rps": 1500,
+  "sequence": 2994907,
+  "sequenceBegin": 0,
+  "sequenceEnd": 10000000
+}
+```
+
+*Configuration rules:*
+
+- If no query parameters are provided, single event is triggered for `sequence` value of '0'.
+- Omitted parameter(s) keeps previous value.
+- Provided parameter(s) updates previous value.
+- If both `sequenceBegin` and `sequenceEnd` query parameters are present, a single (when coincide) or multiple list of events are created for each `sequence` value.
+- Whenever `rps` rate is provided, tick period for request sending is updated (stopped with '0').
+- Cycle `repeat` can be updated in any moment, but its effect will be ignored if the range has been completely processed while it was disabled.
+- When the range of sequences is completed (`sequenceEnd` reached), trigger configuration is reset and a new administrative operation will be needed.
+- Several operations could update load parameters, but `sequence` will evolve if complies with range requirements while rate is positive, so operations could have no effect depending on the information provided.
+
+
+
+User may transform sequence value to adapt the test case taking into account that any transformation implemented should be *bijective* towards target set to prevent that values used in the test are repeated or overlapped. For example, we could provide generation range `[0, 99]` to trigger one hundred of *URIs* in the form `/foo/bar/<odd natural numbers>`, just by mean the following transformation item:
+
+```json
+{
+  "source": "math.2*@{sequence} + 1",
+  "filter": { "Prepend": "/foo/bar/" },
+  "target": "request.uri"
+}
+```
+
+Or for example, trigger all the existing values (also even numbers) from `/foo/bar/555000000` to `/foo/bar/555000099`, by mean adding (so padding "in a row") the base number `555000000` to the sequence iterated within the range provided (`[0, 99]`):
+
+```json
+[
+  {
+    "source": "var.sequence",
+    "filter": { "Sum": 555000000 },
+    "target": "var.phone"
+  },
+  {
+    "source": "value./foo/bar/",
+    "filter": { "Append": "@{phone}" },
+    "target": "request.uri"
+  }
+]
+```
+
+Note that, in the first transformation item, we are creating a new variable 'phone' because <u>`sequence` variable is reserved and non-writable as target</u> (a warning log is generated when trying to do this).
+
+Also, note that final transformation item uses constant value for source, but it could also use `request.uri` as a source if client provision configures it as `/foo/bar` within provision template.
+
+And finally, note that we could also solve the previous exercise just providing the real range `[555000000, 555000099]` to the operation, processing directly the last single transformation item shown before but appending variable `sequence` instead of `phone`. This is a kind of decision that implies advantages or drawbacks:
+
+* Using ad-hoc ranges saves and simplifies some steps, but you may remember those ranges as part of your testing administrative operations.
+
+* Using standard range `0..N` needs more transformations but shows the real intention within provision programming which are autonomous and ready for use. So testing automation only need to decide the amount of load (`N`) and could mix other provisions already prepared in the same way, which seems easy to coordinate:
+
+  ```bash
+  for provision in script1 script2 script3; do # parallel test scripts, 5000 iterations at 200 requests per second:
+    curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&rps=200
+  done
+  ```
+
+#### Response status code
+
+**200** (OK), **202** (Accepted), **400** (Bad Request) or **404** (Not Found).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### PUT /admin/v1/client-data/configuration?discard=`<true|false>`&discardKeyHistory=`<true|false>`&disablePurge=`<true|false>`
+
+Same explanation done for `server-data` equivalent operation, applies here. Just to know that history events here have a extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure is performed over the specific provision identifier, removing everything registered for any working `state` and for the current processed `sequence` value.
+
+The same agent could manage server and client connections, so you have specific configurations for internal data regarding server or client events, but normally, we shall use only one mode to better separate responsibilities within the testing ecosystem.
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/client-data/configuration
+
+Retrieve the client data configuration regarding storage behavior for general events and requests history.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "purgeExecution": true,
+    "storeEvents": true,
+    "storeEventsKeyHistory": true
+}
+```
+
+By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
+
+### GET /admin/v1/client-data?clientEndpointId=`<ceid>`&requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`&eventPath=`<path>`
+
+Retrieves the current client internal data (requests sent, their provision identifiers, states and other useful information like timing or global order). By default, the `h2agent` stores the whole history of events (for example requests sent for the same `clientEndpointId`, `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the final sent `uri` normalized</u> (having for example, a better predictable query parameters order during client data events search), not necessarily the `provisioned uri` within the provision template.
+
+<u>Without query parameters</u> (`GET /admin/v1/client-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *clientEndpointId*, *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
+
+`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/responseBody`
+
+The `json` document response shall contain three main nodes: `clientEndpointId`, `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `clientEndpointId/method/uri` combination.
+
+Both *clientEndpointId*, *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *eventNumber* cannot be provided alone as it is an additional filter which selects the history item for the `clientEndpointId/method/uri` key (the `events` node will contain a single register in this case). So, the *eventNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted. Also, *eventPath* has no sense alone and may be provided together with *eventNumber* because it refers to a path within the selected object for the specific position number described before.
+
+This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a response schema file to validate incoming responses through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking).
+
+**Important note**: same thing must be considered about request *URI* encoding like in client event source definition: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So, for the request *URI* `/app/v1/foo/bar/1?name=test` we would have (use `./tools/url.sh` helper to encode):
+
+`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
+
+Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+Json array document containing all the selected event items, when something matches (no-content response has no body).
+
+When provided *clientEndpointId*, *method* and *uri*, client data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*clientEndpointId* + *method* + *uri* ) together with their events arrays are returned.
+
+Example of whole structure for a unique key (*POST* on '*/app/v1/stock/madrid?loc=123*' for *'myClientProvision'*):
+
+```json
+[
+  {
+    "clientEndpointId": "myClientEndpoint",
+    "events": [
+      {
+        "clientProvisionId": "test",
+        "clientSequence": 1,
+        "previousState": "initial",
+        "receptionTimestampUs": 1685404454368627,
+        "requestBody": {
+          "engine": "tdi",
+          "model": "audi",
+          "year": 2021
+        },
+        "requestDelayMs": 20,
+        "requestHeaders": {
+          "content-type": "application/json",
+          "user-agent": "curl/7.77.0"
+        },
+        "responseBody": {
+          "bar": 2,
+          "foo": 1
+        },
+        "responseHeaders": {
+          "content-type": "application/json",
+          "date": "Mon, 29 May 2023 23:54:14 GMT"
+        },
+        "responseStatusCode": 200,
+        "sendingTimestampUs": 1685404454368448,
+        "sequence": 0,
+        "state": "road-closed",
+        "timeoutMs": 2000
+      },
+      {
+        "clientProvisionId": "test",
+        "clientSequence": 2,
+        "previousState": "initial",
+        "receptionTimestampUs": 1685404456238974,
+        "requestBody": {
+          "engine": "tdi",
+          "model": "audi",
+          "year": 2021
+        },
+        "requestDelayMs": 20,
+        "requestHeaders": {
+          "content-type": "application/json",
+          "user-agent": "curl/7.77.0"
+        },
+        "responseBody": {
+          "bar": 2,
+          "foo": 1
+        },
+        "responseHeaders": {
+          "content-type": "application/json",
+          "date": "Mon, 29 May 2023 23:54:16 GMT"
+        },
+        "responseStatusCode": 200,
+        "sendingTimestampUs": 1685404456238760,
+        "sequence": 0,
+        "state": "road-closed",
+        "timeoutMs": 2000
+      }
+    ],
+    "method": "POST",
+    "uri": "/app/v1/stock/madrid?loc=123"
+  }
+]
+```
+
+
+Example of single event for a unique key (*POST* on '*/app/v1/stock/madrid?loc=123*') and a *eventNumber* (2):
+
+```json
+{
+  "clientProvisionId": "test",
+  "clientSequence": 2,
+  "previousState": "initial",
+  "receptionTimestampUs": 1685404456238974,
+  "requestBody": {
+    "engine": "tdi",
+    "model": "audi",
+    "year": 2021
+  },
+  "requestDelayMs": 20,
+  "requestHeaders": {
+    "content-type": "application/json",
+    "user-agent": "curl/7.77.0"
+  },
+  "responseBody": {
+    "bar": 2,
+    "foo": 1
+  },
+  "responseHeaders": {
+    "content-type": "application/json",
+    "date": "Mon, 29 May 2023 23:54:16 GMT"
+  },
+  "responseStatusCode": 200,
+  "sendingTimestampUs": 1685404456238760,
+  "sequence": 0,
+  "state": "road-closed",
+  "timeoutMs": 2000
+}
+```
+
+And finally an specific content within single event for unique key (*POST* on '*/app/v1/stock/madrid?loc=123*'), *eventNumber* (2) and a *eventPath* '*/responseBody*':
+
+```json
+{
+  "bar": 2,
+  "foo": 1
+}
+```
+
+
+
+The information collected for a events item is:
+
+* `clientProvisionId`: provision identifier.
+* `clientSequence`: current client monotonically increased sequence for every sending (`1..N`).
+* `sendingTimestampUs`: event sending *timestamp* (request).
+* `receptionTimestampUs`: event reception *timestamp* (response).
+* `state`: working/current state for the event.
+* `requestHeaders`: object containing the list of request headers.
+* `requestBody`: object containing the request body.
+* `previousSate`: original provision state which managed this request.
+* `responseBody`: response which was received.
+* `requestDelayMs`: delay for outgoing request.
+* `responseStatusCode`: status code which was received.
+* `responseHeaders`: object containing the list of response headers which were received.
+* `sequence`: internal provision sequence.
+* `timeoutMs`: accepted timeout for request response.
+
+### GET /admin/v1/client-data/summary?maxKeys=`<number>`
+
+When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the client data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of sendings or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of client data summary operation is try to guide the user to narrow and prepare an efficient query.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+A `json` object document with some practical information is built:
+
+* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *clientEndpointId*, *method* and *uri*, and also the number of history events (`amount`) is shown.
+* `totalEvents`: total number of events.
+* `totalKeys`: total different keys (clientEndpointId/method/uri) registered.
+
+Take the following `json` as an example:
+
+```json
+{
+  "displayedKeys": {
+    "amount": 3,
+    "list": [
+      {
+        "amount": 2,
+        "clientEndpointId": "myClientEndpointId",
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/1?name=test"
+      },
+      {
+        "amount": 2,
+        "clientEndpointId": "myClientEndpointId",
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/2?name=test"
+      },
+      {
+        "amount": 2,
+        "clientEndpointId": "myClientEndpointId",
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/3?name=test"
+      }
+    ]
+  },
+  "totalEvents": 45000,
+  "totalKeys": 22500
+}
+```
+
+### DELETE /admin/v1/client-data?clientEndpointId=`<ceid>`&requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`
+
+Deletes the client data given by query parameters defined in the same way as former *GET* operation. For example:
+
+`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
+
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *clientEndpointId*, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 

@@ -54,6 +54,7 @@ class GlobalVariable;
 class FileManager;
 class AdminData;
 class MockServerData;
+class MockClientData;
 }
 
 namespace http2
@@ -70,6 +71,11 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
+    // Client data storage:
+    bool client_data_{};
+    bool client_data_key_history_{};
+    bool purge_execution_{};
+
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
 
@@ -77,8 +83,9 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
-    void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
+    void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode);
 
+    void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
 
 public:
     MyAdminHttp2Server(size_t workerThreads);
@@ -124,6 +131,12 @@ public:
         return common_resources_.FileManagerPtr;
     }
 
+    void setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries, const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries) {
+        common_resources_.MetricsPtr = metrics;
+        common_resources_.ResponseDelaySecondsHistogramBucketBoundaries = responseDelaySecondsHistogramBucketBoundaries;
+        common_resources_.MessageSizeBytesHistogramBucketBoundaries = messageSizeBytesHistogramBucketBoundaries;
+    }
+
     model::AdminData *getAdminData() const {
         return admin_data_;
     }
@@ -133,6 +146,13 @@ public:
     }
     model::MockServerData *getMockServerData() const {
         return common_resources_.MockServerDataPtr;
+    }
+
+    void setMockClientData(model::MockClientData *p) {
+        common_resources_.MockClientDataPtr = p;
+    }
+    model::MockClientData *getMockClientData() const {
+        return common_resources_.MockClientDataPtr;
     }
 
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {
@@ -149,6 +169,21 @@ public:
     int clientProvision(const nlohmann::json &configurationObject, std::string& log) const;
     int globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
     int schema(const nlohmann::json &configurationObject, std::string& log) const;
+
+    // Client data storage:
+    void discardClientData(bool discard = true) {
+        client_data_ = !discard;
+    }
+
+    void discardClientDataKeyHistory(bool discard = true) {
+        client_data_key_history_ = !discard;
+    }
+
+    void disableClientPurge(bool disable = true) {
+        purge_execution_ = !disable;
+    }
+
+    std::string clientDataConfigurationAsJsonString() const;
 };
 
 }

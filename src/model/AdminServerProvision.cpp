@@ -50,6 +50,7 @@ SOFTWARE.
 
 #include <AdminServerProvision.hpp>
 #include <MockServerData.hpp>
+#include <MockClientData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
@@ -67,7 +68,7 @@ namespace model
 
 AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_PROVISION_STATE),
-    response_delay_ms_(0), mock_server_events_data_(nullptr) {;}
+    response_delay_ms_(0), mock_server_events_data_(nullptr), mock_client_events_data_(nullptr) {;}
 
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,

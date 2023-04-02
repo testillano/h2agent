@@ -346,7 +346,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
         else {
             bool hasVirtualMethod = !outStateMethod.empty();
 
-            // Store request event context information
+            // Store event context information
             if (server_data_) {
                 getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
 

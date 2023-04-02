@@ -47,15 +47,13 @@ SOFTWARE.
 #include <JsonSchema.hpp>
 
 #include <ert/metrics/Metrics.hpp>
-
-#include <ert/http2comm/Http2Server.hpp>
+#include <ert/http2comm/Http2Client.hpp>
+#include <MockClientData.hpp>
 
 namespace h2agent
 {
 namespace model
 {
-class MockServerData;
-class MockClientData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -65,31 +63,36 @@ class AdminData;
 namespace http2
 {
 
-class MyTrafficHttp2Server: public ert::http2comm::Http2Server
+class MyTrafficHttp2Client : public ert::http2comm::Http2Client
 {
-    bool server_data_{};
-    bool server_data_key_history_{};
-    bool purge_execution_{};
+    std::uint64_t general_unique_client_sequence_{};
 
     model::AdminData *admin_data_{};
-    model::MockServerData *mock_server_events_data_{};
     model::MockClientData *mock_client_events_data_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
 
     ert::metrics::counter_t *observed_requests_processed_counter_{};
-    ert::metrics::counter_t *observed_requests_unprovisioned_counter_{};
-    ert::metrics::counter_t *purged_contexts_successful_counter_{};
-    ert::metrics::counter_t *purged_contexts_failed_counter_{};
+    ert::metrics::counter_t *observed_requests_failed_counter_{};
 
-    std::atomic<int> max_busy_threads_{0};
-    std::atomic<bool> receive_request_body_{true};
-    std::atomic<bool> pre_reserve_request_body_{true};
+    ert::metrics::counter_t *observed_responses_processed_counter_{};
+    ert::metrics::counter_t *observed_responses_timeout_counter_{};
 
 public:
-    MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService);
-    ~MyTrafficHttp2Server() {;}
+
+    MyTrafficHttp2Client(const std::string &name, const std::string& host, const std::string& port, bool secure = false, boost::asio::io_service *timersIoService = nullptr /*temporary */):
+        ert::http2comm::Http2Client(name, host, port, secure),
+        admin_data_(nullptr) {
+
+        mock_client_events_data_ = new model::MockClientData();
+
+        //general_unique_client_sequence_ = 1;
+    }
+
+    ~MyTrafficHttp2Client() {
+        delete (mock_client_events_data_);
+    }
 
     /**
     * Enable metrics
@@ -98,37 +101,13 @@ public:
     */
     void enableMyMetrics(ert::metrics::Metrics *metrics);
 
-    bool checkMethodIsAllowed(
-        const nghttp2::asio_http2::server::request& req,
-        std::vector<std::string>& allowedMethods);
-
-    bool checkMethodIsImplemented(
-        const nghttp2::asio_http2::server::request& req);
-
-    bool checkHeaders(const nghttp2::asio_http2::server::request& req);
-
-    bool receiveDataLen(const nghttp2::asio_http2::server::request& req); //virtual
-    bool preReserveRequestBody(); //virtual
-
-    void receive(const std::uint64_t &receptionId,
-                 const nghttp2::asio_http2::server::request& req,
-                 const std::string &requestBody,
-                 const std::chrono::microseconds &receptionTimestampUs,
-                 unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
-                 std::string& responseBody, unsigned int &responseDelayMs);
+    //void responseTimeout();
 
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;
     }
     model::AdminData *getAdminData() const {
         return admin_data_;
-    }
-
-    void setMockServerData(model::MockServerData *p) {
-        mock_server_events_data_ = p;
-    }
-    model::MockServerData *getMockServerData() const {
-        return mock_server_events_data_;
     }
 
     void setMockClientData(model::MockClientData *p) {
@@ -138,27 +117,12 @@ public:
         return mock_client_events_data_;
     }
 
-    std::string dataConfigurationAsJsonString() const;
-    std::string configurationAsJsonString() const;
-
-    void discardData(bool discard = true) {
-        server_data_ = !discard;
+    const std::uint64_t &getGeneralUniqueClientSequence() const {
+        return general_unique_client_sequence_;
     }
 
-    void discardDataKeyHistory(bool discard = true) {
-        server_data_key_history_ = !discard;
-    }
-
-    void disablePurge(bool disable = true) {
-        purge_execution_ = !disable;
-    }
-
-    void setReceiveRequestBody(bool receive = true) {
-        receive_request_body_.store(receive);
-    }
-
-    void setPreReserveRequestBody(bool preReserve = true) {
-        pre_reserve_request_body_.store(preReserve);
+    void incrementGeneralUniqueClientSequence() {
+        general_unique_client_sequence_++;
     }
 };
 

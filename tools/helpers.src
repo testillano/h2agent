@@ -24,7 +24,7 @@ do_curl() {
 
 schema() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration (${ADMIN_URL}/schema)." && return 0
-  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/schema && return 0
+  [ -z "$1" ] && do_curl ${ADMIN_URL}/schema && return 0
   if [ "$1" = "--clean" ]
   then
     do_curl -XDELETE ${ADMIN_URL}/schema
@@ -40,7 +40,7 @@ schema_schema() {
 
 global_variable() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
-  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/global-variable && return 0
+  [ -z "$1" ] && do_curl ${ADMIN_URL}/global-variable && return 0
   local queryParam=
   if [ "$1" = "--clean" ]
   then
@@ -52,7 +52,7 @@ global_variable() {
     then
       do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/global-variable
     else
-      do_curl ${curl_method} ${ADMIN_URL}/global-variable${queryParam}
+      do_curl ${ADMIN_URL}/global-variable${queryParam}
     fi
   fi
 }
@@ -163,7 +163,7 @@ client_data_configuration() {
     echo "                                 [--discard-all]     ; Discards all the events processed."
     echo "                                 [--discard-history] ; Keeps only the last event processed for a key."
     echo "                                 [--keep-all]        ; Keeps all the events processed."
-    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'xxxxxxpurge' state is reached."
+    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
     echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
     return 0
   elif [ "$1" = "--discard-all" ]
@@ -199,7 +199,7 @@ server_matching_schema() {
 
 server_provision() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration (${ADMIN_URL}/server-provision)." && return 0
-  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/server-provision && return 0
+  [ -z "$1" ] && do_curl ${ADMIN_URL}/server-provision && return 0
   if [ "$1" = "--clean" ]
   then
     do_curl -XDELETE ${ADMIN_URL}/server-provision
@@ -244,10 +244,12 @@ server_data() {
   local eventNumber=$3
   local eventPath=$4
 
-  [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
-  [ -n "${eventNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
-  [ -n "${eventNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
-  [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required" && return 1
+  local keyIndicators=""
+  [ -n "${requestMethod}" ] && keyIndicators+="x"
+  [ -n "${requestUri}" ] && keyIndicators+="x"
+  [ "${keyIndicators}" = "x" ] && echo "Error: both method & uri must be provided" && return 1
+  [ -n "${eventNumber}" -a -z "${keyIndicators}" ] && echo "Error: method/uri are also required when eventNumber is provided" && return 1
+  [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
 
   local queryParams=
   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
@@ -274,7 +276,71 @@ server_data() {
   fi
 }
 
-#client_data() { xxxxxxxxxx
+client_data() {
+  local curl_method=
+
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_data [-h|--help]; Inspects client data events (${ADMIN_URL}/client-data)."
+    echo "                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters."
+    echo "                                                                                        Event number may be negative to access by reverse chronological order."
+    echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
+    echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (5 by default, -1: no limit)."
+    echo "                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow the selection."
+    return 0
+  elif [ "$1" = "--summary" ]
+  then
+    local maxKeys=${2:-5}
+    local queryParams=
+    [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
+    [ "${maxKeys}" = "-1" ] && queryParams=
+    do_curl "${ADMIN_URL}/client-data/summary${queryParams}"
+    return 0
+  elif [ "$1" = "--clean" ]
+  then
+    curl_method="-XDELETE"
+    shift
+  fi
+
+  local clientEndpointId=$1
+  local requestMethod=$2
+  local requestUri=$3
+  local eventNumber=$4
+  local eventPath=$5
+
+  local keyIndicators=""
+  [ -n "${clientEndpointId}" ] && keyIndicators+="x"
+  [ -n "${requestMethod}" ] && keyIndicators+="x"
+  [ -n "${requestUri}" ] && keyIndicators+="x"
+  [ "${keyIndicators}" != "" -a "${keyIndicators}" != "xxx" ] && echo "Error: client endpoint id & method & uri must be provided" && return 1
+  [ -n "${eventNumber}" -a -z "${keyIndicators}" ] && echo "Error: client endpoint id/method/uri are also required when eventNumber is provided" && return 1
+  [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
+
+  local queryParams=
+  [ -n "${clientEndpointId}" ] && queryParams="?clientEndpointId=${clientEndpointId}"
+  [ -n "${requestMethod}" ] && queryParams="${queryParams}&requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
+  [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
+  if [ -z "${curl_method}" -a -z "${queryParams}" ]
+  then
+    echo
+    echo "Take care about storage size when querying without filters."
+    echo "You may want to check the summary before: client_data --summary"
+    echo
+    echo "Press ENTER to continue, CTRL-C to abort ..."
+    read dummy
+    do_curl ${ADMIN_URL}/client-data
+  else
+    local urlencode=
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
+    if [ -n "${requestUri}" ]
+    then
+      do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/client-data${queryParams}"
+    else
+      do_curl ${curl_method} "${ADMIN_URL}/client-data"
+    fi
+  fi
+}
 
 server_data_sequence() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
@@ -282,11 +348,15 @@ server_data_sequence() {
   json ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
 }
 
-#client_data_sequence() { xxxxxxxxx
+client_data_sequence() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_data_sequence [-h|--help] [value (available values by default)]; Extract client sequence document from json retrieved in previous client_data() call." && return 0
+  [ -z "$1" ] && json ".[].events[].clientSequence" | sort -n && return 0
+  json ".[] | select (.events[].clientSequence == $1) | del (.events[] | select (.clientSequence != $1))" 2>/dev/null
+}
 
 client_endpoint() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration (${ADMIN_URL}/client-endpoint)." && return 0
-  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/client-endpoint && return 0
+  [ -z "$1" ] && do_curl ${ADMIN_URL}/client-endpoint && return 0
   if [ "$1" = "--clean" ]
   then
     do_curl -XDELETE ${ADMIN_URL}/client-endpoint
@@ -301,13 +371,33 @@ client_endpoint_schema() {
 }
 
 client_provision() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current client provision configuration (${ADMIN_URL}/client-provision)." && return 0
-  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/client-provision && return 0
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration (${ADMIN_URL}/client-provision)."
+    echo "                                       [file]; Configure client provision by mean json specification."
+    echo "                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics configuration (omit with empty value):"
+    echo "                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    return 0
+  fi
+
+  [ -z "$1" ] && do_curl ${ADMIN_URL}/client-provision && return 0
   if [ "$1" = "--clean" ]
   then
     do_curl -XDELETE ${ADMIN_URL}/client-provision
   else
-    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-provision
+    if [ -f "$1" ]
+    then
+      do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-provision
+    else
+      local queryParams=
+      [ -n "$2" ] && queryParams+="&inState=$2"
+      [ -n "$3" ] && queryParams+="&sequenceBegin=$3"
+      [ -n "$4" ] && queryParams+="&sequenceEnd=$4"
+      [ -n "$5" ] && queryParams+="&rps=$5"
+      [ -n "$6" ] && queryParams+="&repeat=$6"
+      [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
+      do_curl -XGET "${ADMIN_URL}/client-provision/${1}${queryParams}"
+    fi
   fi
 }
 
@@ -398,6 +488,13 @@ snapshot() {
   (jq '.[].events[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
   for s in $(cat ${dir}/server-data-sequences.txt); do
     jq ".[] | select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
+  done
+  client_data --summary -1 && json > ${dir}/client-data-summary.json
+  echo | client_data && json > ${dir}/client-data.json
+  mkdir ${dir}/client-data-sequences
+  (jq '.[].events[].clientSequence' ${dir}/client-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/client-data-sequences.txt
+  for s in $(cat ${dir}/client-data-sequences.txt); do
+    jq ".[] | select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" ${dir}/client-data.json > ${dir}/client-data-sequences/${s}.json
   done
   client_endpoint && json > ${dir}/client_endpoint.json
   client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
@@ -523,6 +620,9 @@ help() {
   echo
   echo "=== Traffic client ==="
   client_endpoint -h
+  client_provision -h
+  client_data -h
+  client_data_sequence -h
   echo
   echo "=== Schemas ==="
   schema_schema -h
@@ -530,6 +630,7 @@ help() {
   server_matching_schema -h
   server_provision_schema -h
   client_endpoint_schema -h
+  client_provision_schema -h
   echo
   echo "=== Auxiliary ==="
   json -h

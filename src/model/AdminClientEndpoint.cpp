@@ -35,13 +35,14 @@ SOFTWARE.
 
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
-#include <ert/http2comm/Http2Client.hpp>
 
 #include <AdminClientEndpoint.hpp>
+
 
 #include <functions.hpp>
 
@@ -59,7 +60,28 @@ void AdminClientEndpoint::connect(bool fromScratch) {
     if (fromScratch) {
         client_.reset();
     }
-    if (!client_) client_ = std::make_shared<ert::http2comm::Http2Client>(host_, std::to_string(port_), secure_);
+    if (!client_) {
+
+        std::string keyAdaptedToMetricsName = h2agent::model::fixMetricsName(key_);
+        client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>(keyAdaptedToMetricsName, host_, std::to_string(port_), secure_, nullptr);
+        try {
+            client_->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_);
+        }
+        catch(std::exception &e)
+        {
+            client_->enableMetrics(nullptr); // force no metrics again
+            std::string msg = ert::tracing::Logger::asString("Cannot enable metrics for client '%s': %s", keyAdaptedToMetricsName.c_str(), e.what());
+            ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+        }
+    }
+}
+
+void AdminClientEndpoint::setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries,
+        const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries) {
+
+    metrics_ = metrics;
+    response_delay_seconds_histogram_bucket_boundaries_ = responseDelaySecondsHistogramBucketBoundaries;
+    message_size_bytes_histogram_bucket_boundaries_ = messageSizeBytesHistogramBucketBoundaries;
 }
 
 bool AdminClientEndpoint::load(const nlohmann::json &j) {
@@ -111,6 +133,13 @@ nlohmann::json AdminClientEndpoint::asJson() const
     result["status"] = client_->getConnectionStatus();
 
     return result;
+}
+
+std::uint64_t AdminClientEndpoint::getGeneralUniqueClientSequence() const
+{
+    if (!client_) return 1;
+
+    return client_->getGeneralUniqueClientSequence();
 }
 
 }

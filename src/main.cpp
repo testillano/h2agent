@@ -53,14 +53,19 @@ SOFTWARE.
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
 #include <MockServerData.hpp>
+#include <MockClientData.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/metrics/Metrics.hpp>
 
 
-// Nghttp2 server threads: recommendation for administrative interface is 1-5 client threads
-#define ADMIN_SERVER_THREADS 2
+// Native Nghttp2 server threads: all the handled requests are passed directly to stream class or queue dispatcher, so there is not gain using this resource.
+// This is provided by nghttp2 library just in case the architecture is designed to manage the work inside the native thread, but not our case.
+// In summary, we will configure a unique native nghttp2 thread for both traffic and admin interfaces. This way, we reduce the memory footprint (usage of
+// threads) and minimize the CPU load (threads context switching):
+#define ADMIN_NGHTTP2_SERVER_THREADS 1
+#define TRAFFIC_NGHTTP2_SERVER_THREADS 1
 
 // In order to use queue dispatcher, we must set over 1, but performance is usually better without it:
 #define ADMIN_SERVER_WORKER_THREADS 1
@@ -77,6 +82,7 @@ h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
 h2agent::model::MockServerData* myMockServerData = nullptr;
+h2agent::model::MockClientData* myMockClientData = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
@@ -262,11 +268,15 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Number of traffic server maximum worker threads; defaults to the number of worker\n"
        << "  threads but could be a higher number so they will be created when needed.\n\n"
 
-       << "[-t|--traffic-server-threads <threads>]\n"
-       << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
-       << "  (admin server hardcodes " << ADMIN_SERVER_THREADS << " nghttp2 threads). This option is exploited\n"
-       << "  by multiple clients.\n\n"
-       // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
+//       << "[-t|--traffic-server-threads <threads>]\n"
+//       << "  Number of nghttp2 traffic server native threads; defaults to 1\n"
+//       << "  (admin server hardcodes " << ADMIN_NGHTTP2_SERVER_THREADS << " nghttp2 native threads). Although the\n"
+//       << "  processed requests end up in the same number of workers, a higher\n"
+//       << "  value could alleviate the load that a native nghttp2 thread could\n"
+//       << "  handle (each one could process a smaller set of concurrent requests\n"
+//       << "  which can help distribute the workload among them, and accelerate\n"
+//       << "  the average response time). This option can be exploited by multiple\n"
+//       << "  clients used to send high traffic loads.\n\n"
 
        << "[-k|--traffic-server-key <path file>]\n"
        << "  Path file for traffic server key to enable SSL/TLS; unsecured by default.\n\n"
@@ -451,7 +461,6 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
     int traffic_server_max_worker_threads = 1;
-    int traffic_server_threads = 2;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
@@ -548,18 +557,6 @@ int main(int argc, char* argv[])
         if (traffic_server_max_worker_threads < traffic_server_worker_threads)
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-server-max-worker-threads' value. Must be greater or equal than traffic server worker threads.");
-        }
-    }
-
-    // Probably, this parameter is not useful as we release the server thread using our workers, so
-    //  no matter if you launch more server threads here, no difference should be detected ...
-    if (readCmdLine(argv, argv + argc, "-t", value)
-            || readCmdLine(argv, argv + argc, "--traffic-server-threads", value))
-    {
-        traffic_server_threads = toNumber(value);
-        if (traffic_server_threads < 1)
-        {
-            usage(EXIT_FAILURE, "Invalid '--traffic-server-threads' value. Must be greater than 0.");
         }
     }
 
@@ -715,12 +712,11 @@ int main(int argc, char* argv[])
         std::cout << "Traffic server api name: " << ((traffic_server_api_name != "") ?  traffic_server_api_name : "<none>") << '\n';
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
-        std::cout << "Traffic server threads (nghttp2): " << traffic_server_threads << '\n';
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
         std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
 
         // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
-        // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + traffic_server_threads + traffic_server_worker_threads)
+        // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + 1 /* native nghttp2 threads */ + traffic_server_worker_threads)
         // are over hardware concurrency (unsigned int hardwareConcurrency = std::thread::hardware_concurrency();)
 
         std::cout << "Traffic server key password: " << ((traffic_server_key_password != "") ? "***" : "<not provided>") << '\n';
@@ -799,12 +795,17 @@ int main(int argc, char* argv[])
     myAdminHttp2Server->setConfiguration(myConfiguration);
     myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
     myAdminHttp2Server->setFileManager(myFileManager);
+    myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries); // for client connection class
 
     // Timers thread:
     std::thread tt([&] {
         boost::asio::io_service::work work(*myTimersIoService);
         myTimersIoService->run();
     });
+
+    // Mock data (may be not used):
+    myMockServerData = new h2agent::model::MockServerData();
+    myMockClientData = new h2agent::model::MockClientData();
 
     // Traffic server
     if (traffic_server_enabled) {
@@ -814,9 +815,11 @@ int main(int argc, char* argv[])
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
 
-        myMockServerData = new h2agent::model::MockServerData();
         myTrafficHttp2Server->setMockServerData(myMockServerData);
         myAdminHttp2Server->setMockServerData(myMockServerData); // stored at administrative class to pass through created server provisions
+
+        myTrafficHttp2Server->setMockClientData(myMockClientData);
+        myAdminHttp2Server->setMockClientData(myMockClientData); // stored at administrative class to pass through created client provisions
     }
 
     // Schema configuration
@@ -926,14 +929,14 @@ int main(int argc, char* argv[])
 
     int rc1 = EXIT_SUCCESS;
     int rc2 = EXIT_SUCCESS;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", ADMIN_SERVER_THREADS);});
+    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", ADMIN_NGHTTP2_SERVER_THREADS);});
 
     if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
     // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
 
     std::thread t2([&] {
         if (myTrafficHttp2Server) {
-            rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, traffic_server_threads);
+            rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, TRAFFIC_NGHTTP2_SERVER_THREADS);
         }
     });
 

@@ -277,3 +277,27 @@ TEST_F(functions_test, String2uint64andSignNegative)
     EXPECT_TRUE(negative);
 }
 
+TEST_F(functions_test, FixMetricsNameEmptyString) {
+    std::string input = "";
+    std::string expected_output = "";
+    ASSERT_EQ(expected_output, h2agent::model::fixMetricsName(input));
+}
+
+TEST_F(functions_test, FixMetricsNameOnlyValidCharacters) {
+    std::string input = "valid:chars_0123";
+    std::string expected_output = "valid:chars_0123";
+    ASSERT_EQ(expected_output, h2agent::model::fixMetricsName(input));
+}
+
+TEST_F(functions_test, FixMetricsNameInvalidCharacters) {
+    std::string input = "invalid!chars#";
+    std::string expected_output = "invalid_chars_";
+    ASSERT_EQ(expected_output, h2agent::model::fixMetricsName(input));
+}
+
+TEST_F(functions_test, FixMetricsNameMixedCharacters) {
+    std::string input = "mixed!:_chars#0123";
+    std::string expected_output = "mixed_:_chars_0123";
+    ASSERT_EQ(expected_output, h2agent::model::fixMetricsName(input));
+}
+
