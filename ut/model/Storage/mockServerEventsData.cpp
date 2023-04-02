@@ -132,11 +132,22 @@ TEST_F(MockServerEventsData_test, ClearFails)
 TEST_F(MockServerEventsData_test, AsJsonString)
 {
     bool validQuery = false;
-    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", validQuery)); // normalize to have safer comparisons
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", "", validQuery)); // normalize to have safer comparisons
     std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = real_event_;
     expectedJson["receptionTimestampUs"] = receptionTimestampUs;
+
+    EXPECT_EQ(assertedJson, expectedJson);
+}
+
+TEST_F(MockServerEventsData_test, AsJsonStringWithEventPath)
+{
+    bool validQuery = false;
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", "/requestBody", validQuery)); // normalize to have safer comparisons
+
+    nlohmann::json::json_pointer p("/requestBody");
+    nlohmann::json expectedJson = real_event_[p];
 
     EXPECT_EQ(assertedJson, expectedJson);
 }

@@ -428,6 +428,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         std::string requestMethod = "";
         std::string requestUri = "";
         std::string eventNumber = "";
+        std::string eventPath = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
@@ -436,11 +437,13 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) requestUri = it->second;
             it = qmap.find("eventNumber");
             if (it != qmap.end()) eventNumber = it->second;
+            it = qmap.find("eventPath");
+            if (it != qmap.end()) eventPath = it->second;
         }
 
         bool validQuery = false;
         try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
-            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, eventNumber, validQuery);
+            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, eventNumber, eventPath, validQuery);
         }
         catch (const std::exception& e)
         {

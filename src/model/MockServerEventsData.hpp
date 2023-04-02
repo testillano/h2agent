@@ -64,7 +64,7 @@ class MockServerEventsData : public Map<mock_server_events_key_t, std::shared_pt
 {
     h2agent::jsonschema::JsonSchema requests_schema_{};
 
-    bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber) const;
+    bool checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, const std::string &eventPath) const;
     bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) const;
 
     mutable mutex_t rw_mutex_{};
@@ -117,13 +117,14 @@ public:
      * @param eventNumber Request history number (1..N) to filter selection. Optional, but cannot be provided alone (needs 'requestUri' and 'requestMethod').
      * If empty, whole history is selected for method/uri provided.
      * If provided '-1' (unsigned long long max), the latest event is selected.
+     * @param eventPath Path within the event selected from history. Optional, but cannot be provided alone (needs 'requestUri', 'requestMethod' and 'eventNumber').
      * @param validQuery Boolean result passed by reference.
      *
      * @return Json string representation ('[]' for empty array).
      * @warning This method may throw exception due to dump() when unexpected data is stored on json wrap: execute under try/catch block.
 
      */
-    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, bool &validQuery) const;
+    std::string asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, const std::string &eventPath, bool &validQuery) const;
 
     /**
      * Json string representation for class summary (total number of events and first/last/random keys).
