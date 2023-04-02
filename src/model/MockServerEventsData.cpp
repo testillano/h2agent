@@ -67,7 +67,7 @@ bool MockServerEventsData::string2uint64andSign(const std::string &input, std::u
     return result;
 }
 
-bool MockServerEventsData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber) const {
+bool MockServerEventsData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, const std::string &eventPath) const {
 
     // Bad request checkings:
     if (requestMethod.empty() != requestUri.empty()) {
@@ -77,6 +77,11 @@ bool MockServerEventsData::checkSelection(const std::string &requestMethod, cons
 
     if (!eventNumber.empty() && requestMethod.empty()) {
         ert::tracing::Logger::error("Query parameter 'eventNumber' cannot be provided alone: requestMethod and requestUri are also needed", ERT_FILE_LOCATION);
+        return false;
+    }
+
+    if (!eventPath.empty() && eventNumber.empty()) {
+        ert::tracing::Logger::error("Query parameter 'eventPath' cannot be provided alone: (requestMethod, requestUri and) eventNumber are also needed", ERT_FILE_LOCATION);
         return false;
     }
 
@@ -119,7 +124,7 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
         return result;
     }
 
-    if (!checkSelection(requestMethod, requestUri, eventNumber))
+    if (!checkSelection(requestMethod, requestUri, eventNumber, ""))
         return false;
 
     mock_server_events_key_t key{};
@@ -149,16 +154,16 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
     return result;
 }
 
-std::string MockServerEventsData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, bool &validQuery) const {
+std::string MockServerEventsData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, const std::string &eventPath, bool &validQuery) const {
 
     validQuery = false;
 
-    if (requestMethod.empty() && requestUri.empty() && eventNumber.empty()) {
+    if (requestMethod.empty() && requestUri.empty() && eventNumber.empty() && eventPath.empty()) {
         validQuery = true;
         return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
     }
 
-    if (!checkSelection(requestMethod, requestUri, eventNumber))
+    if (!checkSelection(requestMethod, requestUri, eventNumber, eventPath))
         return "[]";
 
     validQuery = true;
@@ -181,7 +186,7 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
 
         auto ptr = it->second->getMockServerKeyEvent(u_eventNumber, reverse);
         if (ptr) {
-            return ptr->getJson().dump();
+            return ptr->getJson(eventPath).dump();
         }
         else return "[]";
     }

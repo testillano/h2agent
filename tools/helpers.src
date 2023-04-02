@@ -189,8 +189,8 @@ server_data() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: server_data [-h|--help]; Inspects server data events (${ADMIN_URL}/server-data)."
-    echo "                   [method] [uri] [[-]event number]; Restricts shown data with given positional filters."
-    echo "                                                     Event number may be negative to access by reverse chronological order."
+    echo "                   [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters."
+    echo "                                                                   Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
     echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the selection."
@@ -212,10 +212,12 @@ server_data() {
   local requestMethod=$1
   local requestUri=$2
   local eventNumber=$3
+  local eventPath=$4
 
   [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
   [ -n "${eventNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
   [ -n "${eventNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
+  [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required" && return 1
 
   local queryParams=
   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
@@ -230,11 +232,14 @@ server_data() {
     read dummy
     do_curl ${ADMIN_URL}/server-data
   else
+    local urlencode=
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     if [ -n "${requestUri}" ]
     then
-      do_curl ${curl_method} -G --data-urlencode "requestUri=${requestUri}" "${ADMIN_URL}/server-data${queryParams}"
+      do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/server-data${queryParams}"
     else
-      do_curl ${curl_method} "${ADMIN_URL}/server-data${queryParams}"
+      do_curl ${curl_method} "${ADMIN_URL}/server-data"
     fi
   fi
 }

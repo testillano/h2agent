@@ -130,10 +130,15 @@ public:
     /**
      * Gets json document
      *
+     * @param path within the object to restrict selection (empty by default).
+     *
      * @return Json object
      */
-    const nlohmann::json &getJson() const {
-        return json_;
+    const nlohmann::json &getJson(const std::string &path = "") const {
+        if (path.empty()) return json_;
+
+        nlohmann::json::json_pointer p(path);
+        return json_[p];
     }
 };
 

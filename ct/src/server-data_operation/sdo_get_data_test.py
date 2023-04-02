@@ -54,3 +54,35 @@ def test_002_i_want_to_get_speficic_internal_data_on_admin_interface(h2ac_admin,
   del response["body"]["events"][0]["receptionTimestampUs"] # completely unpredictable
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
+@pytest.mark.admin
+def test_003_i_want_to_get_speficic_internal_data_on_admin_interface_using_eventNumber(h2ac_admin, h2ac_traffic, admin_server_provision):
+
+  # Get again
+  response = h2ac_traffic.get("/app/v1/foo/bar/2")
+  responseBodyRef = { "foo":"bar-2" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Check server data
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&eventNumber=-1")
+  responseBodyRef = { 'previousState': 'initial', 'responseBody': {'foo': 'bar-2'}, 'responseDelayMs': 0, 'responseHeaders': {'content-type': 'application/json', 'x-version': '1.0.0'}, 'responseStatusCode': 200, 'state': 'initial'}
+  # serverSequence and receptionTimestampUs have been removed from reference and also will be removed from response as they are not predictable:
+  # hyper does not add headers on traffic as curl does, so we don't have to remove 'headers' key.
+  del response["body"]["serverSequence"] # depends on the server sequence since the h2agent was started
+  del response["body"]["receptionTimestampUs"] # completely unpredictable
+  h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.admin
+def test_004_i_want_to_get_speficic_internal_data_on_admin_interface_using_eventNumber_and_eventPath(h2ac_admin, h2ac_traffic, admin_server_provision):
+
+  # Get again
+  response = h2ac_traffic.get("/app/v1/foo/bar/2")
+  responseBodyRef = { "foo":"bar-2" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Check server data
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&eventNumber=-1&eventPath=/responseBody")
+  responseBodyRef = {'foo': 'bar-2'}
+  h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
+
