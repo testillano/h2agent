@@ -469,9 +469,17 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         }
         else if (transformation->getFilterType() == Transformation::FilterType::ConditionVar) { // TODO: if condition is false, source storage could be omitted to improve performance
             // Get variable value for the variable name 'transformation->getFilter()':
-            auto iter = variables.find(transformation->getFilter());
-            if ((iter != variables.end()) && !(iter->second.empty()))
+            std::string varname = transformation->getFilter();
+            bool reverse = (transformation->getFilter()[0] == '!');
+            if (reverse) {
+                varname.erase(0,1);
+            }
+            auto iter = variables.find(varname);
+            bool conditionVar = ((iter != variables.end()) && !(iter->second.empty()));
+
+            if ((reverse && !conditionVar)||(!reverse && conditionVar)) {
                 sourceVault.setString(source);
+            }
             else
                 return false;
         }
