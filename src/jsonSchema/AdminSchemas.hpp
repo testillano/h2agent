@@ -126,6 +126,10 @@ const nlohmann::json server_matching = R"(
 // We would need escape the character with a single \ to be literal, however in jsonSchema, the \ would also needed to be escaped with another slash \.
 //
 // About pattern (schema regex): https://json-schema.org/understanding-json-schema/reference/regular_expressions.html
+//
+// ConditionVar pattern: ^(?!$)(?!!$).*$
+// 1) non empty string:     "negative lookahead" (?!$)
+// 2) non valid string "!": "negative lookahead" (?!!$)
 const nlohmann::json server_provision = R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -163,11 +167,11 @@ const nlohmann::json server_provision = R"(
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string" },
-        "PrependVar": { "type": "string" },
+        "AppendVar": { "type": "string", "minLength": 1 },
+        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string" },
+        "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
         "EqualTo": { "type": "string" }
       }
     }
@@ -301,151 +305,6 @@ const nlohmann::json client_endpoint = R"(
   "required": [ "id", "host", "port" ]
 }
 )"_json;
-
-/*
-const nlohmann::json client_provision = R"(
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-
-  "definitions": {
-    "filter": {
-      "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {"required": ["RegexCapture"]},
-        {"required": ["RegexReplace"]},
-        {"required": ["Append"]},
-        {"required": ["Prepend"]},
-        {"required": ["AppendVar"]},
-        {"required": ["PrependVar"]},
-        {"required": ["Sum"]},
-        {"required": ["Multiply"]},
-        {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]}
-      ],
-      "properties": {
-        "RegexCapture": { "type": "string" },
-        "RegexReplace": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "rgx": {
-              "type": "string"
-            },
-            "fmt": {
-              "type": "string"
-            }
-          },
-          "required": [ "rgx", "fmt" ]
-        },
-        "Append": { "type": "string" },
-        "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string" },
-        "PrependVar": { "type": "string" },
-        "Sum": { "type": "number" },
-        "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string" },
-        "EqualTo": { "type": "string" }
-      }
-    }
-  },
-  "type": "object",
-  "additionalProperties": false,
-
-  "properties": {
-    "id":{
-      "type": "string"
-    },
-    "endpoint":{
-      "type": "string"
-    },
-    "requestMethod": {
-      "type": "string",
-        "enum": ["POST", "GET", "PUT", "DELETE", "HEAD" ]
-    },
-    "requestUri": {
-      "type": "string"
-    },
-    "requestSchemaId": {
-      "type": "string"
-    },
-    "requestHeaders": {
-      "additionalProperties": {
-        "type": "string"
-       },
-       "type": "object"
-    },
-    "requestBody": {
-      "oneOf": [
-        {"type": "object"},
-        {"type": "array"},
-        {"type": "string"},
-        {"type": "integer"},
-        {"type": "number"},
-        {"type": "boolean"},
-        {"type": "null"}
-      ]
-    },
-    "requestDelayMs": {
-      "type": "integer"
-    },
-    "timeoutMs": {
-      "type": "integer"
-    },
-    "transform" : {
-      "type" : "array",
-      "minItems": 1,
-      "items" : {
-        "type" : "object",
-        "minProperties": 2,
-        "maxProperties": 3,
-        "properties": {
-          "source": {
-            "type": "string",
-            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
-          },
-          "target": {
-            "type": "string",
-            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs)$|^(var|globalVar)\\..+|^txtFile\\..+|^binFile\\..+|^scheduleId\\..+"
-          }
-        },
-        "additionalProperties" : {
-          "$ref" : "#/definitions/filter"
-        },
-        "required": [ "source", "target" ]
-      }
-    },
-    "onResponseTransform" : {
-      "type" : "array",
-      "minItems": 1,
-      "items" : {
-        "type" : "object",
-        "minProperties": 2,
-        "maxProperties": 3,
-        "properties": {
-          "source": {
-            "type": "string",
-            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
-          },
-          "target": {
-            "type": "string",
-            "pattern": "^(var|globalVar)\\..+|^txtFile\\..+|^binFile\\..+|^scheduleId\\..+"
-          }
-        },
-        "additionalProperties" : {
-          "$ref" : "#/definitions/filter"
-        },
-        "required": [ "source", "target" ]
-      }
-    },
-    "responseSchemaId": {
-      "type": "string"
-    }
-  },
-  "required": [ "id", "endpoint", "requestMethod" ]
-}
-)"_json;
-*/
 
 }
 }

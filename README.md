@@ -1587,11 +1587,11 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string" },
-        "PrependVar": { "type": "string" },
+        "AppendVar": { "type": "string", "minLength": 1 },
+        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string" },
+        "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
         "EqualTo": { "type": "string" }
       }
     }
@@ -2150,7 +2150,7 @@ Filters give you the chance to make complex transformations:
 
 - ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. All the variables are strings in origin, and are converted to target selected types, but in this case the string variable value is adapted to boolean result in this way: if the variable is not defined or it is empty, the condition is *false*. It will be *true*  in the rest of cases.
 
-  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string.
+  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string. Also, <u>variable name can be preceded by exclamation mark (!)  in order to invert the condition</u>: empty or undefined variable becomes *true* and any other *false*.
 
   This behavior invite to use regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter). for example:
 
