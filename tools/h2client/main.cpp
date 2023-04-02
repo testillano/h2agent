@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     int timeout = 5; // default
-    ert::http2comm::Http2Client::Method method = ert::http2comm::Http2Client::Method::GET;
+    std::string method = "GET";
     nghttp2::asio_http2::header_map headers;
     std::string body;
     std::string uri;
@@ -195,20 +195,12 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--method", value))
+    if (cmdOptionExists(argv, argv + argc, "--method", method))
     {
-        if (value == "POST")
-            method = ert::http2comm::Http2Client::Method::POST;
-        else if (value == "GET")
-            method = ert::http2comm::Http2Client::Method::GET;
-        else if (value == "PUT")
-            method = ert::http2comm::Http2Client::Method::PUT;
-        else if (value == "DELETE")
-            method = ert::http2comm::Http2Client::Method::DELETE;
-        else if (value == "HEAD")
-            method = ert::http2comm::Http2Client::Method::HEAD;
-        else
+        if (method != "POST" && method != "GET" && method != "PUT" && method != "DELETE" && method != "HEAD")
+        {
             usage(EXIT_FAILURE, "Invalid '--method' value. Allowed: POST, GET, PUT, DELETE, HEAD.");
+        }
     }
 
     char **next = argv;
@@ -301,7 +293,7 @@ int main(int argc, char* argv[])
     std::cout << std::endl;
 
     // Create client class
-    ert::http2comm::Http2Client client(host, port, secure);
+    ert::http2comm::Http2Client client("myClient", host, port, secure);
 
     ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(timeout * 1000));
 

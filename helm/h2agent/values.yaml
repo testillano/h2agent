@@ -29,7 +29,6 @@ h2agent_cl:
   traffic_server_api_name: ""
   traffic_server_api_version: ""
   traffic_server_worker_threads: 1
-  traffic_server_threads: 2
   traffic_server_key: ""
   traffic_server_crt: ""
   traffic_server_matching: ""

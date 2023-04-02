@@ -35,13 +35,15 @@ SOFTWARE.
 
 #pragma once
 
-#include <string>
-#include <chrono>
+#include <vector>
+#include <cstdint>
 
-#include <nghttp2/asio_http2_server.h>
 #include <nlohmann/json.hpp>
 
-#include <DataPart.hpp>
+#include <Map.hpp>
+#include <MockData.hpp>
+#include <MockClientEventsHistory.hpp>
+#include <MockClientEvent.hpp>
 
 
 namespace h2agent
@@ -50,76 +52,43 @@ namespace model
 {
 
 
-class MockEvent
+/**
+ * This class stores the mock client events.
+ *
+ * This is useful to post-verify the internal data (content and schema validation) on testing system.
+ * Also, the last request for an specific key, is used to know the state which is used to get the
+ * corresponding provision information.
+ */
+class MockClientData : public MockData
 {
-    std::string previous_state_{};
-    std::string state_{};
-    std::uint64_t reception_timestamp_us_{};
-    unsigned int response_status_code_{};
-    nghttp2::asio_http2::header_map request_headers_{};
-    nghttp2::asio_http2::header_map response_headers_{};
-
-protected:
-
-    nlohmann::json json_{}; // kept synchronized on load()
-
 public:
-
-    MockEvent() {;}
-
-    // setters:
+    MockClientData() {};
+    ~MockClientData() = default;
 
     /**
-     * Loads event information
+     * Loads event data
      *
+     * @param dataKey Events key (client endpoint id, method & uri).
+     *
+     * @param clientProvisionId Client provision id responsible for the event
      * @param previousState Previous request state
      * @param state Request state
+     * @param sendingTimestampUs Microseconds sending timestamp
      * @param receptionTimestampUs Microseconds reception timestamp
      * @param responseStatusCode Response status code
      * @param requestHeaders Request headers
      * @param responseHeaders Response headers
-     */
-    void load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders);
-
-    // getters:
-
-    /** Request state
      *
-     * @return current state
-     */
-    const std::string &getState() const {
-        return state_;
-    }
-
-    /** Request headers
+     * @param requestBody Request body
+     * @param responseBodyDataPart Response body
+     * @param clientSequence Server sequence (1..N)
+     * @param sequence test sequence (1..N)
+     * @param requestDelayMs Request delay in milliseconds
+     * @param timeoutMs Timeout in milliseconds
      *
-     * @return Request headers
+     * @param historyEnabled Events complete history storage
      */
-    const nghttp2::asio_http2::header_map &getRequestHeaders() const {
-        return request_headers_;
-    }
-
-    /** Response headers
-     *
-     * @return Response headers
-     */
-    const nghttp2::asio_http2::header_map &getResponseHeaders() const {
-        return response_headers_;
-    }
-
-    /**
-     * Gets json document
-     *
-     * @param path within the object to restrict selection (empty by default).
-     *
-     * @return Json object
-     */
-    const nlohmann::json &getJson(const std::string &path = "") const {
-        if (path.empty()) return json_;
-
-        nlohmann::json::json_pointer p(path);
-        return json_[p];
-    }
+    void loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::uint64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled);
 };
 
 }

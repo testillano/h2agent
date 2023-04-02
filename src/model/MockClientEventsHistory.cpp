@@ -35,7 +35,8 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <MockEvent.hpp>
+#include <MockClientEventsHistory.hpp>
+#include <MockClientEvent.hpp>
 
 
 namespace h2agent
@@ -43,31 +44,12 @@ namespace h2agent
 namespace model
 {
 
-void MockEvent::load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders) {
+void MockClientEventsHistory::loadEvent(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::uint64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
 
-    previous_state_ = previousState;
-    state_ = state;
-    reception_timestamp_us_ = receptionTimestampUs.count();
-    response_status_code_ = responseStatusCode;
-    request_headers_ = requestHeaders;
-    response_headers_ = responseHeaders;
+    auto event = std::make_shared<MockClientEvent>();
+    event->load(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, clientSequence, sequence, requestDelayMs, timeoutMs);
 
-    // Update json_:
-    if (!previous_state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
-    if(!state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
-    json_["receptionTimestampUs"] = (std::uint64_t)reception_timestamp_us_;
-    json_["responseStatusCode"] = (int)response_status_code_;
-    for (const auto& [field, member] : {
-                std::pair{"requestHeaders", request_headers_}, std::pair{"responseHeaders", response_headers_} // LCOV_EXCL_LINE
-            }) {
-        if (member.size()) {
-            nlohmann::json hdrs;
-            for (const auto& [k, v] : member) {
-                hdrs[k] = v.value;
-            }
-            json_[field] = hdrs;
-        }
-    }
+    MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
 }
 
 }

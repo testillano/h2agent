@@ -78,6 +78,9 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
 
     if (clientEndpoint->load(j)) {
 
+        // Metrics data:
+        clientEndpoint->setMetricsData(cr.MetricsPtr, cr.ResponseDelaySecondsHistogramBucketBoundaries, cr.MessageSizeBytesHistogramBucketBoundaries);
+
         // Push the key in the map:
         admin_client_endpoint_key_t key = clientEndpoint->getKey();
 

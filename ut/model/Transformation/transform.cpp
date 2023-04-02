@@ -10,7 +10,7 @@
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
 #include <AdminClientEndpointData.hpp>
-//#include <AdminClientProvisionData.hpp>
+#include <AdminClientProvisionData.hpp>
 #include <AdminSchemas.hpp>
 #include <MockServerData.hpp>
 #include <Configuration.hpp>

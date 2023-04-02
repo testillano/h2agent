@@ -2,6 +2,7 @@ add_executable( unit-test "")
 
 add_subdirectory(jsonSchema)
 add_subdirectory(http2Server)
+add_subdirectory(http2Client)
 add_subdirectory(model)
 
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':

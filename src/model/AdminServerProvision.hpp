@@ -60,6 +60,7 @@ namespace model
 typedef std::string admin_server_provision_key_t; // <inState>#<method>#<uri>
 
 class MockServerData;
+class MockClientData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -97,6 +98,7 @@ class AdminServerProvision
     std::string response_schema_id_{};
 
     model::MockServerData *mock_server_events_data_{}; // just in case it is used
+    model::MockClientData *mock_client_events_data_{}; // just in case it is used
     model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
@@ -203,6 +205,14 @@ public:
      */
     void setMockServerData(model::MockServerData *p) {
         mock_server_events_data_ = p;
+    }
+
+    /**
+     * Sets the internal mock client data,
+     * just in case it is used in event source
+     */
+    void setMockClientData(model::MockClientData *p) {
+        mock_client_events_data_ = p;
     }
 
     /**

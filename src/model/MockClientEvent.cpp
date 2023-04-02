@@ -35,7 +35,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <MockEvent.hpp>
+#include <MockClientEvent.hpp>
 
 
 namespace h2agent
@@ -43,31 +43,35 @@ namespace h2agent
 namespace model
 {
 
-void MockEvent::load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders) {
+void MockClientEvent::load(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::uint64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs) {
 
-    previous_state_ = previousState;
-    state_ = state;
-    reception_timestamp_us_ = receptionTimestampUs.count();
-    response_status_code_ = responseStatusCode;
-    request_headers_ = requestHeaders;
-    response_headers_ = responseHeaders;
+    // Base class:
+    MockEvent::load(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders);
+
+    client_provision_id_ = clientProvisionId;
+    sending_timestamp_us_ = sendingTimestampUs.count();
+    request_body_data_part_.assign(std::move(requestBody));
+    request_body_data_part_.decode(requestHeaders);
+    responseBodyDataPart.decode(responseHeaders);
+    response_body_ = responseBodyDataPart.getJson();
+    client_sequence_ = clientSequence;
+    sequence_ = sequence;
+    request_delay_ms_ = requestDelayMs;
+    timeout_ms_ = timeoutMs;
 
     // Update json_:
-    if (!previous_state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
-    if(!state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
-    json_["receptionTimestampUs"] = (std::uint64_t)reception_timestamp_us_;
-    json_["responseStatusCode"] = (int)response_status_code_;
-    for (const auto& [field, member] : {
-                std::pair{"requestHeaders", request_headers_}, std::pair{"responseHeaders", response_headers_} // LCOV_EXCL_LINE
-            }) {
-        if (member.size()) {
-            nlohmann::json hdrs;
-            for (const auto& [k, v] : member) {
-                hdrs[k] = v.value;
-            }
-            json_[field] = hdrs;
-        }
+    json_["clientProvisionId"] = client_provision_id_;
+    json_["sendingTimestampUs"] = (std::uint64_t)sending_timestamp_us_;
+    if (!request_body_data_part_.str().empty()) {
+        json_["requestBody"] = request_body_data_part_.getJson();
     }
+    if (!response_body_.empty()) {
+        json_["responseBody"] = response_body_;
+    }
+    json_["clientSequence"] = (std::uint64_t)client_sequence_;
+    json_["sequence"] = (std::uint64_t)sequence_;
+    json_["requestDelayMs"] = (unsigned int)request_delay_ms_;
+    json_["timeoutMs"] = (unsigned int)timeout_ms_;
 }
 
 }

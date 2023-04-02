@@ -173,5 +173,15 @@ bool fromHexString(const std::string &input, std::string &output);
  */
 bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected, std::string &failReport);
 
+/**
+ * Adapts name to a valid metrics name
+ * Non valid characters (https://prometheus.io/docs/instrumenting/writing_exporters/#naming) will be replaced by underscore.
+ *
+ * @param in String to adapt
+ *
+ * @return Adapted string to a valid metrics name
+ */
+std::string fixMetricsName(const std::string &in);
+
 }
 }

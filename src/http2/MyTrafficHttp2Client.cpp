@@ -33,43 +33,47 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <boost/optional.hpp>
+#include <sstream>
+#include <map>
+#include <errno.h>
+
+
 #include <ert/tracing/Logger.hpp>
+#include <ert/http2comm/Http.hpp>
+#include <ert/http2comm/Http2Headers.hpp>
+#include <ert/http2comm/URLFunctions.hpp>
 
-#include <MockEvent.hpp>
+#include <MyTrafficHttp2Client.hpp>
 
+#include <AdminData.hpp>
+#include <MockClientData.hpp>
+#include <Configuration.hpp>
+#include <GlobalVariable.hpp>
+#include <FileManager.hpp>
+#include <functions.hpp>
 
 namespace h2agent
 {
-namespace model
+namespace http2
 {
 
-void MockEvent::load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders) {
+void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics) {
 
-    previous_state_ = previousState;
-    state_ = state;
-    reception_timestamp_us_ = receptionTimestampUs.count();
-    response_status_code_ = responseStatusCode;
-    request_headers_ = requestHeaders;
-    response_headers_ = responseHeaders;
+    metrics_ = metrics;
 
-    // Update json_:
-    if (!previous_state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
-    if(!state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
-    json_["receptionTimestampUs"] = (std::uint64_t)reception_timestamp_us_;
-    json_["responseStatusCode"] = (int)response_status_code_;
-    for (const auto& [field, member] : {
-                std::pair{"requestHeaders", request_headers_}, std::pair{"responseHeaders", response_headers_} // LCOV_EXCL_LINE
-            }) {
-        if (member.size()) {
-            nlohmann::json hdrs;
-            for (const auto& [k, v] : member) {
-                hdrs[k] = v.value;
-            }
-            json_[field] = hdrs;
-        }
+    if (metrics_) {
+        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent client");
+
+        observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
+        observed_requests_failed_counter_ = &(cf.Add({{"result", "failed"}})); // broken connection
+
+        ert::metrics::counter_family_ref_t cf2 = metrics->addCounterFamily(std::string("ServerData_observed_responses_total"), "Http2 total responses observed in h2agent client");
+
+        observed_responses_processed_counter_ = &(cf2.Add({{"result", "successful"}}));
+        observed_responses_timeout_counter_ = &(cf2.Add({{"result", "timeout"}}));
     }
 }
 
 }
 }
-

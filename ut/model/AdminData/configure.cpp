@@ -6,7 +6,7 @@
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
 #include <AdminClientEndpointData.hpp>
-//#include <AdminClientProvisionData.hpp>
+#include <AdminClientProvisionData.hpp> // XXXXXXXXXXXXXXXXXXXXXXXX
 #include <AdminSchemaData.hpp>
 #include <AdminSchemas.hpp>
 #include <Configuration.hpp>

@@ -40,7 +40,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <AdminServerProvisionData.hpp>
+#include <AdminClientProvisionData.hpp>
 #include <functions.hpp>
 
 
@@ -49,55 +49,41 @@ namespace h2agent
 namespace model
 {
 
-AdminServerProvisionData::AdminServerProvisionData() {
-    server_provision_schema_.setJson(h2agent::adminSchemas::server_provision); // won't fail
+AdminClientProvisionData::AdminClientProvisionData() {
+    client_provision_schema_.setJson(h2agent::adminSchemas::client_provision); // won't fail
 }
 
-std::string AdminServerProvisionData::asJsonString(bool ordered) const {
+std::string AdminClientProvisionData::asJsonString() const {
 
     nlohmann::json result = nlohmann::json::array();
 
     read_guard_t guard(rw_mutex_);
-    if (ordered) {
-        for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
-            auto element =  get(*it);
-            result.push_back(element->second->getJson());
-        };
-    }
-    else {
-        for (auto it = map_.begin(); it != map_.end(); it++) {
-            result.push_back(it->second->getJson());
-        };
-    }
+    for (auto it = map_.begin(); it != map_.end(); it++) {
+        result.push_back(it->second->getJson());
+    };
 
     // Provision is shown as an array regardless if there is 1 item, N items or none ([]):
     return (result.dump());
 }
 
-AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr) {
+AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const nlohmann::json &j, const common_resources_t &cr) {
 
-    if (!server_provision_schema_.validate(j)) {
+    if (!client_provision_schema_.validate(j)) {
         return BadSchema;
     }
 
     // Provision object to fill:
-    auto provision = std::make_shared<AdminServerProvision>();
+    auto provision = std::make_shared<AdminClientProvision>();
 
-    if (provision->load(j, regexMatchingConfigured)) {
+    if (provision->load(j)) {
 
         // Push the key in the map:
-        admin_server_provision_key_t key = provision->getKey();
+        admin_client_provision_key_t key = provision->getKey();
 
         // Push the key just in case we configure ordered algorithm 'RegexMatching'.
         // So, we always have both lists available; as each algorithm finds within the proper
         // list, we don't need to drop provisions when swaping the matching mode on the fly:
         write_guard_t guard(rw_mutex_);
-
-        // https://github.com/testillano/h2agent/issues/52
-        auto key_it = get(key);
-        if (key_it == end()) {
-            ordered_keys_.push_back(key);
-        }
 
         add(key, provision);
 
@@ -105,8 +91,8 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         provision->setConfiguration(cr.ConfigurationPtr);
         provision->setGlobalVariable(cr.GlobalVariablePtr);
         provision->setFileManager(cr.FileManagerPtr);
-        provision->setMockServerData(cr.MockServerDataPtr);
         provision->setMockClientData(cr.MockClientDataPtr);
+        provision->setMockServerData(cr.MockServerDataPtr);
 
         return Success;
     }
@@ -114,12 +100,12 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
     return BadContent;
 }
 
-AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr) {
+AdminClientProvisionData::LoadResult AdminClientProvisionData::load(const nlohmann::json &j, const common_resources_t &cr) {
 
     if (j.is_array()) {
         for (auto it : j) // "it" is of type json::reference and has no key() member
         {
-            LoadResult result = loadSingle(it, regexMatchingConfigured, cr);
+            LoadResult result = loadSingle(it, cr);
             if (result != Success)
                 return result;
         }
@@ -127,10 +113,10 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohma
         return Success;
     }
 
-    return loadSingle(j, regexMatchingConfigured, cr);
+    return loadSingle(j, cr);
 }
 
-bool AdminServerProvisionData::clear()
+bool AdminClientProvisionData::clear()
 {
     write_guard_t guard(rw_mutex_);
 
@@ -138,33 +124,18 @@ bool AdminServerProvisionData::clear()
 
     map_.clear();
 
-    ordered_keys_.clear();
-
     return result;
 }
 
-std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
-    admin_server_provision_key_t key{};
-    h2agent::model::calculateStringKey(key, inState, method, uri);
+std::shared_ptr<AdminClientProvision> AdminClientProvisionData::find(const std::string &inState, const std::string &clientProvisionId) const {
+
+    admin_client_provision_key_t key{};
+    h2agent::model::calculateStringKey(key, inState, clientProvisionId);
 
     read_guard_t guard(rw_mutex_);
     auto it = get(key);
     if (it != end())
         return it->second;
-
-    return nullptr;
-}
-
-std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const {
-    admin_server_provision_key_t key{};
-    h2agent::model::calculateStringKey(key, inState, method, uri);
-
-    read_guard_t guard(rw_mutex_);
-    for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
-        auto provision = get(*it)->second;
-        if (std::regex_match(key, provision->getRegex()))
-            return provision;
-    };
 
     return nullptr;
 }

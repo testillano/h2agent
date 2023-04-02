@@ -15,10 +15,11 @@ ARG make_procs=4
 # We could duplicate from local build directory, but prefer to build from scratch:
 RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
 
+# Exclusions provided on $@:
 RUN printf %b "#!/bin/sh\n\
-lcov -i --capture --directory \"/code/src/\" --output-file base-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\" --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
+lcov -i --capture --directory \"/code/src/\" --output-file base-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\" --exclude \"*/ut/*\" --exclude \"*/main*\" --exclude \"*/AdminClientProvision*\" --exclude \"*/MyTrafficHttp2Client*\"\n\
 /code/build/Debug/bin/unit-test\n\
-lcov --capture --directory \"/code/src/\" --output-file test-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\" --exclude \"*/ut/*\" --exclude \"*/main*\"\n\
+lcov --capture --directory \"/code/src/\" --output-file test-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\" --exclude \"*/ut/*\" --exclude \"*/main*\" --exclude \"*/AdminClientProvision*\" --exclude \"*/MyTrafficHttp2Client*\"\n\
 lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info\n\
 genhtml total-coverage.info -o coverage" > /var/coverage.sh
 
