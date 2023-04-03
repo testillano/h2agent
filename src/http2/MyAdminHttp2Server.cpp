@@ -43,7 +43,6 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
 #include <ert/http2comm/Http2Headers.hpp>
-#include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
@@ -695,8 +694,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     std::string method = req.method();
     //std::string uriPath = req.uri().raw_path; // percent-encoded
     std::string uriPath = req.uri().path; // decoded
-    std::string uriRawQuery = req.uri().raw_query; // percent-encoded
-    std::string uriQuery = ((uriRawQuery.empty()) ? "":ert::http2comm::URLFunctions::decode(uriRawQuery)); // now decoded
+    std::string uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
 
     // Get path suffix normalized:
     std::string pathSuffix = getPathSuffix(uriPath);

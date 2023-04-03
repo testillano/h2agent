@@ -39,6 +39,8 @@ SOFTWARE.
 #include <functions.hpp>
 
 #include <ert/tracing/Logger.hpp>
+#include <ert/http2comm/URLFunctions.hpp>
+
 
 namespace h2agent
 {
@@ -46,7 +48,6 @@ namespace model
 {
 
 std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator) {
-
     std::map<std::string, std::string> result;
 
     if (queryParams.empty()) return result;
@@ -75,6 +76,12 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
             return result;
         }
 
+        std::string valueDecoded = ert::http2comm::URLFunctions::decode(value);
+        bool decoded = (valueDecoded != value);
+        if (decoded) {
+            value = valueDecoded;
+        }
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Extracted query parameter %s = %s%s", key.c_str(), value.c_str(), (decoded ? " (decoded)":"")), ERT_FILE_LOCATION));
         result.emplace(key, value);
         pos = ((qpair_end != std::string::npos) ? (qpair_end + 1) : std::string::npos);
         qpair_end = queryParams.find_first_of(separator, pos);
@@ -93,7 +100,7 @@ std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, 
         result += it->first; // key
         if (!it->second.empty()) {
             result += "=";
-            result += it->second; // value
+            result += ert::http2comm::URLFunctions::encode(it->second); // value encoded just in case qmap decoded it before
         }
     }
 

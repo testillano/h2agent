@@ -8,12 +8,14 @@
 const std::string QueryParametersExampleDefault = "foo=foo_value&bar=bar_value";
 const std::string QueryParametersExampleSemicolon = "foo=foo_value;bar=bar_value";
 const std::string QueryParametersExampleBadKey = "foo=foo_value&bar=bar_value&foo=foo_value2";
+const std::string QueryParametersExampleEncoded = "requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&foo=foo_value";
 
 class functions_test : public ::testing::Test
 {
 public:
     std::map<std::string, std::string> qmap_amp_{};
     std::map<std::string, std::string> qmap_scl_{};
+    std::map<std::string, std::string> qmap_enc_{};
 
     nghttp2::asio_http2::header_map headers_{};
 
@@ -22,6 +24,7 @@ public:
     functions_test() {
         qmap_amp_ = h2agent::model::extractQueryParameters(QueryParametersExampleDefault);
         qmap_scl_ = h2agent::model::extractQueryParameters(QueryParametersExampleSemicolon, ';');
+        qmap_enc_ = h2agent::model::extractQueryParameters(QueryParametersExampleEncoded);
 
         headers_.insert(std::pair<std::string, nghttp2::asio_http2::header_value>("content-type", {"application/json; charset=utf-8", false}));
         headers_.insert(std::pair<std::string, nghttp2::asio_http2::header_value>("content-length", {std::to_string(200), false}));
@@ -30,7 +33,7 @@ public:
     }
 };
 
-TEST_F(functions_test, QueryParameters)
+TEST_F(functions_test, FooBarQueryParameters)
 {
 
     for (auto qmap: {
@@ -50,10 +53,28 @@ TEST_F(functions_test, QueryParameters)
         qmap_str = h2agent::model::sortQueryParameters(qmap, ';');
         EXPECT_EQ(qmap_str, "bar=bar_value;foo=foo_value");
     }
+}
 
+TEST_F(functions_test, BadQueryParameterKey)
+{
     // Bad key
     auto qmap_bkey = h2agent::model::extractQueryParameters(QueryParametersExampleBadKey);
     EXPECT_EQ(qmap_bkey.size(), 0);
+}
+
+TEST_F(functions_test, EncodedQueryParameter)
+{
+    EXPECT_EQ(qmap_enc_.size(), 2);
+    auto it = qmap_enc_.find("foo");
+    ASSERT_TRUE(it != qmap_enc_.end());
+    EXPECT_EQ(it->second, "foo_value");
+
+    it = qmap_enc_.find("requestUri");
+    ASSERT_TRUE(it != qmap_enc_.end());
+    EXPECT_EQ(it->second, "/app/v1/foo/bar?id=5&name=test");
+
+    std::string qmap_str = h2agent::model::sortQueryParameters(qmap_enc_);
+    EXPECT_EQ(qmap_str, "foo=foo_value&requestUri=%2Fapp%2Fv1%2Ffoo%2Fbar%3Fid%3D5%26name%3Dtest");
 }
 
 TEST_F(functions_test, JsonContentSerialization)

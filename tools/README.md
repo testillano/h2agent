@@ -37,6 +37,7 @@
 │   ├── create_all.sh
 │   └── create_self-signed_certificate.sh
 ├── training.sh
+├── url.sh
 └── valgrind.sh
 ```
 
@@ -53,4 +54,5 @@
 * schemas.sh: shows all the schemas available (also requests schema if configured).
 * ssl: utilities to create certificates and test the server with tls/ssl enabled.
 * training.sh: helper to run training docker image.
+* url.sh: helper to encode/decode URLs.
 * valgrind.sh: helper to launch the application using valgrind.

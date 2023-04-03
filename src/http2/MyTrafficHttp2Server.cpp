@@ -42,7 +42,6 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
 #include <ert/http2comm/Http2Headers.hpp>
-#include <ert/http2comm/URLFunctions.hpp>
 
 #include <MyTrafficHttp2Server.hpp>
 
@@ -168,8 +167,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     std::string method = req.method();
     //std::string uriRawPath = req.uri().raw_path; // percent-encoded
     std::string uriPath = req.uri().path; // decoded
-    std::string uriRawQuery = req.uri().raw_query; // percent-encoded
-    std::string uriQuery = ((uriRawQuery.empty()) ? "":ert::http2comm::URLFunctions::decode(uriRawQuery)); // now decoded
+    std::string uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
     //std::string reqUriFragment = req.uri().fragment; // https://stackoverflow.com/a/65198345/2576671
 
     // Move request body to internal encoded body data:
