@@ -34,17 +34,11 @@ Imagine the following current server data map:
 ]
 ```
 
-**Note**: remember that `./tools/helpers.src` can be sourced to access some helper functions, for example you could execute `data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
+**Note**: remember that `./tools/helpers.src` can be sourced to access some helper functions, for example you could execute `server_data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
 
-Now, you can prepare an event source `serverEvent.ev1`, just defining four variables to address the event whose names extend the event variable with *method*, *uri*, *number* and *path* suffixes:
+Now, you can prepare an event source to access the request body for the last event in events history shown above (the last is the first as only one event is registered). Take into account the request *URI* must be encoded in this case (you can use the utility `./tools/url.sh` within the project):
 
-​	`ev1.method` = "POST"
-
-​	`ev1.uri` = "/app/v1/stock/madrid?loc=123"
-
-​	`ev1.number` = -1 (means "the last")
-
-​	`ev1.path` = "/requestBody"
+​	`serverEvent.requestMethod=POST&requestUri=/app/v1/stock/madrid%3Floc%3D123&eventNumber=-1&eventPath=/requestBody`
 
 Then, the event source would store this `json` object:
 
@@ -65,28 +59,18 @@ Now, just configure a provision to extract such object and transfer it to wherev
   "responseCode": 200,
   "transform": [
     {
-      "source": "value.POST",
-      "target": "var.ev1.method"
-    },
-    {
       "source": "value./app/v1/stock/madrid?loc=123",
-      "target": "var.ev1.uri"
+      "target": "var.eventRequestUri"
     },
     {
-      "source": "value.-1",
-      "target": "var.ev1.number"
-    },
-    {
-      "source": "value./requestBody",
-      "target": "var.ev1.path"
-    },
-    {
-      "source": "serverEvent.ev1",
+      "source": "serverEvent.requestMethod=POST&requestUri=@{eventRequestUri}&eventNumber=-1&eventPath=/requestBody",
       "target": "response.body.json.object"
     }
   ]
 }
 ```
+
+Note that, instead of defining a server event source with the request *URI* encoded, we decided to define a variable for the *URI*  (`eventRequestUri`) which will be replaced after query parameters interpretation (skipping the potential ambiguity problem). Anyway, you may use the single transformation with the encoded information for the *URI*.
 
 ## Exercise
 
