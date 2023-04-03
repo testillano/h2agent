@@ -15,23 +15,7 @@
         "target": "var.uri_parts"
       },
       {
-        "source": "value.POST",
-        "target": "var.ev1.method"
-      },
-      {
-        "source": "value./ctrl/v2/items/update/id-@{uri_parts.2}",
-        "target": "var.ev1.uri"
-      },
-      {
-        "source": "value.-1",
-        "target": "var.ev1.number"
-      },
-      {
-        "source": "value./requestBody",
-        "target": "var.ev1.path"
-      },
-      {
-        "source": "event.ev1",
+        "source": "serverEvent.requestMethod=POST&requestUri=/ctrl/v2/items/update/id-@{uri_parts.2}&eventNumber=-1&eventPath=/requestBody",
         "target": "response.body.object"
       }
     ]
