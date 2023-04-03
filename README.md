@@ -1822,18 +1822,42 @@ The **source** of information is classified after parsing the following possible
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
-- serverEvent.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
+- serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where query parameters are:
 
-  - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
-  - `<var id prefix>`.uri: event *URI* selected. Mandatory.
-  - `<var id prefix>`.number: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
-  - `<var id prefix>`.path: `json` document path within selection. Optional.
+  - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
+  - *requestUri*: event *URI* selected. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
+  - *eventPath*: `json` document path within selection. Optional.
 
-  Former definitions will retrieve a `json` object corresponding to a single event (given by `method`, `uri` and `number`) and optionally a node within that event object (given by `path` to narrow the selection). For example, `/requestBody` path, gives the request body received (check the example below to see the data storage definition). As you already will know the *method* and *uri* (used to address the event source), you don't need to extract them again, but any other information inside the event object would be a valid source, even the particular case of empty path which extracts the whole event structure. In general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), having few limitations (for example, do not support access to array elements), but they are powerful enough to access everything inside the event stored.
+  Event addressing will retrieve a `json` object corresponding to a single event (given by `requestMethod`, `requestUri` and `eventNumber`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
-  <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
+  For example, `serverEvent.requestMethod=GET&requestUri=/foo/var&eventNumber=3&eventPath=/requestHeaders` searches the third (event number 3) `GET /foo/bar` request and `/requestHeaders` path, as part of event definition, gives the request headers that was received. The particular case of empty event path extracts the whole event structure, and in general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), which are powerful enough to cover addressing needs.
 
-  Let's see an example. Imagine the following current server data map:
+  **Important note**: as this source provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may need to be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, you must encode it within the source definition. Consider this one: `/app/v1/stock/madrid?loc=123&id=2`. You could use `./tools/url.sh` script helper to prepare its encoded version:
+
+  ```bash
+  $> tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
+
+  Encoded URL:/app/v1/stock/madrid%3Floc%3D123%26id%3D2
+  ```
+
+  So, for this example, a source could be the following:
+
+  `serverEvent.requestMethod=POST&requestUri=/app/v1/stock/madrid%3Floc%3D123%26id%3D2&eventNumber=-1&eventPath=/requestBody`
+
+  Once tokenized, each query parameter is decoded just in case it is needed, and that request *URI* becomes the one desired.
+
+  But there is a more intuitive way to proceed to solve this, because as this source value **admits variables substitution**, we could assign query parameters as variables in previous transformations, and then assign the following generic source: `serverEvent.requestMethod=@{requestMethod}&requestUri=@{requestUri}&eventNumber=@{eventNumber}&eventPath=@{eventPath}`
+
+  This way, user <u>does not have to be worried about encoding,</u> because query parameters are correctly interpreted ('@' and curly braces are not an issue for URL encoding) and replaced during source processing, so for example we could use that generic source definition or something more specific for request *URI* which is the problematic one:
+
+  `serverEvent.requestMethod=POST&requestUri=@{requestUri}&eventNumber=-1&eventPath=/requestBody`
+
+  where `requestUri` would be a variable defined before with the value directly decoded: `/app/v1/stock/madrid?loc=123&id=2`.
+
+  <u>Only in the case that request *URI* is simple enough</u> and does not break the whole server event query parameter list definition, we could just define this source in one line without need to encode or use auxiliary variables, being the most simplified and smart way to define event sources.
+
+  <u>Server events history</u> should be kept enabled allowing to access events. So, imagine the following current server data map:
 
   ```json
   [
@@ -1860,22 +1884,12 @@ The **source** of information is classified after parsing the following possible
           "state": "initial"
         }
       ],
-      "uri": "/app/v1/stock/madrid?loc=123"
+      "uri": "/app/v1/stock/madrid?loc=123&id=2"
     }
   ]
   ```
 
-  Then, you could define an event source like `serverEvent.ev1`. Assuming that the following variables are available when this source is processed:
-
-  ​	`ev1.method` = "POST"
-
-  ​	`ev1.uri` = "/app/v1/stock/madrid?loc=123"
-
-  ​	`ev1.number` = -1 (means "the last")
-
-  ​	`ev1.path` = "/requestBody"
-
-  Then, the event source (`serverEvent.ev1`) would store this `json` object:
+  Then, the source commented above would store this `json` object, which is the request body for the last (`eventNumber=-1`) event registered:
 
   ```json
   {
@@ -1884,8 +1898,6 @@ The **source** of information is classified after parsing the following possible
     "year": 2021
   }
   ```
-
-  In the same way you could address internal event nested objects and also leaf nodes with basic types (`ev1.path` = "/requestBody/engine" would retrieve "tdi" string as the event data source).
 
 - inState: current processing state.
 
@@ -2364,15 +2376,7 @@ Both *method* and *uri* shall be provided together (if any of them is missing, a
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
-**Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, the server data query will encode its value part. You could use `./tools/url.sh` script helper to prepare the value:
-
-```bash
-$> tools/url.sh --encode "/app/v1/foo/bar?id=5&name=test"
-
-Encoded URL: /app/v1/foo/bar%3Fid%3D5%26name%3Dtest
-```
-
-So, for this example, the whole *URL* for server data inspection would be:
+**Important note**: same thing must be considered about request *URI* encoding like in server event source definition: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So, for the request *URI* `/app/v1/foo/bar/1?name=test` we would have (use `./tools/url.sh` helper to encode):
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
 

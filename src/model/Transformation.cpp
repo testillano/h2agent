@@ -37,6 +37,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <Transformation.hpp>
+#include <functions.hpp>
 
 #include <sstream>
 #include <algorithm>
@@ -287,8 +288,16 @@ bool Transformation::load(const nlohmann::json &j) {
             source_type_ = SourceType::Value;
         }
         else if (std::regex_match(sourceSpec, matches, serverEvent)) { // value content
-            source_ = matches.str(1);
+            source_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody
             source_type_ = SourceType::ServerEvent;
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
+            std::map<std::string, std::string>::const_iterator it;
+            for (auto qp: {
+                        "requestMethod", "requestUri", "eventNumber", "eventPath"
+                    }) { // tokenized vector order
+                it = qmap.find(qp);
+                source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
+            }
         }
         else if (sourceSpec == "inState") {
             source_type_ = SourceType::InState;
