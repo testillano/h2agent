@@ -1,5 +1,6 @@
 {
-  "algorithm":"FullMatching",
-  "uriPathQueryParametersFilter":"PassBy"
+  "algorithm": "FullMatching",
+  "uriPathQueryParameters": {
+    "filter": "PassBy"
+  }
 }
-

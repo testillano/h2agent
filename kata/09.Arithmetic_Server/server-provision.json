@@ -21,7 +21,7 @@
     },
     {
       "source": "math.@{a}*@{x}^2+@{b}*@{x}+@{c}",
-      "target": "response.body.integer"
+      "target": "response.body.json.integer"
     }
   ]
 }

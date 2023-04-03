@@ -7,13 +7,13 @@ As you can see in the regular expression captured:
 }
 
 The URI will be filtered to /ctrl/v2/id-<number> WITHOUT THE FINAL SLASH,
-because it is outside the captured group ($1).
+ because it is outside the captured group ($1).
 
 Also, the request expected is a 'GET', not a 'POST'. So the provision must
-be fixed in two places:
+ be fixed in two places:
 
 {
   "requestMethod": "POST", => MUST BE 'GET'
-  "requestUri": "/ctrl/v2/id-555112233/", => MUST BE "requestUri": "/ctrl/v2/id-555112233"
+  "requestUri": "/ctrl/v2/id-555112233/", => MUST BE "/ctrl/v2/id-555112233"
   "responseCode": 200
 }

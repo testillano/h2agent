@@ -16,7 +16,7 @@
       },
       {
         "source": "serverEvent.requestMethod=POST&requestUri=/ctrl/v2/items/update/id-@{uri_parts.2}&eventNumber=-1&eventPath=/requestBody",
-        "target": "response.body.object"
+        "target": "response.body.json.object"
       }
     ]
   }

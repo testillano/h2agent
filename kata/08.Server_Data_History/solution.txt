@@ -3,8 +3,8 @@
    Include transformations for:
    2.1. Capture the URI id into 'uri_parts.2' variable.
    2.2. Address the POST event with:
-          method) POST
-          uri) the POST one with the corresponding id
-          number) the last one (-1)
-          path) as a json pointer path: '/body'
+          requestMethod) POST
+          requestUri) the POST one with the corresponding id
+          eventNumber) the last one (-1)
+          eventPath) as a json pointer path: '/requestBody'
         Transfer the event into the response body at root.
