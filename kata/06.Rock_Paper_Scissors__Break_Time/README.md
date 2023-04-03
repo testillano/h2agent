@@ -85,7 +85,7 @@ So, for example imagine three possible values: rock, paper and scissors. The sou
 
 `randomset.rock|paper|scissors`
 
-Note that we use `randomset` which expects an input in the form `aa|bb|..|zz` instead of `random` which expected `min.max` input (the reason to choose the pipe symbol (`|`) separator is because it is more probable to need including dots inside labels instead of pipes).
+Note that we use `randomset` which expects an input in the form `aa|bb|..|zz` instead of `random` which expected `min.max` input (the reason to choose the pipe symbol (`|`) separator instead of dots (`.`) is because it is more probable to have dots in labels, and in case your labels contain the pipe symbol, you still can delegate in further replace of variable values without limits: `randomset.@{label1}|@{label2}`).
 
 ## Static vs dynamic random sets
 

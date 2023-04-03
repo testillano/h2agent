@@ -16,7 +16,7 @@ lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /opt/h2agent
 bash-5.1# ./h2agent --verbose &
 ```
 
-### Working natively: requirements
+### Working from shell: requirements
 
 This kata requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
 
@@ -26,11 +26,18 @@ $ sudo apt-get install jq
 $ sudo apt-get install dos2unix
 ```
 
-Also, you should build the project and start the `h2agent` (better in a separate terminal):
+Also, you should build the project natively and start the `h2agent` (better in a separate terminal):
+
+```bash
+$ ./build-native.sh # builds agent
+$ build/Release/bin/h2agent --verbose & # starts agent
+```
+
+Or easier, build the project image and run with docker and network hosted:
 
 ```bash
 $ ./build.sh --auto # builds agent
-$ build/Release/bin/h2agent --verbose & # starts agent
+$ ./h2a.sh --verbose # starts agent
 ```
 
 ## Content
@@ -77,7 +84,7 @@ You could get feedback to know if your current answers are correct just executin
 
 Remember that reading the whole project documentation carefully could help you to make the adventure more profitable.
 
-Anyway, enable debugging traces to the executable if you are completely lost (just add `-l Debug`), but take into account that those traces could be useful or not as they are not intended to solve this kind of exercises.
+Anyway, enable debugging traces to the executable if you are completely lost (just add `-l Debug` to verbose output), but take into account that those traces could be useful or not as they are not intended to solve this kind of exercises.
 
 Remember to source `./tools/helpers.src` which is a very good set of functions to better troubleshoot.
 
