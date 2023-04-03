@@ -5,7 +5,7 @@
 |    __ _ _ __ __ _ ___| |__  _ __   __ _ _ __| |_ _____      __  __  | |__   ___| |_ __   ___ _ __   |
 |   / _` | '__/ _` / __| '_ \| '_ \ / _` | '__| __/ _ \ \ /\ / / |__| | '_ \ / _ \ | '_ \ / _ \ '__|  |  HELPER UTILITY TO RUN ARASH PARTOW'S MATHEMATICAL OPERATIONS
 |  | (_| | | | (_| \__ \ | | | |_) | (_| | |  | || (_) \ V  V /       | | | |  __/ | |_) |  __/ |     |  Version 0.0.z
-|   \__,_|_|  \__,_|___/_| |_| .__/ \__,_|_|   \__\___/ \_/\_/        |_| |_|\___|_| .__/ \___|_|     |  https://github.com/testillano/h2agent (arashpartow-helper)
+|   \__,_|_|  \__,_|___/_| |_| .__/ \__,_|_|   \__\___/ \_/\_/        |_| |_|\___|_| .__/ \___|_|     |  https://github.com/testillano/h2agent (tools/arashpartow-helper)
 |                            | |                                                   | |                |
 |                            |_|                                                   |_|                |
 |_____________________________________________________________________________________________________|
@@ -65,6 +65,8 @@ void usage(int rc)
        << "   " << progname << " --expression \"(1+sqrt(5))/2\"" << '\n'
        << "   " << progname << " --expression \"404 == 404\"" << '\n'
        << "   " << progname << " --expression \"cos(3.141592)\"" << '\n'
+
+       << "\nArash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/readme.txt"
 
        << '\n';
 
@@ -128,7 +130,7 @@ int main(int argc, char* argv[])
     parser_t       parser;
 
     parser.compile(expression_string, expression);
-    std::cout << "Result: " << expression.value() << std::endl;
+    std::cout << "Result: " << expression.value() << std::endl; // string stream formatter involved
 
     //exit(match ? EXIT_SUCCESS:EXIT_FAILURE);
     exit(EXIT_SUCCESS);

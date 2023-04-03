@@ -42,6 +42,8 @@ h2agent_cl:
   prometheus_message_size_bytes_histogram_boundaries: ""
   metrics:
     enabled: true
+  remote_servers_lazy_connection:
+    enabled: false
 
 utilsMountPath: "/opt/utils"
 

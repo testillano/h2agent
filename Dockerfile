@@ -11,13 +11,17 @@ WORKDIR /code
 
 ARG make_procs=4
 ARG build_type=Release
+ARG STATIC_LINKING=FALSE
 
 # We could duplicate from local build directory, but prefer to build from scratch:
-RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=TRUE . && make -j${make_procs}
+RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=${STATIC_LINKING} . && make -j${make_procs}
 
 FROM ${scratch_img}:${scratch_img_tag}
 ARG build_type=Release
-COPY --from=builder /code/build/${build_type}/bin/h2agent /opt/h2agent
+COPY --from=builder /code/build/${build_type}/bin/h2agent /opt/
+COPY --from=builder /code/build/${build_type}/bin/h2client /opt/
+COPY --from=builder /code/build/${build_type}/bin/matching-helper /opt/
+COPY --from=builder /code/build/${build_type}/bin/arashpartow-helper /opt/
 
 # We add curl & jq for helpers.src
 # Ubuntu has bash already installed, but vim is missing

@@ -48,6 +48,7 @@ SOFTWARE.
 #include <AdminSchema.hpp>
 #include <Transformation.hpp>
 #include <TypeConverter.hpp>
+#include <DataPart.hpp>
 
 
 #define DEFAULT_ADMIN_SERVER_PROVISION_STATE "initial"
@@ -118,13 +119,11 @@ class AdminServerProvision
     // Three processing stages: get sources, apply filters and store targets:
     bool processSources(std::shared_ptr<Transformation> transformation,
                         TypeConverter& sourceVault,
-                        const std::map<std::string, std::string>& variables,
+                        std::map<std::string, std::string>& variables,
                         const std::string &requestUri,
                         const std::string &requestUriPath,
                         const std::map<std::string, std::string> &requestQueryParametersMap,
-                        bool requestBodyJsonOrString,
-                        const nlohmann::json &requestBodyJson, // if json
-                        const std::string &requestBody, // if string
+                        const DataPart &requestBodyDataPart,
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
                         std::uint64_t generalUniqueServerSequence) const;
@@ -143,7 +142,8 @@ class AdminServerProvision
                         bool eraser,
                         bool hasFilter,
                         unsigned int &responseStatusCode,
-                        nlohmann::json &responseBodyJson,
+                        nlohmann::json &responseBodyJson, // to manipulate json
+                        std::string &responseBodyAsString, // to set native data (readable or not)
                         nghttp2::asio_http2::header_map &responseHeaders,
                         unsigned int &responseDelayMs,
                         std::string &outState,
@@ -164,7 +164,7 @@ public:
      * @param requestUri Request URI
      * @param requestUriPath Request URI path part
      * @param requestQueryParametersMap Query Parameters Map (if exists)
-     * @param requestBody Request Body received
+     * @param requestBodyDataPart Request Body data received (could be decoded if needed as source)
      * @param requestHeaders Request Headers Received
      * @param generalUniqueServerSequence HTTP/2 server monotonically increased sequence for every reception (unique)
      *
@@ -181,7 +181,7 @@ public:
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
                     const std::map<std::string, std::string> &requestQueryParametersMap,
-                    const std::string &requestBody,
+                    DataPart &requestBodyDataPart,
                     const nghttp2::asio_http2::header_map &requestHeaders,
                     std::uint64_t generalUniqueServerSequence,
 
@@ -300,9 +300,9 @@ public:
         return response_headers_;
     }
 
-    /** Provisioned response body
+    /** Provisioned response body as json representation
      *
-     * @return Response body
+     * @return Response body as json representation
      */
     const nlohmann::json &getResponseBody() const {
         return response_body_;
@@ -318,7 +318,7 @@ public:
      *
      * @return Response body string
      */
-    const std::string &getResponseBodyString() const {
+    const std::string &getResponseBodyAsString() const {
         return response_body_string_;
     }
 

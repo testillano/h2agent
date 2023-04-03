@@ -86,6 +86,9 @@ spec:
             {{- if not .Values.h2agent_cl.metrics.enabled }}
             - "--disable-metrics"
             {{- end }}
+            {{- if .Values.h2agent_cl.remote_servers_lazy_connection.enabled }}
+            - "--remote-servers-lazy-connection"
+            {{- end }}
 
           # livenessProbe & readinessProbe look for admin port, as main app is
           #  blocking on startup and will restart the container in case of crash.

@@ -37,6 +37,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <Transformation.hpp>
+#include <functions.hpp>
 
 #include <sstream>
 #include <algorithm>
@@ -46,6 +47,21 @@ namespace h2agent
 namespace model
 {
 
+void Transformation::collectVariablePatterns(const std::string &str, std::map<std::string, std::string> &patterns) {
+
+    static std::regex re("@\\{[^\\{\\}]*\\}"); // @{[^{}]*} with curly braces escaped
+    // or: R"(@\{[^\{\}]*\})"
+
+    std::string::const_iterator it(str.cbegin());
+    std::smatch matches;
+    std::string pattern;
+    patterns.clear();
+    while (std::regex_search(it, str.cend(), matches, re)) {
+        it = matches.suffix().first;
+        pattern = matches[0];
+        patterns[pattern] = pattern.substr(2, pattern.size()-3); // @{foo} -> foo
+    }
+}
 
 bool Transformation::load(const nlohmann::json &j) {
 
@@ -73,6 +89,7 @@ bool Transformation::load(const nlohmann::json &j) {
         //   Sum                 amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   Multiply            amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   ConditionVar        variable name -> [filter_]
+        //   EqualTo             value -> [filter_]
 
         auto f_it = it->find("RegexCapture");
 
@@ -137,6 +154,10 @@ bool Transformation::load(const nlohmann::json &j) {
                 filter_ = *f_it;
                 filter_type_ = FilterType::ConditionVar;
             }
+            else if ((f_it = it->find("EqualTo")) != it->end()) {
+                filter_ = *f_it;
+                filter_type_ = FilterType::EqualTo;
+            }
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
@@ -147,11 +168,11 @@ bool Transformation::load(const nlohmann::json &j) {
     // Interpret source/target:
 
     // SOURCE (enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser,
-    //                           Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState };)
+    //                           Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState };)
     source_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
 
     // Source specifications:
-    // - request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
+    // - request.uri: whole `url-decoded` request *URI* (path together with possible query parameters). This is the unmodified original *URI*, not necessarily the same as the classification *URI*.
     // - request.uri.path: `url-decoded` request *URI* path part.
     // + request.uri.param.<name>: request URI specific parameter `<name>`.
     // - request.body: request body document.
@@ -167,6 +188,9 @@ bool Transformation::load(const nlohmann::json &j) {
     // + globalVar.<id>: general purpose global variable.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.
+    // + txtFile.`<path>`: reads text content from file with the path provided.
+    // + binFile.`<path>`: reads binary content from file with the path provided.
+    // + command.`<command>`: executes command on process shell and captures the standard output.
 
     // Regex needed:
     static std::regex requestUriParam("^request.uri.param.(.*)", std::regex::optimize); // no need to escape dots as this is validated in schema
@@ -181,7 +205,10 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex varId("^var.(.*)", std::regex::optimize);
     static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
     static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
-    static std::regex event("^event.(.*)", std::regex::optimize);
+    static std::regex serverEvent("^serverEvent.(.*)", std::regex::optimize);
+    static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
+    static std::regex binFile("^binFile.(.*)", std::regex::optimize);
+    static std::regex command("^command.(.*)", std::regex::optimize);
 
     std::smatch matches; // to capture regex group(s)
     // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
@@ -260,12 +287,32 @@ bool Transformation::load(const nlohmann::json &j) {
             source_ = matches.str(1);
             source_type_ = SourceType::Value;
         }
-        else if (std::regex_match(sourceSpec, matches, event)) { // value content
-            source_ = matches.str(1);
-            source_type_ = SourceType::Event;
+        else if (std::regex_match(sourceSpec, matches, serverEvent)) { // value content
+            source_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody
+            source_type_ = SourceType::ServerEvent;
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
+            std::map<std::string, std::string>::const_iterator it;
+            for (auto qp: {
+                        "requestMethod", "requestUri", "eventNumber", "eventPath"
+                    }) { // tokenized vector order
+                it = qmap.find(qp);
+                source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
+            }
         }
         else if (sourceSpec == "inState") {
             source_type_ = SourceType::InState;
+        }
+        else if (std::regex_match(sourceSpec, matches, txtFile)) { // path file
+            source_ = matches.str(1);
+            source_type_ = SourceType::STxtFile;
+        }
+        else if (std::regex_match(sourceSpec, matches, binFile)) { // path file
+            source_ = matches.str(1);
+            source_type_ = SourceType::SBinFile;
+        }
+        else if (std::regex_match(sourceSpec, matches, command)) { // command string
+            source_ = matches.str(1);
+            source_type_ = SourceType::Command;
         }
         else { // some things could reach this (strange characters within value.* for example):
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
@@ -277,25 +324,27 @@ bool Transformation::load(const nlohmann::json &j) {
         return false;
     }
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
     target2_ = ""; // same
 
     // Target specifications:
-    // - response.body.string *[string]*: response body document storing expected string.
-    // - response.body.integer *[number]*: response body document storing expected integer.
-    // - response.body.unsigned *[unsigned number]*: response body document storing expected unsigned integer.
-    // - response.body.float *[float number]*: response body document storing expected float number.
-    // - response.body.boolean *[boolean]*: response body document storing expected booolean.
-    // - response.body.object *[json object]*: response body document storing expected object.
-    // - response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
-    // + response.body.string./<n1>/../<nN> *[string]*: response body node path storing expected string.
-    // + response.body.integer./<n1>/../<nN> *[number]*: response body node path storing expected integer.
-    // + response.body.unsigned./<n1>/../<nN> *[unsigned number]*: response body node path storing expected unsigned integer.
-    // + response.body.float./<n1>/../<nN> *[float number]*: response body node path storing expected float number.
-    // + response.body.boolean./<n1>/../<nN> *[boolean]*: response body node path storing expected booblean.
-    // + response.body.object./<n1>/../<nN> *[json object]*: response body node path storing expected object.
-    // + response.body.jsonstring./<n1>/../<nN> *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
+    // - response.body.string *[string]*: response body storing expected string processed.
+    // - response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
+    // - response.body.json.string *[string]*: response body document storing expected string.
+    // - response.body.json.integer *[number]*: response body document storing expected integer.
+    // - response.body.json.unsigned *[unsigned number]*: response body document storing expected unsigned integer.
+    // - response.body.json.float *[float number]*: response body document storing expected float number.
+    // - response.body.json.boolean *[boolean]*: response body document storing expected booolean.
+    // - response.body.json.object *[json object]*: response body document storing expected object.
+    // - response.body.json.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as root node.
+    // + response.body.json.string./<n1>/../<nN> *[string]*: response body node path storing expected string.
+    // + response.body.json.integer./<n1>/../<nN> *[number]*: response body node path storing expected integer.
+    // + response.body.json.unsigned./<n1>/../<nN> *[unsigned number]*: response body node path storing expected unsigned integer.
+    // + response.body.json.float./<n1>/../<nN> *[float number]*: response body node path storing expected float number.
+    // + response.body.json.boolean./<n1>/../<nN> *[boolean]*: response body node path storing expected booblean.
+    // + response.body.json.object./<n1>/../<nN> *[json object]*: response body node path storing expected object.
+    // + response.body.json.jsonstring./<n1>/../<nN> *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path.
     // + response.header.<hname> *[string (or number as string)]*: response header component (i.e. *location*).
     // - response.statusCode *[unsigned integer]*: response status code.
     // - response.delayMs *[unsigned integer]*: simulated delay to respond.
@@ -307,67 +356,71 @@ bool Transformation::load(const nlohmann::json &j) {
     // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
 
     // Regex needed:
-    static std::regex responseBodyStringNode("^response.body.string.(.*)", std::regex::optimize);
-    static std::regex responseBodyIntegerNode("^response.body.integer.(.*)", std::regex::optimize);
-    static std::regex responseBodyUnsignedNode("^response.body.unsigned.(.*)", std::regex::optimize);
-    static std::regex responseBodyFloatNode("^response.body.float.(.*)", std::regex::optimize);
-    static std::regex responseBodyBooleanNode("^response.body.boolean.(.*)", std::regex::optimize);
-    static std::regex responseBodyObjectNode("^response.body.object.(.*)", std::regex::optimize);
-    static std::regex responseBodyJsonStringNode("^response.body.jsonstring.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_StringNode("^response.body.json.string.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_IntegerNode("^response.body.json.integer.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_UnsignedNode("^response.body.json.unsigned.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_FloatNode("^response.body.json.float.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_BooleanNode("^response.body.json.boolean.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_ObjectNode("^response.body.json.object.(.*)", std::regex::optimize);
+    static std::regex responseBodyJson_JsonStringNode("^response.body.json.jsonstring.(.*)", std::regex::optimize);
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
     static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
-    static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
-    static std::regex binFile("^binFile.(.*)", std::regex::optimize);
 
     try {
-        if (targetSpec == "response.body.string") { // whole document
+        if (targetSpec == "response.body.string") {
             target_type_ = TargetType::ResponseBodyString;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyStringNode)) { // nlohmann::json_pointer path
+        else if (targetSpec == "response.body.hexstring") {
+            target_type_ = TargetType::ResponseBodyHexString;
+        }
+        else if (targetSpec == "response.body.json.string") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_String;
+        }
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_StringNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyString;
+            target_type_ = TargetType::ResponseBodyJson_String;
         }
-        else if (targetSpec == "response.body.integer") { // whole document
-            target_type_ = TargetType::ResponseBodyInteger;
+        else if (targetSpec == "response.body.json.integer") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_Integer;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyIntegerNode)) { // nlohmann::json_pointer path
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_IntegerNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyInteger;
+            target_type_ = TargetType::ResponseBodyJson_Integer;
         }
-        else if (targetSpec == "response.body.unsigned") { // whole document
-            target_type_ = TargetType::ResponseBodyUnsigned;
+        else if (targetSpec == "response.body.json.unsigned") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_Unsigned;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyUnsignedNode)) { // nlohmann::json_pointer path
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_UnsignedNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyUnsigned;
+            target_type_ = TargetType::ResponseBodyJson_Unsigned;
         }
-        else if (targetSpec == "response.body.float") { // whole document
-            target_type_ = TargetType::ResponseBodyFloat;
+        else if (targetSpec == "response.body.json.float") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_Float;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyFloatNode)) { // nlohmann::json_pointer path
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_FloatNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyFloat;
+            target_type_ = TargetType::ResponseBodyJson_Float;
         }
-        else if (targetSpec == "response.body.boolean") { // whole document
-            target_type_ = TargetType::ResponseBodyBoolean;
+        else if (targetSpec == "response.body.json.boolean") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_Boolean;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyBooleanNode)) { // nlohmann::json_pointer path
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_BooleanNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyBoolean;
+            target_type_ = TargetType::ResponseBodyJson_Boolean;
         }
-        else if (targetSpec == "response.body.object") { // whole document
-            target_type_ = TargetType::ResponseBodyObject;
+        else if (targetSpec == "response.body.json.object") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_Object;
         }
-        else if (targetSpec == "response.body.jsonstring") { // whole document
-            target_type_ = TargetType::ResponseBodyJsonString;
+        else if (targetSpec == "response.body.json.jsonstring") { // whole document
+            target_type_ = TargetType::ResponseBodyJson_JsonString;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyObjectNode)) { // nlohmann::json_pointer path
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_ObjectNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyObject;
+            target_type_ = TargetType::ResponseBodyJson_Object;
         }
-        else if (std::regex_match(targetSpec, matches, responseBodyJsonStringNode)) { // nlohmann::json_pointer path
+        else if (std::regex_match(targetSpec, matches, responseBodyJson_JsonStringNode)) { // nlohmann::json_pointer path
             target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJsonString;
+            target_type_ = TargetType::ResponseBodyJson_JsonString;
         }
         else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
             target_ = matches.str(1);
@@ -400,11 +453,11 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else if (std::regex_match(targetSpec, matches, txtFile)) { // path file
             target_ = matches.str(1);
-            target_type_ = TargetType::TxtFile;
+            target_type_ = TargetType::TTxtFile;
         }
         else if (std::regex_match(targetSpec, matches, binFile)) { // path file
             target_ = matches.str(1);
-            target_type_ = TargetType::BinFile;
+            target_type_ = TargetType::TBinFile;
         }
         else { // very strange to reach this:
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
@@ -417,6 +470,11 @@ bool Transformation::load(const nlohmann::json &j) {
     }
 
     //LOGDEBUG(ert::tracing::Logger::debug(asString(), ERT_FILE_LOCATION));
+
+    // Variable patterns:
+    collectVariablePatterns(source_, source_patterns_);
+    collectVariablePatterns(target_, target_patterns_);
+    collectVariablePatterns(target2_, target2_patterns_);
 
     return true;
 }
@@ -437,21 +495,51 @@ std::string Transformation::asString() const {
         else if (source_type_ == SourceType::Random) {
             ss << " | source_i1_: " << source_i1_ << " (Random min)" << " | source_i2_: " << source_i2_ << " (Random max)";
         }
+        else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::SBinFile) {
+            ss << " (path file)";
+        }
+        else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::Command) {
+            ss << " (shell command expression)";
+        }
+
+        if (!source_patterns_.empty()) {
+            ss << " | source variables:";
+            for (auto it = source_patterns_.begin(); it != source_patterns_.end(); it ++) {
+                ss << " " << it->second;
+            }
+        }
     }
 
     // TARGET
     ss << " | TargetType: " << TargetTypeAsText(target_type_);
-    if (target_type_ != TargetType::ResponseStatusCode && target_type_ != TargetType::ResponseDelayMs) {
+    if (target_type_ != TargetType::ResponseStatusCode &&
+            target_type_ != TargetType::ResponseDelayMs &&
+            target_type_ != TargetType::ResponseBodyString &&
+            target_type_ != TargetType::ResponseBodyHexString ) {
+
         ss << " | target_: " << target_;
 
-        if (target_type_ == TargetType::ResponseBodyString || target_type_ == TargetType::ResponseBodyInteger || target_type_ == TargetType::ResponseBodyUnsigned || target_type_ == TargetType::ResponseBodyFloat || target_type_ == TargetType::ResponseBodyBoolean || target_type_ == TargetType::ResponseBodyObject) {
+        if (target_type_ == TargetType::ResponseBodyJson_String || target_type_ == TargetType::ResponseBodyJson_Integer || target_type_ == TargetType::ResponseBodyJson_Unsigned || target_type_ == TargetType::ResponseBodyJson_Float || target_type_ == TargetType::ResponseBodyJson_Boolean || target_type_ == TargetType::ResponseBodyJson_Object) {
             ss << " (empty: whole, path: node)";
         }
         else if (target_type_ == TargetType::OutState) {
             ss << " (empty: current method, method: another)" << " | target2_: " << target2_ << "(empty: current uri, uri: another)";
+            if (!target2_patterns_.empty()) {
+                ss << " | target2 variables:";
+                for (auto it = target2_patterns_.begin(); it != target2_patterns_.end(); it ++) {
+                    ss << " " << it->second;
+                }
+            }
         }
-        else if (target_type_ == TargetType::TxtFile || target_type_ == TargetType::BinFile) {
+        else if (target_type_ == TargetType::TTxtFile || target_type_ == TargetType::TBinFile) {
             ss << " (path file)";
+        }
+
+        if (!target_patterns_.empty()) {
+            ss << " | target variables:";
+            for (auto it = target_patterns_.begin(); it != target_patterns_.end(); it ++) {
+                ss << " " << it->second;
+            }
         }
     }
 

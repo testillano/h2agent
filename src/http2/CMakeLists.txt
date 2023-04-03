@@ -1,5 +1,4 @@
 add_library (h2agent-http2
-    ${CMAKE_CURRENT_LIST_DIR}/functions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MyTrafficHttp2Server.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MyAdminHttp2Server.cpp
 )

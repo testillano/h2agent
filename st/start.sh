@@ -3,12 +3,17 @@
 #############
 # VARIABLES #
 #############
+SCR_DIR=$(readlink -f "$(dirname "$0")")
 DEFAULTS=
 [ "$1" = "-y" ] && DEFAULTS=true
 
 # Log file dropped (long-term file in provision does not remove possible existing one):
 PROVISION_LONG_TERM_LOGFILE=/tmp/h2agent_benchmark_timestamp_usecs.log
 rm -f ${PROVISION_LONG_TERM_LOGFILE}
+
+# Source file example
+SOURCE_FILE=${SCR_DIR}/server-matching.json
+H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION__dflt=true
 
 # Default values
 H2AGENT_VALIDATE_SCHEMAS__dflt=n
@@ -48,7 +53,7 @@ H2AGENT__ADMIN_PORT=8074
 H2AGENT__TRAFFIC_PORT=8000
 
 # Common variables
-COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -166,7 +171,8 @@ init_report() {
   echo -e "\n----------------------------------------------------" > ${REPORT}
   for var in ${COMMON_VARS} $@
   do
-    echo "${var}=\"$(eval echo \$$var)\" \\"
+    local val=$(eval echo \$$var)
+    echo "${var}=\"\${${var}:-${val}}\" \\"
   done >> ${REPORT}
   echo -e "${PWD}/start.sh" >> ${REPORT}
   echo -e "----------------------------------------------------\n" >> ${REPORT}
@@ -176,7 +182,7 @@ init_report() {
 # EXECUTION #
 #############
 echo
-cd $(dirname $0)
+cd ${SCR_DIR}
 [ "$1" = "-h" -o "$1" = "--help" ] && usage && exit 0
 
 # Requirements
@@ -194,6 +200,7 @@ read_value "Provision configuration" H2AGENT_SERVER_PROVISION
 [ ! -f "${H2AGENT_SERVER_PROVISION}" ] &&  echo "ERROR: missing file '${H2AGENT_SERVER_PROVISION}' !" && exit 1
 read_value "Global variable(s) configuration" H2AGENT_GLOBAL_VARIABLE
 [ ! -f "${H2AGENT_GLOBAL_VARIABLE}" ] &&  echo "ERROR: missing file '${H2AGENT_GLOBAL_VARIABLE}' !" && exit 1
+read_value "File manager configuration to enable read cache" H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION "true|false" || exit 1
 read_value "Server configuration to ignore request body" H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION "true|false" || exit 1
 read_value "Server configuration to perform dynamic request body allocation" H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION "true|false" || exit 1
 read_value "Server data storage configuration" H2AGENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
@@ -257,10 +264,14 @@ then
   mv ${TMP_DIR}/server-provision.json2 ${TMP_DIR}/server-provision.json
 fi
 sed -i 's|__PROVISION_LONG_TERM_LOGFILE__|'${PROVISION_LONG_TERM_LOGFILE}'|' ${TMP_DIR}/server-provision.json
+sed -i 's|__SOURCE_FILE__|'${SOURCE_FILE}'|' ${TMP_DIR}/server-provision.json
 
 [ "${H2AGENT_VALIDATE_SCHEMAS}" = "y" ] && { h2a_admin_curl POST admin/v1/schema 201 ${H2AGENT_SCHEMA} || exit 1 ; }
 h2a_admin_curl POST admin/v1/server-matching 201 ${H2AGENT_SERVER_MATCHING} || exit 1
 h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/server-provision.json || exit 1
+
+# File manager configuration
+h2a_admin_curl PUT "admin/v1/files/configuration?readCache=${H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION}" 200 || exit 1
 
 # Server configuration
 case ${H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION} in
@@ -298,7 +309,7 @@ echo "done !"
 h2a_admin_curl POST admin/v1/global-variable 201 ${H2AGENT_GLOBAL_VARIABLE} || exit 1
 
 # Launcher type
-read_value "Launcher type" ST_LAUNCHER "h2load|hermes"
+read_value "Launcher type" ST_LAUNCHER "h2load|hermes" # TODO: |h2client
 
 if [ "${ST_LAUNCHER}" = "h2load" ] ################################################### H2LOAD
 then

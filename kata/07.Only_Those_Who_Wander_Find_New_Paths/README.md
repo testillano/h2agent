@@ -7,37 +7,41 @@ So, you have these sources of information when it comes to use `json` paths:
 - request.body: request body document from *root*.
 - request.body.`/<node1>/../<nodeN>`: request body node path. This source path **admits variables substitution**.
 - response.body: response body document from *root*. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
-- response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body.json.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 And the targets:
 
-- response.body.string *[string]*: response body document storing expected string at *root*.
+- response.body.string *[string]*: response body storing expected string processed.
 
-- response.body.integer *[integer]*: response body document storing expected integer at *root*.
+- response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
 
-- response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
+- response.body.json.string *[string]*: response body document storing expected string at *root*.
 
-- response.body.float *[float number]*: response body document storing expected float number at *root*.
+- response.body.json.integer *[integer]*: response body document storing expected integer at *root*.
 
-- response.body.boolean *[boolean]*: response body document storing expected boolean at *root*.
+- response.body.json.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
 
-- response.body.object *[json object]*: response body document storing expected object as *root* node.
+- response.body.json.float *[float number]*: response body document storing expected float number at *root*.
 
-- response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
+- response.body.json.boolean *[boolean]*: response body document storing expected boolean at *root*.
 
-- response.body.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
+- response.body.json.object *[json object]*: response body document storing expected object as *root* node.
 
-- response.body.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
+- response.body.json.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
-- response.body.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
+- response.body.json.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
+- response.body.json.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+- response.body.json.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+- response.body.json.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
+- response.body.json.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+
+- response.body.json.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+
+- response.body.json.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
 ## Exercise
 

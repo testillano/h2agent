@@ -37,6 +37,8 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <ert/metrics/Metrics.hpp>
+
 #include <Map.hpp>
 #include <SafeFile.hpp>
 
@@ -65,6 +67,16 @@ class FileManager : public Map<std::string, std::shared_ptr<SafeFile>>
     // metrics (will be passed to SafeFile):
     ert::metrics::Metrics *metrics_{};
 
+    ert::metrics::counter_t *observed_open_operation_counter_{};
+    ert::metrics::counter_t *observed_close_operation_counter_{};
+    ert::metrics::counter_t *observed_write_operation_counter_{};
+    ert::metrics::counter_t *observed_empty_operation_counter_{};
+    ert::metrics::counter_t *observed_delayed_close_operation_counter_{};
+    ert::metrics::counter_t *observed_instant_close_operation_counter_{};
+    ert::metrics::counter_t *observed_error_open_operation_counter_{};
+
+    bool read_cache_;
+
 public:
     /**
     * File manager class
@@ -76,7 +88,7 @@ public:
     *
     * @see SafeFile
     */
-    FileManager(boost::asio::io_service *timersIoService = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_service_(timersIoService), metrics_(metrics) {;}
+    FileManager(boost::asio::io_service *timersIoService = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_service_(timersIoService), metrics_(metrics), read_cache_(false) {;}
     ~FileManager() = default;
 
     /**
@@ -84,9 +96,28 @@ public:
     *
     * @param metrics Optional metrics object to compute counters
     */
-    void enableMetrics(ert::metrics::Metrics *metrics) {
-        metrics_ = metrics;
-    }
+    void enableMetrics(ert::metrics::Metrics *metrics);
+
+    /** incrementObservedOpenOperationCounter */
+    void incrementObservedOpenOperationCounter();
+
+    /** incrementObservedCloseOperationCounter */
+    void incrementObservedCloseOperationCounter();
+
+    /** incrementObservedEmptyOperationCounter */
+    void incrementObservedEmptyOperationCounter();
+
+    /** incrementObservedWriteOperationCounter */
+    void incrementObservedWriteOperationCounter();
+
+    /** incrementObservedDelayedCloseOperationCounter */
+    void incrementObservedDelayedCloseOperationCounter();
+
+    /** incrementObservedInstantCloseOperationCounter */
+    void incrementObservedInstantCloseOperationCounter();
+
+    /** incrementObservedErrorOpenOperationCounter */
+    void incrementObservedErrorOpenOperationCounter();
 
     /**
      * Write file
@@ -102,14 +133,24 @@ public:
 
     /**
     * Read the file content.
+    * There is no close delay. Read transaction is atomic (open, read, close).
     *
-    * @param success success of the read operation.
     * @param path path file to read. Can be relative (to execution directory) or absolute.
+    * @param data data read by reference.
     * @param textOrBinary open file to read text (true) or binary (false) data.
     *
-    * @return Content read. Empty if failed to read.
+    * @return Boolean about success of the read operation
     */
-    std::string read(bool &success, const std::string &path, bool textOrBinary);
+    bool read(const std::string &path, std::string &data, bool textOrBinary);
+
+    /**
+    * Enables read cache to speed up content load
+    *
+    * @param enable Boolean to enable or disable cache. File manager disables cache by default.
+    */
+    void enableReadCache(bool enable) {
+        read_cache_ = enable;
+    }
 
     /**
      * Empty file
@@ -125,11 +166,18 @@ public:
     bool clear();
 
     /**
-     * Json string representation for class information (json object)
+     * Builds json document for class configuration
      *
-     * @return Json string representation ('[]' for empty object).
+     * @return Json object
      */
-    std::string asJsonString() const;
+    nlohmann::json getConfigurationJson() const;
+
+    /**
+     * Json string representation for class configuration (json object)
+     *
+     * @return Json string representation.
+     */
+    std::string configurationAsJsonString() const;
 
     /**
      * Builds json document for class information
@@ -137,6 +185,13 @@ public:
      * @return Json object
      */
     nlohmann::json getJson() const;
+
+    /**
+     * Json string representation for class information (json object)
+     *
+     * @return Json string representation ('[]' for empty object).
+     */
+    std::string asJsonString() const;
 };
 
 }

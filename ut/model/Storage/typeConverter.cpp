@@ -1,6 +1,7 @@
 #include <TypeConverter.hpp>
 
 #include <map>
+#include <unordered_map>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -13,11 +14,13 @@ class TypeConverter_test : public ::testing::Test
 public:
     h2agent::model::TypeConverter tconv_{};
     std::map<std::string, std::string> vars_{};
+    std::unordered_map<std::string, std::string> gvars_{};
     nlohmann::json json_{};
 
     TypeConverter_test() {
         vars_["var1"] = "value1";
         vars_["var2"] = "value2";
+        gvars_["gvar1"] = "gvalue1";
         json_ = R"({
             "path_to_basics": {
               "string": "hello",
@@ -34,7 +37,7 @@ public:
     }
 };
 
-TEST_F(TypeConverter_test, searchReplaceAll)
+TEST_F(TypeConverter_test, SearchReplaceAll)
 {
     std::string source = "var=@{var}; var=@{var}";
     std::string expected = "var=value; var=value";
@@ -45,18 +48,22 @@ TEST_F(TypeConverter_test, searchReplaceAll)
     EXPECT_EQ(result, expected);
 }
 
-TEST_F(TypeConverter_test, searchReplaceValueVariables)
+TEST_F(TypeConverter_test, ReplaceVariables)
 {
-    std::string source = "var1=@{var1}; var2=@{var2}; var1var2=@{var1}@{var2}";
-    std::string expected = "var1=value1; var2=value2; var1var2=value1value2";
+    std::string source = "var1=@{var1}; var2=@{var2}; var1var2=@{var1}@{var2}; gvar1=@{gvar1}";
+    std::string expected = "var1=value1; var2=value2; var1var2=value1value2; gvar1=gvalue1";
+    std::map<std::string, std::string> patterns;
+    patterns["@{var1}"] = "var1";
+    patterns["@{var2}"] = "var2";
+    patterns["@{gvar1}"] = "gvar1";
 
     std::string result = source;
-    h2agent::model::searchReplaceValueVariables(vars_, result);
+    h2agent::model::replaceVariables(result, patterns, vars_, gvars_);
 
     EXPECT_EQ(result, expected);
 }
 
-TEST_F(TypeConverter_test, setString)
+TEST_F(TypeConverter_test, SetString)
 {
     std::string value = "hello";
     tconv_.setString(value);
@@ -93,10 +100,12 @@ TEST_F(TypeConverter_test, setString)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setStringReplacingVariables)
+TEST_F(TypeConverter_test, SetStringReplacingVariables)
 {
     std::string value = "@{var1}";
-    tconv_.setStringReplacingVariables(value, vars_);
+    std::map<std::string, std::string> patterns;
+    patterns[value] = "var1";
+    tconv_.setStringReplacingVariables(value, patterns, vars_, gvars_);
 
     bool success;
 
@@ -112,7 +121,7 @@ TEST_F(TypeConverter_test, setStringReplacingVariables)
     //EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setInteger)
+TEST_F(TypeConverter_test, SetInteger)
 {
     std::int64_t value = -111;
     tconv_.setInteger(value);
@@ -149,7 +158,7 @@ TEST_F(TypeConverter_test, setInteger)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setUnsigned)
+TEST_F(TypeConverter_test, SetUnsigned)
 {
     std::uint64_t value = 111;
     tconv_.setUnsigned(value);
@@ -186,7 +195,7 @@ TEST_F(TypeConverter_test, setUnsigned)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setFloat)
+TEST_F(TypeConverter_test, SetFloat)
 {
     double value = 3.14;
     tconv_.setFloat(value);
@@ -194,7 +203,7 @@ TEST_F(TypeConverter_test, setFloat)
     bool success;
 
     std::string res_string = tconv_.getString(success);
-    EXPECT_EQ(res_string, "3.140000");
+    EXPECT_EQ(res_string, "3.14");
     EXPECT_TRUE(success);
 
     std::int64_t res_integer = tconv_.getInteger(success);
@@ -219,11 +228,11 @@ TEST_F(TypeConverter_test, setFloat)
     EXPECT_FALSE(success);
 
     // TypeConverter class representation:
-    std::string str = "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): 3 | String: 3.140000 | Integer: 3 | Unsigned: 3 | FLOAT: 3.14 | Boolean: true | Object: null";
+    std::string str = "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): 3 | String: 3.14 | Integer: 3 | Unsigned: 3 | FLOAT: 3.14 | Boolean: true | Object: null";
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setBoolean)
+TEST_F(TypeConverter_test, SetBoolean)
 {
     bool value = true;
     tconv_.setBoolean(value);
@@ -260,7 +269,7 @@ TEST_F(TypeConverter_test, setBoolean)
     EXPECT_EQ(tconv_.asString(), str);
 }
 
-TEST_F(TypeConverter_test, setObject)
+TEST_F(TypeConverter_test, SetObject)
 {
     bool success;
 

@@ -2,7 +2,7 @@
 
 As you already know, as part of a provision is possible to apply a transformation to set the next execution state. This overrides the regular provision `outState`:
 
-```
+```json
 {
   "requestMethod": "DELETE",
   "requestUri": "/the/uri/path",
@@ -19,7 +19,7 @@ As you already know, as part of a provision is possible to apply a transformatio
 
 But also, you could optionally specify a foreign method in the transformation target, for example `outState.GET`:
 
-```
+```json
 {
   "requestMethod": "DELETE",
   "requestUri": "/the/uri/path",

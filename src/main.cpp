@@ -52,10 +52,18 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <MockServerEventsData.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/metrics/Metrics.hpp>
+
+
+// Nghttp2 server threads: recommendation for administrative interface is 1-5 client threads
+#define ADMIN_SERVER_THREADS 2
+
+// In order to use queue dispatcher, we must set over 1, but performance is usually better without it:
+#define ADMIN_SERVER_WORKER_THREADS 1
 
 
 const char* progname;
@@ -68,6 +76,8 @@ boost::asio::io_service *myTimersIoService = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
+h2agent::model::MockServerEventsData* myMockServerEventsData = nullptr;
+ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
 const char* AdminApiVersion = "v1";
@@ -144,7 +154,6 @@ void stopAgent()
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
                        "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
         myTimersIoService->stop();
-        //delete(myTimersIoService);
     }
     if (myAdminHttp2Server)
     {
@@ -160,9 +169,31 @@ void stopAgent()
         myTrafficHttp2Server->stop();
     }
 
-    delete(myConfiguration);
-    delete(myGlobalVariable);
+    delete(myMockServerEventsData);
+    myMockServerEventsData = nullptr;
+
+    // TODO: sync delete to avoid: double free detected in tcache 2
+    //delete(myTrafficHttp2Server);
+    //myTrafficHttp2Server = nullptr;
+
+    delete(myAdminHttp2Server);
+    myAdminHttp2Server = nullptr;
+
+    delete(myMetrics);
+    myMetrics = nullptr;
+
     delete(myFileManager);
+    myFileManager = nullptr;
+
+    delete(myGlobalVariable);
+    myGlobalVariable = nullptr;
+
+    delete(myConfiguration);
+    myConfiguration = nullptr;
+
+    // TODO: sync delete to avoid: free(): corrupted unsorted chunks -> Aborted
+    //delete(myTimersIoService);
+    //myTimersIoService = nullptr;
 }
 
 void myExit(int rc)
@@ -174,6 +205,7 @@ void myExit(int rc)
     LOGWARNING(ert::tracing::Logger::warning("Stopping logger", ERT_FILE_LOCATION));
 
     ert::tracing::Logger::terminate();
+
     exit(rc);
 }
 
@@ -190,6 +222,7 @@ void sighndl(int signal)
 void usage(int rc, const std::string &errorMessage = "")
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
+    unsigned int hardwareConcurrency = std::thread::hardware_concurrency();
 
     ss << progname << " - HTTP/2 Agent service\n\n"
 
@@ -205,13 +238,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  IP stack configured for IPv6. Defaults to IPv4.\n\n"
 
        << "[-b|--bind-address <address>]\n"
-       << "  Servers bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).\n\n"
+       << "  Servers local bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).\n\n"
 
        << "[-a|--admin-port <port>]\n"
-       << "  Admin <port>; defaults to 8074.\n\n"
+       << "  Admin local <port>; defaults to 8074.\n\n"
 
        << "[-p|--traffic-server-port <port>]\n"
-       << "  Traffic server <port>; defaults to 8000. Set '-1' to disable\n"
+       << "  Traffic server local <port>; defaults to 8000. Set '-1' to disable\n"
        << "  (mock server service is enabled by default).\n\n"
 
        << "[-m|--traffic-server-api-name <name>]\n"
@@ -222,13 +255,18 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "[-w|--traffic-server-worker-threads <threads>]\n"
        << "  Number of traffic server worker threads; defaults to 1, which should be enough\n"
-       << "  even for complex logic provisioned (admin server always uses 1 worker thread).\n"
-       << "  It could be increased if hardware concurrency permits a greater margin taking\n"
-       << "  into account other process threads considered busy.\n\n"
+       << "  even for complex logic provisioned (admin server hardcodes " << ADMIN_SERVER_WORKER_THREADS << " worker thread(s)).\n"
+       << "  It could be increased if hardware concurrency (" << hardwareConcurrency << ") permits a greater margin taking\n"
+       << "  into account other process threads considered busy and I/O time spent by server\n"
+       << "  threads.\n\n"
+
+       << "[--traffic-server-max-worker-threads <threads>]\n"
+       << "  Number of traffic server maximum worker threads; defaults to the number of worker\n"
+       << "  threads but could be a higher number so they will be created when needed.\n\n"
 
        << "[-t|--traffic-server-threads <threads>]\n"
        << "  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)\n"
-       << "  (admin server hardcodes 2 nghttp2 threads). This option is exploited\n"
+       << "  (admin server hardcodes " << ADMIN_SERVER_THREADS << " nghttp2 threads). This option is exploited\n"
        << "  by multiple clients.\n\n"
        // Note: test if 2 nghttp2 threads for admin interface is needed for intensive provision applications
 
@@ -273,42 +311,40 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--discard-data]\n"
        << "  Disables data storage for events processed (enabled by default).\n"
        << "  This invalidates some features like FSM related ones (in-state, out-state)\n"
-       << "  or event-source transformations.\n\n"
-       //<< "  This affects to both mock server-data and client-data storages,\n"
-       //<< "  but normally both containers will not be used together in the same process instance.\n\n"
+       << "  or event-source transformations.\n"
+       << "  This affects to both mock server-data and client-data storages,\n"
+       << "  but normally both containers will not be used together in the same process instance.\n\n"
 
        << "[--discard-data-key-history]\n"
        << "  Disables data key history storage (enabled by default).\n"
-       << "  Only latest event (for each key 'method/uri') will be stored and will\n"
-       //<< "  Only latest event (for each key 'method/uri'/'endpoint') will be stored and will\n"
-       << "  be accessible for further analysis.\n"
+       << "  Only latest event (for each key '[client endpoint/]method/uri')\n"
+       << "  will be stored and will be accessible for further analysis.\n"
        << "  This limits some features like FSM related ones (in-state, out-state)\n"
-       << "  or event-source transformations.\n"
-       //<< "  , event-source transformations or client triggers.\n"
+       << "  or event-source transformations or client triggers.\n"
        << "  Implicitly disabled by option '--discard-data'.\n"
-       << "  Ignored for server-unprovisioned events (for troubleshooting purposes).\n\n"
-       //<< "  This affects to both mock server-data and client-data storages,\n"
-       //<< "  but normally both containers will not be used together in the same process instance.\n\n"
+       << "  Ignored for server-unprovisioned events (for troubleshooting purposes).\n"
+       << "  This affects to both mock server-data and client-data storages,\n"
+       << "  but normally both containers will not be used together in the same process instance.\n\n"
 
        << "[--disable-purge]\n"
        << "  Skips events post-removal when a provision on 'purge' state is reached (enabled by default).\n\n"
-       //<< "  This affects to both mock 'server internal/client external' purge procedures,\n"
-       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  This affects to both mock server-data and client-data purge procedures,\n"
+       << "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-port <port>]\n"
-       << "  Prometheus <port>; defaults to 8080.\n\n"
+       << "  Prometheus local <port>; defaults to 8080.\n\n"
 
        << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
        << "  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we\n"
-       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n\n"
-       //<< "  This affects to both mock 'server internal/client external' processing time values,\n"
-       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n"
+       << "  This affects to both mock server-data and client-data processing time values,\n"
+       << "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
-       << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n\n"
-       //<< "  This affects to both mock 'server internal/client external' message size values,\n"
-       //<< "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n"
+       << "  This affects to both mock 'server internal/client external' message size values,\n"
+       << "  but normally both flows will not be used together in the same process instance.\n\n"
 
        << "[--disable-metrics]\n"
        << "  Disables prometheus scrape port (enabled by default).\n\n"
@@ -325,6 +361,10 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  could constraint the final delay configured to avoid reach the maximum opened files\n"
        << "  limit allowed. By default, it is configured to " << myConfiguration->getShortTermFilesCloseDelayUsecs() << " usecs.\n"
        << "  Zero value means that close operation is done just after writting the file.\n\n"
+
+       << "[--remote-servers-lazy-connection]\n"
+       << "  By default connections are performed when adding client endpoints.\n"
+       << "  This option configures remote addresses to be connected on demand.\n\n"
 
        << "[-v|--version]\n"
        << "  Program version.\n\n"
@@ -343,6 +383,7 @@ void usage(int rc, const std::string &errorMessage = "")
     myExit(rc);
 }
 
+// Turns string into number
 int toNumber(const std::string& value)
 {
     int result = 0;
@@ -359,18 +400,28 @@ int toNumber(const std::string& value)
     return result;
 }
 
-bool cmdOptionExists(char** begin, char** end, const std::string& option,
-                     std::string& value)
+// Read parameter without value associated
+bool readCmdLine(char** begin, char** end, const std::string& option)
+{
+    return (std::find(begin, end, option) != end);
+}
+
+// Read parameter with value associated
+bool readCmdLine(char** begin, char** end, const std::string& option, std::string& value)
 {
     char** itr = std::find(begin, end, option);
-    bool exists = (itr != end);
 
-    if (exists && ++itr != end)
-    {
-        value = *itr;
+    if (itr == end) return false;
+
+    if (++itr == end) {
+        std::string msg = "Missing mandatory value for '";
+        msg += option;
+        msg += "'";
+        usage(EXIT_FAILURE, msg);
     }
 
-    return exists;
+    value = *itr;
+    return true;
 }
 
 
@@ -401,6 +452,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
+    int traffic_server_max_worker_threads = 1;
     int traffic_server_threads = 2;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
@@ -426,14 +478,14 @@ int main(int argc, char* argv[])
 
     std::string value;
 
-    if (cmdOptionExists(argv, argv + argc, "-h", value)
-            || cmdOptionExists(argv, argv + argc, "--help", value))
+    if (readCmdLine(argv, argv + argc, "-h")
+            || readCmdLine(argv, argv + argc, "--help"))
     {
         usage(EXIT_SUCCESS);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-l", value)
-            || cmdOptionExists(argv, argv + argc, "--log-level", value))
+    if (readCmdLine(argv, argv + argc, "-l", value)
+            || readCmdLine(argv, argv + argc, "--log-level", value))
     {
         if (!ert::tracing::Logger::setLevel(value))
         {
@@ -441,60 +493,70 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--verbose", value))
+    if (readCmdLine(argv, argv + argc, "--verbose"))
     {
         verbose = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--ipv6", value))
+    if (readCmdLine(argv, argv + argc, "--ipv6"))
     {
         ipv6 = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-b", value)
-            || cmdOptionExists(argv, argv + argc, "--bind-address", value))
+    if (readCmdLine(argv, argv + argc, "-b", value)
+            || readCmdLine(argv, argv + argc, "--bind-address", value))
     {
         bind_address = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-a", value)
-            || cmdOptionExists(argv, argv + argc, "--admin-port", value))
+    if (readCmdLine(argv, argv + argc, "-a", value)
+            || readCmdLine(argv, argv + argc, "--admin-port", value))
     {
         admin_port = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-p", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-port", value))
+    if (readCmdLine(argv, argv + argc, "-p", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-port", value))
     {
         traffic_server_port = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-m", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-api-name", value))
+    if (readCmdLine(argv, argv + argc, "-m", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-api-name", value))
     {
         traffic_server_api_name = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-n", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-api-version", value))
+    if (readCmdLine(argv, argv + argc, "-n", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-api-version", value))
     {
         traffic_server_api_version = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-w", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-worker-threads", value))
+    if (readCmdLine(argv, argv + argc, "-w", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-worker-threads", value))
     {
         traffic_server_worker_threads = toNumber(value);
         if (traffic_server_worker_threads < 1)
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-server-worker-threads' value. Must be greater than 0.");
         }
+        traffic_server_max_worker_threads = traffic_server_worker_threads;
+    }
+
+    if (readCmdLine(argv, argv + argc, "--traffic-server-max-worker-threads", value))
+    {
+        traffic_server_max_worker_threads = toNumber(value);
+        if (traffic_server_max_worker_threads < traffic_server_worker_threads)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-max-worker-threads' value. Must be greater or equal than traffic server worker threads.");
+        }
     }
 
     // Probably, this parameter is not useful as we release the server thread using our workers, so
     //  no matter if you launch more server threads here, no difference should be detected ...
-    if (cmdOptionExists(argv, argv + argc, "-t", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-threads", value))
+    if (readCmdLine(argv, argv + argc, "-t", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-threads", value))
     {
         traffic_server_threads = toNumber(value);
         if (traffic_server_threads < 1)
@@ -503,122 +565,126 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-k", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-key", value))
+    if (readCmdLine(argv, argv + argc, "-k", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-key", value))
     {
         traffic_server_key_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-d", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-key-password", value))
+    if (readCmdLine(argv, argv + argc, "-d", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-key-password", value))
     {
         traffic_server_key_password = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-c", value)
-            || cmdOptionExists(argv, argv + argc, "--traffic-server-crt", value))
+    if (readCmdLine(argv, argv + argc, "-c", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-crt", value))
     {
         traffic_server_crt_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-s", value)
-            || cmdOptionExists(argv, argv + argc, "--secure-admin", value))
+    if (readCmdLine(argv, argv + argc, "-s")
+            || readCmdLine(argv, argv + argc, "--secure-admin"))
     {
         admin_secured = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--schema", value))
+    if (readCmdLine(argv, argv + argc, "--schema", value))
     {
         schema_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-matching", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-matching", value))
     {
         traffic_server_matching_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-provision", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-provision", value))
     {
         traffic_server_provision_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--global-variable", value))
+    if (readCmdLine(argv, argv + argc, "--global-variable", value))
     {
         global_variable_file = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-ignore-request-body", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-ignore-request-body"))
     {
         traffic_server_ignore_request_body = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--traffic-server-dynamic-request-body-allocation", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-dynamic-request-body-allocation"))
     {
         traffic_server_dynamic_request_body_allocation = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--discard-data", value))
+    if (readCmdLine(argv, argv + argc, "--discard-data"))
     {
         discard_data = true;
         discard_data_key_history = true; // implicitly
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--discard-data-key-history", value))
+    if (readCmdLine(argv, argv + argc, "--discard-data-key-history"))
     {
         discard_data_key_history = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--disable-purge", value))
+    if (readCmdLine(argv, argv + argc, "--disable-purge"))
     {
         disable_purge = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--prometheus-port", value))
+    if (readCmdLine(argv, argv + argc, "--prometheus-port", value))
     {
         prometheus_port = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--prometheus-response-delay-seconds-histogram-boundaries", value))
+    if (readCmdLine(argv, argv + argc, "--prometheus-response-delay-seconds-histogram-boundaries", value))
     {
         prometheus_response_delay_seconds_histogram_boundaries = loadHistogramBoundaries(value, responseDelaySecondsHistogramBucketBoundaries);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--prometheus-message-size-bytes-histogram-boundaries", value))
+    if (readCmdLine(argv, argv + argc, "--prometheus-message-size-bytes-histogram-boundaries", value))
     {
         prometheus_message_size_bytes_histogram_boundaries = loadHistogramBoundaries(value, messageSizeBytesHistogramBucketBoundaries);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--disable-metrics", value))
+    if (readCmdLine(argv, argv + argc, "--disable-metrics"))
     {
         disable_metrics = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
+    if (readCmdLine(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
     {
         int iValue = toNumber(value);
-        if (iValue < 1)
+        if (iValue < 0)
         {
             usage(EXIT_FAILURE, "Invalid '--long-term-files-close-delay-usecs' value. Must be greater or equal than 0.");
         }
         myConfiguration->setLongTermFilesCloseDelayUsecs(iValue);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--short-term-files-close-delay-usecs", value))
+    if (readCmdLine(argv, argv + argc, "--short-term-files-close-delay-usecs", value))
     {
         int iValue = toNumber(value);
-        if (iValue < 1)
+        if (iValue < 0)
         {
             usage(EXIT_FAILURE, "Invalid '--short-term-files-close-delay-usecs' value. Must be greater or equal than 0.");
         }
         myConfiguration->setShortTermFilesCloseDelayUsecs(iValue);
     }
 
+    if (readCmdLine(argv, argv + argc, "--remote-servers-lazy-connection"))
+    {
+        myConfiguration->setLazyClientConnection(true);
+    }
     // Logger verbosity
     ert::tracing::Logger::verbose(verbose);
 
     std::string gitVersion = h2agent::GIT_VERSION;
-    if (cmdOptionExists(argv, argv + argc, "-v", value)
-            || cmdOptionExists(argv, argv + argc, "--version", value))
+    if (readCmdLine(argv, argv + argc, "-v")
+            || readCmdLine(argv, argv + argc, "--version"))
     {
         std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
         myExit(EXIT_SUCCESS);
@@ -634,7 +700,7 @@ int main(int argc, char* argv[])
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
-    std::cout << "Admin port: " << admin_port << '\n';
+    std::cout << "Admin local port: " << admin_port << '\n';
 
     // Server bind address for servers
     std::string bind_address_prometheus_exposer = bind_address;
@@ -646,13 +712,14 @@ int main(int argc, char* argv[])
     std::cout << "Traffic server (mock server service): " << (traffic_server_enabled ? "enabled":"disabled") << '\n';
 
     if (traffic_server_enabled) {
-        std::cout << "Traffic server bind address: " << bind_address << '\n';
-        std::cout << "Traffic server port: " << traffic_server_port << '\n';
+        std::cout << "Traffic server local bind address: " << bind_address << '\n';
+        std::cout << "Traffic server local port: " << traffic_server_port << '\n';
         std::cout << "Traffic server api name: " << ((traffic_server_api_name != "") ?  traffic_server_api_name : "<none>") << '\n';
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
         std::cout << "Traffic server threads (nghttp2): " << traffic_server_threads << '\n';
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
+        std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
 
         // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
         // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + traffic_server_threads + traffic_server_worker_threads)
@@ -693,8 +760,8 @@ int main(int argc, char* argv[])
         std::cout << "Metrics (prometheus): disabled" << '\n';
     }
     else {
-        std::cout << "Prometheus bind address: " << bind_address_prometheus_exposer << '\n';
-        std::cout << "Prometheus port: " << prometheus_port << '\n';
+        std::cout << "Prometheus local bind address: " << bind_address_prometheus_exposer << '\n';
+        std::cout << "Prometheus local port: " << prometheus_port << '\n';
         if (!responseDelaySecondsHistogramBucketBoundaries.empty()) {
             std::cout << "Prometheus 'response delay seconds' histogram boundaries: " << prometheus_response_delay_seconds_histogram_boundaries << '\n';
         }
@@ -704,6 +771,7 @@ int main(int argc, char* argv[])
     }
     std::cout << "Long-term files close delay (usecs): " << myConfiguration->getLongTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
+    std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -713,24 +781,26 @@ int main(int argc, char* argv[])
     signal(SIGINT, sighndl);
 
     // Prometheus
-    ert::metrics::Metrics *p_metrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
-    if (p_metrics) {
+    myMetrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
+    if (myMetrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
-        if(!p_metrics->serve(bind_address_port_prometheus_exposer)) {
+        if(!myMetrics->serve(bind_address_port_prometheus_exposer)) {
             std::cerr << getLocaltime().c_str() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             myExit(EXIT_FAILURE);
         }
     }
 
     // FileManager/SafeFile metrics
-    myFileManager->enableMetrics(p_metrics);
+    myFileManager->enableMetrics(myMetrics);
 
     // Admin server
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(2); // 2 nghttp2 server thread
-    myAdminHttp2Server->enableMetrics(p_metrics);
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(ADMIN_SERVER_WORKER_THREADS);
+    myAdminHttp2Server->enableMetrics(myMetrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
     myAdminHttp2Server->setConfiguration(myConfiguration);
+    myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
+    myAdminHttp2Server->setFileManager(myFileManager);
 
     // Timers thread:
     std::thread tt([&] {
@@ -740,14 +810,15 @@ int main(int argc, char* argv[])
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, myTimersIoService);
-        myTrafficHttp2Server->enableMetrics(p_metrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
-        myTrafficHttp2Server->enableMyMetrics(p_metrics);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoService);
+        myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
+        myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
-        myTrafficHttp2Server->setConfiguration(myConfiguration);
-        myTrafficHttp2Server->setGlobalVariable(myGlobalVariable);
-        myTrafficHttp2Server->setFileManager(myFileManager);
+
+        myMockServerEventsData = new h2agent::model::MockServerEventsData();
+        myTrafficHttp2Server->setMockServerEventsData(myMockServerEventsData);
+        myAdminHttp2Server->setMockServerEventsData(myMockServerEventsData); // stored at administrative class to pass through created server provisions
     }
 
     // Schema configuration
@@ -756,10 +827,10 @@ int main(int argc, char* argv[])
     bool success = false;
 
     if (schema_file != "") {
-        success = h2agent::http2::getFileContent(schema_file, fileContent);
+        success = h2agent::model::getFileContent(schema_file, fileContent);
         std::string log = "Schema configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
@@ -776,10 +847,10 @@ int main(int argc, char* argv[])
 
         // Matching configuration
         if (traffic_server_matching_file != "") {
-            success = h2agent::http2::getFileContent(traffic_server_matching_file, fileContent);
+            success = h2agent::model::getFileContent(traffic_server_matching_file, fileContent);
             std::string log = "Server matching configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -793,10 +864,10 @@ int main(int argc, char* argv[])
 
         // Provision configuration
         if (traffic_server_provision_file != "") {
-            success = h2agent::http2::getFileContent(traffic_server_provision_file, fileContent);
+            success = h2agent::model::getFileContent(traffic_server_provision_file, fileContent);
             std::string log = "Server provision configuration load failed and will be ignored";
             if (success)
-                success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+                success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
             if (success) {
                 log += ": ";
@@ -824,10 +895,10 @@ int main(int argc, char* argv[])
     // Global variables
     // Now that myTrafficHttp2Server is referenced, I will have access to global variables object:
     if (global_variable_file != "") {
-        success = h2agent::http2::getFileContent(global_variable_file, fileContent);
+        success = h2agent::model::getFileContent(global_variable_file, fileContent);
         std::string log = "Global variables configuration load failed and will be ignored";
         if (success)
-            success = h2agent::http2::parseJsonContent(fileContent, jsonObject);
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
@@ -857,7 +928,7 @@ int main(int argc, char* argv[])
 
     int rc1 = EXIT_SUCCESS;
     int rc2 = EXIT_SUCCESS;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", 1);});
+    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", ADMIN_SERVER_THREADS);});
 
     if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
     // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
@@ -872,8 +943,10 @@ int main(int argc, char* argv[])
     if (rc1 != EXIT_SUCCESS) myExit(rc1);
     if (rc2 != EXIT_SUCCESS) myExit(rc2);
 
-    // Join threads
+    // Join timers thread
     tt.join();
+
+    // Join synchronous nghttp2 serve() threads
     t1.join();
     t2.join();
 

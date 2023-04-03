@@ -57,6 +57,11 @@ message(STATUS "CMAKE_ARCHIVE_OUTPUT_DIRECTORY is ${CMAKE_ARCHIVE_OUTPUT_DIRECTO
 include(compiler_flags)
 set_cmake_compiler_flags()
 
+# CMAKE_PREFIX_PATH
+if(NOT CMAKE_PREFIX_PATH)
+    set(CMAKE_PREFIX_PATH /usr/local)
+endif()
+
 ################
 # Dependencies #
 ################
@@ -94,6 +99,7 @@ add_subdirectory( src )
 add_subdirectory( ut )
 add_subdirectory( tools/matching-helper )
 add_subdirectory( tools/arashpartow-helper )
+add_subdirectory( tools/h2client )
 
 ###########
 # Install #

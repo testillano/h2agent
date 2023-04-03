@@ -1,0 +1,30 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/divide/by/two",
+  "responseCode": 200,
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "value.100",
+      "target": "var.previous"
+    },
+    {
+      "source": "serverEvent.requestMethod=GET&requestUri=/divide/by/two&eventNumber=-1&eventPath=/responseBody/current",
+      "target": "var.previous"
+    },
+    {
+      "source": "math.@{previous}/2",
+      "target": "var.current"
+    },
+    {
+      "source": "value.@{previous}",
+      "target": "response.body.json.object./previous"
+    },
+    {
+      "source": "value.@{current}",
+      "target": "response.body.json.object./current"
+    }
+  ]
+}

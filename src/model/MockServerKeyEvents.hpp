@@ -45,6 +45,7 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <MockServerKeyEvent.hpp>
+#include <DataPart.hpp>
 #include <common.hpp>
 
 namespace h2agent
@@ -72,7 +73,7 @@ class MockServerKeyEvents
     std::string method_{};
     std::string uri_{};
 
-    std::vector<std::shared_ptr<MockServerKeyEvent>> requests_{};
+    std::vector<std::shared_ptr<MockServerKeyEvent>> events_{};
 
 public:
 
@@ -81,53 +82,53 @@ public:
     // setters:
 
     /**
-     * Loads requests information
+     * Loads events information
      *
      * @param previousState Previous request state
      * @param state Request state
      * @param method Request method
      * @param uri Request URI path
-     * @param headers Request headers
-     * @param body Request body
+     * @param requestHeaders Request headers
+     * @param requestBodyDataPart Request body
      * @param receptionTimestampUs Microseconds reception timestamp
      *
      * @param responseStatusCode Response status code
      * @param responseHeaders Response headers
      * @param responseBody Response body
-     * @param serverSequence Server sequence
+     * @param serverSequence Server sequence (1..N)
      * @param responseDelayMs Response delay in milliseconds
      *
      * @param historyEnabled Requests complete history storage
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void loadRequest(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string virtualOriginComingFromMethod = "", const std::string virtualOriginComingFromUri = "");
+    void loadEvent(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string virtualOriginComingFromMethod = "", const std::string virtualOriginComingFromUri = "");
 
 
     /**
      * Removes vector item for a given position
      * We could also access from the tail (reverse chronological order)
 
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param eventNumber Request history number (1..N) to filter selection.
      * @param reverse Reverse the order to get the request from the tail instead the head.
      *
      * @return Boolean about if something was deleted
      */
-    bool removeMockServerKeyEvent(std::uint64_t requestNumber, bool reverse);
+    bool removeMockServerKeyEvent(std::uint64_t eventNumber, bool reverse);
 
     // getters:
 
     /**
      * Gets the mock server key event in specific position (last by default)
      *
-     * @param requestNumber Request history number (1..N) to filter selection.
+     * @param eventNumber Request history number (1..N) to filter selection.
      * Value '0' is not accepted, and null will be returned in this case.
      * @param reverse Reverse the order to get the request from the tail instead the head.
      *
      * @return mock request pointer
      * @see size()
      */
-    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(std::uint64_t requestNumber, bool reverse) const;
+    std::shared_ptr<MockServerKeyEvent> getMockServerKeyEvent(std::uint64_t eventNumber, bool reverse) const;
 
     /**
      * Builds json document for class information
@@ -137,9 +138,9 @@ public:
     nlohmann::json getJson() const;
 
     /**
-     * Gets the mock requests key as '<request-method>|<request-uri>'
+     * Gets the mock events key as '<request-method>|<request-uri>'
      *
-     * @return Mock request key
+     * @return Mock event key
      */
     mock_server_events_key_t getKey() const;
 
@@ -149,25 +150,25 @@ public:
     */
     const std::string &getLastRegisteredRequestState() const;
 
-    /** Number of requests
+    /** Number of events
     *
-    * @return Requests list size
+    * @return Events list size
     */
     size_t size() const {
-        return requests_.size();
+        return events_.size();
     }
 
-    /** Get the method of the requests list
+    /** Get the method of the events list
     *
-    * @return Requests method key
+    * @return Events method key
     */
     const std::string &getMethod() const {
         return method_;
     }
 
-    /** Get the uri of the requests list
+    /** Get the uri of the events list
     *
-    * @return Requests uri key
+    * @return Events uri key
     */
     const std::string &getUri() const {
         return uri_;

@@ -65,18 +65,33 @@ void searchReplaceAll(std::string& str,
     );
 }
 
-void searchReplaceValueVariables(const std::map<std::string, std::string> &varmap, std::string &source) {
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars) {
 
-    static std::string token_op("@{");
-    static std::string token_cl("}");
+    if (patterns.empty()) return;
+    if (vars.empty() && gvars.empty()) return;
 
-    if (source.find(token_op) == std::string::npos) return;
+    std::map<std::string,std::string>::const_iterator it;
+    std::unordered_map<std::string,std::string>::const_iterator git;
 
-    for(auto it = varmap.begin(); it != varmap.end(); it++) {
-        searchReplaceAll(source, token_op + it->first + token_cl, it->second);
+    for (auto pit = patterns.begin(); pit != patterns.end(); pit++) {
+
+        // local var has priority over a global var with the same name
+        if (!vars.empty()) {
+            it = vars.find(pit->second);
+            if (it != vars.end()) {
+                searchReplaceAll(str, pit->first, it->second);
+                continue; // all is done
+            }
+        }
+
+        if (!gvars.empty()) { // this is much more efficient that find() == end() below
+            git = gvars.find(pit->second);
+            if (git != gvars.end()) {
+                searchReplaceAll(str, pit->first, git->second);
+            }
+        }
     }
 }
-
 
 void TypeConverter::setString(const std::string &str) {
     clear();
@@ -113,22 +128,28 @@ void TypeConverter::setBoolean(bool boolean) {
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false"), ERT_FILE_LOCATION));
 }
 
-void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables) {
+void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars) {
 
     setString(str);
-    searchReplaceValueVariables(variables, s_value_);
+    replaceVariables(s_value_, patterns, vars, gvars);
 }
 
 const std::string &TypeConverter::getString(bool &success) {
 
-    success = true;
+    success = true; // actually, always true
 
     if (native_type_ == NativeType::Object) {
-        success = false;
+        s_value_ = j_value_.dump();
     }
     else if (native_type_ == NativeType::Integer) s_value_ = std::to_string(i_value_);
     else if (native_type_ == NativeType::Unsigned) s_value_ = std::to_string(u_value_);
-    else if (native_type_ == NativeType::Float) s_value_ = std::to_string(f_value_);
+    else if (native_type_ == NativeType::Float) {
+        s_value_ = std::to_string(f_value_); // we should remove trailing decimal zeroes:
+        // Using stringstream formatter is less efficient than post-processing its result:
+        //  (https://stackoverflow.com/questions/13686482/c11-stdto-stringdouble-no-trailing-zeros)
+        s_value_.erase ( s_value_.find_last_not_of('0') + 1, std::string::npos );
+        s_value_.erase ( s_value_.find_last_not_of('.') + 1, std::string::npos );
+    }
     else if (native_type_ == NativeType::Boolean) s_value_ = b_value_ ? "true":"false";
 
     LOGDEBUG(
@@ -323,18 +344,23 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
-    try {
-        nlohmann::json::json_pointer j_ptr(path);
-        // operator[] aborts in debug compilation when the json pointer path is not found.
-        // It is safer to use at() method which has "bounds checking":
-        // j_value_ = jsonSource[j_ptr];
-        j_value_ = jsonSource.at(j_ptr);
-        if (j_value_.empty()) return false; // null extracted (path not found)
+    if (path.empty()) {
+        j_value_ = jsonSource;
     }
-    catch (std::exception& e)
-    {
-        ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-        return false;
+    else {
+        try {
+            nlohmann::json::json_pointer j_ptr(path);
+            // operator[] aborts in debug compilation when the json pointer path is not found.
+            // It is safer to use at() method which has "bounds checking":
+            // j_value_ = jsonSource[j_ptr];
+            j_value_ = jsonSource.at(j_ptr);
+            if (j_value_.empty()) return false; // null extracted (path not found)
+        }
+        catch (std::exception& e)
+        {
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     if (j_value_.is_object()) {

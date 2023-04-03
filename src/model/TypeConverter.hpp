@@ -40,13 +40,33 @@ SOFTWARE.
 #include <string>
 #include <sstream>
 #include <cstdint>
+#include <unordered_map>
 
 namespace h2agent
 {
 namespace model
 {
+/**
+ * Search/replace all the items in provided string
+ *
+ * @param str string passed by reference
+ * @param from pattern to search
+ * @param to value to replace in pattern ocurrences
+ */
 void searchReplaceAll(std::string& str, const std::string& from, const std::string& to);
-void searchReplaceValueVariables(const std::map<std::string, std::string> &varmap, std::string &source);
+
+/**
+ * Replace variable patterns with their variable values using 2 sources:
+ * local variables and global variables. Local variables are replaced with
+ * priority over existing global variables with the same name.
+ *
+ * @param str string to update with replaced values
+ * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
+ * @param vars local variables source map
+ * @param gvars global variables source map
+ */
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars);
+
 
 class TypeConverter {
 
@@ -99,10 +119,12 @@ public:
     * Sets string to vault replacing variables in form @{varname}
     * This is done here to avoid a string copy
     *
-    * @param str String assigned
-    * @param variables Variables map
+    * @param str string assigned
+    * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
+    * @param vars local variables source map
+    * @param gvars global variables source map
     */
-    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> variables);
+    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars);
 
     /**
     * Sets integer to vault

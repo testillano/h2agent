@@ -16,7 +16,7 @@
     },
     {
       "source": "var.aux",
-      "target": "response.body.unsigned./recvseqFromVarAux"
+      "target": "response.body.json.unsigned./recvseqFromVarAux"
     }
   ]
 }

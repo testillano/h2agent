@@ -1,6 +1,6 @@
 #include <thread>
 
-#include <SafeFile.hpp>
+#include <FileManager.hpp>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -10,8 +10,7 @@ nlohmann::json SafeFileJson = R"(
 {
   "bytes": 0,
   "path": "/tmp/h2agent.ut.safefile.txt",
-  "state": "closed",
-  "closeDelayUsecs": 500
+  "state": "closed"
 }
 )"_json;
 
@@ -21,10 +20,12 @@ std::string SafeFileContent = "hi";
 class SafeFile_test : public ::testing::Test
 {
 public:
+    h2agent::model::FileManager *file_manager_{};
     boost::asio::io_service *timers_io_service_{};
     std::thread *timers_thread_{};
 
     SafeFile_test() {
+        file_manager_ =  new h2agent::model::FileManager(); // no metrics by default
         timers_io_service_ =  new boost::asio::io_service();
         timers_thread_ = new std::thread([&] {
             boost::asio::io_service::work work(*timers_io_service_);
@@ -34,7 +35,8 @@ public:
 
     ~SafeFile_test() {
         timers_io_service_->stop();
-        //delete(timers_io_service_);
+        delete(timers_io_service_);
+        delete(timers_thread_);
     }
 };
 
@@ -44,32 +46,32 @@ TEST_F(SafeFile_test, SafeFileWithCloseDelayed)
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
 
     // 1 file opened:
-    h2agent::model::SafeFile fileCloseDelayed(SafeFileJson["path"], timers_io_service_, nullptr /* metrics */, 500);
+    h2agent::model::SafeFile file(file_manager_, SafeFileJson["path"], timers_io_service_);
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 1);
-    fileCloseDelayed.empty(); // empty to ensure
-    fileCloseDelayed.write(SafeFileContent);
+    file.empty(); // empty to ensure
+    file.write(SafeFileContent, 5000 /* close delay value */);
 
-    // Closed after 0.5 seconds:
-    boost::asio::deadline_timer exitTimer(*timers_io_service_, boost::posix_time::milliseconds(1000));
+    // Closed after 5000 usecs (5 ms), we wait 50 ms (10x !) to ensure it is closed:
+    boost::asio::deadline_timer exitTimer(*timers_io_service_, boost::posix_time::milliseconds(50));
     exitTimer.async_wait([&] (const boost::system::error_code& e) { timers_io_service_->stop(); });
     timers_thread_->join();
 
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
 
     // Check file content:
-    //fileCloseDelayed.open(std::ofstream::in);
+    //file.open(std::ofstream::in);
     bool success;
-    EXPECT_EQ(fileCloseDelayed.read(success), SafeFileContent);
+    EXPECT_EQ(file.read(success), SafeFileContent);
     EXPECT_TRUE(success);
 
     // Check json representation:
     SafeFileJson["bytes"] = SafeFileContent.size();
-    EXPECT_EQ(fileCloseDelayed.getJson(), SafeFileJson);
+    EXPECT_EQ(file.getJson(), SafeFileJson);
 
     // Check after emptied:
-    fileCloseDelayed.empty();
+    file.empty();
     SafeFileJson["bytes"] = 0;
-    EXPECT_EQ(fileCloseDelayed.getJson(), SafeFileJson);
+    EXPECT_EQ(file.getJson(), SafeFileJson);
 }
 
 TEST_F(SafeFile_test, SafeFileWithInstantClose)
@@ -82,21 +84,18 @@ TEST_F(SafeFile_test, SafeFileWithInstantClose)
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
 
     // 1 file opened:
-    h2agent::model::SafeFile fileInstantClose(SafeFileJson["path"], nullptr /* no timers io service will be used */, nullptr /* metrics */, 0 /* instant close */);
+    h2agent::model::SafeFile fileInstantClose(file_manager_, SafeFileJson["path"], nullptr /* no timers io service will be used */);
     SafeFileJson.erase("closeDelayUsecs");
-
-    // No timers io service will be used regardless close delay value:
-    fileInstantClose.setCloseDelayUs(0);
 
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 1);
     fileInstantClose.empty(); // empty to ensure
-    fileInstantClose.write(SafeFileContent);
+    fileInstantClose.write(SafeFileContent, 0 /* close delay value */);
 
     // Instant close:
     EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
 
     // Check file content:
-    //fileCloseDelayed.open(std::ofstream::in);
+    //file.open(std::ofstream::in);
     bool success;
     EXPECT_EQ(fileInstantClose.read(success), SafeFileContent);
     EXPECT_TRUE(success);

@@ -11,7 +11,8 @@ ARG build_type=Release
 ARG nlohmann_json_ver=v3.10.5
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 ARG google_test_ver=v1.11.0
-ARG arashpartow_exprtk=0.0.1
+ARG arashpartow_exprtk_ver=0.0.1
+ARG ert_multipart_ver=v1.0.1
 
 ARG base_os=ubuntu
 RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add zlib-static && rm -rf /var/cache/apk/* ; fi
@@ -39,6 +40,13 @@ RUN set -x && \
 
 # ArashPartow exprtk
 RUN set -x && \
-    wget https://github.com/ArashPartow/exprtk/raw/${arashpartow_exprtk}/exprtk.hpp && \
+    wget https://github.com/ArashPartow/exprtk/raw/${arashpartow_exprtk_ver}/exprtk.hpp && \
     mkdir /usr/local/include/arashpartow && mv exprtk.hpp /usr/local/include/arashpartow && \
+    set +x
+
+# ert_multipart
+RUN set -x && \
+    wget https://github.com/testillano/multipart/archive/${ert_multipart_ver}.tar.gz && tar xvf ${ert_multipart_ver}.tar.gz && cd multipart-*/ && \
+    cmake -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && make install && \
+    cd .. && rm -rf * && \
     set +x

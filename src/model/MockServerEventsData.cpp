@@ -67,7 +67,7 @@ bool MockServerEventsData::string2uint64andSign(const std::string &input, std::u
     return result;
 }
 
-bool MockServerEventsData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber) const {
+bool MockServerEventsData::checkSelection(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, const std::string &eventPath) const {
 
     // Bad request checkings:
     if (requestMethod.empty() != requestUri.empty()) {
@@ -75,19 +75,24 @@ bool MockServerEventsData::checkSelection(const std::string &requestMethod, cons
         return false;
     }
 
-    if (!requestNumber.empty() && requestMethod.empty()) {
-        ert::tracing::Logger::error("Query parameter 'requestNumber' cannot be provided alone: requestMethod and requestUri are also needed", ERT_FILE_LOCATION);
+    if (!eventNumber.empty() && requestMethod.empty()) {
+        ert::tracing::Logger::error("Query parameter 'eventNumber' cannot be provided alone: requestMethod and requestUri are also needed", ERT_FILE_LOCATION);
+        return false;
+    }
+
+    if (!eventPath.empty() && eventNumber.empty()) {
+        ert::tracing::Logger::error("Query parameter 'eventPath' cannot be provided alone: (requestMethod, requestUri and) eventNumber are also needed", ERT_FILE_LOCATION);
         return false;
     }
 
     return true;
 }
 
-void MockServerEventsData::loadRequest(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerEventsData::loadEvent(const std::string &previousState, const std::string &state, const std::string &method, const std::string &uri, const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
 
     // Find MockServerKeyEvents
-    std::shared_ptr<MockServerKeyEvents> requests(nullptr);
+    std::shared_ptr<MockServerKeyEvents> events(nullptr);
 
     mock_server_events_key_t key{};
     calculateMockServerKeyEventsKey(key, method, uri);
@@ -96,30 +101,30 @@ void MockServerEventsData::loadRequest(const std::string &previousState, const s
 
     auto it = get(key);
     if (it != end()) {
-        requests = it->second;
+        events = it->second;
     }
     else {
-        requests = std::make_shared<MockServerKeyEvents>();
+        events = std::make_shared<MockServerKeyEvents>();
     }
 
-    requests->loadRequest(previousState, state, method, uri, headers, body, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
+    events->loadEvent(previousState, state, method, uri, requestHeaders, requestBodyDataPart, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
-    if (it == end()) add(key, requests); // push the key in the map:
+    if (it == end()) add(key, events); // push the key in the map:
 }
 
-bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber)
+bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber)
 {
     bool result = true;
     somethingDeleted = false;
 
-    if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
+    if (requestMethod.empty() && requestUri.empty() && eventNumber.empty()) {
         write_guard_t guard(rw_mutex_);
         somethingDeleted = (map_.size() > 0);
         map_.clear();
         return result;
     }
 
-    if (!checkSelection(requestMethod, requestUri, requestNumber))
+    if (!checkSelection(requestMethod, requestUri, eventNumber, ""))
         return false;
 
     mock_server_events_key_t key{};
@@ -131,14 +136,14 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
     if (it == end())
         return true; // nothing found to be removed
 
-    // Check request number:
-    if (!requestNumber.empty()) {
+    // Check event number:
+    if (!eventNumber.empty()) {
         bool reverse = false;
-        std::uint64_t u_requestNumber = 0;
-        if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
+        std::uint64_t u_eventNumber = 0;
+        if (!string2uint64andSign(eventNumber, u_eventNumber, reverse))
             return false;
 
-        somethingDeleted = it->second->removeMockServerKeyEvent(u_requestNumber, reverse);
+        somethingDeleted = it->second->removeMockServerKeyEvent(u_eventNumber, reverse);
         if (it->second->size() == 0) remove(it); // remove key when history is dropped (https://github.com/testillano/h2agent/issues/53).
     }
     else {
@@ -149,16 +154,16 @@ bool MockServerEventsData::clear(bool &somethingDeleted, const std::string &requ
     return result;
 }
 
-std::string MockServerEventsData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &requestNumber, bool &validQuery) const {
+std::string MockServerEventsData::asJsonString(const std::string &requestMethod, const std::string &requestUri, const std::string &eventNumber, const std::string &eventPath, bool &validQuery) const {
 
     validQuery = false;
 
-    if (requestMethod.empty() && requestUri.empty() && requestNumber.empty()) {
+    if (requestMethod.empty() && requestUri.empty() && eventNumber.empty() && eventPath.empty()) {
         validQuery = true;
         return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
     }
 
-    if (!checkSelection(requestMethod, requestUri, requestNumber))
+    if (!checkSelection(requestMethod, requestUri, eventNumber, eventPath))
         return "[]";
 
     validQuery = true;
@@ -172,16 +177,16 @@ std::string MockServerEventsData::asJsonString(const std::string &requestMethod,
     if (it == end())
         return "[]"; // nothing found to be built
 
-    // Check request number:
-    if (!requestNumber.empty()) {
+    // Check event number:
+    if (!eventNumber.empty()) {
         bool reverse = false;
-        std::uint64_t u_requestNumber = 0;
-        if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
+        std::uint64_t u_eventNumber = 0;
+        if (!string2uint64andSign(eventNumber, u_eventNumber, reverse))
             return "[]";
 
-        auto ptr = it->second->getMockServerKeyEvent(u_requestNumber, reverse);
+        auto ptr = it->second->getMockServerKeyEvent(u_eventNumber, reverse);
         if (ptr) {
-            return ptr->getJson().dump();
+            return ptr->getJson(eventPath).dump();
         }
         else return "[]";
     }
@@ -226,7 +231,7 @@ std::string MockServerEventsData::summary(const std::string &maxKeys) const {
     return result.dump();
 }
 
-std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(const std::string &requestMethod, const std::string &requestUri,const std::string &requestNumber) const {
+std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(const std::string &requestMethod, const std::string &requestUri,const std::string &eventNumber) const {
 
     if (requestMethod.empty()) {
         LOGDEBUG(ert::tracing::Logger::debug("Empty 'requestMethod' provided: cannot retrieve the server data event", ERT_FILE_LOCATION));
@@ -238,13 +243,13 @@ std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(
         return nullptr;
     }
 
-    if (requestNumber.empty()) {
-        LOGDEBUG(ert::tracing::Logger::debug("Empty 'requestNumber' provided: cannot retrieve the server data event", ERT_FILE_LOCATION));
+    if (eventNumber.empty()) {
+        LOGDEBUG(ert::tracing::Logger::debug("Empty 'eventNumber' provided: cannot retrieve the server data event", ERT_FILE_LOCATION));
         return nullptr;
     }
 
     LOGDEBUG(
-        std::string msg = ert::tracing::Logger::asString("requestMethod: %s | requestUri: %s | requestNumber: %s", requestMethod.c_str(), requestUri.c_str(), requestNumber.c_str());
+        std::string msg = ert::tracing::Logger::asString("requestMethod: %s | requestUri: %s | eventNumber: %s", requestMethod.c_str(), requestUri.c_str(), eventNumber.c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
@@ -258,11 +263,11 @@ std::shared_ptr<MockServerKeyEvent> MockServerEventsData::getMockServerKeyEvent(
         return nullptr; // nothing found
 
     bool reverse = false;
-    std::uint64_t u_requestNumber = 0;
-    if (!string2uint64andSign(requestNumber, u_requestNumber, reverse))
+    std::uint64_t u_eventNumber = 0;
+    if (!string2uint64andSign(eventNumber, u_eventNumber, reverse))
         return nullptr;
 
-    return (it->second->getMockServerKeyEvent(u_requestNumber, reverse));
+    return (it->second->getMockServerKeyEvent(u_eventNumber, reverse));
 }
 
 nlohmann::json MockServerEventsData::getJson() const {
@@ -288,6 +293,10 @@ bool MockServerEventsData::findLastRegisteredRequestState(const std::string &met
     auto it = get(key);
     if (it != end()) {
         state = it->second->getLastRegisteredRequestState(); // by design, a key always contains at least one history event (https://github.com/testillano/h2agent/issues/53).
+        if (state.empty()) { // unprovisioned event must be understood as missing (ignore register)
+            state = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
+        }
+
         return true;
     }
 

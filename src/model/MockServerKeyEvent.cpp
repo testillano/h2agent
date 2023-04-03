@@ -46,19 +46,25 @@ namespace model
 {
 
 
-void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &headers, const std::string &body, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerKeyEvent::load(const std::string &previousState, const std::string &state, const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
     reception_timestamp_us_ = receptionTimestampUs.count();
 
     previous_state_ = previousState;
 
     state_ = state;
-    headers_ = headers;
-    body_ = body;
+    request_headers_ = requestHeaders;
+
+
+    requestBodyDataPart.decode(requestHeaders);
+    request_body_ = requestBodyDataPart.getJson();
 
     response_status_code_ = responseStatusCode;
     response_headers_ = responseHeaders;
-    response_body_ = responseBody;
+
+    response_body_data_part_.assign(std::move(responseBody));
+    response_body_data_part_.decode(responseHeaders);
+
     server_sequence_ = serverSequence;
     response_delay_ms_ = responseDelayMs;
 
@@ -79,23 +85,21 @@ void MockServerKeyEvent::saveJson() {
 
     if(!state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
 
-    if (headers_.size()) {
-        nlohmann::json hdrs;
-        for(const auto &x: headers_)
+    if (request_headers_.size()) {
+        nlohmann::json hdrs; // headers as an object
+        for(const auto &x: request_headers_)
             hdrs[x.first] = x.second.value;
         json_["requestHeaders"] = hdrs;
     }
-
-    if (!body_.empty()) {
-        h2agent::http2::parseJsonContent(body_, json_["requestBody"], true /* write exception */);
+    if (!request_body_.empty()) {
+        json_["requestBody"] = request_body_;
     }
 
     // Additional information
     if (!previous_state_.empty() /* unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
-    if (!response_body_.empty()) {
-        h2agent::http2::parseJsonContent(response_body_, json_["responseBody"], true /* write exception */);
+    if (!response_body_data_part_.str().empty()) {
+        json_["responseBody"] = response_body_data_part_.getJson();
     }
-
     json_["responseDelayMs"] = (unsigned int)response_delay_ms_;
     json_["responseStatusCode"] = (unsigned int)response_status_code_;
     if (response_headers_.size()) {

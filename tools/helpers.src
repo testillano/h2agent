@@ -72,10 +72,28 @@ files() {
   fi
 }
 
+files_configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default)."
+    echo "                            [--enable-read-cache]  ; Enables cache for read operations."
+    echo "                            [--disable-read-cache] ; Disables cache for read operations."
+    return 0
+  elif [ "$1" = "--enable-read-cache" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/files/configuration?readCache=true"
+  elif [ "$1" = "--disable-read-cache" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/files/configuration?readCache=false"
+  else
+    do_curl ${ADMIN_URL}/files/configuration
+  fi
+}
+
 configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: configuration [-h|--help]; Gets agent general configuration."
+    echo "Usage: configuration [-h|--help]; Gets agent general static configuration."
     return 0
   else
     do_curl ${ADMIN_URL}/configuration
@@ -86,10 +104,10 @@ server_configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default)."
-    echo "                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic server receptions."
-    echo "                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic server receptions."
-    echo "                            [--traffic-server-dynamic-request-body-allocation]  ; Sets configuration to do dynamic request body memory allocation on traffic server receptions."
-    echo "                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body memory on traffic server receptions."
+    echo "                            [--traffic-server-ignore-request-body]             ; Ignores request body on server receptions."
+    echo "                            [--traffic-server-receive-request-body]            ; Processes request body on server receptions."
+    echo "                            [--traffic-server-dynamic-request-body-allocation] ; Does dynamic request body memory allocation on server receptions."
+    echo "                            [--traffic-server-initial-request-body-allocation] ; Pre reserves request body memory on server receptions."
     return 0
   elif [ "$1" = "--traffic-server-ignore-request-body" ]
   then
@@ -111,12 +129,12 @@ server_configuration() {
 server_data_configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: server_data_configuration [-h|--help]; Manages agent data configuration (gets current status by default)."
-    echo "                          [--discard-all]     ; Sets data configuration to discard all the events processed."
-    echo "                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key."
-    echo "                          [--keep-all]        ; Sets data configuration to keep all the events processed."
-    echo "                          [--disable-purge]   ; Sets data configuration to skip events post-removal when a provision on 'purge' state is reached."
-    echo "                          [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on 'purge' state is reached."
+    echo "Usage: server_data_configuration [-h|--help]; Manages agent server data configuration (gets current status by default)."
+    echo "                                 [--discard-all]     ; Discards all the events processed."
+    echo "                                 [--discard-history] ; Keeps only the last event processed for a key."
+    echo "                                 [--keep-all]        ; Keeps all the events processed."
+    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
+    echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
     return 0
   elif [ "$1" = "--discard-all" ]
   then
@@ -171,11 +189,11 @@ server_data() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: server_data [-h|--help]; Inspects server data events (${ADMIN_URL}/server-data)."
-    echo "                   [method] [uri] [[-]request number]; Restricts shown data with given positional filters."
-    echo "                                                       Request number may be negative to access by reverse chronological order."
-    echo "                   [--summary] [max keys]            ; Gets current server data summary to guide further queries."
-    echo "                                                       Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
-    echo "                   [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the selection."
+    echo "                   [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters."
+    echo "                                                                   Event number may be negative to access by reverse chronological order."
+    echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
+    echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
+    echo "                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the selection."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -193,15 +211,17 @@ server_data() {
 
   local requestMethod=$1
   local requestUri=$2
-  local requestNumber=$3
+  local eventNumber=$3
+  local eventPath=$4
 
   [ -n "${requestMethod}" -a -z "${requestUri}" ] && echo "Error: both method & uri must be provided" && return 1
-  [ -n "${requestNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
-  [ -n "${requestNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
+  [ -n "${eventNumber}" -a -z "${requestMethod}" ] && echo "Error: method is required" && return 1
+  [ -n "${eventNumber}" -a -z "${requestUri}" ] && echo "Error: uri is required" && return 1
+  [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required" && return 1
 
   local queryParams=
   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
-  [ -n "${requestNumber}" ] && queryParams="${queryParams}&requestNumber=${requestNumber}"
+  [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
   if [ -z "${curl_method}" -a -z "${queryParams}" ]
   then
     echo
@@ -212,19 +232,38 @@ server_data() {
     read dummy
     do_curl ${ADMIN_URL}/server-data
   else
+    local urlencode=
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     if [ -n "${requestUri}" ]
     then
-      do_curl ${curl_method} -G --data-urlencode "requestUri=${requestUri}" "${ADMIN_URL}/server-data${queryParams}"
+      do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/server-data${queryParams}"
     else
-      do_curl ${curl_method} "${ADMIN_URL}/server-data${queryParams}"
+      do_curl ${curl_method} "${ADMIN_URL}/server-data"
     fi
   fi
 }
 
 server_data_sequence() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
-  [ -z "$1" ] && json ".[].requests[].serverSequence" | sort -n && return 0
-  json ".[] | select (.requests[].serverSequence == $1) | del (.requests[] | select (.serverSequence != $1))" 2>/dev/null
+  [ -z "$1" ] && json ".[].events[].serverSequence" | sort -n && return 0
+  json ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
+}
+
+client_endpoint() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration (${ADMIN_URL}/client-endpoint)." && return 0
+  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/client-endpoint && return 0
+  if [ "$1" = "--clean" ]
+  then
+    do_curl -XDELETE ${ADMIN_URL}/client-endpoint
+  else
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-endpoint
+  fi
+}
+
+client_endpoint_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema (${ADMIN_URL}/client-endpoint/schema)." && return 0
+  do_curl "${ADMIN_URL}/client-endpoint/schema"
 }
 
 json() {
@@ -265,35 +304,57 @@ metrics() {
 }
 
 snapshot() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration." && return 0
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration."
+    echo "                [target dir]; Directory where information is stored ('/tmp/snapshots/last' by default)."
+    return 0
+  fi
 
-  local dir=/tmp/snapshots/$(date +'%y%m%d.%H%M%S')
-  local last=/tmp/snapshots/last
-  mkdir -p ${dir}
-  rm -f ${last} && ln -s $(basename ${dir}) ${last}
+  local dir=${1:-"/tmp/snapshots/$(date +'%y%m%d.%H%M%S')"}
+  mkdir -p ${dir} || return 1
+
+  if [ -n "$1" ]
+  then
+    [ -n "$(ls -A ${dir})" ] && echo "Target directory '${dir}' is not empty !" && return 1
+  else
+    local last=/tmp/snapshots/last
+    rm -f ${last} && ln -s $(basename ${dir}) ${last}
+  fi
 
   schema && json > ${dir}/schema.json
   schema_schema && json > ${dir}/schema_schema.json
   global_variable && json > ${dir}/global-variable.json
   global_variable_schema && json > ${dir}/global-variable_schema.json
+  files && json > ${dir}/files.json
+  files_configuration && json > ${dir}/files-configuration.json
   configuration && json > ${dir}/configuration.json
-  data_configuration && json > ${dir}/data-configuration.json
+
+  server_configuration && json > ${dir}/server-configuration.json
+  server_data_configuration && json > ${dir}/server-data-configuration.json
   server_matching && json > ${dir}/server-matching.json
   server_matching_schema && json > ${dir}/server-matching_schema.json
   server_provision && json > ${dir}/server-provision.json
   server_provision_schema && json > ${dir}/server-provision_schema.json
-  server_data --conf && json > ${dir}/server-data-configuration.json
   server_data --summary -1 && json > ${dir}/server-data-summary.json
   echo | server_data && json > ${dir}/server-data.json
   mkdir ${dir}/server-data-sequences
-  (jq '.[].requests[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
+  (jq '.[].events[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
   for s in $(cat ${dir}/server-data-sequences.txt); do
-    jq ".[] | select (.requests[].serverSequence == $s) | del (.requests[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
+    jq ".[] | select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
   done
+  client_endpoint && json > ${dir}/client_endpoint.json
+  client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
+  metrics > ${dir}/metrics.txt
 
   echo
   echo "Created snapshot at:"
-  ls -l ${last}
+  if [ -n "$1" ]
+  then
+    readlink -f ${dir}
+  else
+    ls -l ${last}
+  fi
 }
 
 server_example() {
@@ -345,7 +406,7 @@ server_example() {
       "content-type": "application/json"
     },
     "transform": [
-      { "source": "request.body", "target": "response.body.object" }
+      { "source": "request.body", "target": "response.body.json.object" }
     ]
   }
 !
@@ -358,6 +419,13 @@ server_example() {
   \${CURL} -d'{"foo":1, "bar":2}' \${TRAFFIC_URL}${server_api_path}/my/dummy/path
 
 EOF
+}
+
+client_example() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_example [-h|--help]; Basic client configuration examples. Try: source <(client_example)" && return 0
+
+  # Implementation pending
+  echo TODO
 }
 
 help() {
@@ -377,21 +445,26 @@ help() {
   schema -h
   global_variable -h
   files -h
+  files_configuration -h
   configuration -h
-  server_configuration -h
-  server_data_configuration -h
   echo
   echo "=== Traffic server ==="
+  server_configuration -h
+  server_data_configuration -h
   server_matching -h
   server_provision -h
   server_data -h
   server_data_sequence -h
+  echo
+  echo "=== Traffic client ==="
+  client_endpoint -h
   echo
   echo "=== Schemas ==="
   schema_schema -h
   global_variable_schema -h
   server_matching_schema -h
   server_provision_schema -h
+  client_endpoint_schema -h
   echo
   echo "=== Auxiliary ==="
   json -h
@@ -399,6 +472,7 @@ help() {
   metrics -h
   snapshot -h
   server_example -h
+  client_example -h
   echo "Usage: help; This help. Overview: help | grep ^Usage"
   echo
 }

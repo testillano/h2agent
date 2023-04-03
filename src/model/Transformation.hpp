@@ -59,26 +59,26 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, Event, InState };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState, STxtFile, SBinFile, Command };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "Event", "InState" };
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "ServerEvent", "InState", "STxtFile", "SBinFile", "Command" };
         return text [type];
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyInteger, ResponseBodyUnsigned, ResponseBodyFloat, ResponseBodyBoolean, ResponseBodyObject, ResponseBodyJsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TxtFile, BinFile };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyInteger", "ResponseBodyUnsigned", "ResponseBodyFloat", "ResponseBodyBoolean", "ResponseBodyObject", "ResponseBodyJsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TxtFile", "BinFile" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile" };
         return text [type];
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar", "EqualTo" };
         return text [type];
     }
 
@@ -106,23 +106,35 @@ private:
 
     SourceType source_type_{};
     std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
-    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, Event
-    std::vector<std::string> source_tokenized_{}; // RandomSet
+    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, STxtFile(path), SBinFile (path), Command(expression)
+    std::vector<std::string> source_tokenized_{}; // RandomSet, ServerEvent
     int source_i1_{}, source_i2_{}; // Random
 
     TargetType target_type_{};
-    std::string target_{}; // ResponseBodyString/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
-    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TxtFile(path), BinFile (path)
+    std::string target_{}; // ResponseBodyJson_String/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
+    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path)
     std::string target2_{}; // OutState (foreign uri part)
 
     bool has_filter_{};
     FilterType filter_type_{};
-    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar
+    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar, EqualTo
     std::regex filter_rgx_{}; // RegexCapture, RegexReplace
     int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
     std::int64_t filter_i_{}; // Sum, Multiply
     std::uint64_t filter_u_{}; // Sum, Multiply
     double filter_f_{}; // Sum, Multiply
+
+    /**
+     * Builds a map of patterns (pattern, varname) where pattern is @{varname}
+     *
+     * @param str string to analyze
+     * @param patterns map generated by reference
+     */
+    void collectVariablePatterns(const std::string &str, std::map<std::string, std::string> &patterns);
+
+    std::map<std::string, std::string> source_patterns_;
+    std::map<std::string, std::string> target_patterns_;
+    std::map<std::string, std::string> target2_patterns_;
 
 public:
 
@@ -193,6 +205,19 @@ public:
     /** Float container for sum/multiply */
     double getFilterF() const {
         return filter_f_;
+    }
+
+    /** Source patterns */
+    const std::map<std::string, std::string> &getSourcePatterns() const {
+        return source_patterns_;
+    }
+    /** Target patterns */
+    const std::map<std::string, std::string> &getTargetPatterns() const {
+        return target_patterns_;
+    }
+    /** Target2 patterns */
+    const std::map<std::string, std::string> &getTarget2Patterns() const {
+        return target2_patterns_;
     }
 };
 

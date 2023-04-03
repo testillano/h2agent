@@ -9,6 +9,7 @@ CMakeCache.txt
 **/cmake_install.cmake
 **/Makefile
 build
+build-native
 install_manifest.txt
 CMakeDoxygenDefaults.cmake
 CMakeDoxyfile.in
@@ -23,9 +24,12 @@ src/version.cpp
 *.swp
 
 # Test temporary files
-tools/manual/*/.*
+tools/play-h2agent/*/.*
 st/report*
 st/last
 
 # Coverage report
 coverage
+
+# play-h2agent
+tools/play-h2agent/examples/*/snapshot

@@ -12,11 +12,17 @@ It is mainly designed for testing, but could even simulate or complement advance
 
 ## Quick start
 
-It is recommended to complete the following points first:
+**Theory**
 
 * A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
-* A ***[demo](./README.md#demo)*** exercise which presents a basic use case to better understand the project essentials.
-* And finally, a ***[kata](./README.md#kata)*** training to adquire better knowledge of project capabilities.
+
+**Practice**
+
+* Brief exercises to ***[play](./README.md#Play)*** with, showing basic configuration "games" to have a quick overview of project possibilities.
+* A ***[demo](./README.md#Demo)*** exercise which presents a basic use case to better understand the project essentials.
+* And finally, a ***[kata](./README.md#Kata)*** training to acquire better knowledge of project capabilities.
+
+Bullet list of exercises above, have a growing demand in terms of attention and dedicated time. For that reason, they are presented in the indicated order, facilitating and prioritizing simplicity for the user in the training process.
 
 ## Scope
 
@@ -28,8 +34,8 @@ When developing a network service, one often needs to integrate it with other se
 
 So, `h2agent` could be used as:
 
-* **Server** mock: fully implemented
-* **Client** mock: design ongoing (roadmap planned for 3.x.x).
+* **Server** mock: fully implemented.
+* **Client** mock: partially implemented (new features ongoing).
 
 Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
 
@@ -40,7 +46,7 @@ Check the [releases](https://github.com/testillano/h2agent/releases) to get late
 
 ## How can you use it ?
 
-`H2agent` process may be used natively, as a `docker` container, or as part of `kubernetes` deployment.
+`H2agent` process (as well as other project binaries) may be used natively, as a `docker` container, or as part of `kubernetes` deployment.
 
 The easiest way to build the project is using [containers](https://en.wikipedia.org/wiki/LXC) technology (this project uses `docker`): **to generate all the artifacts**, just type the following:
 
@@ -48,7 +54,52 @@ The easiest way to build the project is using [containers](https://en.wikipedia.
 $> ./build.sh --auto
 ```
 
-The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally the <u>project executable</u> (`--project`). Then you will have everything available to run the process with three different modes:
+The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
+
+* Run <u>project image</u> with docker (`./h2a.sh` script at root directory can also be used):
+
+  ```bash
+  $> docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
+  ```
+
+  Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080).
+  You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
+
+  ```bash
+  $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
+  ```
+
+  Or any other packaged utility:
+
+  ```bash
+  $> docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  ```
+
+* Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
+
+  ```bash
+  $> # helm dependency update helm/h2agent # no dependencies at the moment
+  $> helm install h2agent-example helm/h2agent --wait
+  $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
+  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
+  ```
+
+  You may enter the pod and play with helpers functions and examples (deployed with the chart under `/opt/utils`) which are anyway, automatically sourced on `bash` shell:
+
+  ```bash
+  $> kubectl exec -it ${pod} -- bash
+  ```
+
+It is also possible to build the project natively (not using containers) installing all the dependencies on the local host:
+
+```bash
+$> ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
+```
+
+So, you could run `h2agent` (or any other binary available under `./build/<build type>/bin`) directly:
+
 
 * Run <u>project executable</u> natively (standalone):
 
@@ -56,39 +107,33 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
   ```
 
-  You may play with native helpers functions and examples:
+  Provide `-h` or `--help` to get **process help** (more information [here](#Execution-of-main-agent)) or execute any other project executable.
+
+  You may also play with project helpers functions and examples:
 
   ```bash
   $> source tools/helpers.src # type help in any moment after sourcing
   $> server_example # follow instructions or just source it: source <(server_example)
-  ```
-
-  You could also provide `-h` or `--help` to get **process help**: more information [here](#execution-of-main-agent).
-
-* Run <u>project image</u> with docker:
-
-  ```bash
-  $> docker run --network=host --rm -it ghcr.io/testillano/h2agent:latest & # you may play native helpers again, on host
-  ```
-
-* Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#how-it-is-delivered) section, but in summary, you could do the following:
-
-  ```bash
-  $> # helm dependency update helm/h2agent # no dependencies at the moment
-  $> helm install h2agent-example helm/h2agent --wait
-  $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
-  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent -h
-  ```
-
-  You may enter the pod and play with helpers functions and examples which are also deployed with the chart under `/opt/utils` and automatically sourced on `bash` shell:
-
-  ```bash
-  $> kubectl exec -it ${pod} -- bash
+  $> client_example # follow instructions or just source it: source <(client_example)
   ```
 
 
+## Static linking
 
-Next sections will describe in detail, how to build [project image](#project-image) and project executable ([using docker](#build-project-with-docker) or [natively](#build-project-natively)).
+Both build helpers (`build.sh` and `build-native.sh` scripts) allow to force project static link, although this is [not recommended](https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged):
+
+```bash
+$> STATIC_LINKING=TRUE ./build.sh --auto
+- or -
+$> STATIC_LINKING=TRUE ./build-native.sh
+```
+
+So, you could run binaries regardless if needed libraries are available or not (including `glibc` with all its drawbacks).
+
+
+
+
+Next sections will describe in detail, how to build [project image](#Project-image) and project executables ([using docker](#Build-project-with-docker) or [natively](#Build-project-natively)).
 
 ## Project image
 
@@ -130,7 +175,7 @@ Both `ubuntu` and `alpine` base images are supported, but the official image upl
 
 ### Usage
 
-Builder image is used to build the executable. To run compilation over this image, again, just run with `docker`:
+Builder image is used to build the project. To run compilation over this image, again, just run with `docker`:
 
 ```bash
 $> envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
@@ -160,7 +205,11 @@ It may be hard to collect every dependency, so there is a native build **automat
 $> ./build-native.sh
 ```
 
-Note: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
+Note 1: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
+
+Note 2: once dependencies have been installed, you may just type `cmake . && make` to have incremental native builds.
+
+Note 3: if not stated otherwise, this document assumes that binaries (used on examples) are natively built.
 
 
 
@@ -244,7 +293,7 @@ $> sudo make install
 Optionally you could specify another prefix for installation:
 
 ```bash
-$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/myPrograms/http2
+$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
 $> make install
 ```
 
@@ -258,8 +307,16 @@ $> cat install_manifest.txt | sudo xargs rm
 
 ### Unit test
 
-*Work ongoing*: check the badge above to know the current coverage level.
-You can execute it after project building, for example for `Release` target: `./build/Release/bin/unit-test`.
+Check the badge above to know the current coverage level.
+You can execute it after project building, for example for `Release` target:
+
+```bash
+$> ./build/Release/bin/unit-test # native executable
+- or -
+$> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
+```
+
+ To shortcut docker run execution, `./ut.sh` script at root directory can also be used.
 
 #### Coverage
 
@@ -328,14 +385,27 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information).
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
 
-Also, `st/last.sh` script repeats the last execution in headless mode.
+Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
-As schema validation is normally used only for function tests, it will be disabled here, and `h2agent` could be for example started with 5 worker threads to discard application bottlenecks and some histogram boundaries to better classify internal answer latencies for [metrics](#oam):
+#### Considerations
+
+* As schema validation is normally used only for function tests, it will be disabled here.
+* `h2agent` could be for example started with 5 worker threads to discard application bottlenecks.
+* Add histogram boundaries to better classify internal answer latencies for [metrics](#OAM).
+* Data storage is disabled in the script by default to prevent memory from growing and improve server response times (remember that storage shall be kept when provisions require data persistence).
+* In general, even with high traffic rates, you could get sneaky snapshots just enabling and then quickly disabling data storage, for example using [function helpers](#Helper-functions): `server_data_configuration --keep-all && server_data_configuration --discard-all`
+
+
+
+So you may start the process, again, natively or using docker:
 
 ```bash
-$> ./build/Release/bin/h2agent --verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3"
+$> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3")
+$> ./build/Release/bin/h2agent "${OPTS[@]}" # native executable
+- or -
+$> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}"  # docker
 ```
 
 In other shell we launch the benchmark test:
@@ -359,6 +429,10 @@ server-provision.json
 Input Global variable(s) configuration
  (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]:
 global-variable.json
+
+Input File manager configuration to enable read cache (true|false)
+ (or set 'H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION' to be non-interactive) [true]:
+true
 
 Input Server configuration to ignore request body (true|false)
  (or set 'H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION' to be non-interactive) [false]:
@@ -473,10 +547,10 @@ Created test report:
 
 ### Command line
 
-You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target: `./build/Release/bin/h2agent -h|--help`:
+You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2agent -h
+$> ./build/Release/bin/h2agent --help
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
@@ -493,13 +567,13 @@ Options:
   IP stack configured for IPv6. Defaults to IPv4.
 
 [-b|--bind-address <address>]
-  Servers bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).
+  Servers local bind <address> (admin/traffic/prometheus); defaults to '0.0.0.0' (ipv4) or '::' (ipv6).
 
 [-a|--admin-port <port>]
-  Admin <port>; defaults to 8074.
+  Admin local <port>; defaults to 8074.
 
 [-p|--traffic-server-port <port>]
-  Traffic server <port>; defaults to 8000. Set '-1' to disable
+  Traffic server local <port>; defaults to 8000. Set '-1' to disable
   (mock server service is enabled by default).
 
 [-m|--traffic-server-api-name <name>]
@@ -510,9 +584,14 @@ Options:
 
 [-w|--traffic-server-worker-threads <threads>]
   Number of traffic server worker threads; defaults to 1, which should be enough
-  even for complex logic provisioned (admin server always uses 1 worker thread).
-  It could be increased if hardware concurrency permits a greater margin taking
-  into account other process threads considered busy.
+  even for complex logic provisioned (admin server hardcodes 1 worker thread(s)).
+  It could be increased if hardware concurrency (8) permits a greater margin taking
+  into account other process threads considered busy and I/O time spent by server
+  threads.
+
+[--traffic-server-max-worker-threads <threads>]
+  Number of traffic server maximum worker threads; defaults to the number of worker
+  threads but could be a higher number so they will be created when needed.
 
 [-t|--traffic-server-threads <threads>]
   Number of nghttp2 traffic server threads; defaults to 2 (2 connections)
@@ -561,29 +640,40 @@ Options:
   Disables data storage for events processed (enabled by default).
   This invalidates some features like FSM related ones (in-state, out-state)
   or event-source transformations.
+  This affects to both mock server-data and client-data storages,
+  but normally both containers will not be used together in the same process instance.
 
 [--discard-data-key-history]
   Disables data key history storage (enabled by default).
-  Only latest event (for each key 'method/uri') will be stored and will
-  be accessible for further analysis.
+  Only latest event (for each key '[client endpoint/]method/uri')
+  will be stored and will be accessible for further analysis.
   This limits some features like FSM related ones (in-state, out-state)
-  or event-source transformations.
+  or event-source transformations or client triggers.
   Implicitly disabled by option '--discard-data'.
   Ignored for server-unprovisioned events (for troubleshooting purposes).
+  This affects to both mock server-data and client-data storages,
+  but normally both containers will not be used together in the same process instance.
 
 [--disable-purge]
   Skips events post-removal when a provision on 'purge' state is reached (enabled by default).
 
+  This affects to both mock server-data and client-data purge procedures,
+  but normally both flows will not be used together in the same process instance.
+
 [--prometheus-port <port>]
-  Prometheus <port>; defaults to 8080.
+  Prometheus local <port>; defaults to 8080.
 
 [--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
   Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
   could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
+  This affects to both mock server-data and client-data processing time values,
+  but normally both flows will not be used together in the same process instance.
 
 [--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
+  This affects to both mock 'server internal/client external' message size values,
+  but normally both flows will not be used together in the same process instance.
 
 [--disable-metrics]
   Disables prometheus scrape port (enabled by default).
@@ -601,6 +691,10 @@ Options:
   limit allowed. By default, it is configured to 0 usecs.
   Zero value means that close operation is done just after writting the file.
 
+[--remote-servers-lazy-connection]
+  By default connections are performed when adding client endpoints.
+  This option configures remote addresses to be connected on demand.
+
 [-v|--version]
   Program version.
 
@@ -614,10 +708,10 @@ This utility could be useful to test regular expressions before putting them at 
 
 ### Command line
 
-You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target:
+You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/matching-helper -h
+$> ./build/Release/bin/matching-helper --help
 Usage: matching-helper [options]
 
 Options:
@@ -660,10 +754,10 @@ This utility could be useful to test [Arash Partow's](https://github.com/ArashPa
 
 ### Command line
 
-You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target:
+You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/arashpartow-helper -h
+$> ./build/Release/bin/arashpartow-helper --help
 Usage: arashpartow-helper [options]
 
 Options:
@@ -678,6 +772,8 @@ Examples:
    arashpartow-helper --expression "(1+sqrt(5))/2"
    arashpartow-helper --expression "404 == 404"
    arashpartow-helper --expression "cos(3.141592)"
+
+Arash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/readme.txt
 ```
 
 Execution example:
@@ -688,6 +784,76 @@ $> ./build/Release/bin/arashpartow-helper --expression "404 == 404"
 Expression: 404 == 404
 
 Result: 1
+```
+
+## Execution of h2client helper utility
+
+This utility could be useful to test simple HTTP/2 requests.
+
+### Command line
+
+You may take a look to `h2client` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$> ./build/Release/bin/h2client --help
+Usage: h2client [options]
+
+Options:
+
+[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
+  Set the logging level; defaults to warning.
+
+[--verbose]
+  Output log traces on console.
+
+[--timeout <value>]
+  Time in seconds to wait for request response. Defaults to 5.
+
+[--method <POST|GET|PUT|DELETE|HEAD>]
+  Request method. Defaults to 'GET'.
+
+[--header <value>]
+  Header in the form 'name:value'. This parameter can occur multiple times.
+
+[--body <value>]
+  Plain text for request body content.
+
+--uri <value>
+ URI to access.
+
+--secure
+ Use secure connection.
+
+--rc-probe
+  Forwards HTTP status code into equivalent program return code.
+  So, any code greater than or equal to 200 and less than 400
+  indicates success and will return 0 (1 in other case).
+  This allows to use the client as HTTP/2 command probe in
+  kubernetes where native probe is only supported for HTTP/1.
+
+[-h|--help]
+  This help.
+
+Examples:
+   h2client --timeout 1 --uri http://localhost:8000/book/8472098362
+   h2client --method POST --header "content-type:application/json" --body '{"foo":"bar"}' --uri http://localhost:8000/data
+```
+
+Execution example:
+
+```bash
+$> build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
+
+Timeout: 1
+Secure connection: false
+Uri: http://localhost:8000/book/8472098362
+   Host: localhost
+   Port: 8000
+   Path: book/8472098362
+
+ Response status code: 200
+ Response body: {"author":"Ludwig von Mises"}
+ Response headers: [date: Sun, 27 Nov 2022 18:58:32 GMT]
 ```
 
 ## Execution with TLS support
@@ -734,9 +900,11 @@ $> curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://loc
 HTTP/2 501
 ```
 
+**TODO**: support secure client connection for client capabilities.
+
 ## Metrics
 
-Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
+Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#Command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
 More information about implemented counters [here](#OAM).
 
@@ -747,18 +915,19 @@ Traces are managed by `syslog` by default, but could be shown verbosely at stand
 ```bash
 $> ./h2agent --verbose &
 [1] 27407
-[03/04/21 20:49:35 CEST] Starting h2agent v1.0.0-93-g0ab2129
+20/11/22 20:53:33 CET: Starting h2agent
 Log level: Warning
 Verbose (stdout): true
 IP stack: IPv4
-Admin port: 8074
+Admin local port: 8074
 Traffic server (mock server service): enabled
-Traffic server bind address: 0.0.0.0
-Traffic server port: 8000
+Traffic server local bind address: 0.0.0.0
+Traffic server local port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
 Traffic server threads (nghttp2): 2
 Traffic server worker threads: 1
+Traffic server maximum worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
 Traffic server crt file: <not provided>
@@ -774,21 +943,34 @@ Data key history storage: enabled
 Purge execution: enabled
 Traffic server matching configuration file: <not provided>
 Traffic server provision configuration file: <not provided>
-Prometheus bind address: 0.0.0.0
-Prometheus port: 8080
+Prometheus local bind address: 0.0.0.0
+Prometheus local port: 8080
+Long-term files close delay (usecs): 1000000
+Short-term files close delay (usecs): 0
+Remote servers lazy connection: false
 
 $ kill $!
-[Warning]|/code/src/main.cpp:114(sighndl)|Signal received: 15
-[Warning]|/code/src/main.cpp:104(_exit)|Terminating with exit code 1
-[Warning]|/code/src/main.cpp:134(stopAgent)|Stopping h2agent timers service at 13/05/22 20:07:59 CEST
-[Warning]|/code/src/main.cpp:142(stopAgent)|Stopping h2agent admin service at 13/05/22 20:07:59 CEST
-[Warning]|/code/src/main.cpp:149(stopAgent)|Stopping h2agent traffic service at 13/05/22 20:07:59 CEST
-[Warning]|/code/src/main.cpp:160(_exit)|Stopping logger
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:207(sighndl)|Signal received: 15
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:194(myExit)|Terminating with exit code 1
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:148(stopAgent)|Stopping h2agent timers service at 20/11/22 20:53:37 CET
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:154(stopAgent)|Stopping h2agent admin service at 20/11/22 20:53:37 CET
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:161(stopAgent)|Stopping h2agent traffic service at 20/11/22 20:53:37 CET
+20/11/22 20:53:37 CET: [Warning]|/code/src/main.cpp:198(myExit)|Stopping logger
 
 [1]+  Exit 1                  h2agent --verbose
 ```
 
 ## Training
+
+### Play
+
+Different exercises at `./tools/play-h2agent` are presented and executed like a guided tour:
+
+```bash
+$> tool/play-h2agent/play.sh
+```
+
+Although this is a moderate set of examples, it will be expanded in the future as new exercises are considered useful to improve understanding of the process. The idea is to present use cases that are as practical and common as possible to avoid overwhelming the reader with information given the immense flexibility of the system and its possibilities.
 
 ### Demo
 
@@ -808,7 +990,7 @@ A kata is available at `./kata` directory. It is designed to guide through a set
 
 Sometimes, `github` access restrictions to build the project from scratch could be a handicap. Other times, you could simple prefer to run training stuff isolated.
 
-So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout.
+So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symlinks, main project executables.
 
 The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
@@ -831,16 +1013,16 @@ We will start describing **general** mock operations:
 Then, we will describe **traffic server mock** features:
 
 * Server matching configuration: classification algorithms to  split the incoming traffic and access to the final procedure which will be applied.
-
 * Server provision configuration: here we will define the mock behavior regarding the request received, and the transformations done over it to build the final response and evolve, if proceed, to another state for further receptions.
-
 * Server data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations). Also storage configuration will be described.
 
+And finally, **traffic client mock** features:
 
+* Client endpoints configuration: remote server addresses configured to be used by client provisions.
+* Client provision configuration: here we will define the mock behavior regarding the request sent, and the transformations done over it to build the final request and evolve, if proceed, to another flow for further sendings.
+* Client data storage: data inspection is useful for both external queries (mainly troubleshooting) and internal ones (provision transformations). Also storage configuration will be described.
 
-___
-
-
+## Management interface - general
 
 ### POST /admin/v1/schema
 
@@ -983,7 +1165,7 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Loads global variables for future usage. Load is done through append, so if some variable exists, the new loaded value is appended. This allows to use global variables as memory buckets.
+Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. In any case, load operation is done appending provided data to the current one (in case that the variable already exists). This allows to use global variables as memory buckets, typical when they are managed from transformation steps (within provision context). But this operation is more focused on the use of global variables as constants for the whole execution (although they could be reloaded or reset from provisions, as commented, or even appended by other `POST` operations):
 
 #### Request body schema
 
@@ -1043,7 +1225,7 @@ Json object document containing server data global schema.
 
 ### GET /admin/v1/global-variable?name=`<variable name>`
 
-Global variables are created dynamically during provision processing and can be used in that provision or in any other one. This operation retrieves the whole list of global variables created, or using the query parameter `name`, the specific variable selected:
+This operation retrieves the whole list of global variables created, or using the query parameter `name`, the specific variable selected:
 
 #### Response status code
 
@@ -1126,7 +1308,7 @@ String containing the current log level name.
 
 ### PUT /admin/v1/logging?level=`<level>`
 
-Changes the log level of the `h2agent` process to any of the available levels (this can be also configured on start as described in [command line](#command-line) section). So, `level` query parameter value could be any of the valid log levels: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+Changes the log level of the `h2agent` process to any of the available levels (this can be also configured on start as described in [command line](#Command-line) section). So, `level` query parameter value could be any of the valid log levels: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
 #### Response status code
 
@@ -1147,7 +1329,8 @@ For example:
 ```json
 {
     "longTermFilesCloseDelayUsecs": 1000000,
-    "shortTermFilesCloseDelayUsecs": 0
+    "shortTermFilesCloseDelayUsecs": 0,
+    "lazyClientConnection": true
 }
 ```
 
@@ -1190,13 +1373,11 @@ For example:
 }
 ```
 
-
-
-___
-
-
+## Management interface - traffic server mock
 
 ### POST /admin/v1/server-matching
+
+This the key piece for traffic classification towards server mock.
 
 Defines the server matching procedure for incoming receptions on mock service. Every *URI* received is matched depending on the selected algorithm.
 You can swap this algorithm safely keeping the existing provisions without side-effects, but normally, the mocked application should select an invariable matching configuration specially when long-term load testing is planned. For functional testing, as commented above, the matching configuration update is perfectly possible in real time.
@@ -1304,7 +1485,7 @@ rgx = "(/ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
-So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters, because <u>the whole received `uri` is processed</u>, including that part). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
 
 Also, `regex-replace` could act as a virtual *full matching* algorithm when the transformation fails (the result will be the original tested key), because it can be used as a <u>fall back to cover non-strictly matched receptions</u>. The limitation here is when those unmatched receptions have variable parts (it is impossible/unpractical to provision all the possibilities). So, this fall back has sense to provision constant reception keys (fixed and predictable *URIs*), and of course, strict provision keys matching the result of `regex-replace` transformation on their reception keys which does not fit the other fall back ones.
 
@@ -1386,7 +1567,8 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
-        {"required": ["ConditionVar"]}
+        {"required": ["ConditionVar"]},
+        {"required": ["EqualTo"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -1405,11 +1587,12 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string" },
-        "PrependVar": { "type": "string" },
+        "AppendVar": { "type": "string", "minLength": 1 },
+        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string" }
+        "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
+        "EqualTo": { "type": "string" }
       }
     }
   },
@@ -1466,11 +1649,11 @@ Defines the response behavior for an incoming request matching some basic condit
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|event)\\..+|^(value)\\..*|^inState$"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.body(\\..+)?$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|globalVar|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
           }
         },
         "additionalProperties" : {
@@ -1489,7 +1672,7 @@ Defines the response behavior for an incoming request matching some basic condit
 
 ##### inState and outState
 
-We could label a provision specification to take advantage of internal *FSM* (finite state machine) for matched occurrences. When a reception matches a provision specification, the real context is searched internally to get the current state ("**initial**" if missing or empty string provided) and then get the  `inState` provision for that value. Then, the specific provision is processed and the new state will get the `outState` provided value. This makes possible to program complex flows which depends on some conditions, not only related to matching keys, but also consequence from [transformation filters](#transform) which could manipulate those states.
+We could label a provision specification to take advantage of internal *FSM* (finite state machine) for matched occurrences. When a reception matches a provision specification, the real context is searched internally to get the current state ("**initial**" if missing or empty string provided) and then get the  `inState` provision for that value. Then, the specific provision is processed and the new state will get the `outState` provided value. This makes possible to program complex flows which depends on some conditions, not only related to matching keys, but also consequence from [transformation filters](#Transform) which could manipulate those states.
 
 These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed. Also, if the next state configured (`outState` provisioned or transformed) has not a corresponding `inState` value, the flow will be broken/stopped.
 
@@ -1524,7 +1707,7 @@ Request *URI* path (percent-encoded) to match depending on the algorithm selecte
 
 ##### requestSchemaId
 
-We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
 ##### responseHeaders
 
@@ -1553,11 +1736,11 @@ Optional response delay simulation in milliseconds.
 
 ##### transform
 
-Sorted list of transformations to modify incoming information and build the dynamic response to be sent.
+Sorted list of transformation items to modify incoming information and build the dynamic response to be sent.
 
 Each transformation has a `source`, a `target` and an optional `filter` algorithm. <u>The filters are applied over sources and sent to targets</u> (all the available filters at the moment act over sources in string format, so they need to be converted if they are not strings in origin).
 
-A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped to move to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
+A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped going to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
 
 Let's start describing the available sources of data: regardless the native or normal representation for every kind of target, the fact is that conversions may be done to almost every other type:
 
@@ -1567,31 +1750,52 @@ Let's start describing the available sources of data: regardless the native or n
 
 - *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (only response body nodes could include a boolean).
 
-- *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body node.
+- *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body json node.
 
 
 
 *Variables substitution:*
 
-Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist (**only normal variables can be used in that form**: global ones are excluded to avoid possible performance impact on load testing, but you could transfer a global variable into normal one to overcome this limitation). In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by local provision variables and global variables. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
 
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- request.uri: whole `url-decoded` request *URI* (path together with possible query parameters).
+- request.uri: whole `url-decoded` and **normalized** request *URI* (path together with possible query parameters **sorted**). Not necessarily the same as the classification *URI* (which could ignore those query parameters, or even pass them by from *URI* with no order guaranteed) and in the same way, not necessarily the same as the original *URI* due to the same reason: query parameters order. Normalization makes the source more predictable, something useful to extract specific *URI* parts. For example, consider the *URI* `/composer?city=Bonn&author=Beethoven`, which normalized would turn into `/composer?author=Beethoven&city=Bonn` (because query parameters are sorted). Assuming that source format, you may use the regular expression `(/composer\?author=)([a-zA-Z]*)(&city=)([a-zA-Z]*)`, to extract the author name or city from that predictable normalized *URI* (second or fourth capture group) . This kind of transformation is very usual regardless if query parameters are processed or not.
 
 - request.uri.path: `url-decoded` request *URI* path part.
 
 - request.uri.param.`<name>`: request URI specific parameter `<name>`.
 
-- request.body: request body document from *root*.
+- request.body: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*. In case of `multipart` reception, a proprietary `json` structure is built to ease accessibility, for example:
 
-- request.body.`/<node1>/../<nodeN>`: request body node path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` root.
+  ```json
+  {
+    "multipart.1": {
+      "content": {
+        "foo": "bar"
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "multipart.2": {
+      "content": "0x268aff26",
+      "headers": {
+        "Content-Type": "application/octet-stream"
+      }
+    }
+  }
+  ```
 
-- response.body: response body document from *root*. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+  So, every part is labeled as `multipart.<number>` with nested `content` and `headers` (the content representation depends again on the content type received in the nested headers field). The drawback for `multipart` reception is that we cannot access the original raw data through this `request.body` source because it is transformed into `json` nature as an usability assumption. Anyway, proprietary structure is more useful and probable to be needed, so future proof for raw access is less priority.
 
-- response.body.`/<node1>/../<nodeN>`: response body node path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- request.body.`/<node1>/../<nodeN>`: request body node `json` path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` Also, `multipart` content can be accessed to retrieve any of the nested parts in the proprietary `json` representation commented above.
+
+- response.body: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
+
+- response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
 
 - request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
@@ -1612,30 +1816,54 @@ The **source** of information is classified after parsing the following possible
 
 - recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
-- var.`<id>`: general purpose variable (accessible within transformation chain). Cannot refer json objects. This source variable identifier **admits variables substitution**.
+- var.`<id>`: general purpose variable (readable at transformation chain, provision-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**.
 
-- globalVar.`<id>`: general purpose global variable (readable from any provision). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
+- globalVar.`<id>`: general purpose global variable (readable from anywhere, process-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
-- event.`<var id prefix>`: access server context indexed by request *method*, *URI* and requests *number* given by event variable prefix identifier in such a way that three general purpose variables must be available, as well as a fourth one  which will be the `json` path within the resulting selection. The names to store all the information are composed by the variable prefix name and the following four suffixes:
+- serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where query parameters are:
 
-  - `<var id prefix>`.method: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
-  - `<var id prefix>`.uri: event *URI* selected.
-  - `<var id prefix>`.number: position selected (*1..N*; *-1 for last*) within events requests list.
-  - `<var id prefix>`.path: `json` document path within selection.
+  - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
+  - *requestUri*: event *URI* selected. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
+  - *eventPath*: `json` document path within selection. Optional.
 
-  All the variables should be configured to load the source with the expected `json` object resulting from the selection (normally, it should be a single requests event and then access the `requestBody` field which transports the original **body** which was received by the selected event, but anyway, knowing the server data definition, any part could be accessed depending on the selection result, but take into account that [json pointers](https://tools.ietf.org/html/rfc6901) (as *path* is a `json pointer` definition) do not support accessing array elements, so it is recommended to specify a full selection including the *number*. Indeed, you already will know the *method* and *uri* so you don't need to extract them from the selection again).
+  Event addressing will retrieve a `json` object corresponding to a single event (given by `requestMethod`, `requestUri` and `eventNumber`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
-  <u>Server requests history</u> should be kept enabled allowing to access not only the last event for a given selection key, but some scenarios could live without it.
+  For example, `serverEvent.requestMethod=GET&requestUri=/foo/var&eventNumber=3&eventPath=/requestHeaders` searches the third (event number 3) `GET /foo/bar` request and `/requestHeaders` path, as part of event definition, gives the request headers that was received. The particular case of empty event path extracts the whole event structure, and in general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), which are powerful enough to cover addressing needs.
 
-  Let's see an example. Imagine the following current server data map:
+  **Important note**: as this source provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may need to be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, you must encode it within the source definition. Consider this one: `/app/v1/stock/madrid?loc=123&id=2`. You could use `./tools/url.sh` script helper to prepare its encoded version:
+
+  ```bash
+  $> tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
+
+  Encoded URL:/app/v1/stock/madrid%3Floc%3D123%26id%3D2
+  ```
+
+  So, for this example, a source could be the following:
+
+  `serverEvent.requestMethod=POST&requestUri=/app/v1/stock/madrid%3Floc%3D123%26id%3D2&eventNumber=-1&eventPath=/requestBody`
+
+  Once tokenized, each query parameter is decoded just in case it is needed, and that request *URI* becomes the one desired.
+
+  But there is a more intuitive way to proceed to solve this, because as this source value **admits variables substitution**, we could assign query parameters as variables in previous transformations, and then assign the following generic source: `serverEvent.requestMethod=@{requestMethod}&requestUri=@{requestUri}&eventNumber=@{eventNumber}&eventPath=@{eventPath}`
+
+  This way, user <u>does not have to be worried about encoding,</u> because query parameters are correctly interpreted ('@' and curly braces are not an issue for URL encoding) and replaced during source processing, so for example we could use that generic source definition or something more specific for request *URI* which is the problematic one:
+
+  `serverEvent.requestMethod=POST&requestUri=@{requestUri}&eventNumber=-1&eventPath=/requestBody`
+
+  where `requestUri` would be a variable defined before with the value directly decoded: `/app/v1/stock/madrid?loc=123&id=2`.
+
+  <u>Only in the case that request *URI* is simple enough</u> and does not break the whole server event query parameter list definition, we could just define this source in one line without need to encode or use auxiliary variables, being the most simplified and smart way to define event sources.
+
+  <u>Server events history</u> should be kept enabled allowing to access events. So, imagine the following current server data map:
 
   ```json
   [
     {
       "method": "POST",
-      "requests": [
+      "events": [
         {
           "requestBody": {
             "engine": "tdi",
@@ -1656,22 +1884,12 @@ The **source** of information is classified after parsing the following possible
           "state": "initial"
         }
       ],
-      "uri": "/app/v1/stock/madrid?loc=123"
+      "uri": "/app/v1/stock/madrid?loc=123&id=2"
     }
   ]
   ```
 
-  Then, you could define an event source like `event.ev1`. Assuming that the following variables are available when this source is processed:
-
-  ​	`ev1.method` = "POST"
-
-  ​	`ev1.uri` = "/app/v1/stock/madrid?loc=123"
-
-  ​	`ev1.number` = -1 (means "the last")
-
-  ​	`ev1.path` = "/requestBody"
-
-  Then, the event source (`event.ev1`) would store this `json` object:
+  Then, the source commented above would store this `json` object, which is the request body for the last (`eventNumber=-1`) event registered:
 
   ```json
   {
@@ -1681,41 +1899,61 @@ The **source** of information is classified after parsing the following possible
   }
   ```
 
-  In the same way you could address internal event nested objects and also leaf nodes with basic types (`ev1.path` = "/requestBody/engine" would retrieve "tdi" string as the event data source).
-
 - inState: current processing state.
+
+- txtFile.`<path>`: reads text content from file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing files will fail to open. This source enables the `h2agent` capability to serve files.
+
+- binFile.`<path>`: same as `txtFile` but reading binary data.
+
+- command.`<command>`: executes command on process shell and captures the standard output/error ([popen](https://man7.org/linux/man-pages/man3/popen.3.html)() is used behind). Also, the return code is saved into provision local variable `rc`. You may call external scripts or executables, and do whatever needed as if you would be using the shell environment.
+
+  - Important notes:
+    - **Be aware about security problems**, as you could provision via `REST API` any instruction accessible by a running `h2agent` to extract information or break things without interface restriction (remember anyway that `h2agent` supports [secured connection](#Execution-with-TLS-support)).
+    - **This operation could impact performance** as external procedures will block the working thread during execution (it is different than response delays which are managed asynchronously), so perhaps you should increase the number of working threads (check [command line](#Command-line)). This operation is mainly designed to run administrative procedures within the testing flow, but not as part of regular provisions to define mock behavior. So, having an additional working thread (`--traffic-server-worker-threads 2`) should be enough to handle dedicated `URIs` for that kind of work reserving another thread for normal traffic.
+
+  - Examples:
+    - `/any/procedure 2>&1`: `stderr` is also captured together with standard output (if not, the `h2agent` process will show the error message in console).
+    - `ls /the/file 2>/dev/null || /bin/true`: always success (`rc` stores 0) even if file is missing. Path captured when the file path exists.
+    - `/opt/tools/checkCondition &>/dev/null && echo fulfilled`: prepare transformation to capture non-empty content ("fulfilled") when condition is successful.
+    - `/path/to/getJpg >/var/log/image.jpg 2>/var/log/getJpg.err`: arbitrary procedure executed and standard output/error dumped into files which can be read in later step by mean `binFile`/`txtFile` sources.
+    - Shell commands accessible on environment path: security considerations are important but this functionality is worth it as it even allows us to simulate exceptional conditions within our test system. For example, we could provision a special `uri` to provoke the mock server crash using command source: `pkill -SIGSEGV h2agent` (suicide command).
+
 
 
 
 The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
 
-- response.body.string *[string]*: response body document storing expected string at *root*.
+- response.body.string *[string]*: response body storing expected string processed.
 
-- response.body.integer *[integer]*: response body document storing expected integer at *root*.
+- response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
 
-- response.body.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
+- response.body.json.string *[string]*: response body document storing expected string at *root*.
 
-- response.body.float *[float number]*: response body document storing expected float number at *root*.
+- response.body.json.integer *[integer]*: response body document storing expected integer at *root*.
 
-- response.body.boolean *[boolean]*: response body document storing expected boolean at *root*.
+- response.body.json.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
 
-- response.body.object *[json object]*: response body document storing expected object as *root* node.
+- response.body.json.float *[float number]*: response body document storing expected float number at *root*.
 
-- response.body.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
+- response.body.json.boolean *[boolean]*: response body document storing expected boolean at *root*.
 
-- response.body.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
+- response.body.json.object *[json object]*: response body document storing expected object as *root* node.
 
-- response.body.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
+- response.body.json.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
-- response.body.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
+- response.body.json.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
+- response.body.json.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+- response.body.json.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+- response.body.json.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
+- response.body.json.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+
+- response.body.json.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+
+- response.body.json.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
 - response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**. Take into account that header fields values are sent [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
@@ -1723,9 +1961,9 @@ The **target** of information is classified after parsing the following possible
 
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- var.`<id>` *[string (or number as string)]*: general purpose variable (intended to be used as source later). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
+- var.`<id>` *[string (or number as string)]*: general purpose variable (writable at transformation chain and intended to be used later, as source, within provision-level scope). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
 
-- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (intended to be used as source later; writable from any provision). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
+- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
@@ -1733,7 +1971,7 @@ The **target** of information is classified after parsing the following possible
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
 
-- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution took place on the path provided it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). Delays in microseconds are configurable on process startup. Check  [command line](#command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
+- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
@@ -1757,22 +1995,22 @@ Filters give you the chance to make complex transformations:
 
 - RegexCapture: this filter provides a regular expression, including optionally capture groups which will be applied to the source and stored in the target. This filter is designed specially for general purpose variables, because each captured group *k* will be mapped to a new variable named `<id>.k` where `<id>` is the original source variable name. Also, the variable "as is" will store the entire match, same for any other type of target (used together with boolean target it is useful to write the match condition). Let's see some examples:
 
-   ```json
-   {
-     "source": "request.uri.path",
-     "target": "var.id_cat",
-     "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
-   }
-   ```
+  ```json
+  {
+    "source": "request.uri.path",
+    "target": "var.id_cat",
+    "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+  }
+  ```
 
-   In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="/api/v2/id-28/category-animal"*.
+  In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="/api/v2/id-28/category-animal"*.
 
-   Other example:
+  Other example:
 
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.string.category",
+    "target": "response.body.json.string.category",
     "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
   }
   ```
@@ -1783,12 +2021,12 @@ Filters give you the chance to make complex transformations:
 
 
 
-- RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure. We provide `rgx` and `fmt` to transform the source into the target:
+- RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure (even the fact that it *falls back to source information when not matching is done*, something that differs from former `RegexCapture` algorithm which builds an empty string when regular expression is not fully matched). We provide `rgx` and `fmt` to transform the source into the target:
 
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.unsigned.data.timestamp",
+    "target": "response.body.json.unsigned.data.timestamp",
     "filter": {
       "RegexReplace" : {
         "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
@@ -1818,7 +2056,6 @@ Filters give you the chance to make complex transformations:
   ```
 
   Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* or whatever), we don't consider at the moment that the probably better performance of such implementations, justify abandon the flexibility in the current abstraction that we achieve thanks to the *RegexReplace* filter.
-
 
 
 
@@ -1925,24 +2162,66 @@ Filters give you the chance to make complex transformations:
 
 - ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. All the variables are strings in origin, and are converted to target selected types, but in this case the string variable value is adapted to boolean result in this way: if the variable is not defined or it is empty, the condition is *false*. It will be *true*  in the rest of cases.
 
-  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string.
+  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string. Also, <u>variable name can be preceded by exclamation mark (!)  in order to invert the condition</u>: empty or undefined variable becomes *true* and any other *false*.
 
   This behavior invite to use regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter). for example:
 
   ```json
   {
-    "source": "request.body./forceErrors/internalServerError",
-    "target": "var.internalServerError"
+    "source": "request.body./error",
+    "target": "var.error500",
+    "filter": { "RegexCapture" : "(500)" }
   },
   {
     "source": "value.500",
     "target": "response.statusCode",
-    "filter": { "ConditionVar" : "internalServerError" }
+    "filter": { "ConditionVar" : "error500" }
   }
   ```
 
-  In this example, the request body dictates the responses' status code depending on value (empty or not) received at "*/forceErrors/internalServerError*". Of course there are many ways to set the condition variable depending on the needs.
+  In this example, the request body dictates the responses' status code depending on `json` value (matching `500` or not) received at "*/error*" request body path. Of course there are many ways to set the condition variable depending on the needs, but this one is clear because the `RegexCapture` builds empty variable `error500` when the expected value is not matched, and that complies `ConditionVar` requirements. Now we will describe the `EqualsTo` filter which can be more intuitive than `RegexCapture` to build a condition variable:
 
+
+
+- EqualTo: conditional transfer from source to target based in string comparison with the provided value. The result will be "yes" when source and reference string are the same, and transformation is skipped when differ (variable will be undefined so can be used later as any other `ConditionVar` making matching easier regarding `RegexCapture` which would need complex equivalent regular expressions for them, for example to match `json` content):
+
+  ```json
+  {
+    "source": "request.body",
+    "target": "var.expectedBody",
+    "filter": { "EqualTo" : "{\"foo\":1}" }
+  },
+  {
+    "source": "value.500",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "expectedBody" }
+  }
+  ```
+
+  Math library also have the possibility to use functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wildcards), but the point here is the way to define or not a variable to be used as condition variable.
+
+  In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable:
+
+  ```json
+  {
+    "source": "recvseq",
+    "target": "var.recvseq"
+  },
+  {
+    "source": "math.@{recvseq} > 10",
+    "target": "var.greater",
+    "filter": { "EqualTo" : "1" }
+  },
+  {
+    "source": "value.Sequence @{recvseq} is lesser or equal than 10",
+    "target": "response.body.string"
+  },
+  {
+    "source": "value.Sequence @{recvseq} is greater than 10",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "greater" }
+  }
+  ```
 
 
 
@@ -1950,7 +2229,7 @@ Finally, after possible transformations, we could validate the response body:
 
 ##### responseSchemaId
 
-We could optionally validate built responses against a `json` schema. Schemas are identified by string name and configured through [command line](#command-line) or [REST API](#management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+We could optionally validate built responses against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
 #### Response status code
 
@@ -1998,7 +2277,7 @@ Provision of a set of provisions through an array object is allowed. So, instead
 ]
 ```
 
-Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message.
+Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message although previous valid provisions will be added.
 
 ### GET /admin/v1/server-provision/schema
 
@@ -2083,19 +2362,25 @@ For example:
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
-### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
+### GET /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`&eventPath=`<path>`
 
-Retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent responds with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information.
+Retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent answered with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the received `uri` normalized</u> (having for example, a better predictable query parameters order during server data events search), not the `classification uri` (which could dispense with query parameters or variable parts depending on the matching algorithm), and could also be slightly different in some cases (specially when query parameters are involved) than original `uri` received on HTTP/2 interface.
 
-<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *requestNumber*, for example:
+<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
 
-The `json` document response shall contain three main nodes: `method`, `uri` and a `requests` object with the chronologically ordered list of events received for the given `method/uri` combination.
+The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events received for the given `method/uri` combination.
 
-Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *requestNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the response `requests` node will contain a single register in this case). So, the *requestNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted.
+Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *eventNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the `events` node will contain a single register in this case). So, the *eventNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted. Also, *eventPath* has no sense alone and may be provided together with *eventNumber* because it refers to a path within the selected object for the specific position number described before.
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
+
+**Important note**: same thing must be considered about request *URI* encoding like in server event source definition: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So, for the request *URI* `/app/v1/foo/bar/1?name=test` we would have (use `./tools/url.sh` helper to encode):
+
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
+
+Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
 
 #### Response status code
 
@@ -2105,7 +2390,7 @@ This operation is useful for testing post verification stages (validate content 
 
 Json array document containing all the selected event items, when something matches (no-content response has no body).
 
-When provided *method* and *uri*, server data will be filtered with that key. If request number is provided too, the single event object, if exists, will be returned. When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
+When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
 
 Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*'):
 
@@ -2113,7 +2398,7 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
 [
   {
     "method": "GET",
-    "requests": [
+    "events": [
       {
         "requestBody": {
           "node1": {
@@ -2178,13 +2463,13 @@ Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=t
 
 
 
-Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*') and a *requestNumber* (2):
+Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*') and a *eventNumber* (2):
 
 ```json
 [
   {
     "method": "GET",
-    "requests": [
+    "events": [
       {
         "requestBody": {
           "node1": {
@@ -2219,9 +2504,19 @@ Example of single event for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test
 ]
 ```
 
+And finally an specific content within single event for unique key (*GET* on '*/app/v1/foo/bar/1?name=test*'), *eventNumber* (2) and a *eventPath* '*/requestBody*':
+
+```json
+{
+  "node1": {
+    "node2": "value-of-node1-node2"
+  }
+}
+```
 
 
-The information collected for a requests item is:
+
+The information collected for a events item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
 * `receptionTimestampUs`: event reception *timestamp*.
@@ -2233,7 +2528,7 @@ The information collected for a requests item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
-* `serverSequence`: current server monotonically increased sequence for every reception. In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
+* `serverSequence`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### GET /admin/v1/server-data/summary?maxKeys=`<number>`
 
@@ -2247,7 +2542,7 @@ When a huge amount of events are stored, we can still troubleshoot an specific k
 
 A `json` object document with some practical information is built:
 
-* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history requests (`amount`) is shown.
+* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *method* and *uri*, and also the number of history events (`amount`) is shown.
 * `totalEvents`: this includes possible virtual events, although normally this kind of configuration is not usual and the value matches the total number of real receptions.
 * `totalKeys`: total different keys (method/uri) registered.
 
@@ -2280,17 +2575,132 @@ Take the following `json` as an example:
 }
 ```
 
-### DELETE /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&requestNumber=`<number>`
+### DELETE /admin/v1/server-data?requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`
 
 Deletes the server data given by query parameters defined in the same way as former *GET* operation. For example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&requestNumber=3`
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
-Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *requestNumber* restricts optionally them.
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
 
 #### Response status code
 
 **200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+No response body.
+
+## Management interface - traffic client mock
+
+### POST /admin/v1/client-endpoint
+
+Defines client endpoint with the remote server information where `h2agent` may connect during test execution.
+
+By default, created endpoints will connect the defined remote server (except for lazy connection mode: `--remote-servers-lazy-connection`) but no reconnection procedure is implemented in case of fail. Instead, they will be reconnected on demand when a request is processed through such endpoint.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "host": {
+      "type": "string"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1025,
+      "maximum": 65536
+    },
+    "secure": {
+      "type": "boolean"
+    },
+    "permit": {
+      "type": "boolean"
+    }
+  },
+  "required": [ "id", "host", "port" ]
+}
+```
+
+Mandatory fields are `id`, `host` and `port`. Optional `secure` field is used to indicate the scheme used, *http* (default) or *https*, and `permit` field is used to process (default) or ignore a request through the client endpoint regardless if the connection is established or not (when permitted, a closed connection will be lazily restarted). Using `permit`, flows may be interrupted without having to disconnect the carrier.
+
+Endpoints could be updated through further *POST* requests to the same identifier `id`. When `host`, `port` and/or `secure` are modified for an existing endpoint, connection shall be dropped and re-created again towards the corresponding updated address. In this case, status code *Accepted* (202) will be returned.
+
+#### Response status code
+
+**201** (Created), **202** (Accepted) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /admin/v1/client-endpoint (multiple client endpoints)
+
+Configuration of a set of client endpoints through an array object is allowed. So, instead of launching *N* configurations separately, you could group them as in the following example:
+
+```json
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000
+  },
+  {
+    "id": "myServer2",
+    "host": "localhost2",
+    "port": 8000
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single configurations. A client endpoint set fails with the first failed item, giving a 'pluralized' version of the single configuration failed response message although previous valid client endpoints will be added.
+
+### GET /admin/v1/client-endpoint/schema
+
+Retrieves the client endpoint schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing client endpoint schema.
+
+### GET /admin/v1/client-endpoint
+
+Retrieves the current client endpoint configuration. An additional `status` filed will be answered in the response object for every client endpoint indicating the current connection status.
+
+#### Response status code
+
+**200** (OK), **204** (No Content).
+
+#### Response body
+
+Json object document containing client endpoint configuration. No content has no body.
+
+### DELETE /admin/v1/client-endpoint
+
+Deletes the whole process client endpoint configuration. All the established connections will be closed and client endpoints will be removed from the list.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
 
 #### Response body
 
@@ -2323,19 +2733,24 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
        version: 1.0.0
        repository: alias:erthelm
        alias: h2server2
+
+     - name: h2agent
+       version: 1.0.0
+       repository: alias:erthelm
+       alias: h2client
    ```
 
 3. Refer to `h2agent` values through the corresponding dependency alias, for example `.Values.h2server.image` to access process repository and tag.
 
 ### Agent configuration files
 
-Some [command line](#command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
+Some [command line](#Command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
 
 ## Troubleshooting
 
 ### Helper functions
 
-As we commented [above](#how-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
+As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
 $> source ./tools/helpers.src
@@ -2353,40 +2768,45 @@ CURL="curl -i --http2-prior-knowledge"
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
                                             (http://localhost:8074/admin/v1/schema).
-Usage: global_variable [-h|--help] [--clean] [file]; Cleans/gets/updates current agent global variable configuration
-                                                     (http://localhost:8074/admin/v1/global-variable).
-Usage: configuration [-h|--help]; Gets agent general configuration.
-Usage: server_configuration [-h|--help]; Manages agent configuration (gets current status by default).
-                            [--traffic-server-ignore-request-body]  ; Sets configuration to ignore request body on traffic
-                                                                      server receptions.
-                            [--traffic-server-receive-request-body] ; Sets configuration to process request body on traffic
-                                                                      server receptions.
-                            [--traffic-server-dynamic-request-body-allocation] ; Sets configuration to do dynamic request body
-                                                                                 memory allocation on traffic server receptions.
-                            [--traffic-server-initial-request-body-allocation] ; Sets configuration to pre reserve request body
-                                                                                 memory on traffic server receptions.
-Usage: data_configuration [-h|--help]; Manages agent data configuration (gets current status by default).
-                          [--discard-all]     ; Sets data configuration to discard all the events processed.
-                          [--discard-history] ; Sets data configuration to keep only the last event processed for a key.
-                          [--keep-all]        ; Sets data configuration to keep all the events processed.
-                          [--disable-purge]   ; Sets data configuration to skip events post-removal when a provision on
-                                                'purge' state is reached.
-                          [--enable-purge]    ; Sets data configuration to process events post-removal when a provision on
-                                                'purge' state is reached.
+Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration
+                                                          (http://localhost:8074/admin/v1/global-variable).
+Usage: files [-h|--help]; Gets the files processed.
+Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
+                            [--enable-read-cache]  ; Enables cache for read operations.
+                            [--disable-read-cache] ; Disables cache for read operations.
+Usage: configuration [-h|--help]; Gets agent general static configuration.
 
 === Traffic server ===
+Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default).
+       [--traffic-server-ignore-request-body]  ; Ignores request body on server receptions.
+       [--traffic-server-receive-request-body] ; Processes request body on server receptions.
+       [--traffic-server-dynamic-request-body-allocation] ; Does dynamic request body memory allocation on server receptions.
+       [--traffic-server-initial-request-body-allocation] ; Pre reserves request body memory on server receptions.
+Usage: server_data_configuration [-h|--help]; Manages agent server data configuration (gets current status by default).
+                                 [--discard-all]     ; Discards all the events processed.
+                                 [--discard-history] ; Keeps only the last event processed for a key.
+                                 [--keep-all]        ; Keeps all the events processed.
+                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached.
+                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached.
+
 Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
                                     (http://localhost:8074/admin/v1/server-matching).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
 Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
-                   [method] [uri] [[-]request number]; Restricts shown data with given positional filters.
-                                                       Request number may be negative to access by reverse chronological order.
-                   [--summary] [max keys]            ; Gets current server data summary to guide further queries.
-                                                       Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
-                   [--clean] [query filters]         ; Removes server data events. Admits additional query filters to narrow the                                                        selection.
+                   [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters.
+                                                                   Event number may be negative to access by reverse
+                                                                   chronological order.
+                   [--summary] [max keys]          ; Gets current server data summary to guide further queries.
+                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
+                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
+                                                     selection.
 Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
                                                                                retrieved in previous server_data() call.
+
+=== Traffic client ===
+Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration
+                                                     (http://localhost:8074/admin/v1/client-endpoint).
 
 === Schemas ===
 Usage: schema_schema [-h|--help]; Gets the schema configuration schema
@@ -2397,22 +2817,26 @@ Usage: server_matching_schema [-h|--help]; Gets the server matching configuratio
                                            (http://localhost:8074/admin/v1/server-matching/schema).
 Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
                                             (http://localhost:8074/admin/v1/server-provision/schema).
+Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema
+                                           (http://localhost:8074/admin/v1/client-endpoint/schema).
 
 === Auxiliary ===
 Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.
             Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
             Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
-Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent tracing level.
+Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent
+                                                                                                     tracing level.
 Usage: metrics [-h|--help]; Prometheus metrics.
 Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
 Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)
+Usage: client_example [-h|--help]; Basic client configuration examples. Try: source <(client_example)
 Usage: help; This help. Overview: help | grep ^Usage
 ```
 
 ### OAM
 
-You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#helper-functions): `metrics`.
+You could use any visualization framework to analyze metrics information from `h2agent` but perhaps the simplest way to do it is using the `metrics` function  (just a direct `curl` command to the scrape port) from [function helpers](#Helper-functions): `metrics`.
 
 So, a direct scrape (for example towards the agent after its *component test*) would be something like this:
 
@@ -2426,7 +2850,7 @@ On native execution, it is just a simple `curl` native request:
 $> curl http://localhost:8080/metrics
 ```
 
-This is an example of metrics snapshot captured after [benchmark test](#benchmarking-test) execution:
+This is an example of metrics snapshot captured after [benchmark test](#Benchmarking-test) execution:
 
 ```bash
 $> source ./tools/helpers.src

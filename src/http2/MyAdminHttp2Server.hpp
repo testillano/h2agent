@@ -43,32 +43,37 @@ SOFTWARE.
 #include <ert/metrics/Metrics.hpp>
 
 #include <ert/http2comm/Http2Server.hpp>
+#include <common.hpp>
 
 namespace h2agent
 {
 namespace model
 {
+class Configuration;
+class GlobalVariable;
+class FileManager;
 class AdminData;
 class MockServerEventsData;
-class Configuration;
 }
 
 namespace http2
 {
 
+bool statusCodeOK(int statusCode);
+
 class MyTrafficHttp2Server;
 
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
-    model::Configuration *configuration_{};
     model::AdminData *admin_data_{};
+    model::common_resources_t common_resources_{}; // general configuration, global variables, file manager and mock server events data
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
 
-    void receiveEMPTY(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
+    void receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
@@ -99,14 +104,35 @@ public:
     //bool preReserveRequestBody(); //virtual: default implementation (true) is acceptable for us (really, it does not matter).
 
     void setConfiguration(model::Configuration *p) {
-        configuration_ = p;
+        common_resources_.ConfigurationPtr = p;
     }
     model::Configuration *getConfiguration() const {
-        return configuration_;
+        return common_resources_.ConfigurationPtr;
+    }
+
+    void setGlobalVariable(model::GlobalVariable *p) {
+        common_resources_.GlobalVariablePtr = p;
+    }
+    model::GlobalVariable *getGlobalVariable() const {
+        return common_resources_.GlobalVariablePtr;
+    }
+
+    void setFileManager(model::FileManager *p) {
+        common_resources_.FileManagerPtr = p;
+    }
+    model::FileManager *getFileManager() const {
+        return common_resources_.FileManagerPtr;
     }
 
     model::AdminData *getAdminData() const {
         return admin_data_;
+    }
+
+    void setMockServerEventsData(model::MockServerEventsData *p) {
+        common_resources_.MockServerEventsDataPtr = p;
+    }
+    model::MockServerEventsData *getMockServerEventsData() const {
+        return common_resources_.MockServerEventsDataPtr;
     }
 
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {
@@ -117,10 +143,12 @@ public:
         return http2_server_;
     }
 
-    bool schema(const nlohmann::json &configurationObject, std::string& log) const;
-    bool serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
-    bool serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
-    bool globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
+    int serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
+    int serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const;
+    //int clientProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
+    int schema(const nlohmann::json &configurationObject, std::string& log) const;
 };
 
 }
