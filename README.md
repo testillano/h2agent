@@ -2364,6 +2364,20 @@ Both *method* and *uri* shall be provided together (if any of them is missing, a
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
+**Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, the server data query will encode its value part. You could use `./tools/url.sh` script helper to prepare the value:
+
+```bash
+$> tools/url.sh --encode "/app/v1/foo/bar?id=5&name=test"
+
+Encoded URL: /app/v1/foo/bar%3Fid%3D5%26name%3Dtest
+```
+
+So, for this example, the whole *URL* for server data inspection would be:
+
+`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
+
+Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
+
 #### Response status code
 
 **200** (OK), **204** (No Content) or **400** (Bad Request).
