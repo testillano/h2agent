@@ -152,12 +152,8 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "source": "value.@{myvar}",
       "target": "response.body.json.string./myvar-priority"
     },
-    { "source": "value.POST", "target": "var.persistEvent.method" },
-    { "source": "value./app/v1/foo/bar/1", "target": "var.persistEvent.uri" },
-    { "source": "value.-1", "target": "var.persistEvent.number" },
-    { "source": "value./requestBody/node1/node2", "target": "var.persistEvent.path" },
     {
-      "source": "serverEvent.persistEvent",
+      "source": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/node1/node2",
       "target": "response.body.json.object./event"
     },
     {
@@ -549,7 +545,7 @@ TEST_F(Transform_test, TransformationAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Sources["transform"].size();
 
-    EXPECT_EQ(transformationItems, 39);
+    EXPECT_EQ(transformationItems, 35);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
     }

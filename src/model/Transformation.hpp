@@ -106,8 +106,8 @@ private:
 
     SourceType source_type_{};
     std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
-    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, ServerEvent, STxtFile(path), SBinFile (path), Command(expression)
-    std::vector<std::string> source_tokenized_{}; // RandomSet
+    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, STxtFile(path), SBinFile (path), Command(expression)
+    std::vector<std::string> source_tokenized_{}; // RandomSet, ServerEvent
     int source_i1_{}, source_i2_{}; // Random
 
     TargetType target_type_{};

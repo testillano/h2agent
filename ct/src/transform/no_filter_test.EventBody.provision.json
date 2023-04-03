@@ -1,6 +1,6 @@
 {
   "requestMethod": "POST",
-  "requestUri": "/app/v1/foo/bar/1",
+  "requestUri": "/app/v1/foo/bar/1?name=test&val=2",
   "responseCode": 200,
   "responseBody":  {
     "foo": "bar-1"
@@ -10,12 +10,24 @@
     "x-version": "1.0.0"
   },
   "transform": [
-    { "source": "value.POST", "target": "var.ev1.method" },
-    { "source": "value./app/v1/foo/bar/1", "target": "var.ev1.uri" },
-    { "source": "value.1", "target": "var.ev1.number" },
-    { "source": "value./requestBody", "target": "var.ev1.path" },
     {
-      "source": "serverEvent.ev1",
+      "source": "value.POST",
+      "target": "var.requestMethod"
+    },
+    {
+      "source": "value./app/v1/foo/bar/1?name=test&val=2",
+      "target": "var.requestUri"
+    },
+    {
+      "source": "value.1",
+      "target": "var.eventNumber"
+    },
+    {
+      "source": "value./requestBody",
+      "target": "var.eventPath"
+    },
+    {
+      "source": "serverEvent.requestMethod=@{requestMethod}&requestUri=@{requestUri}&eventNumber=@{eventNumber}&eventPath=@{eventPath}",
       "target": "response.body.json.object./firstRequestBody"
     }
   ]

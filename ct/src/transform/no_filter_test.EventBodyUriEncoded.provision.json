@@ -1,0 +1,18 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1?name=test&val=2",
+  "responseCode": 200,
+  "responseBody":  {
+    "foo": "bar-1"
+  },
+  "responseHeaders":  {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1%3Fname%3Dtest%26val%3D2&eventNumber=1&eventPath=/requestBody",
+      "target": "response.body.json.object./firstRequestBody"
+    }
+  ]
+}

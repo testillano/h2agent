@@ -251,19 +251,20 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
     }
     else if (transformation->getSourceType() == Transformation::SourceType::ServerEvent) {
-        std::string var_id_prefix = transformation->getSource();
-
-        auto iter = variables.find(var_id_prefix + ".method");
-        std::string event_method = (iter != variables.end()) ? (iter->second):"";
-
-        iter = variables.find(var_id_prefix + ".uri");
-        std::string event_uri = (iter != variables.end()) ? (iter->second):"";
-
-        iter = variables.find(var_id_prefix + ".number");
-        std::string event_number = (iter != variables.end()) ? (iter->second):"";
-
-        iter = variables.find(var_id_prefix + ".path");
-        std::string event_path = (iter != variables.end()) ? (iter->second):"";
+        // transformation->getSourceTokenized() is a vector:
+        //
+        // requestMethod: index 0
+        // requestUri:    index 1
+        // eventNumber:   index 2
+        // eventPath:     index 3
+        std::string event_method = transformation->getSourceTokenized()[0];
+        replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_->get());
+        std::string event_uri = transformation->getSourceTokenized()[1];
+        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, global_variable_->get());
+        std::string event_number = transformation->getSourceTokenized()[2];
+        replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_->get());
+        std::string event_path = transformation->getSourceTokenized()[3];
+        replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_->get());
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;

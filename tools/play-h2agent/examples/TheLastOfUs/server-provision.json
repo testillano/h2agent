@@ -11,23 +11,7 @@
       "target": "var.previous"
     },
     {
-      "source": "value.GET",
-      "target": "var.ev.method"
-    },
-    {
-      "source": "value./divide/by/two",
-      "target": "var.ev.uri"
-    },
-    {
-      "source": "value.-1",
-      "target": "var.ev.number"
-    },
-    {
-      "source": "value./responseBody/current",
-      "target": "var.ev.path"
-    },
-    {
-      "source": "serverEvent.ev",
+      "source": "serverEvent.requestMethod=GET&requestUri=/divide/by/two&eventNumber=-1&eventPath=/responseBody/current",
       "target": "var.previous"
     },
     {
