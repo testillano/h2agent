@@ -16,7 +16,5 @@ LIMITATIONS:
 
 If you POST again, you cannot GET the data. So, the simulation is not
  completely perfect.
-It should be necessary to have a mechanism to specify a different URI than
- current when changing the foreign state.
-This is because the POST request URI is different than GET and DELETE ones.
-In this way, we could initialize the provisions for DELETE and GET.
+POST request URI is normally different than GET and DELETE ones, so we could
+ add the URI to the foreign state to make a more realistic example.
