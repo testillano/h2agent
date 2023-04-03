@@ -46,7 +46,7 @@ Here you have a funny conversation example:
 ]
 ```
 
-The first provision item omits the `inState`, but you could add `"instate": "initial"` to be more clear if you want.
+The first provision item omits the `inState`, but you could add `"inState":"initial"` to be more clear if you want.
 
 Another important thing about this provision set is that when exhausted, further requests from the client will never be answered (just a `501` which means *Not Implemented*, which is the way `h2agent` indicates a missing provision for the received event).
 

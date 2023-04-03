@@ -41,7 +41,7 @@ This does not mean that you won't have access to query parameters within provisi
 
 ## Exercise
 
-Complete the `server-matching.json` file, in order to receive an status code `200` for a `GET` request with the `URI`: `/one/uri/path?name=Hayek&city=Friburgo`.
+Complete the `server-matching.json` file, in order to receive an status code `200` for a `GET` request with an `URI` that contains query parameters: `/one/uri/path?name=Hayek&city=Friburgo`.
 
 It is not allowed to modify the `server-provision.json` file.
 
