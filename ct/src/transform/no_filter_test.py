@@ -415,7 +415,7 @@ def test_028_eraseResponseBody(admin_server_provision, h2ac_traffic):
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
-  responseBodyRef = {}
+  responseBodyRef = ""
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
