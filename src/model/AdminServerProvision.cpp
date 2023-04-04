@@ -954,7 +954,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // (*) Regenerate final responseBody after transformations:
-    if(usesResponseBodyAsTransformationJsonTarget) {
+    if(usesResponseBodyAsTransformationJsonTarget && !responseBodyJson.empty()) {
         try {
             responseBody = responseBodyJson.dump(); // this may arise type error, for example in case of trying to set json field value with binary data:
             // When having a provision transformation from 'request.body' to 'response.body.json.string./whatever':
