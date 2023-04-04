@@ -177,6 +177,18 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "response.body.json.string./command-output"
     },
     {
+      "source": "value.source-not-supported-for-target-type",
+      "target": "serverEvent.requestMethod=GET&requestUri=/app/v1/foo/bar/1%3Fname%3Dtest"
+    },
+    {
+      "source": "eraser",
+      "target": "serverEvent.requestUri=invalid-addressing-as-request-method-is-mandatory"
+    },
+    {
+      "source": "eraser",
+      "target": "serverEvent.requestMethod=GET&requestUri=/accepted/transformation/but/nothing/purged"
+    },
+    {
       "source": "var.rc",
       "target": "response.body.json.string./command-rc"
     }
@@ -545,7 +557,7 @@ TEST_F(Transform_test, TransformationAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Sources["transform"].size();
 
-    EXPECT_EQ(transformationItems, 35);
+    EXPECT_EQ(transformationItems, 38);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
     }

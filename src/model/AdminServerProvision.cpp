@@ -788,6 +788,39 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
             }
         }
+        else if (transformation->getTargetType() == Transformation::TargetType::ServerEventToPurge) {
+            if (!eraser) {
+                LOGDEBUG(ert::tracing::Logger::debug("'ServerEventToPurge' target type only works with 'eraser' source type. This transformation will be ignored.", ERT_FILE_LOCATION));
+                return false;
+            }
+            // transformation->getTargetTokenized() is a vector:
+            //
+            // requestMethod: index 0
+            // requestUri:    index 1
+            // eventNumber:   index 2
+            std::string event_method = transformation->getTargetTokenized()[0];
+            replaceVariables(event_method, transformation->getTargetPatterns(), variables, global_variable_->get());
+            std::string event_uri = transformation->getTargetTokenized()[1];
+            replaceVariables(event_uri, transformation->getTargetPatterns(), variables, global_variable_->get());
+            std::string event_number = transformation->getTargetTokenized()[2];
+            replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_->get());
+
+            bool serverDataDeleted = false;
+            bool success = mock_server_events_data_->clear(serverDataDeleted, event_method, event_uri, event_number);
+
+            if (!success) {
+                LOGDEBUG(
+                    std::string msg = ert::tracing::Logger::asString("Unexpected error while removing server data event '%s' in transformation item", transformation->getTarget().c_str());
+                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                );
+                return false;
+            }
+
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Server event '%s' removal result: %s", transformation->getTarget().c_str(), (serverDataDeleted ? "SUCCESS":"NOTHING REMOVED"));
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+        }
     }
     catch (std::exception& e)
     {
@@ -912,7 +945,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
             }
         }
 
-        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState
+        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge
         if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;

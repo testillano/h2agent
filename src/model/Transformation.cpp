@@ -178,7 +178,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // - request.body: request body document.
     // + request.body./<node1>/../<nodeN>: request body node path.
     // + request.header.<hname>: request header component (i.e. *content-type*).
-    // - eraser: this is used to indicate that the *response node target* specified.
+    // - eraser: this is used to indicate that the *target* specified (next section) must be removed or reset.
     // + math.`<expression>`: this source is based in Arash Partow's exprtk math library compilation.
     // + random.<min>.<max>: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
     // + timestamp.<unit>: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
@@ -188,6 +188,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + globalVar.<id>: general purpose global variable.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.
+    // + serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`).
     // + txtFile.`<path>`: reads text content from file with the path provided.
     // + binFile.`<path>`: reads binary content from file with the path provided.
     // + command.`<command>`: executes command on process shell and captures the standard output.
@@ -324,7 +325,7 @@ bool Transformation::load(const nlohmann::json &j) {
         return false;
     }
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
     target2_ = ""; // same
 
@@ -354,6 +355,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
     // + txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided.
     // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
+    // + serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser`.
 
     // Regex needed:
     static std::regex responseBodyJson_StringNode("^response.body.json.string.(.*)", std::regex::optimize);
@@ -458,6 +460,18 @@ bool Transformation::load(const nlohmann::json &j) {
         else if (std::regex_match(targetSpec, matches, binFile)) { // path file
             target_ = matches.str(1);
             target_type_ = TargetType::TBinFile;
+        }
+        else if (std::regex_match(targetSpec, matches, serverEvent)) { // value content
+            target_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3
+            target_type_ = TargetType::ServerEventToPurge;
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
+            std::map<std::string, std::string>::const_iterator it;
+            for (auto qp: {
+                        "requestMethod", "requestUri", "eventNumber"
+                    }) { // tokenized vector order
+                it = qmap.find(qp);
+                target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
+            }
         }
         else { // very strange to reach this:
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
