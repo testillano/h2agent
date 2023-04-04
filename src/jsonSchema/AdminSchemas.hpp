@@ -233,7 +233,7 @@ const nlohmann::json server_provision = R"(
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
           }
         },
         "additionalProperties" : {

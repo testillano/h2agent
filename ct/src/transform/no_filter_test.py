@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY
+from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI
 from conftest import NESTED_NODE1_NODE2_REQUEST, NESTED_VAR1_VAR2_REQUEST, TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE
 
 
@@ -306,13 +306,13 @@ def test_023_virtualOutStateToSimulateRealDeletion(admin_server_provision, h2ac_
 
 
 @pytest.mark.transform
-def test_024_eventBodyToResponseBodyPath(admin_cleanup, admin_server_provision, h2ac_traffic):
+def test_024_serverEventToResponseBodyPath(admin_cleanup, admin_server_provision, h2ac_traffic):
 
   # Cleanup
   admin_cleanup()
 
   # Provision
-  admin_server_provision("no_filter_test.EventBody.provision.json")
+  admin_server_provision("no_filter_test.ServerEvent.provision.json")
 
   # Traffic
 
@@ -330,13 +330,13 @@ def test_024_eventBodyToResponseBodyPath(admin_cleanup, admin_server_provision, 
 
 
 @pytest.mark.transform
-def test_025_eventBodyUriEncodedToResponseBodyPath(admin_cleanup, admin_server_provision, h2ac_traffic):
+def test_025_serverEventUriEncodedToResponseBodyPath(admin_cleanup, admin_server_provision, h2ac_traffic):
 
   # Cleanup
   admin_cleanup()
 
   # Provision
-  admin_server_provision("no_filter_test.EventBodyUriEncoded.provision.json")
+  admin_server_provision("no_filter_test.ServerEventUriEncoded.provision.json")
 
   # Traffic
 
@@ -354,7 +354,49 @@ def test_025_eventBodyUriEncodedToResponseBodyPath(admin_cleanup, admin_server_p
 
 
 @pytest.mark.transform
-def test_026_valueWithVariables(admin_server_provision, h2ac_traffic):
+def test_026_serverEventPurge(admin_cleanup, admin_server_provision, h2ac_traffic, h2ac_admin):
+
+  # Cleanup
+  admin_cleanup()
+
+  # Provision
+  admin_server_provision("no_filter_test.ServerEventPurge.provision.json", VALID_SERVER_PROVISIONS__RESPONSE_BODY)
+
+  # Traffic
+
+  # Send 3 GET requests to /foo/bar (does not matter the fact they are not provisioned, because it will be part of server data storage):
+  response = h2ac_traffic.get("/app/v1/foo/bar")
+  response = h2ac_traffic.get("/app/v1/foo/bar")
+  response = h2ac_traffic.get("/app/v1/foo/bar")
+
+  # Check we have 3 GETs:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar&eventNumber=3")
+  assert(response["status"] == 200)
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar&eventNumber=4")
+  assert(response["status"] == 204)
+
+  # Force traffic to POST provision which removes last GET:
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/removeLastGET", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  responseBodyRef = { "foo":"bar-1" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Check that only 2 GETs are remaining:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar&eventNumber=2")
+  assert(response["status"] == 200)
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar&eventNumber=3")
+  assert(response["status"] == 204)
+
+  # Force traffic to POST provision which removes all GETs (2 alive):
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/removeAllGET", string2dict(NESTED_NODE1_NODE2_REQUEST))
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Check that only no GETs are remaining:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar")
+  assert(response["status"] == 204)
+
+
+@pytest.mark.transform
+def test_027_valueWithVariables(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision("no_filter_test.ReplaceValueVariables.provision.json")
@@ -366,7 +408,7 @@ def test_026_valueWithVariables(admin_server_provision, h2ac_traffic):
 
 
 @pytest.mark.transform
-def test_027_eraseResponseBody(admin_server_provision, h2ac_traffic):
+def test_028_eraseResponseBody(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision("no_filter_test.EraseResponseBody.provision.json")
@@ -378,7 +420,7 @@ def test_027_eraseResponseBody(admin_server_provision, h2ac_traffic):
 
 
 @pytest.mark.transform
-def test_028_eraseResponseBodyNode(admin_server_provision, h2ac_traffic):
+def test_029_eraseResponseBodyNode(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision("no_filter_test.EraseResponseBodyNode.provision.json")
@@ -390,7 +432,7 @@ def test_028_eraseResponseBodyNode(admin_server_provision, h2ac_traffic):
 
 
 @pytest.mark.transform
-def test_029_eraseResponseBodyNodeValue(admin_server_provision, h2ac_traffic):
+def test_030_eraseResponseBodyNodeValue(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision("no_filter_test.EraseResponseBodyNodeValue.provision.json")
@@ -402,7 +444,7 @@ def test_029_eraseResponseBodyNodeValue(admin_server_provision, h2ac_traffic):
 
 
 @pytest.mark.transform
-def test_030_responseObjectToResponseBodyJson_ObjectPath(admin_server_provision, h2ac_traffic):
+def test_031_responseObjectToResponseBodyJson_ObjectPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="response.body./foo", target="response.body.json.object./fooAgain"))
@@ -414,7 +456,7 @@ def test_030_responseObjectToResponseBodyJson_ObjectPath(admin_server_provision,
 
 
 @pytest.mark.transform
-def test_031_responseToResponseBodyJson_ObjectPath(admin_server_provision, h2ac_traffic):
+def test_032_responseToResponseBodyJson_ObjectPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="response.body", target="response.body.json.object./responseAgain"))
@@ -426,7 +468,7 @@ def test_031_responseToResponseBodyJson_ObjectPath(admin_server_provision, h2ac_
 
 
 @pytest.mark.transform
-def test_032_replaceVariablesAtValueAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
+def test_033_replaceVariablesAtValueAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.@{var1}-@{var2}", target="response.body.json.string./result"))
@@ -438,7 +480,7 @@ def test_032_replaceVariablesAtValueAndTransferToResponseBodyJson_StringPath(adm
 
 
 @pytest.mark.transform
-def test_033_replaceVariablesAtStrftimeAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
+def test_034_replaceVariablesAtStrftimeAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="strftime.Now it's %I:%M%p and var1 is @{var1}.", target="response.body.json.string./result"))
@@ -453,7 +495,7 @@ def test_033_replaceVariablesAtStrftimeAndTransferToResponseBodyJson_StringPath(
 
 
 @pytest.mark.transform
-def test_034_replaceVariablesAtRandomsetAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
+def test_035_replaceVariablesAtRandomsetAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="randomset.@{var1}|@{var2}", target="response.body.json.string./result"))
@@ -467,7 +509,7 @@ def test_034_replaceVariablesAtRandomsetAndTransferToResponseBodyJson_StringPath
 
 
 @pytest.mark.transform
-def test_035_replaceVariablesAtRequestBodyPathAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
+def test_036_replaceVariablesAtRequestBodyPathAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="request.body./@{var1}/@{var2}", target="response.body.json.string./result"))
@@ -479,7 +521,7 @@ def test_035_replaceVariablesAtRequestBodyPathAndTransferToResponseBodyJson_Stri
 
 
 @pytest.mark.transform
-def test_036_replaceVariablesAtResponseBodyPathAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
+def test_037_replaceVariablesAtResponseBodyPathAndTransferToResponseBodyJson_StringPath(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="response.body./@{var1}/@{var2}", target="response.body.json.string./result"))
@@ -491,7 +533,7 @@ def test_036_replaceVariablesAtResponseBodyPathAndTransferToResponseBodyJson_Str
 
 
 @pytest.mark.transform
-def test_037_transferFixedValueToResponseBodyPathWithReplacedVariablesAsString(admin_server_provision, h2ac_traffic):
+def test_038_transferFixedValueToResponseBodyPathWithReplacedVariablesAsString(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.hello", target="response.body.json.string./@{var1}/@{var2}"))
@@ -503,7 +545,7 @@ def test_037_transferFixedValueToResponseBodyPathWithReplacedVariablesAsString(a
 
 
 @pytest.mark.transform
-def test_038_transferFixedValueToResponseBodyPathWithReplacedVariablesAsInteger(admin_server_provision, h2ac_traffic):
+def test_039_transferFixedValueToResponseBodyPathWithReplacedVariablesAsInteger(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.-1", target="response.body.json.integer./@{var1}/@{var2}"))
@@ -515,7 +557,7 @@ def test_038_transferFixedValueToResponseBodyPathWithReplacedVariablesAsInteger(
 
 
 @pytest.mark.transform
-def test_039_transferFixedValueToResponseBodyPathWithReplacedVariablesAsUnsigned(admin_server_provision, h2ac_traffic):
+def test_040_transferFixedValueToResponseBodyPathWithReplacedVariablesAsUnsigned(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.1", target="response.body.json.unsigned./@{var1}/@{var2}"))
@@ -527,7 +569,7 @@ def test_039_transferFixedValueToResponseBodyPathWithReplacedVariablesAsUnsigned
 
 
 @pytest.mark.transform
-def test_040_transferFixedValueToResponseBodyPathWithReplacedVariablesAsFloat(admin_server_provision, h2ac_traffic):
+def test_041_transferFixedValueToResponseBodyPathWithReplacedVariablesAsFloat(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.3.14", target="response.body.json.float./@{var1}/@{var2}"))
@@ -539,7 +581,7 @@ def test_040_transferFixedValueToResponseBodyPathWithReplacedVariablesAsFloat(ad
 
 
 @pytest.mark.transform
-def test_041_transferFixedValueToResponseBodyPathWithReplacedVariablesAsBoolean(admin_server_provision, h2ac_traffic):
+def test_042_transferFixedValueToResponseBodyPathWithReplacedVariablesAsBoolean(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.true", target="response.body.json.boolean./@{var1}/@{var2}"))
@@ -551,7 +593,7 @@ def test_041_transferFixedValueToResponseBodyPathWithReplacedVariablesAsBoolean(
 
 
 @pytest.mark.transform
-def test_042_transferFixedValueToResponseBodyPathWithReplacedVariablesAsObject(admin_server_provision, h2ac_traffic):
+def test_043_transferFixedValueToResponseBodyPathWithReplacedVariablesAsObject(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.hello", target="response.body.json.object./@{var1}/@{var2}"))
@@ -563,7 +605,7 @@ def test_042_transferFixedValueToResponseBodyPathWithReplacedVariablesAsObject(a
 
 
 @pytest.mark.transform
-def test_043_transferFixedValueToResponseBodyPathWithReplacedVariablesAsJsonstring(admin_server_provision, h2ac_traffic):
+def test_044_transferFixedValueToResponseBodyPathWithReplacedVariablesAsJsonstring(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.[\\\"aa\\\",\\\"bb\\\"]", target="response.body.json.jsonstring./@{var1}/@{var2}"))
@@ -575,7 +617,7 @@ def test_043_transferFixedValueToResponseBodyPathWithReplacedVariablesAsJsonstri
 
 
 @pytest.mark.transform
-def test_044_transferFixedValueToHeaderNameWithReplacedVariables(admin_server_provision, h2ac_traffic):
+def test_045_transferFixedValueToHeaderNameWithReplacedVariables(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.header-value", target="response.header.@{var1}-@{var2}"))
@@ -589,7 +631,7 @@ def test_044_transferFixedValueToHeaderNameWithReplacedVariables(admin_server_pr
 
 
 @pytest.mark.transform
-def test_045_transferFixedValueToVariableNameWithReplacedVariables(admin_server_provision, h2ac_traffic):
+def test_046_transferFixedValueToVariableNameWithReplacedVariables(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="value.var1valuevalue", target="var.@{var1}", source2="var.@{var1}", target2="response.body.json.string./result"))
@@ -601,7 +643,7 @@ def test_045_transferFixedValueToVariableNameWithReplacedVariables(admin_server_
 
 
 @pytest.mark.transform
-def test_046_requestBodyStringToResponseObject(admin_server_provision, h2ac_traffic):
+def test_047_requestBodyStringToResponseObject(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.json.object"))
@@ -612,7 +654,7 @@ def test_046_requestBodyStringToResponseObject(admin_server_provision, h2ac_traf
 
 
 @pytest.mark.transform
-def test_047_requestBodyStringToResponseString(admin_server_provision, h2ac_traffic):
+def test_048_requestBodyStringToResponseString(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.json.string"))
@@ -624,7 +666,7 @@ def test_047_requestBodyStringToResponseString(admin_server_provision, h2ac_traf
 
 
 @pytest.mark.transform
-def test_048_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffic):
+def test_049_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="request.body", target="response.body.string"))
@@ -635,7 +677,7 @@ def test_048_requestBodyJsonToResponseString(admin_server_provision, h2ac_traffi
 
 
 @pytest.mark.transform
-def test_049_mathCalculationToResponseInteger(admin_server_provision, h2ac_traffic):
+def test_050_mathCalculationToResponseInteger(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1, queryp='', source="math.1+2+3+5+8", target="response.body.json.integer./math-calculation"))
@@ -646,7 +688,7 @@ def test_049_mathCalculationToResponseInteger(admin_server_provision, h2ac_traff
 
 
 @pytest.mark.transform
-def test_050_valueToResponseBodyString(admin_server_provision, h2ac_traffic):
+def test_051_valueToResponseBodyString(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, ct="text/html", value="hello", what="string"))
@@ -656,7 +698,7 @@ def test_050_valueToResponseBodyString(admin_server_provision, h2ac_traffic):
   h2ac_traffic.assert_response__status_body_headers(response, 200, "hello")
 
 
-def test_051_valueToResponseBodyBadHexStringOddNumber(admin_server_provision, h2ac_traffic):
+def test_052_valueToResponseBodyBadHexStringOddNumber(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, ct="application/octet-stream", value="value.0xc0a", what="hexstring"))
@@ -667,7 +709,7 @@ def test_051_valueToResponseBodyBadHexStringOddNumber(admin_server_provision, h2
 
 
 # TODO: cannot check binary responses with hyper rest client
-#def test_052_valueToResponseBodyBadHexString(admin_server_provision, h2ac_traffic):
+#def test_053_valueToResponseBodyBadHexString(admin_server_provision, h2ac_traffic):
 #
 #  # Provision
 #  admin_server_provision(string2dict(TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, ct="application/octet-stream", value="value.0xc0a8", what="hexstring"))
@@ -677,7 +719,7 @@ def test_051_valueToResponseBodyBadHexStringOddNumber(admin_server_provision, h2
 #  h2ac_traffic.assert_response__status_body_headers(response, 200, "")
 
 
-def test_052_commandExecutionToResponseBodyString(admin_server_provision, h2ac_traffic):
+def test_053_commandExecutionToResponseBodyString(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision(string2dict(TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE, ct="text/html", command="echo -n foo"))
