@@ -151,6 +151,6 @@ def test_011_like(admin_server_provision, h2ac_traffic):
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
-  responseBodyRef = { "foo":"bar-1", "must-be-in-response": "foo" }
+  responseBodyRef = { "foo":"bar-1", "must-be-in-response": "hello" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 

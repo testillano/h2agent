@@ -2117,6 +2117,8 @@ Filters give you the chance to make complex transformations:
 
   In the example above we append the value of variable *name* to a constant-value source, so will have *var.biography="I am engineer and my name is  <value of variable 'name'>"*.
 
+  Global variables are not inspected, only local ones.
+
 
 
 - PrependVar: this prepends a variable value to the source:
@@ -2130,6 +2132,10 @@ Filters give you the chance to make complex transformations:
   ```
 
   Taking as reference the previous example variable *biography*, we will prepend it to a new constant-value source, so will have *var.biography2="I am engineer and my name is  <value of variable 'name'>. I'm currently working with C++"*.
+
+  Global variables are not inspected, only local ones.
+
+
 
 - Sum: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
 
@@ -2169,30 +2175,43 @@ Filters give you the chance to make complex transformations:
 
 
 
-- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. All the variables are strings in origin, and are converted to target selected types, but in this case the string variable value is adapted to boolean result in this way: if the variable is not defined or it is empty, the condition is *false*. It will be *true*  in the rest of cases.
+- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable, which is:
 
-  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string. Also, <u>variable name can be preceded by exclamation mark (!)  in order to invert the condition</u>: empty or undefined variable becomes *true* and any other *false*.
+  - **False** condition for cases:
+    - <u>Undefined</u> variable.
+    - Defined but <u>empty</u> string.
+  - **True** condition for the rest of cases:
+  -  Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
 
-  This behavior invite to use regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter). for example:
+  Global variables are not inspected, only local ones.
+
+  The adopted convention allows to use regular expression filters to **manually** create conditional variables, as non-matched sources skips target assignment (undefined is *false* condition) and matched ones copy the source (matched) into the target (variable) which will be a compliant condition variable (non-empty string is *true* condition):
 
   ```json
   {
-    "source": "request.body./error",
-    "target": "var.error500",
-    "filter": { "RegexCapture" : "(500)" }
-  },
-  {
-    "source": "value.500",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "error500" }
+    "source": "request.body./must/be/number",
+    "target": "var.isNumber",
+    "filter": { "RegexCapture" : "([0-9]+)" }
   }
   ```
 
-  In this example, the request body dictates the responses' status code depending on `json` value (matching `500` or not) received at "*/error*" request body path. Of course there are many ways to set the condition variable depending on the needs, but this one is clear because the `RegexCapture` builds empty variable `error500` when the expected value is not matched, and that complies `ConditionVar` requirements. Now we will describe the `EqualTo` filter which can be more intuitive than `RegexCapture` to build a condition variable:
+  In summary, `isNumber` will be undefined if the request body node value at `/must/be/number` is not a number, and will hold that numeric value, so non-empty value, when it is actually a number (guaranteed by regular expression filter).
+
+  Also, variable name in `ConditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>:
+
+  ```json
+  {
+    "source": "value.400",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "!isNumber" }
+  }
+  ```
+
+  Condition variables may also be created **automatically** by some transformations into variable targets (condition variable), to be used later in this `ConditionVar` filter.
 
 
 
-- EqualTo: conditional transfer from source to target based in string comparison with the provided value. The result will be "yes" when source and reference string are the same, and transformation is skipped when differ (variable will be undefined so can be used later as any other `ConditionVar` making matching easier regarding `RegexCapture` which would need complex equivalent regular expressions for them, for example to match `json` content):
+- EqualTo: conditional transfer from source to target based in string comparison between the source and the provided value:
 
   ```json
   {
@@ -2201,15 +2220,15 @@ Filters give you the chance to make complex transformations:
     "filter": { "EqualTo" : "{\"foo\":1}" }
   },
   {
-    "source": "value.500",
+    "source": "value.400",
     "target": "response.statusCode",
-    "filter": { "ConditionVar" : "expectedBody" }
+    "filter": { "ConditionVar" : "!expectedBody" }
   }
   ```
 
-  Math library also have the possibility to use functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wildcards), but the point here is the way to define or not a variable to be used as condition variable.
+  This filter uses the source as part of the comparison, limiting target values to be undefined when "nothing done" or the source itself. To overcome this restriction, we could <u>insert the whole condition in the source</u>, using for example math library functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wild-cards), or even operate numbers, <u>to generate a target condition-compliant variable</u>:
 
-  In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable:
+  In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable, because it will hold the value "1" or nothing (remember: conditional transfer):
 
   ```json
   {
@@ -2231,6 +2250,28 @@ Filters give you the chance to make complex transformations:
     "filter": { "ConditionVar" : "greater" }
   }
   ```
+
+  We could also generate conditional variables from logical expressions using math library and `EqualTo` filter to normalize the result into a compliant conditional variable:
+
+  ```json
+  {
+    "source": "math.@{A}*@{B}",
+    "filter": { "EqualTo" : "1" },
+    "target": "var.A_and_B"
+  },
+  {
+    "source": "math.max(@{A},@{B})",
+    "filter": { "EqualTo" : "1" },
+    "target": "var.A_or_B"
+  },
+  {
+    "source": "math.abs(@{A}-@{B})",
+    "filter": { "EqualTo" : "1" },
+    "target": "var.A_xor_B"
+  }
+  ```
+
+  Note that `A_xor_B` could be also obtained with `(@{A}-@{B})^2` or `(@{A}+@{B})%2`.
 
 
 
