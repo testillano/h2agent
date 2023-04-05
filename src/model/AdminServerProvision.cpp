@@ -477,19 +477,27 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             }
             auto iter = variables.find(varname);
             bool conditionVar = ((iter != variables.end()) && !(iter->second.empty()));
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable value: '%s'", ((iter != variables.end()) ? iter->second.c_str():"<undefined>")), ERT_FILE_LOCATION));
 
             if ((reverse && !conditionVar)||(!reverse && conditionVar)) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is true", (reverse ? "!":"")), ERT_FILE_LOCATION));
                 sourceVault.setString(source);
             }
-            else
+            else {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is false", (reverse ? "!":"")), ERT_FILE_LOCATION));
                 return false;
+            }
         }
         else if (transformation->getFilterType() == Transformation::FilterType::EqualTo) {
             // Get value for the comparison 'transformation->getFilter()':
-            if (source == transformation->getFilter())
-                sourceVault.setString("yes");
-            else
+            if (source == transformation->getFilter()) {
+                LOGDEBUG(ert::tracing::Logger::debug("EqualTo is true", ERT_FILE_LOCATION));
+                sourceVault.setString(source);
+            }
+            else {
+                LOGDEBUG(ert::tracing::Logger::debug("EqualTo is false", ERT_FILE_LOCATION));
                 return false;
+            }
         }
     }
     catch (std::exception& e)
