@@ -148,7 +148,8 @@ const nlohmann::json server_provision = R"(
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]}
+        {"required": ["EqualTo"]},
+        {"required": ["JsonConstraint"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -172,7 +173,8 @@ const nlohmann::json server_provision = R"(
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
-        "EqualTo": { "type": "string" }
+        "EqualTo": { "type": "string" },
+        "JsonConstraint": { "type": "object" }
       }
     }
   },

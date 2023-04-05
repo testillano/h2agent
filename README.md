@@ -1568,7 +1568,8 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]}
+        {"required": ["EqualTo"]},
+        {"required": ["JsonConstraint"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -1592,7 +1593,8 @@ Defines the response behavior for an incoming request matching some basic condit
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
-        "EqualTo": { "type": "string" }
+        "EqualTo": { "type": "string" },
+        "JsonConstraint": { "type": "object" }
       }
     }
   },
@@ -2207,7 +2209,7 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  Condition variables may also be created **automatically** by some transformations into variable targets (condition variable), to be used later in this `ConditionVar` filter.
+  Condition variables may also be created **automatically** by some transformations into variable targets (condition variable), to be used later in this `ConditionVar` filter. The best example is the `JsonConstraint` filter (explained later) working together with variable target, as it outputs "1" when validation is successful and does nothing when fails (target will be undefined variable).
 
 
 
@@ -2272,6 +2274,119 @@ Filters give you the chance to make complex transformations:
   ```
 
   Note that `A_xor_B` could be also obtained with `(@{A}-@{B})^2` or `(@{A}+@{B})%2`.
+
+
+
+- JsonConstraint: conditional transfer based in json validation between the source and the provided filter json object.
+
+  - If validation **succeed**, the string "1" is stored in selected target.
+  - If validation **fails**, target is not modified (transfer skipped).
+
+  As this filter outputs "1" or does nothing depending on validation result, it is perfect to use together with <u>target variable which will be compliant with `ConditionVar` requirements</u> (validation sets "1" which is *true* or undefined variable which is *false*):
+
+  ```json
+  {
+    "source": "request.body",
+    "target": "var.expectedBody",
+    "filter": { "JsonConstraint" : {"foo":1} }
+  },
+  {
+    "source": "value.400",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "!expectedBody" }
+  }
+  ```
+
+  Validation algorithm consists in object reference restriction over source (which must be an object). So, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does.
+
+  To understand better, imagine the source as the 'received' body, and the json constraint filter object as the 'expected' one, so the restriction is ruled by 'expected' acting as a subset which could miss/ignore nodes actually received without problem (less restrictive), but those ones specified there, must exist and be equal to the ones received.
+
+  Take into account that filter provides an static object where variables search/replace is not possible, so those elements which could be non-trivial should be validated separately, for example:
+
+  ```json
+  {
+    "source":"request.body./here/the/id",
+    "filter": { "EqualTo": "@{id}" },
+    "target": "var.idMatches"
+  }
+  ```
+
+  And finally, we should aggregate condition results related to the event analyzed, to compute a global validation result.
+
+  The amount of transformation items is approximately the same as if we could adapt the json constraint (as we would need items to transfer dynamic data like `id` in the example, to the corresponding object node), indeed it seems more intuitive to use `JsonConstraint` for static references:
+
+  Many times, dynamic values are node keys instead of values, so we could still use `JsonConstraint` if nested information is static/predictable.
+
+  ```json
+  {
+    "source": "request.body./data/@{phone}",
+    "target": "var.expectedPhoneNodeWithinBody",
+    "filter": {
+      "JsonConstraint": {
+        "model": "samsung",
+        "color": "blue"
+      }
+    }
+  }
+  ```
+
+  Often, most of the needed validation documents will be known *a priori* within certain testing conditions, so dynamic validations by mean other filters should be minimized.
+
+  Multiple validations in different tree locations with different filter objects could be chained. Imagine that we received this one:
+
+  ```json
+  {
+    "foo": 1,
+    "timestamp": 1680710820,
+    "data": {
+      "555555555": {
+        "model": "samsung",
+        "color": "blue"
+      }
+    }
+  }
+  ```
+
+  Then, these could be the whole validation logic in our provision:
+
+  ```json
+  {
+    "source": "request.body",
+    "target": "var.rootDataOK",
+    "filter": {
+      "JsonConstraint": {
+        "foo": 1
+      }
+    }
+  },
+  {
+    "source": "request.uri.param.phone",
+    "target": "var.phone"
+  },
+  {
+    "source": "request.body./data/@{phone}",
+    "target": "var.phoneDataOK",
+    "filter": {
+      "JsonConstraint": {
+        "model": "samsung",
+        "color": "blue"
+      }
+    }
+  },
+  {
+    "source": "value.@{rootDataOK}@{phoneDataOK}",
+    "filter": {
+      "EqualTo": "11"
+    },
+    "target": "var.allOK"
+  }
+  ```
+
+  Where the time-stamp received from the client is omitted as unpredictable in the first validation, and the phone (`555555555`), supposed (in the example) to be provided in the request query parameters list, is validated through its nested content against the corresponding request node path (`/data/555555555`).
+
+  To finish, just to remark that a mock server used for functional tests can also be inspected through *REST API*, retrieving any event related data to be externally validated, so we will not need to make complicated provisions to do that internally, or at least we could make a compromise between internal and external validations. The difference is the fact that self-contained provisions could "make the day" against scattered information between those provisions and test orchestrator. Also remember that schema validation is supported, so you could provide an OpenAPI restriction for your project interfaces.
+
+  Provisions identification through method and *URI* is normally enough to decide rejecting with 501 (not implemented), although this can be enforced with `JsonConstraint` filter in order to be more accurate if needed. In the case of load testing, normally we are not so strict in favor of performance regarding flow validations. Definitely, this filter is mainly used to validate responses in client mock mode.
 
 
 

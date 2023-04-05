@@ -507,6 +507,27 @@ NESTED_NODE1_NODE2_REQUEST='''
 }
 '''
 
+NLOHMANN_EXAMPLE_REQUEST='''
+{
+  "pi": 3.141,
+  "happy": true,
+  "name": "Niels",
+  "nothing": null,
+  "answer": {
+    "everything": 42
+  },
+  "list": [
+    1,
+    0,
+    2
+  ],
+  "object": {
+    "currency": "USD",
+    "value": 42.99
+  }
+}
+'''
+
 BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE='''
 {{
   "requestMethod":"GET",

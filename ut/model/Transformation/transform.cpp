@@ -319,6 +319,15 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
       "filter": { "ConditionVar" : "!isHello" }
     },
     {
+      "source": "response.body",
+      "target": "var.expectedBody",
+      "filter": {
+        "JsonConstraint": {
+          "foo": "bar-1"
+        }
+      }
+    },
+    {
       "source": "request.uri.path",
       "target": "response.body.json.string./captureBarIdFromURI",
       "filter": {
@@ -570,7 +579,7 @@ TEST_F(Transform_test, TransformationWithFilterAsString) // test different sourc
 {
     int transformationItems = ProvisionConfiguration_Filters["transform"].size();
 
-    EXPECT_EQ(transformationItems, 20);
+    EXPECT_EQ(transformationItems, 21);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Filters["transform"][k]));
     }

@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_SERVER_PROVISION_URI
+from conftest import ADMIN_SERVER_PROVISION_URI, NLOHMANN_EXAMPLE_REQUEST, string2dict
 
 
 @pytest.mark.transform
@@ -153,4 +153,30 @@ def test_011_like(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   responseBodyRef = { "foo":"bar-1", "must-be-in-response": "hello" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_012_jsonConstraintSuccess(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.JsonConstraintSuccess.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.postDict("/app/v1/foo/bar", string2dict(NLOHMANN_EXAMPLE_REQUEST))
+
+  h2ac_traffic.assert_response__status_body_headers(response, 200, "")
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_013_jsonConstraintFail(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.JsonConstraintFail.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.postDict("/app/v1/foo/bar", string2dict(NLOHMANN_EXAMPLE_REQUEST))
+
+  h2ac_traffic.assert_response__status_body_headers(response, 400, "")
 

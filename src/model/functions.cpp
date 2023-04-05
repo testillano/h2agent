@@ -231,6 +231,36 @@ bool fromHexString(const std::string &input, std::string &output) {
     return result;
 }
 
+bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected) {
+
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Received object: %s", received.dump().c_str()), ERT_FILE_LOCATION));
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Expected object: %s", expected.dump().c_str()), ERT_FILE_LOCATION));
+
+    for (auto& [key, value] : expected.items()) {
+
+        // Verificar si la clave existe en el documento a validar
+        if (!received.contains(key)) {
+            LOGDEBUG(ert::tracing::Logger::debug( ert::tracing::Logger::asString("JsonConstraint FAILED: expected key '%s' is missing in validated source", key.c_str()), ERT_FILE_LOCATION));
+            return false;
+        }
+
+        // Verificar si el valor es un objeto JSON y llamar a la función de forma recursiva si es así
+        if (value.is_object()) {
+            if (!h2agent::model::jsonConstraint(received[key], value)) {
+                return false;
+            }
+        } else {
+            // Verificar si el valor coincide
+            if (received[key] != value) {
+                LOGDEBUG(ert::tracing::Logger::debug( ert::tracing::Logger::asString("JsonConstraint FAILED: expected value for key '%s' differs regarding validated source", key.c_str()), ERT_FILE_LOCATION));
+                return false;
+            }
+        }
+    }
+
+    LOGDEBUG(ert::tracing::Logger::debug("JsonConstraint SUCCEED", ERT_FILE_LOCATION));
+    return true;
+}
 
 }
 }
