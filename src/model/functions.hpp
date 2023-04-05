@@ -122,5 +122,23 @@ bool asHexString(const std::string &input, std::string &output);
  */
 bool fromHexString(const std::string &input, std::string &output);
 
+/**
+ * Json object validation
+ *
+ * Constraints 'expected' object within 'received' one, so the restriction is
+ * ruled by first acting as a subset in this way:
+ *
+ * 1) it miss/ignore nodes actually received without problem (less restrictive)
+ * 2) it MUST NOT contradict the ones regarding received information.
+ *
+ * The function is recursive, so restriction extends along the document content.
+ *
+ * @param received Object against which expected is validated.
+ * @param expected Expected subset object.
+ *
+ * @return Boolean about successful validation
+ */
+bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected);
+
 }
 }

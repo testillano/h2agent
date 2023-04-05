@@ -120,6 +120,13 @@ TEST_F(functions_test, NonPrintableStringAsHex)
     EXPECT_EQ(output, "0x68656c6cc3b3");
 }
 
+TEST_F(functions_test, EmptyInputStringAsHex) {
+    std::string output;
+
+    EXPECT_TRUE(h2agent::model::asHexString("", output));
+    EXPECT_EQ(output, "0x");
+}
+
 TEST_F(functions_test, ValidHexStringToOctetStream)
 {
     std::string hexIP = "c0a80001"; // i.e.: 192.168.0.1
@@ -182,5 +189,21 @@ TEST_F(functions_test, EmptyAsAsciiString)
 
     EXPECT_FALSE(h2agent::model::asAsciiString("", output));
     EXPECT_EQ(output, "<null>");
+}
+
+TEST_F(functions_test, JsonConstraintSuccess)
+{
+    nlohmann::json received = R"({"pi":3.141,"happy":true,"name":"Niels","nothing":null,"answer":{"everything":42},"list":[1,0,2],"object":{"currency":"USD","value":42.99}})"_json;
+    nlohmann::json expected = R"({"pi":3.141,"name":"Niels","object":{"value":42.99}})"_json;
+
+    EXPECT_TRUE(h2agent::model::jsonConstraint(received, expected));
+}
+
+TEST_F(functions_test, JsonConstraintFail)
+{
+    nlohmann::json received = R"({"pi":3.141,"happy":true,"name":"Niels","nothing":null,"answer":{"everything":42},"list":[1,0,2],"object":{"currency":"USD","value":42.99}})"_json;
+    nlohmann::json expected = R"({"pi":3.141,"name":"Niels","object":{"value":42.99,"MISSING":3}})"_json;
+
+    EXPECT_FALSE(h2agent::model::jsonConstraint(received, expected));
 }
 

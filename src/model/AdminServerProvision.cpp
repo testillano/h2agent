@@ -499,6 +499,18 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
                 return false;
             }
         }
+        else if (transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
+            nlohmann::json sobj = sourceVault.getObject(success);
+            if (!success) {
+                LOGDEBUG(ert::tracing::Logger::debug("Source provided for JsonConstraint filter must be a valid json object", ERT_FILE_LOCATION));
+                return false;
+            }
+            if (h2agent::model::jsonConstraint(sobj, transformation->getFilterObject())) {
+                sourceVault.setString("1");
+            }
+            else
+                return false;
+        }
     }
     catch (std::exception& e)
     {
@@ -944,7 +956,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // So, we can't use 'matches' as container because source may change: BUT, using that source exclusively, it will work (*)
         std::string source; // Now, this never will be out of scope, and 'matches' will be valid.
 
-        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo
+        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo, JsonConstraint
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
             if (!processFilters(transformation, sourceVault, variables, matches, source, eraser)) {
