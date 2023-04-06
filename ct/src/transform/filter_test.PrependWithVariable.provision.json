@@ -11,14 +11,14 @@
   },
   "transform": [
     {
-      "source": "value.-suffix",
-      "target": "var.suffix"
+      "source": "value.prefix",
+      "target": "var.what"
     },
     {
       "source": "request.uri",
-      "target": "response.body.json.string./uri-appended",
+      "target": "response.body.json.string./uri-prepended",
       "filter": {
-        "AppendVar": "suffix"
+        "Prepend": "@{what}-"
       }
     }
   ]

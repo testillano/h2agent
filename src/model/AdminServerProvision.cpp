@@ -95,7 +95,7 @@ AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PR
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
         TypeConverter& sourceVault,
-        std::map<std::string, std::string>& variables,
+        std::map<std::string, std::string>& variables, /* Command generates "rc" */
         const std::string &requestUri,
         const std::string &requestUriPath,
         const std::map<std::string, std::string> &requestQueryParametersMap,
@@ -397,35 +397,17 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             sourceVault.setString(targetS);
         }
         else if (transformation->getFilterType() == Transformation::FilterType::Append) {
-            targetS = source + transformation->getFilter();
+            std::string filter = transformation->getFilter();
+            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+
+            targetS = source + filter;
             sourceVault.setString(targetS);
         }
         else if (transformation->getFilterType() == Transformation::FilterType::Prepend) {
-            targetS = transformation->getFilter() + source;
-            sourceVault.setString(targetS);
-        }
-        else if (transformation->getFilterType() == Transformation::FilterType::AppendVar) {
-            auto iter = variables.find(transformation->getFilter());
-            if (iter != variables.end()) targetS = source + (iter->second);
-            else {
-                targetS = source;
-                LOGDEBUG(
-                    std::string msg = ert::tracing::Logger::asString("Unable to extract variable '%s' in transformation item (empty value assumed)", transformation->getFilter().c_str());
-                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-                );
-            }
-            sourceVault.setString(targetS);
-        }
-        else if (transformation->getFilterType() == Transformation::FilterType::PrependVar) {
-            auto iter = variables.find(transformation->getFilter());
-            if (iter != variables.end()) targetS = (iter->second) + source;
-            else {
-                targetS = source;
-                LOGDEBUG(
-                    std::string msg = ert::tracing::Logger::asString("Unable to extract variable '%s' in transformation item (empty value assumed)", transformation->getFilter().c_str());
-                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-                );
-            }
+            std::string filter = transformation->getFilter();
+            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+
+            targetS = filter + source;
             sourceVault.setString(targetS);
         }
         else if (transformation->getFilterType() == Transformation::FilterType::Sum) {
@@ -476,8 +458,23 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
                 varname.erase(0,1);
             }
             auto iter = variables.find(varname);
-            bool conditionVar = ((iter != variables.end()) && !(iter->second.empty()));
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable value: '%s'", ((iter != variables.end()) ? iter->second.c_str():"<undefined>")), ERT_FILE_LOCATION));
+            bool varFound = (iter != variables.end());
+            std::string varvalue{};
+            if (varFound) {
+                varvalue = iter->second;
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (local)", varname.c_str()), ERT_FILE_LOCATION));
+            }
+            else {
+                auto giter = global_variable_->get().find(varname);
+                varFound = (giter != global_variable_->get().end());
+                if (varFound) {
+                    varvalue = giter->second;
+                    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (global)", varname.c_str()), ERT_FILE_LOCATION));
+                }
+            }
+
+            bool conditionVar = (varFound && !(varvalue.empty()));
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable value: '%s'", (varFound ? varvalue.c_str():"<undefined>")), ERT_FILE_LOCATION));
 
             if ((reverse && !conditionVar)||(!reverse && conditionVar)) {
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is true", (reverse ? "!":"")), ERT_FILE_LOCATION));
@@ -489,13 +486,30 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             }
         }
         else if (transformation->getFilterType() == Transformation::FilterType::EqualTo) {
+            std::string filter = transformation->getFilter();
+            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+
             // Get value for the comparison 'transformation->getFilter()':
-            if (source == transformation->getFilter()) {
+            if (source == filter) {
                 LOGDEBUG(ert::tracing::Logger::debug("EqualTo is true", ERT_FILE_LOCATION));
                 sourceVault.setString(source);
             }
             else {
                 LOGDEBUG(ert::tracing::Logger::debug("EqualTo is false", ERT_FILE_LOCATION));
+                return false;
+            }
+        }
+        else if (transformation->getFilterType() == Transformation::FilterType::DifferentFrom) {
+            std::string filter = transformation->getFilter();
+            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+
+            // Get value for the comparison 'transformation->getFilter()':
+            if (source != filter) {
+                LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is true", ERT_FILE_LOCATION));
+                sourceVault.setString(source);
+            }
+            else {
+                LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is false", ERT_FILE_LOCATION));
                 return false;
             }
         }
@@ -505,11 +519,13 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
                 LOGDEBUG(ert::tracing::Logger::debug("Source provided for JsonConstraint filter must be a valid json object", ERT_FILE_LOCATION));
                 return false;
             }
-            if (h2agent::model::jsonConstraint(sobj, transformation->getFilterObject())) {
+            std::string failReport;
+            if (h2agent::model::jsonConstraint(sobj, transformation->getFilterObject(), failReport)) {
                 sourceVault.setString("1");
             }
-            else
-                return false;
+            else {
+                sourceVault.setString(failReport);
+            }
         }
     }
     catch (std::exception& e)
@@ -730,6 +746,14 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 // extraction
                 targetS = sourceVault.getString(success);
                 if (!success) return false;
+
+                if (hasFilter && transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
+                    if (targetS != "1") { // this is a fail report
+                        variables[target + ".fail"] = targetS;
+                        targetS = "";
+                    }
+                }
+
                 // assignment
                 variables[target] = targetS;
             }
@@ -956,7 +980,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // So, we can't use 'matches' as container because source may change: BUT, using that source exclusively, it will work (*)
         std::string source; // Now, this never will be out of scope, and 'matches' will be valid.
 
-        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo, JsonConstraint
+        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
             if (!processFilters(transformation, sourceVault, variables, matches, source, eraser)) {

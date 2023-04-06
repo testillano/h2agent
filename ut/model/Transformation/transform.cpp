@@ -309,6 +309,21 @@ const nlohmann::json ProvisionConfiguration_Filters = R"delim(
       "filter": { "EqualTo" : "hello" }
     },
     {
+      "source": "value.hello",
+      "target": "var.isHello",
+      "filter": { "EqualTo" : "@{isHello}" }
+    },
+    {
+      "source": "value.hello",
+      "target": "var.notBye",
+      "filter": { "DifferentFrom" : "bye" }
+    },
+    {
+      "source": "value.hello",
+      "target": "var.notBye",
+      "filter": { "DifferentFrom" : "@{notBye}" }
+    },
+    {
       "source": "value.hi",
       "target": "response.body.json.string./hello",
       "filter": { "ConditionVar" : "isHello" }
@@ -579,13 +594,13 @@ TEST_F(Transform_test, TransformationWithFilterAsString) // test different sourc
 {
     int transformationItems = ProvisionConfiguration_Filters["transform"].size();
 
-    EXPECT_EQ(transformationItems, 21);
+    EXPECT_EQ(transformationItems, 24);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Filters["transform"][k]));
     }
 
     // Last one:
-    EXPECT_EQ(transformation_.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyJson_String | target_: /captureBarIdFromURI (empty: whole, path: node) | FilterType: RegexReplace | filter_ $1 (fmt)");
+    EXPECT_EQ(transformation_.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyJson_String | target_: /captureBarIdFromURI (empty: whole, path: node) | FilterType: RegexReplace | filter_ $1 (fmt) | filter variables: notBye");
 }
 
 TEST_F(Transform_test, ProvisionConfigurationResponseBodyString)

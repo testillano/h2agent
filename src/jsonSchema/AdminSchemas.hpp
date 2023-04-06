@@ -143,12 +143,11 @@ const nlohmann::json server_provision = R"(
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
         {"required": ["Prepend"]},
-        {"required": ["AppendVar"]},
-        {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]},
         {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
         {"required": ["JsonConstraint"]}
       ],
       "properties": {
@@ -168,12 +167,11 @@ const nlohmann::json server_provision = R"(
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string", "minLength": 1 },
-        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
         "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
         "JsonConstraint": { "type": "object" }
       }
     }

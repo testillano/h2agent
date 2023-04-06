@@ -27,6 +27,13 @@
       "filter": {
         "ConditionVar": "!expectedBody"
       }
+    },
+    {
+      "source": "var.expectedBody.fail",
+      "target": "response.body.string",
+      "filter": {
+        "ConditionVar": "!expectedBody"
+      }
     }
   ]
 }

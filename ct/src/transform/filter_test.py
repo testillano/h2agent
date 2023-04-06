@@ -38,10 +38,10 @@ def test_002_prepend(admin_server_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_003_appendVar(admin_server_provision, h2ac_traffic):
+def test_003_appendWithVariable(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision("filter_test.AppendVar.provision.json")
+  admin_server_provision("filter_test.AppendWithVariable.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -51,10 +51,10 @@ def test_003_appendVar(admin_server_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_004_prependVar(admin_server_provision, h2ac_traffic):
+def test_004_prependWithVariable(admin_server_provision, h2ac_traffic):
 
   # Provision
-  admin_server_provision("filter_test.PrependVar.provision.json")
+  admin_server_provision("filter_test.PrependWithVariable.provision.json")
 
   # Traffic
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
@@ -157,7 +157,46 @@ def test_011_like(admin_server_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_012_jsonConstraintSuccess(admin_server_provision, h2ac_traffic):
+def test_012_likeWithVariable(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.EqualToWithVariable.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { "foo":"bar-1", "must-be-in-response": "hello" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_013_diff(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.DifferentFrom.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { "foo":"bar-1", "must-be-in-response": "hello" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_014_diffWithVariable(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.DifferentFromWithVariable.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { "foo":"bar-1", "must-be-in-response": "hello" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_015_jsonConstraintSuccess(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision("filter_test.JsonConstraintSuccess.provision.json")
@@ -170,7 +209,7 @@ def test_012_jsonConstraintSuccess(admin_server_provision, h2ac_traffic):
 
 @pytest.mark.transform
 @pytest.mark.filter
-def test_013_jsonConstraintFail(admin_server_provision, h2ac_traffic):
+def test_016_jsonConstraintFail(admin_server_provision, h2ac_traffic):
 
   # Provision
   admin_server_provision("filter_test.JsonConstraintFail.provision.json")
@@ -178,5 +217,5 @@ def test_013_jsonConstraintFail(admin_server_provision, h2ac_traffic):
   # Traffic
   response = h2ac_traffic.postDict("/app/v1/foo/bar", string2dict(NLOHMANN_EXAMPLE_REQUEST))
 
-  h2ac_traffic.assert_response__status_body_headers(response, 400, "")
+  h2ac_traffic.assert_response__status_body_headers(response, 400, "JsonConstraint FAILED: expected key 'I_WANT_THIS_KEY' is missing in validated source")
 
