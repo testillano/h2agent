@@ -729,3 +729,14 @@ def test_053_commandExecutionToResponseBodyString(admin_server_provision, h2ac_t
   responseBodyRef = { "output":"foo", "rc":0 }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
+@pytest.mark.transform
+def test_054_breakTransformations(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("no_filter_test.Break.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  h2ac_traffic.assert_response__status_body_headers(response, 200, "response-body-string")
+

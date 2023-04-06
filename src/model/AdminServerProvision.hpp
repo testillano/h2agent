@@ -148,7 +148,8 @@ class AdminServerProvision
                         unsigned int &responseDelayMs,
                         std::string &outState,
                         std::string &outStateMethod,
-                        std::string &outStateUri) const;
+                        std::string &outStateUri,
+                        bool &breakCondition) const;
 
 
 public:

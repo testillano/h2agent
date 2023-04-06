@@ -331,7 +331,7 @@ bool Transformation::load(const nlohmann::json &j) {
         return false;
     }
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
     target2_ = ""; // same
 
@@ -362,6 +362,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided.
     // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
     // + serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser`.
+    // - break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
 
     // Regex needed:
     static std::regex responseBodyJson_StringNode("^response.body.json.string.(.*)", std::regex::optimize);
@@ -478,6 +479,9 @@ bool Transformation::load(const nlohmann::json &j) {
                 it = qmap.find(qp);
                 target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
             }
+        }
+        else if (targetSpec == "break") {
+            target_type_ = TargetType::Break;
         }
         else { // very strange to reach this:
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
