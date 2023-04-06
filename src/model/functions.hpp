@@ -135,10 +135,11 @@ bool fromHexString(const std::string &input, std::string &output);
  *
  * @param received Object against which expected is validated.
  * @param expected Expected subset object.
+ * @param failReport Validation report for the fail case (empty when succeed).
  *
  * @return Boolean about successful validation
  */
-bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected);
+bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected, std::string &failReport);
 
 }
 }

@@ -1563,12 +1563,11 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
         {"required": ["Prepend"]},
-        {"required": ["AppendVar"]},
-        {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]},
         {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
         {"required": ["JsonConstraint"]}
       ],
       "properties": {
@@ -1588,12 +1587,11 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string", "minLength": 1 },
-        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
         "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
         "JsonConstraint": { "type": "object" }
       }
     }
@@ -2070,7 +2068,7 @@ Filters give you the chance to make complex transformations:
 
 
 
-- Append: this appends the provided information to the source:
+- Append: this appends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json
   {
@@ -2086,9 +2084,11 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
+  The advantage against "value-type source with variables replace", is that we can operate directly any source type without need to store auxiliary variable to be replaced.
 
 
-- Prepend: this prepends the provided information to the source:
+
+- Prepend: this prepends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json
   {
@@ -2104,38 +2104,7 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
-
-
-
-- AppendVar: this appends a variable value to the source:
-
-  ```json
-  {
-    "source": "value.I am engineer and my name is ",
-    "target": "var.biography",
-    "filter": { "AppendVar" : "name" }
-  }
-  ```
-
-  In the example above we append the value of variable *name* to a constant-value source, so will have *var.biography="I am engineer and my name is  <value of variable 'name'>"*.
-
-  Global variables are not inspected, only local ones.
-
-
-
-- PrependVar: this prepends a variable value to the source:
-
-  ```json
-  {
-    "source": "value.. I'm currently working with C++",
-    "target": "var.biography2",
-    "filter": { "PrependVar" : "biography" }
-  }
-  ```
-
-  Taking as reference the previous example variable *biography*, we will prepend it to a new constant-value source, so will have *var.biography2="I am engineer and my name is  <value of variable 'name'>. I'm currently working with C++"*.
-
-  Global variables are not inspected, only local ones.
+  The advantage against "value-type source with variables replace", is that we can operate directly any source type without need to store auxiliary variable to be replaced.
 
 
 
@@ -2161,6 +2130,8 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
+  It is not valid to provide algebraic expressions (like 1/3, 2^5, etc.). For more complex operations, you may use the `math` source.
+
 
 
 - Multiply: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):
@@ -2173,11 +2144,11 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  In this example, we operate `-10 * -0.1 = 1`. For more complex operations, you may use the `math` source.
+  In this example, we operate `-10 * -0.1 = 1`. It is not valid to provide algebraic expressions (like 1/3, 2^5, etc.). For more complex operations, you may use the `math` source.
 
 
 
-- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable, which is:
+- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and global variables are searched, giving priority to local ones), which is:
 
   - **False** condition for cases:
     - <u>Undefined</u> variable.
@@ -2206,14 +2177,19 @@ Filters give you the chance to make complex transformations:
     "source": "value.400",
     "target": "response.statusCode",
     "filter": { "ConditionVar" : "!isNumber" }
+  },
+  {
+    "source": "value.id is empty",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "!id" }
   }
   ```
 
-  Condition variables may also be created **automatically** by some transformations into variable targets (condition variable), to be used later in this `ConditionVar` filter. The best example is the `JsonConstraint` filter (explained later) working together with variable target, as it outputs "1" when validation is successful and does nothing when fails (target will be undefined variable).
+  Condition variables may also be created **automatically** by some transformations into variable targets (condition variable), to be used later in this `ConditionVar` filter. The best example is the `JsonConstraint` filter (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
 
 
 
-- EqualTo: conditional transfer from source to target based in string comparison between the source and the provided value:
+- EqualTo: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**.
 
   ```json
   {
@@ -2228,7 +2204,19 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  This filter uses the source as part of the comparison, limiting target values to be undefined when "nothing done" or the source itself. To overcome this restriction, we could <u>insert the whole condition in the source</u>, using for example math library functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wild-cards), or even operate numbers, <u>to generate a target condition-compliant variable</u>:
+  We could also <u>insert the whole condition in the source</u> using for example math library functions `like` and `ilike` (case insensitive variant), having a normalized output ("0": false, "1": true) to compare with filter value:
+
+  ```json
+  {
+    "source": "math.'@{name1}' ilike 'word'",
+    "target": "var.iequal",
+    "filter": { "EqualTo" : "1" }
+  }
+  ```
+
+  Math library also supports wild-cards for string comparisons and many advanced operations, but normally `RegexCapture` is a better alternative (for example: "`[w|W][o|O][r|R][d|D]`" matches "word" as well as "wOrD" or any other combination) because it is more efficient: math library is always used with dynamic variables, so it needs to be compiled on-the-fly, but regular expressions used in `h2agent` are always compiled at provision stage.
+
+  Perhaps, the only use cases that require math library are those related to numeric comparisons:
 
   In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable, because it will hold the value "1" or nothing (remember: conditional transfer):
 
@@ -2277,12 +2265,14 @@ Filters give you the chance to make complex transformations:
 
 
 
-- JsonConstraint: conditional transfer based in json validation between the source and the provided filter json object.
+- DifferentFrom: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**. Its use is similar to `EqualTo` and complement its logic in case we need to generate the negated variable.
+
+
+
+- JsonConstraint: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
 
   - If validation **succeed**, the string "1" is stored in selected target.
-  - If validation **fails**, target is not modified (transfer skipped).
-
-  As this filter outputs "1" or does nothing depending on validation result, it is perfect to use together with <u>target variable which will be compliant with `ConditionVar` requirements</u> (validation sets "1" which is *true* or undefined variable which is *false*):
+  - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables.
 
   ```json
   {
@@ -2294,6 +2284,13 @@ Filters give you the chance to make complex transformations:
     "source": "value.400",
     "target": "response.statusCode",
     "filter": { "ConditionVar" : "!expectedBody" }
+  },
+  {
+    "source": "var.expectedBody.fail",
+    "target": "response.body.string",
+    "filter": {
+      "ConditionVar": "expectedBody.fail"
+    }
   }
   ```
 

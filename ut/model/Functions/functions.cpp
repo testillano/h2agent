@@ -193,17 +193,21 @@ TEST_F(functions_test, EmptyAsAsciiString)
 
 TEST_F(functions_test, JsonConstraintSuccess)
 {
+    std::string failReport{};
     nlohmann::json received = R"({"pi":3.141,"happy":true,"name":"Niels","nothing":null,"answer":{"everything":42},"list":[1,0,2],"object":{"currency":"USD","value":42.99}})"_json;
     nlohmann::json expected = R"({"pi":3.141,"name":"Niels","object":{"value":42.99}})"_json;
 
-    EXPECT_TRUE(h2agent::model::jsonConstraint(received, expected));
+    EXPECT_TRUE(h2agent::model::jsonConstraint(received, expected, failReport));
+    EXPECT_TRUE(failReport.empty());
 }
 
 TEST_F(functions_test, JsonConstraintFail)
 {
+    std::string failReport{};
     nlohmann::json received = R"({"pi":3.141,"happy":true,"name":"Niels","nothing":null,"answer":{"everything":42},"list":[1,0,2],"object":{"currency":"USD","value":42.99}})"_json;
     nlohmann::json expected = R"({"pi":3.141,"name":"Niels","object":{"value":42.99,"MISSING":3}})"_json;
 
-    EXPECT_FALSE(h2agent::model::jsonConstraint(received, expected));
+    EXPECT_FALSE(h2agent::model::jsonConstraint(received, expected, failReport));
+    EXPECT_EQ(failReport, "JsonConstraint FAILED: expected key 'MISSING' is missing in validated source");
 }
 

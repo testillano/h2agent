@@ -65,6 +65,8 @@ void Transformation::collectVariablePatterns(const std::string &str, std::map<st
 
 bool Transformation::load(const nlohmann::json &j) {
 
+    bool collectFilterPatterns = false;
+
     // Mandatory
     auto source_it = j.find("source");
     std::string sourceSpec = *source_it;
@@ -84,12 +86,11 @@ bool Transformation::load(const nlohmann::json &j) {
         //   RegexReplace        regular expression literal (rgx) -> [filter_rgx_]  /  replace format (fmt) -> [filter_]
         //   Append              suffix value -> [filter_]
         //   Prepend             prefix value -> [filter_]
-        //   AppendVar           variable name with suffix value -> [filter_]
-        //   PrependVar          variable name with prefix value -> [filter_]
         //   Sum                 amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   Multiply            amount -> [filter_i_/filter_u_/filter_f_/filter_number_type_]
         //   ConditionVar        variable name -> [filter_]
         //   EqualTo             value -> [filter_]
+        //   DifferentFrom       value -> [filter_]
         //   JsonConstraint      value -> [filter_object_]
 
         auto f_it = it->find("RegexCapture");
@@ -108,18 +109,12 @@ bool Transformation::load(const nlohmann::json &j) {
             else if ((f_it = it->find("Append")) != it->end()) {
                 filter_ = *f_it;
                 filter_type_ = FilterType::Append;
+                collectFilterPatterns = true;
             }
             else if ((f_it = it->find("Prepend")) != it->end()) {
                 filter_ = *f_it;
                 filter_type_ = FilterType::Prepend;
-            }
-            else if ((f_it = it->find("AppendVar")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::AppendVar;
-            }
-            else if ((f_it = it->find("PrependVar")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::PrependVar;
+                collectFilterPatterns = true;
             }
             else if ((f_it = it->find("Sum")) != it->end()) {
                 if (f_it->is_number_integer()) {
@@ -158,6 +153,12 @@ bool Transformation::load(const nlohmann::json &j) {
             else if ((f_it = it->find("EqualTo")) != it->end()) {
                 filter_ = *f_it;
                 filter_type_ = FilterType::EqualTo;
+                collectFilterPatterns = true;
+            }
+            else if ((f_it = it->find("DifferentFrom")) != it->end()) {
+                filter_ = *f_it;
+                filter_type_ = FilterType::DifferentFrom;
+                collectFilterPatterns = true;
             }
             else if ((f_it = it->find("JsonConstraint")) != it->end()) {
                 filter_object_ = *f_it;
@@ -492,6 +493,7 @@ bool Transformation::load(const nlohmann::json &j) {
 
     // Variable patterns:
     collectVariablePatterns(source_, source_patterns_);
+    if (collectFilterPatterns) collectVariablePatterns(filter_, filter_patterns_); // protected to avoid possible gathering of false patterns (i.e. complex regexp's)
     collectVariablePatterns(target_, target_patterns_);
     collectVariablePatterns(target2_, target2_patterns_);
 
@@ -579,6 +581,13 @@ std::string Transformation::asString() const {
         else {
             ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
                << " | filter_i_: " << filter_i_ << " | filter_u_: " << filter_u_ << " | filter_f_: " << filter_f_;
+        }
+
+        if (!filter_patterns_.empty()) {
+            ss << " | filter variables:";
+            for (auto it = filter_patterns_.begin(); it != filter_patterns_.end(); it ++) {
+                ss << " " << it->second;
+            }
         }
     }
 
