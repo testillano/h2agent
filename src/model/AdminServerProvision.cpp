@@ -550,7 +550,8 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         unsigned int &responseDelayMs,
         std::string &outState,
         std::string &outStateMethod,
-        std::string &outStateUri) const
+        std::string &outStateUri,
+        bool &breakCondition) const
 {
     bool success = false;
     std::string targetS;
@@ -865,6 +866,20 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
         }
+        else if (transformation->getTargetType() == Transformation::TargetType::Break) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+            // assignments
+            if (targetS.empty()) {
+                LOGDEBUG(ert::tracing::Logger::debug("Break action ignored (empty string as source provided)", ERT_FILE_LOCATION));
+                return false;
+            }
+
+            breakCondition = true;
+            LOGDEBUG(ert::tracing::Logger::debug("Break action triggered: ignoring remaining transformation items", ERT_FILE_LOCATION));
+            return false;
+        }
     }
     catch (std::exception& e)
     {
@@ -963,7 +978,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
     TypeConverter sourceVault{};
 
     // Apply transformations sequentially
+    bool breakCondition = false;
     for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+
+        if (breakCondition) break;
 
         auto transformation = (*it);
         bool eraser = false;
@@ -989,8 +1007,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
             }
         }
 
-        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri)) {
+        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, breakCondition)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;
         }

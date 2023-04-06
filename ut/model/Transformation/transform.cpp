@@ -189,8 +189,20 @@ const nlohmann::json ProvisionConfiguration_Sources = R"delim(
       "target": "serverEvent.requestMethod=GET&requestUri=/accepted/transformation/but/nothing/purged"
     },
     {
+      "source": "value.",
+      "target": "var.empty-var"
+    },
+    {
+      "source": "var.empty-var",
+      "target": "break"
+    },
+    {
       "source": "var.rc",
       "target": "response.body.json.string./command-rc"
+    },
+    {
+      "source": "value.idontcareifyoubreak",
+      "target": "break"
     }
   ]
 }
@@ -581,13 +593,13 @@ TEST_F(Transform_test, TransformationAsString) // test different sources
 {
     int transformationItems = ProvisionConfiguration_Sources["transform"].size();
 
-    EXPECT_EQ(transformationItems, 38);
+    EXPECT_EQ(transformationItems, 41);
     for (int k = 0; k < transformationItems; k++) {
         EXPECT_TRUE(Transform_test::transformation_.load(ProvisionConfiguration_Sources["transform"][k]));
     }
 
     // Last one:
-    EXPECT_EQ(transformation_.asString(), "SourceType: SVar | source_: rc | TargetType: ResponseBodyJson_String | target_: /command-rc (empty: whole, path: node)");
+    EXPECT_EQ(transformation_.asString(), "SourceType: Value | source_: idontcareifyoubreak | TargetType: Break | target_: ");
 }
 
 TEST_F(Transform_test, TransformationWithFilterAsString) // test different sources
