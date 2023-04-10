@@ -52,7 +52,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -76,7 +76,7 @@ boost::asio::io_service *myTimersIoService = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
-h2agent::model::MockServerEventsData* myMockServerEventsData = nullptr;
+h2agent::model::MockServerData* myMockServerData = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
@@ -169,8 +169,8 @@ void stopAgent()
         myTrafficHttp2Server->stop();
     }
 
-    delete(myMockServerEventsData);
-    myMockServerEventsData = nullptr;
+    delete(myMockServerData);
+    myMockServerData = nullptr;
 
     // TODO: sync delete to avoid: double free detected in tcache 2
     //delete(myTrafficHttp2Server);
@@ -816,9 +816,9 @@ int main(int argc, char* argv[])
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
 
-        myMockServerEventsData = new h2agent::model::MockServerEventsData();
-        myTrafficHttp2Server->setMockServerEventsData(myMockServerEventsData);
-        myAdminHttp2Server->setMockServerEventsData(myMockServerEventsData); // stored at administrative class to pass through created server provisions
+        myMockServerData = new h2agent::model::MockServerData();
+        myTrafficHttp2Server->setMockServerData(myMockServerData);
+        myAdminHttp2Server->setMockServerData(myMockServerData); // stored at administrative class to pass through created server provisions
     }
 
     // Schema configuration

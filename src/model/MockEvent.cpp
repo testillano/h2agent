@@ -33,14 +33,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include <ert/tracing/Logger.hpp>
 
-#include <memory>
-#include <mutex>
-#include <shared_mutex>
-
-
-#define DEFAULT_ADMIN_PROVISION_STATE "initial"
+#include <MockEvent.hpp>
 
 
 namespace h2agent
@@ -48,24 +43,32 @@ namespace h2agent
 namespace model
 {
 
-class Configuration;
-class GlobalVariable;
-class FileManager;
-class MockServerData;
-class MockClientData;
+void MockEvent::load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders) {
 
-typedef struct {
-    Configuration *ConfigurationPtr;
-    GlobalVariable *GlobalVariablePtr;
-    FileManager *FileManagerPtr;
-    MockServerData *MockServerDataPtr;
-    MockClientData *MockClientDataPtr;
+    previous_state_ = previousState;
+    state_ = state;
+    reception_timestamp_us_ = receptionTimestampUs.count();
+    response_status_code_ = responseStatusCode;
+    request_headers_ = requestHeaders;
+    response_headers_ = responseHeaders;
 
-} common_resources_t;
-
-using mutex_t = std::shared_mutex;
-using read_guard_t = std::shared_lock<mutex_t>;
-using write_guard_t = std::unique_lock<mutex_t>;
+    // Update json_:
+    if (!previous_state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["previousState"] = previous_state_;
+    if(!state_.empty() /* server mode: unprovisioned 501 comes with empty value, and states are meaningless there */) json_["state"] = state_;
+    json_["receptionTimestampUs"] = (std::uint64_t)reception_timestamp_us_;
+    json_["responseStatusCode"] = (unsigned int)response_status_code_;
+    for (const auto& [field, member] : {
+                std::pair{"requestHeaders", request_headers_}, std::pair{"responseHeaders", response_headers_}
+            }) {
+        if (member.size()) {
+            nlohmann::json hdrs;
+            for (const auto& [k, v] : member) {
+                hdrs[k] = v.value;
+            }
+            json_[field] = hdrs;
+        }
+    }
+}
 
 }
 }

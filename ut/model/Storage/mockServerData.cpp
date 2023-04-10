@@ -1,4 +1,4 @@
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 #include <DataPart.hpp>
 
 #include <map>
@@ -11,10 +11,10 @@
 
 #include <chrono>
 
-class MockServerEventsData_test : public ::testing::Test
+class MockServerData_test : public ::testing::Test
 {
 public:
-    h2agent::model::MockServerEventsData data_{};
+    h2agent::model::MockServerData data_{};
 
     std::string previous_state_;
     std::string state_;
@@ -26,7 +26,7 @@ public:
     nlohmann::json real_event_;
     nlohmann::json virtual_event_;
 
-    MockServerEventsData_test() {
+    MockServerData_test() {
         // Example
         previous_state_ = "previous-state";
         state_ = "state";
@@ -42,10 +42,12 @@ public:
 
         // Two events per key, real and virtual for each, indexed by DELETE#/the/uri/111 and DELETE#/the/uri/222 respectively:
         // Server sequence will be ignored although being incoherent here (always 111):
-        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/111", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
-        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
-        data_.loadEvent(previous_state_, state_, "DELETE", "/the/uri/222", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
+        h2agent::model::DataKey key1("DELETE", "/the/uri/111");
+        h2agent::model::DataKey key2("DELETE", "/the/uri/222");
+        data_.loadEvent(key1, previous_state_, state_, reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */);
+        data_.loadEvent(key1, previous_state_, state_, reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
+        data_.loadEvent(key2, previous_state_, state_, reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */);
+        data_.loadEvent(key2, previous_state_, state_, reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */, "POST", "/the/uri/which/causes/virtual");
 
         real_event_ = R"(
         {
@@ -79,60 +81,50 @@ public:
     }
 };
 
-/*
-TEST_F(MockServerEventsData_test, String2uint64andSign)
-{
-    std::uint64_t output = 0;
-    bool negative = false;
-
-    EXPECT_FALSE(data_.string2uint64andSign("bad_input", output, negative);
-}
-*/
-
-TEST_F(MockServerEventsData_test, ClearFails)
+TEST_F(MockServerData_test, ClearFails)
 {
     bool somethingDeleted = false;
     bool success = false;
 
     // missing method: nothing with 'PUT':
-    success = data_.clear(somethingDeleted, "PUT", "/the/uri", "1");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("PUT", "/the/uri", "1"));
     EXPECT_TRUE(success);
     EXPECT_FALSE(somethingDeleted);
 
     // missing uri: nothing with '/no/event/with/this/uri':
-    success = data_.clear(somethingDeleted, "POST", "/no/event/with/this/uri", "1");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("POST", "/no/event/with/this/uri", "1"));
     EXPECT_TRUE(success);
     EXPECT_FALSE(somethingDeleted);
 
     // wrong method/uri/number combinations ('checkSelection()' indirect testing):
-    success = data_.clear(somethingDeleted, "POST", "", "");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("POST", "", ""));
     EXPECT_FALSE(success);
     EXPECT_FALSE(somethingDeleted);
-    success = data_.clear(somethingDeleted, "", "/the/uri", "");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("", "/the/uri", ""));
     EXPECT_FALSE(success);
     EXPECT_FALSE(somethingDeleted);
-    success = data_.clear(somethingDeleted, "", "", "1");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("", "", "1"));
     EXPECT_FALSE(success);
     EXPECT_FALSE(somethingDeleted);
 
     // wrong string to number conversion ('string2uint64andSign()' indirect testing):
-    success = data_.clear(somethingDeleted, "DELETE", "/the/uri/111", "invalid number");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("DELETE", "/the/uri/111", "invalid number"));
     EXPECT_FALSE(success);
     EXPECT_FALSE(somethingDeleted);
-    success = data_.clear(somethingDeleted, "DELETE", "/the/uri/111", "-invalid number");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("DELETE", "/the/uri/111", "-invalid number"));
     EXPECT_FALSE(success);
     EXPECT_FALSE(somethingDeleted);
 
     // wrong input: method/uri/number empty
-    success = data_.clear(somethingDeleted, "", "", "");
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("", "", ""));
     EXPECT_TRUE(success);
     EXPECT_TRUE(somethingDeleted);
 }
 
-TEST_F(MockServerEventsData_test, AsJsonString)
+TEST_F(MockServerData_test, AsJsonString)
 {
     bool validQuery = false;
-    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", "", validQuery)); // normalize to have safer comparisons
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("DELETE", "/the/uri/111", "1", ""), validQuery)); // normalize to have safer comparisons
     std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = real_event_;
@@ -141,10 +133,10 @@ TEST_F(MockServerEventsData_test, AsJsonString)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, AsJsonStringWithEventPath)
+TEST_F(MockServerData_test, AsJsonStringWithEventPath)
 {
     bool validQuery = false;
-    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString("DELETE", "/the/uri/111", "1", "/requestBody", validQuery)); // normalize to have safer comparisons
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("DELETE", "/the/uri/111", "1", "/requestBody"), validQuery)); // normalize to have safer comparisons
 
     nlohmann::json::json_pointer p("/requestBody");
     nlohmann::json expectedJson = real_event_[p];
@@ -152,7 +144,7 @@ TEST_F(MockServerEventsData_test, AsJsonStringWithEventPath)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, Summary)
+TEST_F(MockServerData_test, Summary)
 {
     nlohmann::json assertedJson = nlohmann::json::parse(data_.summary()); // normalize to have safer comparisons
     nlohmann::json expectedJson = R"(
@@ -180,9 +172,9 @@ TEST_F(MockServerEventsData_test, Summary)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, GetMockServerKeyEvent)
+TEST_F(MockServerData_test, GetMockServerEvent)
 {
-    nlohmann::json assertedJson = data_.getMockServerKeyEvent("DELETE", "/the/uri/222", "-1")->getJson(); // last for uri '/the/uri/222'
+    nlohmann::json assertedJson = data_.getEvent(h2agent::model::EventKey("DELETE", "/the/uri/222", "-1"))->getJson(); // last for uri '/the/uri/222'
     std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
 
     nlohmann::json expectedJson = virtual_event_;
@@ -191,7 +183,7 @@ TEST_F(MockServerEventsData_test, GetMockServerKeyEvent)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, GetJson)
+TEST_F(MockServerData_test, GetJson)
 {
     nlohmann::json assertedJson = data_.getJson();
     std::uint64_t receptionTimestampUs_0_0 = assertedJson[0]["events"][0]["receptionTimestampUs"]; // unpredictable
@@ -230,40 +222,16 @@ TEST_F(MockServerEventsData_test, GetJson)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerEventsData_test, FindLastRegisteredRequestState)
+TEST_F(MockServerData_test, FindLastRegisteredRequestState)
 {
-    data_.loadEvent(previous_state_, "most_recent_state", "PUT", "/the/put/uri", request_headers_, request_body_data_part_, reception_timestamp_us_, 201, response_headers_, response_body_, 111 /* server sequence */, 20 /* reponse delay ms */, true /* history */);
+    h2agent::model::DataKey key("PUT", "/the/put/uri");
+    data_.loadEvent(key, previous_state_, "most_recent_state", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */);
 
     std::string latestState;
-    data_.findLastRegisteredRequestState("PUT", "/the/put/uri", latestState);
+    data_.findLastRegisteredRequestState(key, latestState);
     EXPECT_EQ(latestState, "most_recent_state");
 
-    data_.findLastRegisteredRequestState("DELETE", "/the/uri/222", latestState);
+    data_.findLastRegisteredRequestState(h2agent::model::DataKey("DELETE", "/the/uri/222"), latestState);
     EXPECT_EQ(latestState, "state");
 }
 
-TEST_F(MockServerEventsData_test, LoadRequestsSchema)
-{
-    nlohmann::json schema = R"(
-    {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-
-      "type": "object",
-      "additionalProperties": false,
-      "patternProperties": {
-        "^.*$": {
-          "anyOf": [
-            {
-              "type": "string"
-            }
-          ]
-        }
-      }
-    }
-    )"_json;
-
-    EXPECT_TRUE(data_.loadRequestsSchema(schema));
-
-    nlohmann::json invalidSchema{};
-    EXPECT_FALSE(data_.loadRequestsSchema(invalidSchema));
-}

@@ -53,7 +53,7 @@ class Configuration;
 class GlobalVariable;
 class FileManager;
 class AdminData;
-class MockServerEventsData;
+class MockServerData;
 }
 
 namespace http2
@@ -128,11 +128,11 @@ public:
         return admin_data_;
     }
 
-    void setMockServerEventsData(model::MockServerEventsData *p) {
-        common_resources_.MockServerEventsDataPtr = p;
+    void setMockServerData(model::MockServerData *p) {
+        common_resources_.MockServerDataPtr = p;
     }
-    model::MockServerEventsData *getMockServerEventsData() const {
-        return common_resources_.MockServerEventsDataPtr;
+    model::MockServerData *getMockServerData() const {
+        return common_resources_.MockServerDataPtr;
     }
 
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {
@@ -146,7 +146,7 @@ public:
     int serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
     int serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
     int clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const;
-    //int clientProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int clientProvision(const nlohmann::json &configurationObject, std::string& log) const;
     int globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
     int schema(const nlohmann::json &configurationObject, std::string& log) const;
 };

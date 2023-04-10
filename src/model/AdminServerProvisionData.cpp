@@ -41,6 +41,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <AdminServerProvisionData.hpp>
+#include <functions.hpp>
 
 
 namespace h2agent
@@ -104,7 +105,7 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         provision->setConfiguration(cr.ConfigurationPtr);
         provision->setGlobalVariable(cr.GlobalVariablePtr);
         provision->setFileManager(cr.FileManagerPtr);
-        provision->setMockServerEventsData(cr.MockServerEventsDataPtr);
+        provision->setMockServerData(cr.MockServerDataPtr);
 
         return Success;
     }
@@ -143,7 +144,7 @@ bool AdminServerProvisionData::clear()
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
     admin_server_provision_key_t key{};
-    calculateAdminServerProvisionKey(key, inState, method, uri);
+    h2agent::model::calculateStringKey(key, inState, method, uri);
 
     read_guard_t guard(rw_mutex_);
     auto it = get(key);
@@ -155,7 +156,7 @@ std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const {
     admin_server_provision_key_t key{};
-    calculateAdminServerProvisionKey(key, inState, method, uri);
+    h2agent::model::calculateStringKey(key, inState, method, uri);
 
     read_guard_t guard(rw_mutex_);
     for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {

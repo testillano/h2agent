@@ -47,6 +47,47 @@ namespace h2agent
 namespace model
 {
 
+void calculateStringKey(std::string &key, const std::string &k1, const std::string &k2, const std::string &k3) {
+    key = k1;
+    key += "#";
+    key += k2;
+    if (!k3.empty()) {
+        key += "#";
+        key += k3;
+    }
+}
+
+void aggregateKeyPart(std::string &key, const std::string &k1, const std::string &k2) {
+    if (k2.empty()) {
+        key.insert(0, k1 + "#");
+        return;
+    }
+    key = k1;
+    key += "#";
+    key += k2;
+}
+
+bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) {
+
+    bool result = false;
+
+    if (!input.empty()) {
+        negative = (input[0] == '-');
+
+        try {
+            output = std::stoull(negative ? input.substr(1):input);
+            result = true;
+        }
+        catch(std::exception &e)
+        {
+            std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer%s: %s", input.c_str(), (negative ? " with negative sign":""), e.what());
+            ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+        }
+    }
+
+    return result;
+}
+
 std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator) {
     std::map<std::string, std::string> result;
 

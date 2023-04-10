@@ -35,7 +35,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <MockServerKeyEvents.hpp>
+#include <MockEventsHistory.hpp>
 
 
 namespace h2agent
@@ -43,14 +43,19 @@ namespace h2agent
 namespace model
 {
 
-void calculateMockServerKeyEventsKey(mock_server_events_key_t &key, const std::string &method, const std::string &uri) {
-    // key <request-method>#<request-uri>
-    key = method;
-    key += "#";
-    key += uri;
+void MockEventsHistory::loadEvent(std::shared_ptr<MockEvent> event, bool historyEnabled) {
+
+    write_guard_t guard(rw_mutex_);
+
+    if (!historyEnabled && events_.size() != 0) {
+        events_[0] = event; // overwrite with this latest reception
+    }
+    else {
+        events_.push_back(event);
+    }
 }
 
-bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t eventNumber, bool reverse) {
+bool MockEventsHistory::removeEvent(std::uint64_t eventNumber, bool reverse) {
 
     write_guard_t guard(rw_mutex_);
 
@@ -62,38 +67,7 @@ bool MockServerKeyEvents::removeMockServerKeyEvent(std::uint64_t eventNumber, bo
     return true;
 }
 
-mock_server_events_key_t MockServerKeyEvents::getKey() const {
-
-    mock_server_events_key_t result{};
-    calculateMockServerKeyEventsKey(result, method_, uri_);
-    return result;
-}
-
-void MockServerKeyEvents::loadEvent(const std::string &previousState, const std::string &state,
-                                    const std::string &method, const std::string &uri,
-                                    const nghttp2::asio_http2::header_map &requestHeaders, DataPart &requestBodyDataPart,
-                                    const std::chrono::microseconds &receptionTimestampUs,
-                                    unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &responseBody,
-                                    std::uint64_t serverSequence, unsigned int responseDelayMs,
-                                    bool historyEnabled, const std::string virtualOriginComingFromMethod, const std::string virtualOriginComingFromUri) {
-
-    method_ = method;
-    uri_ = uri;
-
-    auto request = std::make_shared<MockServerKeyEvent>();
-    request->load(previousState, state, requestHeaders, requestBodyDataPart, receptionTimestampUs, responseStatusCode, responseHeaders, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
-
-    write_guard_t guard(rw_mutex_);
-
-    if (!historyEnabled && events_.size() != 0) {
-        events_[0] = request; // overwrite with this latest reception
-    }
-    else {
-        events_.push_back(request);
-    }
-}
-
-std::shared_ptr<MockServerKeyEvent> MockServerKeyEvents::getMockServerKeyEvent(std::uint64_t eventNumber, bool reverse) const {
+std::shared_ptr<MockEvent> MockEventsHistory::getEvent(std::uint64_t eventNumber, bool reverse) const {
 
     read_guard_t guard(rw_mutex_);
 
@@ -110,12 +84,10 @@ std::shared_ptr<MockServerKeyEvent> MockServerKeyEvents::getMockServerKeyEvent(s
     return *(events_.begin() + (eventNumber - 1));
 }
 
-
-nlohmann::json MockServerKeyEvents::getJson() const {
+nlohmann::json MockEventsHistory::getJson() const {
     nlohmann::json result;
 
-    result["method"] = method_;
-    result["uri"] = uri_;
+    data_key_.keyToJson(result);
 
     read_guard_t guard(rw_mutex_);
     for (auto it = events_.begin(); it != events_.end(); it ++) {
@@ -125,7 +97,7 @@ nlohmann::json MockServerKeyEvents::getJson() const {
     return result;
 }
 
-const std::string &MockServerKeyEvents::getLastRegisteredRequestState() const {
+const std::string &MockEventsHistory::getLastRegisteredRequestState() const {
     read_guard_t guard(rw_mutex_);
     // By design, there are no keys without history (at least 1 exists and the key is removed if it is finally deleted).
     // Then, back() is a valid iterator (https://github.com/testillano/h2agent/issues/53).

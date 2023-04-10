@@ -51,25 +51,15 @@ SOFTWARE.
 #include <DataPart.hpp>
 
 
-#define DEFAULT_ADMIN_SERVER_PROVISION_STATE "initial"
-
-
 namespace h2agent
 {
 namespace model
 {
 
 // Provision key:
-typedef std::string admin_server_provision_key_t;
-// Future proof: instead of using a key = <method><uri>, we could agreggate them:
-// typedef std::pair<std::string, std::string> admin_server_provision_key_t;
-// But in order to compile, we need to define a hash function for the unordered map:
-// https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
-// https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
+typedef std::string admin_server_provision_key_t; // <inState>#<method>#<uri>
 
-void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
-
-class MockServerEventsData;
+class MockServerData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -83,9 +73,9 @@ class AdminServerProvision
     std::regex regex_{}; // precompile key as possible regex for RegexMatching algorithm
 
     // Cached information:
+    std::string in_state_{};
     std::string request_method_{};
     std::string request_uri_{};
-    std::string in_state_{};
 
     std::string out_state_{};
     unsigned int response_code_{};
@@ -106,7 +96,7 @@ class AdminServerProvision
     std::string request_schema_id_{};
     std::string response_schema_id_{};
 
-    model::MockServerEventsData *mock_server_events_data_{}; // just in case it is used
+    model::MockServerData *mock_server_events_data_{}; // just in case it is used
     model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
@@ -159,7 +149,7 @@ public:
     // transform logic
 
     /**
-     * Applies transformations vector over request received and ongoing reponse built
+     * Applies transformations vector over request received and ongoing response built
      * Also checks optional schema validation for incoming and/or outgoing traffic
      *
      * @param requestUri Request URI
@@ -203,6 +193,7 @@ public:
      * Load provision information
      *
      * @param j Json provision object
+     * @param regexMatchingConfigured provision load depends on matching configuration (priority regexp)
      *
      * @return Operation success
      */
@@ -212,7 +203,7 @@ public:
      * Sets the internal mock server data,
      * just in case it is used in event source
      */
-    void setMockServerEventsData(model::MockServerEventsData *p) {
+    void setMockServerData(model::MockServerData *p) {
         mock_server_events_data_ = p;
     }
 
@@ -322,38 +313,6 @@ public:
     const std::string &getResponseBodyAsString() const {
         return response_body_string_;
     }
-
-//    /** Provisioned response body integer
-//     *
-//     * @return Response body integer
-//     */
-//     const int &getResponseBodyAsInteger() const {
-//        return response_body_integer_;
-//    }
-//
-//    /** Provisioned response body number
-//     *
-//     * @return Response body number
-//     */
-//    const double &getResponseBodyAsNumber() const {
-//        return response_body_number_;
-//    }
-//
-//    /** Provisioned response body boolean
-//     *
-//     * @return Response body boolean
-//     */
-//    bool getResponseBodyAsBoolean() const {
-//        return response_body_boolean_;
-//    }
-//
-//    /** Provisioned response body null
-//     *
-//     * @return Response body null
-//     */
-//    bool getResponseBodyAsNull() const {
-//        return response_body_null_;
-//    }
 
     /** Provisioned response delay milliseconds
      *

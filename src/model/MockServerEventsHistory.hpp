@@ -35,12 +35,7 @@ SOFTWARE.
 
 #pragma once
 
-#include <memory>
-#include <mutex>
-#include <shared_mutex>
-
-
-#define DEFAULT_ADMIN_PROVISION_STATE "initial"
+#include <MockEventsHistory.hpp>
 
 
 namespace h2agent
@@ -48,24 +43,41 @@ namespace h2agent
 namespace model
 {
 
-class Configuration;
-class GlobalVariable;
-class FileManager;
-class MockServerData;
-class MockClientData;
 
-typedef struct {
-    Configuration *ConfigurationPtr;
-    GlobalVariable *GlobalVariablePtr;
-    FileManager *FileManagerPtr;
-    MockServerData *MockServerDataPtr;
-    MockClientData *MockClientDataPtr;
+class MockServerEventsHistory : public MockEventsHistory
+{
+public:
 
-} common_resources_t;
+    /**
+    * Constructor
+    *
+    * @param dataKey Events key (method & uri).
+    */
+    MockServerEventsHistory(const DataKey &dataKey) : MockEventsHistory(dataKey) {;}
 
-using mutex_t = std::shared_mutex;
-using read_guard_t = std::shared_lock<mutex_t>;
-using write_guard_t = std::unique_lock<mutex_t>;
+    // setters:
+
+    /**
+     * Loads events information
+     *
+     * @param previousState Previous request state
+     * @param state Request state
+     * @param receptionTimestampUs Microseconds reception timestamp
+     * @param responseStatusCode Response status code
+     * @param requestHeaders Request headers
+     * @param responseHeaders Response headers
+     *
+     * @param requestBodyDataPart Request body
+     * @param responseBody Response body
+     * @param serverSequence Server sequence (1..N)
+     * @param responseDelayMs Response delay in milliseconds
+     *
+     * @param historyEnabled Events complete history storage
+     * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
+     * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
+     */
+    void loadEvent(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+};
 
 }
 }

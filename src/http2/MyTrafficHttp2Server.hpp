@@ -54,7 +54,7 @@ namespace h2agent
 {
 namespace model
 {
-class MockServerEventsData;
+class MockServerData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -71,7 +71,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     bool purge_execution_{};
 
     model::AdminData *admin_data_{};
-    model::MockServerEventsData *mock_server_events_data_{};
+    model::MockServerData *mock_server_events_data_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
@@ -122,10 +122,10 @@ public:
         return admin_data_;
     }
 
-    void setMockServerEventsData(model::MockServerEventsData *p) {
+    void setMockServerData(model::MockServerData *p) {
         mock_server_events_data_ = p;
     }
-    model::MockServerEventsData *getMockServerEventsData() const {
+    model::MockServerData *getMockServerData() const {
         return mock_server_events_data_;
     }
 

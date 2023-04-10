@@ -49,7 +49,7 @@ SOFTWARE.
 #include <ert/http2comm/Http.hpp>
 
 #include <AdminServerProvision.hpp>
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
@@ -65,31 +65,8 @@ namespace h2agent
 namespace model
 {
 
-/*
-void printVariables(const  std::map<std::string, std::string> &variables) {
-
-  for (auto it = variables.begin(); it != variables.end(); it++) {
-      LOGDEBUG(
-         std::string msg = ert::tracing::Logger::asString("Var '%s' = '%s'", it->first.c_str(), it->second.c_str());
-         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-      );
-  }
-}
-*/
-
-void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri) {
-    // key: <in-state>#<request-method>#<request-uri>
-    // hash '#' separator eases regexp usage for stored key
-    key = inState;
-    key += "#";
-    key += method;
-    key += "#";
-    key += uri;
-}
-
-
-AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
-    out_state_(DEFAULT_ADMIN_SERVER_PROVISION_STATE),
+AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
+    out_state_(DEFAULT_ADMIN_PROVISION_STATE),
     response_delay_ms_(0), mock_server_events_data_(nullptr) {;}
 
 
@@ -268,7 +245,8 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
-        auto mockServerRequest = mock_server_events_data_->getMockServerKeyEvent(event_method, event_uri, event_number);
+        EventKey ekey(event_method, event_uri, event_number);
+        auto mockServerRequest = mock_server_events_data_->getEvent(ekey);
         if (!mockServerRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract server event for variable '%s' in transformation item", transformation->getSource().c_str());
@@ -851,7 +829,8 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_->get());
 
             bool serverDataDeleted = false;
-            bool success = mock_server_events_data_->clear(serverDataDeleted, event_method, event_uri, event_number);
+            EventKey ekey(event_method, event_uri, event_number);
+            bool success = mock_server_events_data_->clear(serverDataDeleted, ekey);
 
             if (!success) {
                 LOGDEBUG(
@@ -1059,13 +1038,13 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     it = j.find("inState");
     if (it != j.end() && it->is_string()) {
         in_state_ = *it;
-        if (in_state_.empty()) in_state_ = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
+        if (in_state_.empty()) in_state_ = DEFAULT_ADMIN_PROVISION_STATE;
     }
 
     it = j.find("outState");
     if (it != j.end() && it->is_string()) {
         out_state_ = *it;
-        if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_SERVER_PROVISION_STATE;
+        if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
     }
 
     it = j.find("requestSchemaId");
@@ -1132,7 +1111,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     }
 
     // Store key:
-    calculateAdminServerProvisionKey(key_, in_state_, request_method_, request_uri_);
+    h2agent::model::calculateStringKey(key_, in_state_, request_method_, request_uri_);
 
     if (regexMatchingConfigured) {
         // Precompile regex with key, only for 'RegexMatching' algorithm:
@@ -1168,7 +1147,7 @@ void AdminServerProvision::loadTransformation(const nlohmann::json &j) {
         transformations_.push_back(transformation);
     }
     else {
-        ert::tracing::Logger::error("Discarded transform filter due to incoherent data", ERT_FILE_LOCATION);
+        ert::tracing::Logger::error("Discarded transform item due to incoherent data", ERT_FILE_LOCATION);
     }
 }
 
