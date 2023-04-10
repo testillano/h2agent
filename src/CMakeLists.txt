@@ -37,6 +37,7 @@ PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}
         h2agent-http2
         h2agent-model
+
         ert_logger
         ert_http2comm
         ert_metrics

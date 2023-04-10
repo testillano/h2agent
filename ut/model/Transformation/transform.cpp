@@ -8,8 +8,9 @@
 
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
+#include <AdminClientEndpointData.hpp>
 #include <AdminSchemas.hpp>
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
@@ -23,6 +24,9 @@ const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({ "algorit
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__Success = R"({ "algorithm": "FullMatchingRegexReplace", "rgx":"([0-9]{3})-([a-z]{2})-foo-bar", "fmt":"$1"})"_json;
 const nlohmann::json MatchingConfiguration_RegexMatching__Success = R"({ "algorithm": "RegexMatching" })"_json;
 //const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success4 = R"({ "algorithm": "FullMatching", "uriPathQueryParameters":{"filter":"Ignore"} })"_json;
+
+// XXXXXXXXXXXX client provision
+// XXXXXXXXXXXX client endpoint
 
 // https://www.geeksforgeeks.org/raw-string-literal-c/
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
@@ -424,14 +428,14 @@ public:
         common_resources_.ConfigurationPtr = new h2agent::model::Configuration();
         common_resources_.GlobalVariablePtr = new h2agent::model::GlobalVariable();
         common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
-        common_resources_.MockServerEventsDataPtr = new h2agent::model::MockServerEventsData();
+        common_resources_.MockServerDataPtr = new h2agent::model::MockServerData();
     }
 
     ~Transform_test() {
         delete(common_resources_.ConfigurationPtr);
         delete(common_resources_.GlobalVariablePtr);
         delete(common_resources_.FileManagerPtr);
-        delete(common_resources_.MockServerEventsDataPtr);
+        delete(common_resources_.MockServerDataPtr);
     }
 };
 

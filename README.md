@@ -1601,10 +1601,12 @@ Defines the response behavior for an incoming request matching some basic condit
 
   "properties": {
     "inState":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "outState":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "requestMethod": {
       "type": "string",
@@ -1676,7 +1678,7 @@ We could label a provision specification to take advantage of internal *FSM* (fi
 
 These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed. Also, if the next state configured (`outState` provisioned or transformed) has not a corresponding `inState` value, the flow will be broken/stopped.
 
-So, "**initial**" is a reserved value which is mandatory to debut any kind of provisioned transaction. Remember that an empty string will be also converted to this special state for both `inState` and `outState` fields.
+So, "**initial**" is a reserved value which is mandatory to debut any kind of provisioned transaction. Remember that an empty string will be also converted to this special state for both `inState` and `outState` fields, and character `#` is not allowed (check [this](./docs/developers/AggregatedKeys.md) document for developers).
 
 Important note:
 
@@ -2778,7 +2780,8 @@ By default, created endpoints will connect the defined remote server (except for
   "additionalProperties": false,
   "properties": {
     "id": {
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "host": {
       "type": "string"

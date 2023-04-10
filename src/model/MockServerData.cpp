@@ -33,14 +33,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#pragma once
+#include <string>
 
-#include <memory>
-#include <mutex>
-#include <shared_mutex>
+#include <ert/tracing/Logger.hpp>
 
-
-#define DEFAULT_ADMIN_PROVISION_STATE "initial"
+#include <MockServerData.hpp>
 
 
 namespace h2agent
@@ -48,24 +45,16 @@ namespace h2agent
 namespace model
 {
 
-class Configuration;
-class GlobalVariable;
-class FileManager;
-class MockServerData;
-class MockClientData;
+void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
-typedef struct {
-    Configuration *ConfigurationPtr;
-    GlobalVariable *GlobalVariablePtr;
-    FileManager *FileManagerPtr;
-    MockServerData *MockServerDataPtr;
-    MockClientData *MockClientDataPtr;
+    write_guard_t guard(rw_mutex_);
+    bool maiden{};
+    auto events = std::static_pointer_cast<MockServerEventsHistory>(getEvents(dataKey, maiden));
 
-} common_resources_t;
+    events->loadEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
-using mutex_t = std::shared_mutex;
-using read_guard_t = std::shared_lock<mutex_t>;
-using write_guard_t = std::unique_lock<mutex_t>;
+    if (maiden) add(dataKey.getKey(), events); // push the key in the map:
+}
 
 }
 }

@@ -33,6 +33,34 @@ public:
     }
 };
 
+TEST_F(functions_test, calculateStringKey_k1k2k3)
+{
+    std::string key;
+    h2agent::model::calculateStringKey(key, "initial", "POST", "/foo/bar");
+    EXPECT_EQ(key, "initial#POST#/foo/bar");
+}
+
+TEST_F(functions_test, calculateStringKey_k1k2)
+{
+    std::string key;
+    h2agent::model::calculateStringKey(key, "POST", "/foo/bar");
+    EXPECT_EQ(key, "POST#/foo/bar");
+}
+
+TEST_F(functions_test, aggregateKeyPart_TwoArguments)
+{
+    std::string key;
+    h2agent::model::aggregateKeyPart(key, "POST", "/foo/bar");
+    EXPECT_EQ(key, "POST#/foo/bar");
+}
+
+TEST_F(functions_test, aggregateKeyPart_OneArguments)
+{
+    std::string key = "POST#/foo/bar";
+    h2agent::model::aggregateKeyPart(key, "myClientEndpoint");
+    EXPECT_EQ(key, "myClientEndpoint#POST#/foo/bar");
+}
+
 TEST_F(functions_test, FooBarQueryParameters)
 {
 
@@ -209,5 +237,33 @@ TEST_F(functions_test, JsonConstraintFail)
 
     EXPECT_FALSE(h2agent::model::jsonConstraint(received, expected, failReport));
     EXPECT_EQ(failReport, "JsonConstraint FAILED: expected key 'MISSING' is missing in validated source");
+}
+
+TEST_F(functions_test, String2uint64andSignError)
+{
+    std::uint64_t output = 0;
+    bool negative = false;
+
+    EXPECT_FALSE(h2agent::model::string2uint64andSign("bad_input", output, negative));
+}
+
+TEST_F(functions_test, String2uint64andSignPositive)
+{
+    std::uint64_t output = 0;
+    bool negative = false;
+
+    EXPECT_TRUE(h2agent::model::string2uint64andSign("1770", output, negative));
+    EXPECT_EQ(output, 1770);
+    EXPECT_FALSE(negative);
+}
+
+TEST_F(functions_test, String2uint64andSignNegative)
+{
+    std::uint64_t output = 0;
+    bool negative = false;
+
+    EXPECT_TRUE(h2agent::model::string2uint64andSign("-1770", output, negative));
+    EXPECT_EQ(output, 1770);
+    EXPECT_TRUE(negative);
 }
 

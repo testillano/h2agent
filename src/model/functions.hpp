@@ -49,6 +49,38 @@ namespace model
 {
 
 /**
+ * Compose string key by aggregation with separator '#': '<k1>#<k2>[#<k3>]'
+ *
+ * @param Composed key by reference
+ * @param k1 First key part (should not contain '#', and must be non-empty)
+ * @param k2 First key part (should not contain '#', and must be non-empty)
+ * @param k3 First key part (optional)
+ */
+void calculateStringKey(std::string &key, const std::string &k1, const std::string &k2, const std::string &k3 = "");
+
+/**
+ * Compose string key by aggregation with separator '#'
+ * If two parts are provided, it builds '<k1>#<k2>'.
+ * If one part is provided, it prepends the key with '<k1>#'.
+ *
+ * @param Composed key by reference
+ * @param k1 First key part (should not contain '#', and must be non-empty)
+ * @param k2 First key part (optional)
+ */
+void aggregateKeyPart(std::string &key, const std::string &k1, const std::string &k2 = "");
+
+/**
+ * Interprets integer with sign as string
+ *
+ * @param input Number as string
+ * @param output Natural number by reference
+ * @param negative Boolean indicating the number sign
+ *
+ * @return Boolean about successful operation
+ */
+bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative);
+
+/**
  * Tokenizes query parameters string into key/values
  *
  * @param queryParams query parameters URI part

@@ -8,7 +8,7 @@
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 
 //#include <ert/tracing/Logger.hpp>
 #include <ert/metrics/Metrics.hpp>
@@ -89,7 +89,7 @@ public:
     h2agent::model::Configuration* configuration_{};
     h2agent::model::GlobalVariable* global_variable_{};
     h2agent::model::FileManager* file_manager_{};
-    h2agent::model::MockServerEventsData* mock_server_events_data_{};
+    h2agent::model::MockServerData* mock_server_events_data_{};
     ert::metrics::Metrics* metrics_{};
 
     std::shared_ptr<ert::http2comm::Http2Client> traffic_client_{}, admin_client_{};
@@ -101,7 +101,7 @@ public:
         file_manager_ = new h2agent::model::FileManager(timers_io_service_);
         metrics_ = new ert::metrics::Metrics();
         file_manager_->enableMetrics(metrics_);
-        mock_server_events_data_ = new h2agent::model::MockServerEventsData();
+        mock_server_events_data_ = new h2agent::model::MockServerData();
 
         admin_http2_server_ = new h2agent::http2::MyAdminHttp2Server(1);
         admin_http2_server_->setApiName("admin");
@@ -109,13 +109,13 @@ public:
         admin_http2_server_->setConfiguration(configuration_);
         admin_http2_server_->setGlobalVariable(global_variable_);
         admin_http2_server_->setFileManager(file_manager_);
-        admin_http2_server_->setMockServerEventsData(mock_server_events_data_); // stored at administrative class to pass through created server provisions
+        admin_http2_server_->setMockServerData(mock_server_events_data_); // stored at administrative class to pass through created server provisions
         admin_http2_server_->enableMetrics(metrics_);
 
         traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(1, 1, timers_io_service_);
         traffic_http2_server_->setApiName("app");
         traffic_http2_server_->setApiVersion("v1");
-        traffic_http2_server_->setMockServerEventsData(mock_server_events_data_);
+        traffic_http2_server_->setMockServerData(mock_server_events_data_);
         traffic_http2_server_->setAdminData(admin_http2_server_->getAdminData()); // to retrieve mock behaviour configuration
         traffic_http2_server_->enableMetrics(metrics_);
 
@@ -209,7 +209,7 @@ TEST_F(http2Server_test, CheckProvision)
     std::string provisionBody = ProvisionExample.dump();
     response = admin_client_->send(ert::http2comm::Http2Client::Method::POST, "/admin/v1/server-provision", provisionBody, headers);
 
-    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and provision data received\" }");
+    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and server provision data received\" }");
     EXPECT_EQ(response.statusCode, 201);
     // Check headers
     // EXPECT_EQ(ert::http2comm::headersAsString(response.headers), expected); // unpredictable (date header added by nghttp2)
@@ -305,7 +305,7 @@ TEST_F(http2Server_test, ProvisionedEvent)
     std::string provisionBody = ProvisionExample.dump();
     ert::http2comm::Http2Client::response response = admin_client_->send(ert::http2comm::Http2Client::Method::POST, "/admin/v1/server-provision", provisionBody, headers);
 
-    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and provision data received\" }");
+    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and server provision data received\" }");
     EXPECT_EQ(response.statusCode, 201);
     // Check headers
     // EXPECT_EQ(ert::http2comm::headersAsString(response.headers), expected); // unpredictable (date header added by nghttp2)
@@ -430,7 +430,7 @@ TEST_F(http2Server_test, ServerProvision)
     bool result = admin_http2_server_->serverProvision(configuration, log);
 
     EXPECT_TRUE(result);
-    EXPECT_EQ(log, "server-provision operation; valid schema and provision data received");
+    EXPECT_EQ(log, "server-provision operation; valid schema and server provision data received");
 
     tearDown();
 }

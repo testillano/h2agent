@@ -46,9 +46,10 @@ SOFTWARE.
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
+//#include <MyTrafficHttp2Client.hpp>
 
 #include <AdminData.hpp>
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
@@ -214,13 +215,13 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
-        log += (isArray ? "valid schemas and provisions data received":"valid schema and provision data received");
+        log += (isArray ? "valid schemas and server provisions data received":"valid schema and server provision data received");
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadContent) {
-        log += (isArray ? "detected one invalid provision data received":"invalid provision data received");
+        log += (isArray ? "detected one invalid server provision data received":"invalid server provision data received");
     }
 
     return result;
@@ -373,7 +374,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) maxKeys = it->second;
         }
 
-        responseBody = getHttp2Server()->getMockServerEventsData()->summary(maxKeys);
+        responseBody = getHttp2Server()->getMockServerData()->summary(maxKeys);
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "global-variable") {
@@ -442,7 +443,8 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
 
         bool validQuery = false;
         try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
-            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, eventNumber, eventPath, validQuery);
+            h2agent::model::EventLocationKey elkey(requestMethod, requestUri, eventNumber, eventPath);
+            responseBody = getHttp2Server()->getMockServerData()->asJsonString(elkey, validQuery);
         }
         catch (const std::exception& e)
         {
@@ -513,7 +515,8 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) eventNumber = it->second;
         }
 
-        bool success = getHttp2Server()->getMockServerEventsData()->clear(serverDataDeleted, requestMethod, requestUri, eventNumber);
+        h2agent::model::EventKey ekey(requestMethod, requestUri, eventNumber);
+        bool success = getHttp2Server()->getMockServerData()->clear(serverDataDeleted, ekey);
 
         statusCode = (success ? (serverDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/):ert::http2comm::ResponseCode::BAD_REQUEST /*400*/);
     }

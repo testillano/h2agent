@@ -156,6 +156,36 @@ server_data_configuration() {
   fi
 }
 
+client_data_configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_data_configuration [-h|--help]; Manages agent client data configuration (gets current status by default)."
+    echo "                                 [--discard-all]     ; Discards all the events processed."
+    echo "                                 [--discard-history] ; Keeps only the last event processed for a key."
+    echo "                                 [--keep-all]        ; Keeps all the events processed."
+    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'xxxxxxpurge' state is reached."
+    echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
+    return 0
+  elif [ "$1" = "--discard-all" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?discard=true&discardKeyHistory=true"
+  elif [ "$1" = "--discard-history" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?discard=false&discardKeyHistory=true"
+  elif [ "$1" = "--keep-all" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?discard=false&discardKeyHistory=false"
+  elif [ "$1" = "--disable-purge" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?disablePurge=true"
+  elif [ "$1" = "--enable-purge" ]
+  then
+    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?disablePurge=false"
+  else
+    do_curl ${ADMIN_URL}/client-data/configuration
+  fi
+}
+
 server_matching() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help]; Gets/updates current server matching configuration (${ADMIN_URL}/server-matching)." && return 0
   [ -z "$1" ] && do_curl ${ADMIN_URL}/server-matching && return 0
@@ -244,11 +274,15 @@ server_data() {
   fi
 }
 
+#client_data() { xxxxxxxxxx
+
 server_data_sequence() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
   [ -z "$1" ] && json ".[].events[].serverSequence" | sort -n && return 0
   json ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
 }
+
+#client_data_sequence() { xxxxxxxxx
 
 client_endpoint() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration (${ADMIN_URL}/client-endpoint)." && return 0
@@ -264,6 +298,27 @@ client_endpoint() {
 client_endpoint_schema() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema (${ADMIN_URL}/client-endpoint/schema)." && return 0
   do_curl "${ADMIN_URL}/client-endpoint/schema"
+}
+
+client_provision() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current client provision configuration (${ADMIN_URL}/client-provision)." && return 0
+  [ -z "$1" ] && do_curl ${curl_method} ${ADMIN_URL}/client-provision && return 0
+  if [ "$1" = "--clean" ]
+  then
+    do_curl -XDELETE ${ADMIN_URL}/client-provision
+  else
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-provision
+  fi
+}
+
+client_provision_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema (${ADMIN_URL}/client-provision/schema)." && return 0
+  do_curl "${ADMIN_URL}/client-provision/schema"
+}
+
+launch_client_provision() {
+  [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ] && echo "Usage: launch_client_provision [-h|--help] <id>; Activates client provision given its identifier (${ADMIN_URL}/client-provision/<id>)." && return 0
+  do_curl -XPUT ${ADMIN_URL}/client-provision/$1
 }
 
 json() {
@@ -332,6 +387,7 @@ snapshot() {
 
   server_configuration && json > ${dir}/server-configuration.json
   server_data_configuration && json > ${dir}/server-data-configuration.json
+  client_data_configuration && json > ${dir}/client-data-configuration.json
   server_matching && json > ${dir}/server-matching.json
   server_matching_schema && json > ${dir}/server-matching_schema.json
   server_provision && json > ${dir}/server-provision.json
@@ -345,6 +401,15 @@ snapshot() {
   done
   client_endpoint && json > ${dir}/client_endpoint.json
   client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
+  client_provision && json > ${dir}/client-provision.json
+  client_provision_schema && json > ${dir}/client-provision_schema.json
+  client_data --summary -1 && json > ${dir}/client-data-summary.json
+  echo | client_data && json > ${dir}/client-data.json
+  mkdir ${dir}/client-data-sequences
+  (jq '.[].events[].clientSequence' ${dir}/client-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/client-data-sequences.txt
+  for s in $(cat ${dir}/client-data-sequences.txt); do
+    jq ".[] | select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" ${dir}/client-data.json > ${dir}/client-data-sequences/${s}.json
+  done
   metrics > ${dir}/metrics.txt
 
   echo

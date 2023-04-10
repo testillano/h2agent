@@ -375,7 +375,7 @@ def admin_cleanup(h2ac_admin):
 
   yield cleanup
 
-# MATCHING
+# SERVER MATCHING
 VALID_MATCHING__RESPONSE_BODY = { "result":"true", "response":"server-matching operation; valid schema and matching data received" }
 INVALID_MATCHING_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid schema" }
 INVALID_MATCHING_DATA__RESPONSE_BODY = { "result":"false", "response":"server-matching operation; invalid matching data received" }
@@ -400,10 +400,10 @@ def admin_server_matching(h2ac_admin, files):
   yield send
 
 # SERVER PROVISION
-VALID_SERVER_PROVISION__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schema and provision data received" }
-VALID_SERVER_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schemas and provisions data received" }
+VALID_SERVER_PROVISION__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schema and server provision data received" }
+VALID_SERVER_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"server-provision operation; valid schemas and server provisions data received" }
 INVALID_SERVER_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid schema" }
-INVALID_SERVER_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid provision data received" }
+INVALID_SERVER_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"server-provision operation; invalid server provision data received" }
 @pytest.fixture(scope='session')
 def admin_server_provision(h2ac_admin, files):
   """
@@ -493,6 +493,31 @@ def admin_client_endpoint(h2ac_admin, files):
       if kwargs: request = request.format(**kwargs)
 
     response = h2ac_admin.post(ADMIN_CLIENT_ENDPOINT_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_CLIENT_ENDPOINT_URI, request)
+    h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
+
+  yield send
+
+# CLIENT PROVISION
+VALID_CLIENT_PROVISION__RESPONSE_BODY = { "result":"true", "response":"client-provision operation; valid schema and client provision data received" }
+VALID_CLIENT_PROVISIONS__RESPONSE_BODY = { "result":"true", "response":"client-provision operation; valid schemas and client provisions data received" }
+INVALID_CLIENT_PROVISION_SCHEMA__RESPONSE_BODY = { "result":"false", "response":"client-provision operation; invalid schema" }
+INVALID_CLIENT_PROVISION_DATA__RESPONSE_BODY = { "result":"false", "response":"client-provision operation; invalid client provision data received" }
+@pytest.fixture(scope='session')
+def admin_client_provision(h2ac_admin, files):
+  """
+  content: provide string or dictionary/list. The string will be interpreted as resources file path.
+  responseBodyRef: response body reference, valid provision assumed by default.
+  responseStatusRef: response status code reference, 201 by default.
+  kwargs: format arguments for file content. Dictionary must be already formatted.
+  """
+  def send(content, responseBodyRef = VALID_CLIENT_PROVISION__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+
+    request = content # assume content as dictionary
+    if isinstance(content, str):
+      request = files(content, callerDistance = 3)
+      if kwargs: request = request.format(**kwargs)
+
+    response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_CLIENT_PROVISION_URI, request)
     h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
 
   yield send
