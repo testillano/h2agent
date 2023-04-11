@@ -3,11 +3,7 @@
 #############
 # VARIABLES #
 #############
-
-REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
-
-EXAMPLES=${REPO_DIR}/tools/play-h2agent/examples
+EXAMPLES=examples
 DESCRIPTION=readme.txt
 REQUEST=request.json
 
@@ -177,15 +173,16 @@ menu() {
 #############
 # EXECUTION #
 #############
+cd $(dirname $0)
+echo
 
-source ${REPO_DIR}/tools/common.src
-source ${REPO_DIR}/tools/helpers.src &>/dev/null
+# Load common resources:
+source ../common.src
+source ../helpers.src &>/dev/null
 
-# Check h2agent service:
-for endpoint in ${TRAFFIC_URL} ${ADMIN_URL}
-do
-  nc -w 1 -z $(echo ${endpoint} | cut -d/ -f3 | sed 's/:/ /') || { echo -e "\nERROR: execute h2agent in other shell: ${REPO_DIR}/h2a.sh" ; exit 1 ; }
-done
+title "H2agent play"
+
+h2agent_check ${TRAFFIC_URL} ${ADMIN_URL} || exit 1
 
 while true
 do
