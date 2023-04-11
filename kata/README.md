@@ -1,44 +1,8 @@
-# Kata exercises
+# H2Agent Kata
 
 ## Prepare the environment
 
-### Working in training container
-
-If your are working in the training container (check main project documentation [training](../README.md#working-with-docker) subsection), there is no need to build the project neither install requirements commented below, just start the training container and then execute the process in background to run the **kata** stuff:
-
-```bash
-bash-5.1# ls -lrt
-total 12
-drwxr-xr-x    5 root     root          4096 Dec 16 20:29 tools
-drwxr-xr-x   12 root     root          4096 Dec 16 20:29 kata
-drwxr-xr-x    2 root     root          4096 Dec 16 20:29 demo
-lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /opt/h2agent
-bash-5.1# ./h2agent --verbose &
-```
-
-### Working from shell: requirements
-
-This kata requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
-
-```bash
-$ sudo apt-get install curl
-$ sudo apt-get install jq
-$ sudo apt-get install dos2unix
-```
-
-Also, you should build the project natively and start the `h2agent` (better in a separate terminal):
-
-```bash
-$ ./build-native.sh # builds agent
-$ build/Release/bin/h2agent --verbose & # starts agent
-```
-
-Or easier, build the project image and run with docker and network hosted:
-
-```bash
-$ ./build.sh --auto # builds agent
-$ ./h2a.sh --verbose # starts agent
-```
+Check this [README.md](../tools/play-h2agent/README.md#Prepare-the-environment) (similar procedure here).
 
 ## Content
 
