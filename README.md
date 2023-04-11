@@ -974,19 +974,6 @@ A demo is available at `./demo` directory. It is designed to introduce the `h2ag
 
 A kata is available at `./kata` directory. It is designed to guide through a set of exercises with increasing complexity. Check its [README.md](./kata/README.md) file to learn more about.
 
-### Working with docker
-
-Sometimes, `github` access restrictions to build the project from scratch could be a handicap. Other times, you could simple prefer to run training stuff isolated.
-
-So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symlinks, main project executables.
-
-The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
-
-```bash
-$> docker pull ghcr.io/testillano/h2agent_training:<tag>
-```
-Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
-
 ## Management interface
 
 `h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. The following sections describe all the supported operations over *URI* path`/admin/v1/`.

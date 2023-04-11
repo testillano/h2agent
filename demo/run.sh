@@ -21,6 +21,7 @@ get_uri() {
 # EXECUTION #
 #############
 cd $(dirname $0)
+echo
 
 # Temporary directory:
 TMPDIR=$(mktemp -d)
@@ -29,8 +30,9 @@ trap "rm -rf ${TMPDIR}" EXIT
 # Load common resources:
 source ../tools/common.src
 
-echo
 title "H2agent demo"
+
+h2agent_check ${H2AGENT_ADMIN_ENDPOINT} ${H2AGENT_TRAFFIC_ENDPOINT} || exit 1
 
 # Enable interactiveness:
 INTERACT=${INTERACT:-true}
