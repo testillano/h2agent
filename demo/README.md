@@ -1,37 +1,8 @@
-# HTTP/2 Server Mock Demo
+# H2Agent Demo
 
 ## Prepare the environment
 
-### Working in training container
-
-If your are working in the training container (check the training section in the main project [README.md](../README.md) file), there is no need to build the project neither install requirements commented below, just execute the process in background and run the **demo** stuff:
-
-```bash
-bash-5.1# ls -lrt
-total 12
-drwxr-xr-x    5 root     root          4096 Dec 16 20:29 tools
-drwxr-xr-x   12 root     root          4096 Dec 16 20:29 kata
-drwxr-xr-x    2 root     root          4096 Dec 16 20:29 demo
-lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /opt/h2agent
-bash-5.1# ./h2agent --verbose &
-```
-
-### Working natively: requirements
-
-This demo requires `curl`, `jq` and `dos2unix`, so please try to install them on your system. For example:
-
-```bash
-$ sudo apt-get install curl
-$ sudo apt-get install jq
-$ sudo apt-get install dos2unix
-```
-
-Also, you should build the project and start the `h2agent` (better in a separate terminal):
-
-```bash
-$ ./build.sh --auto # builds agent
-$ build/Release/bin/h2agent --verbose & # starts agent
-```
+Check this [README.md](../tools/play-h2agent/README.md#Prepare-the-environment) (similar procedure here).
 
 ## Case of use
 
@@ -87,7 +58,7 @@ Finally we will use the <u>out-state for foreign method</u> feature to simulate 
 
 ## Solution
 
-Check the file [./demo/provisions.json](./provisions.json).
+Check the file [./demo/server-provision.json](./server-provision.json).
 
 For further understanding you may read the project [README.md](https://github.com/testillano/h2agent/blob/master/README.md) file, but we will explain here with more detail the state machine for the last requirement (consistent deletion of registries) because it is an special case of *FSM* (finite state machine) with **foreign methods** (as uses target `outState.GET` within a *DELETE* provision) and it is not normally needed to fulfill most of the testing requirements in the real world because test cases should be restricted to very well known states and limited scopes to have good testing granularity.
 
@@ -283,17 +254,17 @@ HTTP/2 404
 
 ## Run the demo
 
-Build and start the process:
-
-```bash
-$> ./build.sh --auto
-$> build/Release/bin/h2agent -l Debug --verbose
-```
-
-Run the demo in another terminal:
+Once `h2agent` process is [started](#Prepare-the-environment), run the demo script (use another terminal if needed):
 
 ```bash
 $> demo/run.sh
 ```
 
 The demo script is interactive to follow the use case step by step.
+
+Just in case you want to test demo procedure health, you can execute in non-interactive mode:
+
+```bash
+$> INTERACT=false demo/run.sh
+$> echo $?
+```

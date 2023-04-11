@@ -278,6 +278,7 @@ const nlohmann::json server_provision = R"(
 // Valid HTTP ports:
 //
 // 0 - 1024 reserved for privileged services, 1025 - 65536 for applications
+// We could restrict to application scope, but there is no reason for that as we would deny mocking of privileged services.
 
 const nlohmann::json client_endpoint = R"(
 {
@@ -295,7 +296,7 @@ const nlohmann::json client_endpoint = R"(
     },
     "port": {
       "type": "integer",
-      "minimum": 1025,
+      "minimum": 0,
       "maximum": 65536
     },
     "secure": {

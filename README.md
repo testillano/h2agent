@@ -964,23 +964,11 @@ $ kill $!
 
 ### Play
 
-Different exercises at `./tools/play-h2agent` are presented and executed like a guided tour:
-
-```bash
-$> tool/play-h2agent/play.sh
-```
-
-Although this is a moderate set of examples, it will be expanded in the future as new exercises are considered useful to improve understanding of the process. The idea is to present use cases that are as practical and common as possible to avoid overwhelming the reader with information given the immense flexibility of the system and its possibilities.
+A playground is available at `./tools/play-h2agent` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/play-h2agent/README.md) file to learn more about.
 
 ### Demo
 
 A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
-Just in case you want to test demo procedure health, you can execute in non-interactive mode:
-
-```bash
-$> INTERACT=false demo/run.sh
-$> echo $?
-```
 
 ### Kata
 
@@ -2788,7 +2776,7 @@ By default, created endpoints will connect the defined remote server (except for
     },
     "port": {
       "type": "integer",
-      "minimum": 1025,
+      "minimum": 0,
       "maximum": 65536
     },
     "secure": {
