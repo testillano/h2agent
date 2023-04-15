@@ -33,3 +33,4 @@ coverage
 
 # play-h2agent
 tools/play-h2agent/examples/*/snapshot
+.questions-and-answers.py-chat-history

@@ -2,7 +2,7 @@
 
 ## Prepare the environment
 
-Check this [README.md](../tools/play-h2agent/README.md#Prepare-the-environment) (similar procedure here).
+Check this [README.md](../tools/questions-and-answers/README.md#Prepare-the-environment) (similar procedure here).
 
 ## Case of use
 
