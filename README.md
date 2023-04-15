@@ -15,6 +15,7 @@ It is mainly designed for testing, but could even simulate or complement advance
 **Theory**
 
 * A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
+* A conversational bot for [***questions & answers***](./README.md#questions-and-answers) based in *Open AI*.
 
 **Practice**
 
@@ -152,6 +153,7 @@ $> ./build.sh --project-image
 
 This image is built with `./Dockerfile`.
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
 
 ## Build project with docker
 
@@ -172,6 +174,7 @@ $> ./build.sh --builder-image
 
 This image is built with `./Dockerfile.build`.
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
 
 ### Usage
 
@@ -323,6 +326,7 @@ $> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/
 Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
 
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
 
 ### Component test
 
@@ -961,6 +965,10 @@ $ kill $!
 ```
 
 ## Training
+
+### Questions and answers
+
+A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
 
 ### Play
 
