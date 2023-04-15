@@ -60,7 +60,7 @@ bash-5.1# ./h2agent --verbose &
 Just execute the python script by mean:
 
 ```bash
-$> python3 tool/questions-and-answers/run.py
+$> python3 tools/questions-and-answers/run.py
 ```
 
 Please note that the conversational bot has certain limitations and although it relies on the documentation of this project, some questions may be incorrect or incomplete. It is always recommended to carefully read all the documentation, especially the main [README.md](../../README.md) file.
