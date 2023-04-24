@@ -52,14 +52,12 @@ class Configuration;
 class GlobalVariable;
 class FileManager;
 class MockServerData;
-class MockClientData;
 
 typedef struct {
     Configuration *ConfigurationPtr;
     GlobalVariable *GlobalVariablePtr;
     FileManager *FileManagerPtr;
     MockServerData *MockServerDataPtr;
-    MockClientData *MockClientDataPtr;
 
 } common_resources_t;
 

@@ -100,8 +100,10 @@ std::string MockData::asJsonString(const EventLocationKey &elkey, bool &validQue
         return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
     }
 
-    if (!elkey.checkSelection())
+    if (!elkey.checkSelection()) {
+        validQuery = false;
         return "[]";
+    }
 
     validQuery = true;
 
@@ -113,8 +115,10 @@ std::string MockData::asJsonString(const EventLocationKey &elkey, bool &validQue
 
     // Check event number:
     if (elkey.hasNumber()) {
-        if (!elkey.validNumber())
+        if (!elkey.validNumber()) {
+            validQuery = false;
             return "[]";
+        }
 
         auto ptr = it->second->getEvent(elkey.getUNumber(), elkey.reverse());
         if (ptr) {

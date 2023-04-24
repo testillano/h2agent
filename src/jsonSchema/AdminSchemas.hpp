@@ -91,7 +91,7 @@ const nlohmann::json server_matching = R"(
   "properties": {
     "algorithm": {
       "type": "string",
-        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex", "RegexMatching"]
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "RegexMatching"]
     },
     "rgx": {
       "type": "string"
@@ -208,7 +208,7 @@ const nlohmann::json server_provision = R"(
       "type": "integer"
     },
     "responseBody": {
-      "oneOf": [
+      "anyOf": [
         {"type": "object"},
         {"type": "array"},
         {"type": "string"},
@@ -376,7 +376,8 @@ const nlohmann::json client_provision = R"(
       "pattern": "^[^#]*$"
     },
     "endpoint":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "requestMethod": {
       "type": "string",
@@ -395,7 +396,7 @@ const nlohmann::json client_provision = R"(
        "type": "object"
     },
     "requestBody": {
-      "oneOf": [
+      "anyOf": [
         {"type": "object"},
         {"type": "array"},
         {"type": "string"},
@@ -421,11 +422,11 @@ const nlohmann::json client_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
-            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs)$|^(var|globalVar|clientEvent)\\..+|^txtFile\\..+|^binFile\\..+|^scheduleId\\..+"
+            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+"
           }
         },
         "additionalProperties" : {
@@ -444,11 +445,11 @@ const nlohmann::json client_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
-            "pattern": "^(var|globalVar)\\..+|^txtFile\\..+|^binFile\\..+|^scheduleId\\..+|^break$"
+            "pattern": "^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^break$"
           }
         },
         "additionalProperties" : {

@@ -122,3 +122,13 @@ TEST_F(DataPart_test, DecodeMultipart)
     EXPECT_TRUE(dp_multipart_.isJson());
 }
 
+TEST_F(DataPart_test, DecodeMultipartEmptyBoundary)
+{
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"multipart/related; boundary="});
+    dp_multipart_.assignFromHex(MultipartAsHexString);
+    dp_multipart_.decode(headers);
+    EXPECT_TRUE(dp_multipart_.getJson().is_null());
+    EXPECT_FALSE(dp_multipart_.isJson());
+}
+

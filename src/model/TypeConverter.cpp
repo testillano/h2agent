@@ -370,13 +370,13 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
         s_value_ = j_value_;
         native_type_ = NativeType::String;
     }
+    else if (j_value_.is_number_unsigned()) { // this condition here (before integer), because integer also becomes true for unsigned source
+        u_value_ = j_value_;
+        native_type_ = NativeType::Unsigned;
+    }
     else if (j_value_.is_number_integer()) {
         i_value_ = j_value_;
         native_type_ = NativeType::Integer;
-    }
-    else if (j_value_.is_number_unsigned()) {
-        u_value_ = j_value_;
-        native_type_ = NativeType::Unsigned;
     }
     else if (j_value_.is_number_float()) {
         f_value_ = j_value_;
@@ -386,10 +386,10 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
         b_value_ = j_value_;
         native_type_ = NativeType::Boolean;
     }
-    else {
-        ert::tracing::Logger::error("Unrecognized json pointer value format", ERT_FILE_LOCATION); // this shouldn't happen as all the possible formats are checked above
-        return false;
-    }
+    //else {
+    //    ert::tracing::Logger::error("Unrecognized json pointer value format", ERT_FILE_LOCATION); // this shouldn't happen as all the possible formats are checked above
+    //    return false;
+    //}
 
     return true;
 }

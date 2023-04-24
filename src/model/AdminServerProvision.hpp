@@ -101,7 +101,6 @@ class AdminServerProvision
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
 
-    void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
 
     std::vector<std::shared_ptr<Transformation>> transformations_{};
@@ -122,8 +121,7 @@ class AdminServerProvision
                         TypeConverter& sourceVault,
                         const std::map<std::string, std::string>& variables,
                         std::smatch &matches,
-                        std::string &source,
-                        bool eraser) const;
+                        std::string &source) const;
 
     bool processTargets(std::shared_ptr<Transformation> transformation,
                         TypeConverter& sourceVault,

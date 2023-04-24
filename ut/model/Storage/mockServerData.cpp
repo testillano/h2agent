@@ -116,7 +116,23 @@ TEST_F(MockServerData_test, ClearFails)
     EXPECT_FALSE(somethingDeleted);
 
     // wrong input: method/uri/number empty
-    success = data_.clear(somethingDeleted, h2agent::model::EventKey("", "", ""));
+    success = data_.clear(somethingDeleted, h2agent::model::EventKey("DELETE", "/the/uri/111", "")); // missing number
+    EXPECT_TRUE(success);
+    EXPECT_TRUE(somethingDeleted);
+}
+
+TEST_F(MockServerData_test, ClearEverything)
+{
+    bool somethingDeleted = false;
+    bool success = data_.clear(somethingDeleted, h2agent::model::EventKey("", "", ""));
+    EXPECT_TRUE(success);
+    EXPECT_TRUE(somethingDeleted);
+}
+
+TEST_F(MockServerData_test, ClearSucceed)
+{
+    bool somethingDeleted = false;
+    bool success = data_.clear(somethingDeleted, h2agent::model::EventKey("DELETE", "/the/uri/111", "1"));
     EXPECT_TRUE(success);
     EXPECT_TRUE(somethingDeleted);
 }
@@ -131,6 +147,58 @@ TEST_F(MockServerData_test, AsJsonString)
     expectedJson["receptionTimestampUs"] = receptionTimestampUs;
 
     EXPECT_EQ(assertedJson, expectedJson);
+}
+
+TEST_F(MockServerData_test, AsJsonStringBadKey)
+{
+    bool validQuery = false;
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("", "", "1", "/foo/bar"), validQuery));
+
+    EXPECT_EQ(assertedJson.dump(), "[]");
+    EXPECT_FALSE(validQuery);
+}
+
+TEST_F(MockServerData_test, AsJsonStringBadNumber)
+{
+    bool validQuery = false;
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("DELETE", "/the/uri/111", "invalid", ""), validQuery));
+
+    EXPECT_EQ(assertedJson.dump(), "[]");
+    EXPECT_FALSE(validQuery);
+}
+
+TEST_F(MockServerData_test, AsJsonStringNotFoundByKey)
+{
+    bool validQuery = false;
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("DELETE", "/the/uri/000", "", ""), validQuery));
+
+    EXPECT_EQ(assertedJson.dump(), "[]");
+    EXPECT_TRUE(validQuery);
+}
+
+TEST_F(MockServerData_test, AsJsonStringNotFoundByNumber)
+{
+    bool validQuery = false;
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("DELETE", "/the/uri/111", "30", ""), validQuery));
+
+    EXPECT_EQ(assertedJson.dump(), "[]");
+    EXPECT_TRUE(validQuery);
+}
+
+TEST_F(MockServerData_test, AsJsonStringNoNumber)
+{
+    bool validQuery = false;
+    nlohmann::json assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("DELETE", "/the/uri/111", "", ""), validQuery));
+
+    //std::uint64_t receptionTimestampUs = assertedJson["receptionTimestampUs"]; // unpredictable
+    //std::uint64_t sendingTimestampUs = assertedJson["sendingTimestampUs"]; // unpredictable
+
+    //nlohmann::json expectedJson = real_event_;
+    //expectedJson["receptionTimestampUs"] = receptionTimestampUs;
+    //expectedJson["sendingTimestampUs"] = sendingTimestampUs;
+
+    //EXPECT_EQ(assertedJson, expectedJson);
+    //EXPECT_TRUE(validQuery);
 }
 
 TEST_F(MockServerData_test, AsJsonStringWithEventPath)
@@ -183,7 +251,19 @@ TEST_F(MockServerData_test, GetMockServerEvent)
     EXPECT_EQ(assertedJson, expectedJson);
 }
 
-TEST_F(MockServerData_test, GetJson)
+TEST_F(MockServerData_test, GetMockServerEventIncompleteKey)
+{
+    auto ptr = data_.getEvent(h2agent::model::EventKey("DELETE", "", ""));
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockServerData_test, GetMockServerEventInvalidNumber)
+{
+    auto ptr = data_.getEvent(h2agent::model::EventKey("DELETE", "/the/uri/222", "invalid"));
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockServerData_test, GetJsonOrAllAsJsonString)
 {
     nlohmann::json assertedJson = data_.getJson();
     std::uint64_t receptionTimestampUs_0_0 = assertedJson[0]["events"][0]["receptionTimestampUs"]; // unpredictable
@@ -220,6 +300,11 @@ TEST_F(MockServerData_test, GetJson)
     expectedJson[1]["events"].push_back(virtual_event_);
 
     EXPECT_EQ(assertedJson, expectedJson);
+
+    bool validQuery = false;
+    assertedJson = nlohmann::json::parse(data_.asJsonString(h2agent::model::EventLocationKey("", "", "", ""), validQuery));
+    EXPECT_EQ(assertedJson, expectedJson);
+    EXPECT_TRUE(validQuery);
 }
 
 TEST_F(MockServerData_test, FindLastRegisteredRequestState)
@@ -233,5 +318,26 @@ TEST_F(MockServerData_test, FindLastRegisteredRequestState)
 
     data_.findLastRegisteredRequestState(h2agent::model::DataKey("DELETE", "/the/uri/222"), latestState);
     EXPECT_EQ(latestState, "state");
+}
+
+TEST_F(MockServerData_test, OverwriteLastEvent)
+{
+    h2agent::model::DataKey key("PUT", "/the/put/uri");
+    data_.loadEvent(key, previous_state_, "last_recent_state", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */);
+    data_.loadEvent(key, previous_state_, "most_recent_state", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 22 /* response delay ms */, false /* FALSE HISTORY */);
+
+    std::string latestState;
+    data_.findLastRegisteredRequestState(key, latestState);
+    EXPECT_EQ(latestState, "most_recent_state");
+}
+
+TEST_F(MockServerData_test, DefaultStateInitial)
+{
+    h2agent::model::DataKey key("PUT", "/the/put/uri");
+    data_.loadEvent(key, previous_state_, "", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111 /* server sequence */, 20 /* response delay ms */, true /* history */);
+
+    std::string latestState;
+    data_.findLastRegisteredRequestState(key, latestState);
+    EXPECT_EQ(latestState, "initial");
 }
 

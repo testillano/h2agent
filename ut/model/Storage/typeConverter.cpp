@@ -24,8 +24,8 @@ public:
         json_ = R"({
             "path_to_basics": {
               "string": "hello",
-              "integer": -111,
               "unsigned": 111,
+              "integer": -111,
               "float": 3.14,
               "boolean": true
             },
@@ -280,14 +280,14 @@ TEST_F(TypeConverter_test, SetObject)
     EXPECT_EQ(res_string, "hello");
     EXPECT_TRUE(success);
 
-    tconv_.setObject(json_, "/path_to_basics/integer");
-    std::int64_t res_integer = tconv_.getInteger(success);
-    EXPECT_EQ(res_integer, -111);
-    EXPECT_TRUE(success);
-
     tconv_.setObject(json_, "/path_to_basics/unsigned");
     std::uint64_t res_unsigned = tconv_.getUnsigned(success);
     EXPECT_EQ(res_unsigned, 111);
+    EXPECT_TRUE(success);
+
+    tconv_.setObject(json_, "/path_to_basics/integer");
+    std::int64_t res_integer = tconv_.getInteger(success);
+    EXPECT_EQ(res_integer, -111);
     EXPECT_TRUE(success);
 
     tconv_.setObject(json_, "/path_to_basics/float");
@@ -302,11 +302,31 @@ TEST_F(TypeConverter_test, SetObject)
 
     nlohmann::json res_object;
     tconv_.setObject(json_, "/path_to_object");
+    res_integer = tconv_.getInteger(success);
+    EXPECT_FALSE(success);
+    res_float = tconv_.getUnsigned(success);
+    EXPECT_FALSE(success);
+    res_float = tconv_.getFloat(success);
+    EXPECT_FALSE(success);
+    res_boolean = tconv_.getBoolean(success);
+    EXPECT_FALSE(success);
+
     res_object = tconv_.getObject(success);
     EXPECT_EQ(res_object.dump(), "{\"bar\":2,\"foo\":1}");
     EXPECT_TRUE(success);
     // TypeConverter class representation:
     std::string str = "NativeType (String = 0, Integer, Unsigned, Float, Boolean, Object): 5 | String:  | Integer: 0 | Unsigned: 0 | Float: 0 | Boolean: false | OBJECT: {\"bar\":2,\"foo\":1}";
     EXPECT_EQ(tconv_.asString(), str);
+}
+
+TEST_F(TypeConverter_test, SetObjectMissingPath)
+{
+    bool success;
+
+    bool result = tconv_.setObject(json_, "/missing/path");
+    EXPECT_FALSE(result);
+    std::string res_string = tconv_.getString(success);
+    EXPECT_EQ(res_string, "");
+    EXPECT_TRUE(success);
 }
 

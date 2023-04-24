@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <string>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -78,7 +79,7 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
     if (rgx_it != j.end() && rgx_it->is_string()) {
         hasRgx = true;
         try {
-            rgx_.assign(*rgx_it);
+            rgx_.assign(rgx_it->get<std::string>(), std::regex::optimize);
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
@@ -133,14 +134,10 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
         }
         algorithm_ = FullMatchingRegexReplace;
     }
-    else if (*algorithm_it == "RegexMatching" || *algorithm_it == "PriorityMatchingRegex") {
+    else if (*algorithm_it == "RegexMatching") {
         if (hasRgx || hasFmt) {
             ert::tracing::Logger::error("RegexMatching does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
             return BadContent;
-        }
-        if (*algorithm_it == "PriorityMatchingRegex") {
-            LOGWARNING(ert::tracing::Logger::warning("'PriorityMatchingRegex' classification algorithm is deprecated. Use 'RegexMatching' instead.", ERT_FILE_LOCATION));
-            json_["algorithm"] = "RegexMatching";
         }
         algorithm_ = RegexMatching;
     }

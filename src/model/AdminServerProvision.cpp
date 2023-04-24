@@ -292,9 +292,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(command, transformation->getSourcePatterns(), variables, global_variable_->get());
 
         static char buffer[256];
-        std::string output;
+        std::string output{};
 
         FILE *fp = popen(command.c_str(), "r");
+        variables["rc"] = "-1"; // rare case where fp could be NULL
         if (fp) {
             /* This makes asyncronous the command execution, but we will have broken pipe and cannot capture anything.
             // fgets is blocking (https://stackoverflow.com/questions/6055702/using-fgets-as-non-blocking-function-c/6055774#6055774)
@@ -310,9 +311,6 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             }
             variables["rc"] = std::to_string(WEXITSTATUS(/* status = */pclose(fp))); // rc = status >>= 8; // divide by 256
         }
-        else {
-            variables["rc"] = "-1";
-        }
 
         sourceVault.setString(std::move(output));
     }
@@ -325,8 +323,7 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         TypeConverter& sourceVault,
         const std::map<std::string, std::string>& variables,
         std::smatch &matches,
-        std::string &source,
-        bool eraser) const
+        std::string &source) const
 {
     bool success = false;
     std::string targetS;
@@ -334,182 +331,177 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     std::uint64_t targetU = 0;
     double targetF = 0;
 
-
-    //std::string source; // (*)
-    if (eraser) {
-        LOGDEBUG(ert::tracing::Logger::debug("Filter is not allowed when using 'eraser' source type. This transformation will be ignored.", ERT_FILE_LOCATION));
-        return false;
-    }
-
     // all the filters except Sum/Multiply, require a string target
     if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply) {
         source = sourceVault.getString(success);
         if (!success) return false;
     }
 
-    try { // std::regex exceptions
-        if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
+    // All our regex are built with 'std::regex::optimize' so they are already validated and regex functions cannot throw exception:
+    //try { // std::regex exceptions
+    if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
 
-            if (std::regex_match(source, matches, transformation->getFilterRegex()) && matches.size() >=1) {
-                targetS = matches.str(0);
-                sourceVault.setString(targetS);
-                LOGDEBUG(
-                    std::stringstream ss;
-                    ss << "Regex matches: Size = " << matches.size();
-                for(size_t i=0; i < matches.size(); i++) {
-                ss << " | [" << i << "] = " << matches.str(i);
-                }
-                ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
-                );
-            }
-            else {
-                LOGDEBUG(
-                    std::string msg = ert::tracing::Logger::asString("Unable to match '%s' againt regex capture '%s' in transformation item", source.c_str(), transformation->getFilter().c_str());
-                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-                );
-                return false;
-            }
-        }
-        else if (transformation->getFilterType() == Transformation::FilterType::RegexReplace) {
-            targetS = std::regex_replace (source, transformation->getFilterRegex(), transformation->getFilter() /* fmt */);
+        if (std::regex_match(source, matches, transformation->getFilterRegex()) && matches.size() >=1) {
+            targetS = matches.str(0);
             sourceVault.setString(targetS);
+            LOGDEBUG(
+                std::stringstream ss;
+                ss << "Regex matches: Size = " << matches.size();
+            for(size_t i=0; i < matches.size(); i++) {
+            ss << " | [" << i << "] = " << matches.str(i);
+            }
+            ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+            );
         }
-        else if (transformation->getFilterType() == Transformation::FilterType::Append) {
-            std::string filter = transformation->getFilter();
-            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        else {
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Unable to match '%s' againt regex capture '%s' in transformation item", source.c_str(), transformation->getFilter().c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            return false;
+        }
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::RegexReplace) {
+        targetS = std::regex_replace (source, transformation->getFilterRegex(), transformation->getFilter() /* fmt */);
+        sourceVault.setString(targetS);
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::Append) {
+        std::string filter = transformation->getFilter();
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
-            targetS = source + filter;
-            sourceVault.setString(targetS);
-        }
-        else if (transformation->getFilterType() == Transformation::FilterType::Prepend) {
-            std::string filter = transformation->getFilter();
-            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        targetS = source + filter;
+        sourceVault.setString(targetS);
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::Prepend) {
+        std::string filter = transformation->getFilter();
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
-            targetS = filter + source;
-            sourceVault.setString(targetS);
+        targetS = filter + source;
+        sourceVault.setString(targetS);
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::Sum) {
+        if (transformation->getFilterNumberType() == 0 /* integer */) {
+            targetI = sourceVault.getInteger(success);
+            if (success) targetI += transformation->getFilterI();
+            //else return false; // should not happen (protected by schema)
+            sourceVault.setInteger(targetI);
         }
-        else if (transformation->getFilterType() == Transformation::FilterType::Sum) {
-            if (transformation->getFilterNumberType() == 0 /* integer */) {
-                targetI = sourceVault.getInteger(success);
-                if (success) targetI += transformation->getFilterI();
-                else return false;
-                sourceVault.setInteger(targetI);
-            }
-            else if (transformation->getFilterNumberType() == 1 /* unsigned */) {
-                targetU = sourceVault.getUnsigned(success);
-                if (success) targetU += transformation->getFilterU();
-                else return false;
-                sourceVault.setUnsigned(targetU);
-            }
-            else if (transformation->getFilterNumberType() == 2 /* double */) {
-                targetF = sourceVault.getFloat(success);
-                if (success) targetF += transformation->getFilterF();
-                else return false;
-                sourceVault.setFloat(targetF);
-            }
+        else if (transformation->getFilterNumberType() == 1 /* unsigned */) {
+            targetU = sourceVault.getUnsigned(success);
+            if (success) targetU += transformation->getFilterU();
+            //else return false; // should not happen (protected by schema)
+            sourceVault.setUnsigned(targetU);
         }
-        else if (transformation->getFilterType() == Transformation::FilterType::Multiply) {
-            if (transformation->getFilterNumberType() == 0 /* integer */) {
-                targetI = sourceVault.getInteger(success);
-                if (success) targetI *= transformation->getFilterI();
-                else return false;
-                sourceVault.setInteger(targetI);
-            }
-            else if (transformation->getFilterNumberType() == 1 /* unsigned */) {
-                targetU = sourceVault.getUnsigned(success);
-                if (success) targetU *= transformation->getFilterU();
-                else return false;
-                sourceVault.setUnsigned(targetU);
-            }
-            else if (transformation->getFilterNumberType() == 2 /* double */) {
-                targetF = sourceVault.getFloat(success);
-                if (success) targetF *= transformation->getFilterF();
-                else return false;
-                sourceVault.setFloat(targetF);
-            }
+        else if (transformation->getFilterNumberType() == 2 /* double */) {
+            targetF = sourceVault.getFloat(success);
+            if (success) targetF += transformation->getFilterF();
+            //else return false; // should not happen (protected by schema)
+            sourceVault.setFloat(targetF);
         }
-        else if (transformation->getFilterType() == Transformation::FilterType::ConditionVar) { // TODO: if condition is false, source storage could be omitted to improve performance
-            // Get variable value for the variable name 'transformation->getFilter()':
-            std::string varname = transformation->getFilter();
-            bool reverse = (transformation->getFilter()[0] == '!');
-            if (reverse) {
-                varname.erase(0,1);
-            }
-            auto iter = variables.find(varname);
-            bool varFound = (iter != variables.end());
-            std::string varvalue{};
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::Multiply) {
+        if (transformation->getFilterNumberType() == 0 /* integer */) {
+            targetI = sourceVault.getInteger(success);
+            if (success) targetI *= transformation->getFilterI();
+            //else return false; // should not happen (protected by schema)
+            sourceVault.setInteger(targetI);
+        }
+        else if (transformation->getFilterNumberType() == 1 /* unsigned */) {
+            targetU = sourceVault.getUnsigned(success);
+            if (success) targetU *= transformation->getFilterU();
+            //else return false; // should not happen (protected by schema)
+            sourceVault.setUnsigned(targetU);
+        }
+        else if (transformation->getFilterNumberType() == 2 /* double */) {
+            targetF = sourceVault.getFloat(success);
+            if (success) targetF *= transformation->getFilterF();
+            //else return false; // should not happen (protected by schema)
+            sourceVault.setFloat(targetF);
+        }
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::ConditionVar) { // TODO: if condition is false, source storage could be omitted to improve performance
+        // Get variable value for the variable name 'transformation->getFilter()':
+        std::string varname = transformation->getFilter();
+        bool reverse = (transformation->getFilter()[0] == '!');
+        if (reverse) {
+            varname.erase(0,1);
+        }
+        auto iter = variables.find(varname);
+        bool varFound = (iter != variables.end());
+        std::string varvalue{};
+        if (varFound) {
+            varvalue = iter->second;
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (local)", varname.c_str()), ERT_FILE_LOCATION));
+        }
+        else {
+            auto giter = global_variable_->get().find(varname);
+            varFound = (giter != global_variable_->get().end());
             if (varFound) {
-                varvalue = iter->second;
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (local)", varname.c_str()), ERT_FILE_LOCATION));
-            }
-            else {
-                auto giter = global_variable_->get().find(varname);
-                varFound = (giter != global_variable_->get().end());
-                if (varFound) {
-                    varvalue = giter->second;
-                    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (global)", varname.c_str()), ERT_FILE_LOCATION));
-                }
-            }
-
-            bool conditionVar = (varFound && !(varvalue.empty()));
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable value: '%s'", (varFound ? varvalue.c_str():"<undefined>")), ERT_FILE_LOCATION));
-
-            if ((reverse && !conditionVar)||(!reverse && conditionVar)) {
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is true", (reverse ? "!":"")), ERT_FILE_LOCATION));
-                sourceVault.setString(source);
-            }
-            else {
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is false", (reverse ? "!":"")), ERT_FILE_LOCATION));
-                return false;
+                varvalue = giter->second;
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (global)", varname.c_str()), ERT_FILE_LOCATION));
             }
         }
-        else if (transformation->getFilterType() == Transformation::FilterType::EqualTo) {
-            std::string filter = transformation->getFilter();
-            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
-            // Get value for the comparison 'transformation->getFilter()':
-            if (source == filter) {
-                LOGDEBUG(ert::tracing::Logger::debug("EqualTo is true", ERT_FILE_LOCATION));
-                sourceVault.setString(source);
-            }
-            else {
-                LOGDEBUG(ert::tracing::Logger::debug("EqualTo is false", ERT_FILE_LOCATION));
-                return false;
-            }
-        }
-        else if (transformation->getFilterType() == Transformation::FilterType::DifferentFrom) {
-            std::string filter = transformation->getFilter();
-            replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        bool conditionVar = (varFound && !(varvalue.empty()));
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable value: '%s'", (varFound ? varvalue.c_str():"<undefined>")), ERT_FILE_LOCATION));
 
-            // Get value for the comparison 'transformation->getFilter()':
-            if (source != filter) {
-                LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is true", ERT_FILE_LOCATION));
-                sourceVault.setString(source);
-            }
-            else {
-                LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is false", ERT_FILE_LOCATION));
-                return false;
-            }
+        if ((reverse && !conditionVar)||(!reverse && conditionVar)) {
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is true", (reverse ? "!":"")), ERT_FILE_LOCATION));
+            sourceVault.setString(source);
         }
-        else if (transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
-            nlohmann::json sobj = sourceVault.getObject(success);
-            if (!success) {
-                LOGDEBUG(ert::tracing::Logger::debug("Source provided for JsonConstraint filter must be a valid json object", ERT_FILE_LOCATION));
-                return false;
-            }
-            std::string failReport;
-            if (h2agent::model::jsonConstraint(sobj, transformation->getFilterObject(), failReport)) {
-                sourceVault.setString("1");
-            }
-            else {
-                sourceVault.setString(failReport);
-            }
+        else {
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is false", (reverse ? "!":"")), ERT_FILE_LOCATION));
+            return false;
         }
     }
-    catch (std::exception& e)
-    {
-        ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+    else if (transformation->getFilterType() == Transformation::FilterType::EqualTo) {
+        std::string filter = transformation->getFilter();
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+
+        // Get value for the comparison 'transformation->getFilter()':
+        if (source == filter) {
+            LOGDEBUG(ert::tracing::Logger::debug("EqualTo is true", ERT_FILE_LOCATION));
+            sourceVault.setString(source);
+        }
+        else {
+            LOGDEBUG(ert::tracing::Logger::debug("EqualTo is false", ERT_FILE_LOCATION));
+            return false;
+        }
     }
+    else if (transformation->getFilterType() == Transformation::FilterType::DifferentFrom) {
+        std::string filter = transformation->getFilter();
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+
+        // Get value for the comparison 'transformation->getFilter()':
+        if (source != filter) {
+            LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is true", ERT_FILE_LOCATION));
+            sourceVault.setString(source);
+        }
+        else {
+            LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is false", ERT_FILE_LOCATION));
+            return false;
+        }
+    }
+    else if (transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
+        nlohmann::json sobj = sourceVault.getObject(success);
+        // should not happen (protected by schema)
+        //if (!success) {
+        //    LOGDEBUG(ert::tracing::Logger::debug("Source provided for JsonConstraint filter must be a valid json object", ERT_FILE_LOCATION));
+        //    return false;
+        //}
+        std::string failReport;
+        if (h2agent::model::jsonConstraint(sobj, transformation->getFilterObject(), failReport)) {
+            sourceVault.setString("1");
+        }
+        else {
+            sourceVault.setString(failReport);
+        }
+    }
+    //}
+    //catch (std::exception& e)
+    //{
+    //    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+    //}
 
 
     return true;
@@ -632,35 +624,55 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             // assignment for valid extraction
             nlohmann::json::json_pointer j_ptr(target);
 
-            obj = sourceVault.getObject(success);
-            if (!success) {
-                targetS = sourceVault.getString(success);
-                if (!success) {
-                    targetI = sourceVault.getInteger(success);;
-                    if (!success) {
-                        targetU = sourceVault.getUnsigned(success);
-                        if (!success) {
-                            targetF = sourceVault.getFloat(success);
-                            if (!success) {
-                                boolean = sourceVault.getBoolean(success);
-                                if (!success) return false;
-                                else responseBodyJson[j_ptr] = boolean;
-                            }
-                            else responseBodyJson[j_ptr] = targetF;
-                        }
-                        else responseBodyJson[j_ptr] = targetU;
+            // Native types for SOURCES:
+            //
+            // [string] request.uri, request.uri.path, request.header, randomset, strftime, var, globalVar, value, txtFile, binFile, command
+            // [object] request.body, response.body, serverEvent  (when target is also object, it could be promoted to string, unsigned, integer, float or boolean).
+            // [integer] random, timestamp
+            // [unsigned] recvseq
+            // [float] math.*
+            // [boolean] NONE
+            // So, depending on the target, the corresponding getter (getInteger, getString, etc.) will be used: WE DO NOT WANT FORCE CONVERSIONS:
+            // Note that there is not sources with boolean as native type, so boolean getter is never reached (so commented to avoid UT coverage fault).
+            //
+            switch (sourceVault.getNativeType()) {
+            case  TypeConverter::NativeType::Object:
+                obj = sourceVault.getObject(success);
+                if (success) {
+                    if (target.empty()) {
+                        responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.json.object
                     }
-                    else responseBodyJson[j_ptr] = targetI;
+                    else {
+                        responseBodyJson[j_ptr] = obj;
+                    }
                 }
-                else responseBodyJson[j_ptr] = targetS;
-            }
-            else {
-                if (target.empty()) {
-                    responseBodyJson.merge_patch(obj); // merge origin by default for target response.body.json.object
-                }
-                else {
-                    responseBodyJson[j_ptr] = obj;
-                }
+                break;
+
+            case  TypeConverter::NativeType::String:
+                targetS = sourceVault.getString(success);
+                if (success) responseBodyJson[j_ptr] = targetS;
+                break;
+
+            case  TypeConverter::NativeType::Integer:
+                targetI = sourceVault.getInteger(success);
+                if (success) responseBodyJson[j_ptr] = targetI;
+                break;
+
+            case  TypeConverter::NativeType::Unsigned:
+                targetU = sourceVault.getUnsigned(success);
+                if (success) responseBodyJson[j_ptr] = targetU;
+                break;
+
+            case  TypeConverter::NativeType::Float:
+                targetF = sourceVault.getFloat(success);
+                if (success) responseBodyJson[j_ptr] = targetF;
+                break;
+
+            // Not reached at the moment:
+            case  TypeConverter::NativeType::Boolean:
+                boolean = sourceVault.getBoolean(success);
+                if (success) responseBodyJson[j_ptr] = boolean;
+                break;
             }
         }
         else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
@@ -921,7 +933,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     // Request schema validation (normally used to validate native json received, but can also be used to validate the agent json representation (multipart, text, etc.)):
     if (requestSchema) {
         if (!requestSchema->validate(requestBodyDataPart.getJson())) {
-            responseStatusCode = 400; // bad request
+            responseStatusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
             return; // INTERRUPT TRANSFORMATIONS
         }
     }
@@ -980,8 +992,9 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
-            if (!processFilters(transformation, sourceVault, variables, matches, source, eraser)) {
+            if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
                 LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
+                LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
                 continue;
             }
         }
@@ -1067,7 +1080,8 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
 
     it = j.find("responseHeaders");
     if (it != j.end() && it->is_object()) {
-        loadResponseHeaders(*it);
+        for (auto& [key, val] : it->items())
+            response_headers_.emplace(key, nghttp2::asio_http2::header_value{val});
     }
 
     it = j.find("responseBody");
@@ -1126,11 +1140,6 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     }
 
     return true;
-}
-
-void AdminServerProvision::loadResponseHeaders(const nlohmann::json &j) {
-    for (auto& [key, val] : j.items())
-        response_headers_.emplace(key, nghttp2::asio_http2::header_value{val});
 }
 
 void AdminServerProvision::loadTransformation(const nlohmann::json &j) {

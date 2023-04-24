@@ -87,7 +87,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
 
 public:
     MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService);
-    ~MyTrafficHttp2Server();
+    ~MyTrafficHttp2Server() {;}
 
     /**
     * Enable metrics

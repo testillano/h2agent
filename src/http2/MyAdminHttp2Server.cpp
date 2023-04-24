@@ -135,7 +135,7 @@ std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
     if (result.back() == '/') result.pop_back(); // normalize by mean removing last slash (if exists)
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 /*
 #include <iomanip>
@@ -163,7 +163,7 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Json Response %s", result.c_str()), ERT_FILE_LOCATION));
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 void MyAdminHttp2Server::receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {

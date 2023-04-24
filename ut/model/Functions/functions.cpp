@@ -239,6 +239,16 @@ TEST_F(functions_test, JsonConstraintFail)
     EXPECT_EQ(failReport, "JsonConstraint FAILED: expected key 'MISSING' is missing in validated source");
 }
 
+TEST_F(functions_test, JsonConstraintFailByValue)
+{
+    std::string failReport{};
+    nlohmann::json received = R"({"pi":3.141})"_json;
+    nlohmann::json expected = R"({"pi":3.1})"_json;
+
+    EXPECT_FALSE(h2agent::model::jsonConstraint(received, expected, failReport));
+    EXPECT_EQ(failReport, "JsonConstraint FAILED: expected value for key 'pi' differs regarding validated source");
+}
+
 TEST_F(functions_test, String2uint64andSignError)
 {
     std::uint64_t output = 0;

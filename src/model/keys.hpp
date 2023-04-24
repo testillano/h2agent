@@ -315,7 +315,7 @@ public:
         }
         result += ert::tracing::Logger::asString("requestMethod: %s | requestUri: %s | eventNumber: %s", getMethod().c_str(), getUri().c_str(), getNumber().c_str());
         return result;
-    }
+    } // LCOV_EXCL_LINE
 };
 
 /**
