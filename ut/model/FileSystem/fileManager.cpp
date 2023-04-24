@@ -22,6 +22,18 @@ nlohmann::json FileManagerJson = R"(
 ]
 )"_json;
 
+nlohmann::json confJsonDisabled = R"(
+{
+  "readCache":"disabled"
+}
+)"_json;
+
+nlohmann::json confJsonEnabled = R"(
+{
+  "readCache":"enabled"
+}
+)"_json;
+
 // Target file content example:
 std::string FileManagerSafeFileContent = "hi";
 
@@ -62,6 +74,12 @@ TEST_F(FileManager_test, FileManager)
     EXPECT_EQ(content, FileManagerSafeFileContent);
     EXPECT_TRUE(success);
 
+    // Write in existent safe file:
+    fm.write(path1, FileManagerSafeFileContent, true /* text */, 0);
+    success = fm.read(path1, content, true /* text */);
+    EXPECT_EQ(content, FileManagerSafeFileContent);
+    EXPECT_TRUE(success);
+
     // empty:
     fm.empty(path1);
     fm.empty(path2);
@@ -88,7 +106,29 @@ TEST_F(FileManager_test, FileManager)
     // Check empty:
     EXPECT_EQ(fm.asJsonString(), "[]");
 
-    // Check configuration:
-    EXPECT_EQ(fm.configurationAsJsonString(), "{\"readCache\":\"disabled\"}");
+    // Check configurations:
+    fm.enableReadCache(true);
+    EXPECT_EQ(fm.getConfigurationJson(), confJsonEnabled);
+    EXPECT_EQ(fm.configurationAsJsonString(), confJsonEnabled.dump());
+
+    fm.enableReadCache(false);
+    EXPECT_EQ(fm.getConfigurationJson(), confJsonDisabled);
+    EXPECT_EQ(fm.configurationAsJsonString(), confJsonDisabled.dump());
+
+    // empty unknown:
+    fm.empty("/tmp/newfile");
+    success = fm.read("/tmp/newfile", content, true /* text */);
+    EXPECT_EQ(content, "");
+    EXPECT_TRUE(success);
+
+    // read unknown:
+    success = fm.read("/tmp/newfile2", content, true /* text */);
+    EXPECT_EQ(content, "");
+    EXPECT_FALSE(success);
+
+    // read unknown ninary:
+    success = fm.read("/tmp/newfile3", content, false /* binary */);
+    EXPECT_EQ(content, "");
+    EXPECT_FALSE(success);
 }
 

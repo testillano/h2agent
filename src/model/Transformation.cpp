@@ -49,7 +49,7 @@ namespace model
 
 void Transformation::collectVariablePatterns(const std::string &str, std::map<std::string, std::string> &patterns) {
 
-    static std::regex re("@\\{[^\\{\\}]*\\}"); // @{[^{}]*} with curly braces escaped
+    static std::regex re("@\\{[^\\{\\}]*\\}", std::regex::optimize); // @{[^{}]*} with curly braces escaped
     // or: R"(@\{[^\{\}]*\})"
 
     std::string::const_iterator it(str.cbegin());
@@ -117,13 +117,13 @@ bool Transformation::load(const nlohmann::json &j) {
                 collectFilterPatterns = true;
             }
             else if ((f_it = it->find("Sum")) != it->end()) {
-                if (f_it->is_number_integer()) {
-                    filter_i_ = *f_it;
-                    filter_number_type_ = 0 ;
-                }
-                else if (f_it->is_number_unsigned()) {
+                if (f_it->is_number_unsigned()) { // first unsigned, because positive would be integer
                     filter_u_ = *f_it;
                     filter_number_type_ = 1 ;
+                }
+                else if (f_it->is_number_integer()) {
+                    filter_i_ = *f_it;
+                    filter_number_type_ = 0 ;
                 }
                 else if (f_it->is_number_float()) {
                     filter_f_ = *f_it;
@@ -132,13 +132,13 @@ bool Transformation::load(const nlohmann::json &j) {
                 filter_type_ = FilterType::Sum;
             }
             else if ((f_it = it->find("Multiply")) != it->end()) {
-                if (f_it->is_number_integer()) {
-                    filter_i_ = *f_it;
-                    filter_number_type_ = 0 ;
-                }
-                else if (f_it->is_number_unsigned()) {
+                if (f_it->is_number_unsigned()) { // first unsigned, because positive would be integer
                     filter_u_ = *f_it;
                     filter_number_type_ = 1 ;
+                }
+                else if (f_it->is_number_integer()) {
+                    filter_i_ = *f_it;
+                    filter_number_type_ = 0 ;
                 }
                 else if (f_it->is_number_float()) {
                     filter_f_ = *f_it;
@@ -221,115 +221,117 @@ bool Transformation::load(const nlohmann::json &j) {
     // BE CAREFUL!: https://stackoverflow.com/a/51709911/2576671
     // In this case, it is not a problem, as we store the match from sourceSpec or targetSpec before changing them.
 
-    try {
-        if (sourceSpec == "request.uri") {
-            source_type_ = SourceType::RequestUri;
-        }
-        else if (sourceSpec == "request.uri.path") {
-            source_type_ = SourceType::RequestUriPath;
-        }
-        else if (std::regex_match(sourceSpec, matches, requestUriParam)) { // parameter name
-            source_ = matches.str(1);
-            source_type_ = SourceType::RequestUriParam;
-        }
-        else if (sourceSpec == "request.body") { // whole document
-            source_type_ = SourceType::RequestBody;
-        }
-        else if (std::regex_match(sourceSpec, matches, requestBodyNode)) { // nlohmann::json_pointer path
-            source_ = matches.str(1);
-            source_type_ = SourceType::RequestBody;
-        }
-        else if (sourceSpec == "response.body") { // whole document
-            source_type_ = SourceType::ResponseBody;
-        }
-        else if (std::regex_match(sourceSpec, matches, responseBodyNode)) { // nlohmann::json_pointer path
-            source_ = matches.str(1);
-            source_type_ = SourceType::ResponseBody;
-        }
-        else if (std::regex_match(sourceSpec, matches, requestHeader)) { // header name
-            source_ = matches.str(1);
-            source_type_ = SourceType::RequestHeader;
-        }
-        else if (sourceSpec == "eraser") {
-            source_type_ = SourceType::Eraser;
-        }
-        else if (std::regex_match(sourceSpec, matches, math)) { // math expression, i.e. "2*sqrt(2)"
-            source_ = matches.str(1);
-            source_type_ = SourceType::Math;
-        }
-        else if (std::regex_match(sourceSpec, matches, random)) { // range "<min>.<max>", i.e.: "-3.8", "0.100", "-15.+2", etc. These go to -> [source_i1_] and [source_i2_]
-            source_i1_ = stoi(matches.str(1));
-            source_i2_ = stoi(matches.str(2));
-            source_type_ = SourceType::Random;
-        }
-        else if (std::regex_match(sourceSpec, matches, randomSet)) { // random set given by tokenized pipe-separated list of values
-            source_ = matches.str(1);
-            static std::regex pipedRgx(R"(\|)", std::regex::optimize);
-            source_tokenized_ = std::vector<std::string>(
-                                    std::sregex_token_iterator{begin(source_), end(source_), pipedRgx, -1},
-                                    std::sregex_token_iterator{}
-                                );
-            source_type_ = SourceType::RandomSet;
-        }
-        else if (std::regex_match(sourceSpec, matches, timestamp)) { // unit (s: seconds, ms: milliseconds, us: microseconds, ns: nanoseconds)
-            source_ = matches.str(1);
-            source_type_ = SourceType::Timestamp;
-        }
-        else if (std::regex_match(sourceSpec, matches, strftime)) { // current date/time formatted by as described in https://www.cplusplus.com/reference/ctime/strftime/
-            source_ = matches.str(1);
-            source_type_ = SourceType::Strftime;
-        }
-        else if (sourceSpec == "recvseq") {
-            source_type_ = SourceType::Recvseq;
-        }
-        else if (std::regex_match(sourceSpec, matches, varId)) { // variable id
-            source_ = matches.str(1);
-            source_type_ = SourceType::SVar;
-        }
-        else if (std::regex_match(sourceSpec, matches, gvarId)) { // global variable id
-            source_ = matches.str(1);
-            source_type_ = SourceType::SGVar;
-        }
-        else if (std::regex_match(sourceSpec, matches, value)) { // value content
-            source_ = matches.str(1);
-            source_type_ = SourceType::Value;
-        }
-        else if (std::regex_match(sourceSpec, matches, serverEvent)) { // value content
-            source_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody
-            source_type_ = SourceType::ServerEvent;
-            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
-            std::map<std::string, std::string>::const_iterator it;
-            for (auto qp: {
-                        "requestMethod", "requestUri", "eventNumber", "eventPath"
-                    }) { // tokenized vector order
-                it = qmap.find(qp);
-                source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
-            }
-        }
-        else if (sourceSpec == "inState") {
-            source_type_ = SourceType::InState;
-        }
-        else if (std::regex_match(sourceSpec, matches, txtFile)) { // path file
-            source_ = matches.str(1);
-            source_type_ = SourceType::STxtFile;
-        }
-        else if (std::regex_match(sourceSpec, matches, binFile)) { // path file
-            source_ = matches.str(1);
-            source_type_ = SourceType::SBinFile;
-        }
-        else if (std::regex_match(sourceSpec, matches, command)) { // command string
-            source_ = matches.str(1);
-            source_type_ = SourceType::Command;
-        }
-        else { // some things could reach this (strange characters within value.* for example):
-            ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
-            return false;
+    // no need to try (controlled regex)
+    //try {
+    if (sourceSpec == "request.uri") {
+        source_type_ = SourceType::RequestUri;
+    }
+    else if (sourceSpec == "request.uri.path") {
+        source_type_ = SourceType::RequestUriPath;
+    }
+    else if (std::regex_match(sourceSpec, matches, requestUriParam)) { // parameter name
+        source_ = matches.str(1);
+        source_type_ = SourceType::RequestUriParam;
+    }
+    else if (sourceSpec == "request.body") { // whole document
+        source_type_ = SourceType::RequestBody;
+    }
+    else if (std::regex_match(sourceSpec, matches, requestBodyNode)) { // nlohmann::json_pointer path
+        source_ = matches.str(1);
+        source_type_ = SourceType::RequestBody;
+    }
+    else if (sourceSpec == "response.body") { // whole document
+        source_type_ = SourceType::ResponseBody;
+    }
+    else if (std::regex_match(sourceSpec, matches, responseBodyNode)) { // nlohmann::json_pointer path
+        source_ = matches.str(1);
+        source_type_ = SourceType::ResponseBody;
+    }
+    else if (std::regex_match(sourceSpec, matches, requestHeader)) { // header name
+        source_ = matches.str(1);
+        source_type_ = SourceType::RequestHeader;
+    }
+    else if (sourceSpec == "eraser") {
+        source_type_ = SourceType::Eraser;
+    }
+    else if (std::regex_match(sourceSpec, matches, math)) { // math expression, i.e. "2*sqrt(2)"
+        source_ = matches.str(1);
+        source_type_ = SourceType::Math;
+    }
+    else if (std::regex_match(sourceSpec, matches, random)) { // range "<min>.<max>", i.e.: "-3.8", "0.100", "-15.+2", etc. These go to -> [source_i1_] and [source_i2_]
+        source_i1_ = stoi(matches.str(1));
+        source_i2_ = stoi(matches.str(2));
+        source_type_ = SourceType::Random;
+    }
+    else if (std::regex_match(sourceSpec, matches, randomSet)) { // random set given by tokenized pipe-separated list of values
+        source_ = matches.str(1);
+        static std::regex pipedRgx(R"(\|)", std::regex::optimize);
+        source_tokenized_ = std::vector<std::string>(
+                                std::sregex_token_iterator{begin(source_), end(source_), pipedRgx, -1},
+                                std::sregex_token_iterator{}
+                            );
+        source_type_ = SourceType::RandomSet;
+    }
+    else if (std::regex_match(sourceSpec, matches, timestamp)) { // unit (s: seconds, ms: milliseconds, us: microseconds, ns: nanoseconds)
+        source_ = matches.str(1);
+        source_type_ = SourceType::Timestamp;
+    }
+    else if (std::regex_match(sourceSpec, matches, strftime)) { // current date/time formatted by as described in https://www.cplusplus.com/reference/ctime/strftime/
+        source_ = matches.str(1);
+        source_type_ = SourceType::Strftime;
+    }
+    else if (sourceSpec == "recvseq") {
+        source_type_ = SourceType::Recvseq;
+    }
+    else if (std::regex_match(sourceSpec, matches, varId)) { // variable id
+        source_ = matches.str(1);
+        source_type_ = SourceType::SVar;
+    }
+    else if (std::regex_match(sourceSpec, matches, gvarId)) { // global variable id
+        source_ = matches.str(1);
+        source_type_ = SourceType::SGVar;
+    }
+    else if (std::regex_match(sourceSpec, matches, value)) { // value content
+        source_ = matches.str(1);
+        source_type_ = SourceType::Value;
+    }
+    else if (std::regex_match(sourceSpec, matches, serverEvent)) { // value content
+        source_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody
+        source_type_ = SourceType::ServerEvent;
+        std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
+        std::map<std::string, std::string>::const_iterator it;
+        for (auto qp: {
+                    "requestMethod", "requestUri", "eventNumber", "eventPath"
+                }) { // tokenized vector order
+            it = qmap.find(qp);
+            source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
     }
-    catch (std::regex_error &e) {
-        ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-        return false;
+    else if (sourceSpec == "inState") {
+        source_type_ = SourceType::InState;
     }
+    else if (std::regex_match(sourceSpec, matches, txtFile)) { // path file
+        source_ = matches.str(1);
+        source_type_ = SourceType::STxtFile;
+    }
+    else if (std::regex_match(sourceSpec, matches, binFile)) { // path file
+        source_ = matches.str(1);
+        source_type_ = SourceType::SBinFile;
+    }
+    else if (std::regex_match(sourceSpec, matches, command)) { // command string
+        source_ = matches.str(1);
+        source_type_ = SourceType::Command;
+    }
+    // PROTECTED BY SCHEMA:
+    //else { // some things could reach this (strange characters within value.* for example):
+    //    ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
+    //    return false;
+    //}
+    //}
+    //catch (std::regex_error &e) {
+    //    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+    //    return false;
+    //}
 
     // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
@@ -375,123 +377,125 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex responseHeader("^response.header.(.*)", std::regex::optimize);
     static std::regex outStateMethodUri("^outState.(POST|GET|PUT|DELETE|HEAD)(\\..+)?", std::regex::optimize);
 
-    try {
-        if (targetSpec == "response.body.string") {
-            target_type_ = TargetType::ResponseBodyString;
+    // no need to try (controlled regex)
+    //try {
+    if (targetSpec == "response.body.string") {
+        target_type_ = TargetType::ResponseBodyString;
+    }
+    else if (targetSpec == "response.body.hexstring") {
+        target_type_ = TargetType::ResponseBodyHexString;
+    }
+    else if (targetSpec == "response.body.json.string") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_String;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_StringNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_String;
+    }
+    else if (targetSpec == "response.body.json.integer") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_Integer;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_IntegerNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_Integer;
+    }
+    else if (targetSpec == "response.body.json.unsigned") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_Unsigned;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_UnsignedNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_Unsigned;
+    }
+    else if (targetSpec == "response.body.json.float") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_Float;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_FloatNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_Float;
+    }
+    else if (targetSpec == "response.body.json.boolean") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_Boolean;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_BooleanNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_Boolean;
+    }
+    else if (targetSpec == "response.body.json.object") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_Object;
+    }
+    else if (targetSpec == "response.body.json.jsonstring") { // whole document
+        target_type_ = TargetType::ResponseBodyJson_JsonString;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_ObjectNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_Object;
+    }
+    else if (std::regex_match(targetSpec, matches, responseBodyJson_JsonStringNode)) { // nlohmann::json_pointer path
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseBodyJson_JsonString;
+    }
+    else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
+        target_ = matches.str(1);
+        target_type_ = TargetType::ResponseHeader;
+    }
+    else if (targetSpec == "response.statusCode") {
+        target_type_ = TargetType::ResponseStatusCode;
+    }
+    else if (targetSpec == "response.delayMs") {
+        target_type_ = TargetType::ResponseDelayMs;
+    }
+    else if (std::regex_match(targetSpec, matches, varId)) { // variable id
+        target_ = matches.str(1);
+        target_type_ = TargetType::TVar;
+    }
+    else if (std::regex_match(targetSpec, matches, gvarId)) { // global variable id
+        target_ = matches.str(1);
+        target_type_ = TargetType::TGVar;
+    }
+    else if (targetSpec == "outState") {
+        target_type_ = TargetType::OutState;
+    }
+    else if (std::regex_match(targetSpec, matches, outStateMethodUri)) { // method
+        target_ = matches.str(1); // <method>
+        target2_ = matches.str(2); // .<uri>
+        if (!target2_.empty()) {
+            target2_ = target2_.substr(1); // remove the initial dot to store the uri
         }
-        else if (targetSpec == "response.body.hexstring") {
-            target_type_ = TargetType::ResponseBodyHexString;
-        }
-        else if (targetSpec == "response.body.json.string") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_String;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_StringNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_String;
-        }
-        else if (targetSpec == "response.body.json.integer") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_Integer;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_IntegerNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_Integer;
-        }
-        else if (targetSpec == "response.body.json.unsigned") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_Unsigned;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_UnsignedNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_Unsigned;
-        }
-        else if (targetSpec == "response.body.json.float") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_Float;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_FloatNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_Float;
-        }
-        else if (targetSpec == "response.body.json.boolean") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_Boolean;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_BooleanNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_Boolean;
-        }
-        else if (targetSpec == "response.body.json.object") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_Object;
-        }
-        else if (targetSpec == "response.body.json.jsonstring") { // whole document
-            target_type_ = TargetType::ResponseBodyJson_JsonString;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_ObjectNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_Object;
-        }
-        else if (std::regex_match(targetSpec, matches, responseBodyJson_JsonStringNode)) { // nlohmann::json_pointer path
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseBodyJson_JsonString;
-        }
-        else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
-            target_ = matches.str(1);
-            target_type_ = TargetType::ResponseHeader;
-        }
-        else if (targetSpec == "response.statusCode") {
-            target_type_ = TargetType::ResponseStatusCode;
-        }
-        else if (targetSpec == "response.delayMs") {
-            target_type_ = TargetType::ResponseDelayMs;
-        }
-        else if (std::regex_match(targetSpec, matches, varId)) { // variable id
-            target_ = matches.str(1);
-            target_type_ = TargetType::TVar;
-        }
-        else if (std::regex_match(targetSpec, matches, gvarId)) { // global variable id
-            target_ = matches.str(1);
-            target_type_ = TargetType::TGVar;
-        }
-        else if (targetSpec == "outState") {
-            target_type_ = TargetType::OutState;
-        }
-        else if (std::regex_match(targetSpec, matches, outStateMethodUri)) { // method
-            target_ = matches.str(1); // <method>
-            target2_ = matches.str(2); // .<uri>
-            if (!target2_.empty()) {
-                target2_ = target2_.substr(1); // remove the initial dot to store the uri
-            }
-            target_type_ = TargetType::OutState;
-        }
-        else if (std::regex_match(targetSpec, matches, txtFile)) { // path file
-            target_ = matches.str(1);
-            target_type_ = TargetType::TTxtFile;
-        }
-        else if (std::regex_match(targetSpec, matches, binFile)) { // path file
-            target_ = matches.str(1);
-            target_type_ = TargetType::TBinFile;
-        }
-        else if (std::regex_match(targetSpec, matches, serverEvent)) { // value content
-            target_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3
-            target_type_ = TargetType::ServerEventToPurge;
-            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
-            std::map<std::string, std::string>::const_iterator it;
-            for (auto qp: {
-                        "requestMethod", "requestUri", "eventNumber"
-                    }) { // tokenized vector order
-                it = qmap.find(qp);
-                target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
-            }
-        }
-        else if (targetSpec == "break") {
-            target_type_ = TargetType::Break;
-        }
-        else { // very strange to reach this:
-            ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
-            return false;
+        target_type_ = TargetType::OutState;
+    }
+    else if (std::regex_match(targetSpec, matches, txtFile)) { // path file
+        target_ = matches.str(1);
+        target_type_ = TargetType::TTxtFile;
+    }
+    else if (std::regex_match(targetSpec, matches, binFile)) { // path file
+        target_ = matches.str(1);
+        target_type_ = TargetType::TBinFile;
+    }
+    else if (std::regex_match(targetSpec, matches, serverEvent)) { // value content
+        target_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3
+        target_type_ = TargetType::ServerEventToPurge;
+        std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
+        std::map<std::string, std::string>::const_iterator it;
+        for (auto qp: {
+                    "requestMethod", "requestUri", "eventNumber"
+                }) { // tokenized vector order
+            it = qmap.find(qp);
+            target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
     }
-    catch (std::regex_error &e) {
-        ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-        return false;
+    else if (targetSpec == "break") {
+        target_type_ = TargetType::Break;
     }
+    // PROTECTED BY SCHEMA:
+    //else { // very strange to reach this:
+    //    ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
+    //    return false;
+    //}
+    //}
+    //catch (std::regex_error &e) {
+    //    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+    //    return false;
+    //}
 
     //LOGDEBUG(ert::tracing::Logger::debug(asString(), ERT_FILE_LOCATION));
 
@@ -523,7 +527,7 @@ std::string Transformation::asString() const {
         else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::SBinFile) {
             ss << " (path file)";
         }
-        else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::Command) {
+        else if (source_type_ == SourceType::Command) {
             ss << " (shell command expression)";
         }
 

@@ -139,7 +139,7 @@ public:
     * @param data data read by reference.
     * @param textOrBinary open file to read text (true) or binary (false) data.
     *
-    * @return Boolean about success of the read operation
+    * @return Boolean about success of the read operation (first read of unexisting file, returns 'false')
     */
     bool read(const std::string &path, std::string &data, bool textOrBinary);
 

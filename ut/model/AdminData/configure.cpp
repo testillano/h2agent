@@ -6,6 +6,7 @@
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
 #include <AdminClientEndpointData.hpp>
+//#include <AdminClientProvisionData.hpp>
 #include <AdminSchemaData.hpp>
 #include <AdminSchemas.hpp>
 #include <Configuration.hpp>
@@ -15,6 +16,7 @@ const nlohmann::json MatchingConfiguration_FullMatching__Success = R"({"algorith
 const nlohmann::json MatchingConfiguration_FullMatchingRegexReplace__Success = R"({"algorithm":"FullMatchingRegexReplace","rgx":"([0-9]{3})-([a-z]{2})-foo-bar","fmt":"$1"})"_json;
 const nlohmann::json MatchingConfiguration_RegexMatching__Success = R"({"algorithm":"RegexMatching"})"_json;
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success = R"({"algorithm":"FullMatching"})"_json; // default is Sort + Ampersand
+const nlohmann::json MatchingConfiguration_uriPathQueryParameters__SuccessDefault = R"({"algorithm":"FullMatching","uriPathQueryParameters":{"filter":"Sort","separator":"Ampersand"}})"_json;
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success2 = R"({"algorithm":"FullMatching","uriPathQueryParameters":{"filter":"Sort","separator":"Semicolon"}})"_json;
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success3 = R"({"algorithm":"FullMatching","uriPathQueryParameters":{"filter":"PassBy"}})"_json;
 const nlohmann::json MatchingConfiguration_uriPathQueryParameters__Success4 = R"({"algorithm":"FullMatching","uriPathQueryParameters":{"filter":"Ignore"}})"_json;
@@ -144,7 +146,7 @@ const nlohmann::json ClientEndpointConfiguration__SuccessArray = R"(
 ]
 )"_json;
 
-const nlohmann::json ClientEndpointConfiguration__AcceptedArray = R"(
+const nlohmann::json ClientEndpointConfiguration__AcceptedArrayChangePort = R"(
 [
   {
     "id": "myServer1",
@@ -159,12 +161,46 @@ const nlohmann::json ClientEndpointConfiguration__AcceptedArray = R"(
 ]
 )"_json;
 
+const nlohmann::json ClientEndpointConfiguration__AcceptedArrayChangeSecure = R"(
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000,
+    "secure": true
+  },
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000,
+    "secure": false
+  }
+]
+)"_json;
+
+const nlohmann::json ClientEndpointConfiguration__AcceptedArrayNoChanges = R"(
+[
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000,
+    "secure": false
+  },
+  {
+    "id": "myServer1",
+    "host": "localhost1",
+    "port": 8000,
+    "secure": false
+  }
+]
+)"_json;
+
 const nlohmann::json ClientEndpointConfiguration__BadSchema = R"({ "permit": true })"_json;
 const nlohmann::json ClientEndpointConfiguration__BadSchema2 = R"(
 {
   "id": "myServer",
   "host": "localhost",
-  "port": 389
+  "port": 99999
 }
 )"_json;
 
@@ -257,11 +293,25 @@ const nlohmann::json SchemaConfiguration__SuccessArray = R"(
 )"_json;
 
 const nlohmann::json SchemaConfiguration__BadSchema = R"({ "happy": true, "pi": 3.141 })"_json;
-/*
+
 const nlohmann::json SchemaConfiguration__BadContent = R"(
 {
   "id": "myRequestsSchema",
-  "schema": {} <- TODO: find a invalid schema definition
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "age": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "$ref": "external-schema.json"
+  }
 }
 )"_json;
 
@@ -284,12 +334,25 @@ const nlohmann::json SchemaConfiguration__BadContentArray = R"(
     }
   },
   {
-    "id": "myResponsesSchema",
-    "schema": {} <- TODO: find a invalid schema definition
+    "id": "myRequestsSchema",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "$ref": "external-schema.json"
+    }
   }
 ]
 )"_json;
-*/
 
 
 class Configure_test : public ::testing::Test
@@ -326,6 +389,7 @@ TEST_F(Configure_test, LoadMatching)
     //EXPECT_EQ(Configure_test::adata_.getServerMatchingData().getRgx(), re);
 
     EXPECT_EQ(Configure_test::adata_.loadServerMatching(MatchingConfiguration_RegexMatching__Success), h2agent::model::AdminServerMatchingData::Success);
+    EXPECT_EQ(Configure_test::adata_.loadServerMatching(MatchingConfiguration_uriPathQueryParameters__SuccessDefault), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.loadServerMatching(MatchingConfiguration_uriPathQueryParameters__Success), h2agent::model::AdminServerMatchingData::Success);
     EXPECT_EQ(Configure_test::adata_.getServerMatchingData().getUriPathQueryParametersFilter(), h2agent::model::AdminServerMatchingData::Sort);
     EXPECT_EQ(Configure_test::adata_.getServerMatchingData().getUriPathQueryParametersSeparator(), h2agent::model::AdminServerMatchingData::Ampersand);
@@ -459,7 +523,9 @@ TEST_F(Configure_test, LoadClientEndpointSuccess)
     EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
 
     // client endpoint accepted array
-    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArray, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayChangePort, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayChangeSecure, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayNoChanges, common_resources_), h2agent::model::AdminClientEndpointData::Success);
     EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
 }
 
@@ -496,8 +562,27 @@ TEST_F(Configure_test, FindClientEndpoint)
     EXPECT_EQ(clientEndpoint->getPort(), 8000);
     EXPECT_EQ(clientEndpoint->getSecure(), true);
     EXPECT_EQ(clientEndpoint->getPermit(), false);
+    EXPECT_EQ(clientEndpoint->asJson(), ClientEndpointConfiguration__Success);
 
     EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+}
+
+TEST_F(Configure_test, ConnectClientEndpoint)
+{
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__Success, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+
+    auto clientEndpoint = Configure_test::adata_.getClientEndpointData().find("myServer");
+    EXPECT_TRUE(clientEndpoint != nullptr);
+
+    // From scratch: false
+    clientEndpoint->connect();
+    nlohmann::json expectedJson = ClientEndpointConfiguration__Success;
+    expectedJson["status"] = "Closed";
+    EXPECT_EQ(clientEndpoint->asJson(), expectedJson);
+
+    // From scratch: true (client endpoint asJson is the same: no connection takes place)
+    clientEndpoint->connect(true);
+    EXPECT_EQ(clientEndpoint->asJson(), expectedJson);
 }
 
 TEST_F(Configure_test, DeleteClientEndpoint)
@@ -529,13 +614,13 @@ TEST_F(Configure_test, LoadSchemaFail)
     EXPECT_EQ(Configure_test::adata_.getSchemaData().getSchema().getJson(), h2agent::adminSchemas::schema);
     EXPECT_FALSE(Configure_test::adata_.clearSchemas());
 
-//    // Bad content with the schema is not a schema
-//    EXPECT_EQ(Configure_test::adata_.loadSchema(SchemaConfiguration__BadContent), h2agent::model::AdminSchemaData::BadContent);
-//    EXPECT_FALSE(Configure_test::adata_.clearSchemas());
+    // Bad content with the schema is not a schema
+    EXPECT_EQ(Configure_test::adata_.loadSchema(SchemaConfiguration__BadContent), h2agent::model::AdminSchemaData::BadContent);
+    EXPECT_FALSE(Configure_test::adata_.clearSchemas());
 
-//    // Bad content array:
-//    EXPECT_EQ(Configure_test::adata_.loadSchema(SchemaConfiguration__BadContentArray), h2agent::model::AdminSchemaData::BadContent);
-//    EXPECT_TRUE(Configure_test::adata_.clearSchemas());
+    // Bad content array:
+    EXPECT_EQ(Configure_test::adata_.loadSchema(SchemaConfiguration__BadContentArray), h2agent::model::AdminSchemaData::BadContent);
+    EXPECT_TRUE(Configure_test::adata_.clearSchemas());
 }
 
 TEST_F(Configure_test, FindSchema)
@@ -544,6 +629,11 @@ TEST_F(Configure_test, FindSchema)
 
     EXPECT_TRUE(Configure_test::adata_.getSchemaData().find("myRequestsSchema") != nullptr);
     EXPECT_TRUE(Configure_test::adata_.clearSchemas());
+}
+
+TEST_F(Configure_test, FindMissingSchema)
+{
+    EXPECT_TRUE(Configure_test::adata_.getSchemaData().find("myRequestsSchema") == nullptr);
 }
 
 TEST_F(Configure_test, ValidateSchema)

@@ -172,9 +172,8 @@ void stopAgent()
     delete(myMockServerData);
     myMockServerData = nullptr;
 
-    // TODO: sync delete to avoid: double free detected in tcache 2
-    //delete(myTrafficHttp2Server);
-    //myTrafficHttp2Server = nullptr;
+    delete(myTrafficHttp2Server);
+    myTrafficHttp2Server = nullptr;
 
     delete(myAdminHttp2Server);
     myAdminHttp2Server = nullptr;
@@ -191,9 +190,8 @@ void stopAgent()
     delete(myConfiguration);
     myConfiguration = nullptr;
 
-    // TODO: sync delete to avoid: free(): corrupted unsorted chunks -> Aborted
-    //delete(myTimersIoService);
-    //myTimersIoService = nullptr;
+    delete(myTimersIoService);
+    myTimersIoService = nullptr;
 }
 
 void myExit(int rc)

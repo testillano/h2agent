@@ -162,7 +162,7 @@ nlohmann::json FileManager::getConfigurationJson() const {
     result["readCache"] = read_cache_ ? "enabled":"disabled";
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 std::string FileManager::configurationAsJsonString() const {
 

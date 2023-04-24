@@ -130,7 +130,7 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
     while ((qpair_end != std::string::npos) || (pos != std::string::npos));
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator) {
 
@@ -146,7 +146,7 @@ std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, 
     }
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 bool getFileContent(const std::string &filePath, std::string &content)
 {

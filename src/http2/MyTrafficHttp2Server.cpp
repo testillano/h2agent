@@ -62,15 +62,9 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorke
     ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoService),
     admin_data_(nullptr) {
 
-    mock_server_events_data_ = new model::MockServerData();
-
     server_data_ = true;
     server_data_key_history_ = true;
     purge_execution_ = true;
-}
-
-MyTrafficHttp2Server::~MyTrafficHttp2Server() {
-    delete (mock_server_events_data_);
 }
 
 void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {

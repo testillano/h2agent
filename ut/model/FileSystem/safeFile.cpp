@@ -14,6 +14,13 @@ nlohmann::json SafeFileJson = R"(
 }
 )"_json;
 
+nlohmann::json SafeFileFailedJson = R"(
+{
+  "path": "/foo/bar",
+  "state": "missing"
+}
+)"_json;
+
 // SafeFile content example:
 std::string SafeFileContent = "hi";
 
@@ -108,5 +115,20 @@ TEST_F(SafeFile_test, SafeFileWithInstantClose)
     fileInstantClose.empty();
     SafeFileJson["bytes"] = 0;
     EXPECT_EQ(fileInstantClose.getJson(), SafeFileJson);
+}
+
+TEST_F(SafeFile_test, SafeFileFailsToOpen)
+{
+    // Stop timers service:
+    timers_io_service_->stop();
+    timers_thread_->join();
+
+    // Nothing opened:
+    EXPECT_EQ(h2agent::model::SafeFile::CurrentOpenedFiles.load(), 0);
+
+    // 1 file fails to open:
+    h2agent::model::SafeFile fileInstantClose(file_manager_, "/foo/bar", nullptr /* no timers io service will be used */);
+
+    EXPECT_EQ(fileInstantClose.getJson(), SafeFileFailedJson);
 }
 

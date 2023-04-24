@@ -58,7 +58,7 @@ void MockEvent::load(const std::string &previousState, const std::string &state,
     json_["receptionTimestampUs"] = (std::uint64_t)reception_timestamp_us_;
     json_["responseStatusCode"] = (unsigned int)response_status_code_;
     for (const auto& [field, member] : {
-                std::pair{"requestHeaders", request_headers_}, std::pair{"responseHeaders", response_headers_}
+                std::pair{"requestHeaders", request_headers_}, std::pair{"responseHeaders", response_headers_} // LCOV_EXCL_LINE
             }) {
         if (member.size()) {
             nlohmann::json hdrs;

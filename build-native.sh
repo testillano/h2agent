@@ -18,7 +18,7 @@ ert_nghttp2_ver=v1.2.3 # to download nghttp2 patches (this must be aligned with 
 ert_logger_ver=v1.0.10
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
-ert_metrics_ver=v1.0.1
+ert_metrics_ver=v1.0.2
 ert_http2comm_ver=v2.0.3
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
