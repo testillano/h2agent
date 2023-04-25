@@ -2,7 +2,7 @@
 
 ## Prepare the environment
 
-Check this [README.md](../questions-and-answers/README.md#Prepare-the-environment) (similar procedure here).
+Check [README.md](../../README.md#Prepare-the-environment).
 
 ## Start to play
 
