@@ -2,7 +2,7 @@
 
 ## Prepare the environment
 
-Check this [README.md](../tools/questions-and-answers/README.md#Prepare-the-environment) (similar procedure here).
+Check project [README.md](../README.md#Prepare-the-environment).
 
 ## Content
 
