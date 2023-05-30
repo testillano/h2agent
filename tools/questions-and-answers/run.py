@@ -22,29 +22,6 @@ if major < 3 or (major == 3 and minor < 8):
   print("Python version must be >= 3.8.1 (current: {x}.{y}.{z}). Try alias it, i.e.: alias python3='/usr/bin/python3.9'".format(x=major, y=minor, z=micro))
   sys.exit(1)
 
-# Pip3 modules
-import pkg_resources
-
-def check_module(package_name, expected_version):
-  try:
-    package_info = pkg_resources.require(package_name)
-  except pkg_resources.DistributionNotFound:
-    print(f"Pip3 module '{package_name}' is not installed !")
-    sys.exit(1)
-
-  current_version = package_info[0].version
-  if (current_version != expected_version):
-    print(f"Pip3 module '{package_name}' version installed ({current_version}) differs than expected: {expected_version} !")
-    sys.exit(1)
-  else:
-    print(f"Pip3 module '{package_name}' installed ({current_version})")
-
-check_module("langchain", "0.0.138")
-check_module("unstructured", "0.5.12")
-check_module("chromadb", "0.3.21")
-check_module("tiktoken", "0.3.3")
-check_module("openai", "0.27.4")
-
 # OpenAI version
 try:
   apikey = os.environ["OPENAI_API_KEY"]
@@ -54,7 +31,7 @@ except:
   sys.exit(1)
 
 # Load documents
-print("Loading markdown documents under this directory ({}) ...".format(SCR_DIR))
+print("Loading markdown documents under this directory ({}) ...".format(REPO_DIR))
 wildcard=REPO_DIR + '/**/*.md'
 markdowns = glob.glob(wildcard, recursive = True)
 #print(markdowns)

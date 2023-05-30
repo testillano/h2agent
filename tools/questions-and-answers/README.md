@@ -1,6 +1,12 @@
 # Q&A Play
 
-Just execute the python script by mean:
+Install requirements file by mean:
+
+```bash
+$> pip3 install -r requirements.txt
+```
+
+And then, execute the python script:
 
 ```bash
 $> python3.9 tools/questions-and-answers/run.py
