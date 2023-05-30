@@ -113,7 +113,9 @@ build_project() {
   echo
   echo "=== Format source code ==="
   echo
-  sources=$(find . -name "*.hpp" -o -name "*.cpp")
+  sources="$(find src -name "*.hpp" -o -name "*.cpp")"
+  sources+=" $(find ut -name "*.hpp" -o -name "*.cpp")"
+  sources+=" $(find tools -name "*.hpp" -o -name "*.cpp")"
   docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 
   echo
