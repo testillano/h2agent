@@ -201,7 +201,7 @@ public:
         admin_http2_server_->setMockClientData(mock_client_events_data_); // stored at administrative class to pass through created client provisions
         admin_http2_server_->enableMetrics(metrics_);
 
-        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(2, 2, timers_io_service_);
+        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(2, 2, timers_io_service_, -1 /* no congestion control */);
         traffic_http2_server_->setApiName("app");
         traffic_http2_server_->setApiVersion("v1");
         traffic_http2_server_->setMockServerData(mock_server_events_data_);
