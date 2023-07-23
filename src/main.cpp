@@ -278,6 +278,16 @@ void usage(int rc, const std::string &errorMessage = "")
 //       << "  the average response time). This option can be exploited by multiple\n"
 //       << "  clients used to send high traffic loads.\n\n"
 
+       << "[--traffic-server-queue-dispatcher-max-size <size>]\n"
+       << "  When the traffic server configures more than 1 worker thread, a queue dispatcher\n"
+       << "  will be used to process the traffic scheduling a initial number of threads which\n"
+       << "  could grow up to a maximum value (given by '--traffic-server-max-worker-threads').\n"
+       << "  Optionally, a basic congestion control algorithm can be enabled by mean providing\n"
+       << "  a non-negative value to this parameter. When the queue size grows due to lack of\n"
+       << "  consumption capacity, a service unavailable error (503) will be answered skipping\n"
+       << "  context processing when the queue size reaches the value provided; defaults to -1,\n"
+       << "  which means that congestion control is disabled.\n\n"
+
        << "[-k|--traffic-server-key <path file>]\n"
        << "  Path file for traffic server key to enable SSL/TLS; unsecured by default.\n\n"
 
@@ -461,6 +471,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
     int traffic_server_max_worker_threads = 1;
+    int queue_dispatcher_max_size = -1; // no congestion control
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
@@ -558,6 +569,13 @@ int main(int argc, char* argv[])
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-server-max-worker-threads' value. Must be greater or equal than traffic server worker threads.");
         }
+    }
+
+    if (readCmdLine(argv, argv + argc, "--traffic-server-queue-dispatcher-max-size", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-queue-dispatcher-max-size", value))
+    {
+        queue_dispatcher_max_size = toNumber(value);
+        if (traffic_server_worker_threads < 0) queue_dispatcher_max_size = -1;
     }
 
     if (readCmdLine(argv, argv + argc, "-k", value)
@@ -713,7 +731,12 @@ int main(int argc, char* argv[])
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
-        std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
+        if (traffic_server_worker_threads > 1) { // queue dispatcher is used
+            std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
+            bool congestionControl = (queue_dispatcher_max_size >= 0);
+            std::cout << "Traffic server queue dispatcher congestion control: " << (congestionControl ? "enabled":"disabled") << '\n';
+            if (congestionControl) std::cout << "Traffic server queue dispatcher maximum size allowed: " << queue_dispatcher_max_size << '\n';
+        }
 
         // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
         // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + 1 /* native nghttp2 threads */ + traffic_server_worker_threads)
@@ -809,7 +832,7 @@ int main(int argc, char* argv[])
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoService);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoService, queue_dispatcher_max_size);
         myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);

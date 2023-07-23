@@ -605,6 +605,16 @@ Options:
   Number of traffic server maximum worker threads; defaults to the number of worker
   threads but could be a higher number so they will be created when needed.
 
+[--traffic-server-queue-dispatcher-max-size <size>]
+  When the traffic server configures more than 1 worker thread, a queue dispatcher
+  will be used to process the traffic scheduling a initial number of threads which
+  could grow up to a maximum value (given by '--traffic-server-max-worker-threads').
+  Optionally, a basic congestion control algorithm can be enabled by mean providing
+  a non-negative value to this parameter. When the queue size grows due to lack of
+  consumption capacity, a service unavailable error (503) will be answered skipping
+  context processing when the queue size reaches the value provided; defaults to -1,
+  which means that congestion control is disabled.
+
 [-k|--traffic-server-key <path file>]
   Path file for traffic server key to enable SSL/TLS; unsecured by default.
 
@@ -933,7 +943,6 @@ Traffic server local port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
 Traffic server worker threads: 1
-Traffic server maximum worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
 Traffic server crt file: <not provided>

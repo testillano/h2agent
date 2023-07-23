@@ -58,8 +58,8 @@ namespace http2
 {
 
 
-MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService):
-    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoService),
+MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService, int maxQueueDispatcherSize):
+    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoService, maxQueueDispatcherSize),
     admin_data_(nullptr) {
 
     server_data_ = true;
@@ -168,7 +168,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     h2agent::model::DataPart requestBodyDataPart(std::move(requestBody));
 
     // Busy threads:
-    int currentBusyThreads = busyThreads();
+    int currentBusyThreads = getQueueDispatcherBusyThreads();
     if (currentBusyThreads > 0) { // 0 when queue dispatcher is not used
         int maxBusyThreads = max_busy_threads_.load();
         if (currentBusyThreads > maxBusyThreads) {
@@ -178,7 +178,7 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
 
         LOGINFORMATIONAL(
         if (receptionId % 5000 == 0) {
-        std::string msg = ert::tracing::Logger::asString("'Current/maximum reached' busy worker threads: %d/%d", currentBusyThreads, maxBusyThreads);
+        std::string msg = ert::tracing::Logger::asString("'Current/maximum reached' busy worker threads: %d/%d | QueueDispatcher workers/size/max-size: %d/%d/%d", currentBusyThreads, maxBusyThreads, getQueueDispatcherThreads(), getQueueDispatcherSize(), getQueueDispatcherMaxSize());
             ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
         }
         );
