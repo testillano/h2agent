@@ -76,6 +76,8 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
   $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $> docker run --rm -it --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
@@ -803,7 +805,7 @@ Expression: 404 == 404
 Result: 1
 ```
 
-## Execution of h2client helper utility
+## Execution of h2client utility
 
 This utility could be useful to test simple HTTP/2 requests.
 
@@ -871,6 +873,49 @@ Uri: http://localhost:8000/book/8472098362
  Response status code: 200
  Response body: {"author":"Ludwig von Mises"}
  Response headers: [date: Sun, 27 Nov 2022 18:58:32 GMT]
+```
+
+## Execution of udp-server utility
+
+This utility could be useful to test UDP messages sent by `h2agent` (`udpSocket.*` target).
+You can also use netcat in bash, to generate messages easily:
+
+```bash
+echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/my_unix_socket
+```
+
+### Command line
+
+You may take a look to `udp-server` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$> ./build/Release/bin/udp-server --help
+Usage: udp-server [options]
+
+Options:
+
+--path <value>
+  UDP unix socket path
+
+--print-each <value>
+  Print messages each specific amount (must be positive). Defaults to 1.
+
+[-h|--help]
+  This help.
+
+Examples:
+   udp-server --path "/tmp/my_unix_socket"
+```
+
+Execution example:
+
+```bash
+$> ./build/Release/bin/udp-server --path "/tmp/my_unix_socket"
+
+Path: /tmp/my_unix_socket
+Print each: 1 message(s)
+
+Waiting for messages ([sequence] <message>) ...
 ```
 
 ## Execution with TLS support
@@ -1706,7 +1751,7 @@ Defines the response behavior for an incoming request matching some basic condit
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+|^break$"
+            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
           }
         },
         "additionalProperties" : {
@@ -2027,7 +2072,11 @@ The **target** of information is classified after parsing the following possible
 
 - txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
+  This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP unix sockets target (`udpSocket./tmp/myunixsocket`).
+
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
+
+- udpSocket.`<path>[.<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided, with an optional delay in milliseconds (if path contains dots, an unexpected delay can be configured and same could happen for the path, so in that case, you must force delay specification by mean adding `.0` or any valid value). The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it.
 
 - serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
 
@@ -3048,7 +3097,7 @@ Client provisions are a fundamental part of the client mode configuration. Unlik
           },
           "target": {
             "type": "string",
-            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
           }
         },
         "additionalProperties" : {
@@ -3071,7 +3120,7 @@ Client provisions are a fundamental part of the client mode configuration. Unlik
           },
           "target": {
             "type": "string",
-            "pattern": "^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^break$"
+            "pattern": "^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
           }
         },
         "additionalProperties" : {
@@ -3843,6 +3892,12 @@ FileSystem_observed_operations_total{operation="write"} 100000
 FileSystem_observed_operations_total{operation="close"} 1
 FileSystem_observed_operations_total{operation="empty"} 0
 FileSystem_observed_operations_total{operation="open"} 1
+# TYPE UDPSocket_observed_operations_total counter
+UDPSocket_observed_operations_total{operation="open",success="false"} 0
+UDPSocket_observed_operations_total{operation="delayedWrite"} 0
+UDPSocket_observed_operations_total{operation="instantWrite"} 0
+UDPSocket_observed_operations_total{operation="open"} 0
+UDPSocket_observed_operations_total{operation="write"} 0
 # HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
 # TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
 AdminHttp2Server_responses_delay_seconds_gauge 7.2e-05
@@ -3907,6 +3962,7 @@ So, metrics implemented could be divided in two categories, **counters** and **g
 - DELETE requests
 - HEAD requests
 - <other> requests
+- File system and Unix sockets operations
 - Error-condition requests (POST/GET/PUT/DELETE/HEAD/other)
 
 #### Gauges and histograms

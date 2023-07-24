@@ -38,6 +38,7 @@ ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'configuration'
 ADMIN_GLOBAL_VARIABLE_URI = ADMIN_URI_PREFIX + 'global-variable'
 ADMIN_FILES_URI = ADMIN_URI_PREFIX + 'files'
+ADMIN_SOCKETS_URI = ADMIN_URI_PREFIX + 'udp-sockets'
 ADMIN_LOGGING_URI = ADMIN_URI_PREFIX + 'logging'
 ADMIN_SERVER_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'server/configuration'
 ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
@@ -633,6 +634,36 @@ FILE_MANAGER_PROVISION='''
     {
       "source": "txtFile./tmp/example.txt",
       "target": "response.body.string"
+    }
+  ]
+}
+'''
+
+SOCKET_MANAGER_PROVISION='''
+{
+  "requestMethod": "GET",
+  "requestUri":"/app/v1/foo/bar",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "value./tmp/my_unix_socket1",
+      "target": "var.file1"
+    },
+    {
+      "source": "value./tmp/my_unix_socket2",
+      "target": "var.file2"
+    },
+    {
+      "source": "value.0",
+      "target": "var.delayms"
+    },
+    {
+      "source": "value.hello",
+      "target": "udpSocket.@{file1}.@{delayms}"
+    },
+    {
+      "source": "value.world",
+      "target": "udpSocket.@{file2}.@{delayms}"
     }
   ]
 }

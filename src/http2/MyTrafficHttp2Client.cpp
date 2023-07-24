@@ -51,6 +51,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 #include <functions.hpp>
 
 namespace h2agent

@@ -1,3 +1,7 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #include <fstream>
 #include <ctime>
 #include <AdminData.hpp>
@@ -16,6 +20,7 @@
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 #include <DataPart.hpp>
 
 #include <ert/http2comm/Http2Headers.hpp>
@@ -227,6 +232,7 @@ public:
         common_resources_.ConfigurationPtr = new h2agent::model::Configuration();
         common_resources_.GlobalVariablePtr = new h2agent::model::GlobalVariable();
         common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
+        common_resources_.SocketManagerPtr = new h2agent::model::SocketManager(nullptr);
         common_resources_.MockServerDataPtr = new h2agent::model::MockServerData();
 
         // Global variables:
@@ -256,6 +262,7 @@ public:
         delete(common_resources_.ConfigurationPtr);
         delete(common_resources_.GlobalVariablePtr);
         delete(common_resources_.FileManagerPtr);
+        delete(common_resources_.SocketManagerPtr);
         delete(common_resources_.MockServerDataPtr);
     }
 };
@@ -1574,6 +1581,53 @@ TEST_F(Transform_test, TargetBinFile)
     EXPECT_EQ(value2, value);
 }
 
+TEST_F(Transform_test, TargetUDPSocket)
+{
+    // Socket path:
+    std::string socketPath = "/tmp/h2agent.UT.Transform_test.TargetUDPSocket";
+    std::string targetValue = "udpSocket.";
+    targetValue += socketPath;
+    targetValue += ".0";
+
+    // Build test provision:
+    nlohmann::json item = R"({ "source": "value.hello", "target": "tobereplaced" })"_json;
+    item["target"] = targetValue;
+
+    server_provision_json_["transform"].push_back(item);
+
+    // Prepare UDP socket for reception:
+    int sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    ASSERT_FALSE(sockfd < 0);
+
+    struct sockaddr_un serverAddr;
+    memset(&serverAddr, 0, sizeof(struct sockaddr_un));
+    serverAddr.sun_family = AF_UNIX;
+    strcpy(serverAddr.sun_path, socketPath.c_str());
+
+    unlink(socketPath.c_str()); // just in case, it exists
+
+    int bindrc = bind(sockfd, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
+    if (bindrc < 0) close(sockfd);
+    ASSERT_FALSE(bindrc < 0);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations:
+    EXPECT_EQ(status_code_, 200);
+
+    // Check socket content:
+    char buffer[32];
+    struct sockaddr_un clientAddr;
+    socklen_t clientAddrLen;
+
+    ssize_t bytesRead = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen);
+    ASSERT_TRUE(bytesRead > 0);
+    buffer[bytesRead] = '\0';
+    std::string msg;
+    msg.assign(buffer);
+    EXPECT_EQ(msg, "hello");
+}
 
 TEST_F(Transform_test, TargetBreak)
 {

@@ -24,6 +24,8 @@ add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/Configuration.cpp
     ${CMAKE_CURRENT_LIST_DIR}/FileManager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/SafeFile.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/SocketManager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/SafeSocket.cpp
     ${CMAKE_CURRENT_LIST_DIR}/DataPart.cpp
 )
 

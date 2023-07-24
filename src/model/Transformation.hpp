@@ -67,10 +67,10 @@ public:
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "ServerEventToPurge", "Break", "RequestBodyString", "RequestBodyHexString", "RequestBodyJson_String", "RequestBodyJson_Integer", "RequestBodyJson_Unsigned", "RequestBodyJson_Float", "RequestBodyJson_Boolean", "RequestBodyJson_Object", "RequestBodyJson_JsonString" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "UDPSocket", "ServerEventToPurge", "Break", "RequestBodyString", "RequestBodyHexString", "RequestBodyJson_String", "RequestBodyJson_Integer", "RequestBodyJson_Unsigned", "RequestBodyJson_Float", "RequestBodyJson_Boolean", "RequestBodyJson_Object", "RequestBodyJson_JsonString" };
         return text [type];
     }
 
@@ -112,7 +112,7 @@ private:
 
     TargetType target_type_{};
     std::string target_{}; // ResponseBodyJson_String/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
-    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path)
+    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path), UDPSocket (path[.delayMs])
     std::vector<std::string> target_tokenized_{}; // ServerEventToPurge
     std::string target2_{}; // OutState (foreign uri part)
 

@@ -53,6 +53,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 #include <functions.hpp>
 
 
@@ -568,6 +569,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     }
     else if (pathSuffix == "files") {
         responseBody = getFileManager()->asJsonString();
+        statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // 204 or 200
+    }
+    else if (pathSuffix == "udp-sockets") {
+        responseBody = getSocketManager()->asJsonString();
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // 204 or 200
     }
     else if (pathSuffix == "logging") {

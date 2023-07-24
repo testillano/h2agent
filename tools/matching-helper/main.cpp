@@ -99,9 +99,9 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string regex;
-    std::string test;
-    std::string fmt;
+    std::string regex{};
+    std::string test{};
+    std::string fmt{};
 
     std::string value;
 
