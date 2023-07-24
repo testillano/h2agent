@@ -100,6 +100,7 @@ add_subdirectory( ut )
 add_subdirectory( tools/matching-helper )
 add_subdirectory( tools/arashpartow-helper )
 add_subdirectory( tools/h2client )
+add_subdirectory( tools/udp-server )
 
 ###########
 # Install #

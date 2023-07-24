@@ -57,6 +57,7 @@ namespace model
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 class AdminData;
 }
 

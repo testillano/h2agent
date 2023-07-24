@@ -54,6 +54,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 
 #include <functions.hpp>
 
@@ -824,6 +825,25 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
             }
         }
+        else if (transformation->getTargetType() == Transformation::TargetType::UDPSocket) {
+            // extraction
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+
+            // assignments
+            // Possible delay provided in 'target': <path>.<delay>
+            std::string path = target;
+            size_t lastDotPos = target.find_last_of(".");
+            unsigned int delayMs = atoi(target.substr(lastDotPos + 1).c_str());
+            path = target.substr(0, lastDotPos);
+
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("UDPSocket '%s' target, delayed %u milliseconds, in transformation item", path.c_str(), delayMs);
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+
+            socket_manager_->write(path, targetS/*data*/, delayMs * 1000 /* usecs */);
+        }
         else if (transformation->getTargetType() == Transformation::TargetType::ServerEventToPurge) {
             if (!eraser) {
                 LOGDEBUG(ert::tracing::Logger::debug("'ServerEventToPurge' target type only works with 'eraser' source type. This transformation will be ignored.", ERT_FILE_LOCATION));
@@ -1000,7 +1020,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
             }
         }
 
-        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break
+        // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break
         if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, breakCondition)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;

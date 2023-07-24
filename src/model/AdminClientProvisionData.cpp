@@ -91,6 +91,7 @@ AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const 
         provision->setConfiguration(cr.ConfigurationPtr);
         provision->setGlobalVariable(cr.GlobalVariablePtr);
         provision->setFileManager(cr.FileManagerPtr);
+        provision->setSocketManager(cr.SocketManagerPtr);
         provision->setMockClientData(cr.MockClientDataPtr);
         provision->setMockServerData(cr.MockServerDataPtr);
 

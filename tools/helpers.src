@@ -90,6 +90,16 @@ files_configuration() {
   fi
 }
 
+udp_sockets() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: udp_sockets [-h|--help]; Gets the udp sockets processed."
+    return 0
+  else
+    do_curl ${ADMIN_URL}/udp-sockets
+  fi
+}
+
 configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
@@ -473,6 +483,7 @@ snapshot() {
   global_variable_schema && json > ${dir}/global-variable_schema.json
   files && json > ${dir}/files.json
   files_configuration && json > ${dir}/files-configuration.json
+  udp_sockets && json > ${dir}/udp-sockets.json
   configuration && json > ${dir}/configuration.json
 
   server_configuration && json > ${dir}/server-configuration.json
@@ -608,6 +619,7 @@ help() {
   global_variable -h
   files -h
   files_configuration -h
+  udp_sockets -h
   configuration -h
   echo
   echo "=== Traffic server ==="

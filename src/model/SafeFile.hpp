@@ -89,7 +89,6 @@ public:
     * operations with the intention to reduce overhead in some scenarios. By default
     * it is not used (if not provided in constructor), so delay is not performed
     * regardless the close delay configured.
-    * about I/O operations. It may be 'nullptr' if no metrics are enabled.
     * @param mode open mode. By default, text files and append is selected. You
     * could anyway add other flags, for example for binary dumps: std::ios::binary
     */

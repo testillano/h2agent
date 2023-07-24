@@ -184,7 +184,7 @@ nlohmann::json FileManager::getJson() const {
 
 std::string FileManager::asJsonString() const {
 
-    return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
+    return ((size() != 0) ? getJson().dump() : "[]");
 }
 
 

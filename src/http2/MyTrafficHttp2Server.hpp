@@ -59,6 +59,7 @@ class MockClientData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 class AdminData;
 }
 

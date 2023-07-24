@@ -52,6 +52,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 #include <nlohmann/json.hpp>
@@ -81,6 +82,7 @@ boost::asio::io_service *myTimersIoService = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
+h2agent::model::SocketManager* mySocketManager = nullptr;
 h2agent::model::MockServerData* myMockServerData = nullptr;
 h2agent::model::MockClientData* myMockClientData = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
@@ -189,6 +191,9 @@ void stopAgent()
 
     delete(myFileManager);
     myFileManager = nullptr;
+
+    delete(mySocketManager);
+    mySocketManager = nullptr;
 
     delete(myGlobalVariable);
     myGlobalVariable = nullptr;
@@ -461,6 +466,7 @@ int main(int argc, char* argv[])
     myConfiguration = new h2agent::model::Configuration();
     myGlobalVariable = new h2agent::model::GlobalVariable();
     myFileManager = new h2agent::model::FileManager(myTimersIoService);
+    mySocketManager = new h2agent::model::SocketManager(myTimersIoService);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
@@ -810,6 +816,9 @@ int main(int argc, char* argv[])
     // FileManager/SafeFile metrics
     myFileManager->enableMetrics(myMetrics);
 
+    // SocketManager/SafeSocket metrics
+    mySocketManager->enableMetrics(myMetrics);
+
     // Admin server
     myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(ADMIN_SERVER_WORKER_THREADS);
     myAdminHttp2Server->enableMetrics(myMetrics);
@@ -818,6 +827,7 @@ int main(int argc, char* argv[])
     myAdminHttp2Server->setConfiguration(myConfiguration);
     myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
     myAdminHttp2Server->setFileManager(myFileManager);
+    myAdminHttp2Server->setSocketManager(mySocketManager);
     myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries); // for client connection class
 
     // Timers thread:

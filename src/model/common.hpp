@@ -53,6 +53,7 @@ namespace model
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 class MockServerData;
 class MockClientData;
 
@@ -60,6 +61,7 @@ typedef struct {
     Configuration *ConfigurationPtr;
     GlobalVariable *GlobalVariablePtr;
     FileManager *FileManagerPtr;
+    SocketManager *SocketManagerPtr;
     MockServerData *MockServerDataPtr;
     MockClientData *MockClientDataPtr;
     ert::metrics::Metrics *MetricsPtr;

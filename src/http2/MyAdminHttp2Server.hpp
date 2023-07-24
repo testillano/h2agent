@@ -52,6 +52,7 @@ namespace model
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 class AdminData;
 class MockServerData;
 class MockClientData;
@@ -129,6 +130,13 @@ public:
     }
     model::FileManager *getFileManager() const {
         return common_resources_.FileManagerPtr;
+    }
+
+    void setSocketManager(model::SocketManager *p) {
+        common_resources_.SocketManagerPtr = p;
+    }
+    model::SocketManager *getSocketManager() const {
+        return common_resources_.SocketManagerPtr;
     }
 
     void setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries, const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries) {

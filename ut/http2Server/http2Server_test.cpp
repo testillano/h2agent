@@ -11,6 +11,7 @@
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 
@@ -175,6 +176,7 @@ public:
     h2agent::model::Configuration* configuration_{};
     h2agent::model::GlobalVariable* global_variable_{};
     h2agent::model::FileManager* file_manager_{};
+    h2agent::model::SocketManager* socket_manager_{};
     h2agent::model::MockServerData* mock_server_events_data_{};
     h2agent::model::MockClientData* mock_client_events_data_{};
     ert::metrics::Metrics* metrics_{};
@@ -186,8 +188,10 @@ public:
         configuration_ = new h2agent::model::Configuration();
         global_variable_ = new h2agent::model::GlobalVariable();
         file_manager_ = new h2agent::model::FileManager(timers_io_service_);
+        socket_manager_ = new h2agent::model::SocketManager(timers_io_service_);
         metrics_ = new ert::metrics::Metrics();
         file_manager_->enableMetrics(metrics_);
+        socket_manager_->enableMetrics(metrics_);
         mock_server_events_data_ = new h2agent::model::MockServerData();
         mock_client_events_data_ = new h2agent::model::MockClientData();
 
@@ -197,6 +201,7 @@ public:
         admin_http2_server_->setConfiguration(configuration_);
         admin_http2_server_->setGlobalVariable(global_variable_);
         admin_http2_server_->setFileManager(file_manager_);
+        admin_http2_server_->setSocketManager(socket_manager_);
         admin_http2_server_->setMockServerData(mock_server_events_data_); // stored at administrative class to pass through created server provisions
         admin_http2_server_->setMockClientData(mock_client_events_data_); // stored at administrative class to pass through created client provisions
         admin_http2_server_->enableMetrics(metrics_);
@@ -232,6 +237,7 @@ public:
         delete(configuration_);
         delete(global_variable_);
         delete(file_manager_);
+        delete(socket_manager_);
         delete(mock_server_events_data_);
         delete(mock_client_events_data_);
         admin_http2_server_->stop();

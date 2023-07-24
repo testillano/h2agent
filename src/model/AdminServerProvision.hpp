@@ -64,6 +64,7 @@ class MockClientData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 
 
 class AdminServerProvision
@@ -102,6 +103,7 @@ class AdminServerProvision
     model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
+    model::SocketManager *socket_manager_{}; // just in case it is used
 
     void loadTransformation(const nlohmann::json &j);
 
@@ -237,6 +239,14 @@ public:
      */
     void setFileManager(model::FileManager *p) {
         file_manager_ = p;
+    }
+
+    /**
+     * Sets the socket manager reference,
+     * just in case it is used in event target
+     */
+    void setSocketManager(model::SocketManager *p) {
+        socket_manager_ = p;
     }
 
     // getters:

@@ -333,7 +333,7 @@ bool Transformation::load(const nlohmann::json &j) {
     //    return false;
     //}
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, ServerEventToPurge, Break };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
     target2_ = ""; // same
 
@@ -364,6 +364,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
     // + txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided.
     // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
+    // + udpSocket.`<path>` *[string]*: sends source (as string) towards the UDP unix socket with the path provided.
     // + serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser`.
     // - break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
     //
@@ -405,6 +406,9 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex requestBodyJson_BooleanNode("^request.body.json.boolean.(.*)", std::regex::optimize);
     static std::regex requestBodyJson_ObjectNode("^request.body.json.object.(.*)", std::regex::optimize);
     static std::regex requestBodyJson_JsonStringNode("^request.body.json.jsonstring.(.*)", std::regex::optimize);
+
+    // Only target
+    static std::regex udpSocket("^udpSocket.(.*)", std::regex::optimize);
 
     // no need to try (controlled regex)
     //try {
@@ -558,6 +562,10 @@ bool Transformation::load(const nlohmann::json &j) {
         target_ = matches.str(1);
         target_type_ = TargetType::TBinFile;
     }
+    else if (std::regex_match(targetSpec, matches, udpSocket)) { // path file
+        target_ = matches.str(1);
+        target_type_ = TargetType::UDPSocket;
+    }
     else if (std::regex_match(targetSpec, matches, serverEvent)) { // value content
         target_ = matches.str(1); // i.e. requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3
         target_type_ = TargetType::ServerEventToPurge;
@@ -649,6 +657,9 @@ std::string Transformation::asString() const {
         }
         else if (target_type_ == TargetType::TTxtFile || target_type_ == TargetType::TBinFile) {
             ss << " (path file)";
+        }
+        else if (target_type_ == TargetType::UDPSocket) {
+            ss << " (<path file>[.<write delay ms>])";
         }
 
         if (!target_patterns_.empty()) {
