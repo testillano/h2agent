@@ -59,7 +59,7 @@ TEST_F(SafeFile_test, SafeFileWithCloseDelayed)
     file.write(SafeFileContent, 5000 /* close delay value */);
 
     // Closed after 5000 usecs (5 ms), we wait 50 ms (10x !) to ensure it is closed:
-    boost::asio::deadline_timer exitTimer(*timers_io_service_, boost::posix_time::milliseconds(50));
+    boost::asio::steady_timer exitTimer(*timers_io_service_, std::chrono::milliseconds(50));
     exitTimer.async_wait([&] (const boost::system::error_code& e) { timers_io_service_->stop(); });
     timers_thread_->join();
 

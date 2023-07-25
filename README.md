@@ -77,7 +77,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   -or-
   $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
+  $> docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:

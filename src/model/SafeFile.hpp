@@ -43,7 +43,6 @@ SOFTWARE.
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <nlohmann/json.hpp>
 #include <condition_variable>
 
@@ -68,7 +67,7 @@ class SafeFile {
     int max_open_files_;
     std::mutex mutex_; // write file mutex
     bool opened_;
-    boost::asio::deadline_timer *timer_{};
+    boost::asio::steady_timer *timer_{};
     boost::asio::io_service *io_service_{};
 
     std::string data_; // used for read cache, but never shown in json string representation (just in case it is huge)
