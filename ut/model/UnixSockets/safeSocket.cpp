@@ -24,21 +24,21 @@ class SafeSocket_test : public ::testing::Test
 {
 public:
     h2agent::model::SocketManager *socket_manager_{};
-    boost::asio::io_service *timers_io_service_{};
+    boost::asio::io_context *timers_io_context_{};
     std::thread *timers_thread_{};
 
     SafeSocket_test() {
         socket_manager_ =  new h2agent::model::SocketManager(); // no metrics by default
-        timers_io_service_ =  new boost::asio::io_service();
+        timers_io_context_ =  new boost::asio::io_context();
         timers_thread_ = new std::thread([&] {
-            boost::asio::io_service::work work(*timers_io_service_);
-            timers_io_service_->run();
+            boost::asio::io_context::work work(*timers_io_context_);
+            timers_io_context_->run();
         });
     }
 
     ~SafeSocket_test() {
-        timers_io_service_->stop();
-        delete(timers_io_service_);
+        timers_io_context_->stop();
+        delete(timers_io_context_);
         delete(timers_thread_);
     }
 };
@@ -64,12 +64,12 @@ TEST_F(SafeSocket_test, SafeSocketWithWriteDelayed)
     ASSERT_FALSE(bindrc < 0);
 
     // Open socket to write:
-    h2agent::model::SafeSocket socket(socket_manager_, socketPath, timers_io_service_);
+    h2agent::model::SafeSocket socket(socket_manager_, socketPath, timers_io_context_);
     socket.write(SafeSocketContent, 5000 /* write delay value */);
 
     // Written after 5000 usecs (5 ms), we wait 50 ms (10x !) to ensure it is written:
-    boost::asio::steady_timer exitTimer(*timers_io_service_, std::chrono::milliseconds(50));
-    exitTimer.async_wait([&] (const boost::system::error_code& e) { timers_io_service_->stop(); });
+    boost::asio::steady_timer exitTimer(*timers_io_context_, std::chrono::milliseconds(50));
+    exitTimer.async_wait([&] (const boost::system::error_code& e) { timers_io_context_->stop(); });
     timers_thread_->join();
 
     // Check socket content:
@@ -90,7 +90,7 @@ TEST_F(SafeSocket_test, SafeSocketWithWriteDelayed)
 TEST_F(SafeSocket_test, SafeSocketWithInstantWrite)
 {
     // Stop timers service:
-    timers_io_service_->stop();
+    timers_io_context_->stop();
     timers_thread_->join();
 
     // Socket path:
@@ -112,7 +112,7 @@ TEST_F(SafeSocket_test, SafeSocketWithInstantWrite)
     ASSERT_FALSE(bindrc < 0);
 
     // Open socket to write:
-    h2agent::model::SafeSocket socket(socket_manager_, socketPath, nullptr /* no timers io service will be used */);
+    h2agent::model::SafeSocket socket(socket_manager_, socketPath, nullptr /* no timers io context will be used */);
     socket.write(SafeSocketContent);
 
     // Check socket content:

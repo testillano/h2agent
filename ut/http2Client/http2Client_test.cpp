@@ -87,7 +87,7 @@ class XXXX_http2Server_test : public ::testing::Test
 public:
     h2agent::http2::MyAdminHttp2Server* admin_http2_server_{};
     h2agent::http2::MyTrafficHttp2Server* traffic_http2_server_{};
-    boost::asio::io_service *timers_io_service_{};
+    boost::asio::io_context *timers_io_context_{};
     h2agent::model::Configuration* configuration_{};
     h2agent::model::GlobalVariable* global_variable_{};
     h2agent::model::FileManager* file_manager_{};
@@ -99,11 +99,11 @@ public:
     std::shared_ptr<ert::http2comm::Http2Client> traffic_client_{}, admin_client_{};
 
     XXXX_http2Server_test() {
-        timers_io_service_ = new boost::asio::io_service();
+        timers_io_context_ = new boost::asio::io_context();
         configuration_ = new h2agent::model::Configuration();
         global_variable_ = new h2agent::model::GlobalVariable();
-        file_manager_ = new h2agent::model::FileManager(timers_io_service_);
-        socket_manager_ = new h2agent::model::SocketManager(timers_io_service_);
+        file_manager_ = new h2agent::model::FileManager(timers_io_context_);
+        socket_manager_ = new h2agent::model::SocketManager(timers_io_context_);
         metrics_ = new ert::metrics::Metrics();
         file_manager_->enableMetrics(metrics_);
         socket_manager_->enableMetrics(metrics_);
@@ -121,7 +121,7 @@ public:
         admin_http2_server_->setMockClientData(mock_client_events_data_); // stored at administrative class to pass through created client provisions
         admin_http2_server_->enableMetrics(metrics_);
 
-        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(1, 1, timers_io_service_, -1 /* no congestion control */);
+        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(1, 1, timers_io_context_, -1 /* no congestion control */);
         traffic_http2_server_->setApiName("app");
         traffic_http2_server_->setApiVersion("v1");
         traffic_http2_server_->setMockServerData(mock_server_events_data_);
@@ -133,8 +133,8 @@ public:
 
         // Timers thread:
         tt_ = std::thread([&] {
-            boost::asio::io_service::work work(*timers_io_service_);
-            timers_io_service_->run();
+            boost::asio::io_context::work work(*timers_io_context_);
+            timers_io_context_->run();
         });
 
         // Start prometheus server:
@@ -157,12 +157,12 @@ public:
         delete(mock_client_events_data_);
         admin_http2_server_->stop();
         traffic_http2_server_->stop();
-        delete(timers_io_service_);
+        delete(timers_io_context_);
         delete(metrics_);
     }
 
     void tearDown() {
-        timers_io_service_->stop();
+        timers_io_context_->stop();
         tt_.join();
     }
 };

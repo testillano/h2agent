@@ -49,9 +49,9 @@ namespace model
 {
 
 
-SafeSocket::SafeSocket (SocketManager *socketManager, const std::string& path, boost::asio::io_service *timersIoService):
+SafeSocket::SafeSocket (SocketManager *socketManager, const std::string& path, boost::asio::io_context *timersIoContext):
     path_(path),
-    io_service_(timersIoService),
+    io_context_(timersIoContext),
     socket_manager_(socketManager)
 {
     open();
@@ -61,8 +61,8 @@ void SafeSocket::delayedWrite(unsigned int writeDelayUs, const std::string &data
     // metrics
     socket_manager_->incrementObservedDelayedWriteOperationCounter();
 
-    //if (!io_service_) return; // protection
-    auto timer = std::make_shared<boost::asio::steady_timer>(*io_service_, std::chrono::microseconds(writeDelayUs));
+    //if (!io_context_) return; // protection
+    auto timer = std::make_shared<boost::asio::steady_timer>(*io_context_, std::chrono::microseconds(writeDelayUs));
     timer->expires_after(std::chrono::microseconds(writeDelayUs));
     timer->async_wait([this, timer, data] (const boost::system::error_code& e) {
         if( e ) return; // probably, we were cancelled (boost::asio::error::operation_aborted)
@@ -115,7 +115,7 @@ void SafeSocket::write (const std::string& data, unsigned int writeDelayUs) {
     socket_manager_->incrementObservedWriteOperationCounter();
 
     // Close socket:
-    if (io_service_ && writeDelayUs != 0) {
+    if (io_context_ && writeDelayUs != 0) {
         delayedWrite(writeDelayUs, data);
     }
     else {

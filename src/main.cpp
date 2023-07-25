@@ -78,7 +78,7 @@ namespace
 {
 h2agent::http2::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // incoming traffic
-boost::asio::io_service *myTimersIoService = nullptr;
+boost::asio::io_context *myTimersIoContext = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
@@ -157,11 +157,11 @@ std::string getLocaltime()
 
 void stopAgent()
 {
-    if (myTimersIoService)
+    if (myTimersIoContext)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
                        "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
-        myTimersIoService->stop();
+        myTimersIoContext->stop();
     }
     if (myAdminHttp2Server)
     {
@@ -201,8 +201,8 @@ void stopAgent()
     delete(myConfiguration);
     myConfiguration = nullptr;
 
-    delete(myTimersIoService);
-    myTimersIoService = nullptr;
+    delete(myTimersIoContext);
+    myTimersIoContext = nullptr;
 }
 
 void myExit(int rc)
@@ -461,12 +461,12 @@ int main(int argc, char* argv[])
     // Traces
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
-    // General resources: timer IO service, configuration and global variables and file manager:
-    myTimersIoService = new boost::asio::io_service();
+    // General resources: timer io context, configuration and global variables and file manager:
+    myTimersIoContext = new boost::asio::io_context();
     myConfiguration = new h2agent::model::Configuration();
     myGlobalVariable = new h2agent::model::GlobalVariable();
-    myFileManager = new h2agent::model::FileManager(myTimersIoService);
-    mySocketManager = new h2agent::model::SocketManager(myTimersIoService);
+    myFileManager = new h2agent::model::FileManager(myTimersIoContext);
+    mySocketManager = new h2agent::model::SocketManager(myTimersIoContext);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     bool ipv6 = false; // ipv4 by default
@@ -832,8 +832,8 @@ int main(int argc, char* argv[])
 
     // Timers thread:
     std::thread tt([&] {
-        boost::asio::io_service::work work(*myTimersIoService);
-        myTimersIoService->run();
+        boost::asio::io_context::work work(*myTimersIoContext);
+        myTimersIoContext->run();
     });
 
     // Mock data (may be not used):
@@ -842,7 +842,7 @@ int main(int argc, char* argv[])
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoService, queue_dispatcher_max_size);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
         myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);

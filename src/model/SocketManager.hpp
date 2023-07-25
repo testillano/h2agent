@@ -62,7 +62,7 @@ namespace model
 class SocketManager : public Map<std::string, std::shared_ptr<SafeSocket>>
 {
     mutable mutex_t rw_mutex_{};
-    boost::asio::io_service *io_service_{};
+    boost::asio::io_context *io_context_{};
 
     // metrics (will be passed to SafeSocket):
     ert::metrics::Metrics *metrics_{};
@@ -77,14 +77,14 @@ public:
     /**
     * Socket manager class
     *
-    * @param timersIoService timers IO service needed to schedule delayed write operations.
+    * @param timersIoContext timers io context needed to schedule delayed write operations.
     * If you never schedule write operations (@see write) it may be 'nullptr'.
     * @param metrics underlaying reference for SafeSocket in order to compute prometheus metrics
     * about I/O operations. It may be 'nullptr' if no metrics are enabled.
     *
     * @see SafeSocket
     */
-    SocketManager(boost::asio::io_service *timersIoService = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_service_(timersIoService), metrics_(metrics) {;}
+    SocketManager(boost::asio::io_context *timersIoContext = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_context_(timersIoContext), metrics_(metrics) {;}
     ~SocketManager() = default;
 
     /**
