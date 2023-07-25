@@ -23,6 +23,7 @@ COPY --from=builder /code/build/${build_type}/bin/h2client /opt/
 COPY --from=builder /code/build/${build_type}/bin/matching-helper /opt/
 COPY --from=builder /code/build/${build_type}/bin/arashpartow-helper /opt/
 COPY --from=builder /code/build/${build_type}/bin/udp-server /opt/
+COPY --from=builder /code/build/${build_type}/bin/udp-server-h2client /opt/
 
 # We add curl & jq for helpers.src
 # Ubuntu has bash already installed, but vim is missing

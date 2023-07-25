@@ -10,6 +10,100 @@
 `H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
+It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
+
+As a brief summary, we could highlight the following features:
+
+* Mock types:
+
+  * Server (unique)
+  * Client (multiple clients may be provisioned)
+
+* Testing
+
+  * Functional/Component tests.
+  * System tests (KPI, High Load, Robustness).
+  * Congestion Control.
+
+* Traffic protocols
+
+  * HTTP/2.
+  * UDP.
+
+* TLS/SSL support
+
+  * Server
+  * Client
+
+* Interfaces
+
+  * Administrative interface (REST API): update, create and delete items:
+    * Global variables.
+    * File manager configuration.
+    * UDP events.
+    * Schemas (Rx/Tx).
+    * Logging system.
+    * Traffic classification and provisioning configuration.
+    * Client endpoints configuration.
+    * Events data (server and clients) summary and inspection.
+    * Events data configuration (global storage, history).
+  * Prometheus metrics (HTTP/1):
+    * Counters by method and result.
+    * Gauges and Histograms (response delays, message size for Rx/Tx).
+  * Log system (POSIX Levels).
+  * Command line:
+    * Administrative & traffic interfaces (addresses, ports, security certificates).
+    * Congestion control parameters (workers, maximum workers and maximum queue size).
+    * Schema configuration json documents to be referred (traffic validation).
+    * Global variables json document.
+    * File manager configuration.
+    * Traffic server configuration (classification and provision).
+    * Metrics interface: histogram buckets for server and client and for histogram types.
+    * Clients connection behaviour (lazy/active).
+
+* Schema validation
+
+  * Administrative interface.
+  * Mock system (Tx/Rx requests).
+
+* Traffic classification
+
+  * Full matching.
+  * Regular expression matching.
+  * Priority regular expression matching.
+  * Query parameters filtering (sort/pass by/ignore).
+  * Query parameters delimiters (ampersand/semicolon)
+
+* Programming:
+
+  * User-defined machine state (FSM).
+  * Internal events system (data extraction from past events).
+  * Global variables.
+  * File system operation.
+  * UDP writing operation.
+  * Response build (headers, body, status code, delay).
+  * Transformation algorithms: thousands of combinations
+    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, global variables, constant values, input state (working state), events, files (read).
+    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints.
+    * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), unix socket UDP (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+
+* Training:
+
+  * Questions and answers for project documentation using **openai** (ChatGPT-based).
+  * Playground.
+  * Demo.
+  * Kata exercises.
+
+* Tools programs:
+
+  * Matching helper.
+  * Arash Partow helper (math expressions).
+  * HTTP/2 client.
+  * UDP server.
+  * UDP server to trigger active HTTP/2 client requests.
+
+
+
 ## Quick start
 
 **Theory**
@@ -77,7 +171,11 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   -or-
   $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
+  $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --help
+  -or-
   $> docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $> docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
@@ -101,13 +199,13 @@ It is also possible to build the project natively (not using containers) install
 $> ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
 ```
 
-So, you could run `h2agent` (or any other binary available under `./build/<build type>/bin`) directly:
+So, you could run `h2agent` (or any other binary available under `build/<build type>/bin`) directly:
 
 
 * Run <u>project executable</u> natively (standalone):
 
   ```bash
-  $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  $> build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
   ```
 
   Provide `-h` or `--help` to get **process help** (more information [here](#Execution-of-main-agent)) or execute any other project executable.
@@ -316,7 +414,7 @@ Check the badge above to know the current coverage level.
 You can execute it after project building, for example for `Release` target:
 
 ```bash
-$> ./build/Release/bin/unit-test # native executable
+$> build/Release/bin/unit-test # native executable
 - or -
 $> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
 ```
@@ -417,9 +515,9 @@ So you may start the process, again, natively or using docker:
 
 ```bash
 $> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3")
-$> ./build/Release/bin/h2agent "${OPTS[@]}" # native executable
+$> build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
-$> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}"  # docker
+$> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
 ```
 
 In other shell we launch the benchmark test:
@@ -564,7 +662,7 @@ Created test report:
 You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2agent --help
+$> build/Release/bin/h2agent --help
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
@@ -601,16 +699,18 @@ Options:
   even for complex logic provisioned (admin server hardcodes 1 worker thread(s)).
   It could be increased if hardware concurrency (8) permits a greater margin taking
   into account other process threads considered busy and I/O time spent by server
-  threads.
+  threads. When more than 1 worker is configured, a queue dispatcher model starts
+  to process the traffic, and also enables extra features like congestion control.
 
 [--traffic-server-max-worker-threads <threads>]
   Number of traffic server maximum worker threads; defaults to the number of worker
-  threads but could be a higher number so they will be created when needed.
+  threads but could be a higher number so they will be created when needed to extend
+  in real time, the queue dispatcher model capacity.
 
 [--traffic-server-queue-dispatcher-max-size <size>]
-  When the traffic server configures more than 1 worker thread, a queue dispatcher
-  will be used to process the traffic scheduling a initial number of threads which
-  could grow up to a maximum value (given by '--traffic-server-max-worker-threads').
+  The queue dispatcher model (which is activated for more than 1 server worker)
+  schedules a initial number of threads which could grow up to a maximum value
+  (given by '--traffic-server-max-worker-threads').
   Optionally, a basic congestion control algorithm can be enabled by mean providing
   a non-negative value to this parameter. When the queue size grows due to lack of
   consumption capacity, a service unavailable error (503) will be answered skipping
@@ -730,18 +830,18 @@ This utility could be useful to test regular expressions before putting them at 
 You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/matching-helper --help
+$> build/Release/bin/matching-helper --help
 Usage: matching-helper [options]
 
 Options:
 
---regex <value>
+-r|--regex <value>
   Regex pattern value to match against.
 
---test <value>
+-t|--test <value>
   Test string value to be matched.
 
-[--fmt <value>]
+[-f|--fmt <value>]
   Optional regex-replace output format.
 
 [-h|--help]
@@ -757,7 +857,7 @@ Examples:
 Execution example:
 
 ```bash
-$> ./build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+$> build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 
 Regex: (a\|b\|)([0-9]{10})
 Test:  a|b|0123456789
@@ -776,12 +876,12 @@ This utility could be useful to test [Arash Partow's](https://github.com/ArashPa
 You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/arashpartow-helper --help
+$> build/Release/bin/arashpartow-helper --help
 Usage: arashpartow-helper [options]
 
 Options:
 
---expression <value>
+-e|--expression <value>
   Expression to be calculated.
 
 [-h|--help]
@@ -798,7 +898,7 @@ Arash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/r
 Execution example:
 
 ```bash
-$> ./build/Release/bin/arashpartow-helper --expression "404 == 404"
+$> build/Release/bin/arashpartow-helper --expression "404 == 404"
 
 Expression: 404 == 404
 
@@ -814,36 +914,36 @@ This utility could be useful to test simple HTTP/2 requests.
 You may take a look to `h2client` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2client --help
+$> build/Release/bin/h2client --help
 Usage: h2client [options]
 
 Options:
 
+-u|--uri <value>
+ URI to access.
+
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
 
-[--verbose]
+[-v|--verbose]
   Output log traces on console.
 
-[--timeout <value>]
-  Time in seconds to wait for request response. Defaults to 5.
+[-t|--timeout-seconds <value>]
+  Time in seconds to wait for requests response. Defaults to 5.
 
-[--method <POST|GET|PUT|DELETE|HEAD>]
+[-m|--method <POST|GET|PUT|DELETE|HEAD>]
   Request method. Defaults to 'GET'.
 
 [--header <value>]
   Header in the form 'name:value'. This parameter can occur multiple times.
 
-[--body <value>]
+[-b|--body <value>]
   Plain text for request body content.
 
---uri <value>
- URI to access.
-
---secure
+[--secure]
  Use secure connection.
 
---rc-probe
+[--rc-probe]
   Forwards HTTP status code into equivalent program return code.
   So, any code greater than or equal to 200 and less than 400
   indicates success and will return 0 (1 in other case).
@@ -863,12 +963,15 @@ Execution example:
 ```bash
 $> build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
 
-Timeout: 1
-Secure connection: false
-Uri: http://localhost:8000/book/8472098362
-   Host: localhost
-   Port: 8000
-   Path: book/8472098362
+Client endpoint:
+   Secure connection: false
+   Host:   localhost
+   Port:   8000
+   Method: GET
+   Uri: http://localhost:8000/book/8472098362
+   Path:   book/8472098362
+   Timeout for responses (s): 5
+
 
  Response status code: 200
  Response body: {"author":"Ludwig von Mises"}
@@ -889,33 +992,155 @@ echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/my_unix_socket
 You may take a look to `udp-server` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/udp-server --help
+$> build/Release/bin/udp-server --help
 Usage: udp-server [options]
 
 Options:
 
---path <value>
-  UDP unix socket path
+-k|--udp-socket-path <value>
+  UDP unix socket path.
 
---print-each <value>
+[-e|--print-each <value>]
   Print messages each specific amount (must be positive). Defaults to 1.
 
 [-h|--help]
   This help.
 
 Examples:
-   udp-server --path "/tmp/my_unix_socket"
+   udp-server --udp-socket-path "/tmp/my_unix_socket"
 ```
 
 Execution example:
 
 ```bash
-$> ./build/Release/bin/udp-server --path "/tmp/my_unix_socket"
+$> build/Release/bin/udp-server --path "/tmp/my_unix_socket"
 
 Path: /tmp/my_unix_socket
 Print each: 1 message(s)
 
 Waiting for messages ([sequence] <message>) ...
+```
+
+## Execution of udp-server-h2client utility
+
+This utility could be useful to test UDP messages sent by `h2agent` (`udpSocket.*` target).
+You can also use netcat in bash, to generate messages easily:
+
+```bash
+echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/my_unix_socket
+```
+
+The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for ever UDP reception.
+This makes possible coordinate actions between `h2agent` acting as a server, to create outgoing requests linked to its receptions through the UDP channel served in this external tool.
+Powerful parsing capabilities allow to create any kind of request dynamically using patterns `@{udp[.n]}` for uri, headers and body configured.
+Prometheus metrics are also available to measure the HTTP/2 performance towards the remote server (check it by mean, for example: `curl http://localhost:8081/metrics`).
+
+### Command line
+
+You may take a look to `udp-server-h2client` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$> build/Release/bin/udp-server-h2client --help
+Usage: udp-server-h2client [options]
+
+Options:
+
+UDP server will trigger one HTTP/2 request for every reception, replacing optionally
+the '@{udp}' pattern on uri, headers and/or body provided, with the UDP data read.
+If data received contains pipes (|), it is also possible to access each part during
+parsing procedure through the use of pattern '@{udp.<n>}'.
+To stop the process you can send UDP message 'EOF'.
+
+-k|--udp-socket-path <value>
+  UDP unix socket path.
+
+[-e|--print-each <value>]
+  Print UDP receptions each specific amount (must be positive). Defaults to 1.
+
+[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
+  Set the logging level; defaults to warning.
+
+[-v|--verbose]
+  Output log traces on console.
+
+[-t|--timeout-seconds <value>]
+  Time in seconds to wait for requests response. Defaults to 5.
+
+[-d|--send-delay-milliseconds <value>]
+  Time in seconds to delay before sending the request. Defaults to 0.
+  It also supports negative values which turns into random number in
+  the range [0,abs(value)].
+
+[-m|--method <POST|GET|PUT|DELETE|HEAD>]
+  Request method. Defaults to 'GET'.
+
+-u|--uri <value>
+ URI to access.
+
+[--header <value>]
+  Header in the form 'name:value'. This parameter can occur multiple times.
+
+[-b|--body <value>]
+  Plain text for request body content.
+
+[--secure]
+ Use secure connection.
+
+[--prometheus-bind-address <address>]
+  Prometheus local bind <address>; defaults to 0.0.0.0.
+
+[--prometheus-port <port>]
+  Prometheus local <port>; defaults to 8081. Value of -1 disables metrics.
+
+[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
+  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
+  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
+  could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
+
+[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
+  Bucket boundaries for Tx/Rx message size bytes histogram; no boundaries are defined by default.
+
+[-h|--help]
+  This help.
+
+Examples:
+   udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" -print-each 1000 --timeout-seconds 1 --uri http://0.0.0.0:8000/book/@{udp}
+   udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
+
+   To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
+```
+
+Execution example:
+
+```bash
+$> build/Release/bin/udp-server-h2client -k "/tmp/my_unix_socket" -t 3 -d 300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
+
+UDP socket path: /tmp/my_unix_socket
+Print each: 1 message(s)
+Workers: 10
+Maximum workers: 40
+Congestion control is disabled
+Prometheus local bind address: 0.0.0.0
+Prometheus local port: 8081
+Client endpoint:
+   Secure connection: false
+   Host:   0.0.0.0
+   Port:   8000
+   Method: GET
+   Uri: http://0.0.0.0:8000/data
+   Path:   data
+   Headers: [content-type: application/json]
+   Body: {"foo":"@{udp}"}
+   Timeout for responses (s): 3
+   Send delay for requests (ms): random in [0,300]
+   Builtin patterns used: @{udp}
+
+
+Waiting for UDP messages ([sequence] <udp data> (<status codes current statistics>)) ...
+^CSignal received: 2
+Wrap-up and exit ...
+
+status codes: 0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 connection errors
 ```
 
 ## Execution with TLS support
@@ -1050,7 +1275,7 @@ Or build native executable and run it from shell:
 
 ```bash
 $> ./build-native.sh # builds executable
-$> ./build/Release/bin/h2agent --verbose # starts executable
+$> build/Release/bin/h2agent --verbose # starts executable
 ```
 
 #### Working in training container
@@ -2076,7 +2301,7 @@ The **target** of information is classified after parsing the following possible
 
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
-- udpSocket.`<path>[.<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided, with an optional delay in milliseconds (if path contains dots, an unexpected delay can be configured and same could happen for the path, so in that case, you must force delay specification by mean adding `.0` or any valid value). The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it.
+- udpSocket.`<path>[.<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided, with an optional delay in milliseconds (if path contains dots, an unexpected delay can be configured and same could happen for the path, so in that case, you must force delay specification by mean adding `.0` or any valid value). The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
 
 - serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
 

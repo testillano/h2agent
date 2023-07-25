@@ -267,11 +267,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  even for complex logic provisioned (admin server hardcodes " << ADMIN_SERVER_WORKER_THREADS << " worker thread(s)).\n"
        << "  It could be increased if hardware concurrency (" << hardwareConcurrency << ") permits a greater margin taking\n"
        << "  into account other process threads considered busy and I/O time spent by server\n"
-       << "  threads.\n\n"
+       << "  threads. When more than 1 worker is configured, a queue dispatcher model starts\n"
+       << "  to process the traffic, and also enables extra features like congestion control.\n\n"
 
        << "[--traffic-server-max-worker-threads <threads>]\n"
        << "  Number of traffic server maximum worker threads; defaults to the number of worker\n"
-       << "  threads but could be a higher number so they will be created when needed.\n\n"
+       << "  threads but could be a higher number so they will be created when needed to extend\n"
+       << "  in real time, the queue dispatcher model capacity.\n\n"
 
 //       << "[-t|--traffic-server-threads <threads>]\n"
 //       << "  Number of nghttp2 traffic server native threads; defaults to 1\n"
@@ -284,9 +286,9 @@ void usage(int rc, const std::string &errorMessage = "")
 //       << "  clients used to send high traffic loads.\n\n"
 
        << "[--traffic-server-queue-dispatcher-max-size <size>]\n"
-       << "  When the traffic server configures more than 1 worker thread, a queue dispatcher\n"
-       << "  will be used to process the traffic scheduling a initial number of threads which\n"
-       << "  could grow up to a maximum value (given by '--traffic-server-max-worker-threads').\n"
+       << "  The queue dispatcher model (which is activated for more than 1 server worker)\n"
+       << "  schedules a initial number of threads which could grow up to a maximum value\n"
+       << "  (given by '--traffic-server-max-worker-threads').\n"
        << "  Optionally, a basic congestion control algorithm can be enabled by mean providing\n"
        << "  a non-negative value to this parameter. When the queue size grows due to lack of\n"
        << "  consumption capacity, a service unavailable error (503) will be answered skipping\n"
@@ -715,7 +717,7 @@ int main(int argc, char* argv[])
     bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && traffic_server_key_password.empty());
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    std::cout << getLocaltime().c_str() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
+    std::cout << getLocaltime() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
@@ -808,7 +810,7 @@ int main(int argc, char* argv[])
     if (myMetrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!myMetrics->serve(bind_address_port_prometheus_exposer)) {
-            std::cerr << getLocaltime().c_str() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
+            std::cerr << getLocaltime() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             myExit(EXIT_FAILURE);
         }
     }
@@ -872,7 +874,7 @@ int main(int argc, char* argv[])
         }
 
         if (!success) {
-            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+            std::cerr << getLocaltime() << ": " << log << std::endl;
         }
     }
 
@@ -892,7 +894,7 @@ int main(int argc, char* argv[])
             }
 
             if (!success) {
-                std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+                std::cerr << getLocaltime() << ": " << log << std::endl;
             }
         }
 
@@ -909,7 +911,7 @@ int main(int argc, char* argv[])
             }
 
             if (!success) {
-                std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+                std::cerr << getLocaltime() << ": " << log << std::endl;
             }
         }
 
@@ -940,7 +942,7 @@ int main(int argc, char* argv[])
         }
 
         if (!success) {
-            std::cerr << getLocaltime().c_str() << ": " << log << std::endl;
+            std::cerr << getLocaltime() << ": " << log << std::endl;
         }
     }
 

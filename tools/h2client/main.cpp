@@ -60,31 +60,31 @@ void usage(int rc, const std::string &errorMessage = "")
 
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
+       << "-u|--uri <value>\n"
+       << " URI to access.\n\n"
+
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
 
-       << "[--verbose]\n"
+       << "[-v|--verbose]\n"
        << "  Output log traces on console.\n\n"
 
-       << "[--timeout <value>]\n"
-       << "  Time in seconds to wait for request response. Defaults to 5.\n\n"
+       << "[-t|--timeout-seconds <value>]\n"
+       << "  Time in seconds to wait for requests response. Defaults to 5.\n\n"
 
-       << "[--method <POST|GET|PUT|DELETE|HEAD>]\n"
+       << "[-m|--method <POST|GET|PUT|DELETE|HEAD>]\n"
        << "  Request method. Defaults to 'GET'.\n\n"
 
        << "[--header <value>]\n"
        << "  Header in the form 'name:value'. This parameter can occur multiple times.\n\n"
 
-       << "[--body <value>]\n"
+       << "[-b|--body <value>]\n"
        << "  Plain text for request body content.\n\n"
 
-       << "--uri <value>\n"
-       << " URI to access.\n\n"
-
-       << "--secure\n"
+       << "[--secure]\n"
        << " Use secure connection.\n\n"
 
-       << "--rc-probe\n"
+       << "[--rc-probe]\n"
        << "  Forwards HTTP status code into equivalent program return code.\n"
        << "  So, any code greater than or equal to 200 and less than 400\n"
        << "  indicates success and will return 0 (1 in other case).\n"
@@ -95,7 +95,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --timeout 1 --uri http://localhost:8000/book/8472098362" << '\n'
+       << "   " << progname << " --timeout-seconds 1 --uri http://localhost:8000/book/8472098362" << '\n'
        << "   " << progname << " --method POST --header \"content-type:application/json\" --body '{\"foo\":\"bar\"}' --uri http://localhost:8000/data" << '\n'
 
        << '\n';
@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    int timeout = 5; // default
+    int secondsTimeout = 5; // default
     std::string method = "GET";
     nghttp2::asio_http2::header_map headers;
     std::string body;
@@ -181,21 +181,24 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--verbose", value))
+    if (cmdOptionExists(argv, argv + argc, "-v", value)
+            || cmdOptionExists(argv, argv + argc, "--verbose", value))
     {
         verbose = true;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--timeout", value))
+    if (cmdOptionExists(argv, argv + argc, "-t", value)
+            || cmdOptionExists(argv, argv + argc, "--timeout-seconds", value))
     {
-        timeout = toNumber(value);
-        if (timeout < 1)
+        secondsTimeout = toNumber(value);
+        if (secondsTimeout < 1)
         {
-            usage(EXIT_FAILURE, "Invalid '--timeout' value. Must be greater than 0.");
+            usage(EXIT_FAILURE, "Invalid '--timeout-seconds' value. Must be greater than 0.");
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--method", method))
+    if (cmdOptionExists(argv, argv + argc, "-m", method)
+            || cmdOptionExists(argv, argv + argc, "--method", value))
     {
         if (method != "POST" && method != "GET" && method != "PUT" && method != "DELETE" && method != "HEAD")
         {
@@ -216,12 +219,14 @@ int main(int argc, char* argv[])
         headers.emplace(hname, nghttp2::asio_http2::header_value{hvalue});
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--body", value))
+    if (cmdOptionExists(argv, argv + argc, "-b", value)
+            || cmdOptionExists(argv, argv + argc, "--body", value))
     {
         body = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--uri", value))
+    if (cmdOptionExists(argv, argv + argc, "-u", value)
+            || cmdOptionExists(argv, argv + argc, "--uri", value))
     {
         uri = value;
     }
@@ -243,12 +248,6 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::verbose(verbose);
 
     if (uri.empty()) usage(EXIT_FAILURE);
-
-    std::cout << "Timeout: " << timeout << '\n';
-    if (headers.size() != 0) std::cout << "Headers: " << ert::http2comm::headersAsString(headers) << '\n';
-    if (!body.empty()) std::cout << "Body: " << body << '\n';
-    std::cout << "Secure connection: " << (secure ? "true":"false") << '\n';
-    std::cout << "Uri: " << uri << '\n';
 
     // Tokenize URI
     std::string authority_path, path;
@@ -285,9 +284,16 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    std::cout << "   Host: " << host << '\n';
-    if (!port.empty()) std::cout << "   Port: " << port << '\n';
-    if (!path.empty()) std::cout << "   Path: " << path << '\n';
+    std::cout << "Client endpoint:" << '\n';
+    std::cout << "   Secure connection: " << (secure ? "true":"false") << '\n';
+    std::cout << "   Host:   " << host << '\n';
+    if (!port.empty()) std::cout << "   Port:   " << port << '\n';
+    std::cout << "   Method: " << method << '\n';
+    std::cout << "   Uri: " << uri << '\n';
+    if (!path.empty()) std::cout << "   Path:   " << path << '\n';
+    if (headers.size() != 0) std::cout << "   Headers: " << ert::http2comm::headersAsString(headers) << '\n';
+    if (!body.empty()) std::cout << "   Body: " << body << '\n';
+    std::cout << "   Timeout for responses (s): " << secondsTimeout << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -295,7 +301,7 @@ int main(int argc, char* argv[])
     // Create client class
     ert::http2comm::Http2Client client("myClient", host, port, secure);
 
-    ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(timeout * 1000));
+    ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(secondsTimeout * 1000));
 
     int status = response.statusCode;
     std::cout << "Response status code: " << status << ((status == -1) ? " (connection error)":"") <<std::endl;
