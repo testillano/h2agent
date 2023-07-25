@@ -68,7 +68,7 @@ TEST_F(SafeSocket_test, SafeSocketWithWriteDelayed)
     socket.write(SafeSocketContent, 5000 /* write delay value */);
 
     // Written after 5000 usecs (5 ms), we wait 50 ms (10x !) to ensure it is written:
-    boost::asio::deadline_timer exitTimer(*timers_io_service_, boost::posix_time::milliseconds(50));
+    boost::asio::steady_timer exitTimer(*timers_io_service_, std::chrono::milliseconds(50));
     exitTimer.async_wait([&] (const boost::system::error_code& e) { timers_io_service_->stop(); });
     timers_thread_->join();
 

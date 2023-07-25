@@ -62,8 +62,8 @@ void SafeSocket::delayedWrite(unsigned int writeDelayUs, const std::string &data
     socket_manager_->incrementObservedDelayedWriteOperationCounter();
 
     //if (!io_service_) return; // protection
-    auto timer = std::make_shared<boost::asio::deadline_timer>(*io_service_, boost::posix_time::microseconds(writeDelayUs));
-    timer->expires_from_now(boost::posix_time::microseconds(writeDelayUs));
+    auto timer = std::make_shared<boost::asio::steady_timer>(*io_service_, std::chrono::microseconds(writeDelayUs));
+    timer->expires_after(std::chrono::microseconds(writeDelayUs));
     timer->async_wait([this, timer, data] (const boost::system::error_code& e) {
         if( e ) return; // probably, we were cancelled (boost::asio::error::operation_aborted)
         write(data);
