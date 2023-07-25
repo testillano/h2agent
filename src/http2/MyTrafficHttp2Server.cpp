@@ -178,8 +178,8 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
         }
 
         LOGINFORMATIONAL(
-        if (receptionId % 5000 == 0) {
-        std::string msg = ert::tracing::Logger::asString("'Current/maximum reached' busy worker threads: %d/%d | QueueDispatcher workers/size/max-size: %d/%d/%d", currentBusyThreads, maxBusyThreads, getQueueDispatcherThreads(), getQueueDispatcherSize(), getQueueDispatcherMaxSize());
+        if (receptionId % 1000 == 0) {
+        std::string msg = ert::tracing::Logger::asString("QueueDispatcher [workers/size/max-size]: %d/%d/%d | Busy workers [current/maximum reached]: %d/%d", getQueueDispatcherThreads(), getQueueDispatcherSize(), getQueueDispatcherMaxSize(), currentBusyThreads, maxBusyThreads);
             ert::tracing::Logger::informational(msg,  ERT_FILE_LOCATION);
         }
         );

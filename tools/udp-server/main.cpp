@@ -48,7 +48,12 @@ SOFTWARE.
 
 #define BUFFER_SIZE 256
 
+
 const char* progname;
+
+// Globals
+int Sockfd{}; // global to allow signal wrapup
+std::string UdpSocketPath{}; // global to allow signal wrapup
 
 ////////////////////////////
 // Command line functions //
@@ -60,17 +65,17 @@ void usage(int rc)
 
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
-       << "--path <value>\n"
+       << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
 
-       << "--print-each <value>\n"
+       << "[-e|--print-each <value>]\n"
        << "  Print messages each specific amount (must be positive). Defaults to 1.\n\n"
 
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --path \"/tmp/my_unix_socket\"" << '\n'
+       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\"" << '\n'
 
        << '\n';
 
@@ -94,8 +99,8 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option,
 void sighndl(int signal)
 {
     std::cout << "Signal received: " << signal << std::endl;
-    //close(sockfd);
-    //unlink(path.c_str());
+    close(Sockfd);
+    unlink(UdpSocketPath.c_str());
     exit(EXIT_FAILURE);
 }
 
@@ -109,7 +114,6 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string path{};
     std::string printEach{};
 
     std::string value;
@@ -120,12 +124,14 @@ int main(int argc, char* argv[])
         usage(EXIT_SUCCESS);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--path", value))
+    if (cmdOptionExists(argv, argv + argc, "-k", value)
+            || cmdOptionExists(argv, argv + argc, "--udp-socket-path", value))
     {
-        path = value;
+        UdpSocketPath = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--print-each", value))
+    if (cmdOptionExists(argv, argv + argc, "-e", value)
+            || cmdOptionExists(argv, argv + argc, "--print-each", value))
     {
         printEach = value;
     }
@@ -133,15 +139,15 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << '\n';
 
-    if (path.empty()) usage(EXIT_FAILURE);
+    if (UdpSocketPath.empty()) usage(EXIT_FAILURE);
     int i_printEach = (printEach.empty() ? 1:atoi(printEach.c_str()));
     if (i_printEach <= 0) usage(EXIT_FAILURE);
 
-    std::cout << "Path: " << path << '\n';
+    std::cout << "Path: " << UdpSocketPath << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
 
-    int sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
+    Sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (Sockfd < 0) {
         perror("Error creating UDP socket !");
         exit(EXIT_FAILURE);
     }
@@ -149,17 +155,17 @@ int main(int argc, char* argv[])
     struct sockaddr_un serverAddr;
     memset(&serverAddr, 0, sizeof(struct sockaddr_un));
     serverAddr.sun_family = AF_UNIX;
-    strcpy(serverAddr.sun_path, path.c_str());
+    strcpy(serverAddr.sun_path, UdpSocketPath.c_str());
 
-    unlink(path.c_str()); // just in case
+    unlink(UdpSocketPath.c_str()); // just in case
 
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);
     signal(SIGINT, sighndl);
 
-    if (bind(sockfd, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un)) < 0) {
+    if (bind(Sockfd, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un)) < 0) {
         perror("Error binding UDP socket !");
-        close(sockfd);
+        close(Sockfd);
         exit(EXIT_FAILURE);
     }
 
@@ -171,7 +177,7 @@ int main(int argc, char* argv[])
     std::cout << std::endl << "Waiting for messages ([sequence] <message>) ..." << '\n';
     int sequence = 1;
     std::string message;
-    while ((bytesRead = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen)) > 0) {
+    while ((bytesRead = recvfrom(Sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen)) > 0) {
 
         buffer[bytesRead] = '\0'; // Agregar terminador nulo al final del texto leído
         message.assign(buffer);
@@ -188,8 +194,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    close(sockfd);
-    unlink(path.c_str());
+    close(Sockfd);
+    unlink(UdpSocketPath.c_str());
 
     exit(EXIT_SUCCESS);
 }
