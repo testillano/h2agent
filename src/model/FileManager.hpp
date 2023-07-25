@@ -62,7 +62,7 @@ namespace model
 class FileManager : public Map<std::string, std::shared_ptr<SafeFile>>
 {
     mutable mutex_t rw_mutex_{};
-    boost::asio::io_service *io_service_{};
+    boost::asio::io_context *io_context_{};
 
     // metrics (will be passed to SafeFile):
     ert::metrics::Metrics *metrics_{};
@@ -81,14 +81,14 @@ public:
     /**
     * File manager class
     *
-    * @param timersIoService timers IO service needed to schedule delayed close operations.
+    * @param timersIoContext timers io context needed to schedule delayed close operations.
     * If you never schedule close operations (@see write) it may be 'nullptr'.
     * @param metrics underlaying reference for SafeFile in order to compute prometheus metrics
     * about I/O operations. It may be 'nullptr' if no metrics are enabled.
     *
     * @see SafeFile
     */
-    FileManager(boost::asio::io_service *timersIoService = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_service_(timersIoService), metrics_(metrics), read_cache_(false) {;}
+    FileManager(boost::asio::io_context *timersIoContext = nullptr, ert::metrics::Metrics *metrics = nullptr) : io_context_(timersIoContext), metrics_(metrics), read_cache_(false) {;}
     ~FileManager() = default;
 
     /**

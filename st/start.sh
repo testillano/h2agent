@@ -71,7 +71,7 @@ Usage: $0 [-h|--help] [-y]
 Examples:
 
 1) Test that h2agent delay timers are managed asynchronously for the worker
-   thread, freeing the tatsuhiro's nghttp2 io service for an specific stream:
+   thread, freeing the tatsuhiro's nghttp2 io context for an specific stream:
 
    $> H2AGENT__RESPONSE_DELAY_MS=1000 H2LOAD__ITERATIONS=100 ./start.sh -y
 

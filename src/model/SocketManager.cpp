@@ -88,7 +88,7 @@ void SocketManager::write(const std::string &path, const std::string &data, unsi
         safeSocket = it->second;
     }
     else {
-        safeSocket = std::make_shared<SafeSocket>(this, path, io_service_);
+        safeSocket = std::make_shared<SafeSocket>(this, path, io_context_);
         add(path, safeSocket);
     }
 

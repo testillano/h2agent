@@ -82,7 +82,7 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
 
 public:
 
-    MyTrafficHttp2Client(const std::string &name, const std::string& host, const std::string& port, bool secure = false, boost::asio::io_service *timersIoService = nullptr /*temporary */):
+    MyTrafficHttp2Client(const std::string &name, const std::string& host, const std::string& port, bool secure = false, boost::asio::io_context *timersIoContext = nullptr /*temporary */):
         ert::http2comm::Http2Client(name, host, port, secure),
         admin_data_(nullptr) {
 

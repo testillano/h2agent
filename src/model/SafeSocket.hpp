@@ -62,7 +62,7 @@ class SafeSocket {
     int socket_;
     struct sockaddr_un server_addr_;
 
-    boost::asio::io_service *io_service_{};
+    boost::asio::io_context *io_context_{};
 
     SocketManager *socket_manager_{};
 
@@ -75,13 +75,13 @@ public:
     *
     * @param socketManager parent reference to socket manager.
     * @param path socket path to write. It could be relative (to execution path) or absolute.
-    * @param timersIoService asio io service which will be used to delay write operations.
+    * @param timersIoContext asio io context which will be used to delay write operations.
     * By default it is not used (if not provided in constructor), so delay is not performed
     * regardless the write delay configured.
     */
     SafeSocket (SocketManager *socketManager,
                 const std::string& path,
-                boost::asio::io_service *timersIoService = nullptr);
+                boost::asio::io_context *timersIoContext = nullptr);
 
     ~SafeSocket() {;}
 

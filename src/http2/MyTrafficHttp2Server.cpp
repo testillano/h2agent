@@ -59,8 +59,8 @@ namespace http2
 {
 
 
-MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService, int maxQueueDispatcherSize):
-    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoService, maxQueueDispatcherSize),
+MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize):
+    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoContext, maxQueueDispatcherSize),
     admin_data_(nullptr) {
 
     server_data_ = true;
