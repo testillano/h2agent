@@ -42,6 +42,7 @@ SOFTWARE.
 #include <signal.h>
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <map>
 #include <thread>
@@ -62,17 +63,21 @@ SOFTWARE.
 
 
 #define BUFFER_SIZE 256
+#define COL1_WIDTH 16 // sequence
+#define COL2_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
+#define COL3_WIDTH 100 // status codes
 
 
 const char* progname;
 
 // Status codes statistics, like h2load:
-// status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx
-std::atomic<unsigned int> CONNECTION_ERRORS{};
+// status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx, 3 timeouts, 0 connection errors
 std::atomic<unsigned int> STATUS_CODES_2xx{};
 std::atomic<unsigned int> STATUS_CODES_3xx{};
 std::atomic<unsigned int> STATUS_CODES_4xx{};
 std::atomic<unsigned int> STATUS_CODES_5xx{};
+std::atomic<unsigned int> TIMEOUTS{};
+std::atomic<unsigned int> CONNECTION_ERRORS{};
 
 // Globals
 std::map<std::string, std::string> PathPatterns{};
@@ -96,13 +101,20 @@ void usage(int rc, const std::string &errorMessage = "")
        << "the '@{udp}' pattern on uri, headers and/or body provided, with the UDP data read.\n"
        << "If data received contains pipes (|), it is also possible to access each part during\n"
        << "parsing procedure through the use of pattern '@{udp.<n>}'.\n"
-       << "To stop the process you can send UDP message 'EOF'.\n\n"
+       << "\n"
+       << "To stop the process you can send UDP message 'EOF'.\n"
+       << "To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.\n\n"
 
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
 
        << "[-e|--print-each <value>]\n"
-       << "  Print UDP receptions each specific amount (must be positive). Defaults to 1.\n\n"
+       << "  Print UDP receptions each specific amount (must be positive). Defaults to 1.\n"
+       << "  Setting datagrams estimated rate should take 1 second/printout and output\n"
+       << "  frequency gives an idea about UDP receptions rhythm.\n"
+       << "\n"
+       << "  Each printout contains the following information:\n"
+       << "     [sequence] <udp data> (? 2xx, ? 3xx, ? 4xx, ? 5xx, ? timeouts, ? connection errors)\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
@@ -110,8 +122,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-v|--verbose]\n"
        << "  Output log traces on console.\n\n"
 
-       << "[-t|--timeout-seconds <value>]\n"
-       << "  Time in seconds to wait for requests response. Defaults to 5.\n\n"
+       << "[-t|--timeout-milliseconds <value>]\n"
+       << "  Time in milliseconds to wait for requests response. Defaults to 5000.\n\n"
 
        << "[-d|--send-delay-milliseconds <value>]\n"
        << "  Time in seconds to delay before sending the request. Defaults to 0.\n"
@@ -151,7 +163,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" -print-each 1000 --timeout-seconds 1 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
+       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
        << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header \"content-type:application/json\" --body '{\"book\":\"@{udp}\"}'" << '\n'
        << '\n'
        << "   To provide body from file, use this trick: --body \"$(jq -c '.' long-body.json)\"" << '\n'
@@ -200,10 +212,11 @@ char **cmdOptionExists(char** begin, char** end, const std::string& option, std:
     return result;
 }
 
-std::string statusCodesAsString() {
+// status codes: 100000 2xx, 0 3xx, 0 4xx, 0 5xx, 3 timeouts, 0 connection errors
+std::string statsAsString() {
     std::stringstream ss;
 
-    ss << STATUS_CODES_2xx << " 2xx, " << STATUS_CODES_3xx << " 3xx, " << STATUS_CODES_4xx << " 4xx, " << STATUS_CODES_5xx << " 5xx, " << CONNECTION_ERRORS << " connection errors";
+    ss << STATUS_CODES_2xx << " 2xx, " << STATUS_CODES_3xx << " 3xx, " << STATUS_CODES_4xx << " 4xx, " << STATUS_CODES_5xx << " 5xx, " << TIMEOUTS << " timeouts, " << CONNECTION_ERRORS << " connection errors";
 
     return ss.str();
 }
@@ -216,13 +229,13 @@ void wrapup() {
     ert::tracing::Logger::terminate();
 
     // Print status codes statistics:
-    std::cout << std::endl << "status codes: " << statusCodesAsString() << std::endl;
+    std::cout << '\n' << "status codes: " << statsAsString() << '\n';
 }
 
 void sighndl(int signal)
 {
-    std::cout << "Signal received: " << signal << std::endl;
-    std::cout << "Wrap-up and exit ..." << std::endl;
+    std::cout << "Signal received: " << signal << '\n';
+    std::cout << "Wrap-up and exit ..." << '\n';
 
     // wrap up
     wrapup();
@@ -317,19 +330,19 @@ class Stream {
     std::string path_{};
     std::string body_{};
     nghttp2::asio_http2::header_map headers_{};
-    int timeout_s_{};
+    int timeout_ms_{};
 
 public:
     Stream(const std::string &data) : data_(data) {;}
 
     // Set HTTP/2 components
-    void setRequest(std::shared_ptr<ert::http2comm::Http2Client> client, const std::string &method, const std::string &path, const std::string &body, nghttp2::asio_http2::header_map &headers, int secondsTimeout) {
+    void setRequest(std::shared_ptr<ert::http2comm::Http2Client> client, const std::string &method, const std::string &path, const std::string &body, nghttp2::asio_http2::header_map &headers, int millisecondsTimeout) {
         client_ = client;
         method_ = method;
         path_ = path;
         body_ = body;
         headers_ = headers;
-        timeout_s_ = secondsTimeout;
+        timeout_ms_ = millisecondsTimeout;
 
         // Main variable @{udp}, and possible parts:
         std::string mainVar = "udp";
@@ -389,14 +402,16 @@ public:
         return result;
     }
 
-    int getSecondsTimeout() const { // No sense to do substitutions
-        return timeout_s_;
+    int getMillisecondsTimeout() const { // No sense to do substitutions
+        return timeout_ms_;
     }
 
     // Process reception
     void process() {
         // Send the request:
-        ert::http2comm::Http2Client::response response = client_->send(getMethod(), getPath(), getBody(), getHeaders(), std::chrono::milliseconds(getSecondsTimeout() * 1000));
+        auto start = std::chrono::high_resolution_clock::now();
+        ert::http2comm::Http2Client::response response = client_->send(getMethod(), getPath(), getBody(), getHeaders(), std::chrono::milliseconds(getMillisecondsTimeout()));
+        auto end = std::chrono::high_resolution_clock::now();
 
         // Log debug the response, and store status codes statistics:
         int status = response.statusCode;
@@ -411,6 +426,9 @@ public:
         }
         else if (status >= 500 && status < 600) {
             STATUS_CODES_5xx++;
+        }
+        else if (status == -2) {
+            TIMEOUTS++;
         }
         else if (status == -1) {
             CONNECTION_ERRORS++;
@@ -434,7 +452,7 @@ int main(int argc, char* argv[])
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
     std::string printEach{};
-    int secondsTimeout = 5; // default
+    int millisecondsTimeout = 5000; // default
     int millisecondsSendDelay = 0; // default
     bool randomSendDelay = false; // default
     std::string method = "GET";
@@ -487,12 +505,12 @@ int main(int argc, char* argv[])
     }
 
     if (cmdOptionExists(argv, argv + argc, "-t", value)
-            || cmdOptionExists(argv, argv + argc, "--timeout-seconds", value))
+            || cmdOptionExists(argv, argv + argc, "--timeout-milliseconds", value))
     {
-        secondsTimeout = toNumber(value);
-        if (secondsTimeout < 1)
+        millisecondsTimeout = toNumber(value);
+        if (millisecondsTimeout < 0)
         {
-            usage(EXIT_FAILURE, "Invalid '--timeout-seconds' value. Must be greater than 0.");
+            usage(EXIT_FAILURE, "Invalid '--timeout-milliseconds' value. Must be greater than 0.");
         }
     }
 
@@ -627,7 +645,7 @@ int main(int argc, char* argv[])
     }
 
     if (host.empty()) {
-        std::cerr << "Invalid URI !" << std::endl;
+        std::cerr << "Invalid URI !" << '\n';
         exit(EXIT_FAILURE);
     }
 
@@ -665,7 +683,7 @@ int main(int argc, char* argv[])
     if (!path.empty()) std::cout << "   Path:   " << path << '\n';
     if (headers.size() != 0) std::cout << "   Headers: " << ert::http2comm::headersAsString(headers) << '\n';
     if (!body.empty()) std::cout << "   Body: " << body << '\n';
-    std::cout << "   Timeout for responses (s): " << secondsTimeout << '\n';
+    std::cout << "   Timeout for responses (ms): " << millisecondsTimeout << '\n';
     std::cout << "   Send delay for requests (ms): ";
     if (randomSendDelay) {
         std::cout << "random in [0," << millisecondsSendDelay << "]" << '\n';
@@ -674,23 +692,21 @@ int main(int argc, char* argv[])
         std::cout << millisecondsSendDelay << '\n';
     }
     std::cout << "   Builtin patterns used:" << (s_builtinPatternsUsed.empty() ? " not detected":s_builtinPatternsUsed) << '\n';
-
-
-    // Flush:
-    std::cout << std::endl;
+    std::cout << '\n';
 
     // Create client class
     auto client = std::make_shared<ert::http2comm::Http2Client>("myClient", host, port, secure);
     if (!client->isConnected()) {
-        std::cerr << "Failed to connect the server. Exiting ..." << std::endl;
+        std::cerr << "Failed to connect the server. Exiting ..." << '\n';
         exit(EXIT_FAILURE);
     }
 
     // Create metrics server
+    std::string bindAddressPortPrometheusExposer{};
     if (!disableMetrics) {
         myMetrics = new ert::metrics::Metrics;
 
-        std::string bindAddressPortPrometheusExposer = prometheusBindAddress + std::string(":") + prometheusPort;
+        bindAddressPortPrometheusExposer = prometheusBindAddress + std::string(":") + prometheusPort;
         if(!myMetrics->serve(bindAddressPortPrometheusExposer)) {
             std::cerr << "Initialization error in prometheus interface (" << bindAddressPortPrometheusExposer << "). Exiting ..." << '\n';
             delete (myMetrics);
@@ -730,8 +746,21 @@ int main(int argc, char* argv[])
     struct sockaddr_un clientAddr;
     socklen_t clientAddrLen;
 
-    std::cout << std::endl << "Waiting for UDP messages ([sequence] <udp data> (<status codes current statistics>)) ..." << '\n';
-    int sequence = 1;
+    std::cout << "Remember:" << '\n';
+    if (!disableMetrics) std::cout << " To get prometheus metrics:       curl http://" << bindAddressPortPrometheusExposer << "/metrics" << '\n';
+    std::cout << " To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
+    std::cout << " To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
+
+    std::cout << '\n';
+    std::cout << '\n';
+    std::cout << "Waiting for UDP messages..." << '\n' << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << "<sequence>"
+              << std::setw(COL2_WIDTH) << std::left << "<udp datagram>"
+              << std::setw(COL3_WIDTH) << std::left << "<accumulated status codes>" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << "__________"
+              << std::setw(COL2_WIDTH) << std::left << "______________"
+              << std::setw(COL3_WIDTH) << std::left << "__________________________" << '\n';
+
     std::string udpData;
 
     // Worker threads:
@@ -746,38 +775,47 @@ int main(int argc, char* argv[])
     }
 
     // While loop to read UDP datagrams:
+    unsigned int sequence{};
     while ((bytesRead = recvfrom(Sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen)) > 0) {
 
         buffer[bytesRead] = '\0'; // Agregar terminador nulo al final del texto leído
         udpData.assign(buffer);
 
-        if (sequence % i_printEach == 0) {
-            std::cout << "[" << sequence << "] " << udpData << " (" << statusCodesAsString() << ")" << std::endl;
-        }
-        sequence++;
-
-        /*
-        // WITHOUT DELAY FEATURE:
-        boost::asio::post(io_ctx, [&]() {
-            auto stream = std::make_shared<Stream>(udpData);
-            stream->setRequest(client, method, path, body, headers, secondsTimeout);
-            stream->process(false, 0);
-        });
-        */
-
-        // WITH DELAY FEATURE:
-        int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
-        auto timer = std::make_shared<boost::asio::steady_timer>(io_ctx, std::chrono::milliseconds(delayMs));
-        timer->async_wait([&, timer] (const boost::system::error_code& e) {
-            auto stream = std::make_shared<Stream>(udpData);
-            stream->setRequest(client, method, path, body, headers, secondsTimeout);
-            stream->process();
-        });
-
         // exit condition:
         if (udpData == "EOF") {
-            std::cout<<  std::endl << "Existing (EOF received) !" << '\n';
+            std::cout<<  '\n' << "Existing (EOF received) !" << '\n';
             break;
+        }
+        else if (udpData == "STATS") {
+            std::cout << std::setw(COL1_WIDTH) << std::left << "-"
+                      << std::setw(COL2_WIDTH) << std::left << "STATS"
+                      << std::setw(COL3_WIDTH) << std::left << statsAsString() << '\n';
+        }
+        else {
+            sequence++;
+            if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
+                std::cout << std::setw(COL1_WIDTH) << std::left << sequence
+                          << std::setw(COL2_WIDTH) << std::left << udpData
+                          << std::setw(COL3_WIDTH) << std::left << statsAsString() << '\n';
+            }
+
+            /*
+            // WITHOUT DELAY FEATURE:
+            boost::asio::post(io_ctx, [&]() {
+                auto stream = std::make_shared<Stream>(udpData);
+                stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
+                stream->process(false, 0);
+            });
+            */
+
+            // WITH DELAY FEATURE:
+            int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
+            auto timer = std::make_shared<boost::asio::steady_timer>(io_ctx, std::chrono::milliseconds(delayMs));
+            timer->async_wait([&, timer] (const boost::system::error_code& e) {
+                auto stream = std::make_shared<Stream>(udpData);
+                stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
+                stream->process();
+            });
         }
     }
 

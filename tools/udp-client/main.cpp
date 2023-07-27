@@ -1,15 +1,14 @@
 /*
- __________________________________________________________
-|                                                          |
-|             _                                            |
-|            | |                                           |
-|   _   _  __| |_ __   __   ___  ___ _ ____   _____ _ __   |
-|  | | | |/ _` | '_ \ |__| / __|/ _ \ '__\ \ / / _ \ '__|  |  SERVER UDP UTILITY TO TEST h2agent UDP messages
-|  | |_| | (_| | |_) |     \__ \  __/ |   \ V /  __/ |     |  Version 0.0.z
-|   \__,_|\__,_| .__/      |___/\___|_|    \_/ \___|_|     |  https://github.com/testillano/h2agent (tools/udp-server)
-|              | |                                         |
-|              |_|                                         |
-|__________________________________________________________|
+ ____________________________________________________
+|             _                 _ _            _     |
+|            | |               | (_)          | |    |
+|   _   _  __| |_ __   __   ___| |_  ___ _ __ | |_   |
+|  | | | |/ _` | '_ \ |__| / __| | |/ _ \ '_ \| __|  |  CLIENT UDP UTILITY TO TEST UDP messages towards udp-server/udp-server-h2client
+|  | |_| | (_| | |_) |    | (__| | |  __/ | | | |_   |  Version 0.0.z
+|   \__,_|\__,_| .__/      \___|_|_|\___|_| |_|\__|  |  https://github.com/testillano/h2agent (tools/udp-client)
+|              | |                                   |
+|              |_|                                   |
+|____________________________________________________|
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
@@ -44,10 +43,12 @@ SOFTWARE.
 // Standard
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <string>
+#include <thread>
+#include <chrono>
 #include <regex>
 
-#define BUFFER_SIZE 256
 #define COL1_WIDTH 16 // sequence
 #define COL2_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
 
@@ -56,13 +57,12 @@ const char* progname;
 
 // Globals
 int Sockfd{}; // global to allow signal wrapup
-std::string UdpSocketPath{}; // global to allow signal wrapup
 
 ////////////////////////////
 // Command line functions //
 ////////////////////////////
 
-void usage(int rc)
+void usage(int rc, const std::string &errorMessage = "")
 {
     auto& ss = (rc == 0) ? std::cout : std::cerr;
 
@@ -71,23 +71,50 @@ void usage(int rc)
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
 
+       << "[--eps <value>]\n"
+       << "  Events per second. Defaults to 1 (negative number means unlimited: depends on your hardware).\n\n"
+
+       << "[-i|--initial <value>]\n"
+       << "  Initial value for datagram. Defaults to 0.\n\n"
+
+       << "[-f|--final <value>]\n"
+       << "  Final value for datagram. Defaults to unlimited.\n\n"
+
        << "[-e|--print-each <value>]\n"
-       << "  Print messages each specific amount (must be positive). Defaults to 1.\n"
-       << "  Setting datagrams estimated rate should take 1 second/printout and output\n"
-       << "  frequency gives an idea about UDP receptions rhythm.\n\n"
+       << "  Print messages each specific amount (must be positive). Defaults to 1000.\n\n"
 
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\"\n\n"
+       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" --eps 3500 --initial 555000000 --final 555999999\n\n"
 
-       << "To stop the process you can send UDP message 'EOF':\n"
-       << "   echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket\n\n"
+       << "To stop the process, just interrupt it.\n"
 
        << '\n';
 
+    if (rc != 0 && !errorMessage.empty())
+    {
+        ss << errorMessage << '\n';
+    }
+
     exit(rc);
+}
+
+unsigned long long int toNumber(const std::string& value)
+{
+    unsigned long long int result = 0;
+
+    try
+    {
+        result = std::stoull(value, nullptr, 10);
+    }
+    catch (...)
+    {
+        usage(EXIT_FAILURE, std::string("Error in number conversion for '" + value + "' !"));
+    }
+
+    return result;
 }
 
 bool cmdOptionExists(char** begin, char** end, const std::string& option,
@@ -108,13 +135,13 @@ void sighndl(int signal)
 {
     std::cout << "Signal received: " << signal << std::endl;
     close(Sockfd);
-    unlink(UdpSocketPath.c_str());
     exit(EXIT_FAILURE);
 }
 
 
 ///////////////////
 // MAIN FUNCTION //
+//
 ///////////////////
 
 int main(int argc, char* argv[])
@@ -122,7 +149,11 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string printEach{};
+    std::string printEach = "1000";
+    std::string udpSocketPath{};
+    unsigned long long int initialValue{};
+    unsigned long long int finalValue = std::numeric_limits<unsigned long long>::max();
+    int eps = 1;
 
     std::string value;
 
@@ -135,7 +166,25 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "-k", value)
             || cmdOptionExists(argv, argv + argc, "--udp-socket-path", value))
     {
-        UdpSocketPath = value;
+        udpSocketPath = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--eps", value))
+    {
+        eps = (int)toNumber(value);
+        if (eps < 0) eps = -1;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-i", value)
+            || cmdOptionExists(argv, argv + argc, "--initial", value))
+    {
+        initialValue = toNumber(value);
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-f", value)
+            || cmdOptionExists(argv, argv + argc, "--final", value))
+    {
+        finalValue = toNumber(value);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-e", value)
@@ -147,13 +196,17 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << '\n';
 
-    if (UdpSocketPath.empty()) usage(EXIT_FAILURE);
+    if (udpSocketPath.empty()) usage(EXIT_FAILURE);
     int i_printEach = (printEach.empty() ? 1:atoi(printEach.c_str()));
     if (i_printEach <= 0) usage(EXIT_FAILURE);
 
-    std::cout << "Path: " << UdpSocketPath << '\n';
+    std::cout << "Path: " << udpSocketPath << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
-    std::cout << std::endl;
+    std::cout << "Range: [" << initialValue << ", " << finalValue << "]\n";
+    std::cout << "Events per second: ";
+    if (eps > 0) std::cout << eps;
+    else std::cout << "unlimited";
+    std::cout << "\n";
 
     Sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (Sockfd < 0) {
@@ -164,47 +217,33 @@ int main(int argc, char* argv[])
     struct sockaddr_un serverAddr;
     memset(&serverAddr, 0, sizeof(struct sockaddr_un));
     serverAddr.sun_family = AF_UNIX;
-    strcpy(serverAddr.sun_path, UdpSocketPath.c_str());
-
-    unlink(UdpSocketPath.c_str()); // just in case
+    strcpy(serverAddr.sun_path, udpSocketPath.c_str());
 
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);
     signal(SIGINT, sighndl);
 
-    if (bind(Sockfd, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un)) < 0) {
-        perror("Error binding UDP socket !");
-        close(Sockfd);
-        exit(EXIT_FAILURE);
-    }
-
-    char buffer[BUFFER_SIZE];
-    ssize_t bytesRead;
-    struct sockaddr_un clientAddr;
-    socklen_t clientAddrLen;
-
-    std::cout << "Remember:" << '\n';
-    std::cout << " To stop process: echo -n EOF | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
-
     std::cout << '\n';
     std::cout << '\n';
-    std::cout << "Waiting for UDP messages..." << '\n' << '\n';
+    std::cout << "Generating UDP messages..." << '\n' << '\n';
     std::cout << std::setw(COL1_WIDTH) << std::left << "<sequence>"
               << std::setw(COL2_WIDTH) << std::left << "<udp datagram>" << '\n';
     std::cout << std::setw(COL1_WIDTH) << std::left << "__________"
               << std::setw(COL2_WIDTH) << std::left << "______________" << '\n';
 
     std::string udpData;
+    int periodUS = 1000000/eps;
 
-    unsigned int sequence{};
-    while ((bytesRead = recvfrom(Sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen)) > 0) {
+    unsigned long long int sequence{};
+    while (true) {
+        udpData = std::to_string(initialValue + sequence);
 
-        buffer[bytesRead] = '\0'; // Agregar terminador nulo al final del texto leído
-        udpData.assign(buffer);
+        if (eps > 0) std::this_thread::sleep_for(std::chrono::microseconds(periodUS));
+        sendto(Sockfd, udpData.c_str(), udpData.length(), 0, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
 
         // exit condition:
-        if (udpData == "EOF") {
-            std::cout<<  '\n' << "Existing (EOF received) !" << '\n';
+        if (initialValue + sequence > finalValue) {
+            std::cout<<  '\n' << "Existing (range covered) !" << '\n';
             break;
         }
         else {
@@ -217,7 +256,6 @@ int main(int argc, char* argv[])
     }
 
     close(Sockfd);
-    unlink(UdpSocketPath.c_str());
 
     exit(EXIT_SUCCESS);
 }

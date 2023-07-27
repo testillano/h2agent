@@ -12,7 +12,9 @@ It is mainly designed for testing, but could even simulate or complement advance
 
 It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
 
-As a brief summary, we could highlight the following features:
+
+
+As a brief **summary**, we could <u>highlight the following features</u>:
 
 * Mock types:
 
@@ -21,9 +23,13 @@ As a brief summary, we could highlight the following features:
 
 * Testing
 
-  * Functional/Component tests.
+  * Functional/Component tests:
   * System tests (KPI, High Load, Robustness).
   * Congestion Control.
+  * Validations:
+    * Optionally tied to provision with machine states.
+    * Sequence validation can be decoupled (order by user preference).
+    * Available traffic history inspection (REST API).
 
 * Traffic protocols
 
@@ -101,6 +107,7 @@ As a brief summary, we could highlight the following features:
   * HTTP/2 client.
   * UDP server.
   * UDP server to trigger active HTTP/2 client requests.
+  * UDP client.
 
 
 
@@ -164,7 +171,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
   ```
 
-  Or any other packaged utility:
+  Or any other packaged utility (if you want to lighten the image size, write your own Dockerfile and get what you need):
 
   ```bash
   $> docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
@@ -176,6 +183,8 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $> docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
   -or-
   $> docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $> docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
@@ -928,8 +937,8 @@ Options:
 [-v|--verbose]
   Output log traces on console.
 
-[-t|--timeout-seconds <value>]
-  Time in seconds to wait for requests response. Defaults to 5.
+[-t|--timeout-milliseconds <value>]
+  Time in milliseconds to wait for requests response. Defaults to 5000.
 
 [-m|--method <POST|GET|PUT|DELETE|HEAD>]
   Request method. Defaults to 'GET'.
@@ -970,7 +979,7 @@ Client endpoint:
    Method: GET
    Uri: http://localhost:8000/book/8472098362
    Path:   book/8472098362
-   Timeout for responses (s): 5
+   Timeout for responses (ms): 5000
 
 
  Response status code: 200
@@ -1002,23 +1011,40 @@ Options:
 
 [-e|--print-each <value>]
   Print messages each specific amount (must be positive). Defaults to 1.
+  Setting datagrams estimated rate should take 1 second/printout and output
+  frequency gives an idea about UDP receptions rhythm.
 
 [-h|--help]
   This help.
 
 Examples:
    udp-server --udp-socket-path "/tmp/my_unix_socket"
+
+To stop the process you can send UDP message 'EOF':
+   echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket
 ```
 
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server --path "/tmp/my_unix_socket"
+$> build/Release/bin/udp-server --udp-socket-path "/tmp/my_unix_socket"
 
 Path: /tmp/my_unix_socket
 Print each: 1 message(s)
 
-Waiting for messages ([sequence] <message>) ...
+Remember:
+ To stop process: echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket
+
+
+Waiting for UDP messages...
+
+<sequence>      <udp datagram>
+__________      ______________
+1               555000000
+2               555000001
+3               555000002
+
+Existing (EOF received) !
 ```
 
 ## Execution of udp-server-h2client utility
@@ -1033,7 +1059,7 @@ echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/my_unix_socket
 The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for ever UDP reception.
 This makes possible coordinate actions between `h2agent` acting as a server, to create outgoing requests linked to its receptions through the UDP channel served in this external tool.
 Powerful parsing capabilities allow to create any kind of request dynamically using patterns `@{udp[.n]}` for uri, headers and body configured.
-Prometheus metrics are also available to measure the HTTP/2 performance towards the remote server (check it by mean, for example: `curl http://localhost:8081/metrics`).
+Prometheus metrics are also available to measure the HTTP/2 performance towards the remote server (check it by mean, for example: `curl http://0.0.0.0:8081/metrics`).
 
 ### Command line
 
@@ -1050,12 +1076,18 @@ the '@{udp}' pattern on uri, headers and/or body provided, with the UDP data rea
 If data received contains pipes (|), it is also possible to access each part during
 parsing procedure through the use of pattern '@{udp.<n>}'.
 To stop the process you can send UDP message 'EOF'.
+To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
 
 -k|--udp-socket-path <value>
   UDP unix socket path.
 
 [-e|--print-each <value>]
   Print UDP receptions each specific amount (must be positive). Defaults to 1.
+  Setting datagrams estimated rate should take 1 second/printout and output
+  frequency gives an idea about UDP receptions rhythm.
+
+  Each printout contains the following information:
+     [sequence] <udp data> (? 2xx, ? 3xx, ? 4xx, ? 5xx, ? timeouts, ? connection errors)
 
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
@@ -1063,8 +1095,8 @@ To stop the process you can send UDP message 'EOF'.
 [-v|--verbose]
   Output log traces on console.
 
-[-t|--timeout-seconds <value>]
-  Time in seconds to wait for requests response. Defaults to 5.
+[-t|--timeout-milliseconds <value>]
+  Time in milliseconds to wait for requests response. Defaults to 5000.
 
 [-d|--send-delay-milliseconds <value>]
   Time in seconds to delay before sending the request. Defaults to 0.
@@ -1104,7 +1136,7 @@ To stop the process you can send UDP message 'EOF'.
   This help.
 
 Examples:
-   udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" -print-each 1000 --timeout-seconds 1 --uri http://0.0.0.0:8000/book/@{udp}
+   udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}
    udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
 
    To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
@@ -1113,7 +1145,7 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server-h2client -k "/tmp/my_unix_socket" -t 3 -d 300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
+$> build/Release/bin/udp-server-h2client -k "/tmp/my_unix_socket" -t 3000 -d 300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
 
 UDP socket path: /tmp/my_unix_socket
 Print each: 1 message(s)
@@ -1131,16 +1163,90 @@ Client endpoint:
    Path:   data
    Headers: [content-type: application/json]
    Body: {"foo":"@{udp}"}
-   Timeout for responses (s): 3
+   Timeout for responses (ms): 3000
    Send delay for requests (ms): random in [0,300]
    Builtin patterns used: @{udp}
 
+Remember:
+ To get prometheus metrics:       curl http://localhost:8081/metrics
+ To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U /tmp/my_unix_socket
+ To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U /tmp/my_unix_socket
 
-Waiting for UDP messages ([sequence] <udp data> (<status codes current statistics>)) ...
-^CSignal received: 2
-Wrap-up and exit ...
 
-status codes: 0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 connection errors
+Waiting for UDP messages...
+
+<sequence>      <udp datagram>                  <accumulated status codes>
+__________      ______________                  __________________________
+1               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+
+Existing (EOF received) !
+
+status codes: 3 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+```
+
+## Execution of udp-client utility
+
+This utility could be useful to test `udp-server`, and specially, `udp-server-h2client` tool.
+You can also use netcat in bash, to generate messages easily, but this tool provide high load.
+This tools generates a monotonically increasing number from initial value provided, until the
+final one is reached.
+
+### Command line
+
+You may take a look to `udp-client` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$> build/Release/bin/udp-client --help
+Usage: udp-client [options]
+
+Options:
+
+-k|--udp-socket-path <value>
+  UDP unix socket path.
+
+[--eps <value>]
+  Events per second. Defaults to 1 (negative number means unlimited: depends on your hardware).
+
+[-i|--initial <value>]
+  Initial value for datagram. Defaults to 0.
+
+[-f|--final <value>]
+  Final value for datagram. Defaults to unlimited.
+
+[-e|--print-each <value>]
+  Print messages each specific amount (must be positive). Defaults to 1000.
+
+[-h|--help]
+  This help.
+
+Examples:
+   udp-client --udp-socket-path "/tmp/my_unix_socket" --eps 3500 --initial 555000000 --final 555999999
+
+To stop the process, just interrupt it.
+```
+
+Execution example:
+
+```bash
+$> build/Release/bin/udp-client --udp-socket-path "/tmp/my_unix_socket"
+
+Path: /tmp/my_unix_socket
+Print each: 1000 message(s)
+Range: [555000000, 555999999]
+Events per second: 3500
+
+
+Generating UDP messages...
+
+<sequence>      <udp datagram>
+__________      ______________
+1               555000000
+1000            555000999
+2000            555001999
+...
+
 ```
 
 ## Execution with TLS support

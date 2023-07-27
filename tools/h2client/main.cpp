@@ -69,8 +69,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-v|--verbose]\n"
        << "  Output log traces on console.\n\n"
 
-       << "[-t|--timeout-seconds <value>]\n"
-       << "  Time in seconds to wait for requests response. Defaults to 5.\n\n"
+       << "[-t|--timeout-milliseconds <value>]\n"
+       << "  Time in milliseconds to wait for requests response. Defaults to 5000.\n\n"
 
        << "[-m|--method <POST|GET|PUT|DELETE|HEAD>]\n"
        << "  Request method. Defaults to 'GET'.\n\n"
@@ -95,7 +95,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --timeout-seconds 1 --uri http://localhost:8000/book/8472098362" << '\n'
+       << "   " << progname << " --timeout-milliseconds 1000 --uri http://localhost:8000/book/8472098362" << '\n'
        << "   " << progname << " --method POST --header \"content-type:application/json\" --body '{\"foo\":\"bar\"}' --uri http://localhost:8000/data" << '\n'
 
        << '\n';
@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    int secondsTimeout = 5; // default
+    int millisecondsTimeout = 5000; // default
     std::string method = "GET";
     nghttp2::asio_http2::header_map headers;
     std::string body;
@@ -188,12 +188,12 @@ int main(int argc, char* argv[])
     }
 
     if (cmdOptionExists(argv, argv + argc, "-t", value)
-            || cmdOptionExists(argv, argv + argc, "--timeout-seconds", value))
+            || cmdOptionExists(argv, argv + argc, "--timeout-milliseconds", value))
     {
-        secondsTimeout = toNumber(value);
-        if (secondsTimeout < 1)
+        millisecondsTimeout = toNumber(value);
+        if (millisecondsTimeout < 0)
         {
-            usage(EXIT_FAILURE, "Invalid '--timeout-seconds' value. Must be greater than 0.");
+            usage(EXIT_FAILURE, "Invalid '--timeout-milliseconds' value. Must be greater than 0.");
         }
     }
 
@@ -293,7 +293,7 @@ int main(int argc, char* argv[])
     if (!path.empty()) std::cout << "   Path:   " << path << '\n';
     if (headers.size() != 0) std::cout << "   Headers: " << ert::http2comm::headersAsString(headers) << '\n';
     if (!body.empty()) std::cout << "   Body: " << body << '\n';
-    std::cout << "   Timeout for responses (s): " << secondsTimeout << '\n';
+    std::cout << "   Timeout for responses (ms): " << millisecondsTimeout << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -301,7 +301,7 @@ int main(int argc, char* argv[])
     // Create client class
     ert::http2comm::Http2Client client("myClient", host, port, secure);
 
-    ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(secondsTimeout * 1000));
+    ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(millisecondsTimeout));
 
     int status = response.statusCode;
     std::cout << "Response status code: " << status << ((status == -1) ? " (connection error)":"") <<std::endl;
