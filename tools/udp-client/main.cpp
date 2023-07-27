@@ -232,18 +232,18 @@ int main(int argc, char* argv[])
               << std::setw(COL2_WIDTH) << std::left << "______________" << '\n';
 
     std::string udpData;
-    int periodUS = 1000000/eps;
+    int periodNS = 1000000000/eps;
 
     unsigned long long int sequence{};
-    while (true) {
-        udpData = std::to_string(initialValue + sequence);
+    auto startTimeNS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
 
-        if (eps > 0) std::this_thread::sleep_for(std::chrono::microseconds(periodUS));
-        sendto(Sockfd, udpData.c_str(), udpData.length(), 0, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
+    while (true) {
+
+        udpData = std::to_string(initialValue + sequence);
 
         // exit condition:
         if (initialValue + sequence > finalValue) {
-            std::cout<<  '\n' << "Existing (range covered) !" << '\n';
+            std::cout << '\n' << "Existing (range covered) !" << '\n';
             break;
         }
         else {
@@ -252,6 +252,16 @@ int main(int argc, char* argv[])
                 std::cout << std::setw(COL1_WIDTH) << std::left << sequence
                           << std::setw(COL2_WIDTH) << std::left << udpData << '\n';
             }
+        }
+
+        sendto(Sockfd, udpData.c_str(), udpData.length(), 0, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
+
+        // Adjust time:
+        //std::this_thread::sleep_for(std::chrono::nanoseconds(periodNS)); // this is not accurate
+        if (eps > 0) {
+            auto futureTimeNS = startTimeNS + std::chrono::nanoseconds(periodNS * sequence);
+            auto elapsedNS = std::chrono::duration_cast<std::chrono::nanoseconds>(futureTimeNS - std::chrono::system_clock::now().time_since_epoch());
+            std::this_thread::sleep_for(std::chrono::nanoseconds(elapsedNS));
         }
     }
 
