@@ -35,6 +35,7 @@ RUN ln -s /opt/h2client
 RUN ln -s /opt/matching-helper
 RUN ln -s /opt/arashpartow-helper
 RUN ln -s /opt/udp-server
+RUN ln -s /opt/udp-client
 
 ENTRYPOINT ["sleep", "infinity"]
 CMD []

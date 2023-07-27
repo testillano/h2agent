@@ -35,6 +35,14 @@
 │   ├── CMakeLists.txt
 │   ├── Makefile
 │   └── main.cpp
+├── udp-server-h2client
+│   ├── CMakeLists.txt
+│   ├── Makefile
+│   └── main.cpp
+├── udp-client
+│   ├── CMakeLists.txt
+│   ├── Makefile
+│   └── main.cpp
 ├── play-grafana.sh
 ├── schemas.sh
 ├── ssl
@@ -54,7 +62,9 @@
 * play-h2agent: examples and a guide through them (`play.sh`).
 * matching-helper: c++ utility to test regular expressions as a configuration helper.
 * arashpartow-helper: c++ utility to test Arash-Partow math expressions.
-* udp-server: c++ utility to test UDP messages written by `h2agent` by mean `UDPSocket` target.
+* udp-server: c++ utility to test UDP messages written by `h2agent` by mean `UDPSocket` target (or any other process writting the socket).
+* udp-server-h2client: c++ utility which acts as a udp-server that also triggers requests towards HTTP/2 server.
+* udp-client: c++ utility to generate UDP datagrams.
 * play-grafana.sh: prometheus server and grafana deployment to provide an `h2agent` metrics front-end.
 * schemas.sh: shows all the schemas available (also requests schema if configured).
 * ssl: utilities to create certificates and test the server with tls/ssl enabled.
