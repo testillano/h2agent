@@ -139,7 +139,7 @@ int getThreadCount() {
 }
 */
 
-std::string getLocaltime()
+std::string currentDateTime()
 {
     std::string result;
 
@@ -160,20 +160,20 @@ void stopAgent()
     if (myTimersIoContext)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
-                       "Stopping h2agent timers service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+                       "Stopping h2agent timers service at %s", currentDateTime().c_str()), ERT_FILE_LOCATION));
         myTimersIoContext->stop();
     }
     if (myAdminHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
-                       "Stopping h2agent admin service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+                       "Stopping h2agent admin service at %s", currentDateTime().c_str()), ERT_FILE_LOCATION));
         myAdminHttp2Server->stop();
     }
 
     if (myTrafficHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
-                       "Stopping h2agent traffic service at %s", getLocaltime().c_str()), ERT_FILE_LOCATION));
+                       "Stopping h2agent traffic service at %s", currentDateTime().c_str()), ERT_FILE_LOCATION));
         myTrafficHttp2Server->stop();
     }
 
@@ -717,7 +717,7 @@ int main(int argc, char* argv[])
     bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && traffic_server_key_password.empty());
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    std::cout << getLocaltime() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
+    std::cout << currentDateTime() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
@@ -810,7 +810,7 @@ int main(int argc, char* argv[])
     if (myMetrics) {
         std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!myMetrics->serve(bind_address_port_prometheus_exposer)) {
-            std::cerr << getLocaltime() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
+            std::cerr << currentDateTime() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             myExit(EXIT_FAILURE);
         }
     }
@@ -874,7 +874,7 @@ int main(int argc, char* argv[])
         }
 
         if (!success) {
-            std::cerr << getLocaltime() << ": " << log << std::endl;
+            std::cerr << currentDateTime() << ": " << log << std::endl;
         }
     }
 
@@ -894,7 +894,7 @@ int main(int argc, char* argv[])
             }
 
             if (!success) {
-                std::cerr << getLocaltime() << ": " << log << std::endl;
+                std::cerr << currentDateTime() << ": " << log << std::endl;
             }
         }
 
@@ -911,7 +911,7 @@ int main(int argc, char* argv[])
             }
 
             if (!success) {
-                std::cerr << getLocaltime() << ": " << log << std::endl;
+                std::cerr << currentDateTime() << ": " << log << std::endl;
             }
         }
 
@@ -942,7 +942,7 @@ int main(int argc, char* argv[])
         }
 
         if (!success) {
-            std::cerr << getLocaltime() << ": " << log << std::endl;
+            std::cerr << currentDateTime() << ": " << log << std::endl;
         }
     }
 

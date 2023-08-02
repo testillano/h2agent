@@ -42,6 +42,7 @@ SOFTWARE.
 #include <signal.h>
 
 #include <iostream>
+#include <ctime>
 #include <iomanip>
 #include <string>
 #include <map>
@@ -63,9 +64,10 @@ SOFTWARE.
 
 
 #define BUFFER_SIZE 256
-#define COL1_WIDTH 16 // sequence
-#define COL2_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
-#define COL3_WIDTH 100 // status codes
+#define COL1_WIDTH 36 // date time and microseconds
+#define COL2_WIDTH 16 // sequence
+#define COL3_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
+#define COL4_WIDTH 100 // status codes
 
 
 const char* progname;
@@ -111,10 +113,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-e|--print-each <value>]\n"
        << "  Print UDP receptions each specific amount (must be positive). Defaults to 1.\n"
        << "  Setting datagrams estimated rate should take 1 second/printout and output\n"
-       << "  frequency gives an idea about UDP receptions rhythm.\n"
-       << "\n"
-       << "  Each printout contains the following information:\n"
-       << "     [sequence] <udp data> (? 2xx, ? 3xx, ? 4xx, ? 5xx, ? timeouts, ? connection errors)\n\n"
+       << "  frequency gives an idea about UDP receptions rhythm.\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
@@ -163,8 +162,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
-       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header \"content-type:application/json\" --body '{\"book\":\"@{udp}\"}'" << '\n'
+       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
+       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header \"content-type:application/json\" --body '{\"book\":\"@{udp}\"}'" << '\n'
        << '\n'
        << "   To provide body from file, use this trick: --body \"$(jq -c '.' long-body.json)\"" << '\n'
 
@@ -451,7 +450,7 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string printEach{};
+    int i_printEach = 1; // default
     int millisecondsTimeout = 5000; // default
     int millisecondsSendDelay = 0; // default
     bool randomSendDelay = false; // default
@@ -486,7 +485,8 @@ int main(int argc, char* argv[])
     if (cmdOptionExists(argv, argv + argc, "-e", value)
             || cmdOptionExists(argv, argv + argc, "--print-each", value))
     {
-        printEach = value;
+        i_printEach = atoi(value.c_str());
+        if (i_printEach <= 0) usage(EXIT_FAILURE);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-l", value)
@@ -526,7 +526,7 @@ int main(int argc, char* argv[])
     }
 
     if (cmdOptionExists(argv, argv + argc, "-m", method)
-            || cmdOptionExists(argv, argv + argc, "--method", value))
+            || cmdOptionExists(argv, argv + argc, "--method", method))
     {
         if (method != "POST" && method != "GET" && method != "PUT" && method != "DELETE" && method != "HEAD")
         {
@@ -592,11 +592,11 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::verbose(verbose);
 
     if (UdpSocketPath.empty()) usage(EXIT_FAILURE);
-    int i_printEach = (printEach.empty() ? 1:atoi(printEach.c_str()));
-    if (i_printEach <= 0) usage(EXIT_FAILURE);
     if (uri.empty()) usage(EXIT_FAILURE);
 
     std::cout << "UDP socket path: " << UdpSocketPath << '\n';
+    std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
+    std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
     bool disableMetrics = (prometheusPort == "-1");
 
@@ -697,8 +697,7 @@ int main(int argc, char* argv[])
     // Create client class
     auto client = std::make_shared<ert::http2comm::Http2Client>("myClient", host, port, secure);
     if (!client->isConnected()) {
-        std::cerr << "Failed to connect the server. Exiting ..." << '\n';
-        exit(EXIT_FAILURE);
+        std::cerr << "WARNING: failed to connect the server. This will be done later in lazy mode ..." << '\n' << '\n';
     }
 
     // Create metrics server
@@ -754,12 +753,14 @@ int main(int argc, char* argv[])
     std::cout << '\n';
     std::cout << '\n';
     std::cout << "Waiting for UDP messages..." << '\n' << '\n';
-    std::cout << std::setw(COL1_WIDTH) << std::left << "<sequence>"
-              << std::setw(COL2_WIDTH) << std::left << "<udp datagram>"
-              << std::setw(COL3_WIDTH) << std::left << "<accumulated status codes>" << '\n';
-    std::cout << std::setw(COL1_WIDTH) << std::left << "__________"
-              << std::setw(COL2_WIDTH) << std::left << "______________"
-              << std::setw(COL3_WIDTH) << std::left << "__________________________" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << "<timestamp>"
+              << std::setw(COL2_WIDTH) << std::left << "<sequence>"
+              << std::setw(COL3_WIDTH) << std::left << "<udp datagram>"
+              << std::setw(COL4_WIDTH) << std::left << "<accumulated status codes>" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << std::string(COL1_WIDTH-1, '_')
+              << std::setw(COL2_WIDTH) << std::left << std::string(COL2_WIDTH-1, '_')
+              << std::setw(COL3_WIDTH) << std::left << std::string(COL3_WIDTH-1, '_')
+              << std::setw(COL4_WIDTH) << std::left << std::string(COL4_WIDTH-1, '_') << '\n';
 
     std::string udpData;
 
@@ -788,15 +789,17 @@ int main(int argc, char* argv[])
         }
         else if (udpData == "STATS") {
             std::cout << std::setw(COL1_WIDTH) << std::left << "-"
-                      << std::setw(COL2_WIDTH) << std::left << "STATS"
-                      << std::setw(COL3_WIDTH) << std::left << statsAsString() << '\n';
+                      << std::setw(COL2_WIDTH) << std::left << "-"
+                      << std::setw(COL3_WIDTH) << std::left << "STATS"
+                      << std::setw(COL4_WIDTH) << std::left << statsAsString() << '\n';
         }
         else {
             sequence++;
             if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
-                std::cout << std::setw(COL1_WIDTH) << std::left << sequence
-                          << std::setw(COL2_WIDTH) << std::left << udpData
-                          << std::setw(COL3_WIDTH) << std::left << statsAsString() << '\n';
+                std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
+                          << std::setw(COL2_WIDTH) << std::left << sequence
+                          << std::setw(COL3_WIDTH) << std::left << udpData
+                          << std::setw(COL4_WIDTH) << std::left << statsAsString() << '\n';
             }
 
             /*
