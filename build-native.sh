@@ -15,12 +15,12 @@ STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57
 nghttp2_ver=1.48.0
 boost_ver=1.76.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
 ert_nghttp2_ver=v1.2.3 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
-ert_logger_ver=v1.0.10
-ert_queuedispatcher_ver=v1.0.2
+ert_logger_ver=v1.1.0
+ert_queuedispatcher_ver=v1.0.3
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
-ert_metrics_ver=v1.0.2
-ert_http2comm_ver=v2.1.1
+ert_metrics_ver=v1.0.3
+ert_http2comm_ver=v2.1.2
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)

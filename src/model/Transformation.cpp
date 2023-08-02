@@ -264,13 +264,14 @@ bool Transformation::load(const nlohmann::json &j) {
         source_type_ = SourceType::Random;
     }
     else if (std::regex_match(sourceSpec, matches, randomSet)) { // random set given by tokenized pipe-separated list of values
-        source_ = matches.str(1);
+        source_ = matches.str(1) + "|"; // add pipe, just to allow getting empty part after trailing pipe ("foo|" => 'foo' ''), because the algorithm below ignores latest pipe and its trailing token.
         static std::regex pipedRgx(R"(\|)", std::regex::optimize);
         source_tokenized_ = std::vector<std::string>(
                                 std::sregex_token_iterator{begin(source_), end(source_), pipedRgx, -1},
                                 std::sregex_token_iterator{}
                             );
         source_type_ = SourceType::RandomSet;
+        source_.pop_back(); // remove added pipe
     }
     else if (std::regex_match(sourceSpec, matches, timestamp)) { // unit (s: seconds, ms: milliseconds, us: microseconds, ns: nanoseconds)
         source_ = matches.str(1);
@@ -618,6 +619,14 @@ std::string Transformation::asString() const {
         }
         else if (source_type_ == SourceType::Random) {
             ss << " | source_i1_: " << source_i1_ << " (Random min)" << " | source_i2_: " << source_i2_ << " (Random max)";
+        }
+        else if (source_type_ == SourceType::RandomSet || source_type_ == SourceType::ServerEvent) {
+            ss << " | source_tokenized_:";
+            for(auto it: source_tokenized_) {
+                ss<< " '" ;
+                ss << it;
+                ss << "'";
+            }
         }
         else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::SBinFile) {
             ss << " (path file)";

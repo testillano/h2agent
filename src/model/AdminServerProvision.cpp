@@ -1175,6 +1175,7 @@ void AdminServerProvision::loadTransformation(const nlohmann::json &j) {
 
     if (transformation->load(j)) {
         transformations_.push_back(transformation);
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Loaded transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
     }
     else {
         ert::tracing::Logger::error("Discarded transform item due to incoherent data", ERT_FILE_LOCATION);

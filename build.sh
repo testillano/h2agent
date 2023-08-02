@@ -17,7 +17,7 @@ nlohmann_json_ver__dflt=v3.10.5
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.11.0
 # arash partow version is quite frozen
-ert_multipart_ver__dflt=v1.0.1
+ert_multipart_ver__dflt=v1.0.2
 registry=ghcr.io/testillano
 
 #############

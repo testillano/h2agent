@@ -42,6 +42,7 @@ SOFTWARE.
 
 // Standard
 #include <iostream>
+#include <ctime>
 #include <iomanip>
 #include <limits>
 #include <string>
@@ -49,8 +50,12 @@ SOFTWARE.
 #include <chrono>
 #include <regex>
 
-#define COL1_WIDTH 16 // sequence
-#define COL2_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
+#include <ert/tracing/Logger.hpp> // getLocaltime()
+
+#define COL1_WIDTH 36 // date time and microseconds
+#define COL2_WIDTH 10 // relative seconds from beginning
+#define COL3_WIDTH 16 // sequence
+#define COL4_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
 
 
 const char* progname;
@@ -72,7 +77,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  UDP unix socket path.\n\n"
 
        << "[--eps <value>]\n"
-       << "  Events per second. Defaults to 1 (negative number means unlimited: depends on your hardware).\n\n"
+       << "  Events per second. Floats are allowed (0.016667 would mean 1 tick per minute),\n"
+       << "  negative number means unlimited (depends on your hardware) and 0 is prohibited.\n"
+       << "  Defaults to 1.\n\n"
 
        << "[-i|--initial <value>]\n"
        << "  Initial value for datagram. Defaults to 0.\n\n"
@@ -80,14 +87,18 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-f|--final <value>]\n"
        << "  Final value for datagram. Defaults to unlimited.\n\n"
 
+       << "[-p|--pattern <value>]\n"
+       << "  Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.\n\n"
+
        << "[-e|--print-each <value>]\n"
-       << "  Print messages each specific amount (must be positive). Defaults to 1000.\n\n"
+       << "  Print messages each specific amount (must be positive). Defaults to 1.\n\n"
 
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\" --eps 3500 --initial 555000000 --final 555999999\n\n"
+       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket --eps 3500 --initial 555000000 --final 555999999 --pattern \"foo/bar/@{seq}\"\n"
+       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server\n\n"
 
        << "To stop the process, just interrupt it.\n"
 
@@ -101,13 +112,29 @@ void usage(int rc, const std::string &errorMessage = "")
     exit(rc);
 }
 
-unsigned long long int toNumber(const std::string& value)
+unsigned long long int toLong(const std::string& value)
 {
     unsigned long long int result = 0;
 
     try
     {
-        result = std::stoull(value, nullptr, 10);
+        result = std::stoull(value);
+    }
+    catch (...)
+    {
+        usage(EXIT_FAILURE, std::string("Error in number conversion for '" + value + "' !"));
+    }
+
+    return result;
+}
+
+double toDouble(const std::string& value)
+{
+    double result = 0;
+
+    try
+    {
+        result = std::stod(value);
     }
     catch (...)
     {
@@ -149,11 +176,12 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string printEach = "1000";
+    int i_printEach = 1; // default
     std::string udpSocketPath{};
     unsigned long long int initialValue{};
     unsigned long long int finalValue = std::numeric_limits<unsigned long long>::max();
-    int eps = 1;
+    std::string pattern = "@{seq}";
+    double eps = 1.0;
 
     std::string value;
 
@@ -171,38 +199,44 @@ int main(int argc, char* argv[])
 
     if (cmdOptionExists(argv, argv + argc, "--eps", value))
     {
-        eps = (int)toNumber(value);
-        if (eps < 0) eps = -1;
+        eps = toDouble(value);
+        if (eps == 0) usage(EXIT_FAILURE);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-i", value)
             || cmdOptionExists(argv, argv + argc, "--initial", value))
     {
-        initialValue = toNumber(value);
+        initialValue = toLong(value);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-f", value)
             || cmdOptionExists(argv, argv + argc, "--final", value))
     {
-        finalValue = toNumber(value);
+        finalValue = toLong(value);
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-p", value)
+            || cmdOptionExists(argv, argv + argc, "--pattern", value))
+    {
+        pattern = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-e", value)
             || cmdOptionExists(argv, argv + argc, "--print-each", value))
     {
-        printEach = value;
+        i_printEach = atoi(value.c_str());
+        if (i_printEach <= 0) usage(EXIT_FAILURE);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << '\n';
 
     if (udpSocketPath.empty()) usage(EXIT_FAILURE);
-    int i_printEach = (printEach.empty() ? 1:atoi(printEach.c_str()));
-    if (i_printEach <= 0) usage(EXIT_FAILURE);
 
     std::cout << "Path: " << udpSocketPath << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
     std::cout << "Range: [" << initialValue << ", " << finalValue << "]\n";
+    std::cout << "Pattern: " << pattern << "\n";
     std::cout << "Events per second: ";
     if (eps > 0) std::cout << eps;
     else std::cout << "unlimited";
@@ -226,20 +260,33 @@ int main(int argc, char* argv[])
     std::cout << '\n';
     std::cout << '\n';
     std::cout << "Generating UDP messages..." << '\n' << '\n';
-    std::cout << std::setw(COL1_WIDTH) << std::left << "<sequence>"
-              << std::setw(COL2_WIDTH) << std::left << "<udp datagram>" << '\n';
-    std::cout << std::setw(COL1_WIDTH) << std::left << "__________"
-              << std::setw(COL2_WIDTH) << std::left << "______________" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << "<timestamp>"
+              << std::setw(COL2_WIDTH) << std::left << "<time(s)>"
+              << std::setw(COL3_WIDTH) << std::left << "<sequence>"
+              << std::setw(COL4_WIDTH) << std::left << "<udp datagram>" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << std::string(COL1_WIDTH-1, '_')
+              << std::setw(COL2_WIDTH) << std::left << std::string(COL2_WIDTH-1, '_')
+              << std::setw(COL3_WIDTH) << std::left << std::string(COL3_WIDTH-1, '_')
+              << std::setw(COL4_WIDTH) << std::left << std::string(COL4_WIDTH-1, '_') << '\n';
 
-    std::string udpData;
-    int periodNS = 1000000000/eps;
+    std::string udpDataSeq{}, udpData{};
+    std::string::size_type pos = 0u;
+    std::string from = "@{seq}";
+    long long int periodNS = (long long int)(1000000000.0/eps);
 
     unsigned long long int sequence{};
     auto startTimeNS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
 
     while (true) {
 
-        udpData = std::to_string(initialValue + sequence);
+        udpDataSeq = std::to_string(initialValue + sequence);
+        udpData = pattern;
+        // search/replace @{seq} by 'udpDataSeq':
+        pos = 0u;
+        while((pos = udpData.find(from, pos)) != std::string::npos) {
+            udpData.replace(pos, from.length(), udpDataSeq);
+            pos += udpDataSeq.length();
+        }
 
         // exit condition:
         if (initialValue + sequence > finalValue) {
@@ -249,8 +296,10 @@ int main(int argc, char* argv[])
         else {
             sequence++;
             if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
-                std::cout << std::setw(COL1_WIDTH) << std::left << sequence
-                          << std::setw(COL2_WIDTH) << std::left << udpData << '\n';
+                std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
+                          << std::setw(COL2_WIDTH) << std::left << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch() - startTimeNS).count()
+                          << std::setw(COL3_WIDTH) << std::left << sequence
+                          << std::setw(COL4_WIDTH) << std::left << udpData << '\n';
             }
         }
 

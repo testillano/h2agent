@@ -85,13 +85,14 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * User-defined machine state (FSM).
   * Internal events system (data extraction from past events).
   * Global variables.
-  * File system operation.
-  * UDP writing operation.
+  * File system operations.
+  * UDP writing operations.
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
     * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, global variables, constant values, input state (working state), events, files (read).
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints.
     * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), unix socket UDP (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+  * Multipart support.
 
 * Training:
 
@@ -1018,7 +1019,7 @@ Options:
   This help.
 
 Examples:
-   udp-server --udp-socket-path "/tmp/my_unix_socket"
+   udp-server --udp-socket-path /tmp/my_unix_socket
 
 To stop the process you can send UDP message 'EOF':
    echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket
@@ -1027,7 +1028,7 @@ To stop the process you can send UDP message 'EOF':
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server --udp-socket-path "/tmp/my_unix_socket"
+$> build/Release/bin/udp-server --udp-socket-path /tmp/my_unix_socket
 
 Path: /tmp/my_unix_socket
 Print each: 1 message(s)
@@ -1038,11 +1039,11 @@ Remember:
 
 Waiting for UDP messages...
 
-<sequence>      <udp datagram>
-__________      ______________
-1               555000000
-2               555000001
-3               555000002
+<timestamp>                         <sequence>      <udp datagram>
+___________________________________ _______________ _______________________________
+2023-08-02 19:16:36.340339 GMT      1               555000000
+2023-08-02 19:16:37.340441 GMT      2               555000001
+2023-08-02 19:16:38.340656 GMT      3               555000002
 
 Existing (EOF received) !
 ```
@@ -1075,6 +1076,7 @@ UDP server will trigger one HTTP/2 request for every reception, replacing option
 the '@{udp}' pattern on uri, headers and/or body provided, with the UDP data read.
 If data received contains pipes (|), it is also possible to access each part during
 parsing procedure through the use of pattern '@{udp.<n>}'.
+
 To stop the process you can send UDP message 'EOF'.
 To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
 
@@ -1085,9 +1087,6 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
   Print UDP receptions each specific amount (must be positive). Defaults to 1.
   Setting datagrams estimated rate should take 1 second/printout and output
   frequency gives an idea about UDP receptions rhythm.
-
-  Each printout contains the following information:
-     [sequence] <udp data> (? 2xx, ? 3xx, ? 4xx, ? 5xx, ? timeouts, ? connection errors)
 
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
@@ -1136,8 +1135,8 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
   This help.
 
 Examples:
-   udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}
-   udp-server-h2client --udp-socket-path "/tmp/my_unix_socket" --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
+   udp-server-h2client --udp-socket-path /tmp/my_unix_socket -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}
+   udp-server-h2client --udp-socket-path /tmp/my_unix_socket --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
 
    To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
 ```
@@ -1145,10 +1144,12 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server-h2client -k "/tmp/my_unix_socket" -t 3000 -d 300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
+$> build/Release/bin/udp-server-h2client -k /tmp/my_unix_socket -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
 
 UDP socket path: /tmp/my_unix_socket
 Print each: 1 message(s)
+Log level: Warning
+Verbose (stdout): false
 Workers: 10
 Maximum workers: 40
 Congestion control is disabled
@@ -1175,11 +1176,11 @@ Remember:
 
 Waiting for UDP messages...
 
-<sequence>      <udp datagram>                  <accumulated status codes>
-__________      ______________                  __________________________
-1               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
-2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
-3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+<timestamp>                         <sequence>      <udp datagram>                  <accumulated status codes>
+___________________________________ _______________ _______________________________ ___________________________________________________________
+2023-08-02 19:16:36.340339 GMT      1               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:37.340441 GMT      2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:38.340656 GMT      3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 
 Existing (EOF received) !
 
@@ -1207,7 +1208,9 @@ Options:
   UDP unix socket path.
 
 [--eps <value>]
-  Events per second. Defaults to 1 (negative number means unlimited: depends on your hardware).
+  Events per second. Floats are allowed (0.016667 would mean 1 tick per minute),
+  negative number means unlimited (depends on your hardware) and 0 is prohibited.
+  Defaults to 1.
 
 [-i|--initial <value>]
   Initial value for datagram. Defaults to 0.
@@ -1215,14 +1218,18 @@ Options:
 [-f|--final <value>]
   Final value for datagram. Defaults to unlimited.
 
+[-p|--pattern <value>]
+  Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.
+
 [-e|--print-each <value>]
-  Print messages each specific amount (must be positive). Defaults to 1000.
+  Print messages each specific amount (must be positive). Defaults to 1.
 
 [-h|--help]
   This help.
 
 Examples:
-   udp-client --udp-socket-path "/tmp/my_unix_socket" --eps 3500 --initial 555000000 --final 555999999
+   udp-client --udp-socket-path /tmp/my_unix_socket --eps 3500 --initial 555000000 --final 555999999 --pattern "foo/bar/@{seq}"
+   udp-client --udp-socket-path /tmp/my_unix_socket --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server
 
 To stop the process, just interrupt it.
 ```
@@ -1230,21 +1237,22 @@ To stop the process, just interrupt it.
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-client --udp-socket-path "/tmp/my_unix_socket"
+$> build/Release/bin/udp-client --udp-socket-path /tmp/my_unix_socket --eps 1000 --initial 555000000 --print-each 1000
 
 Path: /tmp/my_unix_socket
-Print each: 1000 message(s)
-Range: [555000000, 555999999]
-Events per second: 3500
+Print each: 1 message(s)
+Range: [0, 18446744073709551615]
+Pattern: @{seq}
+Events per second: 1000
 
 
 Generating UDP messages...
 
-<sequence>      <udp datagram>
-__________      ______________
-1               555000000
-1000            555000999
-2000            555001999
+<timestamp>                         <time(s)> <sequence>      <udp datagram>
+___________________________________ _________ _______________ _______________________________
+2023-08-02 19:16:36.340339 GMT      0         1               555000000
+2023-08-02 19:16:37.340441 GMT      1         1000            555000999
+2023-08-02 19:16:38.340656 GMT      2         2000            555001999
 ...
 
 ```
@@ -2238,7 +2246,7 @@ The **source** of information is classified after parsing the following possible
 
 - random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
-- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
+- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**. Note that both leading and trailing pipes would add empty parts (`'|foo|bar'`, `'foo|bar|'` and `'foo||bar'` become three parts, `'foo'`, `'bar'` and empty string).
 
 - timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
 

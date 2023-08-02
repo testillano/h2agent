@@ -43,13 +43,18 @@ SOFTWARE.
 
 // Standard
 #include <iostream>
+#include <ctime>
 #include <iomanip>
 #include <string>
 #include <regex>
+#include <chrono>
+
+#include <ert/tracing/Logger.hpp> // getLocaltime()
 
 #define BUFFER_SIZE 256
-#define COL1_WIDTH 16 // sequence
-#define COL2_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
+#define COL1_WIDTH 36 // date time and microseconds
+#define COL2_WIDTH 16 // sequence
+#define COL3_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
 
 
 const char* progname;
@@ -80,7 +85,7 @@ void usage(int rc)
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path \"/tmp/my_unix_socket\"\n\n"
+       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket\n\n"
 
        << "To stop the process you can send UDP message 'EOF':\n"
        << "   echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket\n\n"
@@ -189,10 +194,12 @@ int main(int argc, char* argv[])
     std::cout << '\n';
     std::cout << '\n';
     std::cout << "Waiting for UDP messages..." << '\n' << '\n';
-    std::cout << std::setw(COL1_WIDTH) << std::left << "<sequence>"
-              << std::setw(COL2_WIDTH) << std::left << "<udp datagram>" << '\n';
-    std::cout << std::setw(COL1_WIDTH) << std::left << "__________"
-              << std::setw(COL2_WIDTH) << std::left << "______________" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << "<timestamp>"
+              << std::setw(COL2_WIDTH) << std::left << "<sequence>"
+              << std::setw(COL3_WIDTH) << std::left << "<udp datagram>" << '\n';
+    std::cout << std::setw(COL1_WIDTH) << std::left << std::string(COL1_WIDTH-1, '_')
+              << std::setw(COL2_WIDTH) << std::left << std::string(COL2_WIDTH-1, '_')
+              << std::setw(COL3_WIDTH) << std::left << std::string(COL3_WIDTH-1, '_') << '\n';
 
     std::string udpData;
 
@@ -210,8 +217,9 @@ int main(int argc, char* argv[])
         else {
             sequence++;
             if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
-                std::cout << std::setw(COL1_WIDTH) << std::left << sequence
-                          << std::setw(COL2_WIDTH) << std::left << udpData << '\n';
+                std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
+                          << std::setw(COL2_WIDTH) << std::left << sequence
+                          << std::setw(COL3_WIDTH) << std::left << udpData << '\n';
             }
         }
     }
