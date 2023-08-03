@@ -88,6 +88,8 @@ std::map<std::string, std::string> HeadersPatterns{};
 ert::metrics::Metrics *myMetrics{}; // global to allow signal wrapup
 int Sockfd{}; // global to allow signal wrapup
 std::string UdpSocketPath{}; // global to allow signal wrapup
+int HardwareConcurrency = std::thread::hardware_concurrency();
+int Workers = 10*HardwareConcurrency; // default
 
 ////////////////////////////
 // Command line functions //
@@ -109,6 +111,14 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
+
+       << "[-w|--workers <value>]\n"
+       << "  Number of worker threads to post outgoing requests. By default, 10x times 'hardware\n"
+       << "  concurrency' is configured (10*" << HardwareConcurrency << " = " << Workers << "), but you could consider increase even more\n"
+       << "  if high I/O is expected (high response times raise busy threads, so context switching\n"
+       << "  is not wasted as much as low latencies setups do). We should consider Amdahl law and\n"
+       << "  other specific conditions to set the default value, but 10*CPUs is a good approach\n"
+       << "  to start with. You may also consider using 'perf' tool to optimize your configuration.\n\n"
 
        << "[-e|--print-each <value>]\n"
        << "  Print UDP receptions each specific amount (must be positive). Defaults to 1.\n"
@@ -162,8 +172,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
-       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header \"content-type:application/json\" --body '{\"book\":\"@{udp}\"}'" << '\n'
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header \"content-type:application/json\" --body '{\"book\":\"@{udp}\"}'" << '\n'
        << '\n'
        << "   To provide body from file, use this trick: --body \"$(jq -c '.' long-body.json)\"" << '\n'
 
@@ -482,6 +492,16 @@ int main(int argc, char* argv[])
         UdpSocketPath = value;
     }
 
+    if (cmdOptionExists(argv, argv + argc, "-w", value)
+            || cmdOptionExists(argv, argv + argc, "--workers", value))
+    {
+        Workers = toNumber(value);
+        if (Workers <= 0)
+        {
+            usage(EXIT_FAILURE, "Invalid '-w|--workers' value. Must be positive.");
+        }
+    }
+
     if (cmdOptionExists(argv, argv + argc, "-e", value)
             || cmdOptionExists(argv, argv + argc, "--print-each", value))
     {
@@ -595,6 +615,7 @@ int main(int argc, char* argv[])
     if (uri.empty()) usage(EXIT_FAILURE);
 
     std::cout << "UDP socket path: " << UdpSocketPath << '\n';
+    std::cout << "Workers: " << Workers << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
@@ -768,7 +789,7 @@ int main(int argc, char* argv[])
     boost::asio::io_context io_ctx;
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_ctx_guard = boost::asio::make_work_guard(io_ctx); // this is to avoid terminating io_ctx.run() if no more work is pending
     std::vector<std::thread> myWorkers;
-    for (auto i = 0; i < 2 /* two by superstition */; ++i)
+    for (auto i = 0; i < Workers; ++i)
     {
         myWorkers.emplace_back([&io_ctx]() {
             io_ctx.run();
@@ -802,15 +823,14 @@ int main(int argc, char* argv[])
                           << std::setw(COL4_WIDTH) << std::left << statsAsString() << '\n';
             }
 
-            /*
             // WITHOUT DELAY FEATURE:
             boost::asio::post(io_ctx, [&]() {
                 auto stream = std::make_shared<Stream>(udpData);
                 stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
-                stream->process(false, 0);
+                stream->process();
             });
-            */
 
+            /*
             // WITH DELAY FEATURE:
             int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
             auto timer = std::make_shared<boost::asio::steady_timer>(io_ctx, std::chrono::milliseconds(delayMs));
@@ -819,6 +839,7 @@ int main(int argc, char* argv[])
                 stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
                 stream->process();
             });
+            */
         }
     }
 

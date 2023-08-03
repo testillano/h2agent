@@ -85,10 +85,10 @@ void usage(int rc)
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket\n\n"
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock\n\n"
 
        << "To stop the process you can send UDP message 'EOF':\n"
-       << "   echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket\n\n"
+       << "   echo -n EOF | nc -u -q0 -w1 -U /tmp/udp.sock\n\n"
 
        << '\n';
 

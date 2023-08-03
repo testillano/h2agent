@@ -97,8 +97,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket --eps 3500 --initial 555000000 --final 555999999 --pattern \"foo/bar/@{seq}\"\n"
-       << "   " << progname << " --udp-socket-path /tmp/my_unix_socket --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server\n\n"
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --pattern \"foo/bar/@{seq}\"\n"
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server\n\n"
 
        << "To stop the process, just interrupt it.\n"
 
