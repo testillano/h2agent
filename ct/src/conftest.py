@@ -646,11 +646,11 @@ SOCKET_MANAGER_PROVISION='''
   "responseCode": 200,
   "transform": [
     {
-      "source": "value./tmp/my_unix_socket1",
+      "source": "value./tmp/udp.sock1",
       "target": "var.file1"
     },
     {
-      "source": "value./tmp/my_unix_socket2",
+      "source": "value./tmp/udp.sock2",
       "target": "var.file2"
     },
     {

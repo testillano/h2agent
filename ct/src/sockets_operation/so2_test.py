@@ -19,7 +19,7 @@ def test_001_i_want_to_get_process_sockets(h2ac_admin, admin_server_provision, h
 
   # Check sockets json
   response = h2ac_admin.get(ADMIN_SOCKETS_URI)
-  responseBodyRef = [{ "socket":0, "path": "/tmp/my_unix_socket2" }, { "socket":0, "path": "/tmp/my_unix_socket1" }]
+  responseBodyRef = [{ "socket":0, "path": "/tmp/udp.sock2" }, { "socket":0, "path": "/tmp/udp.sock1" }]
   responseBodyRef[0]["socket"] = response["body"][0]["socket"]
   responseBodyRef[1]["socket"] = response["body"][1]["socket"]
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)

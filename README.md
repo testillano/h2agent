@@ -994,7 +994,7 @@ This utility could be useful to test UDP messages sent by `h2agent` (`udpSocket.
 You can also use netcat in bash, to generate messages easily:
 
 ```bash
-echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/my_unix_socket
+echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
 ```
 
 ### Command line
@@ -1019,22 +1019,22 @@ Options:
   This help.
 
 Examples:
-   udp-server --udp-socket-path /tmp/my_unix_socket
+   udp-server --udp-socket-path /tmp/udp.sock
 
 To stop the process you can send UDP message 'EOF':
-   echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket
+   echo -n EOF | nc -u -q0 -w1 -U /tmp/udp.sock
 ```
 
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server --udp-socket-path /tmp/my_unix_socket
+$> build/Release/bin/udp-server --udp-socket-path /tmp/udp.sock
 
-Path: /tmp/my_unix_socket
+Path: /tmp/udp.sock
 Print each: 1 message(s)
 
 Remember:
- To stop process: echo -n EOF | nc -u -q0 -w1 -U /tmp/my_unix_socket
+ To stop process: echo -n EOF | nc -u -q0 -w1 -U /tmp/udp.sock
 
 
 Waiting for UDP messages...
@@ -1054,7 +1054,7 @@ This utility could be useful to test UDP messages sent by `h2agent` (`udpSocket.
 You can also use netcat in bash, to generate messages easily:
 
 ```bash
-echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/my_unix_socket
+echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
 ```
 
 The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for ever UDP reception.
@@ -1082,6 +1082,14 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
 
 -k|--udp-socket-path <value>
   UDP unix socket path.
+
+[-w|--workers <value>]
+  Number of worker threads to post outgoing requests. By default, 10x times 'hardware
+  concurrency' is configured (10*8 = 80), but you could consider increase even more
+  if high I/O is expected (high response times raise busy threads, so context switching
+  is not wasted as much as low latencies setups do). We should consider Amdahl law and
+  other specific conditions to set the default value, but 10*CPUs is a good approach
+  to start with. You may also consider using 'perf' tool to optimize your configuration.
 
 [-e|--print-each <value>]
   Print UDP receptions each specific amount (must be positive). Defaults to 1.
@@ -1135,8 +1143,8 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
   This help.
 
 Examples:
-   udp-server-h2client --udp-socket-path /tmp/my_unix_socket -print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}
-   udp-server-h2client --udp-socket-path /tmp/my_unix_socket --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
+   udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}
+   udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
 
    To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
 ```
@@ -1144,9 +1152,10 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server-h2client -k /tmp/my_unix_socket -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
+$> build/Release/bin/udp-server-h2client -k /tmp/udp.sock -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
 
-UDP socket path: /tmp/my_unix_socket
+UDP socket path: /tmp/udp.sock
+Workers: 80
 Print each: 1 message(s)
 Log level: Warning
 Verbose (stdout): false
@@ -1170,8 +1179,8 @@ Client endpoint:
 
 Remember:
  To get prometheus metrics:       curl http://localhost:8081/metrics
- To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U /tmp/my_unix_socket
- To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U /tmp/my_unix_socket
+ To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U /tmp/udp.sock
+ To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U /tmp/udp.sock
 
 
 Waiting for UDP messages...
@@ -1191,8 +1200,8 @@ status codes: 3 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 
 This utility could be useful to test `udp-server`, and specially, `udp-server-h2client` tool.
 You can also use netcat in bash, to generate messages easily, but this tool provide high load.
-This tools generates a monotonically increasing number from initial value provided, until the
-final one is reached.
+This tool manages a monotonically increasing sequence within a given range, and allow to parse
+it over a pattern to build the datagram generated.
 
 ### Command line
 
@@ -1228,8 +1237,8 @@ Options:
   This help.
 
 Examples:
-   udp-client --udp-socket-path /tmp/my_unix_socket --eps 3500 --initial 555000000 --final 555999999 --pattern "foo/bar/@{seq}"
-   udp-client --udp-socket-path /tmp/my_unix_socket --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server
+   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --pattern "foo/bar/@{seq}"
+   udp-client --udp-socket-path /tmp/udp.sock --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server
 
 To stop the process, just interrupt it.
 ```
@@ -1237,9 +1246,9 @@ To stop the process, just interrupt it.
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-client --udp-socket-path /tmp/my_unix_socket --eps 1000 --initial 555000000 --print-each 1000
+$> build/Release/bin/udp-client --udp-socket-path /tmp/udp.sock --eps 1000 --initial 555000000 --print-each 1000
 
-Path: /tmp/my_unix_socket
+Path: /tmp/udp.sock
 Print each: 1 message(s)
 Range: [0, 18446744073709551615]
 Pattern: @{seq}
@@ -1256,6 +1265,70 @@ ___________________________________ _________ _______________ __________________
 ...
 
 ```
+
+## Working with unix sockets and docker containers
+
+In former sections we described the UDP utilities available at `h2agent`project. But we run them natively. As they are packaged into `h2agent` docker image, they can also be launched as docker containers selecting the appropriate entry point. The only thing to take into account is that the unix socket between UDP server (`udp-server` or `udp-server-h2client`) and client (`udp-client`) must be shared. This can be done through two alternatives:
+
+* Executing client and server within the same container.
+* Executing them in separate containers (recommended as docker best practice "one container - one process").
+
+Taking `udp-server` and `udp-client` as example:
+
+In the **first case**, we will launch the second one (client) in foreground using `docker exec`:
+
+```bash
+$> docker run -d --rm -it --name udp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$> docker exec -it udp /opt/udp-client -k /tmp/udp.sock # in foreground will throw client output
+```
+
+If the client is launched in background (-d) you won't be able to follow process output (`docker logs -f udp` shows server output because it was launched in first place).
+
+In the **second case**, which is the recommended, we need to create an external volume:
+
+```bash
+$> docker volume create --name=socketVolume
+```
+
+And then, we can run the containers in separated shells (or both in background with '-d' because know they have independent docker logs):
+
+```bash
+$> docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+```
+
+```bash
+$> docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+```
+
+This can also be done with `docker-compose`:
+
+```yaml
+version: '3.3'
+
+volumes:
+  socketVolume:
+    external: true
+
+services:
+  udpServer:
+    image: ghcr.io/testillano/h2agent:latest
+    volumes:
+      - socketVolume:/tmp
+    entrypoint: ["/opt/udp-server"]
+    command: ["-k", "/tmp/udp.sock"]
+
+  udpClient:
+    image: ghcr.io/testillano/h2agent:latest
+    depends_on:
+      - udpServer
+    volumes:
+      - socketVolume:/tmp
+    entrypoint: ["/bin/bash", "-c"] # we can also use bash entrypoint to ease command:
+    command: >
+      "/opt/udp-client -k /tmp/udp.sock"
+```
+
+
 
 ## Execution with TLS support
 
