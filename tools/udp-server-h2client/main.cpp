@@ -823,14 +823,15 @@ int main(int argc, char* argv[])
                           << std::setw(COL4_WIDTH) << std::left << statsAsString() << '\n';
             }
 
+            /*
             // WITHOUT DELAY FEATURE:
             boost::asio::post(io_ctx, [&]() {
                 auto stream = std::make_shared<Stream>(udpData);
                 stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
                 stream->process();
             });
+            */
 
-            /*
             // WITH DELAY FEATURE:
             int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
             auto timer = std::make_shared<boost::asio::steady_timer>(io_ctx, std::chrono::milliseconds(delayMs));
@@ -839,7 +840,6 @@ int main(int argc, char* argv[])
                 stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
                 stream->process();
             });
-            */
         }
     }
 
