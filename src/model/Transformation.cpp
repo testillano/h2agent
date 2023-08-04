@@ -623,9 +623,7 @@ std::string Transformation::asString() const {
         else if (source_type_ == SourceType::RandomSet || source_type_ == SourceType::ServerEvent) {
             ss << " | source_tokenized_:";
             for(auto it: source_tokenized_) {
-                ss<< " '" ;
-                ss << it;
-                ss << "'";
+                ss << " '" << it << "'";
             }
         }
         else if (source_type_ == SourceType::STxtFile || source_type_ == SourceType::SBinFile) {

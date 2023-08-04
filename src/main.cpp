@@ -95,26 +95,39 @@ const char* AdminApiVersion = "v1";
 // Auxiliary functions //
 /////////////////////////
 
-// Transform input in the form "<double> <double> .. <double>" to bucket boundaries vector
-// Cientific notation is allowed, for example boundaries for 150us would be 150e-6
+// Transform input in the form "<double>,<double>,..,<double>" to bucket boundaries vector
+// Cientific notation is allowed, for example boundary for 150us would be 150e-6
 // Returns the final string ignoring non-double values scanned. Also sort is applied.
 std::string loadHistogramBoundaries(const std::string &input, ert::metrics::bucket_boundaries_t &boundaries) {
     std::string result;
 
-    std::stringstream ss(input);
-    double value = 0;
-    while (ss >> value) {
-        boundaries.push_back(value);
+    std::istringstream ss(input);
+    std::string item;
+
+    while (std::getline(ss, item, ',')) {
+        try {
+            double value = std::stod(item);
+            if (value >= 0) {
+                boundaries.push_back(value);
+                result += (std::to_string(value) + ",");
+            }
+            else {
+                std::cerr << "Ignoring negative double: " << item << "\n";
+            }
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Ignoring invalid double: " << item << "\n";
+        } catch (const std::out_of_range& e) {
+            std::cerr << "Ignoring out-of-range double: " << item << "\n";
+        }
     }
 
+    // Sort surviving numbers:
     std::sort(boundaries.begin(), boundaries.end());
-    for (const auto &i: boundaries) {
-        result += (std::to_string(i) + " ");
-    }
+
+    result.pop_back(); // remove last comma
 
     return result;
 }
-
 
 /*
 int getThreadCount() {
@@ -359,14 +372,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--prometheus-port <port>]\n"
        << "  Prometheus local <port>; defaults to 8080.\n\n"
 
-       << "[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]\n"
+       << "[--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
-       << "  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we\n"
-       << "  could provide, for example: \"100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3\".\n"
+       << "  Scientific notation is allowed, i.e.: \"100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3\".\n"
        << "  This affects to both mock server-data and client-data processing time values,\n"
        << "  but normally both flows will not be used together in the same process instance.\n\n"
 
-       << "[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]\n"
+       << "[--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]\n"
        << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n"
        << "  This affects to both mock 'server internal/client external' message size values,\n"
        << "  but normally both flows will not be used together in the same process instance.\n\n"
@@ -717,6 +729,8 @@ int main(int argc, char* argv[])
     bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && traffic_server_key_password.empty());
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    std::cout << '\n';
+
     std::cout << currentDateTime() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';

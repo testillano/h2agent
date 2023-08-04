@@ -524,7 +524,7 @@ Also, `st/repeat.sh` script repeats a previous execution (last by default) in he
 So you may start the process, again, natively or using docker:
 
 ```bash
-$> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3")
+$> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
 $> build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
 $> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
@@ -792,14 +792,13 @@ Options:
 [--prometheus-port <port>]
   Prometheus local <port>; defaults to 8080.
 
-[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
+[--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
-  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
-  could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
+  Scientific notation is allowed, i.e.: "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3".
   This affects to both mock server-data and client-data processing time values,
   but normally both flows will not be used together in the same process instance.
 
-[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
+[--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
   This affects to both mock 'server internal/client external' message size values,
   but normally both flows will not be used together in the same process instance.
@@ -1131,12 +1130,11 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
 [--prometheus-port <port>]
   Prometheus local <port>; defaults to 8081. Value of -1 disables metrics.
 
-[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
+[--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
-  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
-  could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
+  Scientific notation is allowed, i.e.: "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3".
 
-[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
+[--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for Tx/Rx message size bytes histogram; no boundaries are defined by default.
 
 [-h|--help]
@@ -1199,9 +1197,8 @@ status codes: 3 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 ## Execution of udp-client utility
 
 This utility could be useful to test `udp-server`, and specially, `udp-server-h2client` tool.
-You can also use netcat in bash, to generate messages easily, but this tool provide high load.
-This tool manages a monotonically increasing sequence within a given range, and allow to parse
-it over a pattern to build the datagram generated.
+You can also use netcat in bash, to generate messages easily, but this tool provide high load. This tool manages a monotonically increasing sequence within a given range, and allow to parse it over a pattern to build the datagram generated. Even, we could provide a list of patterns which will be randomized.
+Although we could launch multiple UDP clients towards the UDP server (such server must be unique due to non-oriented connection nature of UDP protocol), it is probably unnecessary: this client is fast enough to generate the required load.
 
 ### Command line
 
@@ -1227,8 +1224,11 @@ Options:
 [-f|--final <value>]
   Final value for datagram. Defaults to unlimited.
 
-[-p|--pattern <value>]
+[--pattern <value>]
   Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.
+  This parameter can occur multiple times to create a random set. For example, passing
+  '--pattern foo --pattern foo --pattern bar', there is a probability of 2/3 to select
+  'foo' and 1/3 to select 'bar'.
 
 [-e|--print-each <value>]
   Print messages each specific amount (must be positive). Defaults to 1.

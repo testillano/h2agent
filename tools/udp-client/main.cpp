@@ -87,8 +87,11 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-f|--final <value>]\n"
        << "  Final value for datagram. Defaults to unlimited.\n\n"
 
-       << "[-p|--pattern <value>]\n"
-       << "  Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.\n\n"
+       << "[--pattern <value>]\n"
+       << "  Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.\n"
+       << "  This parameter can occur multiple times to create a random set. For example, passing\n"
+       << "  '--pattern foo --pattern foo --pattern bar', there is a probability of 2/3 to select\n"
+       << "  'foo' and 1/3 to select 'bar'.\n\n"
 
        << "[-e|--print-each <value>]\n"
        << "  Print messages each specific amount (must be positive). Defaults to 1.\n\n"
@@ -144,18 +147,22 @@ double toDouble(const std::string& value)
     return result;
 }
 
-bool cmdOptionExists(char** begin, char** end, const std::string& option,
-                     std::string& value)
+char **cmdOptionExists(char** begin, char** end, const std::string& option, std::string& value)
 {
-    char** itr = std::find(begin, end, option);
-    bool exists = (itr != end);
+    char** result = std::find(begin, end, option);
+    bool exists = (result != end);
 
-    if (exists && ++itr != end)
-    {
-        value = *itr;
+    if (exists) {
+        if (++result != end)
+        {
+            value = *result;
+        }
+    }
+    else {
+        result = nullptr;
     }
 
-    return exists;
+    return result;
 }
 
 void sighndl(int signal)
@@ -173,6 +180,7 @@ void sighndl(int signal)
 
 int main(int argc, char* argv[])
 {
+    srand(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
@@ -180,7 +188,7 @@ int main(int argc, char* argv[])
     std::string udpSocketPath{};
     unsigned long long int initialValue{};
     unsigned long long int finalValue = std::numeric_limits<unsigned long long>::max();
-    std::string pattern = "@{seq}";
+    std::vector<std::string> patterns{};
     double eps = 1.0;
 
     std::string value;
@@ -215,10 +223,10 @@ int main(int argc, char* argv[])
         finalValue = toLong(value);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-p", value)
-            || cmdOptionExists(argv, argv + argc, "--pattern", value))
+    char **next = argv;
+    while ((next = cmdOptionExists(next, argv + argc, "--pattern", value)))
     {
-        pattern = value;
+        patterns.push_back(value);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-e", value)
@@ -232,11 +240,21 @@ int main(int argc, char* argv[])
     std::cout << '\n';
 
     if (udpSocketPath.empty()) usage(EXIT_FAILURE);
+    if (patterns.empty()) patterns.push_back("@{seq}"); // default if no --pattern parameter is provided
 
     std::cout << "Path: " << udpSocketPath << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
     std::cout << "Range: [" << initialValue << ", " << finalValue << "]\n";
-    std::cout << "Pattern: " << pattern << "\n";
+    if (patterns.size() == 1) {
+        std::cout << "Pattern: " << patterns[0] << "\n";
+    }
+    else {
+        std::cout << "Patterns (random subset): ";
+        for(auto it: patterns) {
+            std::cout << " '" << it << "'";
+        }
+        std::cout << '\n';
+    }
     std::cout << "Events per second: ";
     if (eps > 0) std::cout << eps;
     else std::cout << "unlimited";
@@ -276,11 +294,19 @@ int main(int argc, char* argv[])
 
     unsigned long long int sequence{};
     auto startTimeNS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
+    int patternsSize = patterns.size();
 
     while (true) {
 
         udpDataSeq = std::to_string(initialValue + sequence);
-        udpData = pattern;
+
+        if (patternsSize == 1) {
+            udpData = udpData = patterns[0];
+        }
+        else { // random subset
+            udpData = patterns[rand () % patternsSize];
+        }
+
         // search/replace @{seq} by 'udpDataSeq':
         pos = 0u;
         while((pos = udpData.find(from, pos)) != std::string::npos) {
