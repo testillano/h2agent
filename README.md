@@ -4365,7 +4365,7 @@ So, metrics implemented could be divided in two categories, **counters** and **g
 
 #### Counters
 
-- Processed requests
+- Processed requests and status codes
 - Non provisioned requests
 - Purged contexts (successful/failed)
 - POST requests
