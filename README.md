@@ -4365,23 +4365,17 @@ So, metrics implemented could be divided in two categories, **counters** and **g
 
 #### Counters
 
-- Processed requests and status codes
+- Processed requests (successful/errored)
+- Processed responses (successful/timed-out)
 - Non provisioned requests
 - Purged contexts (successful/failed)
-- POST requests
-- GET requests
-- PUT requests
-- DELETE requests
-- HEAD requests
-- <other> requests
 - File system and Unix sockets operations
-- Error-condition requests (POST/GET/PUT/DELETE/HEAD/other)
 
 #### Gauges and histograms
 
 - Response delay seconds
-- Message size bytes for receptions (Rx)
-- Message size bytes for transmissions (Tx)
+- Message size bytes for receptions
+- Message size bytes for sendings
 
 ## Contributing
 

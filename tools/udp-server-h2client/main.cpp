@@ -848,7 +848,7 @@ int main(int argc, char* argv[])
             // WITH DELAY FEATURE:
             int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
             auto timer = std::make_shared<boost::asio::steady_timer>(io_ctx, std::chrono::milliseconds(delayMs));
-            timer->async_wait([&, timer] (const boost::system::error_code& e) {
+            timer->async_wait([&, udpData /* must be passed by copy because it changes its value in every iteration */, timer] (const boost::system::error_code& e) {
                 auto stream = std::make_shared<Stream>(udpData);
                 stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
                 stream->process();
