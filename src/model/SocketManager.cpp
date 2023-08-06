@@ -50,7 +50,7 @@ void SocketManager::enableMetrics(ert::metrics::Metrics *metrics) {
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily("UDPSocket_observed_operations_total", "H2agent udp socket operations");
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily("UDPSocket_observed_operations_total", "H2agent udp socket operations");
         observed_open_operation_counter_ = &(cf.Add({{"operation", "open"}}));
         observed_write_operation_counter_ = &(cf.Add({{"operation", "write"}}));
         observed_delayed_write_operation_counter_ = &(cf.Add({{"operation", "delayedWrite"}}));

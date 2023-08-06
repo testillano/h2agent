@@ -73,12 +73,12 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent server");
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent server");
 
         observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
         observed_requests_unprovisioned_counter_ = &(cf.Add({{"result", "unprovisioned"}}));
 
-        ert::metrics::counter_family_ref_t cf2 = metrics->addCounterFamily(std::string("ServerData_purged_contexts_total"), "Total contexts purged in h2agent server");
+        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily(std::string("ServerData_purged_contexts_total"), "Total contexts purged in h2agent server");
 
         purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
