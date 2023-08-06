@@ -64,12 +64,12 @@ void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics) {
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent client");
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent client");
 
         observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
         observed_requests_failed_counter_ = &(cf.Add({{"result", "failed"}})); // broken connection
 
-        ert::metrics::counter_family_ref_t cf2 = metrics->addCounterFamily(std::string("ServerData_observed_responses_total"), "Http2 total responses observed in h2agent client");
+        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily(std::string("ServerData_observed_responses_total"), "Http2 total responses observed in h2agent client");
 
         observed_responses_processed_counter_ = &(cf2.Add({{"result", "successful"}}));
         observed_responses_timeout_counter_ = &(cf2.Add({{"result", "timeout"}}));
