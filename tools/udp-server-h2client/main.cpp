@@ -102,9 +102,14 @@ void usage(int rc, const std::string &errorMessage = "")
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "UDP server will trigger one HTTP/2 request for every reception, replacing optionally\n"
-       << "the '@{udp}' pattern on uri, headers and/or body provided, with the UDP data read.\n"
-       << "If data received contains pipes (|), it is also possible to access each part during\n"
-       << "parsing procedure through the use of pattern '@{udp.<n>}'.\n"
+       << "certain patterns on uri, headers and/or body provided. Implemented patterns are the\n"
+       << "following:\n"
+       << '\n'
+       << "   @{udp}:      replaced by the whole UDP datagram received.\n"
+       << "   @{udp8}:     selects the 8 least significant digits in the UDP datagram, and may\n"
+       << "                be used to build valid IPv4 addresses for a given sequence.\n"
+       << "   @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens\n"
+       << "                and this pattern will be replaced by the nth one.\n"
        << "\n"
        << "To stop the process you can send UDP message 'EOF'.\n"
        << "To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.\n\n"
@@ -171,7 +176,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}" << '\n'
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp} --body \"ipv4 is @{udp8}\"" << '\n'
        << "   " << progname << " --udp-socket-path /tmp/udp.sock --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header \"content-type:application/json\" --body '{\"book\":\"@{udp}\"}'" << '\n'
        << '\n'
        << "   To provide body from file, use this trick: --body \"$(jq -c '.' long-body.json)\"" << '\n'
@@ -308,6 +313,13 @@ void replaceVariables(std::string &str, const std::map<std::string, std::string>
     }
 }
 
+// Extract least N significant characters from string:
+std::string extractLastNChars(const std::string &input, int n) {
+    if(input.size() < n) return input;
+    return input.substr(input.size() - n);
+}
+
+
 // Transform input in the form "<double>,<double>,..,<double>" to bucket boundaries vector
 // Cientific notation is allowed, for example boundary for 150us would be 150e-6
 // Returns the final string ignoring non-double values scanned. Also sort is applied.
@@ -366,11 +378,15 @@ public:
         headers_ = headers;
         timeout_ms_ = millisecondsTimeout;
 
-        // Main variable @{udp}, and possible parts:
+        // Main variable @{udp}
         std::string mainVar = "udp";
         variables_[mainVar] = data_;
 
-        // check pipes:
+        // Reserved variables:
+        // @{udp8}
+        variables_["udp8"] = extractLastNChars(data_, 8);
+
+        // Variable parts: @{udp.1}, @{udp.2{, etc.
         char delimiter = '|';
         if (data_.find(delimiter) == std::string::npos)
             return;
@@ -855,6 +871,9 @@ int main(int argc, char* argv[])
             });
         }
     }
+
+    // Join workers:
+    for (auto &w: myWorkers) w.join();
 
     // wrap up
     wrapup();
