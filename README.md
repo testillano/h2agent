@@ -1072,9 +1072,14 @@ Usage: udp-server-h2client [options]
 Options:
 
 UDP server will trigger one HTTP/2 request for every reception, replacing optionally
-the '@{udp}' pattern on uri, headers and/or body provided, with the UDP data read.
-If data received contains pipes (|), it is also possible to access each part during
-parsing procedure through the use of pattern '@{udp.<n>}'.
+certain patterns on uri, headers and/or body provided. Implemented patterns are the
+following:
+
+   @{udp}:      replaced by the whole UDP datagram received.
+   @{udp8}:     selects the 8 least significant digits in the UDP datagram, and may
+                be used to build valid IPv4 addresses for a given sequence.
+   @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens
+                and this pattern will be replaced by the nth one.
 
 To stop the process you can send UDP message 'EOF'.
 To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
@@ -1141,7 +1146,7 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
   This help.
 
 Examples:
-   udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp}
+   udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp} --body "ipv4 is @{udp8}"
    udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
 
    To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
@@ -1225,10 +1230,10 @@ Options:
   Final value for datagram. Defaults to unlimited.
 
 [--pattern <value>]
-  Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.
-  This parameter can occur multiple times to create a random set. For example, passing
-  '--pattern foo --pattern foo --pattern bar', there is a probability of 2/3 to select
-  'foo' and 1/3 to select 'bar'.
+  Pattern to build UDP datagram (reserved @{seq} is replaced by sequence number).
+  Defaults to '@{seq}'. This parameter can occur multiple times to create a random
+  set. For example, passing '--pattern foo --pattern foo --pattern bar', there is a
+  probability of 2/3 to select 'foo' and 1/3 to select 'bar'.
 
 [-e|--print-each <value>]
   Print messages each specific amount (must be positive). Defaults to 1.

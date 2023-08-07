@@ -88,10 +88,10 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Final value for datagram. Defaults to unlimited.\n\n"
 
        << "[--pattern <value>]\n"
-       << "  Pattern to be parsed by sequence (@{seq} is replaced by sequence). Defaults to '@{seq}'.\n"
-       << "  This parameter can occur multiple times to create a random set. For example, passing\n"
-       << "  '--pattern foo --pattern foo --pattern bar', there is a probability of 2/3 to select\n"
-       << "  'foo' and 1/3 to select 'bar'.\n\n"
+       << "  Pattern to build UDP datagram (reserved @{seq} is replaced by sequence number).\n"
+       << "  Defaults to '@{seq}'. This parameter can occur multiple times to create a random\n"
+       << "  set. For example, passing '--pattern foo --pattern foo --pattern bar', there is a\n"
+       << "  probability of 2/3 to select 'foo' and 1/3 to select 'bar'.\n\n"
 
        << "[-e|--print-each <value>]\n"
        << "  Print messages each specific amount (must be positive). Defaults to 1.\n\n"
@@ -290,12 +290,13 @@ int main(int argc, char* argv[])
     std::string udpDataSeq{}, udpData{};
     std::string::size_type pos = 0u;
     std::string from = "@{seq}";
-    long long int periodNS = (long long int)(1000000000.0/eps);
 
     unsigned long long int sequence{};
     auto startTimeNS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
     int patternsSize = patterns.size();
 
+    // Period:
+    long long int periodNS = (long long int)(1000000000.0/eps);
     while (true) {
 
         udpDataSeq = std::to_string(initialValue + sequence);
@@ -336,10 +337,12 @@ int main(int argc, char* argv[])
         if (eps > 0) {
             auto futureTimeNS = startTimeNS + std::chrono::nanoseconds(periodNS * sequence);
             auto elapsedNS = std::chrono::duration_cast<std::chrono::nanoseconds>(futureTimeNS - std::chrono::system_clock::now().time_since_epoch());
+
             std::this_thread::sleep_for(std::chrono::nanoseconds(elapsedNS));
         }
     }
 
+    // Wrapup
     close(Sockfd);
 
     exit(EXIT_SUCCESS);
