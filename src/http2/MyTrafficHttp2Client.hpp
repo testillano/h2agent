@@ -74,11 +74,10 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
     // metrics:
     ert::metrics::Metrics *metrics_{};
 
-    ert::metrics::counter_t *observed_requests_processed_counter_{};
-    ert::metrics::counter_t *observed_requests_failed_counter_{};
-
-    ert::metrics::counter_t *observed_responses_processed_counter_{};
-    ert::metrics::counter_t *observed_responses_timeout_counter_{};
+    // TODO:
+    /*
+    ert::metrics::counter_t *observed_ ...
+    */
 
 public:
 
@@ -98,7 +97,7 @@ public:
     /**
     * Enable metrics
     *
-    *  @param metrics Optional metrics object to compute counters
+    * @param metrics Optional metrics object to compute counters
     */
     void enableMyMetrics(ert::metrics::Metrics *metrics);
 

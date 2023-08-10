@@ -77,13 +77,14 @@ class AdminClientEndpoint
     std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> client_{};
 
     // Metrics for client:
+    std::string application_name_{};
     ert::metrics::Metrics *metrics_{};
     ert::metrics::bucket_boundaries_t response_delay_seconds_histogram_bucket_boundaries_{};
     ert::metrics::bucket_boundaries_t message_size_bytes_histogram_bucket_boundaries_{};
 
 public:
 
-    AdminClientEndpoint();
+    AdminClientEndpoint(const std::string &applicationName);
     ~AdminClientEndpoint();
 
     // setters:

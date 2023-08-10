@@ -59,8 +59,8 @@ namespace http2
 {
 
 
-MyTrafficHttp2Server::MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize):
-    ert::http2comm::Http2Server("MockHttp2Server", workerThreads, maxWorkerThreads, timersIoContext, maxQueueDispatcherSize),
+MyTrafficHttp2Server::MyTrafficHttp2Server(const std::string &name, size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize):
+    ert::http2comm::Http2Server(name, workerThreads, maxWorkerThreads, timersIoContext, maxQueueDispatcherSize),
     admin_data_(nullptr) {
 
     server_data_ = true;
@@ -73,12 +73,14 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(std::string("ServerData_observed_requests_total"), "Http2 total requests observed in h2agent server");
+        ert::metrics::labels_t familyLabels = {{"source", name_}};
 
-        observed_requests_processed_counter_ = &(cf.Add({{"result", "processed"}}));
-        observed_requests_unprovisioned_counter_ = &(cf.Add({{"result", "unprovisioned"}}));
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(name_ + std::string("_processed_requests_counter"), std::string("Requests processed counter in ") + name_, familyLabels);
 
-        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily(std::string("ServerData_purged_contexts_total"), "Total contexts purged in h2agent server");
+        processed_requests_provisioned_counter_ = &(cf.Add({{"provision", "found"}}));
+        processed_requests_unprovisioned_counter_ = &(cf.Add({{"provision", "missing"}}));
+
+        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily(name_ + std::string("_purged_contexts_counter"), std::string("Contexts purged counter in ") + name_, familyLabels);
 
         purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
@@ -368,7 +370,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
         // metrics
         if(metrics_) {
-            observed_requests_processed_counter_->Increment();
+            processed_requests_provisioned_counter_->Increment();
         }
     }
     else {
@@ -384,7 +386,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
         }
         // metrics
         if(metrics_) {
-            observed_requests_unprovisioned_counter_->Increment();
+            processed_requests_unprovisioned_counter_->Increment();
         }
     }
 

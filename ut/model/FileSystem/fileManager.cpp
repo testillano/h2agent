@@ -52,7 +52,7 @@ public:
 TEST_F(FileManager_test, FileManager)
 {
     h2agent::model::FileManager fm(nullptr);
-    fm.enableMetrics(nullptr);
+    fm.enableMetrics(nullptr, "");
 
     // write:
     std::string path1, path2;

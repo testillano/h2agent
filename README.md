@@ -679,6 +679,10 @@ Usage: h2agent [options]
 
 Options:
 
+[--name <name>]
+  Application name. It maybe used to prefix metrics families, so consider the use of
+  compatible names in case that prometheus is not disabled. Defaults to 'h2agent'.
+
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
 
@@ -1084,6 +1088,10 @@ following:
 To stop the process you can send UDP message 'EOF'.
 To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
 
+[--name <name>]
+  Application name. It maybe used to prefix metrics families, so consider the use of
+  compatible names in case that prometheus is not disabled. Defaults to 'udp-server-h2client'.
+
 -k|--udp-socket-path <value>
   UDP unix socket path.
 
@@ -1157,6 +1165,7 @@ Execution example:
 ```bash
 $> build/Release/bin/udp-server-h2client -k /tmp/udp.sock -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
 
+Application name: udp-server-h2client
 UDP socket path: /tmp/udp.sock
 Workers: 80
 Print each: 1 message(s)
@@ -4245,128 +4254,100 @@ On native execution, it is just a simple `curl` native request:
 $> curl http://localhost:8080/metrics
 ```
 
-This is an example of metrics snapshot captured after [benchmark test](#Benchmarking-test) execution:
+Metrics implemented could be divided **counters**, **gauges** or **histograms**, and each family is named depending on the category and the prefix provided.
 
-```bash
-$> source ./tools/helpers.src
-...
-$> metrics
-# HELP exposer_transferred_bytes_total Transferred bytes to metrics services
-# TYPE exposer_transferred_bytes_total counter
-exposer_transferred_bytes_total 6715
-# HELP exposer_scrapes_total Number of times metrics were scraped
-# TYPE exposer_scrapes_total counter
-exposer_scrapes_total 1
-# HELP exposer_request_latencies Latencies of serving scrape requests, in microseconds
-# TYPE exposer_request_latencies summary
-exposer_request_latencies_count 1
-exposer_request_latencies_sum 124
-exposer_request_latencies{quantile="0.5"} Nan
-exposer_request_latencies{quantile="0.9"} Nan
-exposer_request_latencies{quantile="0.99"} Nan
-# HELP AdminHttp2Server_observed_requests_total Http2 total requests observed in AdminHttp2Server
-# TYPE AdminHttp2Server_observed_requests_total counter
-AdminHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="GET",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="other",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="PUT",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="HEAD"} 0
-AdminHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="POST",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="other"} 0
-AdminHttp2Server_observed_requests_total{method="DELETE"} 1
-AdminHttp2Server_observed_requests_total{method="PUT"} 2
-AdminHttp2Server_observed_requests_total{method="GET"} 2
-AdminHttp2Server_observed_requests_total{method="POST"} 3
-# HELP MockHttp2Server_observed_requests_total Http2 total requests observed in MockHttp2Server
-# TYPE MockHttp2Server_observed_requests_total counter
-MockHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
-MockHttp2Server_observed_requests_total{method="GET",success="false"} 0
-MockHttp2Server_observed_requests_total{method="other",success="false"} 0
-MockHttp2Server_observed_requests_total{method="PUT",success="false"} 0
-MockHttp2Server_observed_requests_total{method="HEAD"} 0
-MockHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
-MockHttp2Server_observed_requests_total{method="POST",success="false"} 0
-MockHttp2Server_observed_requests_total{method="other"} 0
-MockHttp2Server_observed_requests_total{method="DELETE"} 0
-MockHttp2Server_observed_requests_total{method="PUT"} 0
-MockHttp2Server_observed_requests_total{method="GET"} 0
-MockHttp2Server_observed_requests_total{method="POST"} 100000
-# HELP ServerData_observed_requests_total Http2 total requests observed in h2agent server
-# TYPE ServerData_observed_requests_total counter
-ServerData_observed_requests_total{result="unprovisioned"} 0
-ServerData_observed_requests_total{result="processed"} 100000
-# HELP ServerData_purged_contexts_total Total contexts purged in h2agent server
-# TYPE ServerData_purged_contexts_total counter
-ServerData_purged_contexts_total{result="failed"} 0
-ServerData_purged_contexts_total{result="successful"} 0
-# HELP FileSystem_observed_operations_total H2agent file system operations
-# TYPE FileSystem_observed_operations_total counter
-FileSystem_observed_operations_total{operation="open",success="false"} 0
-FileSystem_observed_operations_total{operation="instantClose"} 0
-FileSystem_observed_operations_total{operation="delayedClose"} 100000
-FileSystem_observed_operations_total{operation="write"} 100000
-FileSystem_observed_operations_total{operation="close"} 1
-FileSystem_observed_operations_total{operation="empty"} 0
-FileSystem_observed_operations_total{operation="open"} 1
-# TYPE UDPSocket_observed_operations_total counter
-UDPSocket_observed_operations_total{operation="open",success="false"} 0
-UDPSocket_observed_operations_total{operation="delayedWrite"} 0
-UDPSocket_observed_operations_total{operation="instantWrite"} 0
-UDPSocket_observed_operations_total{operation="open"} 0
-UDPSocket_observed_operations_total{operation="write"} 0
-# HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
-# TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
-AdminHttp2Server_responses_delay_seconds_gauge 7.2e-05
-# HELP AdminHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in AdminHttp2Server
-# TYPE AdminHttp2Server_messages_size_bytes_gauge gauge
-AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 104
-AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 81
-# HELP MockHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in MockHttp2Server
-# TYPE MockHttp2Server_responses_delay_seconds_gauge gauge
-MockHttp2Server_responses_delay_seconds_gauge 0.000132
-# HELP MockHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in MockHttp2Server
-# TYPE MockHttp2Server_messages_size_bytes_gauge gauge
-MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 1073
-MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 177
-# HELP AdminHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in AdminHttp2Server
-# TYPE AdminHttp2Server_responses_delay_seconds_histogram histogram
-AdminHttp2Server_responses_delay_seconds_histogram_count 8
-AdminHttp2Server_responses_delay_seconds_histogram_sum 0.0007709999999999999
-AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 8
-# HELP AdminHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in AdminHttp2Server
-# TYPE AdminHttp2Server_messages_size_bytes_histogram histogram
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 8
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 450
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 8
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 8
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 2167
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 8
-# HELP MockHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in MockHttp2Server
-# TYPE MockHttp2Server_responses_delay_seconds_histogram histogram
-MockHttp2Server_responses_delay_seconds_histogram_count 100000
-MockHttp2Server_responses_delay_seconds_histogram_sum 28.36501700000122
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0001"} 2177
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0002"} 13031
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0003"} 58585
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0004"} 96855
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0005"} 99607
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.001"} 99893
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.005"} 99999
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.01"} 100000
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.02"} 100000
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 100000
-# HELP MockHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in MockHttp2Server
-# TYPE MockHttp2Server_messages_size_bytes_histogram histogram
-MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 100000
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 107300000
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 100000
-MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 100000
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17700000
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 100000
-```
+* **HTTP2 clients**: normally, we will prefix with the application name (h2agent, udp_server_h2client, etc.), and endpoint name (traffic_client_myClient1 or just myClient1, etc. ). Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
 
-So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
+  ```
+  Counters provided by http2comm library [<labels>]:
+
+     observed_resquests_sents_counter [source] [method]
+     observed_resquests_unsent_counter [source] [method]
+     observed_responses_received_counter [source] [method] [status_code]
+     observed_responses_timedout_counter [source] [method]
+
+  Gauges provided by http2comm library [<labels>]:
+
+     responses_delay_seconds_gauge [source]
+     sent_messages_size_bytes_gauge [source]
+     received_messages_size_bytes_gauge [source]
+
+  Histograms provided by http2comm library [<labels>]:
+
+     responses_delay_seconds_histogram [source]
+     sent_messages_size_bytes_histogram [source]
+     received_messages_size_bytes_histogram [source]
+  ```
+
+  For example:
+
+  ```bash
+  udp_server_h2client_responses_delay_seconds_histogram_bucket{source="udp_server_h2client",le="0.0001"} 21835
+  ```
+
+
+
+* **HTTP2 servers**: normally, we will prefix with the application name (h2agent, http2service, etc.), and endpoint name (traffic_server, admin_server, etc.). Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
+
+  ```
+  Counters provided by http2comm library and h2agent itself(*) [<labels>]:
+
+     observed_resquests_accepted_counter [source] [method]
+     observed_resquests_errored_counter [source] [method]
+     observed_responses_counter [source] [method] [status_code]
+     processed_requests_counter (*) [source] [provision: found/missing]
+     purged_contexts_counter (*) [source] [result: successful/failed]
+
+  Gauges provided by http2comm library [<labels>]:
+
+     responses_delay_seconds_gauge [source]
+     received_messages_size_bytes_gauge [source]
+     sent_messages_size_bytes_gauge [source]
+
+  Histograms provided by http2comm library [<labels>]:
+
+     responses_delay_seconds_histogram [source]
+     received_messages_size_bytes_histogram [source]
+     sent_messages_size_bytes_histogram [source]
+  ```
+
+  For example:
+
+  ```bash
+  h2agent_traffic_server_received_messages_size_bytes_histogram_bucket{source="h2agent_traffic_server"} 38
+  ```
+
+
+
+* **File system**: normally, we will prefix with the application name (h2agent, http2service, etc.), and hardcoded "file_system". Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
+
+  ```
+  Counters provided by h2agent [<labels>]:
+
+     operations_counter [source] [operation: open/close/write/empty/delayedClose/instantClose] [success: true/false]
+  ```
+
+  For example:
+
+  ```bash
+  h2agent_file_system_operations_counter{source="h2agent_file_system",operation="open",success="false"} 0
+  ```
+
+
+
+* **UDP sockets**: normally, we will prefix with the application name (h2agent, http2service, etc.), and hardcoded "udp_socket". Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
+
+  ```
+  Counters provided by h2agent [<labels>]:
+
+     operations_counter [source] [operation: open/write/delayedWrite/instantWrite] [success: true/false]
+  ```
+
+  For example:
+
+  ```bash
+  h2agent_udp_socket_operations_counter{source="h2agent_udp_socket",operation="open",success="false"} 0
+  ```
 
 #### Counters
 

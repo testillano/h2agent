@@ -45,12 +45,15 @@ namespace model
 {
 
 
-void FileManager::enableMetrics(ert::metrics::Metrics *metrics) {
+void FileManager::enableMetrics(ert::metrics::Metrics *metrics, const std::string &applicationName) {
 
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_t& cf = metrics->addCounterFamily("FileSystem_observed_operations_total", "H2agent file system operations");
+        std::string source = applicationName + std::string("_file_system");
+        ert::metrics::labels_t familyLabels = {{"source", source}};
+
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(source + std::string("_operations_counter"), std::string("File system operations counter in ") + source, familyLabels);
         observed_open_operation_counter_ = &(cf.Add({{"operation", "open"}}));
         observed_close_operation_counter_ = &(cf.Add({{"operation", "close"}}));
         observed_write_operation_counter_ = &(cf.Add({{"operation", "write"}}));

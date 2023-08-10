@@ -250,6 +250,10 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
+       << "[--name <name>]\n"
+       << "  Application name. It maybe used to prefix metrics families, so consider the use of\n"
+       << "  compatible names in case that prometheus is not disabled. Defaults to '" << progname << "'.\n\n"
+
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
 
@@ -483,6 +487,7 @@ int main(int argc, char* argv[])
     mySocketManager = new h2agent::model::SocketManager(myTimersIoContext);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
+    std::string application_name = progname;
     bool ipv6 = false; // ipv4 by default
     std::string bind_address = "";
     std::string admin_port = "8074";
@@ -520,6 +525,11 @@ int main(int argc, char* argv[])
             || readCmdLine(argv, argv + argc, "--help"))
     {
         usage(EXIT_SUCCESS);
+    }
+
+    if (readCmdLine(argv, argv + argc, "--name", value))
+    {
+        application_name = value;
     }
 
     if (readCmdLine(argv, argv + argc, "-l", value)
@@ -731,7 +741,7 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     std::cout << '\n';
 
-    std::cout << currentDateTime() << ": Starting " << progname << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
+    std::cout << currentDateTime() << ": Starting " << application_name << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';
@@ -829,14 +839,17 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Application name fixed for metrics (just in case, as executable name without --name could be unexpected):
+    std::string applicationNameForMetrics = h2agent::model::fixMetricsName(application_name);
+
     // FileManager/SafeFile metrics
-    myFileManager->enableMetrics(myMetrics);
+    myFileManager->enableMetrics(myMetrics, applicationNameForMetrics);
 
     // SocketManager/SafeSocket metrics
-    mySocketManager->enableMetrics(myMetrics);
+    mySocketManager->enableMetrics(myMetrics, applicationNameForMetrics);
 
     // Admin server
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(ADMIN_SERVER_WORKER_THREADS);
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(applicationNameForMetrics + "_admin_server", ADMIN_SERVER_WORKER_THREADS);
     myAdminHttp2Server->enableMetrics(myMetrics);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -844,7 +857,7 @@ int main(int argc, char* argv[])
     myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
     myAdminHttp2Server->setFileManager(myFileManager);
     myAdminHttp2Server->setSocketManager(mySocketManager);
-    myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries); // for client connection class
+    myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, applicationNameForMetrics); // for client connection class
 
     // Timers thread:
     std::thread tt([&] {
@@ -858,7 +871,7 @@ int main(int argc, char* argv[])
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(applicationNameForMetrics + "_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
         myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
         myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
