@@ -67,6 +67,7 @@ typedef struct {
     ert::metrics::Metrics *MetricsPtr;
     ert::metrics::bucket_boundaries_t ResponseDelaySecondsHistogramBucketBoundaries;
     ert::metrics::bucket_boundaries_t MessageSizeBytesHistogramBucketBoundaries;
+    std::string ApplicationName;
 
 } common_resources_t;
 

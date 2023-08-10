@@ -89,7 +89,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
 
 public:
-    MyAdminHttp2Server(size_t workerThreads);
+    MyAdminHttp2Server(const std::string &name, size_t workerThreads);
     ~MyAdminHttp2Server();
 
     bool checkMethodIsAllowed(
@@ -139,10 +139,11 @@ public:
         return common_resources_.SocketManagerPtr;
     }
 
-    void setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries, const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries) {
+    void setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries, const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries, const std::string &applicationName) {
         common_resources_.MetricsPtr = metrics;
         common_resources_.ResponseDelaySecondsHistogramBucketBoundaries = responseDelaySecondsHistogramBucketBoundaries;
         common_resources_.MessageSizeBytesHistogramBucketBoundaries = messageSizeBytesHistogramBucketBoundaries;
+        common_resources_.ApplicationName = applicationName;
     }
 
     model::AdminData *getAdminData() const {

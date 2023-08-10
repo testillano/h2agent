@@ -114,6 +114,10 @@ void usage(int rc, const std::string &errorMessage = "")
        << "To stop the process you can send UDP message 'EOF'.\n"
        << "To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.\n\n"
 
+       << "[--name <name>]\n"
+       << "  Application name. It maybe used to prefix metrics families, so consider the use of\n"
+       << "  compatible names in case that prometheus is not disabled. Defaults to '" << progname << "'.\n\n"
+
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
 
@@ -489,6 +493,7 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
+    std::string applicationName = progname;
     int i_printEach = 1; // default
     int millisecondsTimeout = 5000; // default
     int millisecondsSendDelay = 0; // default
@@ -513,6 +518,11 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--help", value))
     {
         usage(EXIT_SUCCESS);
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--name", value))
+    {
+        applicationName = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-k", value)
@@ -643,6 +653,7 @@ int main(int argc, char* argv[])
     if (UdpSocketPath.empty()) usage(EXIT_FAILURE);
     if (uri.empty()) usage(EXIT_FAILURE);
 
+    std::cout << "Application name: " << applicationName << '\n';
     std::cout << "UDP socket path: " << UdpSocketPath << '\n';
     std::cout << "Workers: " << Workers << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
@@ -745,7 +756,19 @@ int main(int argc, char* argv[])
     std::cout << '\n';
 
     // Create client class
-    auto client = std::make_shared<ert::http2comm::Http2Client>("myClient", host, port, secure);
+    std::string applicationNameForMetrics{};
+
+    // https://prometheus.io/docs/instrumenting/writing_exporters/#naming
+    static std::regex validMetricsNamesCharactersRegex("[a-zA-Z0-9:_]", std::regex::optimize);
+    for (char c : applicationName) {
+        if (std::regex_match(std::string(1, c), validMetricsNamesCharactersRegex)) {
+            applicationNameForMetrics += c;
+        } else {
+            applicationNameForMetrics += "_";
+        }
+    }
+
+    auto client = std::make_shared<ert::http2comm::Http2Client>(applicationNameForMetrics/* + "_traffic_client"*/, host, port, secure);
     if (!client->isConnected()) {
         std::cerr << "WARNING: failed to connect the server. This will be done later in lazy mode ..." << '\n' << '\n';
     }

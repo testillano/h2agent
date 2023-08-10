@@ -66,8 +66,8 @@ bool statusCodeOK(int statusCode) {
     return (statusCode >= ert::http2comm::ResponseCode::OK && statusCode < ert::http2comm::ResponseCode::MULTIPLE_CHOICES); // [200,300)
 }
 
-MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
-    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, workerThreads, nullptr) {
+MyAdminHttp2Server::MyAdminHttp2Server(const std::string &name, size_t workerThreads):
+    ert::http2comm::Http2Server(name, workerThreads, workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
 

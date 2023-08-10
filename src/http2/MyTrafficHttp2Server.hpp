@@ -79,8 +79,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     // metrics:
     ert::metrics::Metrics *metrics_{};
 
-    ert::metrics::counter_t *observed_requests_processed_counter_{};
-    ert::metrics::counter_t *observed_requests_unprovisioned_counter_{};
+    ert::metrics::counter_t *processed_requests_provisioned_counter_{};
+    ert::metrics::counter_t *processed_requests_unprovisioned_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
@@ -89,13 +89,13 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     std::atomic<bool> pre_reserve_request_body_{true};
 
 public:
-    MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize);
+    MyTrafficHttp2Server(const std::string &name, size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize);
     ~MyTrafficHttp2Server() {;}
 
     /**
     * Enable metrics
     *
-    *  @param metrics Optional metrics object to compute counters
+    * @param metrics Optional metrics object to compute counters
     */
     void enableMyMetrics(ert::metrics::Metrics *metrics);
 

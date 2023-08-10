@@ -42,7 +42,7 @@ public:
 TEST_F(SocketManager_test, SocketManager)
 {
     h2agent::model::SocketManager sm(nullptr);
-    sm.enableMetrics(nullptr);
+    sm.enableMetrics(nullptr, "");
 
     // Socket paths:
     std::string path1, path2;

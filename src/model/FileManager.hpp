@@ -95,8 +95,9 @@ public:
     * Set metrics reference
     *
     * @param metrics Optional metrics object to compute counters
+    * @param applicationName Used to prefix families names (counters, gauges, histograms).
     */
-    void enableMetrics(ert::metrics::Metrics *metrics);
+    void enableMetrics(ert::metrics::Metrics *metrics, const std::string &applicationName);
 
     /** incrementObservedOpenOperationCounter */
     void incrementObservedOpenOperationCounter();

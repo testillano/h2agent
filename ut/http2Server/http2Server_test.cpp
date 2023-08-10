@@ -190,12 +190,12 @@ public:
         file_manager_ = new h2agent::model::FileManager(timers_io_context_);
         socket_manager_ = new h2agent::model::SocketManager(timers_io_context_);
         metrics_ = new ert::metrics::Metrics();
-        file_manager_->enableMetrics(metrics_);
-        socket_manager_->enableMetrics(metrics_);
+        file_manager_->enableMetrics(metrics_, "test");
+        socket_manager_->enableMetrics(metrics_, "test");
         mock_server_events_data_ = new h2agent::model::MockServerData();
         mock_client_events_data_ = new h2agent::model::MockClientData();
 
-        admin_http2_server_ = new h2agent::http2::MyAdminHttp2Server(1);
+        admin_http2_server_ = new h2agent::http2::MyAdminHttp2Server("test_admin_server", 1);
         admin_http2_server_->setApiName("admin");
         admin_http2_server_->setApiVersion("v1");
         admin_http2_server_->setConfiguration(configuration_);
@@ -206,7 +206,7 @@ public:
         admin_http2_server_->setMockClientData(mock_client_events_data_); // stored at administrative class to pass through created client provisions
         admin_http2_server_->enableMetrics(metrics_);
 
-        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server(2, 2, timers_io_context_, -1 /* no congestion control */);
+        traffic_http2_server_ = new h2agent::http2::MyTrafficHttp2Server("test_traffic_server", 2, 2, timers_io_context_, -1 /* no congestion control */);
         traffic_http2_server_->setApiName("app");
         traffic_http2_server_->setApiVersion("v1");
         traffic_http2_server_->setMockServerData(mock_server_events_data_);

@@ -74,7 +74,7 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
     }
 
     // Client endpoint object to fill:
-    auto clientEndpoint = std::make_shared<AdminClientEndpoint>();
+    auto clientEndpoint = std::make_shared<AdminClientEndpoint>(cr.ApplicationName);
 
     if (clientEndpoint->load(j)) {
 

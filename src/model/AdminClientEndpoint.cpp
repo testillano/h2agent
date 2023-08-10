@@ -52,7 +52,7 @@ namespace h2agent
 namespace model
 {
 
-AdminClientEndpoint::AdminClientEndpoint() {;}
+AdminClientEndpoint::AdminClientEndpoint(const std::string &applicationName) : application_name_(applicationName) {;}
 AdminClientEndpoint::~AdminClientEndpoint() {;}
 
 void AdminClientEndpoint::connect(bool fromScratch) {
@@ -63,7 +63,7 @@ void AdminClientEndpoint::connect(bool fromScratch) {
     if (!client_) {
 
         std::string keyAdaptedToMetricsName = h2agent::model::fixMetricsName(key_);
-        client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>(keyAdaptedToMetricsName, host_, std::to_string(port_), secure_, nullptr);
+        client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>(application_name_ + "_" + keyAdaptedToMetricsName, host_, std::to_string(port_), secure_, nullptr);
         try {
             client_->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_);
         }
