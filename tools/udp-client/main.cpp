@@ -56,6 +56,7 @@ SOFTWARE.
 #define COL2_WIDTH 10 // relative seconds from beginning
 #define COL3_WIDTH 16 // sequence
 #define COL4_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
+#define COL5_WIDTH 16 // transient EPS (rampup)
 
 
 const char* progname;
@@ -80,6 +81,10 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Events per second. Floats are allowed (0.016667 would mean 1 tick per minute),\n"
        << "  negative number means unlimited (depends on your hardware) and 0 is prohibited.\n"
        << "  Defaults to 1.\n\n"
+
+       << "[-r|--rampup-seconds <value>]\n"
+       << "  Rampup seconds to reach 'eps' linearly. Defaults to 0.\n"
+       << "  Only available for speeds over 1 event per second.\n\n"
 
        << "[-i|--initial <value>]\n"
        << "  Initial value for datagram. Defaults to 0.\n\n"
@@ -190,6 +195,7 @@ int main(int argc, char* argv[])
     unsigned long long int finalValue = std::numeric_limits<unsigned long long>::max();
     std::vector<std::string> patterns{};
     double eps = 1.0;
+    int rampupSeconds = 0;
 
     std::string value;
 
@@ -209,6 +215,13 @@ int main(int argc, char* argv[])
     {
         eps = toDouble(value);
         if (eps == 0) usage(EXIT_FAILURE);
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-r", value)
+            || cmdOptionExists(argv, argv + argc, "--rampup-seconds", value))
+    {
+        rampupSeconds = (int)toLong(value);
+        if (rampupSeconds < 0) rampupSeconds = 0;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-i", value)
@@ -259,6 +272,11 @@ int main(int argc, char* argv[])
     if (eps > 0) std::cout << eps;
     else std::cout << "unlimited";
     std::cout << "\n";
+    std::string rampupHint{};
+    if (rampupSeconds != 0 && eps < 1) {
+        rampupHint = " (ignored: eps < 1)";
+    }
+    std::cout << "Rampup (s): " << rampupSeconds << rampupHint << "\n";
 
     Sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (Sockfd < 0) {
@@ -281,11 +299,24 @@ int main(int argc, char* argv[])
     std::cout << std::setw(COL1_WIDTH) << std::left << "<timestamp>"
               << std::setw(COL2_WIDTH) << std::left << "<time(s)>"
               << std::setw(COL3_WIDTH) << std::left << "<sequence>"
-              << std::setw(COL4_WIDTH) << std::left << "<udp datagram>" << '\n';
+              << std::setw(COL4_WIDTH) << std::left << "<udp datagram>";
+
+    if (rampupSeconds != 0 && eps > 1) {
+        std::cout << std::setw(COL5_WIDTH) << std::left << "<transient eps>";
+    }
+
+    std::cout << '\n';
+
     std::cout << std::setw(COL1_WIDTH) << std::left << std::string(COL1_WIDTH-1, '_')
               << std::setw(COL2_WIDTH) << std::left << std::string(COL2_WIDTH-1, '_')
               << std::setw(COL3_WIDTH) << std::left << std::string(COL3_WIDTH-1, '_')
-              << std::setw(COL4_WIDTH) << std::left << std::string(COL4_WIDTH-1, '_') << '\n';
+              << std::setw(COL4_WIDTH) << std::left << std::string(COL4_WIDTH-1, '_');
+
+    if (rampupSeconds != 0 && eps > 1) {
+        std::cout << std::setw(COL5_WIDTH) << std::left << std::string(COL5_WIDTH-1, '_');
+    }
+
+    std::cout << '\n';
 
     std::string udpDataSeq{}, udpData{};
     std::string::size_type pos = 0u;
@@ -296,8 +327,47 @@ int main(int argc, char* argv[])
     int patternsSize = patterns.size();
 
     // Period:
-    long long int periodNS = (long long int)(1000000000.0/eps);
+    long long int periodNS_permanent = (long long int)(1000000000.0/eps);
+    long long int periodNS = periodNS_permanent;
+
+    // Rampup schedule:
+    double initialEps = 1.0;
+    if (eps < 1) rampupSeconds = 0; // disable rampup under eps=1 (rampup proedure would deccelerate from 1.0 to eps !!)
+    // 1. Assume initial speed of 1 tick/s, and we want to achieve permanent speed of eps ticks/s
+    // 2. As we want constant aceleration (speed increases linearly), this accelation will be:
+    //    a = (eps - 1)/ rampupSeconds = ticks/s^2
+    // 3. We must apply the linear cinematic ecuation to get the "ticks period":
+    //    tickPeriod = 1 / current speed
+    //    current speed = initial speed + acceleration * time
+    //
+    //    Using 100 milliseconds of resolution, we would have this progression (of rampupSeconds*1000/100 elements):
+    //
+    //    t=0 usecs -> speed = 1 tick/s, tickPeriod = 1 s = 1000000 usecs
+    //    t=100 ms   -> speed = (1 + acceleration * 0.1) tick/s, tickPeriod = 1 / speed (usecs)
+    //    t=200 ms   -> speed = (1 + acceleration * 0.2) tick/s, tickPeriod = 1 / speed (usecs)
+    //    ...
+    //    t=rampupSeconds * 1000 ms -> speed = (1 + acceleration * rampupSeconds) tick/s, tickPeriod = 1 / speed (usecs)
+    int rampupPeriods = 1000; // resolution
+    double transientEps = initialEps;
+    long long int rampupPeriodsNS = (1000000000 / rampupPeriods) * rampupSeconds; // duration of each rampup period
+    double rampupAcceleration{};
+    if (rampupSeconds != 0) rampupAcceleration = (eps - initialEps)/rampupSeconds;
+
     while (true) {
+
+        // rampup ?
+        if (rampupSeconds != 0) {
+            auto elapsedFromStartNS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch() - startTimeNS).count();
+            int index = elapsedFromStartNS / rampupPeriodsNS;
+            if (index >= rampupPeriods) {
+                rampupSeconds = 0; // disables rampup
+                periodNS = periodNS_permanent;
+            }
+            else {
+                periodNS = 1000000000.0 / (initialEps + rampupAcceleration * index * (double(rampupSeconds)/rampupPeriods));
+                transientEps = 1000000000.0 / periodNS;
+            }
+        }
 
         udpDataSeq = std::to_string(initialValue + sequence);
 
@@ -326,7 +396,13 @@ int main(int argc, char* argv[])
                 std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
                           << std::setw(COL2_WIDTH) << std::left << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch() - startTimeNS).count()
                           << std::setw(COL3_WIDTH) << std::left << sequence
-                          << std::setw(COL4_WIDTH) << std::left << udpData << '\n';
+                          << std::setw(COL4_WIDTH) << std::left << udpData;
+
+                if (rampupSeconds != 0) {
+                    std::cout << std::setw(COL5_WIDTH) << std::left << transientEps;
+                }
+
+                std::cout << '\n';
             }
         }
 
