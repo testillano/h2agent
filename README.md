@@ -1076,7 +1076,7 @@ Usage: udp-server-h2client [options]
 Options:
 
 UDP server will trigger one HTTP/2 request for every reception, replacing optionally
-certain patterns on uri, headers and/or body provided. Implemented patterns are the
+certain patterns on method, uri, headers and/or body provided. Implemented patterns:
 following:
 
    @{udp}:      replaced by the whole UDP datagram received.
@@ -1122,8 +1122,9 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
   It also supports negative values which turns into random number in
   the range [0,abs(value)].
 
-[-m|--method <POST|GET|PUT|DELETE|HEAD>]
-  Request method. Defaults to 'GET'.
+[-m|--method <value>]
+  Request method. Defaults to 'GET'. After optional parsing, should be one of:
+  POST|GET|PUT|DELETE|HEAD.
 
 -u|--uri <value>
  URI to access.
@@ -1232,6 +1233,10 @@ Options:
   negative number means unlimited (depends on your hardware) and 0 is prohibited.
   Defaults to 1.
 
+[-r|--rampup-seconds <value>]
+  Rampup seconds to reach 'eps' linearly. Defaults to 0.
+  Only available for speeds over 1 event per second.
+
 [-i|--initial <value>]
   Initial value for datagram. Defaults to 0.
 
@@ -1267,6 +1272,7 @@ Print each: 1 message(s)
 Range: [0, 18446744073709551615]
 Pattern: @{seq}
 Events per second: 1000
+Rampup (s): 0
 
 
 Generating UDP messages...

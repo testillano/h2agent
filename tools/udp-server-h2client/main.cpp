@@ -82,6 +82,7 @@ std::atomic<unsigned int> TIMEOUTS{};
 std::atomic<unsigned int> CONNECTION_ERRORS{};
 
 // Globals
+std::map<std::string, std::string> MethodPatterns{};
 std::map<std::string, std::string> PathPatterns{};
 std::map<std::string, std::string> BodyPatterns{};
 std::map<std::string, std::string> HeadersPatterns{};
@@ -102,8 +103,7 @@ void usage(int rc, const std::string &errorMessage = "")
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "UDP server will trigger one HTTP/2 request for every reception, replacing optionally\n"
-       << "certain patterns on uri, headers and/or body provided. Implemented patterns are the\n"
-       << "following:\n"
+       << "certain patterns on method, uri, headers and/or body provided. Implemented patterns:\n"
        << '\n'
        << "   @{udp}:      replaced by the whole UDP datagram received.\n"
        << "   @{udp8}:     selects the 8 least significant digits in the UDP datagram, and may\n"
@@ -148,8 +148,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  It also supports negative values which turns into random number in\n"
        << "  the range [0,abs(value)].\n\n"
 
-       << "[-m|--method <POST|GET|PUT|DELETE|HEAD>]\n"
-       << "  Request method. Defaults to 'GET'.\n\n"
+       << "[-m|--method <value>]\n"
+       << "  Request method. Defaults to 'GET'. After optional parsing, should be one of:\n"
+       << "  POST|GET|PUT|DELETE|HEAD.\n\n"
 
        << "-u|--uri <value>\n"
        << " URI to access.\n\n"
@@ -415,23 +416,25 @@ public:
         variables_[aux] = data_.substr(start);
     }
 
-    const std::string &getMethod() const { // TODO: method substitution with message patterns (probably not useful)
-        return method_;
+    std::string getMethod() const { // variables substitution
+        std::string result = method_;
+        replaceVariables(result, MethodPatterns, variables_);
+        return result;
     }
 
-    std::string getPath() const { // @{udp[.part]} substitution
+    std::string getPath() const { // variables substitution
         std::string result = path_;
         replaceVariables(result, PathPatterns, variables_);
         return result;
     }
 
-    std::string getBody() const { // @{udp[.part]} substitution
+    std::string getBody() const { // variables substitution
         std::string result = body_;
         replaceVariables(result, BodyPatterns, variables_);
         return result;
     }
 
-    nghttp2::asio_http2::header_map getHeaders() const { // @{udp[.part]} substitution
+    nghttp2::asio_http2::header_map getHeaders() const { // variables substitution
         nghttp2::asio_http2::header_map result;
         std::string aux;
 
@@ -584,13 +587,10 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-m", method)
-            || cmdOptionExists(argv, argv + argc, "--method", method))
+    if (cmdOptionExists(argv, argv + argc, "-m", value)
+            || cmdOptionExists(argv, argv + argc, "--method", value))
     {
-        if (method != "POST" && method != "GET" && method != "PUT" && method != "DELETE" && method != "HEAD")
-        {
-            usage(EXIT_FAILURE, "Invalid '--method' value. Allowed: POST, GET, PUT, DELETE, HEAD.");
-        }
+        method = value;
     }
 
     char **next = argv;
@@ -711,6 +711,7 @@ int main(int argc, char* argv[])
     }
 
     // Collect variable patterns:
+    collectVariablePatterns(method, MethodPatterns);
     collectVariablePatterns(path, PathPatterns);
     collectVariablePatterns(body, BodyPatterns);
     collectVariablePatterns(ert::http2comm::headersAsString(headers), HeadersPatterns);
@@ -725,6 +726,7 @@ int main(int argc, char* argv[])
         }
     };
 
+    iterateMap(MethodPatterns);
     iterateMap(PathPatterns);
     iterateMap(BodyPatterns);
     iterateMap(HeadersPatterns);
