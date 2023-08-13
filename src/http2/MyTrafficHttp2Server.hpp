@@ -79,8 +79,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     // metrics:
     ert::metrics::Metrics *metrics_{};
 
-    ert::metrics::counter_t *processed_requests_provisioned_counter_{};
-    ert::metrics::counter_t *processed_requests_unprovisioned_counter_{};
+    ert::metrics::counter_t *provisioned_requests_successful_counter_{};
+    ert::metrics::counter_t *provisioned_requests_failed_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 

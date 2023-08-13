@@ -74,12 +74,12 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
     }
 
     // Client endpoint object to fill:
-    auto clientEndpoint = std::make_shared<AdminClientEndpoint>(cr.ApplicationName);
+    auto clientEndpoint = std::make_shared<AdminClientEndpoint>();
 
     if (clientEndpoint->load(j)) {
 
         // Metrics data:
-        clientEndpoint->setMetricsData(cr.MetricsPtr, cr.ResponseDelaySecondsHistogramBucketBoundaries, cr.MessageSizeBytesHistogramBucketBoundaries);
+        clientEndpoint->setMetricsData(cr.MetricsPtr, cr.ResponseDelaySecondsHistogramBucketBoundaries, cr.MessageSizeBytesHistogramBucketBoundaries, cr.ApplicationName);
 
         // Push the key in the map:
         admin_client_endpoint_key_t key = clientEndpoint->getKey();

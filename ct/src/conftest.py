@@ -659,11 +659,11 @@ SOCKET_MANAGER_PROVISION='''
     },
     {
       "source": "value.hello",
-      "target": "udpSocket.@{file1}.@{delayms}"
+      "target": "udpSocket.@{file1}|@{delayms}"
     },
     {
       "source": "value.world",
-      "target": "udpSocket.@{file2}.@{delayms}"
+      "target": "udpSocket.@{file2}|@{delayms}"
     }
   ]
 }

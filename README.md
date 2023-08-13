@@ -680,8 +680,7 @@ Usage: h2agent [options]
 Options:
 
 [--name <name>]
-  Application name. It maybe used to prefix metrics families, so consider the use of
-  compatible names in case that prometheus is not disabled. Defaults to 'h2agent'.
+  Application/process name. Used in prometheus metrics 'source' label. Defaults to 'h2agent'.
 
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
@@ -1089,8 +1088,7 @@ To stop the process you can send UDP message 'EOF'.
 To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
 
 [--name <name>]
-  Application name. It maybe used to prefix metrics families, so consider the use of
-  compatible names in case that prometheus is not disabled. Defaults to 'udp-server-h2client'.
+  Application/process name. Used in prometheus metrics 'source' label. Defaults to 'udp-server-h2client'.
 
 -k|--udp-socket-path <value>
   UDP unix socket path.
@@ -1166,7 +1164,7 @@ Execution example:
 ```bash
 $> build/Release/bin/udp-server-h2client -k /tmp/udp.sock -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
 
-Application name: udp-server-h2client
+Application/process name: udp-server-h2client
 UDP socket path: /tmp/udp.sock
 Workers: 80
 Print each: 1 message(s)
@@ -1400,7 +1398,8 @@ HTTP/2 501
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#Command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
-More information about implemented counters [here](#OAM).
+More information about implemented metrics [here](#OAM).
+To play with grafana automation in `h2agent` project, go to `./tools/grafana` directory and check its [PLAY_GRAFANA.md](./tools/grafana/PLAY_GRAFANA.md) file to learn more about.
 
 ## Traces and printouts
 
@@ -2504,11 +2503,11 @@ The **target** of information is classified after parsing the following possible
 
 - txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
-  This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP unix sockets target (`udpSocket./tmp/myunixsocket`).
+  This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP unix sockets target (`udpSocket./tmp/udp.sock`).
 
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
-- udpSocket.`<path>[.<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided, with an optional delay in milliseconds (if path contains dots, an unexpected delay can be configured and same could happen for the path, so in that case, you must force delay specification by mean adding `.0` or any valid value). The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
+- udpSocket.`<path>[|<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
 
 - serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
 
@@ -4260,114 +4259,178 @@ On native execution, it is just a simple `curl` native request:
 $> curl http://localhost:8080/metrics
 ```
 
-Metrics implemented could be divided **counters**, **gauges** or **histograms**, and each family is named depending on the category and the prefix provided.
+Metrics implemented could be divided **counters**, **gauges** or **histograms**:
 
-* **HTTP2 clients**: normally, we will prefix with the application name (h2agent, udp_server_h2client, etc.), and endpoint name (traffic_client_myClient1 or just myClient1, etc. ). Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
+- **Counters**:
+  - Processed requests (successful/errored)
+  - Processed responses (successful/timed-out)
+  - Non provisioned requests
+  - Purged contexts (successful/failed)
+  - File system and Unix sockets operations (successful/failed)
 
-  ```
-  Counters provided by http2comm library [<labels>]:
 
-     observed_resquests_sents_counter [source] [method]
-     observed_resquests_unsent_counter [source] [method]
-     observed_responses_received_counter [source] [method] [status_code]
-     observed_responses_timedout_counter [source] [method]
+- **Gauges and histograms**:
 
-  Gauges provided by http2comm library [<labels>]:
-
-     responses_delay_seconds_gauge [source]
-     sent_messages_size_bytes_gauge [source]
-     received_messages_size_bytes_gauge [source]
-
-  Histograms provided by http2comm library [<labels>]:
-
-     responses_delay_seconds_histogram [source]
-     sent_messages_size_bytes_histogram [source]
-     received_messages_size_bytes_histogram [source]
-  ```
-
-  For example:
-
-  ```bash
-  udp_server_h2client_responses_delay_seconds_histogram_bucket{source="udp_server_h2client",le="0.0001"} 21835
-  ```
+  - Response delay seconds
+  - Message size bytes for receptions
+  - Message size bytes for transmissions
 
 
 
-* **HTTP2 servers**: normally, we will prefix with the application name (h2agent, http2service, etc.), and endpoint name (traffic_server, admin_server, etc.). Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
+The metrics naming in this project, includes a family prefix which is the project applications name (`h2agent` or `udp_server_h2client`) and the endpoint category (`traffic_server`, `admin_server`, `traffic_client` for `h2agent`, and empty (as implicit), for `udp-server-h2client`). This convention and the labels provided (`[label] `: source, method, status_code, operation, result), are designed to ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com).
 
-  ```
-  Counters provided by http2comm library and h2agent itself(*) [<labels>]:
+The label ''**source**'': one of these labels is the source of information, which could be optionally dynamic (if `--name` parameter is provided to the applications, so we could have `h2agent` by default, or `h2agentB` to be more specific, although grafana provides the `instance` label anyway), or dynamic anyway for the case of client endpoints, which provisioned names are also part of source label.
 
-     observed_resquests_accepted_counter [source] [method]
-     observed_resquests_errored_counter [source] [method]
-     observed_responses_counter [source] [method] [status_code]
-     processed_requests_counter (*) [source] [provision: found/missing]
-     purged_contexts_counter (*) [source] [result: successful/failed]
+In general: `source value = <process name>[_<endpoint identifier>]`, where the endpoint identifier has sense for `h2agent` clients as multiple client endpoints could be provisioned. For example:
 
-  Gauges provided by http2comm library [<labels>]:
+* No process name provided:
 
-     responses_delay_seconds_gauge [source]
-     received_messages_size_bytes_gauge [source]
-     sent_messages_size_bytes_gauge [source]
+  * h2agent (traffic_server/admin_server/file_manager/socket_manager, are part of the family name).
+  * h2agent_myClient (traffic_client is part of family name)
+  * udp-server-h2client (we omit endpoint identifier, as unique and implicit in default process name)
+* Process name provided (`--name h2agentB` or `--name udp-server-h2clientB`):
 
-  Histograms provided by http2comm library [<labels>]:
-
-     responses_delay_seconds_histogram [source]
-     received_messages_size_bytes_histogram [source]
-     sent_messages_size_bytes_histogram [source]
-  ```
-
-  For example:
-
-  ```bash
-  h2agent_traffic_server_received_messages_size_bytes_histogram_bucket{source="h2agent_traffic_server"} 38
-  ```
+  * h2agentB (traffic_server/admin_server/file_manager/socket_manager, are part of the family name).
+  * h2agentB_myClient (traffic_client is part of family name)
+  * udp-server-h2clientB (we omit endpoint identifier, as unique and <u>should be implicit</u> in process name)
 
 
 
-* **File system**: normally, we will prefix with the application name (h2agent, http2service, etc.), and hardcoded "file_system". Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
-
-  ```
-  Counters provided by h2agent [<labels>]:
-
-     operations_counter [source] [operation: open/close/write/empty/delayedClose/instantClose] [success: true/false]
-  ```
-
-  For example:
-
-  ```bash
-  h2agent_file_system_operations_counter{source="h2agent_file_system",operation="open",success="false"} 0
-  ```
+These are the groups of metrics implemented in the project:
 
 
 
-* **UDP sockets**: normally, we will prefix with the application name (h2agent, http2service, etc.), and hardcoded "udp_socket". Such prefix is also assigned to a static family label called `source` which even being contained in family name (so, redundant), could ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com):
+#### HTTP2 clients
 
-  ```
-  Counters provided by h2agent [<labels>]:
+```
+Counters provided by http2comm library:
 
-     operations_counter [source] [operation: open/write/delayedWrite/instantWrite] [success: true/false]
-  ```
+   h2agent_traffic_client_observed_resquests_sents_counter [source] [method]
+   h2agent_traffic_client_observed_resquests_unsent_counter [source] [method]
+   h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code]
+   h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
 
-  For example:
+Gauges provided by http2comm library:
 
-  ```bash
-  h2agent_udp_socket_operations_counter{source="h2agent_udp_socket",operation="open",success="false"} 0
-  ```
+   h2agent_traffic_client_responses_delay_seconds_gauge [source]
+   h2agent_traffic_client_sent_messages_size_bytes_gauge [source]
+   h2agent_traffic_client_received_messages_size_bytes_gauge [source]
 
-#### Counters
+Histograms provided by http2comm library:
 
-- Processed requests (successful/errored)
-- Processed responses (successful/timed-out)
-- Non provisioned requests
-- Purged contexts (successful/failed)
-- File system and Unix sockets operations
+   h2agent_traffic_client_responses_delay_seconds [source]
+   h2agent_traffic_client_sent_messages_size_bytes [source]
+   h2agent_traffic_client_received_messages_size_bytes [source]
+```
 
-#### Gauges and histograms
 
-- Response delay seconds
-- Message size bytes for receptions
-- Message size bytes for sendings
+
+As commented, same metrics described above, are also generated for the other application 'udp-server-h2client':
+
+
+
+```
+Counters provided by http2comm library:
+
+   udp_server_h2client_observed_resquests_sents_counter [source] [method]
+   udp_server_h2client_observed_resquests_unsent_counter [source] [method]
+   udp_server_h2client_observed_responses_received_counter [source] [method] [status_code]
+   udp_server_h2client_observed_responses_timedout_counter [source] [method]
+
+Gauges provided by http2comm library:
+
+   udp_server_h2client_responses_delay_seconds_gauge [source]
+   udp_server_h2client_sent_messages_size_bytes_gauge [source]
+   udp_server_h2client_received_messages_size_bytes_gauge [source]
+
+Histograms provided by http2comm library:
+
+   udp_server_h2client_responses_delay_seconds [source]
+   udp_server_h2client_sent_messages_size_bytes [source]
+   udp_server_h2client_received_messages_size_bytes [source]
+```
+
+
+
+Examples:
+
+```bash
+udp_server_h2client_responses_delay_seconds_bucket{source="udp_server_h2client",le="0.0001"} 21835
+h2agent_traffic_client_observed_responses_timedout_counter{source="http2proxy_myClient"} 134
+h2agent_traffic_client_observed_responses_received_counter{source="h2agent_myClient"} 9776
+```
+
+Note that 'histogram' is not part of histograms' category metrics name suffix (as counters and gauges do). The reason is to avoid confusion because metrics created are not actually histogram containers (except bucket). So, 'sum' and 'count' can be used to represent latencies, but not directly as histograms but doing some intermediate calculations:
+
+```bash
+rate(h2agent_traffic_client_responses_delay_seconds_sum[2m])/rate(h2agent_traffic_client_responses_delay_seconds_count[2m])
+```
+
+So, previous expression (rate is the mean variation in given time interval) is better without 'histogram' in the names, and helps to represent the latency updated in real time (every 2 minutes in the example).
+
+#### HTTP2 servers
+
+We have two groups of server metrics. One for administrative operations (1 administrative server interface) and one for traffic events (1 traffic server interface):
+
+```
+Counters provided by http2comm library and h2agent itself(*):
+
+   h2agent_[traffic|admin]_server_observed_resquests_accepted_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_resquests_errored_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code]
+   h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
+   h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
+
+Gauges provided by http2comm library:
+
+   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source]
+
+Histograms provided by http2comm library:
+
+   h2agent_[traffic|admin]_server_responses_delay_seconds [source]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes [source]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source]
+```
+
+For example:
+
+```bash
+h2agent_traffic_server_received_messages_size_bytes_bucket{source="myServer"} 38
+h2agent_traffic_server_provisioned_requests_counter{source="h2agent",result="failed"} 234
+h2agent_traffic_server_purged_contexts_counter{source="h2agent",result="successful"} 2361
+```
+
+#### File system
+
+```
+Counters provided by h2agent:
+
+   h2agent_file_manager_operations_counter [source] [operation: open/close/write/empty/delayedClose/instantClose] [result: successful/failed]
+```
+
+For example:
+
+```bash
+h2agent_file_manager_operations_counter{source="h2agent",operation="open",result="failed"} 0
+```
+
+#### UDP sockets
+
+```
+Counters provided by h2agent:
+
+   h2agent_socket_manager_operations_counter [source] [operation: open/write/delayedWrite/instantWrite] [result: successful/failed]
+```
+
+For example:
+
+```bash
+h2agent_socket_manager_operations_counter{source="myServer",operation="write",result="successful"} 25533
+```
+
+
 
 ## Contributing
 

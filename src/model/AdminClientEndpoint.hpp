@@ -84,8 +84,8 @@ class AdminClientEndpoint
 
 public:
 
-    AdminClientEndpoint(const std::string &applicationName);
-    ~AdminClientEndpoint();
+    AdminClientEndpoint() {}
+    ~AdminClientEndpoint() {}
 
     // setters:
 
@@ -111,9 +111,10 @@ public:
      * @param metrics Optional metrics object to compute counters and histograms
      * @param responseDelaySecondsHistogramBucketBoundaries Optional bucket boundaries for response delay seconds histogram
      * @param messageSizeBytesHistogramBucketBoundaries Optional bucket boundaries for message size bytes histogram
+     * @param applicationName Application/process name used for metrics source label
      */
     void setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries,
-                        const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries);
+                        const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries, const std::string &applicationName);
 
     // getters:
 

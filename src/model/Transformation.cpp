@@ -365,7 +365,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
     // + txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided.
     // + binFile.`<path>` *[string]*: dumps source (as string) over binary file with the path provided.
-    // + udpSocket.`<path>` *[string]*: sends source (as string) towards the UDP unix socket with the path provided.
+    // + udpSocket.`<path>[|<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided.
     // + serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser`.
     // - break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
     //
@@ -666,7 +666,7 @@ std::string Transformation::asString() const {
             ss << " (path file)";
         }
         else if (target_type_ == TargetType::UDPSocket) {
-            ss << " (<path file>[.<write delay ms>])";
+            ss << " (<path file>[|<write delay ms>])";
         }
 
         if (!target_patterns_.empty()) {

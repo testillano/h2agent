@@ -73,14 +73,14 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::labels_t familyLabels = {{"source", name_}};
+        ert::metrics::labels_t familyLabels = {{"source", name_ + "_traffic_server"}};
 
-        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(name_ + std::string("_processed_requests_counter"), std::string("Requests processed counter in ") + name_, familyLabels);
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_traffic_server_provisioned_requests_counter", "Requests provisioned counter in h2agent_traffic_server", familyLabels);
 
-        processed_requests_provisioned_counter_ = &(cf.Add({{"provision", "found"}}));
-        processed_requests_unprovisioned_counter_ = &(cf.Add({{"provision", "missing"}}));
+        provisioned_requests_successful_counter_ = &(cf.Add({{"result", "successful"}}));
+        provisioned_requests_failed_counter_ = &(cf.Add({{"result", "failed"}}));
 
-        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily(name_ + std::string("_purged_contexts_counter"), std::string("Contexts purged counter in ") + name_, familyLabels);
+        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily("h2agent_traffic_server_purged_contexts_counter", "Contexts purged counter in h2agent_traffic_server", familyLabels);
 
         purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
@@ -370,7 +370,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
         // metrics
         if(metrics_) {
-            processed_requests_provisioned_counter_->Increment();
+            provisioned_requests_successful_counter_->Increment();
         }
     }
     else {
@@ -386,7 +386,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
         }
         // metrics
         if(metrics_) {
-            processed_requests_unprovisioned_counter_->Increment();
+            provisioned_requests_failed_counter_->Increment();
         }
     }
 

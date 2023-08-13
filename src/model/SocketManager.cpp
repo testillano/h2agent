@@ -45,20 +45,19 @@ namespace model
 {
 
 
-void SocketManager::enableMetrics(ert::metrics::Metrics *metrics, const std::string &applicationName) {
+void SocketManager::enableMetrics(ert::metrics::Metrics *metrics, const std::string &source) {
 
     metrics_ = metrics;
 
     if (metrics_) {
-        std::string source = applicationName + std::string("_udp_socket");
         ert::metrics::labels_t familyLabels = {{"source", source}};
 
-        ert::metrics::counter_family_t& cf = metrics->addCounterFamily(source + std::string("_operations_counter"), std::string("UDP socket operations counter in ") + source, familyLabels);
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_socket_manager_operations_counter", "UDP socket operations counter in h2agent_socket_manager", familyLabels);
         observed_open_operation_counter_ = &(cf.Add({{"operation", "open"}}));
         observed_write_operation_counter_ = &(cf.Add({{"operation", "write"}}));
         observed_delayed_write_operation_counter_ = &(cf.Add({{"operation", "delayedWrite"}}));
         observed_instant_write_operation_counter_ = &(cf.Add({{"operation", "instantWrite"}}));
-        observed_error_open_operation_counter_ = &(cf.Add({{"success", "false"}, {"operation", "open"}}));
+        observed_error_open_operation_counter_ = &(cf.Add({{"result", "failed"}, {"operation", "open"}}));
     }
 }
 
