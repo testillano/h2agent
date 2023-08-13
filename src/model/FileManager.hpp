@@ -95,9 +95,9 @@ public:
     * Set metrics reference
     *
     * @param metrics Optional metrics object to compute counters
-    * @param applicationName Used to prefix families names (counters, gauges, histograms).
+    * @param source Source label for prometheus metrics
     */
-    void enableMetrics(ert::metrics::Metrics *metrics, const std::string &applicationName);
+    void enableMetrics(ert::metrics::Metrics *metrics, const std::string &source);
 
     /** incrementObservedOpenOperationCounter */
     void incrementObservedOpenOperationCounter();

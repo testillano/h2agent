@@ -1587,7 +1587,7 @@ TEST_F(Transform_test, TargetUDPSocket)
     std::string socketPath = "/tmp/h2agent.UT.Transform_test.TargetUDPSocket";
     std::string targetValue = "udpSocket.";
     targetValue += socketPath;
-    targetValue += ".0";
+    targetValue += "|0";
 
     // Build test provision:
     nlohmann::json item = R"({ "source": "value.hello", "target": "tobereplaced" })"_json;

@@ -52,9 +52,6 @@ namespace h2agent
 namespace model
 {
 
-AdminClientEndpoint::AdminClientEndpoint(const std::string &applicationName) : application_name_(applicationName) {;}
-AdminClientEndpoint::~AdminClientEndpoint() {;}
-
 void AdminClientEndpoint::connect(bool fromScratch) {
 
     if (fromScratch) {
@@ -62,26 +59,26 @@ void AdminClientEndpoint::connect(bool fromScratch) {
     }
     if (!client_) {
 
-        std::string keyAdaptedToMetricsName = h2agent::model::fixMetricsName(key_);
-        client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>(application_name_ + "_" + keyAdaptedToMetricsName, host_, std::to_string(port_), secure_, nullptr);
+        client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>("h2agent_traffic_client", host_, std::to_string(port_), secure_, nullptr);
         try {
-            client_->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_);
+            client_->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_, application_name_ + "_" + h2agent::model::fixMetricsName(key_)/*source label*/);
         }
         catch(std::exception &e)
         {
             client_->enableMetrics(nullptr); // force no metrics again
-            std::string msg = ert::tracing::Logger::asString("Cannot enable metrics for client '%s': %s", keyAdaptedToMetricsName.c_str(), e.what());
+            std::string msg = ert::tracing::Logger::asString("Cannot enable metrics for client endpoint '%s': %s", key_.c_str(), e.what());
             ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
         }
     }
 }
 
 void AdminClientEndpoint::setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries,
-        const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries) {
+        const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries, const std::string &applicationName) {
 
     metrics_ = metrics;
     response_delay_seconds_histogram_bucket_boundaries_ = responseDelaySecondsHistogramBucketBoundaries;
     message_size_bytes_histogram_bucket_boundaries_ = messageSizeBytesHistogramBucketBoundaries;
+    application_name_ = applicationName;
 }
 
 bool AdminClientEndpoint::load(const nlohmann::json &j) {

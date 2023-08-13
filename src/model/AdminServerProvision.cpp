@@ -161,7 +161,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         expression_t   expression;
         parser_t       parser;
         parser.compile(expressionString, expression);
-        sourceVault.setFloat(expression.value());
+
+        double result = expression.value(); // if the result has decimals, set as float. If not, set as integer:
+        if (result == (int)result) sourceVault.setInteger(expression.value());
+        else sourceVault.setFloat(expression.value());
     }
     else if (transformation->getSourceType() == Transformation::SourceType::Random) {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
@@ -831,9 +834,9 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             if (!success) return false;
 
             // assignments
-            // Possible delay provided in 'target': <path>.<delay>
+            // Possible delay provided in 'target': <path>|<delay>
             std::string path = target;
-            size_t lastDotPos = target.find_last_of(".");
+            size_t lastDotPos = target.find_last_of("|");
             unsigned int delayMs = atoi(target.substr(lastDotPos + 1).c_str());
             path = target.substr(0, lastDotPos);
 

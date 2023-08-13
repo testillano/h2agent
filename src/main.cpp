@@ -251,8 +251,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
        << "[--name <name>]\n"
-       << "  Application name. It maybe used to prefix metrics families, so consider the use of\n"
-       << "  compatible names in case that prometheus is not disabled. Defaults to '" << progname << "'.\n\n"
+       << "  Application/process name. Used in prometheus metrics 'source' label. Defaults to '" << progname << "'.\n\n"
 
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
@@ -839,25 +838,22 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Application name fixed for metrics (just in case, as executable name without --name could be unexpected):
-    std::string applicationNameForMetrics = h2agent::model::fixMetricsName(application_name);
-
     // FileManager/SafeFile metrics
-    myFileManager->enableMetrics(myMetrics, applicationNameForMetrics);
+    myFileManager->enableMetrics(myMetrics, application_name/*source label*/);
 
     // SocketManager/SafeSocket metrics
-    mySocketManager->enableMetrics(myMetrics, applicationNameForMetrics);
+    mySocketManager->enableMetrics(myMetrics, application_name/*source label*/);
 
     // Admin server
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server(applicationNameForMetrics + "_admin_server", ADMIN_SERVER_WORKER_THREADS);
-    myAdminHttp2Server->enableMetrics(myMetrics);
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server("h2agent_admin_server", ADMIN_SERVER_WORKER_THREADS);
+    myAdminHttp2Server->enableMetrics(myMetrics, {}, {}, application_name/*source label*/);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
     myAdminHttp2Server->setConfiguration(myConfiguration);
     myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
     myAdminHttp2Server->setFileManager(myFileManager);
     myAdminHttp2Server->setSocketManager(mySocketManager);
-    myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, applicationNameForMetrics); // for client connection class
+    myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name); // for client connection class
 
     // Timers thread:
     std::thread tt([&] {
@@ -871,8 +867,8 @@ int main(int argc, char* argv[])
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server(applicationNameForMetrics + "_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
-        myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries);
+        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server("h2agent_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
+        myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name/*source label*/);
         myTrafficHttp2Server->enableMyMetrics(myMetrics);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
