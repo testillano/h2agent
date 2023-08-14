@@ -96,8 +96,14 @@ public:
     * Enable metrics
     *
     * @param metrics Optional metrics object to compute counters
+    * @param source Source label for prometheus metrics. If missing, class name will be taken (even being redundant with
+    * family name prefix as will ease metrics filtering anyway). A good source convention could be the process name and
+    * the endpoint identification:
+    *
+    * - h2agent[_traffic_server]: optional endpoint category, as it would be deducted from family name
+    * - h2agentB
     */
-    void enableMyMetrics(ert::metrics::Metrics *metrics);
+    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "");
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,

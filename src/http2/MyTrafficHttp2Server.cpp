@@ -68,12 +68,12 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(const std::string &name, size_t worke
     purge_execution_ = true;
 }
 
-void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics) {
+void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source) {
 
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::labels_t familyLabels = {{"source", name_ + "_traffic_server"}};
+        ert::metrics::labels_t familyLabels = {{"source", (source.empty() ? name_:source)}}; // same way that http2comm library
 
         ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_traffic_server_provisioned_requests_counter", "Requests provisioned counter in h2agent_traffic_server", familyLabels);
 
