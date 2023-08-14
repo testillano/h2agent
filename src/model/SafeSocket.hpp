@@ -103,8 +103,9 @@ public:
     *
     * @param data data to write
     * @param writeDelayUs delay for write operation. By default no delay is configured.
+    * @param fromDelayed called from delayed write (used to omit instant write count). False by default.
     */
-    void write(const std::string& data, unsigned int writeDelayUs = 0);
+    void write(const std::string& data, unsigned int writeDelayUs = 0, bool fromDelayed = false);
 };
 
 }
