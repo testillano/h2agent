@@ -588,7 +588,7 @@
           "color": {
             "mode": "thresholds"
           },
-          "displayName": "instant delay",
+          "displayName": "latency",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -638,7 +638,7 @@
           "expr": "sum(rate(h2agent_traffic_server_responses_delay_seconds_gauge[$rate_interval]))",
           "instant": false,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{source}} delay",
           "range": true,
           "refId": "A"
         }
@@ -803,7 +803,7 @@
           "expr": "h2agent_traffic_server_received_messages_size_bytes_gauge",
           "hide": false,
           "instant": false,
-          "legendFormat": "receptions",
+          "legendFormat": "{{source}} receptions",
           "range": true,
           "refId": "messages received"
         },
@@ -816,7 +816,7 @@
           "expr": "h2agent_traffic_server_sent_messages_size_bytes_gauge",
           "hide": false,
           "instant": false,
-          "legendFormat": "transmissions",
+          "legendFormat": "{{source}} transmissions",
           "range": true,
           "refId": "messages sent"
         }
@@ -1084,7 +1084,7 @@
           "color": {
             "mode": "thresholds"
           },
-          "displayName": "instant delay",
+          "displayName": "latency",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1129,12 +1129,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "builder",
+          "editorMode": "code",
           "exemplar": true,
           "expr": "sum(rate(udp_server_h2client_responses_delay_seconds_gauge[$rate_interval]))",
           "instant": false,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{source}} delay",
           "range": true,
           "refId": "A"
         }
@@ -1300,7 +1300,7 @@
           "expr": "udp_server_h2client_received_messages_size_bytes_gauge",
           "instant": false,
           "interval": "",
-          "legendFormat": "receptions",
+          "legendFormat": "{{source}} receptions",
           "range": true,
           "refId": "messages received"
         },
@@ -1315,7 +1315,7 @@
           "hide": false,
           "instant": false,
           "interval": "",
-          "legendFormat": "transmissions",
+          "legendFormat": "{{source}} transmissions",
           "range": true,
           "refId": "messages sent"
         }
@@ -1324,7 +1324,7 @@
       "type": "gauge"
     }
   ],
-  "refresh": false,
+  "refresh": "",
   "schemaVersion": 38,
   "style": "dark",
   "tags": [],
@@ -1412,13 +1412,13 @@
     ]
   },
   "time": {
-    "from": "2023-08-13T17:20:43.292Z",
-    "to": "2023-08-13T17:22:33.318Z"
+    "from": "now-5m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "h2agent",
   "uid": "f5dfd490-924e-4a81-8fca-46d7f4d94662",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

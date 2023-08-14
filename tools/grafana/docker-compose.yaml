@@ -45,7 +45,7 @@ services:
     container_name: grafana
     env_file:
       - ./grafana/env.config
-    user: "${UID}:${GID}"
+    #user: "${UID}:${GID}"
     depends_on:
       - prometheus
     ports:
