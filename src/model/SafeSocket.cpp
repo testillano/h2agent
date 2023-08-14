@@ -66,7 +66,7 @@ void SafeSocket::delayedWrite(unsigned int writeDelayUs, const std::string &data
     timer->expires_after(std::chrono::microseconds(writeDelayUs));
     timer->async_wait([this, timer, data] (const boost::system::error_code& e) {
         if( e ) return; // probably, we were cancelled (boost::asio::error::operation_aborted)
-        write(data);
+        write(data, 0, true /* from delayed */);
     });
 }
 
@@ -100,7 +100,7 @@ nlohmann::json SafeSocket::getJson() const {
     return result;
 }
 
-void SafeSocket::write (const std::string& data, unsigned int writeDelayUs) {
+void SafeSocket::write (const std::string& data, unsigned int writeDelayUs, bool fromDelayed) {
 
     // trace data & delay
     LOGDEBUG(
@@ -112,7 +112,10 @@ void SafeSocket::write (const std::string& data, unsigned int writeDelayUs) {
     //std::lock_guard<std::mutex> lock(mutex_);
 
     // metrics
-    socket_manager_->incrementObservedWriteOperationCounter();
+    if (writeDelayUs == 0) {
+        socket_manager_->incrementObservedWriteOperationCounter();
+        if (!fromDelayed) socket_manager_->incrementObservedInstantWriteOperationCounter();
+    }
 
     // Close socket:
     if (io_context_ && writeDelayUs != 0) {
@@ -121,9 +124,6 @@ void SafeSocket::write (const std::string& data, unsigned int writeDelayUs) {
     else {
         sendto(socket_, data.c_str(), data.length(), 0, (struct sockaddr*)&server_addr_, sizeof(struct sockaddr_un));
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Data written into '%s'", path_.c_str()), ERT_FILE_LOCATION));
-
-        // metrics
-        socket_manager_->incrementObservedInstantWriteOperationCounter();
     }
 }
 
