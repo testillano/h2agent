@@ -2682,17 +2682,32 @@ Filters give you the chance to make complex transformations:
 
 
 
-- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and global variables are searched, giving priority to local ones), which is:
+- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and global variables are searched, giving <u>priority to local ones</u>), which is:
 
   - **False** condition for cases:
     - <u>Undefined</u> variable.
     - Defined but <u>empty</u> string.
+
   - **True** condition for the rest of cases:
-  -  Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
+    - Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
+      Also, variable name in `ConditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>.
 
-  Global variables are not inspected, only local ones.
+  Transfer procedure consists in <u>source copy over target</u> only when condition is **true**. To assign another value for **false** condition, you must use the 	inverted variable in another transformation item (no ternary syntax collapsed in single item is available):
 
-  The adopted convention allows to use regular expression filters to **manually** create conditional variables, as non-matched sources skips target assignment (undefined is *false* condition) and matched ones copy the source (matched) into the target (variable) which will be a compliant condition variable (non-empty string is *true* condition):
+  ```json
+  {
+    "source": "value.value when id is true",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "id" }
+  },
+  {
+    "source": "value.value when id is false",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "!id" }
+  }
+  ```
+
+  Normally, we generate condition variables by mean regular expression filters, because non-matched sources skips target assignment (undefined is *false* condition) and matched ones copy the source (matched) into the target (variable) which will be a compliant condition variable (non-empty string is *true* condition):
 
   ```json
   {
@@ -2702,24 +2717,19 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  In summary, `isNumber` will be undefined if the request body node value at `/must/be/number` is not a number, and will hold that numeric value, so non-empty value, when it is actually a number (guaranteed by regular expression filter).
-
-  Also, variable name in `ConditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>:
+  In that example `isNumber` will be undefined (**false** as condition variable) if the request body node value at `/must/be/number` is not a number, and will hold that numeric value, so non-empty value (**true** as condition variable), when it is actually a number (guaranteed by regular expression filter). Then, we can use it as condition variable:
 
   ```json
   {
-    "source": "value.400",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "!isNumber" }
-  },
-  {
-    "source": "value.id is empty",
+    "source": "value.number received !",
     "target": "response.body.string",
-    "filter": { "ConditionVar" : "!id" }
+    "filter": { "ConditionVar" : "isNumber" }
   }
   ```
 
-  Condition variables may also be created **automatically** by some transformations into variable targets (condition variable), to be used later in this `ConditionVar` filter. The best example is the `JsonConstraint` filter (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
+  Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `ConditionVar` filter. The best example is the `JsonConstraint` filter (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
+
+  There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *EqualTo* and *DifferenFrom*:
 
 
 
@@ -2795,7 +2805,7 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  Note that `A_xor_B` could be also obtained with `(@{A}-@{B})^2` or `(@{A}+@{B})%2`.
+  Note that `A_xor_B` could be also obtained using source `(@{A}-@{B})^2` or `(@{A}+@{B})%2`.
 
 
 

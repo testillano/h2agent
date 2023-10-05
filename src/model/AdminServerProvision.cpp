@@ -1154,6 +1154,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     if (regexMatchingConfigured) {
         // Precompile regex with key, only for 'RegexMatching' algorithm:
         try {
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Assigning regex: %s", key_.c_str()), ERT_FILE_LOCATION));
             regex_.assign(key_, std::regex::optimize);
         }
         catch (std::regex_error &e) {

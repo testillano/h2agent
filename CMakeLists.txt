@@ -97,12 +97,7 @@ endif()
 ##################
 add_subdirectory( src )
 add_subdirectory( ut )
-add_subdirectory( tools/matching-helper )
-add_subdirectory( tools/arashpartow-helper )
-add_subdirectory( tools/h2client )
-add_subdirectory( tools/udp-server )
-add_subdirectory( tools/udp-server-h2client )
-add_subdirectory( tools/udp-client )
+add_subdirectory( tools )
 
 ###########
 # Install #
