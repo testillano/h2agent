@@ -3013,6 +3013,18 @@ Retrieves all the provisions configured.
 
 Json array document containing all provisioned items, when something is configured (no-content response has no body).
 
+### GET /admin/v1/server-provision/unused
+
+Retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all provisioned items still unused, when something is configured (no-content response has no body).
+
 ### DELETE /admin/v1/server-provision
 
 Deletes the whole process provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
@@ -3751,6 +3763,18 @@ Retrieves all the provisions configured.
 #### Response body
 
 Json array document containing all provisioned items, when something is configured (no-content response has no body).
+
+### GET /admin/v1/client-provision/unused
+
+Retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all provisioned items still unused, when something is configured (no-content response has no body).
 
 ### DELETE /admin/v1/client-provision
 

@@ -69,6 +69,8 @@ class SocketManager;
 
 class AdminServerProvision
 {
+    bool employed_{};
+
     nlohmann::json json_{}; // provision reference
 
     admin_server_provision_key_t key_{}; // calculated in every load()
@@ -249,6 +251,13 @@ public:
         socket_manager_ = p;
     }
 
+    /**
+     * Provision is being employed
+     */
+    void employ() {
+        employed_ = true;
+    }
+
     // getters:
 
     /**
@@ -354,6 +363,14 @@ public:
      */
     const std::string &getResponseSchemaId() const {
         return response_schema_id_;
+    }
+
+    /** Provision was employed
+     *
+     * @return Boolean about if this provision has been used
+     */
+    bool employed() const {
+        return employed_;
     }
 };
 

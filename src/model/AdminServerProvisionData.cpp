@@ -53,7 +53,7 @@ AdminServerProvisionData::AdminServerProvisionData() {
     server_provision_schema_.setJson(h2agent::adminSchemas::server_provision); // won't fail
 }
 
-std::string AdminServerProvisionData::asJsonString(bool ordered) const {
+std::string AdminServerProvisionData::asJsonString(bool ordered, bool unused) const {
 
     nlohmann::json result = nlohmann::json::array();
 
@@ -61,11 +61,13 @@ std::string AdminServerProvisionData::asJsonString(bool ordered) const {
     if (ordered) {
         for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
             auto element =  get(*it);
+            if (unused && element->second->employed()) continue;
             result.push_back(element->second->getJson());
         };
     }
     else {
         for (auto it = map_.begin(); it != map_.end(); it++) {
+            if (unused && it->second->employed()) continue;
             result.push_back(it->second->getJson());
         };
     }

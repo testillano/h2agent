@@ -304,6 +304,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
     if (provision) {
 
         LOGDEBUG(ert::tracing::Logger::debug("Provision successfully indentified !", ERT_FILE_LOCATION));
+        provision->employ();
 
         std::string outState;
         std::string outStateMethod;

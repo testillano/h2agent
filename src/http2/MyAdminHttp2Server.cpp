@@ -469,12 +469,21 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = admin_data_->getServerProvisionData().asJsonString(ordered);
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
+    else if (pathSuffix == "server-provision/unused") {
+        bool ordered = (admin_data_->getServerMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
+        responseBody = admin_data_->getServerProvisionData().asJsonString(ordered, true /*unused*/);
+        statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
     else if (pathSuffix == "client-endpoint") {
         responseBody = admin_data_->getClientEndpointData().asJsonString();
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "client-provision") {
         responseBody = admin_data_->getClientProvisionData().asJsonString();
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "client-provision/unused") {
+        responseBody = admin_data_->getClientProvisionData().asJsonString(true /*unused*/);
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (std::regex_match(pathSuffix, matches, clientProvisionId)) { // client-provision/<client provision id>
@@ -949,6 +958,7 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     }
 
     // Process provision (before sending)
+    provision->employ(); // set provision as employed:
     std::string requestMethod{};
     std::string requestUri{};
     std::string requestBody{};

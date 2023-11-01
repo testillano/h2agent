@@ -218,6 +218,11 @@ server_provision() {
   fi
 }
 
+server_provision_unused() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used (${ADMIN_URL}/server-provision/unused)." && return 0
+  do_curl ${ADMIN_URL}/server-provision/unused && return 0
+}
+
 server_provision_schema() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema (${ADMIN_URL}/server-provision/schema)." && return 0
   do_curl "${ADMIN_URL}/server-provision/schema"
@@ -411,6 +416,11 @@ client_provision() {
   fi
 }
 
+client_provision_unused() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used (${ADMIN_URL}/client-provision/unused)." && return 0
+  do_curl ${ADMIN_URL}/client-provision/unused && return 0
+}
+
 client_provision_schema() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema (${ADMIN_URL}/client-provision/schema)." && return 0
   do_curl "${ADMIN_URL}/client-provision/schema"
@@ -492,6 +502,7 @@ snapshot() {
   server_matching && json > ${dir}/server-matching.json
   server_matching_schema && json > ${dir}/server-matching_schema.json
   server_provision && json > ${dir}/server-provision.json
+  server_provision_unused && json > ${dir}/server-provision_unused.json
   server_provision_schema && json > ${dir}/server-provision_schema.json
   server_data --summary -1 && json > ${dir}/server-data-summary.json
   echo | server_data && json > ${dir}/server-data.json
@@ -510,6 +521,7 @@ snapshot() {
   client_endpoint && json > ${dir}/client_endpoint.json
   client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
   client_provision && json > ${dir}/client-provision.json
+  client_provision_unused && json > ${dir}/client-provision_unused.json
   client_provision_schema && json > ${dir}/client-provision_schema.json
   client_data --summary -1 && json > ${dir}/client-data-summary.json
   echo | client_data && json > ${dir}/client-data.json
@@ -627,12 +639,14 @@ help() {
   server_data_configuration -h
   server_matching -h
   server_provision -h
+  server_provision_unused -h
   server_data -h
   server_data_sequence -h
   echo
   echo "=== Traffic client ==="
   client_endpoint -h
   client_provision -h
+  client_provision_unused -h
   client_data -h
   client_data_sequence -h
   echo
