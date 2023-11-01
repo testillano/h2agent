@@ -66,6 +66,8 @@ class SocketManager;
 
 class AdminClientProvision
 {
+    bool employed_{};
+
     nlohmann::json json_{}; // provision reference
 
     admin_client_provision_key_t key_{}; // calculated in every load()
@@ -177,6 +179,14 @@ public:
                     unsigned int &requestTimeoutMs,
                     std::string &error
                   ) const;
+
+    /**
+     * Provision is being employed
+     */
+    void employ() {
+        employed_ = true;
+    }
+
     // setters:
 
     /**
@@ -389,6 +399,14 @@ public:
      */
     const std::uint64_t & getSeq() const {
         return seq_;
+    }
+
+    /** Provision was employed
+     *
+     * @return Boolean about if this provision has been used
+     */
+    bool employed() const {
+        return employed_;
     }
 };
 

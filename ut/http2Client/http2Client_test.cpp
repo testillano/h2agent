@@ -307,6 +307,58 @@ TEST_F(XXXX_http2Server_test, CheckSchema)
     tearDown();
 }
 
+TEST_F(XXXX_http2Server_test, UnusedProvisions)
+{
+    /////////////////////
+    // Admin provision //
+    /////////////////////
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+    std::string provisionBody = ProvisionExample.dump();
+    ert::http2comm::Http2Client::response response = admin_client_->send("POST", "/admin/v1/server-provision", provisionBody, headers);
+
+    EXPECT_EQ(response.body, "{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema and server provision data received\" }");
+    EXPECT_EQ(response.statusCode, 201);
+    // Check headers
+    // EXPECT_EQ(ert::http2comm::headersAsString(response.headers), expected); // unpredictable (date header added by nghttp2)
+    auto it = response.headers.find("content-type");
+    EXPECT_TRUE(it != response.headers.end());
+    EXPECT_EQ(it->second.value, "application/json");
+
+    ///////////////////////////
+    // Get unused provisions //
+    ///////////////////////////
+    response = admin_client_->send("GET", "/admin/v1/server-provision/unused", "", headers);
+    EXPECT_EQ(response.body, std::string("[") + provisionBody + std::string("]"));
+    EXPECT_EQ(response.statusCode, 200);
+
+    /////////////
+    // Traffic //
+    /////////////
+    headers.clear();
+    response = traffic_client_->send("GET", "/app/v1/foo/bar?name=test", "", headers);
+
+    EXPECT_EQ(response.body, "{\"foo\":\"bar\",\"text\":\"hello\"}");
+    EXPECT_EQ(response.statusCode, 200);
+    // Check headers
+    it = response.headers.find("content-type");
+    EXPECT_TRUE(it != response.headers.end());
+    if (it != response.headers.end()) { EXPECT_EQ(it->second.value, "application/json"); }
+
+    it = response.headers.find("x-version");
+    EXPECT_TRUE(it != response.headers.end());
+    if (it != response.headers.end()) { EXPECT_EQ(it->second.value, "1.0.0"); }
+
+    ///////////////////////////
+    // Get unused provisions //
+    ///////////////////////////
+    response = admin_client_->send("GET", "/admin/v1/server-provision/unused", "", headers);
+    EXPECT_EQ(response.body, "");
+    EXPECT_EQ(response.statusCode, 204);
+
+    tearDown();
+}
+
 TEST_F(XXXX_http2Server_test, ProvisionedEvent)
 {
     /////////////////////
