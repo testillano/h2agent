@@ -1967,6 +1967,8 @@ Optional object used to specify the transformation used for traffic classificati
 ##### rgx & fmt
 
 Optional arguments used in `FullMatchingRegexReplace` algorithm.
+Regular expressions used by `h2agent` are based on `std::regex` and built with default `ECMAScript` option type from [available](https://en.cppreference.com/w/cpp/regex/syntax_option_type) ones.
+Also, `std::regex_replace` and `std::regex_match` algorithms use default format (`ECMAScript` [rules](https://262.ecma-international.org/5.1/#sec-15.5.4.11)) from [available](https://en.cppreference.com/w/cpp/regex/match_flag_type) ones.
 
 ##### algorithm
 
@@ -3016,6 +3018,7 @@ Json array document containing all provisioned items, when something is configur
 ### GET /admin/v1/server-provision/unused
 
 Retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
 
 #### Response status code
 
@@ -3767,6 +3770,7 @@ Json array document containing all provisioned items, when something is configur
 ### GET /admin/v1/client-provision/unused
 
 Retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
 
 #### Response status code
 
