@@ -738,9 +738,31 @@ int main(int argc, char* argv[])
     bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && traffic_server_key_password.empty());
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    std::cout << '\n';
+    const std::string programHeader = R"(
 
+88            ad888888b,
+88           d8"     "88                                                     ,d
+88                   a8P                                                     88
+88,dPPYba,        ,d8P"   ,adPPYYba,   ,adPPYb,d8   ,adPPYba,  8b,dPPYba,  MM88MMM
+88P'    "8a     a8P"      ""     `Y8  a8"    `Y88  a8P_____88  88P'   `"8a   88
+88       88   a8P'        ,adPPPPP88  8b       88  8PP"""""""  88       88   88
+88       88  d8"          88,    ,88  "8a,   ,d88  "8b,   ,aa  88       88   88,
+88       88  88888888888  `"8bbdP"Y8   `"YbbdP"Y8   `"Ybbd8"'  88       88   "Y888
+                                       aa,    ,88
+                                        "Y8bbdP"
+
+https://github.com/testillano/h2agent
+
+Quick Start:    https://github.com/testillano/h2agent#quick-start
+Prezi overview: https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/
+ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#questions-and-answers
+
+
+)";
+
+    std::cout << programHeader;
     std::cout << currentDateTime() << ": Starting " << application_name << " " << (gitVersion.empty() ? "":gitVersion) << '\n';
+    std::cout << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
     std::cout << "IP stack: " << (ipv6 ? "IPv6":"IPv4") << '\n';

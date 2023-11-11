@@ -1408,6 +1408,26 @@ Traces are managed by `syslog` by default, but could be shown verbosely at stand
 ```bash
 $> ./h2agent --verbose &
 [1] 27407
+
+
+88            ad888888b,
+88           d8"     "88                                                     ,d
+88                   a8P                                                     88
+88,dPPYba,        ,d8P"   ,adPPYYba,   ,adPPYb,d8   ,adPPYba,  8b,dPPYba,  MM88MMM
+88P'    "8a     a8P"      ""     `Y8  a8"    `Y88  a8P_____88  88P'   `"8a   88
+88       88   a8P'        ,adPPPPP88  8b       88  8PP"""""""  88       88   88
+88       88  d8"          88,    ,88  "8a,   ,d88  "8b,   ,aa  88       88   88,
+88       88  88888888888  `"8bbdP"Y8   `"YbbdP"Y8   `"Ybbd8"'  88       88   "Y888
+                                       aa,    ,88
+                                        "Y8bbdP"
+
+https://github.com/testillano/h2agent
+
+Quick Start:    https://github.com/testillano/h2agent#quick-start
+Prezi overview: https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/
+ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#questions-and-answers
+
+
 20/11/22 20:53:33 CET: Starting h2agent
 Log level: Warning
 Verbose (stdout): true
