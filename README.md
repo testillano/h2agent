@@ -4241,6 +4241,7 @@ Usage: files [-h|--help]; Gets the files processed.
 Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
                             [--enable-read-cache]  ; Enables cache for read operations.
                             [--disable-read-cache] ; Disables cache for read operations.
+Usage: udp_sockets [-h|--help]; Gets the udp sockets processed.
 Usage: configuration [-h|--help]; Gets agent general static configuration.
 
 === Traffic server ===
@@ -4260,6 +4261,8 @@ Usage: server_matching [-h|--help]; Gets/updates current server matching configu
                                     (http://localhost:8074/admin/v1/server-matching).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
+Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used
+                                                      (http://localhost:8074/admin/v1/server-provision/unused).
 Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
                    [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters.
                                                                    Event number may be negative to access by reverse
@@ -4274,6 +4277,26 @@ Usage: server_data_sequence [-h|--help] [value (available values by default)]; E
 === Traffic client ===
 Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration
                                                      (http://localhost:8074/admin/v1/client-endpoint).
+Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration
+                                               (http://localhost:8074/admin/v1/client-provision).
+                                       [file]; Configure client provision by mean json specification.
+                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics
+                                               configuration (omit with empty value):
+                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]
+Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used
+                                            (http://localhost:8074/admin/v1/client-provision/unused).
+Usage: client_data [-h|--help]; Inspects client data events (http://localhost:8074/admin/v1/client-data).
+                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Restricts shown data with given
+                                                                                        positional filters.
+                                                                                        Event number may be negative to
+                                                                                        access by reverse chronological order.
+                   [--summary] [max keys]          ; Gets current client data summary to guide further queries.
+                                                     Displayed keys (client endpoint id/method/uri) could be limited
+                                                     (5 by default, -1: no limit).
+                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
+                                                     the selection.
+Usage: client_data_sequence [-h|--help] [value (available values by default)]; Extract client sequence document from json
+                                                                               retrieved in previous client_data() call.
 
 === Schemas ===
 Usage: schema_schema [-h|--help]; Gets the schema configuration schema
@@ -4286,7 +4309,8 @@ Usage: server_provision_schema [-h|--help]; Gets the server provision configurat
                                             (http://localhost:8074/admin/v1/server-provision/schema).
 Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema
                                            (http://localhost:8074/admin/v1/client-endpoint/schema).
-
+Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema
+                                            (http://localhost:8074/admin/v1/client-provision/schema).
 === Auxiliary ===
 Usage: json [-h|--help]; Beautifies previous operation json response content.
             [jq expression, '.' by default]; jq filter over previous content.
@@ -4320,7 +4344,7 @@ $> curl http://localhost:8080/metrics
 Metrics implemented could be divided **counters**, **gauges** or **histograms**:
 
 - **Counters**:
-  - Processed requests (successful/errored)
+  - Processed requests (successful/errored(service unavailable, method not allowed, method not implemented, wrong api name or version, unsupported media type)/unsent(conection error))
   - Processed responses (successful/timed-out)
   - Non provisioned requests
   - Purged contexts (successful/failed)
