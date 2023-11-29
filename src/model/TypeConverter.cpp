@@ -138,19 +138,39 @@ const std::string &TypeConverter::getString(bool &success) {
 
     success = true; // actually, always true
 
-    if (native_type_ == NativeType::Object) {
+    switch (native_type_) {
+    case NativeType::Object:
+    {
         s_value_ = j_value_.dump();
+        break;
     }
-    else if (native_type_ == NativeType::Integer) s_value_ = std::to_string(i_value_);
-    else if (native_type_ == NativeType::Unsigned) s_value_ = std::to_string(u_value_);
-    else if (native_type_ == NativeType::Float) {
+    case NativeType::Integer:
+    {
+        s_value_ = std::to_string(i_value_);
+        break;
+    }
+    case NativeType::Unsigned:
+    {
+        s_value_ = std::to_string(u_value_);
+        break;
+    }
+    case NativeType::Float:
+    {
         s_value_ = std::to_string(f_value_); // we should remove trailing decimal zeroes:
         // Using stringstream formatter is less efficient than post-processing its result:
         //  (https://stackoverflow.com/questions/13686482/c11-stdto-stringdouble-no-trailing-zeros)
         s_value_.erase ( s_value_.find_last_not_of('0') + 1, std::string::npos );
         s_value_.erase ( s_value_.find_last_not_of('.') + 1, std::string::npos );
+        break;
     }
-    else if (native_type_ == NativeType::Boolean) s_value_ = b_value_ ? "true":"false";
+    case NativeType::Boolean:
+    {
+        s_value_ = b_value_ ? "true":"false";
+        break;
+    }
+    case NativeType::String:
+        break;
+    }
 
     LOGDEBUG(
         std::string msg;
@@ -171,10 +191,14 @@ std::int64_t TypeConverter::getInteger(bool &success) {
 
     success = true;
 
-    if (native_type_ == NativeType::Object) {
+    switch (native_type_) {
+    case NativeType::Object:
+    {
         success = false;
+        break;
     }
-    else if (native_type_ == NativeType::String) {
+    case NativeType::String:
+    {
         try {
             i_value_ = std::stoll(s_value_);
         }
@@ -184,10 +208,26 @@ std::int64_t TypeConverter::getInteger(bool &success) {
             ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
             success = false;
         }
+        break;
     }
-    else if (native_type_ == NativeType::Unsigned) i_value_ = std::int64_t(u_value_);
-    else if (native_type_ == NativeType::Float) i_value_ = std::int64_t(f_value_);
-    else if (native_type_ == NativeType::Boolean) i_value_ = std::int64_t(b_value_ ? 1:0);
+    case NativeType::Unsigned:
+    {
+        i_value_ = std::int64_t(u_value_);
+        break;
+    }
+    case NativeType::Float:
+    {
+        i_value_ = std::int64_t(f_value_);
+        break;
+    }
+    case NativeType::Boolean:
+    {
+        i_value_ = std::int64_t(b_value_ ? 1:0);
+        break;
+    }
+    case NativeType::Integer:
+        break;
+    }
 
     LOGDEBUG(
         std::string msg;
@@ -209,10 +249,14 @@ std::uint64_t TypeConverter::getUnsigned(bool &success) {
 
     success = true;
 
-    if (native_type_ == NativeType::Object) {
+    switch (native_type_) {
+    case NativeType::Object:
+    {
         success = false;
+        break;
     }
-    else if (native_type_ == NativeType::String) {
+    case NativeType::String:
+    {
         try {
             u_value_ = std::stoull(s_value_);
         }
@@ -222,10 +266,26 @@ std::uint64_t TypeConverter::getUnsigned(bool &success) {
             ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
             success = false;
         }
+        break;
     }
-    else if (native_type_ == NativeType::Integer) u_value_ = std::uint64_t(i_value_);
-    else if (native_type_ == NativeType::Float) u_value_ = std::uint64_t(f_value_);
-    else if (native_type_ == NativeType::Boolean) u_value_ = std::uint64_t(b_value_ ? 1:0);
+    case NativeType::Integer:
+    {
+        u_value_ = std::uint64_t(i_value_);
+        break;
+    }
+    case NativeType::Float:
+    {
+        u_value_ = std::uint64_t(f_value_);
+        break;
+    }
+    case NativeType::Boolean:
+    {
+        u_value_ = std::uint64_t(b_value_ ? 1:0);
+        break;
+    }
+    case NativeType::Unsigned:
+        break;
+    }
 
     LOGDEBUG(
         std::string msg;
@@ -247,10 +307,14 @@ double TypeConverter::getFloat(bool &success) {
 
     success = true;
 
-    if (native_type_ == NativeType::Object) {
+    switch (native_type_) {
+    case NativeType::Object:
+    {
         success = false;
+        break;
     }
-    else if (native_type_ == NativeType::String) {
+    case NativeType::String:
+    {
         try {
             f_value_ = std::stod(s_value_);
         }
@@ -260,10 +324,26 @@ double TypeConverter::getFloat(bool &success) {
             ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
             success = false;
         }
+        break;
     }
-    else if (native_type_ == NativeType::Integer) f_value_ = double(i_value_);
-    else if (native_type_ == NativeType::Unsigned) f_value_ = double(u_value_);
-    else if (native_type_ == NativeType::Boolean) f_value_ = double(b_value_ ? 1:0);
+    case NativeType::Integer:
+    {
+        f_value_ = double(i_value_);
+        break;
+    }
+    case NativeType::Unsigned:
+    {
+        f_value_ = double(u_value_);
+        break;
+    }
+    case NativeType::Boolean:
+    {
+        f_value_ = double(b_value_ ? 1:0);
+        break;
+    }
+    case NativeType::Float:
+        break;
+    }
 
     LOGDEBUG(
         std::string msg;
@@ -284,13 +364,35 @@ bool TypeConverter::getBoolean(bool &success) {
 
     success = true;
 
-    if (native_type_ == NativeType::Object) {
+    switch (native_type_) {
+    case NativeType::Object:
+    {
         success = false;
+        break;
     }
-    else if (native_type_ == NativeType::String) b_value_ = (s_value_.empty() ? false:true);
-    else if (native_type_ == NativeType::Integer) b_value_ = ((i_value_ != (std::int64_t)0) ? true:false);
-    else if (native_type_ == NativeType::Unsigned) b_value_ = ((u_value_ != (std::uint64_t)0) ? true:false);
-    else if (native_type_ == NativeType::Float) b_value_ = ((f_value_ != (double)0) ? true:false);
+    case NativeType::String:
+    {
+        b_value_ = (s_value_.empty() ? false:true);
+        break;
+    }
+    case NativeType::Integer:
+    {
+        b_value_ = ((i_value_ != (std::int64_t)0) ? true:false);
+        break;
+    }
+    case NativeType::Unsigned:
+    {
+        b_value_ = ((u_value_ != (std::uint64_t)0) ? true:false);
+        break;
+    }
+    case NativeType::Float:
+    {
+        b_value_ = ((f_value_ != (double)0) ? true:false);
+        break;
+    }
+    case NativeType::Boolean:
+        break;
+    }
 
     LOGDEBUG(
         std::string msg;

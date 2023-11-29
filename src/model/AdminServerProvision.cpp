@@ -83,13 +83,19 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         bool &eraser,
         std::uint64_t generalUniqueServerSequence) const {
 
-    if (transformation->getSourceType() == Transformation::SourceType::RequestUri) {
+    switch (transformation->getSourceType()) {
+    case Transformation::SourceType::RequestUri:
+    {
         sourceVault.setString(requestUri);
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::RequestUriPath) {
+    case Transformation::SourceType::RequestUriPath:
+    {
         sourceVault.setString(requestUriPath);
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::RequestUriParam) {
+    case Transformation::SourceType::RequestUriParam:
+    {
         auto iter = requestQueryParametersMap.find(transformation->getSource());
         if (iter != requestQueryParametersMap.end()) sourceVault.setString(iter->second);
         else {
@@ -99,8 +105,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             );
             return false;
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::RequestBody) {
+    case Transformation::SourceType::RequestBody:
+    {
         if (requestBodyDataPart.isJson()) {
             std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
             replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
@@ -115,8 +123,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         else {
             sourceVault.setString(requestBodyDataPart.str());
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::ResponseBody) {
+    case Transformation::SourceType::ResponseBody:
+    {
         std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
         replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
         if (!sourceVault.setObject(getResponseBody(), path)) {
@@ -126,8 +136,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             );
             return false;
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::RequestHeader) {
+    case Transformation::SourceType::RequestHeader:
+    {
         auto iter = requestHeaders.find(transformation->getSource());
         if (iter != requestHeaders.end()) sourceVault.setString(iter->second.value);
         else {
@@ -137,12 +149,16 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             );
             return false;
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Eraser) {
+    case Transformation::SourceType::Eraser:
+    {
         sourceVault.setString(""); // with other than response body nodes, it acts like setting empty string
         eraser = true;
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Math) {
+    case Transformation::SourceType::Math:
+    {
         std::string expressionString = transformation->getSource();
         replaceVariables(expressionString, transformation->getSourcePatterns(), variables, global_variable_->get());
 
@@ -165,15 +181,21 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         double result = expression.value(); // if the result has decimals, set as float. If not, set as integer:
         if (result == (int)result) sourceVault.setInteger(expression.value());
         else sourceVault.setFloat(expression.value());
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Random) {
+    case Transformation::SourceType::Random:
+    {
         int range = transformation->getSourceI2() - transformation->getSourceI1() + 1;
         sourceVault.setInteger(transformation->getSourceI1() + (rand() % range));
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::RandomSet) {
+    case Transformation::SourceType::RandomSet:
+    {
         sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Timestamp) {
+    case Transformation::SourceType::Timestamp:
+    {
         if (transformation->getSource() == "s") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
@@ -186,8 +208,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         else if (transformation->getSource() == "ns") {
             sourceVault.setInteger(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Strftime) {
+    case Transformation::SourceType::Strftime:
+    {
         std::time_t unixTime = 0;
         std::time (&unixTime);
         char buffer[100] = {0};
@@ -198,11 +222,15 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         //}
 
         sourceVault.setStringReplacingVariables(std::string(buffer), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Recvseq) {
+    case Transformation::SourceType::Recvseq:
+    {
         sourceVault.setUnsigned(generalUniqueServerSequence);
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::SVar) {
+    case Transformation::SourceType::SVar:
+    {
         std::string varname = transformation->getSource();
         replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_->get());
         auto iter = variables.find(varname);
@@ -214,8 +242,10 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             );
             return false;
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::SGVar) {
+    case Transformation::SourceType::SGVar:
+    {
         std::string varname = transformation->getSource();
         replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_->get());
         bool exists = false;
@@ -228,11 +258,15 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             );
             return false;
         }
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Value) {
+    case Transformation::SourceType::Value:
+    {
         sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::ServerEvent) {
+    case Transformation::SourceType::ServerEvent:
+    {
         // transformation->getSourceTokenized() is a vector:
         //
         // requestMethod: index 0
@@ -272,27 +306,35 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             std::string msg = ert::tracing::Logger::asString("Extracted object from server event: %s", sourceVault.asString().c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::InState) {
+    case Transformation::SourceType::InState:
+    {
         sourceVault.setString(getInState());
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::STxtFile) {
+    case Transformation::SourceType::STxtFile:
+    {
         std::string path = transformation->getSource();
         replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
 
         std::string content;
         file_manager_->read(path, content, true/*text*/);
         sourceVault.setString(std::move(content));
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::SBinFile) {
+    case Transformation::SourceType::SBinFile:
+    {
         std::string path = transformation->getSource();
         replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
 
         std::string content;
         file_manager_->read(path, content, false/*binary*/);
         sourceVault.setString(std::move(content));
+        break;
     }
-    else if (transformation->getSourceType() == Transformation::SourceType::Command) {
+    case Transformation::SourceType::Command:
+    {
         std::string command = transformation->getSource();
         replaceVariables(command, transformation->getSourcePatterns(), variables, global_variable_->get());
 
@@ -318,6 +360,8 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
 
         sourceVault.setString(std::move(output));
+        break;
+    }
     }
 
 
@@ -344,8 +388,9 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
 
     // All our regex are built with 'std::regex::optimize' so they are already validated and regex functions cannot throw exception:
     //try { // std::regex exceptions
-    if (transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
-
+    switch (transformation->getFilterType()) {
+    case Transformation::FilterType::RegexCapture:
+    {
         if (std::regex_match(source, matches, transformation->getFilterRegex()) && matches.size() >=1) {
             targetS = matches.str(0);
             sourceVault.setString(targetS);
@@ -365,66 +410,94 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             );
             return false;
         }
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::RegexReplace) {
+    case Transformation::FilterType::RegexReplace:
+    {
         targetS = std::regex_replace (source, transformation->getFilterRegex(), transformation->getFilter() /* fmt */);
         sourceVault.setString(targetS);
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::Append) {
+    case Transformation::FilterType::Append:
+    {
         std::string filter = transformation->getFilter();
         replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
         targetS = source + filter;
         sourceVault.setString(targetS);
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::Prepend) {
+    case Transformation::FilterType::Prepend:
+    {
         std::string filter = transformation->getFilter();
         replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
         targetS = filter + source;
         sourceVault.setString(targetS);
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::Sum) {
-        if (transformation->getFilterNumberType() == 0 /* integer */) {
+    case Transformation::FilterType::Sum:
+    {
+        switch (transformation->getFilterNumberType()) {
+        case 0: /* integer */
+        {
             targetI = sourceVault.getInteger(success);
             if (success) targetI += transformation->getFilterI();
             //else return false; // should not happen (protected by schema)
             sourceVault.setInteger(targetI);
+            break;
         }
-        else if (transformation->getFilterNumberType() == 1 /* unsigned */) {
+        case 1: /* unsigned */
+        {
             targetU = sourceVault.getUnsigned(success);
             if (success) targetU += transformation->getFilterU();
             //else return false; // should not happen (protected by schema)
             sourceVault.setUnsigned(targetU);
+            break;
         }
-        else if (transformation->getFilterNumberType() == 2 /* double */) {
+        case 2: /* double */
+        {
             targetF = sourceVault.getFloat(success);
             if (success) targetF += transformation->getFilterF();
             //else return false; // should not happen (protected by schema)
             sourceVault.setFloat(targetF);
+            break;
         }
+        }
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::Multiply) {
-        if (transformation->getFilterNumberType() == 0 /* integer */) {
+    case Transformation::FilterType::Multiply:
+    {
+        switch (transformation->getFilterNumberType()) {
+        case 0: /* integer */
+        {
             targetI = sourceVault.getInteger(success);
             if (success) targetI *= transformation->getFilterI();
             //else return false; // should not happen (protected by schema)
             sourceVault.setInteger(targetI);
+            break;
         }
-        else if (transformation->getFilterNumberType() == 1 /* unsigned */) {
+        case 1: /* unsigned */
+        {
             targetU = sourceVault.getUnsigned(success);
             if (success) targetU *= transformation->getFilterU();
             //else return false; // should not happen (protected by schema)
             sourceVault.setUnsigned(targetU);
+            break;
         }
-        else if (transformation->getFilterNumberType() == 2 /* double */) {
+        case 2: /* double */
+        {
             targetF = sourceVault.getFloat(success);
             if (success) targetF *= transformation->getFilterF();
             //else return false; // should not happen (protected by schema)
             sourceVault.setFloat(targetF);
+            break;
         }
+        }
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::ConditionVar) { // TODO: if condition is false, source storage could be omitted to improve performance
+    case Transformation::FilterType::ConditionVar: // TODO: if condition is false, source storage could be omitted to improve performance
+    {
         // Get variable value for the variable name 'transformation->getFilter()':
         std::string varname = transformation->getFilter();
         bool reverse = (transformation->getFilter()[0] == '!');
@@ -458,8 +531,10 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("%sConditionVar is false", (reverse ? "!":"")), ERT_FILE_LOCATION));
             return false;
         }
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::EqualTo) {
+    case Transformation::FilterType::EqualTo:
+    {
         std::string filter = transformation->getFilter();
         replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
@@ -472,8 +547,10 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             LOGDEBUG(ert::tracing::Logger::debug("EqualTo is false", ERT_FILE_LOCATION));
             return false;
         }
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::DifferentFrom) {
+    case Transformation::FilterType::DifferentFrom:
+    {
         std::string filter = transformation->getFilter();
         replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
 
@@ -486,8 +563,10 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             LOGDEBUG(ert::tracing::Logger::debug("DifferentFrom is false", ERT_FILE_LOCATION));
             return false;
         }
+        break;
     }
-    else if (transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
+    case Transformation::FilterType::JsonConstraint:
+    {
         nlohmann::json sobj = sourceVault.getObject(success);
         // should not happen (protected by schema)
         //if (!success) {
@@ -501,6 +580,8 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         else {
             sourceVault.setString(failReport);
         }
+        break;
+    }
     }
     //}
     //catch (std::exception& e)
@@ -547,61 +628,77 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             replaceVariables(target2, transformation->getTarget2Patterns(), variables, global_variable_->get());
         }
 
-        if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyString) {
+        switch (transformation->getTargetType()) {
+        case Transformation::TargetType::ResponseBodyString:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
             // assignment
             responseBodyAsString = targetS;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyHexString) {
+        case Transformation::TargetType::ResponseBodyHexString:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
             // assignment
             if (!h2agent::model::fromHexString(targetS, responseBodyAsString)) return false;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_String) {
+        case Transformation::TargetType::ResponseBodyJson_String:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
             // assignment
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetS;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer) {
+        case Transformation::TargetType::ResponseBodyJson_Integer:
+        {
             // extraction
             targetI = sourceVault.getInteger(success);
             if (!success) return false;
             // assignment
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetI;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned) {
+        case Transformation::TargetType::ResponseBodyJson_Unsigned:
+        {
             // extraction
             targetU = sourceVault.getUnsigned(success);
             if (!success) return false;
             // assignment
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetU;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float) {
+        case Transformation::TargetType::ResponseBodyJson_Float:
+        {
             // extraction
             targetF = sourceVault.getFloat(success);
             if (!success) return false;
             // assignment
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = targetF;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean) {
+        case Transformation::TargetType::ResponseBodyJson_Boolean:
+        {
             // extraction
             boolean = sourceVault.getBoolean(success);
             if (!success) return false;
             // assignment
             nlohmann::json::json_pointer j_ptr(target);
             responseBodyJson[j_ptr] = boolean;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object) {
+        case Transformation::TargetType::ResponseBodyJson_Object:
+        {
 
             if (eraser) {
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into json path '%s'", target.c_str()), ERT_FILE_LOCATION));
@@ -679,8 +776,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 if (success) responseBodyJson[j_ptr] = boolean;
                 break;
             }
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
+        case Transformation::TargetType::ResponseBodyJson_JsonString:
+        {
 
             // assignment for valid extraction
             nlohmann::json::json_pointer j_ptr(target);
@@ -698,29 +797,37 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             else {
                 responseBodyJson[j_ptr] = obj;
             }
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseHeader) {
+        case Transformation::TargetType::ResponseHeader:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
             // assignment
             responseHeaders.emplace(target, nghttp2::asio_http2::header_value{targetS});
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseStatusCode) {
+        case Transformation::TargetType::ResponseStatusCode:
+        {
             // extraction
             targetU = sourceVault.getUnsigned(success);
             if (!success) return false;
             // assignment
             responseStatusCode = targetU;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ResponseDelayMs) {
+        case Transformation::TargetType::ResponseDelayMs:
+        {
             // extraction
             targetU = sourceVault.getUnsigned(success);
             if (!success) return false;
             // assignment
             responseDelayMs = targetU;
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::TVar) {
+        case Transformation::TargetType::TVar:
+        {
             if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                 std::string varname;
                 if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
@@ -753,8 +860,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 // assignment
                 variables[target] = targetS;
             }
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::TGVar) {
+        case Transformation::TargetType::TGVar:
+        {
             if (eraser) {
                 bool exists;
                 global_variable_->removeVariable(target, exists);
@@ -784,8 +893,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 // assignment
                 global_variable_->load(target, targetS);
             }
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::OutState) {
+        case Transformation::TargetType::OutState:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
@@ -793,8 +904,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             outState = targetS;
             outStateMethod = target; // empty on regular usage
             outStateUri = target2; // empty on regular usage
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::TTxtFile) {
+        case Transformation::TargetType::TTxtFile:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
@@ -810,8 +923,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 // files type.
                 file_manager_->write(target/*path*/, targetS/*data*/, true/*text*/, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
             }
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::TBinFile) {
+        case Transformation::TargetType::TBinFile:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
@@ -827,8 +942,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 // files type.
                 file_manager_->write(target/*path*/, targetS/*data*/, false/*binary*/, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
             }
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::UDPSocket) {
+        case Transformation::TargetType::UDPSocket:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
@@ -846,8 +963,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             );
 
             socket_manager_->write(path, targetS/*data*/, delayMs * 1000 /* usecs */);
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::ServerEventToPurge) {
+        case Transformation::TargetType::ServerEventToPurge:
+        {
             if (!eraser) {
                 LOGDEBUG(ert::tracing::Logger::debug("'ServerEventToPurge' target type only works with 'eraser' source type. This transformation will be ignored.", ERT_FILE_LOCATION));
                 return false;
@@ -880,8 +999,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 std::string msg = ert::tracing::Logger::asString("Server event '%s' removal result: %s", transformation->getTarget().c_str(), (serverDataDeleted ? "SUCCESS":"NOTHING REMOVED"));
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
+            break;
         }
-        else if (transformation->getTargetType() == Transformation::TargetType::Break) {
+        case Transformation::TargetType::Break:
+        {
             // extraction
             targetS = sourceVault.getString(success);
             if (!success) return false;
@@ -894,6 +1015,19 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             breakCondition = true;
             LOGDEBUG(ert::tracing::Logger::debug("Break action triggered: ignoring remaining transformation items", ERT_FILE_LOCATION));
             return false;
+            break;
+        }
+        // this won't happen due to schema for server target types:
+        case Transformation::TargetType::RequestBodyString:
+        case Transformation::TargetType::RequestBodyHexString:
+        case Transformation::TargetType::RequestBodyJson_String:
+        case Transformation::TargetType::RequestBodyJson_Integer:
+        case Transformation::TargetType::RequestBodyJson_Unsigned:
+        case Transformation::TargetType::RequestBodyJson_Float:
+        case Transformation::TargetType::RequestBodyJson_Boolean:
+        case Transformation::TargetType::RequestBodyJson_Object:
+        case Transformation::TargetType::RequestBodyJson_JsonString:
+            break;
         }
     }
     catch (std::exception& e)

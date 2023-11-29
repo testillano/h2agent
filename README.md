@@ -507,9 +507,9 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `benchmark/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
 
-Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
+Also, `benchmark/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
 #### Considerations
 
@@ -533,7 +533,7 @@ $> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/
 In other shell we launch the benchmark test:
 
 ```bash
-$> st/start.sh -y
+$> benchmark/start.sh -y
 
 
 Input Validate schemas (y|n)
