@@ -220,16 +220,18 @@ ss << "TRAFFIC REQUEST RECEIVED"
         normalizedUri += uriQueryNormalized;
 
         h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter();
-        if (uriPathQueryParametersFilterType != h2agent::model::AdminServerMatchingData::Ignore) {
+        switch (uriPathQueryParametersFilterType) {
+        case h2agent::model::AdminServerMatchingData::PassBy:
             classificationUri += "?";
-            if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::PassBy) {
-                classificationUri += uriQuery;
-            }
-            else if (uriPathQueryParametersFilterType == h2agent::model::AdminServerMatchingData::Sort) {
-                classificationUri += uriQueryNormalized;
-            }
+            classificationUri += uriQuery;
+            break;
+        case h2agent::model::AdminServerMatchingData::Sort:
+            classificationUri += "?";
+            classificationUri += uriQueryNormalized;
+            break;
+        case h2agent::model::AdminServerMatchingData::Ignore:
+            break;
         }
-
     }
 
     LOGDEBUG(
@@ -260,15 +262,16 @@ ss << "TRAFFIC REQUEST RECEIVED"
     }
     );
 
-    if (algorithmType == h2agent::model::AdminServerMatchingData::FullMatching) {
+    switch (algorithmType) {
+    case h2agent::model::AdminServerMatchingData::FullMatching:
         LOGDEBUG(
             std::string msg = ert::tracing::Logger::asString("Searching 'FullMatching' provision for method '%s', classification uri '%s' and state '%s'", method.c_str(), classificationUri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
         provision = provisionData.find(inState, method, classificationUri);
-    }
-    else if (algorithmType == h2agent::model::AdminServerMatchingData::FullMatchingRegexReplace) {
+        break;
 
+    case h2agent::model::AdminServerMatchingData::FullMatchingRegexReplace:
         // In this case, our classification URI is pending to be transformed:
         classificationUri = std::regex_replace (classificationUri, matchingData.getRgx(), matchingData.getFmt());
         LOGDEBUG(
@@ -278,9 +281,8 @@ ss << "TRAFFIC REQUEST RECEIVED"
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
         provision = provisionData.find(inState, method, classificationUri);
-    }
-    else if (algorithmType == h2agent::model::AdminServerMatchingData::RegexMatching) {
-
+        break;
+    case h2agent::model::AdminServerMatchingData::RegexMatching:
         LOGDEBUG(
             std::string msg = ert::tracing::Logger::asString("Searching 'RegexMatching' provision for method '%s', classification uri '%s' and state '%s'", method.c_str(), classificationUri.c_str(), inState.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -289,6 +291,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
         // as provision key is built combining inState, method and uri fields, a regular expression could also be provided for inState
         //  (method is strictly checked). TODO could we avoid this rare and unpredictable usage ?
         provision = provisionData.findRegexMatching(inState, method, classificationUri);
+        break;
     }
 
     // Fall back to possible default provision (empty URI):
