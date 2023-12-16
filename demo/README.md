@@ -257,7 +257,7 @@ HTTP/2 404
 Once `h2agent` process is [started](#Prepare-the-environment), run the demo script (use another terminal if needed):
 
 ```bash
-$> demo/run.sh
+$ demo/run.sh
 ```
 
 The demo script is interactive to follow the use case step by step.
@@ -265,6 +265,6 @@ The demo script is interactive to follow the use case step by step.
 Just in case you want to test demo procedure health, you can execute in non-interactive mode:
 
 ```bash
-$> INTERACT=false demo/run.sh
-$> echo $?
+$ INTERACT=false demo/run.sh
+$ echo $?
 ```

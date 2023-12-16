@@ -73,7 +73,7 @@ Examples:
 1) Test that h2agent delay timers are managed asynchronously for the worker
    thread, freeing the tatsuhiro's nghttp2 io context for an specific stream:
 
-   $> H2AGENT__RESPONSE_DELAY_MS=1000 H2LOAD__ITERATIONS=100 ./start.sh -y
+   $ H2AGENT__RESPONSE_DELAY_MS=1000 H2LOAD__ITERATIONS=100 ./start.sh -y
 
    As m=100, all the iterations (100) must be managed in about 1 second:
 
@@ -89,14 +89,14 @@ Examples:
 
 2) Test that no memory leaks arise for the asyncronous timers:
 
-   $> H2AGENT__RESPONSE_DELAY_MS=1 H2LOAD__ITERATIONS=1000000 ./start.sh -y
+   $ H2AGENT__RESPONSE_DELAY_MS=1 H2LOAD__ITERATIONS=1000000 ./start.sh -y
 
    %MEM should be stable at 0% (use for example: 'top -H -p $(pgrep h2agent)')
 
 3) Test high load, to get about 14k req/s in 8-cpu machine with default startup
    and these parameters:
 
-   $> H2LOAD__ITERATIONS=100000 ./start.sh -y
+   $ H2LOAD__ITERATIONS=100000 ./start.sh -y
 
    finished in 7.26s, 13779.98 req/s, 14.43MB/s
    requests: 100000 total, 100000 started, 100000 done, 100000 succeeded, 0 failed, 0 errored, 0 timeout

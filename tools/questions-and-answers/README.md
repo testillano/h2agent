@@ -3,13 +3,13 @@
 Install requirements file by mean:
 
 ```bash
-$> pip3 install -r requirements.txt
+$ pip3 install -r requirements.txt
 ```
 
 And then, execute the python script:
 
 ```bash
-$> python3.9 tools/questions-and-answers/run.py
+$ python3.9 tools/questions-and-answers/run.py
 ```
 
 Please note that the conversational bot has certain limitations and although it relies on the documentation of this project, some questions may be incorrect or incomplete. It is always recommended to carefully read all the documentation, especially the main [README.md](../../README.md) file.
