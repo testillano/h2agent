@@ -25,14 +25,14 @@ The parser/compiler is provided by [Arash Partow's exprtk](https://github.com/Ar
 Start the process with that provision content as `provision.json` file:
 
 ```bash
-$> ./build/Release/bin/h2agent --traffic-server-provision provision.json &>/dev/null &
+$ ./build/Release/bin/h2agent --traffic-server-provision provision.json &>/dev/null &
 [1] 31456
 ```
 
 And send simple query like this to do the job:
 
 ```bash
-$> curl --http2-prior-knowledge -XPOST -d'(1+sqrt(5))/2' http://127.0.0.1:8000/app/v1/calculate
+$ curl --http2-prior-knowledge -XPOST -d'(1+sqrt(5))/2' http://127.0.0.1:8000/app/v1/calculate
 1.618033988749895
 ```
 

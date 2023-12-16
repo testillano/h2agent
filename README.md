@@ -91,7 +91,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Transformation algorithms: thousands of combinations
     * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, global variables, constant values, input state (working state), events, files (read).
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints.
-    * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), unix socket UDP (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+    * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
 
 * Training:
@@ -154,7 +154,7 @@ Check the [releases](https://github.com/testillano/h2agent/releases) to get late
 The easiest way to build the project is using [containers](https://en.wikipedia.org/wiki/LXC) technology (this project uses `docker`): **to generate all the artifacts**, just type the following:
 
 ```bash
-$> ./build.sh --auto
+$ ./build.sh --auto
 ```
 
 The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
@@ -162,51 +162,51 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 * Run <u>project image</u> with docker (`./h2a.sh` script at root directory can also be used):
 
   ```bash
-  $> docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
+  $ docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
   ```
 
   Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080).
   You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
-  $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
+  $ docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
   ```
 
   Or any other packaged utility (if you want to lighten the image size, write your own Dockerfile and get what you need):
 
   ```bash
-  $> docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
   ```bash
-  $> # helm dependency update helm/h2agent # no dependencies at the moment
-  $> helm install h2agent-example helm/h2agent --wait
-  $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
-  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
+  $ # helm dependency update helm/h2agent # no dependencies at the moment
+  $ helm install h2agent-example helm/h2agent --wait
+  $ pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
+  $ kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
   ```
 
   You may enter the pod and play with helpers functions and examples (deployed with the chart under `/opt/utils`) which are anyway, automatically sourced on `bash` shell:
 
   ```bash
-  $> kubectl exec -it ${pod} -- bash
+  $ kubectl exec -it ${pod} -- bash
   ```
 
 It is also possible to build the project natively (not using containers) installing all the dependencies on the local host:
 
 ```bash
-$> ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
+$ ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
 ```
 
 So, you could run `h2agent` (or any other binary available under `build/<build type>/bin`) directly:
@@ -215,7 +215,7 @@ So, you could run `h2agent` (or any other binary available under `build/<build t
 * Run <u>project executable</u> natively (standalone):
 
   ```bash
-  $> build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  $ build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
   ```
 
   Provide `-h` or `--help` to get **process help** (more information [here](#Execution-of-main-agent)) or execute any other project executable.
@@ -223,9 +223,9 @@ So, you could run `h2agent` (or any other binary available under `build/<build t
   You may also play with project helpers functions and examples:
 
   ```bash
-  $> source tools/helpers.src # type help in any moment after sourcing
-  $> server_example # follow instructions or just source it: source <(server_example)
-  $> client_example # follow instructions or just source it: source <(client_example)
+  $ source tools/helpers.src # type help in any moment after sourcing
+  $ server_example # follow instructions or just source it: source <(server_example)
+  $ client_example # follow instructions or just source it: source <(client_example)
   ```
 
 
@@ -234,9 +234,9 @@ So, you could run `h2agent` (or any other binary available under `build/<build t
 Both build helpers (`build.sh` and `build-native.sh` scripts) allow to force project static link, although this is [not recommended](https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged):
 
 ```bash
-$> STATIC_LINKING=TRUE ./build.sh --auto
+$ STATIC_LINKING=TRUE ./build.sh --auto
 - or -
-$> STATIC_LINKING=TRUE ./build-native.sh
+$ STATIC_LINKING=TRUE ./build-native.sh
 ```
 
 So, you could run binaries regardless if needed libraries are available or not (including `glibc` with all its drawbacks).
@@ -251,14 +251,14 @@ Next sections will describe in detail, how to build [project image](#Project-ima
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$> docker pull ghcr.io/testillano/h2agent:<tag>
+$ docker pull ghcr.io/testillano/h2agent:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$> ./build.sh --project-image
+$ ./build.sh --project-image
 ```
 
 This image is built with `./Dockerfile`.
@@ -272,14 +272,14 @@ If you want to work with alpine-based images, you may build everything from scra
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$> docker pull ghcr.io/testillano/h2agent_builder:<tag>
+$ docker pull ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$> ./build.sh --builder-image
+$ ./build.sh --builder-image
 ```
 
 This image is built with `./Dockerfile.build`.
@@ -291,15 +291,15 @@ If you want to work with alpine-based images, you may build everything from scra
 Builder image is used to build the project. To run compilation over this image, again, just run with `docker`:
 
 ```bash
-$> envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
-$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+$ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
+$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
           ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
 
 ```bash
-$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
           ghcr.io/testillano/h2agent_builder::<tag> "" doc
 ```
 
@@ -307,7 +307,7 @@ You could also build the library using the script `./build.sh` located at projec
 
 
 ```bash
-$> ./build.sh --project
+$ ./build.sh --project
 ```
 
 ## Build project natively
@@ -315,7 +315,7 @@ $> ./build.sh --project
 It may be hard to collect every dependency, so there is a native build **automation script**:
 
 ```bash
-$> ./build-native.sh
+$ ./build-native.sh
 ```
 
 Note 1: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
@@ -329,32 +329,32 @@ Note 3: if not stated otherwise, this document assumes that binaries (used on ex
 Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
 
 ```bash
-$> sudo apt-get install cmake
+$ sudo apt-get install cmake
 ```
 
 And then generate the makefiles from project root directory:
 
 ```bash
-$> cmake .
+$ cmake .
 ```
 
 You could specify type of build, 'Debug' or 'Release', for example:
 
 ```bash
-$> cmake -DCMAKE_BUILD_TYPE=Debug .
-$> cmake -DCMAKE_BUILD_TYPE=Release .
+$ cmake -DCMAKE_BUILD_TYPE=Debug .
+$ cmake -DCMAKE_BUILD_TYPE=Release .
 ```
 
 You could also change the compilers used:
 
 ```bash
-$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
+$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
 ```
 
 or
 
 ```bash
-$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
+$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
 ```
 
 ### Requirements
@@ -372,24 +372,24 @@ nghttp2 (https://github.com/testillano/nghttp2)
 ### Build
 
 ```bash
-$> make
+$ make
 ```
 
 ### Clean
 
 ```bash
-$> make clean
+$ make clean
 ```
 
 ### Documentation
 
 ```bash
-$> make doc
+$ make doc
 ```
 
 ```bash
-$> cd docs/doxygen
-$> tree -L 1
+$ cd docs/doxygen
+$ tree -L 1
      .
      ├── Doxyfile
      ├── html
@@ -400,20 +400,20 @@ $> tree -L 1
 ### Install
 
 ```bash
-$> sudo make install
+$ sudo make install
 ```
 
 Optionally you could specify another prefix for installation:
 
 ```bash
-$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
-$> make install
+$ cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
+$ make install
 ```
 
 ### Uninstall
 
 ```bash
-$> cat install_manifest.txt | sudo xargs rm
+$ cat install_manifest.txt | sudo xargs rm
 ```
 
 ## Testing
@@ -424,18 +424,18 @@ Check the badge above to know the current coverage level.
 You can execute it after project building, for example for `Release` target:
 
 ```bash
-$> build/Release/bin/unit-test # native executable
+$ build/Release/bin/unit-test # native executable
 - or -
-$> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
+$ docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
 ```
 
 To shortcut docker run execution, `./ut.sh` script at root directory can also be used.
 You may provide extra arguments to Google test executable, for example:
 
 ```bash
-$> ./ut.sh --gtest_list_tests # to list the available tests
-$> ./ut.sh --gtest_filter=Transform_test.ResponseBodyHexString # to filter and run 1 specific test
-$> ./ut.sh --gtest_filter=Transform_test.* # to filter and run 1 specific suite
+$ ./ut.sh --gtest_list_tests # to list the available tests
+$ ./ut.sh --gtest_filter=Transform_test.ResponseBodyHexString # to filter and run 1 specific test
+$ ./ut.sh --gtest_filter=Transform_test.* # to filter and run 1 specific suite
 etc.
 ```
 
@@ -451,7 +451,7 @@ If you want to work with alpine-based images, you may build everything from scra
 Component test is based in `pytest` framework. Just execute `ct/test.sh` to deploy the component test chart. Some cloud-native technologies are required: `docker`, `kubectl`, `minikube` and `helm`, for example:
 
 ```bash
-$> docker version
+$ docker version
 Client: Docker Engine - Community
  Version:           20.10.17
  API version:       1.41
@@ -481,15 +481,15 @@ Server: Docker Engine - Community
   Version:          0.19.0
   GitCommit:        de40ad0
 
-$> kubectl version
+$ kubectl version
 Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.4", GitCommit:"b695d79d4f967c403a96986f1750a35eb75e75f1", GitTreeState:"clean", BuildDate:"2021-11-17T15:48:33Z", GoVersion:"go1.16.10", Compiler:"gc", Platform:"linux/amd64"}
 Server Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitCommit:"8b5a19147530eaac9476b0ab82980b4088bbc1b2", GitTreeState:"clean", BuildDate:"2021-09-15T21:32:41Z", GoVersion:"go1.16.8", Compiler:"gc", Platform:"linux/amd64"}
 
-$> minikube version
+$ minikube version
 minikube version: v1.23.2
 commit: 0a0ad764652082477c00d51d2475284b5d39ceed
 
-$> helm version
+$ helm version
 version.BuildInfo{Version:"v3.7.1", GitCommit:"1d11fcb5d3f3bf00dbe6fe31b8412839a96b3dc4", GitTreeState:"clean", GoVersion:"go1.16.9"}
 ```
 
@@ -524,16 +524,16 @@ Also, `benchmark/repeat.sh` script repeats a previous execution (last by default
 So you may start the process, again, natively or using docker:
 
 ```bash
-$> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
-$> build/Release/bin/h2agent "${OPTS[@]}" # native executable
+$ OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
+$ build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
-$> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
+$ docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
 ```
 
 In other shell we launch the benchmark test:
 
 ```bash
-$> benchmark/start.sh -y
+$ benchmark/start.sh -y
 
 
 Input Validate schemas (y|n)
@@ -672,7 +672,7 @@ Created test report:
 You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/h2agent --help
+$ build/Release/bin/h2agent --help
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
@@ -842,7 +842,7 @@ This utility could be useful to test regular expressions before putting them at 
 You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/matching-helper --help
+$ build/Release/bin/matching-helper --help
 Usage: matching-helper [options]
 
 Options:
@@ -869,7 +869,7 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+$ build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 
 Regex: (a\|b\|)([0-9]{10})
 Test:  a|b|0123456789
@@ -888,7 +888,7 @@ This utility could be useful to test [Arash Partow's](https://github.com/ArashPa
 You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/arashpartow-helper --help
+$ build/Release/bin/arashpartow-helper --help
 Usage: arashpartow-helper [options]
 
 Options:
@@ -910,7 +910,7 @@ Arash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/r
 Execution example:
 
 ```bash
-$> build/Release/bin/arashpartow-helper --expression "404 == 404"
+$ build/Release/bin/arashpartow-helper --expression "404 == 404"
 
 Expression: 404 == 404
 
@@ -926,7 +926,7 @@ This utility could be useful to test simple HTTP/2 requests.
 You may take a look to `h2client` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/h2client --help
+$ build/Release/bin/h2client --help
 Usage: h2client [options]
 
 Options:
@@ -973,7 +973,7 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
+$ build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
 
 Client endpoint:
    Secure connection: false
@@ -1004,7 +1004,7 @@ echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
 You may take a look to `udp-server` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/udp-server --help
+$ build/Release/bin/udp-server --help
 Usage: udp-server [options]
 
 Options:
@@ -1030,7 +1030,7 @@ To stop the process you can send UDP message 'EOF':
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server --udp-socket-path /tmp/udp.sock
+$ build/Release/bin/udp-server --udp-socket-path /tmp/udp.sock
 
 Path: /tmp/udp.sock
 Print each: 1 message(s)
@@ -1069,7 +1069,7 @@ Prometheus metrics are also available to measure the HTTP/2 performance towards 
 You may take a look to `udp-server-h2client` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/udp-server-h2client --help
+$ build/Release/bin/udp-server-h2client --help
 Usage: udp-server-h2client [options]
 
 Options:
@@ -1162,7 +1162,7 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-server-h2client -k /tmp/udp.sock -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
+$ build/Release/bin/udp-server-h2client -k /tmp/udp.sock -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
 
 Application/process name: udp-server-h2client
 UDP socket path: /tmp/udp.sock
@@ -1218,7 +1218,7 @@ Although we could launch multiple UDP clients towards the UDP server (such serve
 You may take a look to `udp-client` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> build/Release/bin/udp-client --help
+$ build/Release/bin/udp-client --help
 Usage: udp-client [options]
 
 Options:
@@ -1263,7 +1263,7 @@ To stop the process, just interrupt it.
 Execution example:
 
 ```bash
-$> build/Release/bin/udp-client --udp-socket-path /tmp/udp.sock --eps 1000 --initial 555000000 --print-each 1000
+$ build/Release/bin/udp-client --udp-socket-path /tmp/udp.sock --eps 1000 --initial 555000000 --print-each 1000
 
 Path: /tmp/udp.sock
 Print each: 1 message(s)
@@ -1296,8 +1296,8 @@ Taking `udp-server` and `udp-client` as example:
 In the **first case**, we will launch the second one (client) in foreground using `docker exec`:
 
 ```bash
-$> docker run -d --rm -it --name udp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
-$> docker exec -it udp /opt/udp-client -k /tmp/udp.sock # in foreground will throw client output
+$ docker run -d --rm -it --name udp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker exec -it udp /opt/udp-client -k /tmp/udp.sock # in foreground will throw client output
 ```
 
 If the client is launched in background (-d) you won't be able to follow process output (`docker logs -f udp` shows server output because it was launched in first place).
@@ -1305,17 +1305,17 @@ If the client is launched in background (-d) you won't be able to follow process
 In the **second case**, which is the recommended, we need to create an external volume:
 
 ```bash
-$> docker volume create --name=socketVolume
+$ docker volume create --name=socketVolume
 ```
 
 And then, we can run the containers in separated shells (or both in background with '-d' because know they have independent docker logs):
 
 ```bash
-$> docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
 ```
 
 ```bash
-$> docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
 ```
 
 This can also be done with `docker-compose`:
@@ -1353,14 +1353,14 @@ services:
 `H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
 
 ```bash
-$> ls tools/ssl/
+$ ls tools/ssl/
 create_all.sh  create_self-signed_certificate.sh
 ```
 
 Using `create_all.sh`, server key and certificate are created at execution directory:
 
 ```bash
-$> tools/ssl/create_all.sh
+$ tools/ssl/create_all.sh
 tools/ssl/create_all.sh
 + openssl genrsa -des3 -out ca.key 4096
 Generating RSA private key, 4096 bit long modulus (2 primes)
@@ -1388,7 +1388,7 @@ Add the following parameters to the agent command-line (appended key password to
 For quick testing, launch unsecured traffic in this way:
 
 ```bash
-$> curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
+$ curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
 HTTP/2 501
 ```
 
@@ -1406,7 +1406,7 @@ To play with grafana automation in `h2agent` project, go to `./tools/grafana` di
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
 ```bash
-$> ./h2agent --verbose &
+$ ./h2agent --verbose &
 [1] 27407
 
 
@@ -1500,8 +1500,8 @@ $ ./h2a.sh --verbose # starts agent with docker by mean helper script
 Or build native executable and run it from shell:
 
 ```bash
-$> ./build-native.sh # builds executable
-$> build/Release/bin/h2agent --verbose # starts executable
+$ ./build-native.sh # builds executable
+$ build/Release/bin/h2agent --verbose # starts executable
 ```
 
 #### Working in training container
@@ -1509,7 +1509,7 @@ $> build/Release/bin/h2agent --verbose # starts executable
 The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$> docker pull ghcr.io/testillano/h2agent_training:<tag>
+$ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
 
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
@@ -1600,7 +1600,7 @@ Loads schema(s) for future event validation. Added schemas could be referenced w
 If you have a `json` schema (from file `schema.json`) and want to build the `h2agent` schema configuration (into file `h2agent_schema.json`), you may perform automations like this *bash script* example:
 
 ```bash
-$> jq --arg id "theSchemaId" '. | { id: $id, schema: . }' schema.json > h2agent_schema.json
+$ jq --arg id "theSchemaId" '. | { id: $id, schema: . }' schema.json > h2agent_schema.json
 ```
 
 Also *python* or any other language could do the job:
@@ -2388,7 +2388,7 @@ The **source** of information is classified after parsing the following possible
   **Important note**: as this source provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may need to be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, you must encode it within the source definition. Consider this one: `/app/v1/stock/madrid?loc=123&id=2`. You could use `./tools/url.sh` script helper to prepare its encoded version:
 
   ```bash
-  $> tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
+  $ tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
 
   Encoded URL:/app/v1/stock/madrid%3Floc%3D123%26id%3D2
   ```
@@ -2525,11 +2525,11 @@ The **target** of information is classified after parsing the following possible
 
 - txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
-  This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP unix sockets target (`udpSocket./tmp/udp.sock`).
+  This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP through unix socket target (`udpSocket./tmp/udp.sock`).
 
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
-- udpSocket.`<path>[|<milliseconds delay>]` *[string]*: sends source (as string) towards the UDP unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
+- udpSocket.`<path>[|<milliseconds delay>]` *[string]*: sends source (as string) via UDP datagram through a unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
 
 - serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
 
@@ -4220,7 +4220,7 @@ Some [command line](#Command-line) arguments used by the `h2agent` process are f
 As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
-$> source ./tools/helpers.src
+$ source ./tools/helpers.src
 
 ===== h2agent operation helpers =====
 Shortcut helpers (sourced variables and functions)
@@ -4241,7 +4241,7 @@ Usage: files [-h|--help]; Gets the files processed.
 Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
                             [--enable-read-cache]  ; Enables cache for read operations.
                             [--disable-read-cache] ; Disables cache for read operations.
-Usage: udp_sockets [-h|--help]; Gets the udp sockets processed.
+Usage: udp_sockets [-h|--help]; Gets the sockets for UDP processed.
 Usage: configuration [-h|--help]; Gets agent general static configuration.
 
 === Traffic server ===
@@ -4332,13 +4332,13 @@ You could use any visualization framework to analyze metrics information from `h
 So, a direct scrape (for example towards the agent after its *component test*) would be something like this:
 
 ```bash
-$> kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "curl http://localhost:8080/metrics"
+$ kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "curl http://localhost:8080/metrics"
 ```
 
 On native execution, it is just a simple `curl` native request:
 
 ```bash
-$> curl http://localhost:8080/metrics
+$ curl http://localhost:8080/metrics
 ```
 
 Metrics implemented could be divided **counters**, **gauges** or **histograms**:
@@ -4498,7 +4498,7 @@ For example:
 h2agent_file_manager_operations_counter{source="h2agent",operation="open",result="failed"} 0
 ```
 
-#### UDP sockets
+#### UDP via sockets
 
 ```
 Counters provided by h2agent:

@@ -23,19 +23,19 @@ Here you will find a `docker-compose` automation to start grafana and prometheus
 As you may know, you can start font-end services with:
 
 ```bash
-$> docker-compose up -d
+$ docker-compose up -d
 ```
 
 Stop them by mean:
 
 ```bash
-$> docker-compose down -v
+$ docker-compose down -v
 ```
 
 And finally, access grafana local server site on browser (authentication is hardcoded to `admin`/`admin1`, so change it at `grafana/env.config` if needed):
 
 ```bash
-$> firefox http://localhost:9000
+$ firefox http://localhost:9000
 ```
 
 There, you will find the `h2agent` pre-configured dashboard, in order to observe any host deployment available:
@@ -45,7 +45,7 @@ There, you will find the `h2agent` pre-configured dashboard, in order to observe
 To excite the monitoring system, we have prepared a simple use case involving `h2agent` main process and also `udp-client` and `udp-server-h2agent`:
 
 ```bash
-$> source use-case.src
+$ source use-case.src
 ```
 
 It simulates some customers requesting books to a book store. When the book exists, they buy it and the system annotates the book information through a logging system. Those requests will be `GET /buy/book/<request-order>`, and request order will be a monotonically increasing sequence. The book store was recently created so very few books are available. Assume for example that only 2% of requests are positive. We will program this by mean `mod` operation (`sequence % 100`) as the book identifier, and matching only two of the values in range `0-99`, for example 81 and 99, corresponding for example to these two books:
