@@ -77,7 +77,7 @@ do_test() {
   local test_pod=$1
   shift
   # shellcheck disable=SC2068
-  kubectl exec -it "${test_pod}" -c test -n "${NAMESPACE}" -- pytest $@
+  kubectl exec -it "${test_pod}" -c test -n "${NAMESPACE}" -- sh -c "source /venv/bin/activate && pytest $@"
 }
 
 #############
