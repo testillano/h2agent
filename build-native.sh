@@ -24,7 +24,7 @@ ert_http2comm_ver=v2.1.6
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
-arashpartow_exprtk_ver=0.0.1
+arashpartow_exprtk_ver=0.0.3
 ert_multipart_ver=$(grep ^ert_multipart_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 
 # Build requirements
