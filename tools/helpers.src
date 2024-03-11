@@ -9,6 +9,7 @@ METRICS_URL=${METRICS_URL:-"http://localhost:8080/metrics"}
 ADMIN_URL=${ADMIN_URL:-"http://localhost:8074/admin/v1"}
 [ "${SERVER_API}" = "/" ] && SERVER_API=
 CURL="curl -i --http2-prior-knowledge"
+BEAUTIFY_JSON=yes
 
 #############
 # FUNCTIONS #
@@ -18,8 +19,13 @@ do_curl() {
   echo [${CURL} $@]
   echo
   ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
-  [ $? -eq 0 -a -n "${BEAUTIFY_JSON}" ] && echo && echo && json
-  echo ; echo
+  [ $? -ne 0 ] && return 1
+
+  # Last empty line or no line feed (no body answered):
+  [ -z $(tail -c 1 /tmp/curl.out) ] && return 0
+
+  [ -n "${BEAUTIFY_JSON}" ] && echo -e "\n\nPRETTY BODY PRINTOUT (disable on curl operation unsetting 'BEAUTIFY_JSON'):" && pretty
+  echo -e "\n\n(type 'pretty' or 'raw' to isolate body printout)\n"
 }
 
 schema() {
@@ -359,14 +365,14 @@ client_data() {
 
 server_data_sequence() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
-  [ -z "$1" ] && json ".[].events[].serverSequence" | sort -n && return 0
-  json ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
+  [ -z "$1" ] && pretty ".[].events[].serverSequence" | sort -n && return 0
+  pretty ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
 }
 
 client_data_sequence() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_data_sequence [-h|--help] [value (available values by default)]; Extract client sequence document from json retrieved in previous client_data() call." && return 0
-  [ -z "$1" ] && json ".[].events[].clientSequence" | sort -n && return 0
-  json ".[] | select (.events[].clientSequence == $1) | del (.events[] | select (.clientSequence != $1))" 2>/dev/null
+  [ -z "$1" ] && pretty ".[].events[].clientSequence" | sort -n && return 0
+  pretty ".[] | select (.events[].clientSequence == $1) | del (.events[] | select (.clientSequence != $1))" 2>/dev/null
 }
 
 client_endpoint() {
@@ -431,17 +437,28 @@ launch_client_provision() {
   do_curl -XPUT ${ADMIN_URL}/client-provision/$1
 }
 
-json() {
+pretty() {
   local jq_expr=${1:-.}
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: json [-h|--help]; Beautifies previous operation json response content."
-    echo "            [jq expression, '.' by default]; jq filter over previous content."
-    echo "            Example filter: schema && json '.[] | select(.id==\"myRequestsSchema\")'"
-    echo "            Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'."
+    echo "Usage: pretty [-h|--help]; Beautifies json content for last operation response."
+    echo "              [jq expression, '.' by default]; jq filter over previous content."
+    echo "              Example filter: schema && pretty '.[] | select(.id==\"myRequestsSchema\")'"
     return 0
   fi
-  tail -1 /tmp/curl.out | jq "${jq_expr}"
+  tail -n -1 /tmp/curl.out | jq "${jq_expr}"
+}
+
+raw() {
+  local jq_expr=${1:-.}
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: raw [-h|--help]; Outputs raw json content for last operation response."
+    echo "           [jq expression, '.' by default]; jq filter over previous content."
+    echo "           Example filter: schema && raw '.[] | select(.id==\"myRequestsSchema\")'"
+    return 0
+  fi
+  tail -n -1 /tmp/curl.out | jq -c "${jq_expr}"
 }
 
 trace() {
@@ -487,44 +504,44 @@ snapshot() {
     rm -f ${last} && ln -s $(basename ${dir}) ${last}
   fi
 
-  schema && json > ${dir}/schema.json
-  schema_schema && json > ${dir}/schema_schema.json
-  global_variable && json > ${dir}/global-variable.json
-  global_variable_schema && json > ${dir}/global-variable_schema.json
-  files && json > ${dir}/files.json
-  files_configuration && json > ${dir}/files-configuration.json
-  udp_sockets && json > ${dir}/udp-sockets.json
-  configuration && json > ${dir}/configuration.json
+  schema && pretty > ${dir}/schema.json
+  schema_schema && pretty > ${dir}/schema_schema.json
+  global_variable && pretty > ${dir}/global-variable.json
+  global_variable_schema && pretty > ${dir}/global-variable_schema.json
+  files && pretty > ${dir}/files.json
+  files_configuration && pretty > ${dir}/files-configuration.json
+  udp_sockets && pretty > ${dir}/udp-sockets.json
+  configuration && pretty > ${dir}/configuration.json
 
-  server_configuration && json > ${dir}/server-configuration.json
-  server_data_configuration && json > ${dir}/server-data-configuration.json
-  client_data_configuration && json > ${dir}/client-data-configuration.json
-  server_matching && json > ${dir}/server-matching.json
-  server_matching_schema && json > ${dir}/server-matching_schema.json
-  server_provision && json > ${dir}/server-provision.json
-  server_provision_unused && json > ${dir}/server-provision_unused.json
-  server_provision_schema && json > ${dir}/server-provision_schema.json
-  server_data --summary -1 && json > ${dir}/server-data-summary.json
-  echo | server_data && json > ${dir}/server-data.json
+  server_configuration && pretty > ${dir}/server-configuration.json
+  server_data_configuration && pretty > ${dir}/server-data-configuration.json
+  client_data_configuration && pretty > ${dir}/client-data-configuration.json
+  server_matching && pretty > ${dir}/server-matching.json
+  server_matching_schema && pretty > ${dir}/server-matching_schema.json
+  server_provision && pretty > ${dir}/server-provision.json
+  server_provision_unused && pretty > ${dir}/server-provision_unused.json
+  server_provision_schema && pretty > ${dir}/server-provision_schema.json
+  server_data --summary -1 && pretty > ${dir}/server-data-summary.json
+  echo | server_data && pretty > ${dir}/server-data.json
   mkdir ${dir}/server-data-sequences
   (jq '.[].events[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
   for s in $(cat ${dir}/server-data-sequences.txt); do
     jq ".[] | select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
   done
-  client_data --summary -1 && json > ${dir}/client-data-summary.json
-  echo | client_data && json > ${dir}/client-data.json
+  client_data --summary -1 && pretty > ${dir}/client-data-summary.json
+  echo | client_data && pretty > ${dir}/client-data.json
   mkdir ${dir}/client-data-sequences
   (jq '.[].events[].clientSequence' ${dir}/client-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/client-data-sequences.txt
   for s in $(cat ${dir}/client-data-sequences.txt); do
     jq ".[] | select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" ${dir}/client-data.json > ${dir}/client-data-sequences/${s}.json
   done
-  client_endpoint && json > ${dir}/client_endpoint.json
-  client_endpoint_schema && json > ${dir}/client_endpoint_schema.json
-  client_provision && json > ${dir}/client-provision.json
-  client_provision_unused && json > ${dir}/client-provision_unused.json
-  client_provision_schema && json > ${dir}/client-provision_schema.json
-  client_data --summary -1 && json > ${dir}/client-data-summary.json
-  echo | client_data && json > ${dir}/client-data.json
+  client_endpoint && pretty > ${dir}/client_endpoint.json
+  client_endpoint_schema && pretty > ${dir}/client_endpoint_schema.json
+  client_provision && pretty > ${dir}/client-provision.json
+  client_provision_unused && pretty > ${dir}/client-provision_unused.json
+  client_provision_schema && pretty > ${dir}/client-provision_schema.json
+  client_data --summary -1 && pretty > ${dir}/client-data-summary.json
+  echo | client_data && pretty > ${dir}/client-data.json
   mkdir ${dir}/client-data-sequences
   (jq '.[].events[].clientSequence' ${dir}/client-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/client-data-sequences.txt
   for s in $(cat ${dir}/client-data-sequences.txt); do
@@ -659,7 +676,8 @@ help() {
   client_provision_schema -h
   echo
   echo "=== Auxiliary ==="
-  json -h
+  pretty -h
+  raw -h
   trace -h
   metrics -h
   snapshot -h

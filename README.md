@@ -4312,10 +4312,12 @@ Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuratio
 Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema
                                             (http://localhost:8074/admin/v1/client-provision/schema).
 === Auxiliary ===
-Usage: json [-h|--help]; Beautifies previous operation json response content.
-            [jq expression, '.' by default]; jq filter over previous content.
-            Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
-            Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
+Usage: pretty [-h|--help]; Beautifies json content for last operation response.
+              [jq expression, '.' by default]; jq filter over previous content.
+              Example filter: schema && pretty '.[] | select(.id=="myRequestsSchema")'
+Usage: raw [-h|--help]; Outputs raw json content for last operation response.
+           [jq expression, '.' by default]; jq filter over previous content.
+           Example filter: schema && raw '.[] | select(.id=="myRequestsSchema")'
 Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent
                                                                                                      tracing level.
 Usage: metrics [-h|--help]; Prometheus metrics.
