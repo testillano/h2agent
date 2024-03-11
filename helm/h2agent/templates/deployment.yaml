@@ -65,6 +65,10 @@ spec:
             - "--traffic-server-provision"
             - {{ .Values.h2agent_cl.traffic_server_provision | quote }}
             {{- end }}
+            {{- if ne .Values.h2agent_cl.schema ""  }}
+            - "--schema"
+            - {{ .Values.h2agent_cl.schema | quote }}
+            {{- end }}
             {{- if not .Values.h2agent_cl.data.enabled }}
             - "--discard-data"
             {{- end }}

@@ -33,6 +33,7 @@ h2agent_cl:
   traffic_server_crt: ""
   traffic_server_matching: ""
   traffic_server_provision: ""
+  schema: ""
   data:
     enabled: true
   data_key_history:
