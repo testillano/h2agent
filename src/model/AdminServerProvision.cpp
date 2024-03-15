@@ -81,7 +81,8 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         const DataPart &requestBodyDataPart,
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
-        std::uint64_t generalUniqueServerSequence) const {
+        std::uint64_t generalUniqueServerSequence,
+        bool usesResponseBodyAsTransformationJsonTarget, const nlohmann::json &responseBodyJson) const {
 
     switch (transformation->getSourceType()) {
     case Transformation::SourceType::RequestUri:
@@ -129,7 +130,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     {
         std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
         replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
-        if (!sourceVault.setObject(getResponseBody(), path)) {
+        if (!sourceVault.setObject(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson:getResponseBody(), path)) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from response body (it is null) in transformation item", transformation->getSource().c_str());
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
@@ -1138,7 +1139,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES: RequestUri, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, Timestamp, Strftime, Recvseq, SVar, SGvar, Value, ServerEvent, InState
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence)) {
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, eraser, generalUniqueServerSequence, usesResponseBodyAsTransformationJsonTarget, responseBodyJson)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
             continue;
         }

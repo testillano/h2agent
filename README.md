@@ -2346,7 +2346,11 @@ The **source** of information is classified after parsing the following possible
 
 - response.body: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
 
+  As the transformation steps modify this data container, its value as a source is likewise updated.
+
 - response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+
+  As the transformation steps modify this data container, its value as a source is likewise updated.
 
 - request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
@@ -4257,8 +4261,8 @@ Usage: server_data_configuration [-h|--help]; Manages agent server data configur
                                  [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached.
                                  [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached.
 
-Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
-                                    (http://localhost:8074/admin/v1/server-matching).
+Usage: server_matching [-h|--help] [file]; Gets/updates current server matching configuration
+                                           (http://localhost:8074/admin/v1/server-matching).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
 Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used

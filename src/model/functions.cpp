@@ -280,20 +280,20 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
 
     for (auto& [key, value] : expected.items()) {
 
-        // Verificar si la clave existe en el documento a validar
+        // Check if key exists in document:
         if (!received.contains(key)) {
             failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected key '%s' is missing in validated source", key.c_str());
             LOGDEBUG(ert::tracing::Logger::debug(failReport, ERT_FILE_LOCATION));
             return false;
         }
 
-        // Verificar si el valor es un objeto JSON y llamar a la función de forma recursiva si es así
+        // Check if value is JSON object to make recursive call:
         if (value.is_object()) {
             if (!h2agent::model::jsonConstraint(received[key], value, failReport)) {
                 return false;
             }
         } else {
-            // Verificar si el valor coincide
+            // Check same value:
             if (received[key] != value) {
                 failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected value for key '%s' differs regarding validated source", key.c_str());
                 LOGDEBUG(ert::tracing::Logger::debug(failReport, ERT_FILE_LOCATION));
