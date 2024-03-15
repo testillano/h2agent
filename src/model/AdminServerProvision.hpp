@@ -121,7 +121,11 @@ class AdminServerProvision
                         const DataPart &requestBodyDataPart,
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
-                        std::uint64_t generalUniqueServerSequence) const;
+                        std::uint64_t generalUniqueServerSequence,
+                        bool usesResponseBodyAsTransformationJsonTarget, const nlohmann::json &responseBodyJson) const; // these two last parameters are used to
+    // know if original response body provision
+    // or the one dynamically modified, must be
+    // used as source
 
     bool processFilters(std::shared_ptr<Transformation> transformation,
                         TypeConverter& sourceVault,

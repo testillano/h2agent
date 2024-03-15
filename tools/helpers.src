@@ -203,7 +203,7 @@ client_data_configuration() {
 }
 
 server_matching() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help]; Gets/updates current server matching configuration (${ADMIN_URL}/server-matching)." && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help] [file]; Gets/updates current server matching configuration (${ADMIN_URL}/server-matching)." && return 0
   [ -z "$1" ] && do_curl ${ADMIN_URL}/server-matching && return 0
   do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/server-matching
 }
