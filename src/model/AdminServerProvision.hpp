@@ -61,6 +61,7 @@ typedef std::string admin_server_provision_key_t; // <inState>#<method>#<uri>
 
 class MockServerData;
 class MockClientData;
+class AdminData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -99,9 +100,12 @@ class AdminServerProvision
     // Schemas:
     std::string request_schema_id_{};
     std::string response_schema_id_{};
+    std::shared_ptr<h2agent::model::AdminSchema> request_schema_{};
+    std::shared_ptr<h2agent::model::AdminSchema> response_schema_{};
 
     model::MockServerData *mock_server_events_data_{}; // just in case it is used
     model::MockClientData *mock_client_events_data_{}; // just in case it is used
+    model::AdminData *admin_data_{}; // just in case it is used
     model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
@@ -174,8 +178,6 @@ public:
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
      * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
-     * @param requestSchema Optional json schema to validate incoming traffic. Nothing is done when nullptr is provided.
-     * @param responseSchema Optional json schema to validate outgoing traffic. Nothing is done when nullptr is provided.
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -190,10 +192,8 @@ public:
                     unsigned int &responseDelayMs,
                     std::string &outState,
                     std::string &outStateMethod,
-                    std::string &outStateUri,
-                    std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
-                    std::shared_ptr<h2agent::model::AdminSchema> responseSchema
-                  ) const;
+                    std::string &outStateUri
+                  );
 
     // setters:
 
@@ -221,6 +221,14 @@ public:
      */
     void setMockClientData(model::MockClientData *p) {
         mock_client_events_data_ = p;
+    }
+
+    /**
+     * Sets the admin data reference,
+     * just in case it is used in SchemaId filter
+     */
+    void setAdminData(model::AdminData *p) {
+        admin_data_ = p;
     }
 
     /**
@@ -353,21 +361,17 @@ public:
         return response_delay_ms_;
     }
 
-    /** Provisioned request schema identifier
+    /** Provisioned request schema reference
      *
-     * @return Request schema string identifier
+     * @return Request schema to validate incoming traffic, nullptr if missing
      */
-    const std::string &getRequestSchemaId() const {
-        return request_schema_id_;
-    }
+    std::shared_ptr<h2agent::model::AdminSchema> getRequestSchema();
 
-    /** Provisioned response schema identifier
+    /** Provisioned response schema reference
      *
-     * @return Response schema string identifier
+     * @return Response schema to validate outgoing traffic, nullptr if missing
      */
-    const std::string &getResponseSchemaId() const {
-        return response_schema_id_;
-    }
+    std::shared_ptr<h2agent::model::AdminSchema> getResponseSchema();
 
     /** Provision was employed
      *

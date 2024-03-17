@@ -58,6 +58,7 @@ typedef std::string admin_client_provision_key_t; // <inState>#<client provision
 
 class MockClientData;
 class MockServerData;
+class AdminData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -90,9 +91,12 @@ class AdminClientProvision
     // Schemas:
     std::string request_schema_id_{};
     std::string response_schema_id_{};
+    std::shared_ptr<h2agent::model::AdminSchema> request_schema_{};
+    std::shared_ptr<h2agent::model::AdminSchema> response_schema_{};
 
     model::MockClientData *mock_client_events_data_{}; // just in case it is used
     model::MockServerData *mock_server_events_data_{}; // just in case it is used
+    model::AdminData *admin_data_{}; // just in case it is used
     model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
@@ -164,7 +168,6 @@ public:
      * @param requestBody Request body resulting from provision & transformation
      * @param requestHeaders Request headers resulting from provision & transformation
      * @param outState out-state for request processed resulting from provision & transformation
-     * @param requestSchema Optional json schema to validate outgoing traffic. Nothing is done when nullptr is provided.
      * @param requestDelayMs Request delay milliseconds resulting from provision & transformation
      * @param requestTimeoutMs Request timeout milliseconds resulting from provision & transformation
      * @param error Error detail for unexpected cases
@@ -174,11 +177,10 @@ public:
                     std::string &requestBody,
                     nghttp2::asio_http2::header_map &requestHeaders,
                     std::string &outState,
-                    std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
                     unsigned int &requestDelayMs,
                     unsigned int &requestTimeoutMs,
                     std::string &error
-                  ) const;
+                  );
 
     /**
      * Provision is being employed
@@ -224,6 +226,14 @@ public:
      */
     void setMockServerData(model::MockServerData *p) {
         mock_server_events_data_ = p;
+    }
+
+    /**
+     * Sets the admin data reference,
+     * just in case it is used in SchemaId filter
+     */
+    void setAdminData(model::AdminData *p) {
+        admin_data_ = p;
     }
 
     /**
@@ -374,23 +384,17 @@ public:
         return request_timeout_ms_;
     }
 
-    /**
-     * Provisioned request schema identifier
+    /** Provisioned request schema reference
      *
-     * @return Request schema string identifier
+     * @return Request schema to validate incoming traffic, nullptr if missing
      */
-    const std::string &getRequestSchemaId() const {
-        return request_schema_id_;
-    }
+    std::shared_ptr<h2agent::model::AdminSchema> getRequestSchema();
 
-    /**
-     * Provisioned response schema identifier
+    /** Provisioned response schema reference
      *
-     * @return Response schema string identifier
+     * @return Response schema to validate outgoing traffic, nullptr if missing
      */
-    const std::string &getResponseSchemaId() const {
-        return response_schema_id_;
-    }
+    std::shared_ptr<h2agent::model::AdminSchema> getResponseSchema();
 
     /**
      * Current sequence

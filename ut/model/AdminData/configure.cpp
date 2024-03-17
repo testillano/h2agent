@@ -367,6 +367,7 @@ public:
         ;
         //adata_.loadServerMatching(JsonMatching);
         configuration_.setLazyClientConnection(true); // no client connection in unit-test
+        common_resources_.AdminDataPtr = &adata_;
         common_resources_.ConfigurationPtr = &configuration_;
     }
 };
@@ -481,8 +482,8 @@ TEST_F(Configure_test, FindProvision)
     EXPECT_TRUE(provision != nullptr);
 
     EXPECT_EQ(provision->getResponseBodyAsString(), "{\"foo\":\"bar-1\"}");
-    EXPECT_EQ(provision->getRequestSchemaId(), "myRequestsSchema");
-    EXPECT_EQ(provision->getResponseSchemaId(), "myResponsesSchema");
+    EXPECT_EQ(provision->getRequestSchema(), nullptr);
+    EXPECT_EQ(provision->getResponseSchema(), nullptr);
 
     EXPECT_TRUE(Configure_test::adata_.clearServerProvisions());
 }
@@ -643,6 +644,8 @@ TEST_F(Configure_test, ValidateSchema)
     auto schemaData = Configure_test::adata_.getSchemaData().find("myRequestsSchema");
     EXPECT_TRUE(schemaData != nullptr);
 
-    EXPECT_TRUE(schemaData->validate(R"({"foo":"bar"})"_json));
+    std::string error{};
+    EXPECT_TRUE(schemaData->validate(R"({"foo":"bar"})"_json, error));
+EXPECT_TRUE(error.empty());
 }
 

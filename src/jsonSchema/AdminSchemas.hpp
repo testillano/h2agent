@@ -148,7 +148,8 @@ const nlohmann::json server_provision = R"(
         {"required": ["ConditionVar"]},
         {"required": ["EqualTo"]},
         {"required": ["DifferentFrom"]},
-        {"required": ["JsonConstraint"]}
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -172,7 +173,8 @@ const nlohmann::json server_provision = R"(
         "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": "object" }
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
       }
     }
   },
@@ -331,7 +333,8 @@ const nlohmann::json client_provision = R"(
         {"required": ["ConditionVar"]},
         {"required": ["EqualTo"]},
         {"required": ["DifferentFrom"]},
-        {"required": ["JsonConstraint"]}
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -355,7 +358,8 @@ const nlohmann::json client_provision = R"(
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": "object" }
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
       }
     }
   },

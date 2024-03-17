@@ -60,7 +60,8 @@ AdminServerMatchingData::AdminServerMatchingData() {
 
 AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann::json &j) {
 
-    if (!server_matching_schema_.validate(j)) {
+    std::string error{};
+    if (!server_matching_schema_.validate(j, error)) {
         return BadSchema;
     }
 

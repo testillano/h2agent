@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_SERVER_PROVISION_URI, NLOHMANN_EXAMPLE_REQUEST, string2dict
+from conftest import ADMIN_SERVER_PROVISION_URI, NLOHMANN_EXAMPLE_REQUEST, SCHEMA_EXAMPLE, SCHEMA_EXAMPLE_REQUEST_VALID, SCHEMA_EXAMPLE_REQUEST_INVALID, string2dict
 
 
 @pytest.mark.transform
@@ -218,4 +218,33 @@ def test_016_jsonConstraintFail(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.postDict("/app/v1/foo/bar", string2dict(NLOHMANN_EXAMPLE_REQUEST))
 
   h2ac_traffic.assert_response__status_body_headers(response, 400, "JsonConstraint FAILED: expected key 'I_WANT_THIS_KEY' is missing in validated source")
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_017_SchemaIdSuccess(admin_server_provision, admin_schema, h2ac_traffic):
+
+  # Provision & schema
+  admin_server_provision("filter_test.SchemaId.provision.json")
+  admin_schema(string2dict(SCHEMA_EXAMPLE))
+
+
+  # Traffic
+  response = h2ac_traffic.postDict("/app/v1/foo/bar", string2dict(SCHEMA_EXAMPLE_REQUEST_VALID))
+
+  h2ac_traffic.assert_response__status_body_headers(response, 200, "")
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_018_SchemaIdFail(admin_server_provision, admin_schema, h2ac_traffic):
+
+  # Provision & schema
+  admin_server_provision("filter_test.SchemaId.provision.json")
+  admin_schema(string2dict(SCHEMA_EXAMPLE))
+
+  # Traffic
+  response = h2ac_traffic.postDict("/app/v1/foo/bar", string2dict(SCHEMA_EXAMPLE_REQUEST_INVALID))
+
+  h2ac_traffic.assert_response__status_body_headers(response, 400, "At /product/prices of [\"125\",\"108\"] - array does not contain required element as per 'contains'\n")
 

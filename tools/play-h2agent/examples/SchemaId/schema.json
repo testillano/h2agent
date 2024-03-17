@@ -1,0 +1,43 @@
+[
+  {
+    "id": "myRequestSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "required": [
+        "num",
+        "name"
+      ],
+      "properties": {
+        "num": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "id": "myFilterSchema",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "required": [
+        "num",
+        "name"
+      ],
+      "properties": {
+        "num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z]+$"
+        }
+      }
+    }
+  }
+]

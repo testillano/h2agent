@@ -68,11 +68,11 @@ public:
     /**
      * Json string representation for class information (json array)
      *
-     * @param unused Print json array elements which was not used (false by default)
+     * @param getUnused Print json array elements which was not used (false by default)
      *
      * @return Json string representation ('[]' for empty array).
      */
-    std::string asJsonString(bool unused = false) const;
+    std::string asJsonString(bool getUnused = false) const;
 
     /**
      * Loads client provision operation data

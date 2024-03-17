@@ -10,7 +10,7 @@ against this body (417 if not):
 }
 
 Traffic classification (matching configuration) will be simple, FullMatching,
- as the example is done for an static/constant and hence, predictable URI.
+as the example is done for an static/constant and hence, predictable URI.
 
 Traffic behavior (provision configuration) will configure a response which
 depends on random number <R> between 1 and 5:

@@ -313,28 +313,9 @@ ss << "TRAFFIC REQUEST RECEIVED"
         std::string outStateMethod;
         std::string outStateUri;
 
-        // OPTIONAL SCHEMAS VALIDATION
-        const h2agent::model::AdminSchemaData & schemaData = getAdminData()->getSchemaData();
-        std::shared_ptr<h2agent::model::AdminSchema> requestSchema(nullptr);
-        std::shared_ptr<h2agent::model::AdminSchema> responseSchema(nullptr);
-        std::string requestSchemaId = provision->getRequestSchemaId();
-        if (!requestSchemaId.empty()) {
-            requestSchema = schemaData.find(requestSchemaId);
-            LOGWARNING(
-                if (!requestSchema) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for incoming message: VALIDATION will be IGNORED", requestSchemaId.c_str()), ERT_FILE_LOCATION);
-            );
-        }
-        std::string responseSchemaId = provision->getResponseSchemaId();
-        if (!responseSchemaId.empty()) {
-            responseSchema = schemaData.find(responseSchemaId);
-            LOGWARNING(
-                if (!responseSchema) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for outgoing message: VALIDATION will be IGNORED", responseSchemaId.c_str()), ERT_FILE_LOCATION);
-            );
-        }
-
         // Process provision
         provision->transform(normalizedUri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
-                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, requestSchema, responseSchema);
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri);
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {

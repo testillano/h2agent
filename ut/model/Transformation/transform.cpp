@@ -89,6 +89,35 @@ const nlohmann::json ResponseSchema = R"(
 }
 )"_json;
 
+const nlohmann::json SchemaExample = R"(
+{
+  "id": "SchemaExample",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["foo", "node1"],
+    "properties": {
+      "foo": {
+        "type": "integer"
+      },
+      "node1": {
+        "type": "object",
+        "required": ["node2", "delaymilliseconds"],
+        "properties": {
+          "node2": {
+            "type": "string"
+          },
+          "delaymilliseconds": {
+            "type": "integer",
+            "const": 25
+          }
+        }
+      }
+    }
+  }
+}
+)"_json;
+
 // https://www.geeksforgeeks.org/raw-string-literal-c/
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
 const nlohmann::json TransformationItemRegexCapture = R"delim(
@@ -180,8 +209,6 @@ class Transform_test : public ::testing::Test
 public:
     h2agent::model::AdminData adata_{};
     h2agent::model::common_resources_t common_resources_{};
-    std::shared_ptr<h2agent::model::AdminSchema> request_schema_{};
-    std::shared_ptr<h2agent::model::AdminSchema> response_schema_{};
     nlohmann::json server_provision_json_{};
 
     // transform attributes:
@@ -195,8 +222,6 @@ public:
     nlohmann::json request_body_{};
     h2agent::model::DataPart request_body_data_part_{};
     std::uint64_t general_unique_server_sequence_{};
-    bool check_schemas_{}; // no need to put requestSchemaId or responseSchemaId on provision:
-    // we will use our schemas when needed.
 
     // outputs:
     unsigned int status_code_{};
@@ -221,14 +246,14 @@ public:
         request_body_ = Request;
         general_unique_server_sequence_ = 74;
 
-        request_schema_ = std::make_shared<h2agent::model::AdminSchema>();
-        request_schema_->load(RequestSchema);
-        response_schema_ = std::make_shared<h2agent::model::AdminSchema>();
-        response_schema_->load(ResponseSchema);
+        auto loadResult = adata_.loadSchema(RequestSchema);
+        loadResult = adata_.loadSchema(ResponseSchema);
+        loadResult = adata_.loadSchema(SchemaExample);
 
         //////////////////////
         // COMMON RESOURCES //
         //////////////////////
+        common_resources_.AdminDataPtr = &adata_;
         common_resources_.ConfigurationPtr = new h2agent::model::Configuration();
         common_resources_.GlobalVariablePtr = new h2agent::model::GlobalVariable();
         common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
@@ -255,7 +280,7 @@ public:
         EXPECT_EQ(adata_.getServerProvisionData().size(), 1);
 
         request_body_data_part_.assign(requestBody);
-        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, (check_schemas_ ? request_schema_:nullptr), (check_schemas_ ? response_schema_:nullptr));
+        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_);
     }
 
     ~Transform_test() {
@@ -468,8 +493,11 @@ TEST_F(Transform_test, ProvisionWithResponseBodyAsNull)
 //////////////////////////////////////////////////
 TEST_F(Transform_test, RequestNotValidated)
 {
+    // Build test provision:
+    server_provision_json_["requestSchemaId"] = "myRequestSchema";
+    server_provision_json_["responseSchemaId"] = "myResponseSchema";
+
     // Run transformation:
-    check_schemas_ = true;
     request_body_["foo"] = "this is a string"; // must be number !
     provisionAndTransform(request_body_.dump());
 
@@ -480,9 +508,11 @@ TEST_F(Transform_test, RequestNotValidated)
 
 TEST_F(Transform_test, ResponseNotValidated)
 {
-    // Run transformation:
-    check_schemas_ = true;
+    // Build test provision:
+    server_provision_json_["requestSchemaId"] = "myRequestSchema";
+    server_provision_json_["responseSchemaId"] = "myResponseSchema";
 
+    // Run transformation:
     // Remove mandatory 'bar':
     auto path = nlohmann::json_pointer<nlohmann::json> {"/responseBody"};
     // Get a reference to the 'responseBody':
@@ -2086,5 +2116,40 @@ TEST_F(Transform_test, FilterJsonConstraintFailAndTargetVariable)
     // Validations:
     EXPECT_EQ(status_code_, 400);
     EXPECT_EQ(response_body_, "JsonConstraint FAILED: expected value for key 'foo' differs regarding validated source");
+}
+
+TEST_F(Transform_test, FilterSchemaId)
+{
+    // Build test provision:
+    const nlohmann::json item = R"(
+    {
+      "source": "request.body",
+      "target": "response.body.string",
+      "filter": {
+        "SchemaId": "SchemaExample"
+      }
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Now must be OK:
+
+    // Validations:
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "1");
+
+    // Now we want to invalidate:
+
+    // Remove mandatory "foo" at 'request_body_':
+    nlohmann::json badDocument = request_body_;
+    badDocument.erase("foo");
+    adata_.clearServerProvisions();
+    provisionAndTransform(badDocument.dump());
+
+    // Validations:
+    EXPECT_EQ(response_body_, "At  of {\"node1\":{\"delaymilliseconds\":25,\"node2\":\"value-of-node1-node2\"}} - required property 'foo' not found in object\n");
 }
 

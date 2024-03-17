@@ -53,13 +53,13 @@ AdminClientProvisionData::AdminClientProvisionData() {
     client_provision_schema_.setJson(h2agent::adminSchemas::client_provision); // won't fail
 }
 
-std::string AdminClientProvisionData::asJsonString(bool unused) const {
+std::string AdminClientProvisionData::asJsonString(bool getUnused) const {
 
     nlohmann::json result = nlohmann::json::array();
 
     read_guard_t guard(rw_mutex_);
     for (auto it = map_.begin(); it != map_.end(); it++) {
-        if (unused && it->second->employed()) continue;
+        if (getUnused && it->second->employed()) continue;
         result.push_back(it->second->getJson());
     };
 
@@ -69,7 +69,8 @@ std::string AdminClientProvisionData::asJsonString(bool unused) const {
 
 AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const nlohmann::json &j, const common_resources_t &cr) {
 
-    if (!client_provision_schema_.validate(j)) {
+    std::string error{};
+    if (!client_provision_schema_.validate(j, error)) {
         return BadSchema;
     }
 
@@ -89,6 +90,7 @@ AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const 
         add(key, provision);
 
         // Set common resources:
+        provision->setAdminData(cr.AdminDataPtr);
         provision->setConfiguration(cr.ConfigurationPtr);
         provision->setGlobalVariable(cr.GlobalVariablePtr);
         provision->setFileManager(cr.FileManagerPtr);

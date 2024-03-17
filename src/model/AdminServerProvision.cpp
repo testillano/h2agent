@@ -55,6 +55,7 @@ SOFTWARE.
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
+#include <AdminData.hpp>
 
 #include <functions.hpp>
 
@@ -71,6 +72,38 @@ AdminServerProvision::AdminServerProvision() : in_state_(DEFAULT_ADMIN_PROVISION
     out_state_(DEFAULT_ADMIN_PROVISION_STATE),
     response_delay_ms_(0), mock_server_events_data_(nullptr), mock_client_events_data_(nullptr) {;}
 
+
+std::shared_ptr<h2agent::model::AdminSchema> AdminServerProvision::getRequestSchema() {
+
+    if(request_schema_id_.empty()) return nullptr;
+
+    if (admin_data_->getSchemaData().size() != 0) { // the only way to destroy schema references, is to clean whole schema data
+        if (request_schema_) return request_schema_; // provision cache
+        request_schema_ = admin_data_->getSchemaData().find(request_schema_id_);
+    }
+
+    LOGWARNING(
+        if (!request_schema_) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for incoming message: VALIDATION will be IGNORED", request_schema_id_.c_str()), ERT_FILE_LOCATION);
+    );
+
+    return request_schema_;
+}
+
+std::shared_ptr<h2agent::model::AdminSchema> AdminServerProvision::getResponseSchema() {
+
+    if(response_schema_id_.empty()) return nullptr;
+
+    if (admin_data_->getSchemaData().size() != 0) { // the only way to destroy schema references, is to clean whole schema data
+        if (response_schema_) return response_schema_; // provision cache
+        response_schema_ = admin_data_->getSchemaData().find(response_schema_id_);
+    }
+
+    LOGWARNING(
+        if (!response_schema_) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for outgoing message: VALIDATION will be IGNORED", response_schema_id_.c_str()), ERT_FILE_LOCATION);
+    );
+
+    return response_schema_;
+}
 
 bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transformation,
         TypeConverter& sourceVault,
@@ -583,6 +616,29 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         }
         break;
     }
+    case Transformation::FilterType::SchemaId:
+    {
+        nlohmann::json sobj = sourceVault.getObject(success);
+        // should not happen (protected by schema)
+        //if (!success) {
+        //    LOGDEBUG(ert::tracing::Logger::debug("Source provided for SchemaId filter must be a valid json object", ERT_FILE_LOCATION));
+        //    return false;
+        //}
+        std::string failReport;
+        auto schema = admin_data_->getSchemaData().find(transformation->getFilter()); // TODO: find a way to cache this (set the schema into transformation: but clean schemas should be detected to avoid corruption)
+        if (schema) {
+            if (schema->validate(sobj, failReport)) {
+                sourceVault.setString("1");
+            }
+            else {
+                sourceVault.setString(failReport);
+            }
+        }
+        else {
+            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in transformation item: VALIDATION will be IGNORED", transformation->getFilter().c_str()), ERT_FILE_LOCATION);
+        }
+        break;
+    }
     }
     //}
     //catch (std::exception& e)
@@ -851,10 +907,18 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                 targetS = sourceVault.getString(success);
                 if (!success) return false;
 
-                if (hasFilter && transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
-                    if (targetS != "1") { // this is a fail report
-                        variables[target + ".fail"] = targetS;
-                        targetS = "";
+                if (hasFilter) {
+                    if(transformation->getFilterType() == Transformation::FilterType::JsonConstraint) {
+                        if (targetS != "1") { // this is a fail report
+                            variables[target + ".fail"] = targetS;
+                            targetS = "";
+                        }
+                    }
+                    else if (transformation->getFilterType() == Transformation::FilterType::SchemaId) {
+                        if (targetS != "1") { // this is a fail report
+                            variables[target + ".fail"] = targetS;
+                            targetS = "";
+                        }
                     }
                 }
 
@@ -1054,10 +1118,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       unsigned int &responseDelayMs,
                                       std::string &outState,
                                       std::string &outStateMethod,
-                                      std::string &outStateUri,
-                                      std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
-                                      std::shared_ptr<h2agent::model::AdminSchema> responseSchema
-                                    ) const
+                                      std::string &outStateUri
+                                    )
 {
     // Default values without transformations:
     responseStatusCode = getResponseCode();
@@ -1069,7 +1131,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
     // Check if the request body must be decoded:
     bool mustDecodeRequestBody = false;
-    if (requestSchema) {
+    if (getRequestSchema()) {
         mustDecodeRequestBody = true;
     }
     else {
@@ -1090,8 +1152,9 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // Request schema validation (normally used to validate native json received, but can also be used to validate the agent json representation (multipart, text, etc.)):
-    if (requestSchema) {
-        if (!requestSchema->validate(requestBodyDataPart.getJson())) {
+    if (getRequestSchema()) {
+        std::string error{};
+        if (!getRequestSchema()->validate(requestBodyDataPart.getJson(), error)) {
             responseStatusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
             return; // INTERRUPT TRANSFORMATIONS
         }
@@ -1148,7 +1211,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         // So, we can't use 'matches' as container because source may change: BUT, using that source exclusively, it will work (*)
         std::string source; // Now, this never will be out of scope, and 'matches' will be valid.
 
-        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint
+        // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId
         bool hasFilter = transformation->hasFilter();
         if (hasFilter) {
             if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
@@ -1182,8 +1245,9 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 
     // Response schema validation (not supported for response body created by non-json targets, to simplify the fact to parse need on ResponseBodyString/ResponseBodyHexString):
-    if (responseSchema) {
-        if (!responseSchema->validate(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson:getResponseBody())) {
+    if (getResponseSchema()) {
+        std::string error{};
+        if (!getResponseSchema()->validate(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson:getResponseBody(), error)) {
             responseStatusCode = ert::http2comm::ResponseCode::INTERNAL_SERVER_ERROR; // 500: built response will be anyway sent although status code is overwritten with internal server error.
         }
     }

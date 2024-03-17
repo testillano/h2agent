@@ -57,7 +57,8 @@ void GlobalVariable::load(const std::string &variable, const std::string &value)
 
 bool GlobalVariable::loadJson(const nlohmann::json &j) {
 
-    if (!global_variable_schema_.validate(j)) {
+    std::string error{};
+    if (!global_variable_schema_.validate(j, error)) {
         return false;
     }
 
