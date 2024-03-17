@@ -605,6 +605,64 @@ MY_REQUESTS_SCHEMA_ID_TEMPLATE='''
 }}
 '''
 
+SCHEMA_EXAMPLE='''
+{
+  "id": "SchemaExample",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["product"],
+    "properties": {
+      "product": {
+        "type": "object",
+        "required": ["name", "prices"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "contains": {"const": "125"},
+            "contains": {"const": "95"}
+          }
+        }
+      }
+    }
+  }
+}
+'''
+
+SCHEMA_EXAMPLE_REQUEST_VALID='''
+{
+  "product": {
+    "provider": "google",
+    "name": "computer",
+    "prices": [
+      "125",
+      "95"
+    ]
+  }
+}
+'''
+
+SCHEMA_EXAMPLE_REQUEST_INVALID='''
+{
+  "product": {
+    "name": "computer",
+    "prices": [
+      "125",
+      "108"
+    ]
+  }
+}
+'''
+
 GLOBAL_VARIABLE_1_2_3='''
 {
   "var1": "value1",

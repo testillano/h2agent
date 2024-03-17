@@ -6,6 +6,7 @@
 EXAMPLES=examples
 DESCRIPTION=readme.txt
 REQUEST=request.json
+REQUEST_GENERATOR=request.sh
 
 #############
 # FUNCTIONS #
@@ -135,7 +136,7 @@ menu() {
 
   EXAMPLE=$(dirname $file)
   configure_example ${EXAMPLE}
-  if [ ! -f "${EXAMPLE}/request.json" ] # no request means just didactic content
+  if [ ! -f "${EXAMPLE}/${REQUEST}" -a ! "${EXAMPLE}/${REQUEST_GENERATOR}" ] # no request means just didactic content
   then
     press_enter # no request means just didactic content
   else
@@ -143,6 +144,7 @@ menu() {
     do
       title "Send request" ${COLOR_green}
       separator
+      [ -x "${EXAMPLE}/${REQUEST_GENERATOR}" ] && ${EXAMPLE}/${REQUEST_GENERATOR}
       local method=$(jq -r '.method' ${EXAMPLE}/${REQUEST})
       local uri=$(jq -r '.uri' ${EXAMPLE}/${REQUEST})
       local body_f=$(mktemp)

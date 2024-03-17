@@ -69,7 +69,8 @@ std::string AdminClientEndpointData::asJsonString() const {
 
 AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nlohmann::json &j, const common_resources_t &cr) {
 
-    if (!client_endpoint_schema_.validate(j)) {
+    std::string error;
+    if (!client_endpoint_schema_.validate(j, error)) {
         return BadSchema;
     }
 

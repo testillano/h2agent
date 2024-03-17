@@ -75,10 +75,10 @@ public:
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId" };
         return text [type];
     }
 
@@ -118,7 +118,7 @@ private:
 
     bool has_filter_{};
     FilterType filter_type_{};
-    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar, EqualTo, DifferentFrom
+    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar, EqualTo, DifferentFrom, SchemaId
     nlohmann::json filter_object_{}; // JsonConstraint
     std::regex filter_rgx_{}; // RegexCapture, RegexReplace
     int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float)

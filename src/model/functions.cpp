@@ -283,7 +283,7 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
         // Check if key exists in document:
         if (!received.contains(key)) {
             failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected key '%s' is missing in validated source", key.c_str());
-            LOGDEBUG(ert::tracing::Logger::debug(failReport, ERT_FILE_LOCATION));
+            LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
             return false;
         }
 
@@ -296,7 +296,7 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
             // Check same value:
             if (received[key] != value) {
                 failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected value for key '%s' differs regarding validated source", key.c_str());
-                LOGDEBUG(ert::tracing::Logger::debug(failReport, ERT_FILE_LOCATION));
+                LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
                 return false;
             }
         }

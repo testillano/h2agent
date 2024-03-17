@@ -2117,7 +2117,8 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["ConditionVar"]},
         {"required": ["EqualTo"]},
         {"required": ["DifferentFrom"]},
-        {"required": ["JsonConstraint"]}
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -2141,7 +2142,8 @@ Defines the response behavior for an incoming request matching some basic condit
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": "object" }
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
       }
     }
   },
@@ -2753,7 +2755,7 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `ConditionVar` filter. The best example is the `JsonConstraint` filter (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
+  Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `ConditionVar` filter. The best example are `JsonConstraint` and `SchemaId` filters (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
 
   There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *EqualTo* and *DifferenFrom*:
 
@@ -2842,7 +2844,7 @@ Filters give you the chance to make complex transformations:
 - JsonConstraint: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
 
   - If validation **succeed**, the string "1" is stored in selected target.
-  - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables.
+  - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended use), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables to detect the validation error.
 
   ```json
   {
@@ -2961,7 +2963,19 @@ Filters give you the chance to make complex transformations:
 
 
 
-Finally, after possible transformations, we could validate the response body:
+- SchemaId: performs a `json` schema validation between the source (must be a valid document) and the provided filter which is a registered schema for the given identifier. Same logic than `JsonConstraint` is applied here:
+
+  - If validation **succeed**, the string "1" is stored in selected target.
+
+  - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended use), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables to detect the validation error.
+
+
+
+  Both the `JsonConstraint` and `SchemaId` filters **serve as more specific supplementary validations** to enhance event schemas (request and response validation schemas).
+
+
+
+Finally, after possible transformations, we could validate the response body (although this may be considered overkilling because the mock is expected to build the response according with a known response schema):
 
 ##### responseSchemaId
 
@@ -3482,7 +3496,8 @@ Client provisions are a fundamental part of the client mode configuration. Unlik
         {"required": ["ConditionVar"]},
         {"required": ["EqualTo"]},
         {"required": ["DifferentFrom"]},
-        {"required": ["JsonConstraint"]}
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -3506,7 +3521,8 @@ Client provisions are a fundamental part of the client mode configuration. Unlik
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": "object" }
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
       }
     }
   },

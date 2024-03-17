@@ -50,6 +50,7 @@ namespace h2agent
 namespace model
 {
 
+class AdminData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
@@ -58,6 +59,7 @@ class MockServerData;
 class MockClientData;
 
 typedef struct {
+    AdminData *AdminDataPtr;
     Configuration *ConfigurationPtr;
     GlobalVariable *GlobalVariablePtr;
     FileManager *FileManagerPtr;

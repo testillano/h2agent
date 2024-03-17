@@ -92,6 +92,7 @@ bool Transformation::load(const nlohmann::json &j) {
         //   EqualTo             value -> [filter_]
         //   DifferentFrom       value -> [filter_]
         //   JsonConstraint      value -> [filter_object_]
+        //   SchemaId            value -> [filter_]
 
         auto f_it = it->find("RegexCapture");
 
@@ -163,6 +164,10 @@ bool Transformation::load(const nlohmann::json &j) {
             else if ((f_it = it->find("JsonConstraint")) != it->end()) {
                 filter_object_ = *f_it;
                 filter_type_ = FilterType::JsonConstraint;
+            }
+            else if ((f_it = it->find("SchemaId")) != it->end()) {
+                filter_ = *f_it;
+                filter_type_ = FilterType::SchemaId;
             }
         }
         catch (std::regex_error &e) {

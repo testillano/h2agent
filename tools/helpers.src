@@ -21,6 +21,8 @@ do_curl() {
   ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
   [ $? -ne 0 ] && return 1
 
+  [ -n "${PLAIN}" ] && return 0 # special for trace()
+
   # Last empty line or no line feed (no body answered):
   [ -z $(tail -c 1 /tmp/curl.out) ] && return 0
 
@@ -474,9 +476,9 @@ trace() {
     local recommended_level="Warning"
     [ "$1" != "${recommended_level}" ] && echo -n " (recommended '${recommended_level}' for normal operation)."
     echo
-    do_curl -XPUT ${ADMIN_URL}/logging?level=${level}
+    PLAIN=true do_curl -XPUT ${ADMIN_URL}/logging?level=${level}
   else
-    do_curl -XGET ${ADMIN_URL}/logging
+    PLAIN=true do_curl -XGET ${ADMIN_URL}/logging
   fi
 }
 

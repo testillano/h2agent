@@ -56,6 +56,7 @@ SOFTWARE.
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
+#include <AdminData.hpp>
 
 #include <functions.hpp>
 
@@ -74,6 +75,38 @@ AdminClientProvision::AdminClientProvision() : in_state_(DEFAULT_ADMIN_PROVISION
     seq_(0), seq_begin_(0), seq_end_(0), rps_(0), repeat_(false) {;}
 
 
+std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getRequestSchema() {
+
+    if(request_schema_id_.empty()) return nullptr;
+
+    if (admin_data_->getSchemaData().size() != 0) { // the only way to destroy schema references, is to clean whole schema data
+        if (request_schema_) return request_schema_; // provision cache
+        request_schema_ = admin_data_->getSchemaData().find(request_schema_id_);
+    }
+
+    LOGWARNING(
+        if (!request_schema_) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for incoming message: VALIDATION will be IGNORED", request_schema_id_.c_str()), ERT_FILE_LOCATION);
+    );
+
+    return request_schema_;
+}
+
+std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getResponseSchema() {
+
+    if(response_schema_id_.empty()) return nullptr;
+
+    if (admin_data_->getSchemaData().size() != 0) { // the only way to destroy schema references, is to clean whole schema data
+        if (response_schema_) return response_schema_; // provision cache
+        response_schema_ = admin_data_->getSchemaData().find(response_schema_id_);
+    }
+
+    LOGWARNING(
+        if (!response_schema_) ert::tracing::Logger::warning(ert::tracing::Logger::asString("Missing schema '%s' referenced in provision for outgoing message: VALIDATION will be IGNORED", response_schema_id_.c_str()), ERT_FILE_LOCATION);
+    );
+
+    return response_schema_;
+}
+
 void AdminClientProvision::saveDynamics() {
     json_["dynamics"]["sequence"] = seq_;
     json_["dynamics"]["sequenceBegin"] = seq_begin_;
@@ -87,12 +120,11 @@ void AdminClientProvision::transform( std::string &requestMethod,
                                       std::string &requestBody,
                                       nghttp2::asio_http2::header_map &requestHeaders,
                                       std::string &outState,
-                                      std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
                                       unsigned int &requestDelayMs,
                                       unsigned int &requestTimeoutMs,
                                       std::string &error
-                                    ) const {
-
+                                    )
+{
     // Default values without transformations:
     requestMethod = getRequestMethod();
     requestUri = getRequestUri();
@@ -152,7 +184,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
                 // So, we can't use 'matches' as container because source may change: BUT, using that source exclusively, it will work (*)
                 std::string source; // Now, this never will be out of scope, and 'matches' will be valid.
 
-                // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint
+                // FILTERS: RegexCapture, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId
                 bool hasFilter = transformation->hasFilter();
                 if (hasFilter) {
                     if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
@@ -171,9 +203,9 @@ void AdminClientProvision::transform( std::string &requestMethod,
     }
 
     // Request schema validation
-    if (requestSchema) {
-        if (!requestSchema->validate(usesRequestBodyAsTransformationJsonTarget ? requestBodyJson:getRequestBody())) {
-            error = "Invalid request built against request schema provided";
+    if (getRequestSchema()) {
+        if (!getRequestSchema()->validate(usesRequestBodyAsTransformationJsonTarget ? requestBodyJson:getRequestBody(), error)) {
+            //error = "Invalid request built against request schema provided: ";
             return;
         }
     }

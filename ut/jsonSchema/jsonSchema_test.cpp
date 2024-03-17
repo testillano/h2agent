@@ -36,7 +36,9 @@ TEST_F(jsonSchema_test, CheckSchemaMatching)
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_matching));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::server_matching);
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ServerMatchingJson));
+    std::string error{};
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ServerMatchingJson, error));
+    EXPECT_TRUE(error.empty());
 }
 
 TEST_F(jsonSchema_test, CheckSchemaServerProvision)
@@ -44,8 +46,11 @@ TEST_F(jsonSchema_test, CheckSchemaServerProvision)
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_provision));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::server_provision);
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ServerProvisionJson));
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ServerProvisionJson_nok));
+    std::string error{};
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ServerProvisionJson, error));
+    EXPECT_TRUE(error.empty());
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ServerProvisionJson_nok, error));
+    EXPECT_EQ(error, "At  of {\"requestUri\":\"/foo/bar\",\"responseCode\":200} - required property 'requestMethod' not found in object\n");
 }
 
 TEST_F(jsonSchema_test, CheckSchemaSchema)
@@ -53,8 +58,11 @@ TEST_F(jsonSchema_test, CheckSchemaSchema)
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::schema));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::schema);
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(SchemaJson));
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(SchemaJson_nok));
+    std::string error{};
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(SchemaJson, error));
+    EXPECT_TRUE(error.empty());
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(SchemaJson_nok, error));
+    EXPECT_EQ(error, "At  of {\"id\":\"myRequestsSchema\"} - required property 'schema' not found in object\n");
 }
 
 TEST_F(jsonSchema_test, CheckGlobalVariableSchema)
@@ -62,9 +70,13 @@ TEST_F(jsonSchema_test, CheckGlobalVariableSchema)
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_data_global));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::server_data_global);
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(GlobalVariableJson));
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok));
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok2));
+    std::string error{};
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(GlobalVariableJson, error));
+    EXPECT_TRUE(error.empty());
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok, error));
+    EXPECT_EQ(error, "At /var1 of 1 - no subschema has succeeded, but one of them is required to validate\n");
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok2, error));
+    EXPECT_EQ(error, "At /var1 of {\"foo\":\"bar\"} - no subschema has succeeded, but one of them is required to validate\n");
 }
 
 TEST_F(jsonSchema_test, CheckSchemaClientEndpoint)
@@ -72,8 +84,11 @@ TEST_F(jsonSchema_test, CheckSchemaClientEndpoint)
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::client_endpoint));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::client_endpoint);
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ClientEndpointJson));
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ClientEndpointJson_nok));
+    std::string error{};
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ClientEndpointJson, error));
+    EXPECT_TRUE(error.empty());
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ClientEndpointJson_nok, error));
+    EXPECT_EQ(error, "At  of {\"host\":\"localhost\",\"permit\":true,\"port\":8000,\"secure\":false} - required property 'id' not found in object\n");
 }
 
 /*
@@ -82,7 +97,10 @@ TEST_F(jsonSchema_test, CheckSchemaClientProvision)
     EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::client_provision));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
     EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::client_provision);
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ClientProvisionJson));
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ClientProvisionJson_nok));
+    std::string error{};
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(ClientProvisionJson, error));
+    EXPECT_TRUE(error.empty());
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(ClientProvisionJson_nok, error));
+    EXPECT_EQ(error, "xxxxxxxxx");
 }
 */
