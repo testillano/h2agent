@@ -248,7 +248,7 @@ server_data() {
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
     echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the selection."
-    echo "                   [--surf]                        ; Interactive sorted server data navigation."
+    echo "                   [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -291,11 +291,13 @@ server_data() {
       pretty | jq 'map(. as $parent | .events |= sort_by(.serverSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].serverSequence)' > /tmp/curl.out.sorted
       local indx_max=$(jq '.[].events[].serverSequence' /tmp/curl.out.sorted | wc -l)
       local indx=0
+      [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
       while true
       do
+        echo -e "\nMessage $((indx+1)):\n"
         jq ".[$indx]" /tmp/curl.out.sorted
         indx=$((indx+1))
-        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all !\n" && return 0
+        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
         echo -e "\n\nPress ENTER to print next sequence ..."
         read -r dummy
       done
@@ -333,7 +335,7 @@ client_data() {
     echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
     echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (5 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow the selection."
-    echo "                   [--surf]                        ; Interactive sorted client data navigation."
+    echo "                   [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -379,11 +381,13 @@ client_data() {
       pretty | jq 'map(. as $parent | .events |= sort_by(.clientSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].clientSequence)' > /tmp/curl.out.sorted
       local indx_max=$(jq '.[].events[].clientSequence' /tmp/curl.out.sorted | wc -l)
       local indx=0
+      [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
       while true
       do
+        echo -e "\nMessage $((indx+1)):\n"
         jq ".[$indx]" /tmp/curl.out.sorted
         indx=$((indx+1))
-        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all !\n" && return 0
+        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
         echo -e "\n\nPress ENTER to print next sequence ..."
         read -r dummy
       done
