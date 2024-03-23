@@ -90,7 +90,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
     * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, global variables, constant values, input state (working state), events, files (read).
-    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints.
+    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints and schema id.
     * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
 
@@ -4291,6 +4291,7 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                                                      Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
                                                      selection.
+                   [--surf]                        ; Interactive sorted server data navigation.
 Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
                                                                                retrieved in previous server_data() call.
 
@@ -4315,6 +4316,7 @@ Usage: client_data [-h|--help]; Inspects client data events (http://localhost:80
                                                      (5 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
                                                      the selection.
+                   [--surf]                        ; Interactive sorted client data navigation.
 Usage: client_data_sequence [-h|--help] [value (available values by default)]; Extract client sequence document from json
                                                                                retrieved in previous client_data() call.
 
