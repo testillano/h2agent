@@ -238,6 +238,7 @@ server_provision_schema() {
 
 server_data() {
   local curl_method=
+  local surf=
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
@@ -247,6 +248,7 @@ server_data() {
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
     echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the selection."
+    echo "                   [--surf]                        ; Interactive sorted server data navigation."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -260,6 +262,10 @@ server_data() {
   then
     curl_method="-XDELETE"
     shift
+  elif [ "$1" = "--surf" ]
+  then
+    surf=yes
+    shift
   fi
 
   local requestMethod=$1
@@ -270,7 +276,7 @@ server_data() {
   local keyIndicators=""
   [ -n "${requestMethod}" ] && keyIndicators+="x"
   [ -n "${requestUri}" ] && keyIndicators+="x"
-  [ "${keyIndicators}" = "x" ] && echo "Error: both method & uri must be provided" && return 1
+  [ "${keyIndicators}" = "x" -a -z "${surf}" ] && echo "Error: both method & uri must be provided" && return 1
   [ -n "${eventNumber}" -a -z "${keyIndicators}" ] && echo "Error: method/uri are also required when eventNumber is provided" && return 1
   [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
 
@@ -279,13 +285,29 @@ server_data() {
   [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
   if [ -z "${curl_method}" -a -z "${queryParams}" ]
   then
-    echo
-    echo "Take care about storage size when querying without filters."
-    echo "You may want to check the summary before: server_data --summary"
-    echo
-    echo "Press ENTER to continue, CTRL-C to abort ..."
-    read dummy
-    do_curl ${ADMIN_URL}/server-data
+    if [ -n "${surf}" ]
+    then
+      do_curl ${ADMIN_URL}/server-data >/dev/null
+      pretty | jq 'map(. as $parent | .events |= sort_by(.serverSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].serverSequence)' > /tmp/curl.out.sorted
+      local indx_max=$(jq '.[].events[].serverSequence' /tmp/curl.out.sorted | wc -l)
+      local indx=0
+      while true
+      do
+        jq ".[$indx]" /tmp/curl.out.sorted
+        indx=$((indx+1))
+        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all !\n" && return 0
+        echo -e "\n\nPress ENTER to print next sequence ..."
+        read -r dummy
+      done
+    else
+      echo
+      echo "Take care about storage size when querying without filters."
+      echo "You may want to check the summary before: server_data --summary"
+      echo
+      echo "Press ENTER to continue, CTRL-C to abort ..."
+      read -r dummy
+      do_curl ${ADMIN_URL}/server-data
+    fi
   else
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
@@ -301,6 +323,7 @@ server_data() {
 
 client_data() {
   local curl_method=
+  local surf=
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
@@ -310,6 +333,7 @@ client_data() {
     echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
     echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (5 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow the selection."
+    echo "                   [--surf]                        ; Interactive sorted client data navigation."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -323,6 +347,10 @@ client_data() {
   then
     curl_method="-XDELETE"
     shift
+  elif [ "$1" = "--surf" ]
+  then
+    surf=yes
+    shift
   fi
 
   local clientEndpointId=$1
@@ -335,7 +363,7 @@ client_data() {
   [ -n "${clientEndpointId}" ] && keyIndicators+="x"
   [ -n "${requestMethod}" ] && keyIndicators+="x"
   [ -n "${requestUri}" ] && keyIndicators+="x"
-  [ "${keyIndicators}" != "" -a "${keyIndicators}" != "xxx" ] && echo "Error: client endpoint id & method & uri must be provided" && return 1
+  [ "${keyIndicators}" != "" -a "${keyIndicators}" != "xxx" -a -z "${surf}" ] && echo "Error: client endpoint id & method & uri must be provided" && return 1
   [ -n "${eventNumber}" -a -z "${keyIndicators}" ] && echo "Error: client endpoint id/method/uri are also required when eventNumber is provided" && return 1
   [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
 
@@ -345,13 +373,29 @@ client_data() {
   [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
   if [ -z "${curl_method}" -a -z "${queryParams}" ]
   then
-    echo
-    echo "Take care about storage size when querying without filters."
-    echo "You may want to check the summary before: client_data --summary"
-    echo
-    echo "Press ENTER to continue, CTRL-C to abort ..."
-    read dummy
-    do_curl ${ADMIN_URL}/client-data
+    if [ -n "${surf}" ]
+    then
+      do_curl ${ADMIN_URL}/client-data >/dev/null
+      pretty | jq 'map(. as $parent | .events |= sort_by(.clientSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].clientSequence)' > /tmp/curl.out.sorted
+      local indx_max=$(jq '.[].events[].clientSequence' /tmp/curl.out.sorted | wc -l)
+      local indx=0
+      while true
+      do
+        jq ".[$indx]" /tmp/curl.out.sorted
+        indx=$((indx+1))
+        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all !\n" && return 0
+        echo -e "\n\nPress ENTER to print next sequence ..."
+        read -r dummy
+      done
+    else
+      echo
+      echo "Take care about storage size when querying without filters."
+      echo "You may want to check the summary before: client_data --summary"
+      echo
+      echo "Press ENTER to continue, CTRL-C to abort ..."
+      read -r dummy
+      do_curl ${ADMIN_URL}/client-data
+    fi
   else
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
