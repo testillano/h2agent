@@ -3283,10 +3283,10 @@ The information collected for a events item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
 * `receptionTimestampUs`: event reception *timestamp*.
-* `state`: working/current state for the event.
+* `state`: working/current state for the event  (provision `outState` or target state modified by transformation filters).
 * `headers`: object containing the list of request headers.
 * `body`: object containing the request body.
-* `previousSate`: original provision state which managed this request.
+* `previousSate`: original provision state which managed this request (provision `inState`).
 * `responseBody`: response which was sent.
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
@@ -4118,10 +4118,10 @@ The information collected for a events item is:
 * `clientSequence`: current client monotonically increased sequence for every sending (`1..N`).
 * `sendingTimestampUs`: event sending *timestamp* (request).
 * `receptionTimestampUs`: event reception *timestamp* (response).
-* `state`: working/current state for the event.
+* `state`: working/current state for the event (provision `outState` or target state modified by transformation filters).
 * `requestHeaders`: object containing the list of request headers.
 * `requestBody`: object containing the request body.
-* `previousSate`: original provision state which managed this request.
+* `previousSate`: original provision state which managed this request (provision `inState`).
 * `responseBody`: response which was received.
 * `requestDelayMs`: delay for outgoing request.
 * `responseStatusCode`: status code which was received.
