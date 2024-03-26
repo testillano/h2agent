@@ -237,18 +237,20 @@ server_provision_schema() {
 }
 
 server_data() {
-  local curl_method=
+  local clean=
   local surf=
+  local dump=
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: server_data [-h|--help]; Inspects server data events (${ADMIN_URL}/server-data)."
-    echo "                   [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters."
+    echo "                   [method] [uri] [[-]event number] [event path] ; Positional filters to narrow the server data selection."
     echo "                                                                   Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
     echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
-    echo "                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the selection."
-    echo "                   [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation."
+    echo "                   [--clean] [query filters]       ; Removes server data events."
+    echo "                   [--surf] [query filters]        ; Interactive sorted (regardless method/uri) server data navigation."
+    echo "                   [--dump] [query filters]        ; Dumps all sequences detected for server data under 'server-data-sequences' directory."
     return 0
   elif [ "$1" = "--summary" ]
   then
@@ -260,11 +262,15 @@ server_data() {
     return 0
   elif [ "$1" = "--clean" ]
   then
-    curl_method="-XDELETE"
+    clean=yes
     shift
   elif [ "$1" = "--surf" ]
   then
     surf=yes
+    shift
+  elif [ "$1" = "--dump" ]
+  then
+    dump=yes
     shift
   fi
 
@@ -276,67 +282,118 @@ server_data() {
   local keyIndicators=""
   [ -n "${requestMethod}" ] && keyIndicators+="x"
   [ -n "${requestUri}" ] && keyIndicators+="x"
-  [ "${keyIndicators}" = "x" -a -z "${surf}" ] && echo "Error: both method & uri must be provided" && return 1
+  [ "${keyIndicators}" = "x" ] && echo "Error: both method & uri must be provided" && return 1
   [ -n "${eventNumber}" -a -z "${keyIndicators}" ] && echo "Error: method/uri are also required when eventNumber is provided" && return 1
   [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
 
   local queryParams=
   [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
   [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
-  if [ -z "${curl_method}" -a -z "${queryParams}" ]
+
+  local curl_method=
+  [ -n "${clean}" ] && curl_method="-XDELETE"
+
+  local devnull=
+  [ -n "${dump}" -o -n "${surf}" ] && devnull=">/dev/null"
+
+  if [ -n "${requestUri}" ]
   then
-    if [ -n "${surf}" ]
+    local urlencode=
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
+    eval do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/server-data${queryParams}" ${devnull}
+  else
+    if [ -z "${clean}${dump}${surf}" ]
     then
-      do_curl ${ADMIN_URL}/server-data >/dev/null
-      pretty | jq 'map(. as $parent | .events |= sort_by(.serverSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].serverSequence)' > /tmp/curl.out.sorted
-      local indx_max=$(jq '.[].events[].serverSequence' /tmp/curl.out.sorted | wc -l)
-      local indx=0
-      [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
-      while true
-      do
-        echo -e "\nMessage $((indx+1)):\n"
-        jq ".[$indx]" /tmp/curl.out.sorted
-        indx=$((indx+1))
-        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
-        echo -e "\n\nPress ENTER to print next sequence ..."
-        read -r dummy
-      done
-    else
       echo
       echo "Take care about storage size when querying without filters."
       echo "You may want to check the summary before: server_data --summary"
       echo
       echo "Press ENTER to continue, CTRL-C to abort ..."
       read -r dummy
-      do_curl ${ADMIN_URL}/server-data
     fi
-  else
-    local urlencode=
-    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
-    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
+    eval do_curl ${curl_method} "${ADMIN_URL}/server-data" ${devnull}
+  fi
+
+  [ -z "${clean}${dump}${surf}" ] && return 0
+
+  local sequences=
+  if [ -n "${requestUri}" ]; then sequences=( $(pretty ".events[].serverSequence" | sort -n) ) ; else sequences=( $(pretty ".[].events[].serverSequence" | sort -n) ) ; fi
+  local indx_max=${#sequences[@]}
+
+  if [ -n "${dump}" ]
+  then
+    mkdir -p server-data-sequences
+    local arrayPrefix=
+    [ -z "${requestUri}" ] && arrayPrefix=".[] | "
+    for s in ${sequences[@]}; do pretty | jq "${arrayPrefix}select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" > server-data-sequences/$(printf "%02d\n" "$s").json ; done
+
+  elif [ -n "${surf}" ]
+  then
     if [ -n "${requestUri}" ]
     then
-      do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/server-data${queryParams}"
+      pretty | jq '.method as $method | .uri as $uri | .provisionUri as $provisionUri | .events | map({events: [.], method: $method, uri: $uri, provisionUri: $provisionUri})' > /tmp/curl.out.sorted
     else
-      do_curl ${curl_method} "${ADMIN_URL}/server-data"
+      pretty | jq 'map(. as $parent | .events |= sort_by(.serverSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri, provisionUri: $parent.provisionUri}) | sort_by(.events[].serverSequence)' > /tmp/curl.out.sorted
     fi
+
+    local indx=0
+    [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
+    echo
+    echo "Show also corresponding (p)rovisions or just show server [d]ata:"
+    read -r opt
+    [ -z "${opt}" ] && opt=d
+    [ "${opt}" = "p" ] && server_provision >/dev/null
+    while true
+    do
+      echo -e "\nMessage $((indx+1)):\n"
+      jq ".[$indx]" /tmp/curl.out.sorted
+
+      # Corresponding provision:
+      if [ "${opt}" = "p" ]
+      then
+        local requestUri=$(jq -r ".[$indx].provisionUri" /tmp/curl.out.sorted)
+        if [ "${requestUri}" != "null" ]
+        then
+          echo -e "\nCorresponding provision processed:\n"
+          local inState=$(jq -r ".[$indx].events[0].previousState" /tmp/curl.out.sorted)
+          local requestMethod=$(jq -r ".[$indx].method" /tmp/curl.out.sorted)
+          if [ "${inState}" == "initial" ]
+          then
+            local cond="(.inState == \"initial\" or .inState == null) and .requestMethod == \""${requestMethod}"\" and .requestUri == \""${requestUri}"\""
+            pretty | jq ".[] | select (${cond})" | sed 's/^/      /'
+          else
+            local cond=".inState == \""${inState}"\" and .requestMethod == \""${requestMethod}"\" and .requestUri == \""${requestUri}"\""
+            pretty | jq ".[] | select (${cond})" | sed 's/^/      /'
+          fi
+        fi
+      fi
+
+      indx=$((indx+1))
+      [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
+      echo -e "\n\nPress ENTER to print next sequence ..."
+      read -r dummy
+    done
   fi
 }
 
 client_data() {
-  local curl_method=
+  local clean=
   local surf=
+  local dump=
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: client_data [-h|--help]; Inspects client data events (${ADMIN_URL}/client-data)."
-    echo "                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters."
+    echo "                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Positional filters to narrow the client data selection."
     echo "                                                                                        Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
     echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (5 by default, -1: no limit)."
-    echo "                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow the selection."
-    echo "                   [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation."
+    echo "                   [--clean] [query filters]       ; Removes client data events."
+    echo "                   [--surf] [query filters]        ; Interactive sorted (regardless endpoint/method/uri) client data navigation."
+    echo "                   [--dump] [query filters]        ; Dumps all sequences detected for client data under 'client-data-sequences' directory."
     return 0
+
   elif [ "$1" = "--summary" ]
   then
     local maxKeys=${2:-5}
@@ -347,11 +404,15 @@ client_data() {
     return 0
   elif [ "$1" = "--clean" ]
   then
-    curl_method="-XDELETE"
+    clean=yes
     shift
   elif [ "$1" = "--surf" ]
   then
     surf=yes
+    shift
+  elif [ "$1" = "--dump" ]
+  then
+    dump=yes
     shift
   fi
 
@@ -365,7 +426,7 @@ client_data() {
   [ -n "${clientEndpointId}" ] && keyIndicators+="x"
   [ -n "${requestMethod}" ] && keyIndicators+="x"
   [ -n "${requestUri}" ] && keyIndicators+="x"
-  [ "${keyIndicators}" != "" -a "${keyIndicators}" != "xxx" -a -z "${surf}" ] && echo "Error: client endpoint id & method & uri must be provided" && return 1
+  [ "${keyIndicators}" != "" -a "${keyIndicators}" != "xxx" ] && echo "Error: client endpoint id & method & uri must be provided" && return 1
   [ -n "${eventNumber}" -a -z "${keyIndicators}" ] && echo "Error: client endpoint id/method/uri are also required when eventNumber is provided" && return 1
   [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
 
@@ -373,56 +434,66 @@ client_data() {
   [ -n "${clientEndpointId}" ] && queryParams="?clientEndpointId=${clientEndpointId}"
   [ -n "${requestMethod}" ] && queryParams="${queryParams}&requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
   [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
-  if [ -z "${curl_method}" -a -z "${queryParams}" ]
+
+  local curl_method=
+  [ -n "${clean}" ] && curl_method="-XDELETE"
+
+  local devnull=
+  [ -n "${dump}" -o -n "${surf}" ] && devnull=">/dev/null"
+
+  if [ -n "${requestUri}" ]
   then
-    if [ -n "${surf}" ]
+    local urlencode=
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
+    eval do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/client-data${queryParams}" ${devnull}
+  else
+    if [ -z "${clean}${dump}${surf}" ]
     then
-      do_curl ${ADMIN_URL}/client-data >/dev/null
-      pretty | jq 'map(. as $parent | .events |= sort_by(.clientSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].clientSequence)' > /tmp/curl.out.sorted
-      local indx_max=$(jq '.[].events[].clientSequence' /tmp/curl.out.sorted | wc -l)
-      local indx=0
-      [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
-      while true
-      do
-        echo -e "\nMessage $((indx+1)):\n"
-        jq ".[$indx]" /tmp/curl.out.sorted
-        indx=$((indx+1))
-        [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
-        echo -e "\n\nPress ENTER to print next sequence ..."
-        read -r dummy
-      done
-    else
       echo
       echo "Take care about storage size when querying without filters."
       echo "You may want to check the summary before: client_data --summary"
       echo
       echo "Press ENTER to continue, CTRL-C to abort ..."
       read -r dummy
-      do_curl ${ADMIN_URL}/client-data
     fi
-  else
-    local urlencode=
-    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
-    [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
+    eval do_curl ${curl_method} "${ADMIN_URL}/client-data" ${devnull}
+  fi
+
+  [ -z "${clean}${dump}${surf}" ] && return 0
+
+  local sequences=
+  if [ -n "${requestUri}" ]; then sequences=( $(pretty ".events[].clientSequence" | sort -n) ) ; else sequences=( $(pretty ".[].events[].clientSequence" | sort -n) ) ; fi
+  local indx_max=${#sequences[@]}
+
+  if [ -n "${dump}" ]
+  then
+    mkdir -p client-data-sequences
+    local arrayPrefix=
+    [ -z "${requestUri}" ] && arrayPrefix=".[] | "
+    for s in ${sequences[@]}; do pretty | jq "${arrayPrefix}select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" > client-data-sequences/$(printf "%02d\n" "$s").json ; done
+
+  elif [ -n "${surf}" ]
+  then
     if [ -n "${requestUri}" ]
     then
-      do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/client-data${queryParams}"
+      pretty | jq '.method as $method | .uri as $uri | .events | map({events: [.], method: $method, uri: $uri})' > /tmp/curl.out.sorted
     else
-      do_curl ${curl_method} "${ADMIN_URL}/client-data"
+      pretty | jq 'map(. as $parent | .events |= sort_by(.clientSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].clientSequence)' > /tmp/curl.out.sorted
     fi
+
+    local indx=0
+    [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
+    while true
+    do
+      echo -e "\nMessage $((indx+1)):\n"
+      jq ".[$indx]" /tmp/curl.out.sorted
+      indx=$((indx+1))
+      [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
+      echo -e "\n\nPress ENTER to print next sequence ..."
+      read -r dummy
+    done
   fi
-}
-
-server_data_sequence() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json retrieved in previous server_data() call." && return 0
-  [ -z "$1" ] && pretty ".[].events[].serverSequence" | sort -n && return 0
-  pretty ".[] | select (.events[].serverSequence == $1) | del (.events[] | select (.serverSequence != $1))" 2>/dev/null
-}
-
-client_data_sequence() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_data_sequence [-h|--help] [value (available values by default)]; Extract client sequence document from json retrieved in previous client_data() call." && return 0
-  [ -z "$1" ] && pretty ".[].events[].clientSequence" | sort -n && return 0
-  pretty ".[] | select (.events[].clientSequence == $1) | del (.events[] | select (.clientSequence != $1))" 2>/dev/null
 }
 
 client_endpoint() {
@@ -562,41 +633,31 @@ snapshot() {
   files_configuration && pretty > ${dir}/files-configuration.json
   udp_sockets && pretty > ${dir}/udp-sockets.json
   configuration && pretty > ${dir}/configuration.json
-
   server_configuration && pretty > ${dir}/server-configuration.json
   server_data_configuration && pretty > ${dir}/server-data-configuration.json
   client_data_configuration && pretty > ${dir}/client-data-configuration.json
+
   server_matching && pretty > ${dir}/server-matching.json
   server_matching_schema && pretty > ${dir}/server-matching_schema.json
+
   server_provision && pretty > ${dir}/server-provision.json
   server_provision_unused && pretty > ${dir}/server-provision_unused.json
   server_provision_schema && pretty > ${dir}/server-provision_schema.json
+
   server_data --summary -1 && pretty > ${dir}/server-data-summary.json
   echo | server_data && pretty > ${dir}/server-data.json
-  mkdir ${dir}/server-data-sequences
-  (jq '.[].events[].serverSequence' ${dir}/server-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/server-data-sequences.txt
-  for s in $(cat ${dir}/server-data-sequences.txt); do
-    jq ".[] | select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" ${dir}/server-data.json > ${dir}/server-data-sequences/${s}.json
-  done
+  pushd ${dir} ; server_data --dump ; popd
+
   client_data --summary -1 && pretty > ${dir}/client-data-summary.json
   echo | client_data && pretty > ${dir}/client-data.json
-  mkdir ${dir}/client-data-sequences
-  (jq '.[].events[].clientSequence' ${dir}/client-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/client-data-sequences.txt
-  for s in $(cat ${dir}/client-data-sequences.txt); do
-    jq ".[] | select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" ${dir}/client-data.json > ${dir}/client-data-sequences/${s}.json
-  done
+  pushd ${dir} ; client_data --dump ; popd
+
   client_endpoint && pretty > ${dir}/client_endpoint.json
   client_endpoint_schema && pretty > ${dir}/client_endpoint_schema.json
   client_provision && pretty > ${dir}/client-provision.json
   client_provision_unused && pretty > ${dir}/client-provision_unused.json
   client_provision_schema && pretty > ${dir}/client-provision_schema.json
-  client_data --summary -1 && pretty > ${dir}/client-data-summary.json
-  echo | client_data && pretty > ${dir}/client-data.json
-  mkdir ${dir}/client-data-sequences
-  (jq '.[].events[].clientSequence' ${dir}/client-data.json | sort -nu | tr '\n' ' ' && echo) > ${dir}/client-data-sequences.txt
-  for s in $(cat ${dir}/client-data-sequences.txt); do
-    jq ".[] | select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" ${dir}/client-data.json > ${dir}/client-data-sequences/${s}.json
-  done
+
   metrics > ${dir}/metrics.txt
 
   echo
@@ -708,14 +769,12 @@ help() {
   server_provision -h
   server_provision_unused -h
   server_data -h
-  server_data_sequence -h
   echo
   echo "=== Traffic client ==="
   client_endpoint -h
   client_provision -h
   client_provision_unused -h
   client_data -h
-  client_data_sequence -h
   echo
   echo "=== Schemas ==="
   schema_schema -h

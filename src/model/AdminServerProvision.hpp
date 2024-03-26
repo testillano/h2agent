@@ -273,6 +273,16 @@ public:
     // getters:
 
     /**
+     * Gets the provision request uri which could be a regular expression
+     * or a full-matched URI string
+     *
+     * @return Provision request URI
+     */
+    const admin_server_provision_key_t &getRequestUri() const {
+        return request_uri_;
+    }
+
+    /**
      * Gets the provision key as '<in-state>|<request-method>|<request-uri>'
      *
      * @return Provision key

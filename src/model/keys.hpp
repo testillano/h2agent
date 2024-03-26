@@ -58,6 +58,7 @@ class DataKey {
     std::string client_endpoint_id_{};
     std::string method_{};
     std::string uri_{};
+    std::string provision_uri_{}; // for requests
 
     mock_events_key_t key_{};
     int nkeys_;
@@ -152,6 +153,7 @@ public:
     void keyToJson(nlohmann::json &doc) const {
         doc["method"] =  method_;
         doc["uri"] = uri_;
+        if (!provision_uri_.empty()) doc["provisionUri"] = provision_uri_;
         if (getNKeys() == 3) {
             doc["clientEndpointId"] = client_endpoint_id_;
         }
@@ -173,6 +175,13 @@ public:
         );
 
         return (complete() || empty());
+    }
+
+    /**
+     * Set provision URI (additional context data for requests in mock server mode)
+     */
+    void setProvisionUri(const std::string &provisionUri) {
+        provision_uri_ = provisionUri;
     }
 };
 
