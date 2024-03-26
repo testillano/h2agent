@@ -4291,10 +4291,9 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                                                      Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
                                                      selection.
-                   [--surf]                        ; Interactive sorted server data navigation.
-Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
-                                                                               retrieved in previous server_data() call.
-
+                   [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation.
+                   [--dump]                        ; Dumps all sequences detected for server data under 'server-data-sequences'
+                                                     directory.
 === Traffic client ===
 Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration
                                                      (http://localhost:8074/admin/v1/client-endpoint).
@@ -4316,10 +4315,9 @@ Usage: client_data [-h|--help]; Inspects client data events (http://localhost:80
                                                      (5 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
                                                      the selection.
-                   [--surf]                        ; Interactive sorted client data navigation.
-Usage: client_data_sequence [-h|--help] [value (available values by default)]; Extract client sequence document from json
-                                                                               retrieved in previous client_data() call.
-
+                   [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation.
+                   [--dump]                        ; Dumps all sequences detected for client data under 'client-data-sequences'
+                                                     directory.
 === Schemas ===
 Usage: schema_schema [-h|--help]; Gets the schema configuration schema
                                   (http://localhost:8074/admin/v1/schema/schema).

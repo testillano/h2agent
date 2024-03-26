@@ -336,6 +336,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
             // Store event context information
             if (server_data_) {
+                normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
                 getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
 
                 // Virtual storage:
@@ -348,6 +349,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
                     }
 
                     h2agent::model::DataKey foreignKey(outStateMethod /* foreign method */, outStateUri /* foreign uri */);
+                    foreignKey.setProvisionUri(provision->getRequestUri()); // additional context
                     getMockServerData()->loadEvent(foreignKey, inState, outState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, normalizedUri /* virtual uri origin */);
                 }
             }

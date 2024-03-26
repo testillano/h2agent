@@ -106,6 +106,20 @@ TEST(keys, dataKeyThreePartsKeyToJson) {
     EXPECT_EQ(asserted, expected);
 }
 
+TEST(keys, dataKeyWithProvisionUri) {
+    h2agent::model::DataKey key("POST", "/foo/bar/1234");
+    key.setProvisionUri("(/foo/bar/)([0-9]*)");
+
+    nlohmann::json asserted;
+    key.keyToJson(asserted);
+
+    nlohmann::json expected;
+    expected["method"] = "POST";
+    expected["uri"] = "/foo/bar/1234";
+    expected["provisionUri"] = "(/foo/bar/)([0-9]*)";
+    EXPECT_EQ(asserted, expected);
+}
+
 TEST(keys, eventKeyDataKeyConstructorTwoPartsGetters) {
     h2agent::model::DataKey key("POST", "/foo/bar");
     h2agent::model::EventKey ekey(key, "1");
