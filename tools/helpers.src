@@ -352,7 +352,7 @@ server_data() {
       # Corresponding provision:
       if [ "${opt}" = "p" ]
       then
-        local requestUri=$(jq -r ".[$indx].provisionUri" /tmp/curl.out.sorted)
+        local requestUri=$(jq -r ".[$indx].provisionUri" /tmp/curl.out.sorted | sed 's/\\/\\\\/g')
         if [ "${requestUri}" != "null" ]
         then
           echo -e "\nCorresponding provision processed:\n"
