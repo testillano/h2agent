@@ -44,7 +44,7 @@ SOFTWARE.
 #include <AdminServerMatchingData.hpp>
 #include <AdminServerProvisionData.hpp>
 #include <AdminClientEndpointData.hpp>
-//#include <AdminClientProvisionData.hpp>
+#include <AdminClientProvisionData.hpp>
 #include <AdminSchemaData.hpp>
 #include <common.hpp>
 
@@ -58,7 +58,7 @@ class AdminData
     AdminServerMatchingData server_matching_data_{};
     AdminServerProvisionData server_provision_data_{};
     AdminClientEndpointData client_endpoint_data_{};
-    //AdminClientProvisionData client_provision_data_{};
+    AdminClientProvisionData client_provision_data_{};
     AdminSchemaData schema_data_{};
 
 public:
@@ -102,6 +102,18 @@ public:
     }
 
     /**
+     * Loads admin client provision operation data
+     *
+     * @param j json document from operation body request
+     * @param cr common resources references (general configuration, global variables, file manager, mock client events data)
+     *
+     * @return Boolean about success operation
+     */
+    AdminClientProvisionData::LoadResult loadClientProvision(const nlohmann::json &j, const common_resources_t &cr) {
+        return client_provision_data_.load(j, cr);
+    }
+
+    /**
      * Loads admin schema operation data
      *
      * @param j json document from operation body request
@@ -113,7 +125,7 @@ public:
     }
 
     /**
-     * Clears admin provisions data
+     * Clears admin server provisions data
      *
      * @return True if something was removed, false if already empty
      */
@@ -128,6 +140,15 @@ public:
      */
     bool clearClientEndpoints() {
         return client_endpoint_data_.clear();
+    }
+
+    /**
+     * Clears admin client provisions data
+     *
+     * @return True if something was removed, false if already empty
+     */
+    bool clearClientProvisions() {
+        return client_provision_data_.clear();
     }
 
     /**
@@ -147,7 +168,7 @@ public:
     }
 
     /**
-     * Gets admin provision data
+     * Gets admin server provision data
      */
     const AdminServerProvisionData& getServerProvisionData() const {
         return server_provision_data_;
@@ -158,6 +179,13 @@ public:
      */
     const AdminClientEndpointData& getClientEndpointData() const {
         return client_endpoint_data_;
+    }
+
+    /**
+     * Gets admin client provision data
+     */
+    const AdminClientProvisionData& getClientProvisionData() const {
+        return client_provision_data_;
     }
 
     /**

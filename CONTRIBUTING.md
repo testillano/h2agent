@@ -57,7 +57,7 @@ Issue: https://github.com/testillano/h2agent/issues/14
 Finally, push the commit(s) from your local fork towards its repository origin:
 
 ```bash
-$> git push origin <branch>
+$ git push origin <branch>
 ```
 
 ## Check project work-flow

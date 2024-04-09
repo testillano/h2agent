@@ -69,7 +69,8 @@ std::string AdminClientEndpointData::asJsonString() const {
 
 AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nlohmann::json &j, const common_resources_t &cr) {
 
-    if (!client_endpoint_schema_.validate(j)) {
+    std::string error;
+    if (!client_endpoint_schema_.validate(j, error)) {
         return BadSchema;
     }
 
@@ -77,6 +78,9 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
     auto clientEndpoint = std::make_shared<AdminClientEndpoint>();
 
     if (clientEndpoint->load(j)) {
+
+        // Metrics data:
+        clientEndpoint->setMetricsData(cr.MetricsPtr, cr.ResponseDelaySecondsHistogramBucketBoundaries, cr.MessageSizeBytesHistogramBucketBoundaries, cr.ApplicationName);
 
         // Push the key in the map:
         admin_client_endpoint_key_t key = clientEndpoint->getKey();

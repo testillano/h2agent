@@ -12,7 +12,7 @@ ARG nlohmann_json_ver=v3.10.5
 ARG pboettch_jsonschemavalidator_ver=2.1.0
 ARG google_test_ver=v1.11.0
 ARG arashpartow_exprtk_ver=0.0.1
-ARG ert_multipart_ver=v1.0.1
+ARG ert_multipart_ver=v1.0.2
 
 ARG base_os=ubuntu
 RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add zlib-static && rm -rf /var/cache/apk/* ; fi

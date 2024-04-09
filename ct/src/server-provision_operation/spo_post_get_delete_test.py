@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_SERVER_PROVISION_URI, INVALID_SERVER_PROVISION_SCHEMA__RESPONSE_BODY, VALID_SERVER_PROVISIONS__RESPONSE_BODY
+from conftest import ADMIN_SERVER_PROVISION_URI, INVALID_SERVER_PROVISION_SCHEMA__RESPONSE_BODY, VALID_SERVER_PROVISIONS__RESPONSE_BODY, VALID_SERVER_PROVISION__RESPONSE_BODY
 from conftest import string2dict, BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, REGEX_FOO_BAR_SERVER_PROVISION_TEMPLATE, FALLBACK_DEFAULT_SERVER_PROVISION
 
 
@@ -17,10 +17,25 @@ def test_001_i_want_to_identify_wrong_schema_for_server_provision_operation_on_a
 
 
 @pytest.mark.admin
-def test_002_i_want_to_identify_valid_server_provision_operation_on_admin_interface(admin_server_provision):
+def test_002_i_want_to_identify_valid_server_provision_operation_on_admin_interface_and_check_unsused(admin_server_provision, h2ac_admin, h2ac_traffic):
 
-  admin_server_provision(string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1))
+  # Configure provision:
+  admin_server_provision(string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1), responseBodyRef=VALID_SERVER_PROVISION__RESPONSE_BODY)
 
+  # Send GET
+  response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI + "/unused")
+
+  # Verify provision is unused:
+  assert response["status"] == 200
+  response_dict = response["body"][0]
+  assert response_dict == string2dict(BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, id=1)
+
+  # Now use it:
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+
+  # Verify that nothing is "unused":
+  response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI + "/unused")
+  assert response["status"] == 204
 
 @pytest.mark.admin
 def test_003_i_want_to_send_get_for_unsupported_operation_on_admin_interface(h2ac_admin):

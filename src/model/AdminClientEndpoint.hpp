@@ -48,14 +48,11 @@ SOFTWARE.
 #include <TypeConverter.hpp>
 #include <DataPart.hpp>
 
+#include <MyTrafficHttp2Client.hpp>
 
-namespace ert
-{
-namespace http2comm
-{
-class Http2Client;
-}
-}
+#include <ert/metrics/Metrics.hpp>
+
+
 
 namespace h2agent
 {
@@ -77,12 +74,18 @@ class AdminClientEndpoint
     bool secure_{};
     bool permit_{};
 
-    std::shared_ptr<ert::http2comm::Http2Client> client_{};
+    std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> client_{};
+
+    // Metrics for client:
+    std::string application_name_{};
+    ert::metrics::Metrics *metrics_{};
+    ert::metrics::bucket_boundaries_t response_delay_seconds_histogram_bucket_boundaries_{};
+    ert::metrics::bucket_boundaries_t message_size_bytes_histogram_bucket_boundaries_{};
 
 public:
 
-    AdminClientEndpoint();
-    ~AdminClientEndpoint();
+    AdminClientEndpoint() {}
+    ~AdminClientEndpoint() {}
 
     // setters:
 
@@ -101,6 +104,17 @@ public:
      * @param fromScratch Indicates if the previous client must be dropped
      */
     void connect(bool fromScratch = false);
+
+    /**
+     * Set metrics data
+     *
+     * @param metrics Optional metrics object to compute counters and histograms
+     * @param responseDelaySecondsHistogramBucketBoundaries Optional bucket boundaries for response delay seconds histogram
+     * @param messageSizeBytesHistogramBucketBoundaries Optional bucket boundaries for message size bytes histogram
+     * @param applicationName Application/process name used for metrics source label
+     */
+    void setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries,
+                        const ert::metrics::bucket_boundaries_t &messageSizeBytesHistogramBucketBoundaries, const std::string &applicationName);
 
     // getters:
 
@@ -157,13 +171,20 @@ public:
     }
 
     /*
-    ert::http2comm::Http2Client::response send(const Http2Client::Method &method,
-                                       const std::string &path,
-                                       const std::string &body,
-                                       const nghttp2::asio_http2::header_map &headers,
-                                       const std::chrono::milliseconds& requestTimeout = std::chrono::milliseconds(1000));
-    */
+     * Get the associated http2 client
+     *
+     * @return Http2 client
+     */
+    std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> getClient() {
+        return client_;
+    }
 
+    /*
+     * Get http2 client general unique sequence
+     *
+     * @return client sequence (1..N)
+     */
+    std::uint64_t getGeneralUniqueClientSequence() const;
 };
 
 }

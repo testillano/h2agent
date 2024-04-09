@@ -108,17 +108,20 @@ menu() {
 cd $(dirname $0)
 echo
 
-[ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: $0 [-i|--interactive]" && exit 0
-DIRECTORIES=( $(ls -d */) )
-LAST_OPTION=a # execute all
-
 # Temporary directory:
 TMPDIR=$(mktemp -d)
 trap "rm -rf ${TMPDIR}" EXIT
-#trap "echo TMPDIR: ${TMPDIR}" EXIT
 
-# Load test functions:
+# Load common resources:
 source ../tools/common.src
+
+title "H2agent kata"
+
+h2agent_check ${H2AGENT_ADMIN_ENDPOINT} ${H2AGENT_TRAFFIC_ENDPOINT} || exit 1
+
+[ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: $0 [-i|--interactive]" && exit 0
+DIRECTORIES=( $(ls -d */) )
+LAST_OPTION=a # execute all
 
 # Enable interactiveness if selected:
 INTERACT=

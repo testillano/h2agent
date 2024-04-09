@@ -85,13 +85,6 @@ private:
 
     NativeType native_type_{};
 
-    /**
-    * Gets native type selected from source
-    */
-    NativeType getNativeType() const {
-        return native_type_;
-    }
-
 public:
 
     /**
@@ -171,6 +164,14 @@ public:
     bool setObject(const nlohmann::json &jsonSource, const std::string &path);
 
     // getters
+
+    /**
+    * Gets native type selected from source
+    * Thisi is useful to use the corresponding getter if no conversion is desired
+    */
+    NativeType getNativeType() const {
+        return native_type_;
+    }
 
     /**
     * Gets string type from vault

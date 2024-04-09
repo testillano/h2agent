@@ -95,9 +95,12 @@ public:
     /**
     * Validates json document against schem content.
     *
+    * @param j document to validate
+    * @param error Error passed by reference
+    *
     * @return boolean about if json document is valid against json schema
     */
-    bool validate(const nlohmann::json& j) const;
+    bool validate(const nlohmann::json& j, std::string &error) const;
 };
 
 }

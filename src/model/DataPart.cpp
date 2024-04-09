@@ -86,7 +86,7 @@ std::string DataPart::asAsciiString() const {
     std::string result;
     h2agent::model::asAsciiString(str_, result);
     return result;
-}
+} // LCOV_EXCL_LINE
 
 bool DataPart::assignFromHex(const std::string &strAsHex) {
     decoded_ = false;

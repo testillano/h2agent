@@ -59,7 +59,7 @@ public:
     ~AdminServerMatchingData() = default;
 
     // Algorithm type
-    enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, PriorityMatchingRegex, RegexMatching };
+    enum AlgorithmType { FullMatching = 0, FullMatchingRegexReplace, RegexMatching };
     // UriPathQueryParameters filter type
     enum UriPathQueryParametersFilterType { Sort = 0, PassBy, Ignore };
     // UriPathQueryParameters separator type

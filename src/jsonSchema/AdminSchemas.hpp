@@ -91,7 +91,7 @@ const nlohmann::json server_matching = R"(
   "properties": {
     "algorithm": {
       "type": "string",
-        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex", "RegexMatching"]
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "RegexMatching"]
     },
     "rgx": {
       "type": "string"
@@ -143,12 +143,13 @@ const nlohmann::json server_provision = R"(
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
         {"required": ["Prepend"]},
-        {"required": ["AppendVar"]},
-        {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]}
+        {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -167,12 +168,13 @@ const nlohmann::json server_provision = R"(
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string", "minLength": 1 },
-        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
-        "EqualTo": { "type": "string" }
+        "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
       }
     }
   },
@@ -181,10 +183,12 @@ const nlohmann::json server_provision = R"(
 
   "properties": {
     "inState":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "outState":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "requestMethod": {
       "type": "string",
@@ -206,7 +210,7 @@ const nlohmann::json server_provision = R"(
       "type": "integer"
     },
     "responseBody": {
-      "oneOf": [
+      "anyOf": [
         {"type": "object"},
         {"type": "array"},
         {"type": "string"},
@@ -233,7 +237,7 @@ const nlohmann::json server_provision = R"(
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
           }
         },
         "additionalProperties" : {
@@ -276,6 +280,7 @@ const nlohmann::json server_provision = R"(
 // Valid HTTP ports:
 //
 // 0 - 1024 reserved for privileged services, 1025 - 65536 for applications
+// We could restrict to application scope, but there is no reason for that as we would deny mocking of privileged services.
 
 const nlohmann::json client_endpoint = R"(
 {
@@ -285,14 +290,15 @@ const nlohmann::json client_endpoint = R"(
   "additionalProperties": false,
   "properties": {
     "id": {
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "host": {
       "type": "string"
     },
     "port": {
       "type": "integer",
-      "minimum": 1025,
+      "minimum": 0,
       "maximum": 65536
     },
     "secure": {
@@ -303,6 +309,164 @@ const nlohmann::json client_endpoint = R"(
     }
   },
   "required": [ "id", "host", "port" ]
+}
+)"_json;
+
+// ConditionVar pattern: ^(?!$)(?!!$).*$
+// 1) non empty string:     "negative lookahead" (?!$)
+// 2) non valid string "!": "negative lookahead" (?!!$)
+const nlohmann::json client_provision = R"(
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "definitions": {
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {"required": ["RegexCapture"]},
+        {"required": ["RegexReplace"]},
+        {"required": ["Append"]},
+        {"required": ["Prepend"]},
+        {"required": ["Sum"]},
+        {"required": ["Multiply"]},
+        {"required": ["ConditionVar"]},
+        {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
+      ],
+      "properties": {
+        "RegexCapture": { "type": "string" },
+        "RegexReplace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rgx": {
+              "type": "string"
+            },
+            "fmt": {
+              "type": "string"
+            }
+          },
+          "required": [ "rgx", "fmt" ]
+        },
+        "Append": { "type": "string" },
+        "Prepend": { "type": "string" },
+        "Sum": { "type": "number" },
+        "Multiply": { "type": "number" },
+        "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
+        "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+
+  "properties": {
+    "id":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "inState":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "outState":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "endpoint":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "requestMethod": {
+      "type": "string",
+        "enum": ["POST", "GET", "PUT", "DELETE", "HEAD" ]
+    },
+    "requestUri": {
+      "type": "string"
+    },
+    "requestSchemaId": {
+      "type": "string"
+    },
+    "requestHeaders": {
+      "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+    },
+    "requestBody": {
+      "anyOf": [
+        {"type": "object"},
+        {"type": "array"},
+        {"type": "string"},
+        {"type": "integer"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "requestDelayMs": {
+      "type": "integer"
+    },
+    "timeoutMs": {
+      "type": "integer"
+    },
+    "transform" : {
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^request\\.(uri|body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
+    },
+    "onResponseTransform" : {
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
+    },
+    "responseSchemaId": {
+      "type": "string"
+    }
+  },
+  "required": [ "id" ]
 }
 )"_json;
 

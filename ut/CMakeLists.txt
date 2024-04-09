@@ -2,11 +2,12 @@ add_executable( unit-test "")
 
 add_subdirectory(jsonSchema)
 add_subdirectory(http2Server)
-#add_subdirectory(http2Client)
+add_subdirectory(http2Client)
 add_subdirectory(model)
 
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':
 add_library(ert_logger STATIC IMPORTED)
+add_library(ert_queuedispatcher STATIC IMPORTED)
 add_library(ert_http2comm STATIC IMPORTED)
 add_library(ert_metrics STATIC IMPORTED)
 add_library(ert_multipart STATIC IMPORTED)
@@ -18,6 +19,7 @@ add_library(nghttp2 STATIC IMPORTED)
 add_library(nlohmann_json_schema_validator STATIC IMPORTED)
 
 set_property(TARGET ert_logger PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/ert/libert_logger.a)
+set_property(TARGET ert_queuedispatcher PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/ert/libert_queuedispatcher.a)
 set_property(TARGET ert_http2comm PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/ert/libert_http2comm.a)
 set_property(TARGET ert_metrics PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/ert/libert_metrics.a)
 set_property(TARGET ert_multipart PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/ert/libert_multipart.a)
@@ -37,8 +39,10 @@ ${CMAKE_EXE_LINKER_FLAGS}
 
         h2agent-http2
         h2agent-model
+
         ert_logger
         ert_http2comm
+        ert_queuedispatcher
         ert_metrics
         ert_multipart
 

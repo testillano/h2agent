@@ -43,7 +43,6 @@ SOFTWARE.
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <nlohmann/json.hpp>
 #include <condition_variable>
 
@@ -68,8 +67,8 @@ class SafeFile {
     int max_open_files_;
     std::mutex mutex_; // write file mutex
     bool opened_;
-    boost::asio::deadline_timer *timer_{};
-    boost::asio::io_service *io_service_{};
+    boost::asio::steady_timer *timer_{};
+    boost::asio::io_context *io_context_{};
 
     std::string data_; // used for read cache, but never shown in json string representation (just in case it is huge)
     bool read_cached_;
@@ -85,17 +84,16 @@ public:
     *
     * @param fileManager parent reference to file manager.
     * @param path file path to write. It could be relative (to execution path) or absolute.
-    * @param timersIoService asio io service which will be used to delay close
+    * @param timersIoContext asio io context which will be used to delay close
     * operations with the intention to reduce overhead in some scenarios. By default
     * it is not used (if not provided in constructor), so delay is not performed
     * regardless the close delay configured.
-    * about I/O operations. It may be 'nullptr' if no metrics are enabled.
     * @param mode open mode. By default, text files and append is selected. You
     * could anyway add other flags, for example for binary dumps: std::ios::binary
     */
     SafeFile (FileManager *fileManager,
               const std::string& path,
-              boost::asio::io_service *timersIoService = nullptr,
+              boost::asio::io_context *timersIoContext = nullptr,
               std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app);
 
     ~SafeFile();

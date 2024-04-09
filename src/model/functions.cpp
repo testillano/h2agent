@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <fstream>
+#include <regex>
 #include <ctype.h>
 
 #include <functions.hpp>
@@ -46,6 +47,47 @@ namespace h2agent
 {
 namespace model
 {
+
+void calculateStringKey(std::string &key, const std::string &k1, const std::string &k2, const std::string &k3) {
+    key = k1;
+    key += "#";
+    key += k2;
+    if (!k3.empty()) {
+        key += "#";
+        key += k3;
+    }
+}
+
+void aggregateKeyPart(std::string &key, const std::string &k1, const std::string &k2) {
+    if (k2.empty()) {
+        key.insert(0, k1 + "#");
+        return;
+    }
+    key = k1;
+    key += "#";
+    key += k2;
+}
+
+bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative) {
+
+    bool result = false;
+
+    if (!input.empty()) {
+        negative = (input[0] == '-');
+
+        try {
+            output = std::stoull(negative ? input.substr(1):input);
+            result = true;
+        }
+        catch(std::exception &e)
+        {
+            std::string msg = ert::tracing::Logger::asString("Error converting string '%s' to unsigned long long integer%s: %s", input.c_str(), (negative ? " with negative sign":""), e.what());
+            ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+        }
+    }
+
+    return result;
+}
 
 std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator) {
     std::map<std::string, std::string> result;
@@ -89,7 +131,7 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
     while ((qpair_end != std::string::npos) || (pos != std::string::npos));
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator) {
 
@@ -105,7 +147,7 @@ std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, 
     }
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 bool getFileContent(const std::string &filePath, std::string &content)
 {
@@ -231,6 +273,56 @@ bool fromHexString(const std::string &input, std::string &output) {
     return result;
 }
 
+bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected, std::string &failReport) {
+
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Received object: %s", received.dump().c_str()), ERT_FILE_LOCATION));
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Expected object: %s", expected.dump().c_str()), ERT_FILE_LOCATION));
+
+    for (auto& [key, value] : expected.items()) {
+
+        // Check if key exists in document:
+        if (!received.contains(key)) {
+            failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected key '%s' is missing in validated source", key.c_str());
+            LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
+            return false;
+        }
+
+        // Check if value is JSON object to make recursive call:
+        if (value.is_object()) {
+            if (!h2agent::model::jsonConstraint(received[key], value, failReport)) {
+                return false;
+            }
+        } else {
+            // Check same value:
+            if (received[key] != value) {
+                failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected value for key '%s' differs regarding validated source", key.c_str());
+                LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
+                return false;
+            }
+        }
+    }
+
+    LOGDEBUG(ert::tracing::Logger::debug("JsonConstraint SUCCEED", ERT_FILE_LOCATION));
+    return true;
+}
+
+std::string fixMetricsName(const std::string &in) {
+
+    std::string result{}; // = std::regex_replace(key_, invalidMetricsNamesCharactersRegex, "_");
+
+    // https://prometheus.io/docs/instrumenting/writing_exporters/#naming
+    static std::regex validMetricsNamesCharactersRegex("[a-zA-Z0-9:_]", std::regex::optimize);
+
+    for (char c : in) {
+        if (std::regex_match(std::string(1, c), validMetricsNamesCharactersRegex)) {
+            result += c;
+        } else {
+            result += "_";
+        }
+    }
+
+    return result;
+}
 
 }
 }

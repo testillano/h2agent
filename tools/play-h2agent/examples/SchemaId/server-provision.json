@@ -1,0 +1,26 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/validate",
+  "requestSchemaId": "myRequestSchema",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "request.body",
+      "target": "var.expectedBody",
+      "filter": {
+        "SchemaId": "myFilterSchema"
+      }
+    },
+    {
+      "source": "value.417",
+      "target": "response.statusCode",
+      "filter": {
+        "ConditionVar": "!expectedBody"
+      }
+    },
+    {
+      "source": "var.expectedBody.fail",
+      "target": "response.body.json.string./failReport"
+    }
+  ]
+}

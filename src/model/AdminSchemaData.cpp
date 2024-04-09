@@ -66,7 +66,8 @@ std::string AdminSchemaData::asJsonString() const {
 
 AdminSchemaData::LoadResult AdminSchemaData::loadSingle(const nlohmann::json &j) {
 
-    if (!schema_schema_.validate(j)) {
+    std::string error{};
+    if (!schema_schema_.validate(j, error)) {
         return BadSchema;
     }
 

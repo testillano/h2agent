@@ -1,0 +1,43 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/validate",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar",
+    "completed": true
+  },
+  "transform": [
+    {
+      "source": "random.1.5",
+      "target": "var.R"
+    },
+    {
+      "source": "value.test_@{R}",
+      "target": "response.body.json.string./id"
+    },
+    {
+      "source": "value.[\"@{R}\", \"2\"]",
+      "target": "response.body.json.jsonstring./randoms"
+    },
+    {
+      "source": "response.body",
+      "target": "var.expectedBody",
+      "filter": {
+        "JsonConstraint": {
+          "id": "test_2",
+          "randoms": [
+            "2",
+            "2"
+          ]
+        }
+      }
+    },
+    {
+      "source": "value.417",
+      "target": "response.statusCode",
+      "filter": {
+        "ConditionVar": "!expectedBody"
+      }
+    }
+  ]
+}

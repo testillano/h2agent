@@ -1,9 +1,10 @@
 #!/bin/echo "source me!"
 
 # Requirements:
-if ! type curl &>/dev/null; then echo "ERROR: tool 'curl' (with http2 support) must be installed (sudo apt install curl) !" ; return 1 ; fi
-if ! type jq &>/dev/null; then echo "ERROR: tool 'jq' must be installed (sudo apt install jq) !" ; return 1 ; fi
-if ! type dos2unix &>/dev/null; then echo "ERROR: tool 'dos2unix' must be installed (sudo apt install dos2unix) !" ; return 1 ; fi
+if ! type nc &>/dev/null; then echo "ERROR: tool 'nc' must be installed (i.e.: sudo apt install netcat) !" ; return 1 ; fi
+if ! type curl &>/dev/null; then echo "ERROR: tool 'curl' (with http2 support) must be installed (i.e.: sudo apt install curl) !" ; return 1 ; fi
+if ! type jq &>/dev/null; then echo "ERROR: tool 'jq' must be installed (i.e.: sudo apt install jq) !" ; return 1 ; fi
+if ! type dos2unix &>/dev/null; then echo "ERROR: tool 'dos2unix' must be installed (i.e.: sudo apt install dos2unix) !" ; return 1 ; fi
 
 # Color variables:
 COLOR_reset='\e[0m'
@@ -35,7 +36,7 @@ title()
 # $1: title; $2: method; $3: url
 # Prepend variables
 #   (*) EXPECTED_STATUS_CODES: space-separated list of expected http status code(s)
-#   (*) EXPECTED_RESPONSE: expected reponse
+#   (*) EXPECTED_RESPONSE: expected response
 #   (*) CURL_OPTS: additional curl options
 #   (*) ASSERT_JSON_IGNORED_FIELDS: ignored nodes at json body validation
 #       INTERACT: non-empty value to go step by step
@@ -123,3 +124,12 @@ test_query() {
   return ${rc}
 }
 
+# $@: URLs to check by mean netcat (user should provide administrative and traffic server addresses)
+h2agent_check() {
+  for endpoint in $@
+  do
+    nc -w 1 -z $(echo ${endpoint} | cut -d/ -f3 | sed 's/:/ /') || { echo -e "\nERROR: h2agent must be started ('${endpoint}' not accessible) !" ; return 1 ; }
+  done
+
+  return 0
+}

@@ -41,6 +41,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <AdminServerProvisionData.hpp>
+#include <functions.hpp>
 
 
 namespace h2agent
@@ -52,7 +53,7 @@ AdminServerProvisionData::AdminServerProvisionData() {
     server_provision_schema_.setJson(h2agent::adminSchemas::server_provision); // won't fail
 }
 
-std::string AdminServerProvisionData::asJsonString(bool ordered) const {
+std::string AdminServerProvisionData::asJsonString(bool ordered, bool getUnused) const {
 
     nlohmann::json result = nlohmann::json::array();
 
@@ -60,11 +61,13 @@ std::string AdminServerProvisionData::asJsonString(bool ordered) const {
     if (ordered) {
         for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
             auto element =  get(*it);
+            if (getUnused && element->second->employed()) continue;
             result.push_back(element->second->getJson());
         };
     }
     else {
         for (auto it = map_.begin(); it != map_.end(); it++) {
+            if (getUnused && it->second->employed()) continue;
             result.push_back(it->second->getJson());
         };
     }
@@ -75,7 +78,8 @@ std::string AdminServerProvisionData::asJsonString(bool ordered) const {
 
 AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr) {
 
-    if (!server_provision_schema_.validate(j)) {
+    std::string error{};
+    if (!server_provision_schema_.validate(j, error)) {
         return BadSchema;
     }
 
@@ -101,10 +105,13 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         add(key, provision);
 
         // Set common resources:
+        provision->setAdminData(cr.AdminDataPtr);
         provision->setConfiguration(cr.ConfigurationPtr);
         provision->setGlobalVariable(cr.GlobalVariablePtr);
         provision->setFileManager(cr.FileManagerPtr);
-        provision->setMockServerEventsData(cr.MockServerEventsDataPtr);
+        provision->setSocketManager(cr.SocketManagerPtr);
+        provision->setMockServerData(cr.MockServerDataPtr);
+        provision->setMockClientData(cr.MockClientDataPtr);
 
         return Success;
     }
@@ -143,7 +150,7 @@ bool AdminServerProvisionData::clear()
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
     admin_server_provision_key_t key{};
-    calculateAdminServerProvisionKey(key, inState, method, uri);
+    h2agent::model::calculateStringKey(key, inState, method, uri);
 
     read_guard_t guard(rw_mutex_);
     auto it = get(key);
@@ -155,7 +162,7 @@ std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const {
     admin_server_provision_key_t key{};
-    calculateAdminServerProvisionKey(key, inState, method, uri);
+    h2agent::model::calculateStringKey(key, inState, method, uri);
 
     read_guard_t guard(rw_mutex_);
     for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {

@@ -54,10 +54,12 @@ namespace h2agent
 {
 namespace model
 {
-class MockServerEventsData;
+class MockServerData;
+class MockClientData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 class AdminData;
 }
 
@@ -71,13 +73,14 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     bool purge_execution_{};
 
     model::AdminData *admin_data_{};
-    model::MockServerEventsData *mock_server_events_data_{};
+    model::MockServerData *mock_server_events_data_{};
+    model::MockClientData *mock_client_events_data_{};
 
     // metrics:
     ert::metrics::Metrics *metrics_{};
 
-    ert::metrics::counter_t *observed_requests_processed_counter_{};
-    ert::metrics::counter_t *observed_requests_unprovisioned_counter_{};
+    ert::metrics::counter_t *provisioned_requests_successful_counter_{};
+    ert::metrics::counter_t *provisioned_requests_failed_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
@@ -86,15 +89,21 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     std::atomic<bool> pre_reserve_request_body_{true};
 
 public:
-    MyTrafficHttp2Server(size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_service *timersIoService);
-    ~MyTrafficHttp2Server();
+    MyTrafficHttp2Server(const std::string &name, size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize);
+    ~MyTrafficHttp2Server() {;}
 
     /**
     * Enable metrics
     *
-    *  @param metrics Optional metrics object to compute counters
+    * @param metrics Optional metrics object to compute counters
+    * @param source Source label for prometheus metrics. If missing, class name will be taken (even being redundant with
+    * family name prefix as will ease metrics filtering anyway). A good source convention could be the process name and
+    * the endpoint identification:
+    *
+    * - h2agent[_traffic_server]: optional endpoint category, as it would be deducted from family name
+    * - h2agentB
     */
-    void enableMyMetrics(ert::metrics::Metrics *metrics);
+    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "");
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,
@@ -122,11 +131,18 @@ public:
         return admin_data_;
     }
 
-    void setMockServerEventsData(model::MockServerEventsData *p) {
+    void setMockServerData(model::MockServerData *p) {
         mock_server_events_data_ = p;
     }
-    model::MockServerEventsData *getMockServerEventsData() const {
+    model::MockServerData *getMockServerData() const {
         return mock_server_events_data_;
+    }
+
+    void setMockClientData(model::MockClientData *p) {
+        mock_client_events_data_ = p;
+    }
+    model::MockClientData *getMockClientData() const {
+        return mock_client_events_data_;
     }
 
     std::string dataConfigurationAsJsonString() const;

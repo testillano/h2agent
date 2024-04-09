@@ -46,12 +46,14 @@ SOFTWARE.
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
+//#include <MyTrafficHttp2Client.hpp>
 
 #include <AdminData.hpp>
-#include <MockServerEventsData.hpp>
+#include <MockServerData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
+#include <SocketManager.hpp>
 #include <functions.hpp>
 
 
@@ -64,10 +66,16 @@ bool statusCodeOK(int statusCode) {
     return (statusCode >= ert::http2comm::ResponseCode::OK && statusCode < ert::http2comm::ResponseCode::MULTIPLE_CHOICES); // [200,300)
 }
 
-MyAdminHttp2Server::MyAdminHttp2Server(size_t workerThreads):
-    ert::http2comm::Http2Server("AdminHttp2Server", workerThreads, workerThreads, nullptr) {
+MyAdminHttp2Server::MyAdminHttp2Server(const std::string &name, size_t workerThreads):
+    ert::http2comm::Http2Server(name, workerThreads, workerThreads, nullptr) {
 
     admin_data_ = new model::AdminData();
+    common_resources_.AdminDataPtr = admin_data_; // it would be dirty to assign this outside like Configuration or other common resources
+
+    // Client data storage
+    client_data_ = true;
+    client_data_key_history_ = true;
+    purge_execution_ = true;
 }
 
 MyAdminHttp2Server::~MyAdminHttp2Server()
@@ -134,7 +142,7 @@ std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
     if (result.back() == '/') result.pop_back(); // normalize by mean removing last slash (if exists)
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 /*
 #include <iomanip>
@@ -162,7 +170,7 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Json Response %s", result.c_str()), ERT_FILE_LOCATION));
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 void MyAdminHttp2Server::receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
@@ -181,16 +189,16 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
 {
     log = "server-matching operation; ";
 
-    h2agent::model::AdminServerMatchingData::LoadResult loadResult = admin_data_->loadServerMatching(configurationObject);
+    h2agent::model::AdminServerMatchingData::LoadResult loadResult = getAdminData()->loadServerMatching(configurationObject);
     int result = ((loadResult == h2agent::model::AdminServerMatchingData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400
 
     if (loadResult == h2agent::model::AdminServerMatchingData::Success) {
         log += "valid schema and matching data received";
 
         // Warn in case previous server provisions exists:
-        if (admin_data_->getServerProvisionData().size() != 0)
+        if (getAdminData()->getServerProvisionData().size() != 0)
             LOGWARNING(
-            if (admin_data_->getServerProvisionData().size() != 0) {
+            if (getAdminData()->getServerProvisionData().size() != 0) {
             ert::tracing::Logger::warning("There are current server provisions: remove/update them to avoid unexpected behavior (matching must be configured firstly !)", ERT_FILE_LOCATION);
             }
         );
@@ -209,18 +217,18 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
 {
     log = "server-provision operation; ";
 
-    h2agent::model::AdminServerProvisionData::LoadResult loadResult = admin_data_->loadServerProvision(configurationObject, common_resources_);
+    h2agent::model::AdminServerProvisionData::LoadResult loadResult = getAdminData()->loadServerProvision(configurationObject, common_resources_);
     int result = ((loadResult == h2agent::model::AdminServerProvisionData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
-        log += (isArray ? "valid schemas and provisions data received":"valid schema and provision data received");
+        log += (isArray ? "valid schemas and server provisions data received":"valid schema and server provision data received");
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadContent) {
-        log += (isArray ? "detected one invalid provision data received":"invalid provision data received");
+        log += (isArray ? "detected one invalid server provision data received":"invalid server provision data received");
     }
 
     return result;
@@ -230,7 +238,7 @@ int MyAdminHttp2Server::clientEndpoint(const nlohmann::json &configurationObject
 {
     log = "client-endpoint operation; ";
 
-    h2agent::model::AdminClientEndpointData::LoadResult loadResult = admin_data_->loadClientEndpoint(configurationObject, common_resources_);
+    h2agent::model::AdminClientEndpointData::LoadResult loadResult = getAdminData()->loadClientEndpoint(configurationObject, common_resources_);
     int result = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
     if (loadResult == h2agent::model::AdminClientEndpointData::Success) {
         result = ert::http2comm::ResponseCode::CREATED; // 201
@@ -253,6 +261,27 @@ int MyAdminHttp2Server::clientEndpoint(const nlohmann::json &configurationObject
     return result;
 }
 
+int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObject, std::string& log) const
+{
+    log = "client-provision operation; ";
+
+    h2agent::model::AdminClientProvisionData::LoadResult loadResult = getAdminData()->loadClientProvision(configurationObject, common_resources_);
+    int result = ((loadResult == h2agent::model::AdminClientProvisionData::Success) ? 201:400);
+
+    bool isArray = configurationObject.is_array();
+    if (loadResult == h2agent::model::AdminClientProvisionData::Success) {
+        log += (isArray ? "valid schemas and client provisions data received":"valid schema and client provision data received");
+    }
+    else if (loadResult == h2agent::model::AdminClientProvisionData::BadSchema) {
+        log += (isArray ? "detected one invalid schema":"invalid schema");
+    }
+    else if (loadResult == h2agent::model::AdminClientProvisionData::BadContent) {
+        log += (isArray ? "detected one invalid client provision data received":"invalid client provision data received");
+    }
+
+    return result;
+}
+
 int MyAdminHttp2Server::globalVariable(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "global-variable operation; ";
@@ -267,7 +296,7 @@ int MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::s
 {
     log = "schema operation; ";
 
-    h2agent::model::AdminSchemaData::LoadResult loadResult = admin_data_->loadSchema(configurationObject);
+    h2agent::model::AdminSchemaData::LoadResult loadResult = getAdminData()->loadSchema(configurationObject);
     int result = ((loadResult == h2agent::model::AdminSchemaData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400
 
     bool isArray = configurationObject.is_array();
@@ -308,6 +337,9 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
         else if (pathSuffix == "client-endpoint") {
             statusCode = clientEndpoint(requestJson, jsonResponse_response);
         }
+        else if (pathSuffix == "client-provision") {
+            statusCode = clientProvision(requestJson, jsonResponse_response);
+        }
         else if (pathSuffix == "schema") {
             statusCode = schema(requestJson, jsonResponse_response);
         }
@@ -337,30 +369,42 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     // All responses, except for 'logging', are json content:
     bool jsonContent = true;
 
+    // composed path suffixes
+    std::smatch matches;
+    static std::regex clientProvisionId("^client-provision/(.*)", std::regex::optimize);
+
+
     if (pathSuffix == "server-matching/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = admin_data_->getServerMatchingData().getSchema().getJson();
+        nlohmann::json jsonSchema = getAdminData()->getServerMatchingData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-provision/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = admin_data_->getServerProvisionData().getSchema().getJson();
+        nlohmann::json jsonSchema = getAdminData()->getServerProvisionData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "client-endpoint/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = admin_data_->getClientEndpointData().getSchema().getJson();
+        nlohmann::json jsonSchema = getAdminData()->getClientEndpointData().getSchema().getJson();
+        jsonSchema["$id"] = uri;
+        responseBody = jsonSchema.dump();
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
+    else if (pathSuffix == "client-provision/schema") {
+        // Add the $id field dynamically (full URI including scheme/host)
+        nlohmann::json jsonSchema = getAdminData()->getClientProvisionData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "schema/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = admin_data_->getSchemaData().getSchema().getJson();
+        nlohmann::json jsonSchema = getAdminData()->getSchemaData().getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
@@ -373,7 +417,18 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) maxKeys = it->second;
         }
 
-        responseBody = getHttp2Server()->getMockServerEventsData()->summary(maxKeys);
+        responseBody = getMockServerData()->summary(maxKeys);
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
+    else if (pathSuffix == "client-data/summary") {
+        std::string maxKeys = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("maxKeys");
+            if (it != qmap.end()) maxKeys = it->second;
+        }
+
+        responseBody = getMockClientData()->summary(maxKeys);
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "global-variable") {
@@ -407,20 +462,38 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-matching") {
-        responseBody = admin_data_->getServerMatchingData().getJson().dump();
+        responseBody = getAdminData()->getServerMatchingData().getJson().dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-provision") {
-        bool ordered = (admin_data_->getServerMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
-        responseBody = admin_data_->getServerProvisionData().asJsonString(ordered);
+        bool ordered = (getAdminData()->getServerMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
+        responseBody = getAdminData()->getServerProvisionData().asJsonString(ordered);
+        statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "server-provision/unused") {
+        bool ordered = (getAdminData()->getServerMatchingData().getAlgorithm() == h2agent::model::AdminServerMatchingData::RegexMatching);
+        responseBody = getAdminData()->getServerProvisionData().asJsonString(ordered, true /*unused*/);
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "client-endpoint") {
-        responseBody = admin_data_->getClientEndpointData().asJsonString();
+        responseBody = getAdminData()->getClientEndpointData().asJsonString();
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
+    else if (pathSuffix == "client-provision") {
+        responseBody = getAdminData()->getClientProvisionData().asJsonString();
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "client-provision/unused") {
+        responseBody = getAdminData()->getClientProvisionData().asJsonString(true /*unused*/);
+        statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (std::regex_match(pathSuffix, matches, clientProvisionId)) { // client-provision/<client provision id>
+        triggerClientOperation(matches.str(1), queryParams, statusCode);
+        bool result = statusCodeOK(statusCode);
+        responseBody = buildJsonResponse(result, (result ? "operation processed":"operation failed"));
+    }
     else if (pathSuffix == "schema") {
-        responseBody = admin_data_->getSchemaData().asJsonString();
+        responseBody = getAdminData()->getSchemaData().asJsonString();
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
     else if (pathSuffix == "server-data") {
@@ -442,7 +515,40 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
 
         bool validQuery = false;
         try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
-            responseBody = getHttp2Server()->getMockServerEventsData()->asJsonString(requestMethod, requestUri, eventNumber, eventPath, validQuery);
+            h2agent::model::EventLocationKey elkey(requestMethod, requestUri, eventNumber, eventPath);
+            responseBody = getMockServerData()->asJsonString(elkey, validQuery);
+        }
+        catch (const std::exception& e)
+        {
+            //validQuery = false; // will be ert::http2comm::ResponseCode::OK (200) with empty result (corner case)
+            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+        }
+        statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
+    }
+    else if (pathSuffix == "client-data") {
+        std::string clientEndpointId = "";
+        std::string requestMethod = "";
+        std::string requestUri = "";
+        std::string eventNumber = "";
+        std::string eventPath = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("clientEndpointId");
+            if (it != qmap.end()) clientEndpointId = it->second;
+            it = qmap.find("requestMethod");
+            if (it != qmap.end()) requestMethod = it->second;
+            it = qmap.find("requestUri");
+            if (it != qmap.end()) requestUri = it->second;
+            it = qmap.find("eventNumber");
+            if (it != qmap.end()) eventNumber = it->second;
+            it = qmap.find("eventPath");
+            if (it != qmap.end()) eventPath = it->second;
+        }
+
+        bool validQuery = false;
+        try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
+            h2agent::model::EventLocationKey elkey(clientEndpointId, requestMethod, requestUri, eventNumber, eventPath);
+            responseBody = getMockClientData()->asJsonString(elkey, validQuery);
         }
         catch (const std::exception& e)
         {
@@ -463,12 +569,20 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getHttp2Server()->dataConfigurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
+    else if (pathSuffix == "client-data/configuration") {
+        responseBody = clientDataConfigurationAsJsonString();
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
     else if (pathSuffix == "files/configuration") {
         responseBody = getFileManager()->configurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "files") {
         responseBody = getFileManager()->asJsonString();
+        statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // 204 or 200
+    }
+    else if (pathSuffix == "udp-sockets") {
+        responseBody = getSocketManager()->asJsonString();
         statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // 204 or 200
     }
     else if (pathSuffix == "logging") {
@@ -490,13 +604,16 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     LOGDEBUG(ert::tracing::Logger::debug("receiveDELETE()",  ERT_FILE_LOCATION));
 
     if (pathSuffix == "server-provision") {
-        statusCode = (admin_data_->clearServerProvisions() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT);  // 200 or 204
+        statusCode = (getAdminData()->clearServerProvisions() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT);  // 200 or 204
     }
     else if (pathSuffix == "client-endpoint") {
-        statusCode = (admin_data_->clearClientEndpoints() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT);  // 200 or 204
+        statusCode = (getAdminData()->clearClientEndpoints() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT);  // 200 or 204
+    }
+    else if (pathSuffix == "client-provision") {
+        statusCode = (getAdminData()->clearClientProvisions() ? 200:204);
     }
     else if (pathSuffix == "schema") {
-        statusCode = (admin_data_->clearSchemas() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT);  // 200 or 204
+        statusCode = (getAdminData()->clearSchemas() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT);  // 200 or 204
     }
     else if (pathSuffix == "server-data") {
         bool serverDataDeleted = false;
@@ -513,9 +630,33 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) eventNumber = it->second;
         }
 
-        bool success = getHttp2Server()->getMockServerEventsData()->clear(serverDataDeleted, requestMethod, requestUri, eventNumber);
+        h2agent::model::EventKey ekey(requestMethod, requestUri, eventNumber);
+        bool success = getMockServerData()->clear(serverDataDeleted, ekey);
 
         statusCode = (success ? (serverDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/):ert::http2comm::ResponseCode::BAD_REQUEST /*400*/);
+    }
+    else if (pathSuffix == "client-data") {
+        bool clientDataDeleted = false;
+        std::string clientEndpointId = "";
+        std::string requestMethod = "";
+        std::string requestUri = "";
+        std::string eventNumber = "";
+        if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("clientEndpointId");
+            if (it != qmap.end()) clientEndpointId = it->second;
+            it = qmap.find("requestMethod");
+            if (it != qmap.end()) requestMethod = it->second;
+            it = qmap.find("requestUri");
+            if (it != qmap.end()) requestUri = it->second;
+            it = qmap.find("eventNumber");
+            if (it != qmap.end()) eventNumber = it->second;
+        }
+
+        h2agent::model::EventKey ekey(clientEndpointId, requestMethod, requestUri, eventNumber);
+        bool success = getMockClientData()->clear(clientDataDeleted, ekey);
+
+        statusCode = (success ? (clientDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/):ert::http2comm::ResponseCode::BAD_REQUEST /*400*/);
     }
     else if (pathSuffix == "global-variable") {
         bool globalVariableDeleted = false;
@@ -544,7 +685,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     }
 }
 
-void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const
+void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode)
 {
     LOGDEBUG(ert::tracing::Logger::debug("receivePUT()",  ERT_FILE_LOCATION));
 
@@ -608,7 +749,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             }
         }
     }
-    else if (pathSuffix == "server-data/configuration") {
+    else if (pathSuffix == "server-data/configuration" || pathSuffix == "client-data/configuration") {
 
         std::string discard;
         std::string discardKeyHistory;
@@ -635,28 +776,34 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
                 success = !(b_discard && !b_discardKeyHistory); // it has no sense to try to keep history if whole data is discarded
         }
 
+        bool serverMode = (pathSuffix == "server-data/configuration"); // true: server mode, false: client mode
+        const char *mode = (serverMode ? "server":"client");
+
         if (success) {
             if (!discard.empty()) {
-                getHttp2Server()->discardData(b_discard);
-                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard data: %s", b_discard ? "true":"false"), ERT_FILE_LOCATION));
+                if (serverMode) getHttp2Server()->discardData(b_discard);
+                else discardClientData(b_discard);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard %s-data: %s", mode, b_discard ? "true":"false"), ERT_FILE_LOCATION));
             }
             if (!discardKeyHistory.empty()) {
-                getHttp2Server()->discardDataKeyHistory(b_discardKeyHistory);
-                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard data key history: %s", b_discardKeyHistory ? "true":"false"), ERT_FILE_LOCATION));
+                if (serverMode) getHttp2Server()->discardDataKeyHistory(b_discardKeyHistory);
+                else discardClientDataKeyHistory(b_discardKeyHistory);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard %s-data key history: %s", mode, b_discardKeyHistory ? "true":"false"), ERT_FILE_LOCATION));
             }
             if (!disablePurge.empty()) {
-                getHttp2Server()->disablePurge(b_disablePurge);
+                if (serverMode) getHttp2Server()->disablePurge(b_disablePurge);
+                else disableClientPurge(b_disablePurge);
                 LOGWARNING(
-                    ert::tracing::Logger::warning(ert::tracing::Logger::asString("Disable purge execution: %s", b_disablePurge ? "true":"false"), ERT_FILE_LOCATION);
+                    ert::tracing::Logger::warning(ert::tracing::Logger::asString("Disable %s purge execution: %s", mode, b_disablePurge ? "true":"false"), ERT_FILE_LOCATION);
                     if (!b_disablePurge && b_discardKeyHistory)
-                    ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution will be limited as history is discarded"), ERT_FILE_LOCATION);
+                    ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution will be limited as history is discarded for %s data", mode), ERT_FILE_LOCATION);
                     if (!b_disablePurge && b_discard)
-                        ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution has no sense as no events will be stored"), ERT_FILE_LOCATION);
+                        ert::tracing::Logger::warning(ert::tracing::Logger::asString("Purge execution has no sense as no events will be stored at %s storage", mode), ERT_FILE_LOCATION);
                     );
             }
         }
         else {
-            ert::tracing::Logger::error("Cannot keep requests history if data storage is discarded", ERT_FILE_LOCATION);
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot keep requests history if %s data storage is discarded", mode), ERT_FILE_LOCATION);
         }
     }
     else if (pathSuffix == "files/configuration") {
@@ -748,6 +895,108 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         headers.clear();
         return;
     }
+}
+
+void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const {
+
+    std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // administrative operation triggers "initial" provisions by default
+    std::string sequenceBegin = "";
+    std::string sequenceEnd = "";
+    std::string rps = "";
+    std::string repeat = "";
+
+    if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
+        std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+        auto it = qmap.find("inState");
+        if (it != qmap.end()) inState = it->second;
+        it = qmap.find("sequenceBegin");
+        if (it != qmap.end()) sequenceBegin = it->second;
+        it = qmap.find("sequenceEnd");
+        if (it != qmap.end()) sequenceEnd = it->second;
+        it = qmap.find("rps");
+        if (it != qmap.end()) rps = it->second;
+        it = qmap.find("repeat");
+        if (it != qmap.end()) repeat = it->second;
+    }
+
+    // Admin provision:
+    const h2agent::model::AdminClientProvisionData & provisionData = getAdminData()->getClientProvisionData();
+    std::shared_ptr<h2agent::model::AdminClientProvision> provision = provisionData.find(inState, clientProvisionId);
+
+    if (!provision) {
+        statusCode = ert::http2comm::ResponseCode::NOT_FOUND; // 404
+        return;
+    }
+
+    statusCode = ert::http2comm::ResponseCode::OK; // 200
+    if (!sequenceBegin.empty() || !sequenceEnd.empty() || !rps.empty() || !repeat.empty()) {
+        if (provision->updateTriggering(sequenceBegin, sequenceEnd, rps, repeat)) {
+            statusCode = ert::http2comm::ResponseCode::ACCEPTED; // 202; "sender" operates asynchronously
+        }
+        else {
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            return;
+        }
+    }
+
+    // Process provision (before sending)
+    provision->employ(); // set provision as employed:
+    std::string requestMethod{};
+    std::string requestUri{};
+    std::string requestBody{};
+    nghttp2::asio_http2::header_map requestHeaders;
+
+    std::string outState{};
+    unsigned int requestDelayMs{};
+    unsigned int requestTimeoutMs{};
+
+    std::string error{}; // error detail (empty when all is OK)
+
+    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error);
+    LOGDEBUG(
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request body: %s", requestBody.c_str()), ERT_FILE_LOCATION);
+    );
+
+    if (error.empty()) {
+        const h2agent::model::AdminClientEndpointData & clientEndpointData = getAdminData()->getClientEndpointData();
+        std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint(nullptr);
+        clientEndpoint = clientEndpointData.find(provision->getClientEndpointId());
+        if (clientEndpoint) {
+            if (clientEndpoint->getPermit()) {
+                clientEndpoint->connect();
+                ert::http2comm::Http2Client::response response = clientEndpoint->getClient()->send(requestMethod, requestUri, requestBody, requestHeaders, std::chrono::milliseconds(requestTimeoutMs));
+                clientEndpoint->getClient()->incrementGeneralUniqueClientSequence();
+
+                // Store event:
+                if (client_data_) {
+                    h2agent::model::DataKey dataKey(provision->getClientEndpointId(), requestMethod, requestUri);
+                    h2agent::model::DataPart responseBodyDataPart(response.body);
+                    getMockClientData()->loadEvent(dataKey, provision->getClientProvisionId(), inState, outState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, clientEndpoint->getGeneralUniqueClientSequence(), provision->getSeq(), requestDelayMs, requestTimeoutMs, client_data_key_history_ /* history enabled */);
+                }
+            }
+            else {
+                error = "Referenced client endpoint is disabled (not permitted)";
+            }
+        }
+        else {
+            error = "Referenced client endpoint is not provisioned";
+        }
+    }
+    else {
+        statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+    }
+}
+
+std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
+    nlohmann::json result;
+
+    result["storeEvents"] = client_data_;
+    result["storeEventsKeyHistory"] = client_data_key_history_;
+    result["purgeExecution"] = purge_execution_;
+
+    return result.dump();
 }
 
 }

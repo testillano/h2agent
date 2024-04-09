@@ -17,7 +17,7 @@ nlohmann_json_ver__dflt=v3.10.5
 pboettch_jsonschemavalidator_ver__dflt=2.1.0
 google_test_ver__dflt=v1.11.0
 # arash partow version is quite frozen
-ert_multipart_ver__dflt=v1.0.1
+ert_multipart_ver__dflt=v1.0.2
 registry=ghcr.io/testillano
 
 #############
@@ -113,7 +113,9 @@ build_project() {
   echo
   echo "=== Format source code ==="
   echo
-  sources=$(find . -name "*.hpp" -o -name "*.cpp")
+  sources="$(find src -name "*.hpp" -o -name "*.cpp")"
+  sources+=" $(find ut -name "*.hpp" -o -name "*.cpp")"
+  sources+=" $(find tools -name "*.hpp" -o -name "*.cpp")"
   docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
 
   echo

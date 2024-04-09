@@ -10,12 +10,32 @@ COPY kata /home/h2agent/kata
 WORKDIR /home/h2agent/
 
 ARG base_os=ubuntu
-RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add dos2unix && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y dos2unix && apt-get clean ; fi
+ARG enable_qa=true
+
+# Update packages
+RUN if [ "${base_os}" = "alpine" ] ; then apk update ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update ; fi
+
+# Installation
+RUN if [ "${base_os}" = "alpine" ] ; then apk add dos2unix ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get install -y dos2unix netcat ; fi
+
+## Installation for questions & answers (langchain & OpenAI)
+RUN if [ "${enable_qa}" = "true" -a "${base_os}" = "alpine" ] ; then apk add python3.9 py3-pip python3-dev ; fi
+RUN if [ "${enable_qa}" = "true" -a "${base_os}" = "ubuntu" ] ; then apt-get install -y python3.9 python3-pip ; fi
+
+RUN if [ "${enable_qa}" = "true" -a "${base_os}" = "alpine" ] ; then pip3 install torch -f https://download.pytorch.org/whl/torch_stable.html ; fi
+
+# Why split pip3 installed modules: https://github.com/pypa/pip/issues/1386
+RUN if [ "${enable_qa}" = "true" ] ; then pip3 install "langchain==0.0.138" "unstructured==0.5.12" && pip3 install "chromadb==0.3.21" "tiktoken==0.3.3" && pip3 install "openai==0.27.4" ; fi
+
+# Cleanup
+RUN if [ "${base_os}" = "alpine" ] ; then rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get clean ; fi
 
 RUN ln -s /opt/h2agent
 RUN ln -s /opt/h2client
 RUN ln -s /opt/matching-helper
 RUN ln -s /opt/arashpartow-helper
+RUN ln -s /opt/udp-server
+RUN ln -s /opt/udp-client
 
 ENTRYPOINT ["sleep", "infinity"]
 CMD []

@@ -1,0 +1,164 @@
+#!/bin/echo "source me !"
+cd $(dirname $(readlink -f ${BASH_SOURCE[0]}))
+
+# h2agent (book store) configuration:
+cat << EOF > /tmp/matching.json
+{
+  "algorithm": "FullMatchingRegexReplace",
+  "rgx": "(/)(buy|sold)(/book/)([0-9]+)",
+  "fmt": "\$1\$2\$3"
+}
+EOF
+
+cat << EOF > /tmp/provision.json
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/sold/book/",
+    "responseCode": 201,
+    "outState": "purge",
+    "transform": [
+      {
+        "source": "request.uri",
+        "target": "var.uri_parts",
+        "filter": {
+          "RegexCapture": "(/sold/book/)([0-9]+)"
+        }
+      },
+      {
+        "source": "var.uri_parts.2",
+        "filter": { "EqualTo": "81" },
+        "target": "var.mises"
+      },
+      {
+        "source": "var.uri_parts.2",
+        "filter": { "EqualTo": "99" },
+        "target": "var.hayek"
+      },
+      {
+        "source": "value.Book: Human Action | Author: Von Mises, Ludwig | Cost: 51 euro\n",
+        "filter": { "ConditionVar": "mises" },
+        "target": "txtFile./tmp/sales.log"
+      },
+      {
+        "source": "value.Book: The Road To Serfdom | Author: Hayek, F.A. | Cost: 14 euro\n",
+        "filter": { "ConditionVar": "hayek" },
+        "target": "txtFile./tmp/sales.log"
+      }
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/buy/book/",
+    "responseCode": 202,
+    "outState": "purge",
+    "responseBody": {
+      "message": "Sorry we don't have this book, but we will try to bring it as soon as possible !"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "request.uri",
+        "target": "var.uri_parts",
+        "filter": {
+          "RegexCapture": "(/buy/book/)([0-9]+)"
+        }
+      },
+      {
+        "source": "value.",
+        "target": "var.mises"
+      },
+      {
+        "source": "math.100/5",
+        "target": "var.debeser20"
+      },
+      {
+        "source": "math.1/5",
+        "target": "var.debeser0,2"
+      },
+      {
+        "source": "math.@{uri_parts.2} % 100",
+        "filter": { "EqualTo": "81" },
+        "target": "var.mises"
+      },
+      {
+        "source": "value.",
+        "target": "var.hayek"
+      },
+      {
+        "source": "math.@{uri_parts.2} % 100",
+        "filter": { "EqualTo": "99" },
+        "target": "var.hayek"
+      },
+      {
+        "source": "value.{\"isbn\":\"978-1614273547\",\"book\":\"Human Action\",\"author\":\"Von Mises, Ludwig\",\"message\":\"Accounts debt is: 51 euros\"}",
+        "filter": { "ConditionVar": "mises" },
+        "target": "response.body.json.jsonstring"
+      },
+      {
+        "source": "value.{\"isbn\":\"978-0226320595\",\"book\":\"The Road To Serfdom\",\"author\":\"Hayek, F.A.\",\"message\":\"Accounts debt is: 14 euros\"}",
+        "filter": { "ConditionVar": "hayek" },
+        "target": "response.body.json.jsonstring"
+      },
+      {
+        "source": "value.POST|sold/book/81",
+        "filter": { "ConditionVar": "mises" },
+        "target": "udpSocket./tmp/udp.sock"
+      },
+      {
+        "source": "value.POST|sold/book/99",
+        "filter": { "ConditionVar": "hayek" },
+        "target": "udpSocket./tmp/udp.sock"
+      },
+      {
+        "source": "value.@{mises}@{hayek}",
+        "target": "var.found"
+      },
+      {
+        "source": "value.Request order: @{uri_parts.2}\n",
+        "filter": { "ConditionVar": "!found" },
+        "target": "txtFile./tmp/lost_sales.log"
+      },
+      {
+        "source": "value.200",
+        "filter": { "ConditionVar": "found" },
+        "target": "response.statusCode"
+      }
+    ]
+  }
+]
+EOF
+
+# Cleanup:
+echo
+echo "Cleaning up ..."
+echo
+docker kill book-store-container customer-h2-container customer-udp-container 2>/dev/null
+docker rm book-store-container customer-h2-container customer-udp-container 2>/dev/null
+echo
+echo "Press ENTER to start traffic load, CTRL-C to abort ..."
+read -r dummy
+
+# h2agent (book store) start:
+opts=(--name book-store --verbose --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
+docker volume rm BookStoreVol || { echo "Stop containers using the volume !" ; return 1 ; }
+docker volume create BookStoreVol
+docker run --name book-store-container -t -d --network=host -v BookStoreVol:/tmp ghcr.io/testillano/h2agent:latest "${opts[@]}" -l Debug --verbose
+sleep 1
+curl -i --http2-prior-knowledge -XPOST -d@/tmp/matching.json -H content-type:application/json http://localhost:8074/admin/v1/server-matching
+curl -i --http2-prior-knowledge -XPOST -d@/tmp/provision.json -H content-type:application/json http://localhost:8074/admin/v1/server-provision
+
+# Customer:
+# 1. udp-server-h2client start:
+opts=(--udp-socket-path /tmp/udp.sock --name customer --print-each 1 --method "@{udp.1}" --uri "http://0.0.0.0:8000/@{udp.2}" --body '{"foo":"bar"}')
+docker run --name customer-h2-container -t -d --network=host -v BookStoreVol:/tmp --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest "${opts[@]}"
+
+# 2. udp-client start:
+opts=(--udp-socket-path /tmp/udp.sock --print-each 1 --eps 10 --pattern "GET|buy/book/@{seq}")
+docker run --name customer-udp-container -t -d --network=host -v BookStoreVol:/tmp --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest "${opts[@]}"
+
+# Blocking log:
+docker logs -f customer-h2-container
+

@@ -1,0 +1,26 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.response-body-string",
+      "target": "response.body.string"
+    },
+    {
+      "source": "value.1",
+      "target": "break"
+    },
+    {
+      "source": "value.this-wont-be-processed",
+      "target": "response.body.string"
+    }
+  ]
+}

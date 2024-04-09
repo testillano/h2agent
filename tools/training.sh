@@ -1,5 +1,6 @@
 #!/bin/bash
 # Kata image build helper and container execution
+#NO_CACHE="--no-cache"
 
 echo
 git_root_dir="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -14,6 +15,15 @@ read base_os
 bargs="--build-arg base_os=${base_os}"
 bargs+=" --build-arg img_tag=latest"
 
+# OpenAI Questions & Answers:
+echo "Do you want to install 'OpenAI Q&A helper' dependencies (y/n) ? [y]:"
+echo " (warning: image size would be increased from 250MB to more than 8GB !)"
+read opt
+[ -z "${opt}" ] && opt=y
+qa=false
+[ "${opt}" = "y" ] && qa=true
+bargs+=" --build-arg enable_qa=${qa}"
+
 cd ${git_root_dir}
-docker build --rm ${bargs} -f Dockerfile.training -t testillano/h2agent_training:latest . || exit 1
-docker run -it --rm --entrypoint=/bin/bash testillano/h2agent_training:latest || exit 1
+docker build --rm ${bargs} -f Dockerfile.training  ${NO_CACHE} -t testillano/h2agent_training:latest . || exit 1
+docker run -it --rm --entrypoint=/bin/bash -e OPENAI_API_KEY=${OPENAI_API_KEY} testillano/h2agent_training:latest || exit 1

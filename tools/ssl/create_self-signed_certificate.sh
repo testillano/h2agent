@@ -15,14 +15,14 @@ cat << EOF
 
   You could start the agent in this way:
 
-  $> ./h2agent -l Debug --verbose --traffic-server-key ${KEY_FILE} --traffic-server-crt ${CRT_FILE} --secure-admin --traffic-server-key-password ${PASSWORD} &
-  $> curl --insecure --http2-prior-knowledge https://localhost:8074/admin/v1/server-matching
+  $ ./h2agent -l Debug --verbose --traffic-server-key ${KEY_FILE} --traffic-server-crt ${CRT_FILE} --secure-admin --traffic-server-key-password ${PASSWORD} &
+  $ curl --insecure --http2-prior-knowledge https://localhost:8074/admin/v1/server-matching
 
   - or -
 
   Open firefox and accept the risk:
 
-  $> firefox https://localhost:8074/admin/v1/server-matching
+  $ firefox https://localhost:8074/admin/v1/server-matching
 
 EOF
 

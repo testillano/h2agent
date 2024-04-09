@@ -54,9 +54,9 @@ bool AdminSchema::load(const nlohmann::json &j) {
     return (schema_.setJson(*it)); // could fail
 }
 
-bool AdminSchema::validate(const nlohmann::json& j) const
+bool AdminSchema::validate(const nlohmann::json& j, std::string &error) const
 {
-    return schema_.validate(j);
+    return schema_.validate(j, error);
 }
 
 }

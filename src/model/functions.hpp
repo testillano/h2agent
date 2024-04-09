@@ -49,6 +49,38 @@ namespace model
 {
 
 /**
+ * Compose string key by aggregation with separator '#': '<k1>#<k2>[#<k3>]'
+ *
+ * @param Composed key by reference
+ * @param k1 First key part (should not contain '#', and must be non-empty)
+ * @param k2 First key part (should not contain '#', and must be non-empty)
+ * @param k3 First key part (optional)
+ */
+void calculateStringKey(std::string &key, const std::string &k1, const std::string &k2, const std::string &k3 = "");
+
+/**
+ * Compose string key by aggregation with separator '#'
+ * If two parts are provided, it builds '<k1>#<k2>'.
+ * If one part is provided, it prepends the key with '<k1>#'.
+ *
+ * @param Composed key by reference
+ * @param k1 First key part (should not contain '#', and must be non-empty)
+ * @param k2 First key part (optional)
+ */
+void aggregateKeyPart(std::string &key, const std::string &k1, const std::string &k2 = "");
+
+/**
+ * Interprets integer with sign as string
+ *
+ * @param input Number as string
+ * @param output Natural number by reference
+ * @param negative Boolean indicating the number sign
+ *
+ * @return Boolean about successful operation
+ */
+bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool &negative);
+
+/**
  * Tokenizes query parameters string into key/values
  *
  * @param queryParams query parameters URI part
@@ -121,6 +153,35 @@ bool asHexString(const std::string &input, std::string &output);
  * @return Boolean about successful operation
  */
 bool fromHexString(const std::string &input, std::string &output);
+
+/**
+ * Json object validation
+ *
+ * Constraints 'expected' object within 'received' one, so the restriction is
+ * ruled by first acting as a subset in this way:
+ *
+ * 1) it miss/ignore nodes actually received without problem (less restrictive)
+ * 2) it MUST NOT contradict the ones regarding received information.
+ *
+ * The function is recursive, so restriction extends along the document content.
+ *
+ * @param received Object against which expected is validated.
+ * @param expected Expected subset object.
+ * @param failReport Validation report for the fail case (empty when succeed).
+ *
+ * @return Boolean about successful validation
+ */
+bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected, std::string &failReport);
+
+/**
+ * Adapts name to a valid metrics name
+ * Non valid characters (https://prometheus.io/docs/instrumenting/writing_exporters/#naming) will be replaced by underscore.
+ *
+ * @param in String to adapt
+ *
+ * @return Adapted string to a valid metrics name
+ */
+std::string fixMetricsName(const std::string &in);
 
 }
 }
