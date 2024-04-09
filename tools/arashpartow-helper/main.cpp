@@ -55,7 +55,7 @@ void usage(int rc)
 
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
-       << "--expression <value>\n"
+       << "-e|--expression <value>\n"
        << "  Expression to be calculated.\n\n"
 
        << "[-h|--help]\n"
@@ -107,7 +107,8 @@ int main(int argc, char* argv[])
         usage(EXIT_SUCCESS);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--expression", value))
+    if (cmdOptionExists(argv, argv + argc, "-e", value)
+            || cmdOptionExists(argv, argv + argc, "--expression", value))
     {
         expression_string = value;
     }

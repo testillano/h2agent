@@ -1,6 +1,6 @@
 #!/bin/bash
 # [troubleshoot] define non-empty value for 'DEBUG' variable in order to keep build native artifacts
-#DEBUG=true
+DEBUG=true
 
 #############
 # VARIABLES #
@@ -12,14 +12,15 @@ REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged:
 
 # Dependencies
-nghttp2_ver=1.48.0
-boost_ver=1.76.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
+nghttp2_ver=1.51.0
+boost_ver=1.84.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
 ert_nghttp2_ver=v1.2.3 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
-ert_logger_ver=v1.0.10
+ert_logger_ver=v1.1.0
+ert_queuedispatcher_ver=v1.0.3
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
-ert_metrics_ver=v1.0.1
-ert_http2comm_ver=v2.0.3
+ert_metrics_ver=v1.1.0
+ert_http2comm_ver=v2.1.6
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
@@ -71,7 +72,7 @@ download_and_unpack_github_archive() {
 }
 
 # Builders
-# $1: what (cmake|boost|nghttp2|ert_logger|jupp0r_prometheuscpp|ert_metrics|ert_multipart|ert_http2comm|
+# $1: what (cmake|boost|nghttp2|ert_logger|ert_queuedispatcher|jupp0r_prometheuscpp|ert_metrics|ert_multipart|ert_http2comm|
 #           nlohmann_json|pboettch_json_schema_validator|google_test_framework|arashpartow_exprtk|project)
 build() {
   if [ -n "${INSTALL_PERMISSIONS}" ]
@@ -81,6 +82,7 @@ build() {
       boost) ./bootstrap.sh && sudo ./b2 -j${make_procs} install ;;
       nghttp2) ./configure --enable-asio-lib --disable-shared --enable-python-bindings=no && sudo make -j${make_procs} install ;;
       ert_logger) ${CMAKE} -DERT_LOGGER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && sudo make -j${make_procs} && sudo make install ;;
+      ert_queuedispatcher) ${CMAKE} -DERT_QUEUEDISPATCHER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && sudo make -j${make_procs} && sudo make install ;;
       jupp0r_prometheuscpp) ${CMAKE} -DCMAKE_BUILD_TYPE=${build_type} -DENABLE_TESTING=OFF .. && make -j${make_procs} && sudo make install ;;
       ert_metrics) ${CMAKE} -DERT_METRICS_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && sudo make install ;;
       ert_multipart) ${CMAKE} -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && sudo make install ;;
@@ -98,6 +100,7 @@ build() {
       boost) ./bootstrap.sh --prefix=${TMP_DIR}/local && ./b2 -j${make_procs} install ;;
       nghttp2) ./configure --enable-asio-lib --disable-shared --enable-python-bindings=no --prefix=${TMP_DIR}/local --with-boost-libdir=${TMP_DIR}/local/lib && make -j${make_procs} install ;;
       ert_logger) ${CMAKE} -DERT_LOGGER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local . && make -j${make_procs} && make install ;;
+      ert_queuedispatcher) ${CMAKE} -DERT_QUEUEDISPATCHER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local . && make -j${make_procs} && make install ;;
       jupp0r_prometheuscpp) ${CMAKE} -DCMAKE_BUILD_TYPE=${build_type} -DENABLE_TESTING=OFF -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local .. && make -j${make_procs} && make install ;;
       ert_metrics) ${CMAKE} -DERT_METRICS_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local -DCMAKE_CXX_FLAGS=-isystem\ ${TMP_DIR}/local/include . && make -j${make_procs} && make install ;;
       ert_multipart) ${CMAKE} -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local -DCMAKE_CXX_FLAGS=-isystem\ ${TMP_DIR}/local/include . && make -j${make_procs} && make install ;;
@@ -184,6 +187,14 @@ ask ert_logger && (
 set -x && \
 download_and_unpack_github_archive https://github.com/testillano/logger ${ert_logger_ver} && cd logger-*/ && \
 build ert_logger && \
+cd .. && clean_all && \
+set +x
+) || failed $? && \
+
+ask ert_queuedispatcher && (
+set -x && \
+download_and_unpack_github_archive https://github.com/testillano/queuedispatcher ${ert_queuedispatcher_ver} && cd queuedispatcher-*/ && \
+build ert_queuedispatcher && \
 cd .. && clean_all && \
 set +x
 ) || failed $? && \

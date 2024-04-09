@@ -25,11 +25,12 @@ src/version.cpp
 
 # Test temporary files
 tools/play-h2agent/*/.*
-st/report*
-st/last
+benchmark/report*
+benchmark/last
 
 # Coverage report
 coverage
 
 # play-h2agent
 tools/play-h2agent/examples/*/snapshot
+.run.py-chat-history

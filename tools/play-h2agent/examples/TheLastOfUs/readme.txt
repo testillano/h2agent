@@ -12,7 +12,7 @@ Response shall be a json document with two fields:
 So, provision must indicate proper content-type header in response.
 
 Traffic classification (matching configuration) will be simple, FullMatching,
- as the example is done for an static/constant and hence, predictable URI.
+as the example is done for an static/constant and hence, predictable URI.
 
 Traffic behavior (provision configuration) will use 'serverEvent' source to
 access the last response result (number=-1).

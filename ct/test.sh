@@ -77,7 +77,7 @@ do_test() {
   local test_pod=$1
   shift
   # shellcheck disable=SC2068
-  kubectl exec -it "${test_pod}" -c test -n "${NAMESPACE}" -- pytest $@
+  kubectl exec -it "${test_pod}" -c test -n "${NAMESPACE}" -- sh -c "source /venv/bin/activate && pytest $@"
 }
 
 #############
@@ -220,8 +220,8 @@ then
     cat << EOF
 
 You may want to start a proxy to minikube Cluster IP, in order to use native utilities like:
-   $> st/start.sh -y           # traffic load
-   $> source tools/helpers.src # troubleshooting
+   $ benchmark/start.sh -y    # traffic load
+   $ source tools/helpers.src # troubleshooting
    etc.
 
 Then, just execute these port-forward commands:

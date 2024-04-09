@@ -45,19 +45,21 @@ namespace model
 {
 
 
-void FileManager::enableMetrics(ert::metrics::Metrics *metrics) {
+void FileManager::enableMetrics(ert::metrics::Metrics *metrics, const std::string &source) {
 
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::counter_family_ref_t cf = metrics->addCounterFamily("FileSystem_observed_operations_total", "H2agent file system operations");
+        ert::metrics::labels_t familyLabels = {{"source", source}};
+
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_file_manager_operations_counter", "File system operations counter in h2agent_file_manager", familyLabels);
         observed_open_operation_counter_ = &(cf.Add({{"operation", "open"}}));
         observed_close_operation_counter_ = &(cf.Add({{"operation", "close"}}));
         observed_write_operation_counter_ = &(cf.Add({{"operation", "write"}}));
         observed_empty_operation_counter_ = &(cf.Add({{"operation", "empty"}}));
         observed_delayed_close_operation_counter_ = &(cf.Add({{"operation", "delayedClose"}}));
         observed_instant_close_operation_counter_ = &(cf.Add({{"operation", "instantClose"}}));
-        observed_error_open_operation_counter_ = &(cf.Add({{"success", "false"}, {"operation", "open"}}));
+        observed_error_open_operation_counter_ = &(cf.Add({{"result", "failed"}, {"operation", "open"}}));
     }
 }
 
@@ -101,7 +103,7 @@ void FileManager::write(const std::string &path, const std::string &data, bool t
         std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app; // for text files
         if (!textOrBinary) mode |= std::ios::binary;
 
-        safeFile = std::make_shared<SafeFile>(this, path, io_service_, mode);
+        safeFile = std::make_shared<SafeFile>(this, path, io_context_, mode);
         add(path, safeFile);
     }
 
@@ -122,7 +124,7 @@ bool FileManager::read(const std::string &path, std::string &data, bool textOrBi
     else {
         if (!textOrBinary) mode |= std::ios::binary;
 
-        safeFile = std::make_shared<SafeFile>(this, path, io_service_, mode);
+        safeFile = std::make_shared<SafeFile>(this, path, io_context_, mode);
         add(path, safeFile);
     }
 
@@ -140,7 +142,7 @@ void FileManager::empty(const std::string &path) {
         safeFile = it->second;
     }
     else {
-        safeFile = std::make_shared<SafeFile>(this, path, io_service_);
+        safeFile = std::make_shared<SafeFile>(this, path, io_context_);
         add(path, safeFile);
     }
 
@@ -162,7 +164,7 @@ nlohmann::json FileManager::getConfigurationJson() const {
     result["readCache"] = read_cache_ ? "enabled":"disabled";
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 std::string FileManager::configurationAsJsonString() const {
 
@@ -184,7 +186,7 @@ nlohmann::json FileManager::getJson() const {
 
 std::string FileManager::asJsonString() const {
 
-    return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
+    return ((size() != 0) ? getJson().dump() : "[]");
 }
 
 

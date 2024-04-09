@@ -67,18 +67,18 @@ public:
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile };
+    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "UDPSocket", "ServerEventToPurge", "Break", "RequestBodyString", "RequestBodyHexString", "RequestBodyJson_String", "RequestBodyJson_Integer", "RequestBodyJson_Unsigned", "RequestBodyJson_Float", "RequestBodyJson_Boolean", "RequestBodyJson_Object", "RequestBodyJson_JsonString" };
         return text [type];
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, AppendVar, PrependVar, Sum, Multiply, ConditionVar, EqualTo };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "AppendVar", "PrependVar", "Sum", "Multiply", "ConditionVar", "EqualTo" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId" };
         return text [type];
     }
 
@@ -112,12 +112,14 @@ private:
 
     TargetType target_type_{};
     std::string target_{}; // ResponseBodyJson_String/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
-    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path)
+    // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path), UDPSocket (path[.delayMs])
+    std::vector<std::string> target_tokenized_{}; // ServerEventToPurge
     std::string target2_{}; // OutState (foreign uri part)
 
     bool has_filter_{};
     FilterType filter_type_{};
-    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, AppendVar, PrependVar, ConditionVar, EqualTo
+    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar, EqualTo, DifferentFrom, SchemaId
+    nlohmann::json filter_object_{}; // JsonConstraint
     std::regex filter_rgx_{}; // RegexCapture, RegexReplace
     int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
     std::int64_t filter_i_{}; // Sum, Multiply
@@ -133,6 +135,7 @@ private:
     void collectVariablePatterns(const std::string &str, std::map<std::string, std::string> &patterns);
 
     std::map<std::string, std::string> source_patterns_;
+    std::map<std::string, std::string> filter_patterns_;
     std::map<std::string, std::string> target_patterns_;
     std::map<std::string, std::string> target2_patterns_;
 
@@ -168,6 +171,10 @@ public:
     /** Gets target */
     const std::string &getTarget() const {
         return target_;
+    }
+    /** Gets target tokenized */
+    const std::vector<std::string> &getTargetTokenized() const {
+        return target_tokenized_;
     }
     /** Gets target2 */
     const std::string &getTarget2() const {
@@ -206,10 +213,18 @@ public:
     double getFilterF() const {
         return filter_f_;
     }
+    /** Obecjt container for json constraint */
+    const nlohmann::json &getFilterObject() const {
+        return filter_object_;
+    }
 
     /** Source patterns */
     const std::map<std::string, std::string> &getSourcePatterns() const {
         return source_patterns_;
+    }
+    /** Filter patterns */
+    const std::map<std::string, std::string> &getFilterPatterns() const {
+        return filter_patterns_;
     }
     /** Target patterns */
     const std::map<std::string, std::string> &getTargetPatterns() const {

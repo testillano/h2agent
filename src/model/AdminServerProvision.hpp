@@ -51,41 +51,36 @@ SOFTWARE.
 #include <DataPart.hpp>
 
 
-#define DEFAULT_ADMIN_SERVER_PROVISION_STATE "initial"
-
-
 namespace h2agent
 {
 namespace model
 {
 
 // Provision key:
-typedef std::string admin_server_provision_key_t;
-// Future proof: instead of using a key = <method><uri>, we could agreggate them:
-// typedef std::pair<std::string, std::string> admin_server_provision_key_t;
-// But in order to compile, we need to define a hash function for the unordered map:
-// https://stackoverflow.com/a/32685618/2576671 (simple hash combine based in XOR)
-// https://stackoverflow.com/a/27952689/2576671 (boost hash combine and XOR limitations)
+typedef std::string admin_server_provision_key_t; // <inState>#<method>#<uri>
 
-void calculateAdminServerProvisionKey(admin_server_provision_key_t &key, const std::string &inState, const std::string &method, const std::string &uri);
-
-class MockServerEventsData;
+class MockServerData;
+class MockClientData;
+class AdminData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
+class SocketManager;
 
 
 class AdminServerProvision
 {
+    bool employed_{};
+
     nlohmann::json json_{}; // provision reference
 
     admin_server_provision_key_t key_{}; // calculated in every load()
     std::regex regex_{}; // precompile key as possible regex for RegexMatching algorithm
 
     // Cached information:
+    std::string in_state_{};
     std::string request_method_{};
     std::string request_uri_{};
-    std::string in_state_{};
 
     std::string out_state_{};
     unsigned int response_code_{};
@@ -105,13 +100,17 @@ class AdminServerProvision
     // Schemas:
     std::string request_schema_id_{};
     std::string response_schema_id_{};
+    std::shared_ptr<h2agent::model::AdminSchema> request_schema_{};
+    std::shared_ptr<h2agent::model::AdminSchema> response_schema_{};
 
-    model::MockServerEventsData *mock_server_events_data_{}; // just in case it is used
+    model::MockServerData *mock_server_events_data_{}; // just in case it is used
+    model::MockClientData *mock_client_events_data_{}; // just in case it is used
+    model::AdminData *admin_data_{}; // just in case it is used
     model::Configuration *configuration_{}; // just in case it is used
     model::GlobalVariable *global_variable_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
+    model::SocketManager *socket_manager_{}; // just in case it is used
 
-    void loadResponseHeaders(const nlohmann::json &j);
     void loadTransformation(const nlohmann::json &j);
 
     std::vector<std::shared_ptr<Transformation>> transformations_{};
@@ -126,14 +125,17 @@ class AdminServerProvision
                         const DataPart &requestBodyDataPart,
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
-                        std::uint64_t generalUniqueServerSequence) const;
+                        std::uint64_t generalUniqueServerSequence,
+                        bool usesResponseBodyAsTransformationJsonTarget, const nlohmann::json &responseBodyJson) const; // these two last parameters are used to
+    // know if original response body provision
+    // or the one dynamically modified, must be
+    // used as source
 
     bool processFilters(std::shared_ptr<Transformation> transformation,
                         TypeConverter& sourceVault,
                         const std::map<std::string, std::string>& variables,
                         std::smatch &matches,
-                        std::string &source,
-                        bool eraser) const;
+                        std::string &source) const;
 
     bool processTargets(std::shared_ptr<Transformation> transformation,
                         TypeConverter& sourceVault,
@@ -148,7 +150,8 @@ class AdminServerProvision
                         unsigned int &responseDelayMs,
                         std::string &outState,
                         std::string &outStateMethod,
-                        std::string &outStateUri) const;
+                        std::string &outStateUri,
+                        bool &breakCondition) const;
 
 
 public:
@@ -158,7 +161,7 @@ public:
     // transform logic
 
     /**
-     * Applies transformations vector over request received and ongoing reponse built
+     * Applies transformations vector over request received and ongoing response built
      * Also checks optional schema validation for incoming and/or outgoing traffic
      *
      * @param requestUri Request URI
@@ -175,8 +178,6 @@ public:
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
      * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
-     * @param requestSchema Optional json schema to validate incoming traffic. Nothing is done when nullptr is provided.
-     * @param responseSchema Optional json schema to validate outgoing traffic. Nothing is done when nullptr is provided.
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -191,10 +192,8 @@ public:
                     unsigned int &responseDelayMs,
                     std::string &outState,
                     std::string &outStateMethod,
-                    std::string &outStateUri,
-                    std::shared_ptr<h2agent::model::AdminSchema> requestSchema,
-                    std::shared_ptr<h2agent::model::AdminSchema> responseSchema
-                  ) const;
+                    std::string &outStateUri
+                  );
 
     // setters:
 
@@ -202,6 +201,7 @@ public:
      * Load provision information
      *
      * @param j Json provision object
+     * @param regexMatchingConfigured provision load depends on matching configuration (priority regexp)
      *
      * @return Operation success
      */
@@ -211,8 +211,24 @@ public:
      * Sets the internal mock server data,
      * just in case it is used in event source
      */
-    void setMockServerEventsData(model::MockServerEventsData *p) {
+    void setMockServerData(model::MockServerData *p) {
         mock_server_events_data_ = p;
+    }
+
+    /**
+     * Sets the internal mock client data,
+     * just in case it is used in event source
+     */
+    void setMockClientData(model::MockClientData *p) {
+        mock_client_events_data_ = p;
+    }
+
+    /**
+     * Sets the admin data reference,
+     * just in case it is used in SchemaId filter
+     */
+    void setAdminData(model::AdminData *p) {
+        admin_data_ = p;
     }
 
     /**
@@ -239,7 +255,32 @@ public:
         file_manager_ = p;
     }
 
+    /**
+     * Sets the socket manager reference,
+     * just in case it is used in event target
+     */
+    void setSocketManager(model::SocketManager *p) {
+        socket_manager_ = p;
+    }
+
+    /**
+     * Provision is being employed
+     */
+    void employ() {
+        employed_ = true;
+    }
+
     // getters:
+
+    /**
+     * Gets the provision request uri which could be a regular expression
+     * or a full-matched URI string
+     *
+     * @return Provision request URI
+     */
+    const admin_server_provision_key_t &getRequestUri() const {
+        return request_uri_;
+    }
 
     /**
      * Gets the provision key as '<in-state>|<request-method>|<request-uri>'
@@ -322,38 +363,6 @@ public:
         return response_body_string_;
     }
 
-//    /** Provisioned response body integer
-//     *
-//     * @return Response body integer
-//     */
-//     const int &getResponseBodyAsInteger() const {
-//        return response_body_integer_;
-//    }
-//
-//    /** Provisioned response body number
-//     *
-//     * @return Response body number
-//     */
-//    const double &getResponseBodyAsNumber() const {
-//        return response_body_number_;
-//    }
-//
-//    /** Provisioned response body boolean
-//     *
-//     * @return Response body boolean
-//     */
-//    bool getResponseBodyAsBoolean() const {
-//        return response_body_boolean_;
-//    }
-//
-//    /** Provisioned response body null
-//     *
-//     * @return Response body null
-//     */
-//    bool getResponseBodyAsNull() const {
-//        return response_body_null_;
-//    }
-
     /** Provisioned response delay milliseconds
      *
      * @return Response delay milliseconds
@@ -362,20 +371,24 @@ public:
         return response_delay_ms_;
     }
 
-    /** Provisioned request schema identifier
+    /** Provisioned request schema reference
      *
-     * @return Request schema string identifier
+     * @return Request schema to validate incoming traffic, nullptr if missing
      */
-    const std::string &getRequestSchemaId() const {
-        return request_schema_id_;
-    }
+    std::shared_ptr<h2agent::model::AdminSchema> getRequestSchema();
 
-    /** Provisioned response schema identifier
+    /** Provisioned response schema reference
      *
-     * @return Response schema string identifier
+     * @return Response schema to validate outgoing traffic, nullptr if missing
      */
-    const std::string &getResponseSchemaId() const {
-        return response_schema_id_;
+    std::shared_ptr<h2agent::model::AdminSchema> getResponseSchema();
+
+    /** Provision was employed
+     *
+     * @return Boolean about if this provision has been used
+     */
+    bool employed() const {
+        return employed_;
     }
 };
 

@@ -21,6 +21,7 @@ get_uri() {
 # EXECUTION #
 #############
 cd $(dirname $0)
+echo
 
 # Temporary directory:
 TMPDIR=$(mktemp -d)
@@ -29,8 +30,9 @@ trap "rm -rf ${TMPDIR}" EXIT
 # Load common resources:
 source ../tools/common.src
 
-echo
 title "H2agent demo"
+
+h2agent_check ${H2AGENT_ADMIN_ENDPOINT} ${H2AGENT_TRAFFIC_ENDPOINT} || exit 1
 
 # Enable interactiveness:
 INTERACT=${INTERACT:-true}
@@ -54,9 +56,9 @@ test_query "Step 2. Check server matching configuration" GET http://${H2AGENT_AD
 
 test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
 
-EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and provisions data received\" }"
+EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and server provisions data received\" }"
 EXPECTED_STATUS_CODES=201
-CURL_OPTS="-d@./provisions.json -H \"content-type: application/json\""
+CURL_OPTS="-d@./server-provision.json -H \"content-type: application/json\""
 test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
 
 EXPECTED_STATUS_CODES=200

@@ -56,7 +56,7 @@ nlohmann::json Configuration::getJson() const {
     result["lazyClientConnection"] = lazy_client_connection_;
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 }
 }

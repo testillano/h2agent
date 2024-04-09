@@ -51,9 +51,9 @@ std::atomic<int> SafeFile::CurrentOpenedFiles(0);
 std::mutex SafeFile::MutexOpenedFiles;
 std::condition_variable SafeFile::OpenedFilesCV;
 
-SafeFile::SafeFile (FileManager *fileManager, const std::string& path, boost::asio::io_service *timersIoService, std::ios_base::openmode mode):
+SafeFile::SafeFile (FileManager *fileManager, const std::string& path, boost::asio::io_context *timersIoContext, std::ios_base::openmode mode):
     path_(path),
-    io_service_(timersIoService),
+    io_context_(timersIoContext),
     file_manager_(fileManager),
     opened_(false),
     read_cached_(false),
@@ -72,10 +72,10 @@ void SafeFile::delayedClose(unsigned int closeDelayUs) {
     // metrics
     file_manager_->incrementObservedDelayedCloseOperationCounter();
 
-    //if (!io_service_) return; // protection
-    if (!timer_) timer_ = new boost::asio::deadline_timer(*io_service_, boost::posix_time::microseconds(closeDelayUs));
+    //if (!io_context_) return; // protection
+    if (!timer_) timer_ = new boost::asio::steady_timer(*io_context_, std::chrono::microseconds(closeDelayUs));
     timer_->cancel();
-    timer_->expires_from_now(boost::posix_time::microseconds(closeDelayUs));
+    timer_->expires_after(std::chrono::microseconds(closeDelayUs));
     timer_->async_wait([this] (const boost::system::error_code& e) {
         if( e ) return; // probably, we were cancelled (boost::asio::error::operation_aborted)
         close();
@@ -209,7 +209,7 @@ void SafeFile::write (const std::string& data, unsigned int closeDelayUs) {
     file_manager_->incrementObservedWriteOperationCounter();
 
     // Close file:
-    if (io_service_ && closeDelayUs != 0) {
+    if (io_context_ && closeDelayUs != 0) {
         delayedClose(closeDelayUs);
     }
     else {

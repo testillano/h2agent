@@ -53,13 +53,13 @@ void usage(int rc)
 
     ss << "Usage: " << progname << " [options]\n\nOptions:\n\n"
 
-       << "--regex <value>\n"
+       << "-r|--regex <value>\n"
        << "  Regex pattern value to match against.\n\n"
 
-       << "--test <value>\n"
+       << "-t|--test <value>\n"
        << "  Test string value to be matched.\n\n"
 
-       << "[--fmt <value>]\n"
+       << "[-f|--fmt <value>]\n"
        << "  Optional regex-replace output format.\n\n"
 
        << "[-h|--help]\n"
@@ -99,9 +99,9 @@ int main(int argc, char* argv[])
     progname = basename(argv[0]);
 
     // Parse command-line ///////////////////////////////////////////////////////////////////////////////////////
-    std::string regex;
-    std::string test;
-    std::string fmt;
+    std::string regex{};
+    std::string test{};
+    std::string fmt{};
 
     std::string value;
 
@@ -111,17 +111,20 @@ int main(int argc, char* argv[])
         usage(EXIT_SUCCESS);
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--regex", value))
+    if (cmdOptionExists(argv, argv + argc, "-r", value)
+            || cmdOptionExists(argv, argv + argc, "--regex", value))
     {
         regex = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--test", value))
+    if (cmdOptionExists(argv, argv + argc, "-t", value)
+            || cmdOptionExists(argv, argv + argc, "--test", value))
     {
         test = value;
     }
 
-    if (cmdOptionExists(argv, argv + argc, "--fmt", value))
+    if (cmdOptionExists(argv, argv + argc, "-f", value)
+            || cmdOptionExists(argv, argv + argc, "--fmt", value))
     {
         fmt = value;
     }

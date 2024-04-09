@@ -10,11 +10,114 @@
 `H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
+It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
+
+
+
+As a brief **summary**, we could <u>highlight the following features</u>:
+
+* Mock types:
+
+  * Server (unique)
+  * Client (multiple clients may be provisioned)
+
+* Testing
+
+  * Functional/Component tests:
+  * System tests (KPI, High Load, Robustness).
+  * Congestion Control.
+  * Validations:
+    * Optionally tied to provision with machine states.
+    * Sequence validation can be decoupled (order by user preference).
+    * Available traffic history inspection (REST API).
+
+* Traffic protocols
+
+  * HTTP/2.
+  * UDP.
+
+* TLS/SSL support
+
+  * Server
+  * Client
+
+* Interfaces
+
+  * Administrative interface (REST API): update, create and delete items:
+    * Global variables.
+    * File manager configuration.
+    * UDP events.
+    * Schemas (Rx/Tx).
+    * Logging system.
+    * Traffic classification and provisioning configuration.
+    * Client endpoints configuration.
+    * Events data (server and clients) summary and inspection.
+    * Events data configuration (global storage, history).
+  * Prometheus metrics (HTTP/1):
+    * Counters by method and result.
+    * Gauges and Histograms (response delays, message size for Rx/Tx).
+  * Log system (POSIX Levels).
+  * Command line:
+    * Administrative & traffic interfaces (addresses, ports, security certificates).
+    * Congestion control parameters (workers, maximum workers and maximum queue size).
+    * Schema configuration json documents to be referred (traffic validation).
+    * Global variables json document.
+    * File manager configuration.
+    * Traffic server configuration (classification and provision).
+    * Metrics interface: histogram buckets for server and client and for histogram types.
+    * Clients connection behaviour (lazy/active).
+
+* Schema validation
+
+  * Administrative interface.
+  * Mock system (Tx/Rx requests).
+
+* Traffic classification
+
+  * Full matching.
+  * Regular expression matching.
+  * Priority regular expression matching.
+  * Query parameters filtering (sort/pass by/ignore).
+  * Query parameters delimiters (ampersand/semicolon)
+
+* Programming:
+
+  * User-defined machine state (FSM).
+  * Internal events system (data extraction from past events).
+  * Global variables.
+  * File system operations.
+  * UDP writing operations.
+  * Response build (headers, body, status code, delay).
+  * Transformation algorithms: thousands of combinations
+    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, global variables, constant values, input state (working state), events, files (read).
+    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints and schema id.
+    * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+  * Multipart support.
+
+* Training:
+
+  * Questions and answers for project documentation using **openai** (ChatGPT-based).
+  * Playground.
+  * Demo.
+  * Kata exercises.
+
+* Tools programs:
+
+  * Matching helper.
+  * Arash Partow helper (math expressions).
+  * HTTP/2 client.
+  * UDP server.
+  * UDP server to trigger active HTTP/2 client requests.
+  * UDP client.
+
+
+
 ## Quick start
 
 **Theory**
 
 * A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
+* A conversational bot for [***questions & answers***](./README.md#questions-and-answers) based in *Open AI*.
 
 **Practice**
 
@@ -51,7 +154,7 @@ Check the [releases](https://github.com/testillano/h2agent/releases) to get late
 The easiest way to build the project is using [containers](https://en.wikipedia.org/wiki/LXC) technology (this project uses `docker`): **to generate all the artifacts**, just type the following:
 
 ```bash
-$> ./build.sh --auto
+$ ./build.sh --auto
 ```
 
 The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
@@ -59,52 +162,60 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 * Run <u>project image</u> with docker (`./h2a.sh` script at root directory can also be used):
 
   ```bash
-  $> docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
+  $ docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
   ```
 
   Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080).
   You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
-  $> docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
+  $ docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
   ```
 
-  Or any other packaged utility:
+  Or any other packaged utility (if you want to lighten the image size, write your own Dockerfile and get what you need):
 
   ```bash
-  $> docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $> docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $ docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $ docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $ docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
   ```bash
-  $> # helm dependency update helm/h2agent # no dependencies at the moment
-  $> helm install h2agent-example helm/h2agent --wait
-  $> pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
-  $> kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
+  $ # helm dependency update helm/h2agent # no dependencies at the moment
+  $ helm install h2agent-example helm/h2agent --wait
+  $ pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
+  $ kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
   ```
 
   You may enter the pod and play with helpers functions and examples (deployed with the chart under `/opt/utils`) which are anyway, automatically sourced on `bash` shell:
 
   ```bash
-  $> kubectl exec -it ${pod} -- bash
+  $ kubectl exec -it ${pod} -- bash
   ```
 
 It is also possible to build the project natively (not using containers) installing all the dependencies on the local host:
 
 ```bash
-$> ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
+$ ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
 ```
 
-So, you could run `h2agent` (or any other binary available under `./build/<build type>/bin`) directly:
+So, you could run `h2agent` (or any other binary available under `build/<build type>/bin`) directly:
 
 
 * Run <u>project executable</u> natively (standalone):
 
   ```bash
-  $> ./build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
+  $ build/Release/bin/h2agent & # default server at 0.0.0.0 with traffic/admin/prometheus ports: 8000/8074/8080
   ```
 
   Provide `-h` or `--help` to get **process help** (more information [here](#Execution-of-main-agent)) or execute any other project executable.
@@ -112,9 +223,9 @@ So, you could run `h2agent` (or any other binary available under `./build/<build
   You may also play with project helpers functions and examples:
 
   ```bash
-  $> source tools/helpers.src # type help in any moment after sourcing
-  $> server_example # follow instructions or just source it: source <(server_example)
-  $> client_example # follow instructions or just source it: source <(client_example)
+  $ source tools/helpers.src # type help in any moment after sourcing
+  $ server_example # follow instructions or just source it: source <(server_example)
+  $ client_example # follow instructions or just source it: source <(client_example)
   ```
 
 
@@ -123,9 +234,9 @@ So, you could run `h2agent` (or any other binary available under `./build/<build
 Both build helpers (`build.sh` and `build-native.sh` scripts) allow to force project static link, although this is [not recommended](https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged):
 
 ```bash
-$> STATIC_LINKING=TRUE ./build.sh --auto
+$ STATIC_LINKING=TRUE ./build.sh --auto
 - or -
-$> STATIC_LINKING=TRUE ./build-native.sh
+$ STATIC_LINKING=TRUE ./build-native.sh
 ```
 
 So, you could run binaries regardless if needed libraries are available or not (including `glibc` with all its drawbacks).
@@ -140,18 +251,19 @@ Next sections will describe in detail, how to build [project image](#Project-ima
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$> docker pull ghcr.io/testillano/h2agent:<tag>
+$ docker pull ghcr.io/testillano/h2agent:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$> ./build.sh --project-image
+$ ./build.sh --project-image
 ```
 
 This image is built with `./Dockerfile`.
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
 
 ## Build project with docker
 
@@ -160,33 +272,34 @@ Both `ubuntu` and `alpine` base images are supported, but the official image upl
 This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$> docker pull ghcr.io/testillano/h2agent_builder:<tag>
+$ docker pull ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could also build it using the script `./build.sh` located at project root:
 
 
 ```bash
-$> ./build.sh --builder-image
+$ ./build.sh --builder-image
 ```
 
 This image is built with `./Dockerfile.build`.
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
 
 ### Usage
 
 Builder image is used to build the project. To run compilation over this image, again, just run with `docker`:
 
 ```bash
-$> envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
-$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+$ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
+$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
           ghcr.io/testillano/h2agent_builder:<tag>
 ```
 
 You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
 
 ```bash
-$> docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
+$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
           ghcr.io/testillano/h2agent_builder::<tag> "" doc
 ```
 
@@ -194,7 +307,7 @@ You could also build the library using the script `./build.sh` located at projec
 
 
 ```bash
-$> ./build.sh --project
+$ ./build.sh --project
 ```
 
 ## Build project natively
@@ -202,7 +315,7 @@ $> ./build.sh --project
 It may be hard to collect every dependency, so there is a native build **automation script**:
 
 ```bash
-$> ./build-native.sh
+$ ./build-native.sh
 ```
 
 Note 1: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
@@ -216,32 +329,32 @@ Note 3: if not stated otherwise, this document assumes that binaries (used on ex
 Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
 
 ```bash
-$> sudo apt-get install cmake
+$ sudo apt-get install cmake
 ```
 
 And then generate the makefiles from project root directory:
 
 ```bash
-$> cmake .
+$ cmake .
 ```
 
 You could specify type of build, 'Debug' or 'Release', for example:
 
 ```bash
-$> cmake -DCMAKE_BUILD_TYPE=Debug .
-$> cmake -DCMAKE_BUILD_TYPE=Release .
+$ cmake -DCMAKE_BUILD_TYPE=Debug .
+$ cmake -DCMAKE_BUILD_TYPE=Release .
 ```
 
 You could also change the compilers used:
 
 ```bash
-$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
+$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
 ```
 
 or
 
 ```bash
-$> cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
+$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
 ```
 
 ### Requirements
@@ -259,24 +372,24 @@ nghttp2 (https://github.com/testillano/nghttp2)
 ### Build
 
 ```bash
-$> make
+$ make
 ```
 
 ### Clean
 
 ```bash
-$> make clean
+$ make clean
 ```
 
 ### Documentation
 
 ```bash
-$> make doc
+$ make doc
 ```
 
 ```bash
-$> cd docs/doxygen
-$> tree -L 1
+$ cd docs/doxygen
+$ tree -L 1
      .
      ├── Doxyfile
      ├── html
@@ -287,20 +400,20 @@ $> tree -L 1
 ### Install
 
 ```bash
-$> sudo make install
+$ sudo make install
 ```
 
 Optionally you could specify another prefix for installation:
 
 ```bash
-$> cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
-$> make install
+$ cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
+$ make install
 ```
 
 ### Uninstall
 
 ```bash
-$> cat install_manifest.txt | sudo xargs rm
+$ cat install_manifest.txt | sudo xargs rm
 ```
 
 ## Testing
@@ -311,25 +424,34 @@ Check the badge above to know the current coverage level.
 You can execute it after project building, for example for `Release` target:
 
 ```bash
-$> ./build/Release/bin/unit-test # native executable
+$ build/Release/bin/unit-test # native executable
 - or -
-$> docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
+$ docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
 ```
 
- To shortcut docker run execution, `./ut.sh` script at root directory can also be used.
+To shortcut docker run execution, `./ut.sh` script at root directory can also be used.
+You may provide extra arguments to Google test executable, for example:
+
+```bash
+$ ./ut.sh --gtest_list_tests # to list the available tests
+$ ./ut.sh --gtest_filter=Transform_test.ResponseBodyHexString # to filter and run 1 specific test
+$ ./ut.sh --gtest_filter=Transform_test.* # to filter and run 1 specific suite
+etc.
+```
 
 #### Coverage
 
 Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
 
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
 
 ### Component test
 
 Component test is based in `pytest` framework. Just execute `ct/test.sh` to deploy the component test chart. Some cloud-native technologies are required: `docker`, `kubectl`, `minikube` and `helm`, for example:
 
 ```bash
-$> docker version
+$ docker version
 Client: Docker Engine - Community
  Version:           20.10.17
  API version:       1.41
@@ -359,15 +481,15 @@ Server: Docker Engine - Community
   Version:          0.19.0
   GitCommit:        de40ad0
 
-$> kubectl version
+$ kubectl version
 Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.4", GitCommit:"b695d79d4f967c403a96986f1750a35eb75e75f1", GitTreeState:"clean", BuildDate:"2021-11-17T15:48:33Z", GoVersion:"go1.16.10", Compiler:"gc", Platform:"linux/amd64"}
 Server Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitCommit:"8b5a19147530eaac9476b0ab82980b4088bbc1b2", GitTreeState:"clean", BuildDate:"2021-09-15T21:32:41Z", GoVersion:"go1.16.8", Compiler:"gc", Platform:"linux/amd64"}
 
-$> minikube version
+$ minikube version
 minikube version: v1.23.2
 commit: 0a0ad764652082477c00d51d2475284b5d39ceed
 
-$> helm version
+$ helm version
 version.BuildInfo{Version:"v3.7.1", GitCommit:"1d11fcb5d3f3bf00dbe6fe31b8412839a96b3dc4", GitTreeState:"clean", GoVersion:"go1.16.9"}
 ```
 
@@ -385,9 +507,9 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `st/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
+Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `benchmark/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
 
-Also, `st/repeat.sh` script repeats a previous execution (last by default) in headless mode.
+Also, `benchmark/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
 #### Considerations
 
@@ -402,16 +524,16 @@ Also, `st/repeat.sh` script repeats a previous execution (last by default) in he
 So you may start the process, again, natively or using docker:
 
 ```bash
-$> OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3")
-$> ./build/Release/bin/h2agent "${OPTS[@]}" # native executable
+$ OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
+$ build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
-$> docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}"  # docker
+$ docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
 ```
 
 In other shell we launch the benchmark test:
 
 ```bash
-$> st/start.sh -y
+$ benchmark/start.sh -y
 
 
 Input Validate schemas (y|n)
@@ -550,12 +672,15 @@ Created test report:
 You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2agent --help
+$ build/Release/bin/h2agent --help
 h2agent - HTTP/2 Agent service
 
 Usage: h2agent [options]
 
 Options:
+
+[--name <name>]
+  Application/process name. Used in prometheus metrics 'source' label. Defaults to 'h2agent'.
 
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
@@ -587,16 +712,23 @@ Options:
   even for complex logic provisioned (admin server hardcodes 1 worker thread(s)).
   It could be increased if hardware concurrency (8) permits a greater margin taking
   into account other process threads considered busy and I/O time spent by server
-  threads.
+  threads. When more than 1 worker is configured, a queue dispatcher model starts
+  to process the traffic, and also enables extra features like congestion control.
 
 [--traffic-server-max-worker-threads <threads>]
   Number of traffic server maximum worker threads; defaults to the number of worker
-  threads but could be a higher number so they will be created when needed.
+  threads but could be a higher number so they will be created when needed to extend
+  in real time, the queue dispatcher model capacity.
 
-[-t|--traffic-server-threads <threads>]
-  Number of nghttp2 traffic server threads; defaults to 2 (2 connections)
-  (admin server hardcodes 2 nghttp2 threads). This option is exploited
-  by multiple clients.
+[--traffic-server-queue-dispatcher-max-size <size>]
+  The queue dispatcher model (which is activated for more than 1 server worker)
+  schedules a initial number of threads which could grow up to a maximum value
+  (given by '--traffic-server-max-worker-threads').
+  Optionally, a basic congestion control algorithm can be enabled by mean providing
+  a non-negative value to this parameter. When the queue size grows due to lack of
+  consumption capacity, a service unavailable error (503) will be answered skipping
+  context processing when the queue size reaches the value provided; defaults to -1,
+  which means that congestion control is disabled.
 
 [-k|--traffic-server-key <path file>]
   Path file for traffic server key to enable SSL/TLS; unsecured by default.
@@ -663,14 +795,13 @@ Options:
 [--prometheus-port <port>]
   Prometheus local <port>; defaults to 8080.
 
-[--prometheus-response-delay-seconds-histogram-boundaries <space-separated list of doubles>]
+[--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
-  Scientific notation is allowed, so in terms of microseconds (e-6) and milliseconds (e-3) we
-  could provide, for example: "100e-6 200e-6 300e-6 400e-6 500e-6 1e-3 5e-3 10e-3 20e-3".
+  Scientific notation is allowed, i.e.: "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3".
   This affects to both mock server-data and client-data processing time values,
   but normally both flows will not be used together in the same process instance.
 
-[--prometheus-message-size-bytes-histogram-boundaries <space-separated list of doubles>]
+[--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
   This affects to both mock 'server internal/client external' message size values,
   but normally both flows will not be used together in the same process instance.
@@ -711,18 +842,18 @@ This utility could be useful to test regular expressions before putting them at 
 You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/matching-helper --help
+$ build/Release/bin/matching-helper --help
 Usage: matching-helper [options]
 
 Options:
 
---regex <value>
+-r|--regex <value>
   Regex pattern value to match against.
 
---test <value>
+-t|--test <value>
   Test string value to be matched.
 
-[--fmt <value>]
+[-f|--fmt <value>]
   Optional regex-replace output format.
 
 [-h|--help]
@@ -738,7 +869,7 @@ Examples:
 Execution example:
 
 ```bash
-$> ./build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+$ build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
 
 Regex: (a\|b\|)([0-9]{10})
 Test:  a|b|0123456789
@@ -757,12 +888,12 @@ This utility could be useful to test [Arash Partow's](https://github.com/ArashPa
 You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/arashpartow-helper --help
+$ build/Release/bin/arashpartow-helper --help
 Usage: arashpartow-helper [options]
 
 Options:
 
---expression <value>
+-e|--expression <value>
   Expression to be calculated.
 
 [-h|--help]
@@ -779,14 +910,14 @@ Arash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/r
 Execution example:
 
 ```bash
-$> ./build/Release/bin/arashpartow-helper --expression "404 == 404"
+$ build/Release/bin/arashpartow-helper --expression "404 == 404"
 
 Expression: 404 == 404
 
 Result: 1
 ```
 
-## Execution of h2client helper utility
+## Execution of h2client utility
 
 This utility could be useful to test simple HTTP/2 requests.
 
@@ -795,36 +926,36 @@ This utility could be useful to test simple HTTP/2 requests.
 You may take a look to `h2client` command line by just typing the build path, for example for `Release` target using native executable:
 
 ```bash
-$> ./build/Release/bin/h2client --help
+$ build/Release/bin/h2client --help
 Usage: h2client [options]
 
 Options:
 
+-u|--uri <value>
+ URI to access.
+
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
 
-[--verbose]
+[-v|--verbose]
   Output log traces on console.
 
-[--timeout <value>]
-  Time in seconds to wait for request response. Defaults to 5.
+[-t|--timeout-milliseconds <value>]
+  Time in milliseconds to wait for requests response. Defaults to 5000.
 
-[--method <POST|GET|PUT|DELETE|HEAD>]
+[-m|--method <POST|GET|PUT|DELETE|HEAD>]
   Request method. Defaults to 'GET'.
 
 [--header <value>]
   Header in the form 'name:value'. This parameter can occur multiple times.
 
-[--body <value>]
+[-b|--body <value>]
   Plain text for request body content.
 
---uri <value>
- URI to access.
-
---secure
+[--secure]
  Use secure connection.
 
---rc-probe
+[--rc-probe]
   Forwards HTTP status code into equivalent program return code.
   So, any code greater than or equal to 200 and less than 400
   indicates success and will return 0 (1 in other case).
@@ -842,33 +973,394 @@ Examples:
 Execution example:
 
 ```bash
-$> build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
+$ build/Release/bin/h2client --timeout 1 --uri http://localhost:8000/book/8472098362
 
-Timeout: 1
-Secure connection: false
-Uri: http://localhost:8000/book/8472098362
-   Host: localhost
-   Port: 8000
-   Path: book/8472098362
+Client endpoint:
+   Secure connection: false
+   Host:   localhost
+   Port:   8000
+   Method: GET
+   Uri: http://localhost:8000/book/8472098362
+   Path:   book/8472098362
+   Timeout for responses (ms): 5000
+
 
  Response status code: 200
  Response body: {"author":"Ludwig von Mises"}
  Response headers: [date: Sun, 27 Nov 2022 18:58:32 GMT]
 ```
 
+## Execution of udp-server utility
+
+This utility could be useful to test UDP messages sent by `h2agent` (`udpSocket.*` target).
+You can also use netcat in bash, to generate messages easily:
+
+```bash
+echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
+```
+
+### Command line
+
+You may take a look to `udp-server` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$ build/Release/bin/udp-server --help
+Usage: udp-server [options]
+
+Options:
+
+-k|--udp-socket-path <value>
+  UDP unix socket path.
+
+[-e|--print-each <value>]
+  Print messages each specific amount (must be positive). Defaults to 1.
+  Setting datagrams estimated rate should take 1 second/printout and output
+  frequency gives an idea about UDP receptions rhythm.
+
+[-h|--help]
+  This help.
+
+Examples:
+   udp-server --udp-socket-path /tmp/udp.sock
+
+To stop the process you can send UDP message 'EOF':
+   echo -n EOF | nc -u -q0 -w1 -U /tmp/udp.sock
+```
+
+Execution example:
+
+```bash
+$ build/Release/bin/udp-server --udp-socket-path /tmp/udp.sock
+
+Path: /tmp/udp.sock
+Print each: 1 message(s)
+
+Remember:
+ To stop process: echo -n EOF | nc -u -q0 -w1 -U /tmp/udp.sock
+
+
+Waiting for UDP messages...
+
+<timestamp>                         <sequence>      <udp datagram>
+___________________________________ _______________ _______________________________
+2023-08-02 19:16:36.340339 GMT      1               555000000
+2023-08-02 19:16:37.340441 GMT      2               555000001
+2023-08-02 19:16:38.340656 GMT      3               555000002
+
+Existing (EOF received) !
+```
+
+## Execution of udp-server-h2client utility
+
+This utility could be useful to test UDP messages sent by `h2agent` (`udpSocket.*` target).
+You can also use netcat in bash, to generate messages easily:
+
+```bash
+echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
+```
+
+The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for ever UDP reception.
+This makes possible coordinate actions between `h2agent` acting as a server, to create outgoing requests linked to its receptions through the UDP channel served in this external tool.
+Powerful parsing capabilities allow to create any kind of request dynamically using patterns `@{udp[.n]}` for uri, headers and body configured.
+Prometheus metrics are also available to measure the HTTP/2 performance towards the remote server (check it by mean, for example: `curl http://0.0.0.0:8081/metrics`).
+
+### Command line
+
+You may take a look to `udp-server-h2client` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$ build/Release/bin/udp-server-h2client --help
+Usage: udp-server-h2client [options]
+
+Options:
+
+UDP server will trigger one HTTP/2 request for every reception, replacing optionally
+certain patterns on method, uri, headers and/or body provided. Implemented patterns:
+following:
+
+   @{udp}:      replaced by the whole UDP datagram received.
+   @{udp8}:     selects the 8 least significant digits in the UDP datagram, and may
+                be used to build valid IPv4 addresses for a given sequence.
+   @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens
+                and this pattern will be replaced by the nth one.
+
+To stop the process you can send UDP message 'EOF'.
+To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
+
+[--name <name>]
+  Application/process name. Used in prometheus metrics 'source' label. Defaults to 'udp-server-h2client'.
+
+-k|--udp-socket-path <value>
+  UDP unix socket path.
+
+[-w|--workers <value>]
+  Number of worker threads to post outgoing requests. By default, 10x times 'hardware
+  concurrency' is configured (10*8 = 80), but you could consider increase even more
+  if high I/O is expected (high response times raise busy threads, so context switching
+  is not wasted as much as low latencies setups do). We should consider Amdahl law and
+  other specific conditions to set the default value, but 10*CPUs is a good approach
+  to start with. You may also consider using 'perf' tool to optimize your configuration.
+
+[-e|--print-each <value>]
+  Print UDP receptions each specific amount (must be positive). Defaults to 1.
+  Setting datagrams estimated rate should take 1 second/printout and output
+  frequency gives an idea about UDP receptions rhythm.
+
+[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
+  Set the logging level; defaults to warning.
+
+[-v|--verbose]
+  Output log traces on console.
+
+[-t|--timeout-milliseconds <value>]
+  Time in milliseconds to wait for requests response. Defaults to 5000.
+
+[-d|--send-delay-milliseconds <value>]
+  Time in seconds to delay before sending the request. Defaults to 0.
+  It also supports negative values which turns into random number in
+  the range [0,abs(value)].
+
+[-m|--method <value>]
+  Request method. Defaults to 'GET'. After optional parsing, should be one of:
+  POST|GET|PUT|DELETE|HEAD.
+
+-u|--uri <value>
+ URI to access.
+
+[--header <value>]
+  Header in the form 'name:value'. This parameter can occur multiple times.
+
+[-b|--body <value>]
+  Plain text for request body content.
+
+[--secure]
+ Use secure connection.
+
+[--prometheus-bind-address <address>]
+  Prometheus local bind <address>; defaults to 0.0.0.0.
+
+[--prometheus-port <port>]
+  Prometheus local <port>; defaults to 8081. Value of -1 disables metrics.
+
+[--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]
+  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
+  Scientific notation is allowed, i.e.: "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3".
+
+[--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]
+  Bucket boundaries for Tx/Rx message size bytes histogram; no boundaries are defined by default.
+
+[-h|--help]
+  This help.
+
+Examples:
+   udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --timeout-milliseconds 1000 --uri http://0.0.0.0:8000/book/@{udp} --body "ipv4 is @{udp8}"
+   udp-server-h2client --udp-socket-path /tmp/udp.sock --print-each 1000 --method POST --uri http://0.0.0.0:8000/data --header "content-type:application/json" --body '{"book":"@{udp}"}'
+
+   To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
+```
+
+Execution example:
+
+```bash
+$ build/Release/bin/udp-server-h2client -k /tmp/udp.sock -t 3000 -d -300 -u http://0.0.0.0:8000/data --header "content-type:application/json" -b '{"foo":"@{udp}"}'
+
+Application/process name: udp-server-h2client
+UDP socket path: /tmp/udp.sock
+Workers: 80
+Print each: 1 message(s)
+Log level: Warning
+Verbose (stdout): false
+Workers: 10
+Maximum workers: 40
+Congestion control is disabled
+Prometheus local bind address: 0.0.0.0
+Prometheus local port: 8081
+Client endpoint:
+   Secure connection: false
+   Host:   0.0.0.0
+   Port:   8000
+   Method: GET
+   Uri: http://0.0.0.0:8000/data
+   Path:   data
+   Headers: [content-type: application/json]
+   Body: {"foo":"@{udp}"}
+   Timeout for responses (ms): 3000
+   Send delay for requests (ms): random in [0,300]
+   Builtin patterns used: @{udp}
+
+Remember:
+ To get prometheus metrics:       curl http://localhost:8081/metrics
+ To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U /tmp/udp.sock
+ To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U /tmp/udp.sock
+
+
+Waiting for UDP messages...
+
+<timestamp>                         <sequence>      <udp datagram>                  <accumulated status codes>
+___________________________________ _______________ _______________________________ ___________________________________________________________
+2023-08-02 19:16:36.340339 GMT      1               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:37.340441 GMT      2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:38.340656 GMT      3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+
+Existing (EOF received) !
+
+status codes: 3 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+```
+
+## Execution of udp-client utility
+
+This utility could be useful to test `udp-server`, and specially, `udp-server-h2client` tool.
+You can also use netcat in bash, to generate messages easily, but this tool provide high load. This tool manages a monotonically increasing sequence within a given range, and allow to parse it over a pattern to build the datagram generated. Even, we could provide a list of patterns which will be randomized.
+Although we could launch multiple UDP clients towards the UDP server (such server must be unique due to non-oriented connection nature of UDP protocol), it is probably unnecessary: this client is fast enough to generate the required load.
+
+### Command line
+
+You may take a look to `udp-client` command line by just typing the build path, for example for `Release` target using native executable:
+
+```bash
+$ build/Release/bin/udp-client --help
+Usage: udp-client [options]
+
+Options:
+
+-k|--udp-socket-path <value>
+  UDP unix socket path.
+
+[--eps <value>]
+  Events per second. Floats are allowed (0.016667 would mean 1 tick per minute),
+  negative number means unlimited (depends on your hardware) and 0 is prohibited.
+  Defaults to 1.
+
+[-r|--rampup-seconds <value>]
+  Rampup seconds to reach 'eps' linearly. Defaults to 0.
+  Only available for speeds over 1 event per second.
+
+[-i|--initial <value>]
+  Initial value for datagram. Defaults to 0.
+
+[-f|--final <value>]
+  Final value for datagram. Defaults to unlimited.
+
+[--pattern <value>]
+  Pattern to build UDP datagram (reserved @{seq} is replaced by sequence number).
+  Defaults to '@{seq}'. This parameter can occur multiple times to create a random
+  set. For example, passing '--pattern foo --pattern foo --pattern bar', there is a
+  probability of 2/3 to select 'foo' and 1/3 to select 'bar'.
+
+[-e|--print-each <value>]
+  Print messages each specific amount (must be positive). Defaults to 1.
+
+[-h|--help]
+  This help.
+
+Examples:
+   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --pattern "foo/bar/@{seq}"
+   udp-client --udp-socket-path /tmp/udp.sock --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server
+
+To stop the process, just interrupt it.
+```
+
+Execution example:
+
+```bash
+$ build/Release/bin/udp-client --udp-socket-path /tmp/udp.sock --eps 1000 --initial 555000000 --print-each 1000
+
+Path: /tmp/udp.sock
+Print each: 1 message(s)
+Range: [0, 18446744073709551615]
+Pattern: @{seq}
+Events per second: 1000
+Rampup (s): 0
+
+
+Generating UDP messages...
+
+<timestamp>                         <time(s)> <sequence>      <udp datagram>
+___________________________________ _________ _______________ _______________________________
+2023-08-02 19:16:36.340339 GMT      0         1               555000000
+2023-08-02 19:16:37.340441 GMT      1         1000            555000999
+2023-08-02 19:16:38.340656 GMT      2         2000            555001999
+...
+
+```
+
+## Working with unix sockets and docker containers
+
+In former sections we described the UDP utilities available at `h2agent`project. But we run them natively. As they are packaged into `h2agent` docker image, they can also be launched as docker containers selecting the appropriate entry point. The only thing to take into account is that the unix socket between UDP server (`udp-server` or `udp-server-h2client`) and client (`udp-client`) must be shared. This can be done through two alternatives:
+
+* Executing client and server within the same container.
+* Executing them in separate containers (recommended as docker best practice "one container - one process").
+
+Taking `udp-server` and `udp-client` as example:
+
+In the **first case**, we will launch the second one (client) in foreground using `docker exec`:
+
+```bash
+$ docker run -d --rm -it --name udp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker exec -it udp /opt/udp-client -k /tmp/udp.sock # in foreground will throw client output
+```
+
+If the client is launched in background (-d) you won't be able to follow process output (`docker logs -f udp` shows server output because it was launched in first place).
+
+In the **second case**, which is the recommended, we need to create an external volume:
+
+```bash
+$ docker volume create --name=socketVolume
+```
+
+And then, we can run the containers in separated shells (or both in background with '-d' because know they have independent docker logs):
+
+```bash
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+```
+
+```bash
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+```
+
+This can also be done with `docker-compose`:
+
+```yaml
+version: '3.3'
+
+volumes:
+  socketVolume:
+    external: true
+
+services:
+  udpServer:
+    image: ghcr.io/testillano/h2agent:latest
+    volumes:
+      - socketVolume:/tmp
+    entrypoint: ["/opt/udp-server"]
+    command: ["-k", "/tmp/udp.sock"]
+
+  udpClient:
+    image: ghcr.io/testillano/h2agent:latest
+    depends_on:
+      - udpServer
+    volumes:
+      - socketVolume:/tmp
+    entrypoint: ["/bin/bash", "-c"] # we can also use bash entrypoint to ease command:
+    command: >
+      "/opt/udp-client -k /tmp/udp.sock"
+```
+
+
+
 ## Execution with TLS support
 
 `H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
 
 ```bash
-$> ls tools/ssl/
+$ ls tools/ssl/
 create_all.sh  create_self-signed_certificate.sh
 ```
 
 Using `create_all.sh`, server key and certificate are created at execution directory:
 
 ```bash
-$> tools/ssl/create_all.sh
+$ tools/ssl/create_all.sh
 tools/ssl/create_all.sh
 + openssl genrsa -des3 -out ca.key 4096
 Generating RSA private key, 4096 bit long modulus (2 primes)
@@ -896,7 +1388,7 @@ Add the following parameters to the agent command-line (appended key password to
 For quick testing, launch unsecured traffic in this way:
 
 ```bash
-$> curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
+$ curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
 HTTP/2 501
 ```
 
@@ -906,15 +1398,36 @@ HTTP/2 501
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#Command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
 
-More information about implemented counters [here](#OAM).
+More information about implemented metrics [here](#OAM).
+To play with grafana automation in `h2agent` project, go to `./tools/grafana` directory and check its [PLAY_GRAFANA.md](./tools/grafana/PLAY_GRAFANA.md) file to learn more about.
 
 ## Traces and printouts
 
 Traces are managed by `syslog` by default, but could be shown verbosely at standard output (`--verbose`) depending on the traces design level and the current level assigned. For example:
 
 ```bash
-$> ./h2agent --verbose &
+$ ./h2agent --verbose &
 [1] 27407
+
+
+88            ad888888b,
+88           d8"     "88                                                     ,d
+88                   a8P                                                     88
+88,dPPYba,        ,d8P"   ,adPPYYba,   ,adPPYb,d8   ,adPPYba,  8b,dPPYba,  MM88MMM
+88P'    "8a     a8P"      ""     `Y8  a8"    `Y88  a8P_____88  88P'   `"8a   88
+88       88   a8P'        ,adPPPPP88  8b       88  8PP"""""""  88       88   88
+88       88  d8"          88,    ,88  "8a,   ,d88  "8b,   ,aa  88       88   88,
+88       88  88888888888  `"8bbdP"Y8   `"YbbdP"Y8   `"Ybbd8"'  88       88   "Y888
+                                       aa,    ,88
+                                        "Y8bbdP"
+
+https://github.com/testillano/h2agent
+
+Quick Start:    https://github.com/testillano/h2agent#quick-start
+Prezi overview: https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/
+ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#questions-and-answers
+
+
 20/11/22 20:53:33 CET: Starting h2agent
 Log level: Warning
 Verbose (stdout): true
@@ -925,9 +1438,7 @@ Traffic server local bind address: 0.0.0.0
 Traffic server local port: 8000
 Traffic server api name: <none>
 Traffic server api version: <none>
-Traffic server threads (nghttp2): 2
 Traffic server worker threads: 1
-Traffic server maximum worker threads: 1
 Traffic server key password: <not provided>
 Traffic server key file: <not provided>
 Traffic server crt file: <not provided>
@@ -962,42 +1473,78 @@ $ kill $!
 
 ## Training
 
-### Play
+### Prepare the environment
 
-Different exercises at `./tools/play-h2agent` are presented and executed like a guided tour:
+#### Working in project checkout
 
-```bash
-$> tool/play-h2agent/play.sh
-```
+##### Requirements
 
-Although this is a moderate set of examples, it will be expanded in the future as new exercises are considered useful to improve understanding of the process. The idea is to present use cases that are as practical and common as possible to avoid overwhelming the reader with information given the immense flexibility of the system and its possibilities.
-
-### Demo
-
-A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
-Just in case you want to test demo procedure health, you can execute in non-interactive mode:
+Some utilities may be required, so please try to install them on your system. For example:
 
 ```bash
-$> INTERACT=false demo/run.sh
-$> echo $?
+$ sudo apt-get install netcat
+$ sudo apt-get install curl
+$ sudo apt-get install jq
+$ sudo apt-get install dos2unix
 ```
 
-### Kata
+##### Starting agent
 
-A kata is available at `./kata` directory. It is designed to guide through a set of exercises with increasing complexity. Check its [README.md](./kata/README.md) file to learn more about.
+Then you may build project images and start the `h2agent` with its docker image:
 
-### Working with docker
+```bash
+$ ./build.sh --auto # builds project images
+$ ./h2a.sh --verbose # starts agent with docker by mean helper script
+```
 
-Sometimes, `github` access restrictions to build the project from scratch could be a handicap. Other times, you could simple prefer to run training stuff isolated.
+Or build native executable and run it from shell:
 
-So you could find useful to run the corresponding docker container using the script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run both `demo` and `kata`. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symlinks, main project executables.
+```bash
+$ ./build-native.sh # builds executable
+$ build/Release/bin/h2agent --verbose # starts executable
+```
+
+#### Working in training container
 
 The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
-$> docker pull ghcr.io/testillano/h2agent_training:<tag>
+$ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
+
 Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
+
+You may also find useful run the training image by mean the helper script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run training resources. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symbolic links, main project executables.
+
+If your are working in the training container, there is no need to build the project neither install requirements commented in previous section, just execute the process in background:
+
+```bash
+bash-5.1# ls -lrt
+total 12
+drwxr-xr-x    5 root     root          4096 Dec 16 20:29 tools
+drwxr-xr-x   12 root     root          4096 Dec 16 20:29 kata
+drwxr-xr-x    2 root     root          4096 Dec 16 20:29 demo
+lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /opt/h2agent
+bash-5.1# ./h2agent --verbose &
+```
+
+### Training resources
+
+#### Questions and answers
+
+A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
+
+#### Play
+
+A playground is available at `./tools/play-h2agent` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/play-h2agent/README.md) file to learn more about.
+
+#### Demo
+
+A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
+
+#### Kata
+
+A kata is available at `./kata` directory. It is designed to guide through a set of exercises with increasing complexity. Check its [README.md](./kata/README.md) file to learn more about.
 
 ## Management interface
 
@@ -1053,7 +1600,7 @@ Loads schema(s) for future event validation. Added schemas could be referenced w
 If you have a `json` schema (from file `schema.json`) and want to build the `h2agent` schema configuration (into file `h2agent_schema.json`), you may perform automations like this *bash script* example:
 
 ```bash
-$> jq --arg id "theSchemaId" '. | { id: $id, schema: . }' schema.json > h2agent_schema.json
+$ jq --arg id "theSchemaId" '. | { id: $id, schema: . }' schema.json > h2agent_schema.json
 ```
 
 Also *python* or any other language could do the job:
@@ -1165,7 +1712,9 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. In any case, load operation is done appending provided data to the current one (in case that the variable already exists). This allows to use global variables as memory buckets, typical when they are managed from transformation steps (within provision context). But this operation is more focused on the use of global variables as constants for the whole execution (although they could be reloaded or reset from provisions, as commented, or even appended by other `POST` operations):
+Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. In any case, load operation is done appending provided data to the current one (in case that the variable already exists). This allows to use global variables as memory buckets, typical when they are managed from transformation steps (within provision context). But this operation is more focused on the use of global variables as constants for the whole execution (although they could be reloaded or reset from provisions, as commented, or even appended by other `POST` operations).
+
+Global variables are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
 #### Request body schema
 
@@ -1395,7 +1944,7 @@ You can swap this algorithm safely keeping the existing provisions without side-
   "properties": {
     "algorithm": {
       "type": "string",
-        "enum": ["FullMatching", "FullMatchingRegexReplace", "PriorityMatchingRegex", "RegexMatching"]
+        "enum": ["FullMatching", "FullMatchingRegexReplace", "RegexMatching"]
     },
     "rgx": {
       "type": "string"
@@ -1438,6 +1987,8 @@ Optional object used to specify the transformation used for traffic classificati
 ##### rgx & fmt
 
 Optional arguments used in `FullMatchingRegexReplace` algorithm.
+Regular expressions used by `h2agent` are based on `std::regex` and built with default `ECMAScript` option type from [available](https://en.cppreference.com/w/cpp/regex/syntax_option_type) ones.
+Also, `std::regex_replace` and `std::regex_match` algorithms use default format (`ECMAScript` [rules](https://262.ecma-international.org/5.1/#sec-15.5.4.11)) from [available](https://en.cppreference.com/w/cpp/regex/match_flag_type) ones.
 
 ##### algorithm
 
@@ -1490,8 +2041,6 @@ So, this `regex-replace` algorithm is flexible enough to cover many possibilitie
 Also, `regex-replace` could act as a virtual *full matching* algorithm when the transformation fails (the result will be the original tested key), because it can be used as a <u>fall back to cover non-strictly matched receptions</u>. The limitation here is when those unmatched receptions have variable parts (it is impossible/unpractical to provision all the possibilities). So, this fall back has sense to provision constant reception keys (fixed and predictable *URIs*), and of course, strict provision keys matching the result of `regex-replace` transformation on their reception keys which does not fit the other fall back ones.
 
 ###### RegexMatching
-
-Deprecates `PriorityMatchingRegex`.
 
 Arguments `rgx`and `fmt` are not used here, so not allowed. Provision keys are in this case, regular expressions to match reception keys. As we cannot search the real key in the provision map, we must check the reception sequentially against the list of regular expressions, and this is done assuming the first match as the valid one. So, this identification algorithm relies in the configured provision order to match the receptions and select the first valid occurrence.
 
@@ -1563,12 +2112,13 @@ Defines the response behavior for an incoming request matching some basic condit
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
         {"required": ["Prepend"]},
-        {"required": ["AppendVar"]},
-        {"required": ["PrependVar"]},
         {"required": ["Sum"]},
         {"required": ["Multiply"]},
         {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]}
+        {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -1587,12 +2137,13 @@ Defines the response behavior for an incoming request matching some basic condit
         },
         "Append": { "type": "string" },
         "Prepend": { "type": "string" },
-        "AppendVar": { "type": "string", "minLength": 1 },
-        "PrependVar": { "type": "string", "minLength": 1 },
         "Sum": { "type": "number" },
         "Multiply": { "type": "number" },
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
-        "EqualTo": { "type": "string" }
+        "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
       }
     }
   },
@@ -1601,10 +2152,12 @@ Defines the response behavior for an incoming request matching some basic condit
 
   "properties": {
     "inState":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "outState":{
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "requestMethod": {
       "type": "string",
@@ -1626,7 +2179,7 @@ Defines the response behavior for an incoming request matching some basic condit
       "type": "integer"
     },
     "responseBody": {
-      "oneOf": [
+      "anyOf": [
         {"type": "object"},
         {"type": "array"},
         {"type": "string"},
@@ -1653,7 +2206,7 @@ Defines the response behavior for an incoming request matching some basic condit
           },
           "target": {
             "type": "string",
-            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+"
+            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
           }
         },
         "additionalProperties" : {
@@ -1676,7 +2229,7 @@ We could label a provision specification to take advantage of internal *FSM* (fi
 
 These arguments are configured by default with the label "**initial**", used by the system when a reception does not match any internal occurrence (as the internal state is unassigned). This conforms a default rotation for further occurrences because the `outState` is again the next `inState`value. It is important to understand that if there is not at least 1 provision with `inState` = "**initial**" the matched occurrences won't never be processed. Also, if the next state configured (`outState` provisioned or transformed) has not a corresponding `inState` value, the flow will be broken/stopped.
 
-So, "**initial**" is a reserved value which is mandatory to debut any kind of provisioned transaction. Remember that an empty string will be also converted to this special state for both `inState` and `outState` fields.
+So, "**initial**" is a reserved value which is mandatory to debut any kind of provisioned transaction. Remember that an empty string will be also converted to this special state for both `inState` and `outState` fields, and character `#` is not allowed (check [this](./docs/developers/AggregatedKeys.md) document for developers).
 
 Important note:
 
@@ -1693,7 +2246,7 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 <u>Important note</u>: match *m* refers to matching key, that is to say: provision `method` and `uri`, but states are linked to real *URIs* received (coincide with match key `uri` for *FullMatching* classification algorithm, but not for others). So, there is a different state machine definition for each specific provision and so, a different current state for each specific events fulfilling such provision (this is much better that limiting the whole mock configuration with a global *FSM*, as for example, some events could fail due to *SUT* bugs and states would evolve different for their corresponding keys). If your mock receives several requests with different *URIs* for an specific test stage name, consider to name their provision states with the same identifier (with the stage name, for example), because different provisions will evolve at the "same time" and those names does not collide because they are different state machines (different matches). This could ease the flow understanding as those requests are received in a known test stage.
 
-<u>Special **purge** state</u>:  stateful scenarios normally require access to former events (available at server data storage) to evolve through different provisions, so disabling server data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that server data related to an event history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
+<u>Special **purge** state</u>: stateful scenarios normally require access to former events (available at server data storage) to evolve through different provisions, so disabling server data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that server data related to an event history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
 
 ##### requestMethod
 
@@ -1795,20 +2348,25 @@ The **source** of information is classified after parsing the following possible
 
 - response.body: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
 
+  As the transformation steps modify this data container, its value as a source is likewise updated.
+
 - response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+
+  As the transformation steps modify this data container, its value as a source is likewise updated.
 
 - request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
 - eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
-  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this.
-  - global variable: the user should remove this kind of variables after last flow usage to avoid memory grow in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
-  - With other kind of targets, eraser acts like setting an empty string.
+  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When the eraser applies to response node root, it just removes response body.
+  - global variable: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
+  - event: we could purge storage events, something that could be necessary to control memory growth in load testing.
+  - with other kind of targets, eraser acts like setting an empty string.
 
 - math.`<expression>`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
 
 - random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
-- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**.
+- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**. Note that both leading and trailing pipes would add empty parts (`'|foo|bar'`, `'foo|bar|'` and `'foo||bar'` become three parts, `'foo'`, `'bar'` and empty string).
 
 - timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
 
@@ -1836,7 +2394,7 @@ The **source** of information is classified after parsing the following possible
   **Important note**: as this source provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may need to be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, you must encode it within the source definition. Consider this one: `/app/v1/stock/madrid?loc=123&id=2`. You could use `./tools/url.sh` script helper to prepare its encoded version:
 
   ```bash
-  $> tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
+  $ tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
 
   Encoded URL:/app/v1/stock/madrid%3Floc%3D123%26id%3D2
   ```
@@ -1973,8 +2531,21 @@ The **target** of information is classified after parsing the following possible
 
 - txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
+  This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP through unix socket target (`udpSocket./tmp/udp.sock`).
+
 - binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
 
+- udpSocket.`<path>[|<milliseconds delay>]` *[string]*: sends source (as string) via UDP datagram through a unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
+
+- serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
+
+  - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
+  - *requestUri*: event *URI* selected. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Optional: if not provided, all the history may be purged.
+
+  This target, as its source counterpart, **admits variables substitution**.
+
+- break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
 
 
 
@@ -2059,7 +2630,7 @@ Filters give you the chance to make complex transformations:
 
 
 
-- Append: this appends the provided information to the source:
+- Append: this appends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json
   {
@@ -2075,9 +2646,11 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
+  The advantage against "value-type source with variables replace", is that we can operate directly any source type without need to store auxiliary variable to be replaced.
 
 
-- Prepend: this prepends the provided information to the source:
+
+- Prepend: this prepends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json
   {
@@ -2093,34 +2666,9 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
+  The advantage against "value-type source with variables replace", is that we can operate directly any source type without need to store auxiliary variable to be replaced.
 
 
-
-- AppendVar: this appends a variable value to the source:
-
-  ```json
-  {
-    "source": "value.I am engineer and my name is ",
-    "target": "var.biography",
-    "filter": { "AppendVar" : "name" }
-  }
-  ```
-
-  In the example above we append the value of variable *name* to a constant-value source, so will have *var.biography="I am engineer and my name is  <value of variable 'name'>"*.
-
-
-
-- PrependVar: this prepends a variable value to the source:
-
-  ```json
-  {
-    "source": "value.. I'm currently working with C++",
-    "target": "var.biography2",
-    "filter": { "PrependVar" : "biography" }
-  }
-  ```
-
-  Taking as reference the previous example variable *biography*, we will prepend it to a new constant-value source, so will have *var.biography2="I am engineer and my name is  <value of variable 'name'>. I'm currently working with C++"*.
 
 - Sum: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
 
@@ -2144,6 +2692,8 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
+  It is not valid to provide algebraic expressions (like 1/3, 2^5, etc.). For more complex operations, you may use the `math` source.
+
 
 
 - Multiply: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):
@@ -2156,34 +2706,62 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  In this example, we operate `-10 * -0.1 = 1`. For more complex operations, you may use the `math` source.
+  In this example, we operate `-10 * -0.1 = 1`. It is not valid to provide algebraic expressions (like 1/3, 2^5, etc.). For more complex operations, you may use the `math` source.
 
 
 
-- ConditionVar: conditional transfer from source to target based in boolean interpretation of the provided variable value. All the variables are strings in origin, and are converted to target selected types, but in this case the string variable value is adapted to boolean result in this way: if the variable is not defined or it is empty, the condition is *false*. It will be *true*  in the rest of cases.
+- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and global variables are searched, giving <u>priority to local ones</u>), which is:
 
-  Note that a variable containing the literal "false" would be interpreted as *true*, and also a `math` transformation for `404==503` which becomes `0.00000` is also interpreted as *true* because it is a non-empty string. Also, <u>variable name can be preceded by exclamation mark (!)  in order to invert the condition</u>: empty or undefined variable becomes *true* and any other *false*.
+  - **False** condition for cases:
+    - <u>Undefined</u> variable.
+    - Defined but <u>empty</u> string.
 
-  This behavior invite to use regular expressions matches as booleans (a target variable stores the source match when using *RegexCapture* filter). for example:
+  - **True** condition for the rest of cases:
+    - Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
+      Also, variable name in `ConditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>.
+
+  Transfer procedure consists in <u>source copy over target</u> only when condition is **true**. To assign another value for **false** condition, you must use the 	inverted variable in another transformation item (no ternary syntax collapsed in single item is available):
 
   ```json
   {
-    "source": "request.body./error",
-    "target": "var.error500",
-    "filter": { "RegexCapture" : "(500)" }
+    "source": "value.value when id is true",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "id" }
   },
   {
-    "source": "value.500",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "error500" }
+    "source": "value.value when id is false",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "!id" }
   }
   ```
 
-  In this example, the request body dictates the responses' status code depending on `json` value (matching `500` or not) received at "*/error*" request body path. Of course there are many ways to set the condition variable depending on the needs, but this one is clear because the `RegexCapture` builds empty variable `error500` when the expected value is not matched, and that complies `ConditionVar` requirements. Now we will describe the `EqualsTo` filter which can be more intuitive than `RegexCapture` to build a condition variable:
+  Normally, we generate condition variables by mean regular expression filters, because non-matched sources skips target assignment (undefined is *false* condition) and matched ones copy the source (matched) into the target (variable) which will be a compliant condition variable (non-empty string is *true* condition):
+
+  ```json
+  {
+    "source": "request.body./must/be/number",
+    "target": "var.isNumber",
+    "filter": { "RegexCapture" : "([0-9]+)" }
+  }
+  ```
+
+  In that example `isNumber` will be undefined (**false** as condition variable) if the request body node value at `/must/be/number` is not a number, and will hold that numeric value, so non-empty value (**true** as condition variable), when it is actually a number (guaranteed by regular expression filter). Then, we can use it as condition variable:
+
+  ```json
+  {
+    "source": "value.number received !",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "isNumber" }
+  }
+  ```
+
+  Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `ConditionVar` filter. The best example are `JsonConstraint` and `SchemaId` filters (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
+
+  There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *EqualTo* and *DifferenFrom*:
 
 
 
-- EqualTo: conditional transfer from source to target based in string comparison with the provided value. The result will be "yes" when source and reference string are the same, and transformation is skipped when differ (variable will be undefined so can be used later as any other `ConditionVar` making matching easier regarding `RegexCapture` which would need complex equivalent regular expressions for them, for example to match `json` content):
+- EqualTo: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**.
 
   ```json
   {
@@ -2192,15 +2770,27 @@ Filters give you the chance to make complex transformations:
     "filter": { "EqualTo" : "{\"foo\":1}" }
   },
   {
-    "source": "value.500",
+    "source": "value.400",
     "target": "response.statusCode",
-    "filter": { "ConditionVar" : "expectedBody" }
+    "filter": { "ConditionVar" : "!expectedBody" }
   }
   ```
 
-  Math library also have the possibility to use functions `like` and `ilike` (case insensitive variant) to compare strings (even allowing wildcards), but the point here is the way to define or not a variable to be used as condition variable.
+  We could also <u>insert the whole condition in the source</u> using for example math library functions `like` and `ilike` (case insensitive variant), having a normalized output ("0": false, "1": true) to compare with filter value:
 
-  In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable:
+  ```json
+  {
+    "source": "math.'@{name1}' ilike 'word'",
+    "target": "var.iequal",
+    "filter": { "EqualTo" : "1" }
+  }
+  ```
+
+  Math library also supports wild-cards for string comparisons and many advanced operations, but normally `RegexCapture` is a better alternative (for example: "`[w|W][o|O][r|R][d|D]`" matches "word" as well as "wOrD" or any other combination) because it is more efficient: math library is always used with dynamic variables, so it needs to be compiled on-the-fly, but regular expressions used in `h2agent` are always compiled at provision stage.
+
+  Perhaps, the only use cases that require math library are those related to numeric comparisons:
+
+  In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable, because it will hold the value "1" or nothing (remember: conditional transfer):
 
   ```json
   {
@@ -2223,9 +2813,169 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
+  We could also generate conditional variables from logical expressions using math library and `EqualTo` filter to normalize the result into a compliant conditional variable:
+
+  ```json
+  {
+    "source": "math.@{A}*@{B}",
+    "filter": { "EqualTo" : "1" },
+    "target": "var.A_and_B"
+  },
+  {
+    "source": "math.max(@{A},@{B})",
+    "filter": { "EqualTo" : "1" },
+    "target": "var.A_or_B"
+  },
+  {
+    "source": "math.abs(@{A}-@{B})",
+    "filter": { "EqualTo" : "1" },
+    "target": "var.A_xor_B"
+  }
+  ```
+
+  Note that `A_xor_B` could be also obtained using source `(@{A}-@{B})^2` or `(@{A}+@{B})%2`.
 
 
-Finally, after possible transformations, we could validate the response body:
+
+- DifferentFrom: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**. Its use is similar to `EqualTo` and complement its logic in case we need to generate the negated variable.
+
+
+
+- JsonConstraint: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
+
+  - If validation **succeed**, the string "1" is stored in selected target.
+  - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended use), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables to detect the validation error.
+
+  ```json
+  {
+    "source": "request.body",
+    "target": "var.expectedBody",
+    "filter": { "JsonConstraint" : {"foo":1} }
+  },
+  {
+    "source": "value.400",
+    "target": "response.statusCode",
+    "filter": { "ConditionVar" : "!expectedBody" }
+  },
+  {
+    "source": "var.expectedBody.fail",
+    "target": "response.body.string",
+    "filter": {
+      "ConditionVar": "expectedBody.fail"
+    }
+  },
+  {
+    "source": "var.expectedBody.fail",
+    "target": "break"
+  }
+  ```
+
+  Validation algorithm consists in object reference restriction over source (which must be an object). So, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does.
+
+  To understand better, imagine the source as the 'received' body, and the json constraint filter object as the 'expected' one, so the restriction is ruled by 'expected' acting as a subset which could miss/ignore nodes actually received without problem (less restrictive), but those ones specified there, must exist and be equal to the ones received.
+
+  Take into account that filter provides an static object where variables search/replace is not possible, so those elements which could be non-trivial should be validated separately, for example:
+
+  ```json
+  {
+    "source":"request.body./here/the/id",
+    "filter": { "EqualTo": "@{id}" },
+    "target": "var.idMatches"
+  }
+  ```
+
+  And finally, we should aggregate condition results related to the event analyzed, to compute a global validation result.
+
+  The amount of transformation items is approximately the same as if we could adapt the json constraint (as we would need items to transfer dynamic data like `id` in the example, to the corresponding object node), indeed it seems more intuitive to use `JsonConstraint` for static references:
+
+  Many times, dynamic values are node keys instead of values, so we could still use `JsonConstraint` if nested information is static/predictable.
+
+  ```json
+  {
+    "source": "request.body./data/@{phone}",
+    "target": "var.expectedPhoneNodeWithinBody",
+    "filter": {
+      "JsonConstraint": {
+        "model": "samsung",
+        "color": "blue"
+      }
+    }
+  }
+  ```
+
+  Often, most of the needed validation documents will be known *a priori* within certain testing conditions, so dynamic validations by mean other filters should be minimized.
+
+  Multiple validations in different tree locations with different filter objects could be chained. Imagine that we received this one:
+
+  ```json
+  {
+    "foo": 1,
+    "timestamp": 1680710820,
+    "data": {
+      "555555555": {
+        "model": "samsung",
+        "color": "blue"
+      }
+    }
+  }
+  ```
+
+  Then, these could be the whole validation logic in our provision:
+
+  ```json
+  {
+    "source": "request.body",
+    "target": "var.rootDataOK",
+    "filter": {
+      "JsonConstraint": {
+        "foo": 1
+      }
+    }
+  },
+  {
+    "source": "request.uri.param.phone",
+    "target": "var.phone"
+  },
+  {
+    "source": "request.body./data/@{phone}",
+    "target": "var.phoneDataOK",
+    "filter": {
+      "JsonConstraint": {
+        "model": "samsung",
+        "color": "blue"
+      }
+    }
+  },
+  {
+    "source": "value.@{rootDataOK}@{phoneDataOK}",
+    "filter": {
+      "EqualTo": "11"
+    },
+    "target": "var.allOK"
+  }
+  ```
+
+  Where the time-stamp received from the client is omitted as unpredictable in the first validation, and the phone (`555555555`), supposed (in the example) to be provided in the request query parameters list, is validated through its nested content against the corresponding request node path (`/data/555555555`).
+
+  To finish, just to remark that a mock server used for functional tests can also be inspected through *REST API*, retrieving any event related data to be externally validated, so we will not need to make complicated provisions to do that internally, or at least we could make a compromise between internal and external validations. The difference is the fact that self-contained provisions could "make the day" against scattered information between those provisions and test orchestrator. Also remember that schema validation is supported, so you could provide an OpenAPI restriction for your project interfaces.
+
+  Provisions identification through method and *URI* is normally enough to decide rejecting with 501 (not implemented), although this can be enforced with `JsonConstraint` filter in order to be more accurate if needed. In the case of load testing, normally we are not so strict in favor of performance regarding flow validations. Definitely, this filter is mainly used to validate responses in client mock mode.
+
+
+
+- SchemaId: performs a `json` schema validation between the source (must be a valid document) and the provided filter which is a registered schema for the given identifier. Same logic than `JsonConstraint` is applied here:
+
+  - If validation **succeed**, the string "1" is stored in selected target.
+
+  - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended use), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables to detect the validation error.
+
+
+
+  Both the `JsonConstraint` and `SchemaId` filters **serve as more specific supplementary validations** to enhance event schemas (request and response validation schemas).
+
+
+
+Finally, after possible transformations, we could validate the response body (although this may be considered overkilling because the mock is expected to build the response according with a known response schema):
 
 ##### responseSchemaId
 
@@ -2303,6 +3053,19 @@ Retrieves all the provisions configured.
 
 Json array document containing all provisioned items, when something is configured (no-content response has no body).
 
+### GET /admin/v1/server-provision/unused
+
+Retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all provisioned items still unused, when something is configured (no-content response has no body).
+
 ### DELETE /admin/v1/server-provision
 
 Deletes the whole process provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
@@ -2370,7 +3133,7 @@ Retrieves the current server internal data (requests received, their states and 
 
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
 
-The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events received for the given `method/uri` combination.
+The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `method/uri` combination.
 
 Both *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *eventNumber* cannot be provided alone as it is an additional filter which selects the history item for the `method/uri` key (the `events` node will contain a single register in this case). So, the *eventNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted. Also, *eventPath* has no sense alone and may be provided together with *eventNumber* because it refers to a path within the selected object for the specific position number described before.
 
@@ -2390,7 +3153,7 @@ Once internally decoded, the request *URI* will be matched against the `uri` <u>
 
 Json array document containing all the selected event items, when something matches (no-content response has no body).
 
-When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their requests arrays are returned.
+When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri* ) together with their events arrays are returned.
 
 Example of whole structure for a unique key (*GET* on '*/app/v1/foo/bar/1?name=test*'):
 
@@ -2520,10 +3283,10 @@ The information collected for a events item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
 * `receptionTimestampUs`: event reception *timestamp*.
-* `state`: working/current state for the event.
+* `state`: working/current state for the event  (provision `outState` or target state modified by transformation filters).
 * `headers`: object containing the list of request headers.
 * `body`: object containing the request body.
-* `previousSate`: original provision state which managed this request.
+* `previousSate`: original provision state which managed this request (provision `inState`).
 * `responseBody`: response which was sent.
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
@@ -2532,7 +3295,7 @@ The information collected for a events item is:
 
 ### GET /admin/v1/server-data/summary?maxKeys=`<number>`
 
-When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the server due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
+When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
 
 #### Response status code
 
@@ -2611,14 +3374,15 @@ By default, created endpoints will connect the defined remote server (except for
   "additionalProperties": false,
   "properties": {
     "id": {
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^#]*$"
     },
     "host": {
       "type": "string"
     },
     "port": {
       "type": "integer",
-      "minimum": 1025,
+      "minimum": 0,
       "maximum": 65536
     },
     "secure": {
@@ -2684,7 +3448,7 @@ Json object document containing client endpoint schema.
 
 ### GET /admin/v1/client-endpoint
 
-Retrieves the current client endpoint configuration. An additional `status` filed will be answered in the response object for every client endpoint indicating the current connection status.
+Retrieves the current client endpoint configuration. An additional `status` field will be answered in the response object for every client endpoint indicating the current connection status.
 
 #### Response status code
 
@@ -2701,6 +3465,729 @@ Deletes the whole process client endpoint configuration. All the established con
 #### Response status code
 
 **200** (OK) or **204** (No Content).
+
+#### Response body
+
+No response body.
+
+### POST /admin/v1/client-provision
+
+Client provisions are a fundamental part of the client mode configuration. Unlike server provisions, they are identified by the mandatory `id` identifier (in server mode, the primary identifier was the `method/uri` key) and the optional `inState` field (which defaults to "initial" when missing). In the client mode, there are no classification algorithms because the provisions are actively triggered through the *REST API*. In client mode, the meaning of `inState` is slightly different and represents the evolution for a given <u>identifier understood as specific test scenario</u>: the state shall transition for each of its stages (`outState` dictates the next provision key to be processed). The rest of the fields, defined by the `json` schema below, are self-explanatory, namely: request body and headers, delay before sending the configured request, allowable timeout to get response, endpoint to connect (which `id` was configured in previous *REST API* section: "client-endpoint"), request and response schemes to validate, etc.
+
+#### Request body schema
+
+`POST` request must comply the following schema:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+
+  "definitions": {
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {"required": ["RegexCapture"]},
+        {"required": ["RegexReplace"]},
+        {"required": ["Append"]},
+        {"required": ["Prepend"]},
+        {"required": ["Sum"]},
+        {"required": ["Multiply"]},
+        {"required": ["ConditionVar"]},
+        {"required": ["EqualTo"]},
+        {"required": ["DifferentFrom"]},
+        {"required": ["JsonConstraint"]},
+        {"required": ["SchemaId"]}
+      ],
+      "properties": {
+        "RegexCapture": { "type": "string" },
+        "RegexReplace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rgx": {
+              "type": "string"
+            },
+            "fmt": {
+              "type": "string"
+            }
+          },
+          "required": [ "rgx", "fmt" ]
+        },
+        "Append": { "type": "string" },
+        "Prepend": { "type": "string" },
+        "Sum": { "type": "number" },
+        "Multiply": { "type": "number" },
+        "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
+        "EqualTo": { "type": "string" },
+        "DifferentFrom": { "type": "string" },
+        "JsonConstraint": { "type": "object" },
+        "SchemaId": { "type": "string" }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+
+  "properties": {
+    "id":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "inState":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "outState":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "endpoint":{
+      "type": "string",
+      "pattern": "^[^#]*$"
+    },
+    "requestMethod": {
+      "type": "string",
+        "enum": ["POST", "GET", "PUT", "DELETE", "HEAD" ]
+    },
+    "requestUri": {
+      "type": "string"
+    },
+    "requestSchemaId": {
+      "type": "string"
+    },
+    "requestHeaders": {
+      "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+    },
+    "requestBody": {
+      "anyOf": [
+        {"type": "object"},
+        {"type": "array"},
+        {"type": "string"},
+        {"type": "integer"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "requestDelayMs": {
+      "type": "integer"
+    },
+    "timeoutMs": {
+      "type": "integer"
+    },
+    "transform" : {
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^request\\.(uri|body(\\..+)?|header\\..+)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
+    },
+    "onResponseTransform" : {
+      "type" : "array",
+      "minItems": 1,
+      "items" : {
+        "type" : "object",
+        "minProperties": 2,
+        "maxProperties": 3,
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+)$|^response\\.(body(\\..+)?|header\\..+|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
+          }
+        },
+        "additionalProperties" : {
+          "$ref" : "#/definitions/filter"
+        },
+        "required": [ "source", "target" ]
+      }
+    },
+    "responseSchemaId": {
+      "type": "string"
+    }
+  },
+  "required": [ "id" ]
+}
+```
+
+**id**
+
+Client provision identifier.
+
+##### inState and outState
+
+As we mentioned above, states here represents scenario stages:
+
+Let's see an example to clarify:
+
+* `id`="*scenario1*", `inState`="*initial*", `outState`="*second*"
+* `id`="*scenario1*", `inState`="*second*", `outState`="*third*"
+* `id`="*scenario1*", `inState`="*third*", `outState`="*purge*"
+
+When *scenario1* is triggered, its current state is searched assuming "initial" when nothing is found in client data storage. So it will be processed and next stage is triggered automatically for the new combination `id` + `outState` when the response is received (timeout is a kind of response but normally user stops the scenario in this case). System test is possible because those stages are replicated by mean different instances of the same scenario evolving separately: this is driven by an internal sequence identifier which is used to calculate real request *method* and *uri*, the ones stored in the data base (this mechanism will be deeply explained later).
+
+The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning.
+
+<u>Special **purge** state</u>: stateful scenarios normally require access to former events (available at client data storage) to evolve through different provisions, so disabling client data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that client data related to an scenario (everything for a given `id` and internal sequence) history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
+
+**endpoint**
+
+Client endpoint identifier.
+
+##### requestMethod
+
+Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
+
+It can be omitted in the provision, but it is mandatory to be available (so it should be created on transformations) when preparing the request to be sent.
+
+##### requestUri
+
+Request *URI* path (percent-encoded). It includes possible query parameters to be replaced during transformations (previous to request sending).
+
+This is normally completed/appended by dynamic sequences in order to configure the final *URI* to be sent (variables or filters can be used to build that *URI*). So, transformation list may built a request *URI* different than provision template value, which will be the one to send and optionally register in client data storage events.
+
+It can be omitted in the provision, but it is mandatory to be available (so it should be created on transformations) when preparing the request to be sent.
+
+##### requestSchemaId
+
+We could optionally validate built request (after transformations) against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+##### requestHeaders
+
+Header fields for the request. For example:
+
+```json
+"requestHeaders":
+{
+  "content-type": "application/json"
+}
+```
+
+##### requestBody
+
+Request body. Currently supported: object (`json` and arrays), string, integer, number, boolean and null types.
+
+##### requestDelayMs
+
+Optional request delay simulation in milliseconds.
+
+##### timeoutMs
+
+Optional timeout for response in milliseconds.
+
+##### transform & onTransformResponse
+
+As in the server mode, we have transformations to be applied, but this time we can transform the context before sending (**onTransform** node), and when the response is received (**onTransformReponse** node).
+
+Items are already known. Most of them are described in the server mock section (server-provision). Here, work in the same way, but there are few new ones: sources *sendseq* and *seq*, targets *request.delayMs*, *request.timeoutMs* and *break*. The `outState` does not support foreign states, and request/response bodies here are swapped with server mode variants (request template is accessed as source and target on request transformation and source on response transformation, and response is accessed as source on response transformation).
+
+New **sources**:
+
+- sendseq: sequence id number increased for every mock sending over specific client endpoint (starts on *1* when the *h2agent* is started).
+
+- seq: sequence id number provided by client provision trigger procedure (we will explain later, the ways to generate a unique value or full range with given rate). This value is accessible for every provision processing and is used to create dynamically things like the final request *URI* sent (containing for example, a session identifier) and probably some parts of the request body content.
+
+
+New **targets**:
+
+- request.delayMs *[unsigned integer]*: simulated delay before sending the request: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- request.timeoutMs *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- break: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis).
+
+##### responseSchemaId
+
+We could optionally validate received responses against a `json` schema. Schemas are identified by string name and configured through [command line](#Command-line) or [REST API](#Management-interface). When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+#### Response status code
+
+**201** (Created) or **400** (Bad Request).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### POST /admin/v1/client-provision (multiple provisions)
+
+Provision of a set of provisions through an array object is allowed. So, instead of launching *N* provisions separately, you could group them as in the following example:
+
+```json
+[
+  {
+    "id": "test1",
+    "endpoint": "myClientEndpoint",
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/stock/madrid?loc=123",
+    "requestBody": {
+      "engine": "tdi",
+      "model": "audi",
+      "year": 2021
+    },
+    "requestHeaders": {
+      "accept": "*/*",
+      "content-length": "52",
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "curl/7.77.0"
+    },
+    "requestDelayMs": 20,
+    "timeoutMs": 2000
+  },
+  {
+    "id": "test2",
+    "endpoint": "myClientEndpoint2",
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/stock/malaga?loc=124",
+    "requestBody": {
+      "engine": "hdi",
+      "model": "peugeot",
+      "year": 2023
+    },
+    "requestHeaders": {
+      "accept": "*/*",
+      "content-length": "52",
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "curl/7.77.0"
+    },
+    "requestDelayMs": 20,
+    "timeoutMs": 2000
+  }
+]
+```
+
+Response status codes and body content follow same criteria than single provisions. A provision set fails with the first failed item, giving a 'pluralized' version of the single provision failed response message although previous valid provisions will be added.
+
+### GET /admin/v1/client-provision/schema
+
+Retrieves the client provision schema.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+Json object document containing client provision schema.
+
+### GET /admin/v1/client-provision
+
+Retrieves all the provisions configured.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all provisioned items, when something is configured (no-content response has no body).
+
+### GET /admin/v1/client-provision/unused
+
+Retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
+
+#### Response status code
+
+**200** (OK) or **204** (No Content).
+
+#### Response body
+
+Json array document containing all provisioned items still unused, when something is configured (no-content response has no body).
+
+### DELETE /admin/v1/client-provision
+
+Deletes the whole process provision. It is useful to clear the configuration if the provisioned data collides between different test cases and need to be reset.
+
+#### Response status code
+
+**200** (OK), **202** (Accepted) or **204** (No Content).
+
+#### Response body
+
+No response body.
+
+### GET /admin/v1/client-provision/`<id>`?inState=`<inState>`&sequenceBegin=`<number>`&sequenceEnd=`<number>`&rps=`<number>`&repeat=`<true|false>` (triggering)
+
+To trigger a client provision, we will use the *GET* method, providing its identifier in the *URI*.
+
+<u>**Work in progress for the following information (at the moment, only single request is implemented, so only functional testing may be driven):**</u>
+
+Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state, that is probably for debugging purposes.
+
+Also, optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200* used for single request sending). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
+
+Each client provision can evolve the range of values independently of others, and triggering process may be stopped (with `rps` zero-valued) and then resumed again with a positive rate. Also repeat mode is stored as part of provision trigger configuration with these defaults: range `[0, 0]`, rate of '0' and repeat 'false'.
+
+*Query parameters:*
+
+* `sequenceBegin`: initial `sequence` variable (non-negative value).
+* `sequenceEnd`: final `sequence` variable (non-negative value).
+* `rps`: rate in requests per second triggered (non-negative value, '0' to stop).
+* `repeat`: range repetition once exhausted (true or false).
+
+So, together with provision information configured, we store dynamic load configuration and state (current `sequence`):
+
+```json
+"dynamics": {
+  "repeat": false,
+  "rps": 1500,
+  "sequence": 2994907,
+  "sequenceBegin": 0,
+  "sequenceEnd": 10000000
+}
+```
+
+*Configuration rules:*
+
+- If no query parameters are provided, single event is triggered for `sequence` value of '0'.
+- Omitted parameter(s) keeps previous value.
+- Provided parameter(s) updates previous value.
+- If both `sequenceBegin` and `sequenceEnd` query parameters are present, a single (when coincide) or multiple list of events are created for each `sequence` value.
+- Whenever `rps` rate is provided, tick period for request sending is updated (stopped with '0').
+- Cycle `repeat` can be updated in any moment, but its effect will be ignored if the range has been completely processed while it was disabled.
+- When the range of sequences is completed (`sequenceEnd` reached), trigger configuration is reset and a new administrative operation will be needed.
+- Several operations could update load parameters, but `sequence` will evolve if complies with range requirements while rate is positive, so operations could have no effect depending on the information provided.
+
+
+
+User may transform sequence value to adapt the test case taking into account that any transformation implemented should be *bijective* towards target set to prevent that values used in the test are repeated or overlapped. For example, we could provide generation range `[0, 99]` to trigger one hundred of *URIs* in the form `/foo/bar/<odd natural numbers>`, just by mean the following transformation item:
+
+```json
+{
+  "source": "math.2*@{sequence} + 1",
+  "filter": { "Prepend": "/foo/bar/" },
+  "target": "request.uri"
+}
+```
+
+Or for example, trigger all the existing values (also even numbers) from `/foo/bar/555000000` to `/foo/bar/555000099`, by mean adding (so padding "in a row") the base number `555000000` to the sequence iterated within the range provided (`[0, 99]`):
+
+```json
+[
+  {
+    "source": "var.sequence",
+    "filter": { "Sum": 555000000 },
+    "target": "var.phone"
+  },
+  {
+    "source": "value./foo/bar/",
+    "filter": { "Append": "@{phone}" },
+    "target": "request.uri"
+  }
+]
+```
+
+Note that, in the first transformation item, we are creating a new variable 'phone' because <u>`sequence` variable is reserved and non-writable as target</u> (a warning log is generated when trying to do this).
+
+Also, note that final transformation item uses constant value for source, but it could also use `request.uri` as a source if client provision configures it as `/foo/bar` within provision template.
+
+And finally, note that we could also solve the previous exercise just providing the real range `[555000000, 555000099]` to the operation, processing directly the last single transformation item shown before but appending variable `sequence` instead of `phone`. This is a kind of decision that implies advantages or drawbacks:
+
+* Using ad-hoc ranges saves and simplifies some steps, but you may remember those ranges as part of your testing administrative operations.
+
+* Using standard range `0..N` needs more transformations but shows the real intention within provision programming which are autonomous and ready for use. So testing automation only need to decide the amount of load (`N`) and could mix other provisions already prepared in the same way, which seems easy to coordinate:
+
+  ```bash
+  for provision in script1 script2 script3; do # parallel test scripts, 5000 iterations at 200 requests per second:
+    curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&rps=200
+  done
+  ```
+
+#### Response status code
+
+**200** (OK), **202** (Accepted), **400** (Bad Request) or **404** (Not Found).
+
+#### Response body
+
+```json
+{
+  "result":"<true or false>",
+  "response":"<additional information>"
+}
+```
+
+### PUT /admin/v1/client-data/configuration?discard=`<true|false>`&discardKeyHistory=`<true|false>`&disablePurge=`<true|false>`
+
+Same explanation done for `server-data` equivalent operation, applies here. Just to know that history events here have a extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure is performed over the specific provision identifier, removing everything registered for any working `state` and for the current processed `sequence` value.
+
+The same agent could manage server and client connections, so you have specific configurations for internal data regarding server or client events, but normally, we shall use only one mode to better separate responsibilities within the testing ecosystem.
+
+#### Response status code
+
+**200** (OK) or **400** (Bad Request).
+
+### GET /admin/v1/client-data/configuration
+
+Retrieve the client data configuration regarding storage behavior for general events and requests history.
+
+#### Response status code
+
+**200** (OK)
+
+#### Response body
+
+For example:
+
+```json
+{
+    "purgeExecution": true,
+    "storeEvents": true,
+    "storeEventsKeyHistory": true
+}
+```
+
+By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
+
+### GET /admin/v1/client-data?clientEndpointId=`<ceid>`&requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`&eventPath=`<path>`
+
+Retrieves the current client internal data (requests sent, their provision identifiers, states and other useful information like timing or global order). By default, the `h2agent` stores the whole history of events (for example requests sent for the same `clientEndpointId`, `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the final sent `uri` normalized</u> (having for example, a better predictable query parameters order during client data events search), not necessarily the `provisioned uri` within the provision template.
+
+<u>Without query parameters</u> (`GET /admin/v1/client-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *clientEndpointId*, *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
+
+`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/responseBody`
+
+The `json` document response shall contain three main nodes: `clientEndpointId`, `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `clientEndpointId/method/uri` combination.
+
+Both *clientEndpointId*, *method* and *uri* shall be provided together (if any of them is missing, a bad request is obtained), and *eventNumber* cannot be provided alone as it is an additional filter which selects the history item for the `clientEndpointId/method/uri` key (the `events` node will contain a single register in this case). So, the *eventNumber* is the history position, **1..N** in chronological order, and **-1..-N** in reverse chronological order (latest one by mean -1 and so on). The zeroed value is not accepted. Also, *eventPath* has no sense alone and may be provided together with *eventNumber* because it refers to a path within the selected object for the specific position number described before.
+
+This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a response schema file to validate incoming responses through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking).
+
+**Important note**: same thing must be considered about request *URI* encoding like in client event source definition: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So, for the request *URI* `/app/v1/foo/bar/1?name=test` we would have (use `./tools/url.sh` helper to encode):
+
+`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
+
+Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
+
+#### Response body
+
+Json array document containing all the selected event items, when something matches (no-content response has no body).
+
+When provided *clientEndpointId*, *method* and *uri*, client data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*clientEndpointId* + *method* + *uri* ) together with their events arrays are returned.
+
+Example of whole structure for a unique key (*POST* on '*/app/v1/stock/madrid?loc=123*' for *'myClientProvision'*):
+
+```json
+[
+  {
+    "clientEndpointId": "myClientEndpoint",
+    "events": [
+      {
+        "clientProvisionId": "test",
+        "clientSequence": 1,
+        "previousState": "initial",
+        "receptionTimestampUs": 1685404454368627,
+        "requestBody": {
+          "engine": "tdi",
+          "model": "audi",
+          "year": 2021
+        },
+        "requestDelayMs": 20,
+        "requestHeaders": {
+          "content-type": "application/json",
+          "user-agent": "curl/7.77.0"
+        },
+        "responseBody": {
+          "bar": 2,
+          "foo": 1
+        },
+        "responseHeaders": {
+          "content-type": "application/json",
+          "date": "Mon, 29 May 2023 23:54:14 GMT"
+        },
+        "responseStatusCode": 200,
+        "sendingTimestampUs": 1685404454368448,
+        "sequence": 0,
+        "state": "road-closed",
+        "timeoutMs": 2000
+      },
+      {
+        "clientProvisionId": "test",
+        "clientSequence": 2,
+        "previousState": "initial",
+        "receptionTimestampUs": 1685404456238974,
+        "requestBody": {
+          "engine": "tdi",
+          "model": "audi",
+          "year": 2021
+        },
+        "requestDelayMs": 20,
+        "requestHeaders": {
+          "content-type": "application/json",
+          "user-agent": "curl/7.77.0"
+        },
+        "responseBody": {
+          "bar": 2,
+          "foo": 1
+        },
+        "responseHeaders": {
+          "content-type": "application/json",
+          "date": "Mon, 29 May 2023 23:54:16 GMT"
+        },
+        "responseStatusCode": 200,
+        "sendingTimestampUs": 1685404456238760,
+        "sequence": 0,
+        "state": "road-closed",
+        "timeoutMs": 2000
+      }
+    ],
+    "method": "POST",
+    "uri": "/app/v1/stock/madrid?loc=123"
+  }
+]
+```
+
+
+Example of single event for a unique key (*POST* on '*/app/v1/stock/madrid?loc=123*') and a *eventNumber* (2):
+
+```json
+{
+  "clientProvisionId": "test",
+  "clientSequence": 2,
+  "previousState": "initial",
+  "receptionTimestampUs": 1685404456238974,
+  "requestBody": {
+    "engine": "tdi",
+    "model": "audi",
+    "year": 2021
+  },
+  "requestDelayMs": 20,
+  "requestHeaders": {
+    "content-type": "application/json",
+    "user-agent": "curl/7.77.0"
+  },
+  "responseBody": {
+    "bar": 2,
+    "foo": 1
+  },
+  "responseHeaders": {
+    "content-type": "application/json",
+    "date": "Mon, 29 May 2023 23:54:16 GMT"
+  },
+  "responseStatusCode": 200,
+  "sendingTimestampUs": 1685404456238760,
+  "sequence": 0,
+  "state": "road-closed",
+  "timeoutMs": 2000
+}
+```
+
+And finally an specific content within single event for unique key (*POST* on '*/app/v1/stock/madrid?loc=123*'), *eventNumber* (2) and a *eventPath* '*/responseBody*':
+
+```json
+{
+  "bar": 2,
+  "foo": 1
+}
+```
+
+
+
+The information collected for a events item is:
+
+* `clientProvisionId`: provision identifier.
+* `clientSequence`: current client monotonically increased sequence for every sending (`1..N`).
+* `sendingTimestampUs`: event sending *timestamp* (request).
+* `receptionTimestampUs`: event reception *timestamp* (response).
+* `state`: working/current state for the event (provision `outState` or target state modified by transformation filters).
+* `requestHeaders`: object containing the list of request headers.
+* `requestBody`: object containing the request body.
+* `previousSate`: original provision state which managed this request (provision `inState`).
+* `responseBody`: response which was received.
+* `requestDelayMs`: delay for outgoing request.
+* `responseStatusCode`: status code which was received.
+* `responseHeaders`: object containing the list of response headers which were received.
+* `sequence`: internal provision sequence.
+* `timeoutMs`: accepted timeout for request response.
+
+### GET /admin/v1/client-data/summary?maxKeys=`<number>`
+
+When a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the client data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of sendings or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of client data summary operation is try to guide the user to narrow and prepare an efficient query.
+
+#### Response status code
+
+**200** (OK).
+
+#### Response body
+
+A `json` object document with some practical information is built:
+
+* `displayedKeys`: the summary could also be too big to be displayed, so query parameter *maxKeys* will limit the number (`amount`) of displayed keys in the whole response. Each key in the `list` is given by the *clientEndpointId*, *method* and *uri*, and also the number of history events (`amount`) is shown.
+* `totalEvents`: total number of events.
+* `totalKeys`: total different keys (clientEndpointId/method/uri) registered.
+
+Take the following `json` as an example:
+
+```json
+{
+  "displayedKeys": {
+    "amount": 3,
+    "list": [
+      {
+        "amount": 2,
+        "clientEndpointId": "myClientEndpointId",
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/1?name=test"
+      },
+      {
+        "amount": 2,
+        "clientEndpointId": "myClientEndpointId",
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/2?name=test"
+      },
+      {
+        "amount": 2,
+        "clientEndpointId": "myClientEndpointId",
+        "method": "GET",
+        "uri": "/app/v1/foo/bar/3?name=test"
+      }
+    ]
+  },
+  "totalEvents": 45000,
+  "totalKeys": 22500
+}
+```
+
+### DELETE /admin/v1/client-data?clientEndpointId=`<ceid>`&requestMethod=`<method>`&requestUri=`<uri>`&eventNumber=`<number>`
+
+Deletes the client data given by query parameters defined in the same way as former *GET* operation. For example:
+
+`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
+
+Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *clientEndpointId*, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
+
+#### Response status code
+
+**200** (OK), **204** (No Content) or **400** (Bad Request).
 
 #### Response body
 
@@ -2753,7 +4240,7 @@ Some [command line](#Command-line) arguments used by the `h2agent` process are f
 As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
 
 ```bash
-$> source ./tools/helpers.src
+$ source ./tools/helpers.src
 
 ===== h2agent operation helpers =====
 Shortcut helpers (sourced variables and functions)
@@ -2774,6 +4261,7 @@ Usage: files [-h|--help]; Gets the files processed.
 Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
                             [--enable-read-cache]  ; Enables cache for read operations.
                             [--disable-read-cache] ; Disables cache for read operations.
+Usage: udp_sockets [-h|--help]; Gets the sockets for UDP processed.
 Usage: configuration [-h|--help]; Gets agent general static configuration.
 
 === Traffic server ===
@@ -2789,10 +4277,12 @@ Usage: server_data_configuration [-h|--help]; Manages agent server data configur
                                  [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached.
                                  [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached.
 
-Usage: server_matching [-h|--help]; Gets/updates current server matching configuration
-                                    (http://localhost:8074/admin/v1/server-matching).
+Usage: server_matching [-h|--help] [file]; Gets/updates current server matching configuration
+                                           (http://localhost:8074/admin/v1/server-matching).
 Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
                                                       (http://localhost:8074/admin/v1/server-provision).
+Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used
+                                                      (http://localhost:8074/admin/v1/server-provision/unused).
 Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
                    [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters.
                                                                    Event number may be negative to access by reverse
@@ -2801,13 +4291,33 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                                                      Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
                                                      selection.
-Usage: server_data_sequence [-h|--help] [value (available values by default)]; Extract server sequence document from json
-                                                                               retrieved in previous server_data() call.
-
+                   [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation.
+                   [--dump]                        ; Dumps all sequences detected for server data under 'server-data-sequences'
+                                                     directory.
 === Traffic client ===
 Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration
                                                      (http://localhost:8074/admin/v1/client-endpoint).
-
+Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration
+                                               (http://localhost:8074/admin/v1/client-provision).
+                                       [file]; Configure client provision by mean json specification.
+                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics
+                                               configuration (omit with empty value):
+                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]
+Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used
+                                            (http://localhost:8074/admin/v1/client-provision/unused).
+Usage: client_data [-h|--help]; Inspects client data events (http://localhost:8074/admin/v1/client-data).
+                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Restricts shown data with given
+                                                                                        positional filters.
+                                                                                        Event number may be negative to
+                                                                                        access by reverse chronological order.
+                   [--summary] [max keys]          ; Gets current client data summary to guide further queries.
+                                                     Displayed keys (client endpoint id/method/uri) could be limited
+                                                     (5 by default, -1: no limit).
+                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
+                                                     the selection.
+                   [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation.
+                   [--dump]                        ; Dumps all sequences detected for client data under 'client-data-sequences'
+                                                     directory.
 === Schemas ===
 Usage: schema_schema [-h|--help]; Gets the schema configuration schema
                                   (http://localhost:8074/admin/v1/schema/schema).
@@ -2819,12 +4329,15 @@ Usage: server_provision_schema [-h|--help]; Gets the server provision configurat
                                             (http://localhost:8074/admin/v1/server-provision/schema).
 Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema
                                            (http://localhost:8074/admin/v1/client-endpoint/schema).
-
+Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema
+                                            (http://localhost:8074/admin/v1/client-provision/schema).
 === Auxiliary ===
-Usage: json [-h|--help]; Beautifies previous operation json response content.
-            [jq expression, '.' by default]; jq filter over previous content.
-            Example filter: schema && json '.[] | select(.id=="myRequestsSchema")'
-            Auto-execution: assign non-empty value to 'BEAUTIFY_JSON'.
+Usage: pretty [-h|--help]; Beautifies json content for last operation response.
+              [jq expression, '.' by default]; jq filter over previous content.
+              Example filter: schema && pretty '.[] | select(.id=="myRequestsSchema")'
+Usage: raw [-h|--help]; Outputs raw json content for last operation response.
+           [jq expression, '.' by default]; jq filter over previous content.
+           Example filter: schema && raw '.[] | select(.id=="myRequestsSchema")'
 Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent
                                                                                                      tracing level.
 Usage: metrics [-h|--help]; Prometheus metrics.
@@ -2841,150 +4354,187 @@ You could use any visualization framework to analyze metrics information from `h
 So, a direct scrape (for example towards the agent after its *component test*) would be something like this:
 
 ```bash
-$> kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "curl http://localhost:8080/metrics"
+$ kubectl exec -it -n ns-ct-h2agent h2agent-55b9bd8d4d-2hj9z -- sh -c "curl http://localhost:8080/metrics"
 ```
 
 On native execution, it is just a simple `curl` native request:
 
 ```bash
-$> curl http://localhost:8080/metrics
+$ curl http://localhost:8080/metrics
 ```
 
-This is an example of metrics snapshot captured after [benchmark test](#Benchmarking-test) execution:
+Metrics implemented could be divided **counters**, **gauges** or **histograms**:
+
+- **Counters**:
+  - Processed requests (successful/errored(service unavailable, method not allowed, method not implemented, wrong api name or version, unsupported media type)/unsent(conection error))
+  - Processed responses (successful/timed-out)
+  - Non provisioned requests
+  - Purged contexts (successful/failed)
+  - File system and Unix sockets operations (successful/failed)
+
+
+- **Gauges and histograms**:
+
+  - Response delay seconds
+  - Message size bytes for receptions
+  - Message size bytes for transmissions
+
+
+
+The metrics naming in this project, includes a family prefix which is the project applications name (`h2agent` or `udp_server_h2client`) and the endpoint category (`traffic_server`, `admin_server`, `traffic_client` for `h2agent`, and empty (as implicit), for `udp-server-h2client`). This convention and the labels provided (`[label] `: source, method, status_code, operation, result), are designed to ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com).
+
+The label ''**source**'': one of these labels is the source of information, which could be optionally dynamic (if `--name` parameter is provided to the applications, so we could have `h2agent` by default, or `h2agentB` to be more specific, although grafana provides the `instance` label anyway), or dynamic anyway for the case of client endpoints, which provisioned names are also part of source label.
+
+In general: `source value = <process name>[_<endpoint identifier>]`, where the endpoint identifier has sense for `h2agent` clients as multiple client endpoints could be provisioned. For example:
+
+* No process name provided:
+
+  * h2agent (traffic_server/admin_server/file_manager/socket_manager, are part of the family name).
+  * h2agent_myClient (traffic_client is part of family name)
+  * udp-server-h2client (we omit endpoint identifier, as unique and implicit in default process name)
+* Process name provided (`--name h2agentB` or `--name udp-server-h2clientB`):
+
+  * h2agentB (traffic_server/admin_server/file_manager/socket_manager, are part of the family name).
+  * h2agentB_myClient (traffic_client is part of family name)
+  * udp-server-h2clientB (we omit endpoint identifier, as unique and <u>should be implicit</u> in process name)
+
+
+
+These are the groups of metrics implemented in the project:
+
+
+
+#### HTTP2 clients
+
+```
+Counters provided by http2comm library:
+
+   h2agent_traffic_client_observed_resquests_sents_counter [source] [method]
+   h2agent_traffic_client_observed_resquests_unsent_counter [source] [method]
+   h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code]
+   h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
+
+Gauges provided by http2comm library:
+
+   h2agent_traffic_client_responses_delay_seconds_gauge [source]
+   h2agent_traffic_client_sent_messages_size_bytes_gauge [source]
+   h2agent_traffic_client_received_messages_size_bytes_gauge [source]
+
+Histograms provided by http2comm library:
+
+   h2agent_traffic_client_responses_delay_seconds [source]
+   h2agent_traffic_client_sent_messages_size_bytes [source]
+   h2agent_traffic_client_received_messages_size_bytes [source]
+```
+
+
+
+As commented, same metrics described above, are also generated for the other application 'udp-server-h2client':
+
+
+
+```
+Counters provided by http2comm library:
+
+   udp_server_h2client_observed_resquests_sents_counter [source] [method]
+   udp_server_h2client_observed_resquests_unsent_counter [source] [method]
+   udp_server_h2client_observed_responses_received_counter [source] [method] [status_code]
+   udp_server_h2client_observed_responses_timedout_counter [source] [method]
+
+Gauges provided by http2comm library:
+
+   udp_server_h2client_responses_delay_seconds_gauge [source]
+   udp_server_h2client_sent_messages_size_bytes_gauge [source]
+   udp_server_h2client_received_messages_size_bytes_gauge [source]
+
+Histograms provided by http2comm library:
+
+   udp_server_h2client_responses_delay_seconds [source]
+   udp_server_h2client_sent_messages_size_bytes [source]
+   udp_server_h2client_received_messages_size_bytes [source]
+```
+
+
+
+Examples:
 
 ```bash
-$> source ./tools/helpers.src
-...
-$> metrics
-# HELP exposer_transferred_bytes_total Transferred bytes to metrics services
-# TYPE exposer_transferred_bytes_total counter
-exposer_transferred_bytes_total 6715
-# HELP exposer_scrapes_total Number of times metrics were scraped
-# TYPE exposer_scrapes_total counter
-exposer_scrapes_total 1
-# HELP exposer_request_latencies Latencies of serving scrape requests, in microseconds
-# TYPE exposer_request_latencies summary
-exposer_request_latencies_count 1
-exposer_request_latencies_sum 124
-exposer_request_latencies{quantile="0.5"} Nan
-exposer_request_latencies{quantile="0.9"} Nan
-exposer_request_latencies{quantile="0.99"} Nan
-# HELP AdminHttp2Server_observed_requests_total Http2 total requests observed in AdminHttp2Server
-# TYPE AdminHttp2Server_observed_requests_total counter
-AdminHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="GET",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="other",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="PUT",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="HEAD"} 0
-AdminHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="POST",success="false"} 0
-AdminHttp2Server_observed_requests_total{method="other"} 0
-AdminHttp2Server_observed_requests_total{method="DELETE"} 1
-AdminHttp2Server_observed_requests_total{method="PUT"} 2
-AdminHttp2Server_observed_requests_total{method="GET"} 2
-AdminHttp2Server_observed_requests_total{method="POST"} 3
-# HELP MockHttp2Server_observed_requests_total Http2 total requests observed in MockHttp2Server
-# TYPE MockHttp2Server_observed_requests_total counter
-MockHttp2Server_observed_requests_total{method="HEAD",success="false"} 0
-MockHttp2Server_observed_requests_total{method="GET",success="false"} 0
-MockHttp2Server_observed_requests_total{method="other",success="false"} 0
-MockHttp2Server_observed_requests_total{method="PUT",success="false"} 0
-MockHttp2Server_observed_requests_total{method="HEAD"} 0
-MockHttp2Server_observed_requests_total{method="DELETE",success="false"} 0
-MockHttp2Server_observed_requests_total{method="POST",success="false"} 0
-MockHttp2Server_observed_requests_total{method="other"} 0
-MockHttp2Server_observed_requests_total{method="DELETE"} 0
-MockHttp2Server_observed_requests_total{method="PUT"} 0
-MockHttp2Server_observed_requests_total{method="GET"} 0
-MockHttp2Server_observed_requests_total{method="POST"} 100000
-# HELP ServerData_observed_requests_total Http2 total requests observed in h2agent server
-# TYPE ServerData_observed_requests_total counter
-ServerData_observed_requests_total{result="unprovisioned"} 0
-ServerData_observed_requests_total{result="processed"} 100000
-# HELP ServerData_purged_contexts_total Total contexts purged in h2agent server
-# TYPE ServerData_purged_contexts_total counter
-ServerData_purged_contexts_total{result="failed"} 0
-ServerData_purged_contexts_total{result="successful"} 0
-# HELP FileSystem_observed_operations_total H2agent file system operations
-# TYPE FileSystem_observed_operations_total counter
-FileSystem_observed_operations_total{operation="open",success="false"} 0
-FileSystem_observed_operations_total{operation="instantClose"} 0
-FileSystem_observed_operations_total{operation="delayedClose"} 100000
-FileSystem_observed_operations_total{operation="write"} 100000
-FileSystem_observed_operations_total{operation="close"} 1
-FileSystem_observed_operations_total{operation="empty"} 0
-FileSystem_observed_operations_total{operation="open"} 1
-# HELP AdminHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in AdminHttp2Server
-# TYPE AdminHttp2Server_responses_delay_seconds_gauge gauge
-AdminHttp2Server_responses_delay_seconds_gauge 7.2e-05
-# HELP AdminHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in AdminHttp2Server
-# TYPE AdminHttp2Server_messages_size_bytes_gauge gauge
-AdminHttp2Server_messages_size_bytes_gauge{direction="tx"} 104
-AdminHttp2Server_messages_size_bytes_gauge{direction="rx"} 81
-# HELP MockHttp2Server_responses_delay_seconds_gauge Http2 message responses delay gauge (seconds) in MockHttp2Server
-# TYPE MockHttp2Server_responses_delay_seconds_gauge gauge
-MockHttp2Server_responses_delay_seconds_gauge 0.000132
-# HELP MockHttp2Server_messages_size_bytes_gauge Http2 message sizes gauge (bytes) in MockHttp2Server
-# TYPE MockHttp2Server_messages_size_bytes_gauge gauge
-MockHttp2Server_messages_size_bytes_gauge{direction="tx"} 1073
-MockHttp2Server_messages_size_bytes_gauge{direction="rx"} 177
-# HELP AdminHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in AdminHttp2Server
-# TYPE AdminHttp2Server_responses_delay_seconds_histogram histogram
-AdminHttp2Server_responses_delay_seconds_histogram_count 8
-AdminHttp2Server_responses_delay_seconds_histogram_sum 0.0007709999999999999
-AdminHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 8
-# HELP AdminHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in AdminHttp2Server
-# TYPE AdminHttp2Server_messages_size_bytes_histogram histogram
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 8
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 450
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 8
-AdminHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 8
-AdminHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 2167
-AdminHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 8
-# HELP MockHttp2Server_responses_delay_seconds_histogram Http2 message responses delay (seconds) in MockHttp2Server
-# TYPE MockHttp2Server_responses_delay_seconds_histogram histogram
-MockHttp2Server_responses_delay_seconds_histogram_count 100000
-MockHttp2Server_responses_delay_seconds_histogram_sum 28.36501700000122
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0001"} 2177
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0002"} 13031
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0003"} 58585
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0004"} 96855
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.0005"} 99607
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.001"} 99893
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.005"} 99999
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.01"} 100000
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="0.02"} 100000
-MockHttp2Server_responses_delay_seconds_histogram_bucket{le="+Inf"} 100000
-# HELP MockHttp2Server_messages_size_bytes_histogram Http2 message sizes (bytes) in MockHttp2Server
-# TYPE MockHttp2Server_messages_size_bytes_histogram histogram
-MockHttp2Server_messages_size_bytes_histogram_count{direction="tx"} 100000
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="tx"} 107300000
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="tx",le="+Inf"} 100000
-MockHttp2Server_messages_size_bytes_histogram_count{direction="rx"} 100000
-MockHttp2Server_messages_size_bytes_histogram_sum{direction="rx"} 17700000
-MockHttp2Server_messages_size_bytes_histogram_bucket{direction="rx",le="+Inf"} 100000
+udp_server_h2client_responses_delay_seconds_bucket{source="udp_server_h2client",le="0.0001"} 21835
+h2agent_traffic_client_observed_responses_timedout_counter{source="http2proxy_myClient"} 134
+h2agent_traffic_client_observed_responses_received_counter{source="h2agent_myClient"} 9776
 ```
 
-So, metrics implemented could be divided in two categories, **counters** and **gauges/histograms**. Note that interface type is separated to better understand (i.e. `AdminHttp2Server_observed_requests_total` vs `MockHttp2Server_observed_requests_total`):
+Note that 'histogram' is not part of histograms' category metrics name suffix (as counters and gauges do). The reason is to avoid confusion because metrics created are not actually histogram containers (except bucket). So, 'sum' and 'count' can be used to represent latencies, but not directly as histograms but doing some intermediate calculations:
 
-#### Counters
+```bash
+rate(h2agent_traffic_client_responses_delay_seconds_sum[2m])/rate(h2agent_traffic_client_responses_delay_seconds_count[2m])
+```
 
-- Processed requests
-- Non provisioned requests
-- Purged contexts (successful/failed)
-- POST requests
-- GET requests
-- PUT requests
-- DELETE requests
-- HEAD requests
-- <other> requests
-- Error-condition requests (POST/GET/PUT/DELETE/HEAD/other)
+So, previous expression (rate is the mean variation in given time interval) is better without 'histogram' in the names, and helps to represent the latency updated in real time (every 2 minutes in the example).
 
-#### Gauges and histograms
+#### HTTP2 servers
 
-- Response delay seconds
-- Message size bytes for receptions (Rx)
-- Message size bytes for transmissions (Tx)
+We have two groups of server metrics. One for administrative operations (1 administrative server interface) and one for traffic events (1 traffic server interface):
+
+```
+Counters provided by http2comm library and h2agent itself(*):
+
+   h2agent_[traffic|admin]_server_observed_resquests_accepted_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_resquests_errored_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code]
+   h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
+   h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
+
+Gauges provided by http2comm library:
+
+   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source]
+
+Histograms provided by http2comm library:
+
+   h2agent_[traffic|admin]_server_responses_delay_seconds [source]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes [source]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source]
+```
+
+For example:
+
+```bash
+h2agent_traffic_server_received_messages_size_bytes_bucket{source="myServer"} 38
+h2agent_traffic_server_provisioned_requests_counter{source="h2agent",result="failed"} 234
+h2agent_traffic_server_purged_contexts_counter{source="h2agent",result="successful"} 2361
+```
+
+#### File system
+
+```
+Counters provided by h2agent:
+
+   h2agent_file_manager_operations_counter [source] [operation: open/close/write/empty/delayedClose/instantClose] [result: successful/failed]
+```
+
+For example:
+
+```bash
+h2agent_file_manager_operations_counter{source="h2agent",operation="open",result="failed"} 0
+```
+
+#### UDP via sockets
+
+```
+Counters provided by h2agent:
+
+   h2agent_socket_manager_operations_counter [source] [operation: open/write/delayedWrite/instantWrite] [result: successful/failed]
+```
+
+For example:
+
+```bash
+h2agent_socket_manager_operations_counter{source="myServer",operation="write",result="successful"} 25533
+```
+
+
 
 ## Contributing
 

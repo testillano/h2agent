@@ -1,6 +1,6 @@
 import pytest
 import json
-import time
+#import time
 from conftest import ADMIN_FILES_URI, string2dict, FILE_MANAGER_PROVISION
 
 
@@ -26,7 +26,7 @@ def test_001_i_want_to_get_process_files(h2ac_admin, admin_server_provision, h2a
 #  # Wait 2 seconds (long-term file closes in 1 second by default)
 #  time.sleep(2)
 #
-  # Check file
+  # Check files json
   response = h2ac_admin.get(ADMIN_FILES_URI)
   responseBodyRef = [{ "bytes":5, "path": "/tmp/example.txt", "state": "closed" }]
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)

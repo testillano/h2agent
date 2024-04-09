@@ -39,22 +39,37 @@ SOFTWARE.
 #include <mutex>
 #include <shared_mutex>
 
+#include <ert/metrics/Metrics.hpp>
+
+#define DEFAULT_ADMIN_PROVISION_STATE "initial"
+#define DEFAULT_ADMIN_PROVISION_CLIENT_OUT_STATE "road-closed"
+
 
 namespace h2agent
 {
 namespace model
 {
 
+class AdminData;
 class Configuration;
 class GlobalVariable;
 class FileManager;
-class MockServerEventsData;
+class SocketManager;
+class MockServerData;
+class MockClientData;
 
 typedef struct {
+    AdminData *AdminDataPtr;
     Configuration *ConfigurationPtr;
     GlobalVariable *GlobalVariablePtr;
     FileManager *FileManagerPtr;
-    MockServerEventsData *MockServerEventsDataPtr;
+    SocketManager *SocketManagerPtr;
+    MockServerData *MockServerDataPtr;
+    MockClientData *MockClientDataPtr;
+    ert::metrics::Metrics *MetricsPtr;
+    ert::metrics::bucket_boundaries_t ResponseDelaySecondsHistogramBucketBoundaries;
+    ert::metrics::bucket_boundaries_t MessageSizeBytesHistogramBucketBoundaries;
+    std::string ApplicationName;
 
 } common_resources_t;
 
