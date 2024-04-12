@@ -13,7 +13,7 @@ read base_os
 
 # Build debug target:
 bargs="--build-arg base_os=${base_os}"
-bargs+=" --build-arg img_tag=latest"
+bargs+=" --build-arg base_tag=latest"
 
 # OpenAI Questions & Answers:
 echo "Do you want to install 'OpenAI Q&A helper' dependencies (y/n) ? [y]:"

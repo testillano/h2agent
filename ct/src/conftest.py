@@ -144,7 +144,7 @@ class RestClient(object):
     """A client helper to perform rest operations: GET, POST.
 
     Attributes:
-        endpoint: server endpoint to make the HTTP2.0 connection
+        endpoint: server endpoint to make the HTTP/2.0 connection
     """
 
     def __init__(self, endpoint):

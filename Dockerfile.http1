@@ -1,0 +1,25 @@
+ARG base_tag=latest
+FROM ghcr.io/testillano/h2agent:${base_tag}
+MAINTAINER testillano
+
+LABEL testillano.h2agent_http1.description="Docker image for h2agent service with HTTP/1 support"
+
+ARG base_os=ubuntu
+RUN if [ "${base_os}" = "alpine" ] ; then apk add nghttp2 && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get install -y nghttp2 && apt-get clean ; fi
+
+# Port 8001 is used for HTTP/1 proxy
+RUN printf %b "#!/bin/sh\n\
+/opt/h2agent \$@ &\n\
+cat << EOF > /etc/nghttpx/nghttpx.conf\n\
+frontend=0.0.0.0,8001;no-tls\n\
+backend=0.0.0.0,8000;;proto=h2\n\
+http2-proxy=no\n\
+EOF\n\
+nghttpx --host-rewrite --no-server-rewrite --no-add-x-forwarded-proto # --log-level=INFO --no-via\n\
+echo \"Exiting h2agent entrypoint\"" > /var/starter.sh
+
+RUN chmod a+x /var/starter.sh
+
+ENTRYPOINT ["sh", "/var/starter.sh" ]
+
+CMD []

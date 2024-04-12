@@ -1,5 +1,5 @@
-ARG img_tag=latest
-FROM ghcr.io/testillano/h2agent:${img_tag}
+ARG base_tag=latest
+FROM ghcr.io/testillano/h2agent:${base_tag}
 MAINTAINER testillano
 
 LABEL testillano.h2agent.description="Docker image for h2agent service for training"

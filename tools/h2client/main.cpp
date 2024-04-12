@@ -3,7 +3,7 @@
 |   _     ___      _ _            _    |
 |  | |   |__ \    | (_)          | |   |
 |  | |__    ) |___| |_  ___ _ __ | |_  |
-|  | '_ \  / // __| | |/ _ \ '_ \| __| |  HTTP2 SIMPLE CLIENT HELPER UTILITY
+|  | '_ \  / // __| | |/ _ \ '_ \| __| |  HTTP/2 SIMPLE CLIENT HELPER UTILITY
 |  | | | |/ /| (__| | |  __/ | | | |_  |  Version 0.0.z
 |  |_| |_|____\___|_|_|\___|_| |_|\__| |  https://github.com/testillano/http2comm (tools/h2client)
 |______________________________________|

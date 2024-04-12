@@ -121,7 +121,19 @@ jobs:
         file: Dockerfile.training
         build-args: |
           base_os=ubuntu
-          img_tag=local
+          base_tag=local
+        context: .
+        push: true
+    -
+      name: Build local project http1 image
+      id: docker_build5
+      uses: docker/build-push-action@v2
+      with:
+        tags: ghcr.io/testillano/h2agent_http1:local
+        file: Dockerfile.http1
+        build-args: |
+          base_os=ubuntu
+          base_tag=local
         context: .
         push: true
     -
@@ -147,7 +159,7 @@ jobs:
         logout: true
     -
       name: Build and push coverage image
-      id: docker_build5
+      id: docker_build6
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
@@ -222,7 +234,7 @@ jobs:
 
         for hub in docker.io ghcr.io
         do
-          for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
+          for imgbn in h2agent_builder h2agent h2agent_http1 ct-h2agent h2agent_training
           do
             echo "Push '${imgbn}' local image from 'ghcr.io' hub"
             docker pull ghcr.io/testillano/${imgbn}:local
