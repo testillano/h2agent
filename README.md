@@ -7,7 +7,7 @@
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
-`H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
+`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1 is supported via `nghttpx` reverse proxy).
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
 It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
@@ -133,7 +133,7 @@ When developing a network service, one often needs to integrate it with other se
 
 `H2agent` can be used to replace one (or many) of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
-`H2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
+`H2agent` supports HTTP/2 as a network protocol (also HTTP/1 via proxy) and JSON as a data interchange language.
 
 So, `h2agent` could be used as:
 
@@ -159,13 +159,13 @@ $ ./build.sh --auto
 
 The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
 
-* Run <u>project image</u> with docker (`./h2a.sh` script at root directory can also be used):
+* Run <u>h2agent project image</u> with docker (`./run.sh` script at root directory can also be used):
 
   ```bash
   $ docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
   ```
 
-  Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080).
+  Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080), but of course you could configure your own externals.
   You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
@@ -187,6 +187,18 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   -or-
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
+
+* Run <u>h2agent_http1 project image</u> with docker (`HTTP1_ENABLED=yes ./run.sh` script at root directory can also be used):
+
+  ```bash
+  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent_http1:latest
+  ```
+
+  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is now a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features.
+
+  We prefer to generate a specific docker image variant for HTTP/1 (`h2agent_http1`) since the proxy could introduce additional latency, so if we only require HTTP/2 it doesn't make sense to consolidate that proxy layer within `h2agent` project image.
+
+  In any case, if you want to run `h2agent` out of docker container and then set the `nghttpx` proxy to provide HTTP/1 support, you may take as reference the `Dockerfile.http1` file where this proxy is configured.
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
@@ -1494,7 +1506,12 @@ Then you may build project images and start the `h2agent` with its docker image:
 
 ```bash
 $ ./build.sh --auto # builds project images
-$ ./h2a.sh --verbose # starts agent with docker by mean helper script
+$ ./run.sh --verbose # starts agent with docker by mean helper script
+```
+Also HTTP/1 support could be achieved using `h2agent_http1` image by mean the appropriate prepend:
+
+```bash
+$ HTTP1_ENABLED=yes ./run.sh --verbose # HTTP/1 support on port 8001 by default
 ```
 
 Or build native executable and run it from shell:
@@ -4404,7 +4421,7 @@ These are the groups of metrics implemented in the project:
 
 
 
-#### HTTP2 clients
+#### HTTP/2 clients
 
 ```
 Counters provided by http2comm library:
@@ -4472,7 +4489,7 @@ rate(h2agent_traffic_client_responses_delay_seconds_sum[2m])/rate(h2agent_traffi
 
 So, previous expression (rate is the mean variation in given time interval) is better without 'histogram' in the names, and helps to represent the latency updated in real time (every 2 minutes in the example).
 
-#### HTTP2 servers
+#### HTTP/2 servers
 
 We have two groups of server metrics. One for administrative operations (1 administrative server interface) and one for traffic events (1 traffic server interface):
 
