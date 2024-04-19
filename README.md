@@ -194,11 +194,12 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent_http1:latest
   ```
 
-  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is now a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features.
+  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
 
   We prefer to generate a specific docker image variant for HTTP/1 (`h2agent_http1`) since the proxy could introduce additional latency, so if we only require HTTP/2 it doesn't make sense to consolidate that proxy layer within `h2agent` project image.
 
   In any case, if you want to run `h2agent` out of docker container and then set the `nghttpx` proxy to provide HTTP/1 support, you may take as reference the `Dockerfile.http1` file where this proxy is configured.
+  This image is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
@@ -4305,7 +4306,7 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                                                                    Event number may be negative to access by reverse
                                                                    chronological order.
                    [--summary] [max keys]          ; Gets current server data summary to guide further queries.
-                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
+                                                     Displayed keys (method/uri) could be limited (10 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
                                                      selection.
                    [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation.
@@ -4329,7 +4330,7 @@ Usage: client_data [-h|--help]; Inspects client data events (http://localhost:80
                                                                                         access by reverse chronological order.
                    [--summary] [max keys]          ; Gets current client data summary to guide further queries.
                                                      Displayed keys (client endpoint id/method/uri) could be limited
-                                                     (5 by default, -1: no limit).
+                                                     (10 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
                                                      the selection.
                    [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation.
