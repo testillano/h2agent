@@ -54,7 +54,7 @@ service:
   prometheus_port: 8080
 
   #type: NodePort
-  #(node ports range [30000, 32767])
+  #(fixed node ports range [30000, 32767])
   #traffic_nodePort: 30000
   #admin_nodePort: 30074
   #prometheus_nodePort: 30080

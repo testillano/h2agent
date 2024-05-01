@@ -76,10 +76,10 @@
       },
       {
         "source": "value.@{usecs}\n",
-        "target": "txtFile.__PROVISION_LONG_TERM_LOGFILE__"
+        "target": "txtFile./tmp/h2agent_benchmark_timestamp_usecs.log"
       },
       {
-        "source": "txtFile.__SOURCE_FILE__",
+        "source": "txtFile./etc/group",
         "target": "response.body.json.string./sourceFileContent"
       }
     ]

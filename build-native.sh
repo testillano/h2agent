@@ -14,7 +14,7 @@ STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57
 # Dependencies
 nghttp2_ver=1.51.0
 boost_ver=1.84.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
-ert_nghttp2_ver=v1.2.3 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
+ert_nghttp2_ver=v1.2.4 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
 ert_logger_ver=v1.1.0
 ert_queuedispatcher_ver=v1.0.3
 jupp0r_prometheuscpp_ver=v0.13.0
