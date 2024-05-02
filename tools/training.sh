@@ -16,10 +16,10 @@ bargs="--build-arg base_os=${base_os}"
 bargs+=" --build-arg base_tag=latest"
 
 # OpenAI Questions & Answers:
-echo "Do you want to install 'OpenAI Q&A helper' dependencies (y/n) ? [y]:"
+echo "Do you want to install 'OpenAI Q&A helper' dependencies (y/n) ? [n]:"
 echo " (warning: image size would be increased from 250MB to more than 8GB !)"
 read opt
-[ -z "${opt}" ] && opt=y
+[ -z "${opt}" ] && opt=n
 qa=false
 [ "${opt}" = "y" ] && qa=true
 bargs+=" --build-arg enable_qa=${qa}"

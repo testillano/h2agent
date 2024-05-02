@@ -10,7 +10,7 @@ COPY kata /home/h2agent/kata
 WORKDIR /home/h2agent/
 
 ARG base_os=ubuntu
-ARG enable_qa=true
+ARG enable_qa=false
 
 # Update packages
 RUN if [ "${base_os}" = "alpine" ] ; then apk update ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update ; fi
