@@ -453,9 +453,9 @@ public:
     // Process reception
     void process() {
         // Send the request:
-        auto start = std::chrono::high_resolution_clock::now();
+        //auto start = std::chrono::high_resolution_clock::now();
         ert::http2comm::Http2Client::response response = client_->send(getMethod(), getPath(), getBody(), getHeaders(), std::chrono::milliseconds(getMillisecondsTimeout()));
-        auto end = std::chrono::high_resolution_clock::now();
+        //auto end = std::chrono::high_resolution_clock::now();
 
         // Log debug the response, and store status codes statistics:
         int status = response.statusCode;
@@ -845,7 +845,7 @@ int main(int argc, char* argv[])
 
         // exit condition:
         if (udpData == "EOF") {
-            std::cout<<  '\n' << "Existing (EOF received) !" << '\n';
+            std::cout<<  '\n' << "Exiting (EOF received) !" << '\n';
             break;
         }
         else if (udpData == "STATS") {

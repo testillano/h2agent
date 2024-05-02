@@ -211,7 +211,7 @@ int main(int argc, char* argv[])
 
         // exit condition:
         if (udpData == "EOF") {
-            std::cout<<  '\n' << "Existing (EOF received) !" << '\n';
+            std::cout<<  '\n' << "Exiting (EOF received) !" << '\n';
             break;
         }
         else {

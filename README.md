@@ -1060,7 +1060,7 @@ ___________________________________ _______________ ____________________________
 2023-08-02 19:16:37.340441 GMT      2               555000001
 2023-08-02 19:16:38.340656 GMT      3               555000002
 
-Existing (EOF received) !
+Exiting (EOF received) !
 ```
 
 ## Execution of udp-server-h2client utility
@@ -1072,7 +1072,7 @@ You can also use netcat in bash, to generate messages easily:
 echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
 ```
 
-The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for ever UDP reception.
+The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for every UDP reception.
 This makes possible coordinate actions between `h2agent` acting as a server, to create outgoing requests linked to its receptions through the UDP channel served in this external tool.
 Powerful parsing capabilities allow to create any kind of request dynamically using patterns `@{udp[.n]}` for uri, headers and body configured.
 Prometheus metrics are also available to measure the HTTP/2 performance towards the remote server (check it by mean, for example: `curl http://0.0.0.0:8081/metrics`).
@@ -1215,7 +1215,7 @@ ___________________________________ _______________ ____________________________
 2023-08-02 19:16:37.340441 GMT      2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 2023-08-02 19:16:38.340656 GMT      3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 
-Existing (EOF received) !
+Exiting (EOF received) !
 
 status codes: 3 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 ```

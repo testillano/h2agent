@@ -387,7 +387,7 @@ int main(int argc, char* argv[])
 
         // exit condition:
         if (initialValue + sequence > finalValue) {
-            std::cout << '\n' << "Existing (range covered) !" << '\n';
+            std::cout << '\n' << "Exiting (range covered) !" << '\n';
             break;
         }
         else {
