@@ -94,7 +94,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Final value for datagram. Defaults to unlimited.\n\n"
 
        << "[--template <value>]\n"
-       << "  Template to build UDP datagram (patterns '@{seq}' and '@{seq<+|-><integer>}'\n"
+       << "  Template to build UDP datagram (patterns '@{seq}' and '@{seq[<+|-><integer>]}'\n"
        << "  will be replaced by sequence number and shifted sequences respectively).\n"
        << "  Defaults to '@{seq}'.\n"
        << "  This parameter can occur multiple times to create a random set. For example,\n"
