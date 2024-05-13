@@ -49,6 +49,7 @@ SOFTWARE.
 #include <thread>
 #include <chrono>
 #include <regex>
+#include <map>
 
 #include <ert/tracing/Logger.hpp> // getLocaltime()
 
@@ -92,11 +93,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-f|--final <value>]\n"
        << "  Final value for datagram. Defaults to unlimited.\n\n"
 
-       << "[--pattern <value>]\n"
-       << "  Pattern to build UDP datagram (reserved @{seq} is replaced by sequence number).\n"
-       << "  Defaults to '@{seq}'. This parameter can occur multiple times to create a random\n"
-       << "  set. For example, passing '--pattern foo --pattern foo --pattern bar', there is a\n"
-       << "  probability of 2/3 to select 'foo' and 1/3 to select 'bar'.\n\n"
+       << "[--template <value>]\n"
+       << "  Template to build UDP datagram (patterns '@{seq}' and '@{seq<+|-><integer>}'\n"
+       << "  will be replaced by sequence number and shifted sequences respectively).\n"
+       << "  Defaults to '@{seq}'.\n"
+       << "  This parameter can occur multiple times to create a random set. For example,\n"
+       << "  passing '--template foo --template foo --template bar', there is a probability of\n"
+       << "  2/3 to select 'foo' and 1/3 to select 'bar'.\n\n"
 
        << "[-e|--print-each <value>]\n"
        << "  Print messages each specific amount (must be positive). Defaults to 1.\n\n"
@@ -105,8 +108,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  This help.\n\n"
 
        << "Examples: " << '\n'
-       << "   " << progname << " --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --pattern \"foo/bar/@{seq}\"\n"
-       << "   " << progname << " --udp-socket-path /tmp/udp.sock --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server\n\n"
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template \"foo/bar/@{seq}\"\n"
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template \"@{seq}|@{seq-8000}\"\n"
+       << "   " << progname << " --udp-socket-path /tmp/udp.sock --final 0 --template STATS # sends 1 single datagram 'STATS' to the server\n\n"
 
        << "To stop the process, just interrupt it.\n"
 
@@ -193,7 +197,7 @@ int main(int argc, char* argv[])
     std::string udpSocketPath{};
     unsigned long long int initialValue{};
     unsigned long long int finalValue = std::numeric_limits<unsigned long long>::max();
-    std::vector<std::string> patterns{};
+    std::vector<std::string> templates{};
     double eps = 1.0;
     int rampupSeconds = 0;
 
@@ -237,9 +241,9 @@ int main(int argc, char* argv[])
     }
 
     char **next = argv;
-    while ((next = cmdOptionExists(next, argv + argc, "--pattern", value)))
+    while ((next = cmdOptionExists(next, argv + argc, "--template", value)))
     {
-        patterns.push_back(value);
+        templates.push_back(value);
     }
 
     if (cmdOptionExists(argv, argv + argc, "-e", value)
@@ -253,17 +257,17 @@ int main(int argc, char* argv[])
     std::cout << '\n';
 
     if (udpSocketPath.empty()) usage(EXIT_FAILURE);
-    if (patterns.empty()) patterns.push_back("@{seq}"); // default if no --pattern parameter is provided
+    if (templates.empty()) templates.push_back("@{seq}"); // default if no --template parameter is provided
 
     std::cout << "Path: " << udpSocketPath << '\n';
     std::cout << "Print each: " << i_printEach << " message(s)\n";
     std::cout << "Range: [" << initialValue << ", " << finalValue << "]\n";
-    if (patterns.size() == 1) {
-        std::cout << "Pattern: " << patterns[0] << "\n";
+    if (templates.size() == 1) {
+        std::cout << "Template: " << templates[0] << "\n";
     }
     else {
-        std::cout << "Patterns (random subset): ";
-        for(auto it: patterns) {
+        std::cout << "Templates (random subset): ";
+        for(auto it: templates) {
             std::cout << " '" << it << "'";
         }
         std::cout << '\n';
@@ -320,11 +324,31 @@ int main(int argc, char* argv[])
 
     std::string udpDataSeq{}, udpData{};
     std::string::size_type pos = 0u;
-    std::string from = "@{seq}";
+
+    // Detect valid variable templates to be replaced within templates provided:
+    std::regex pattern("@\\{seq([+-]\\d+|)\\}"); // @{seq}, @{seq+0}, @{seq-24}, @{seq+10000}, etc.
+    std::map<std::string, long long int> patterns; // store patterns and offset (0 for @{seq})
+    int templatesSize = templates.size();
+
+    std::smatch match;
+    std::string str;
+    for (const auto& tpl: templates) {
+        std::sregex_iterator iter(tpl.begin(), tpl.end(), pattern);
+        std::sregex_iterator end;
+        while (iter != end) {
+            std::smatch match = *iter;
+            std::string pattern = match.str();
+            std::string numberStr = match.str(1);
+            if (numberStr.empty()) {
+                numberStr = "0";
+            }
+            patterns[pattern] = std::stoll(numberStr);
+            ++iter;
+        }
+    }
 
     unsigned long long int sequence{};
     auto startTimeNS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
-    int patternsSize = patterns.size();
 
     // Period:
     long long int periodNS_permanent = (long long int)(1000000000.0/eps);
@@ -369,20 +393,17 @@ int main(int argc, char* argv[])
             }
         }
 
-        udpDataSeq = std::to_string(initialValue + sequence);
+        int templatePos = ((templatesSize != 1) ? (rand () % templatesSize):0);
+        udpData = templates[templatePos];
 
-        if (patternsSize == 1) {
-            udpData = udpData = patterns[0];
-        }
-        else { // random subset
-            udpData = patterns[rand () % patternsSize];
-        }
-
-        // search/replace @{seq} by 'udpDataSeq':
-        pos = 0u;
-        while((pos = udpData.find(from, pos)) != std::string::npos) {
-            udpData.replace(pos, from.length(), udpDataSeq);
-            pos += udpDataSeq.length();
+        // search/replace patterns using current 'udpDataSeq':
+        for (const auto& it: patterns) {
+            const std::string& from = it.first;
+            pos = 0u;
+            while((pos = udpData.find(from, pos)) != std::string::npos) {
+                udpData.replace(pos, from.length(), std::to_string(initialValue + sequence + it.second));
+                pos += udpDataSeq.length();
+            }
         }
 
         // exit condition:
@@ -391,8 +412,7 @@ int main(int argc, char* argv[])
             break;
         }
         else {
-            sequence++;
-            if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
+            if (sequence % i_printEach == 0 || (sequence == 0) /* first one always shown :-)*/) {
                 std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
                           << std::setw(COL2_WIDTH) << std::left << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch() - startTimeNS).count()
                           << std::setw(COL3_WIDTH) << std::left << sequence
@@ -404,6 +424,7 @@ int main(int argc, char* argv[])
 
                 std::cout << '\n';
             }
+            sequence++;
         }
 
         sendto(Sockfd, udpData.c_str(), udpData.length(), 0, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));

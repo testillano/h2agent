@@ -215,12 +215,12 @@ int main(int argc, char* argv[])
             break;
         }
         else {
-            sequence++;
-            if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
+            if (sequence % i_printEach == 0 || (sequence == 0) /* first one always shown :-)*/) {
                 std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
                           << std::setw(COL2_WIDTH) << std::left << sequence
                           << std::setw(COL3_WIDTH) << std::left << udpData << '\n';
             }
+            sequence++;
         }
     }
 

@@ -1056,9 +1056,9 @@ Waiting for UDP messages...
 
 <timestamp>                         <sequence>      <udp datagram>
 ___________________________________ _______________ _______________________________
-2023-08-02 19:16:36.340339 GMT      1               555000000
-2023-08-02 19:16:37.340441 GMT      2               555000001
-2023-08-02 19:16:38.340656 GMT      3               555000002
+2023-08-02 19:16:36.340339 GMT      0               555000000
+2023-08-02 19:16:37.340441 GMT      1               555000001
+2023-08-02 19:16:38.340656 GMT      2               555000002
 
 Exiting (EOF received) !
 ```
@@ -1096,6 +1096,7 @@ following:
                 be used to build valid IPv4 addresses for a given sequence.
    @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens
                 and this pattern will be replaced by the nth one.
+   @{udp8.<n>}: selects the 8 least significant digits in each part if exists.
 
 To stop the process you can send UDP message 'EOF'.
 To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
@@ -1211,9 +1212,9 @@ Waiting for UDP messages...
 
 <timestamp>                         <sequence>      <udp datagram>                  <accumulated status codes>
 ___________________________________ _______________ _______________________________ ___________________________________________________________
-2023-08-02 19:16:36.340339 GMT      1               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
-2023-08-02 19:16:37.340441 GMT      2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
-2023-08-02 19:16:38.340656 GMT      3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:36.340339 GMT      0               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:37.340441 GMT      1               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:38.340656 GMT      2               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 
 Exiting (EOF received) !
 
@@ -1254,10 +1255,10 @@ Options:
 [-f|--final <value>]
   Final value for datagram. Defaults to unlimited.
 
-[--pattern <value>]
-  Pattern to build UDP datagram (reserved @{seq} is replaced by sequence number).
+[--template <value>]
+  Template to build UDP datagram (reserved @{seq} is replaced by sequence number).
   Defaults to '@{seq}'. This parameter can occur multiple times to create a random
-  set. For example, passing '--pattern foo --pattern foo --pattern bar', there is a
+  set. For example, passing '--template foo --template foo --template bar', there is a
   probability of 2/3 to select 'foo' and 1/3 to select 'bar'.
 
 [-e|--print-each <value>]
@@ -1267,8 +1268,8 @@ Options:
   This help.
 
 Examples:
-   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --pattern "foo/bar/@{seq}"
-   udp-client --udp-socket-path /tmp/udp.sock --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server
+   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template "foo/bar/@{seq}"
+   udp-client --udp-socket-path /tmp/udp.sock --final 0 --template STATS # sends 1 single datagram 'STATS' to the server
 
 To stop the process, just interrupt it.
 ```
