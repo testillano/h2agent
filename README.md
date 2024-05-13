@@ -1256,10 +1256,12 @@ Options:
   Final value for datagram. Defaults to unlimited.
 
 [--template <value>]
-  Template to build UDP datagram (reserved @{seq} is replaced by sequence number).
-  Defaults to '@{seq}'. This parameter can occur multiple times to create a random
-  set. For example, passing '--template foo --template foo --template bar', there is a
-  probability of 2/3 to select 'foo' and 1/3 to select 'bar'.
+  Template to build UDP datagram (patterns '@{seq}' and '@{seq[<+|-><integer>]}'
+  will be replaced by sequence number and shifted sequences respectively).
+  Defaults to '@{seq}'.
+  This parameter can occur multiple times to create a random set. For example,
+  passing '--template foo --template foo --template bar', there is a probability
+  of 2/3 to select 'foo' and 1/3 to select 'bar'.
 
 [-e|--print-each <value>]
   Print messages each specific amount (must be positive). Defaults to 1.
@@ -1269,6 +1271,7 @@ Options:
 
 Examples:
    udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template "foo/bar/@{seq}"
+   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template "@{seq}|@{seq-8000}"
    udp-client --udp-socket-path /tmp/udp.sock --final 0 --template STATS # sends 1 single datagram 'STATS' to the server
 
 To stop the process, just interrupt it.
@@ -1291,7 +1294,7 @@ Generating UDP messages...
 
 <timestamp>                         <time(s)> <sequence>      <udp datagram>
 ___________________________________ _________ _______________ _______________________________
-2023-08-02 19:16:36.340339 GMT      0         1               555000000
+2023-08-02 19:16:36.340339 GMT      0         0               555000000
 2023-08-02 19:16:37.340441 GMT      1         1000            555000999
 2023-08-02 19:16:38.340656 GMT      2         2000            555001999
 ...
