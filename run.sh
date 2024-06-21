@@ -9,4 +9,10 @@ BENCH=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-s
 docker run -u $(id -u) --rm -it --network=host ghcr.io/testillano/h2agent${img_variant}:latest ${BENCH[*]} $@
 
 # Using ctr-tools:
-# sudo ctr run --rm --tty --net-host ghcr.io/testillano/h2agent${img_variant}:latest myapp
+#
+# Import images from docker if docker is not available:
+# sudo ctr -n test images import image.tar # load image from 'docker save'
+# sudo ctr -n test images list # check if correctly loaded
+#
+# Run image:
+# sudo ctr -n test run --rm --tty --net-host ghcr.io/testillano/h2agent${img_variant}:latest myapp
