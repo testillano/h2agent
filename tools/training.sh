@@ -15,15 +15,18 @@ read base_os
 bargs="--build-arg base_os=${base_os}"
 bargs+=" --build-arg base_tag=latest"
 
-# OpenAI Questions & Answers:
-echo "Do you want to install 'OpenAI Q&A helper' dependencies (y/n) ? [n]:"
-echo " (warning: image size would be increased from 250MB to more than 8GB !)"
-read opt
-[ -z "${opt}" ] && opt=n
+# OpenAI Questions & Answers; only supported for ubuntu base:
 qa=false
-[ "${opt}" = "y" ] && qa=true
+if [ "${base_os}" = "ubuntu" ]
+then
+  echo "Do you want to install 'OpenAI/Groq Q&A helper' dependencies (y/n) ? [n]:"
+  echo " (warning: image size would be increased from 250MB to more than 8GB !)"
+  read opt
+  [ -z "${opt}" ] && opt=n
+  [ "${opt}" = "y" ] && qa=true
+fi
 bargs+=" --build-arg enable_qa=${qa}"
 
 cd ${git_root_dir}
 docker build --rm ${bargs} -f Dockerfile.training  ${NO_CACHE} -t testillano/h2agent_training:latest . || exit 1
-docker run -it --rm --entrypoint=/bin/bash -e OPENAI_API_KEY=${OPENAI_API_KEY} testillano/h2agent_training:latest || exit 1
+docker run -it --rm --entrypoint=/bin/bash -e OPENAI_API_KEY=${OPENAI_API_KEY} -e GROQ_API_KEY=${GROQ_API_KEY} testillano/h2agent_training:latest || exit 1

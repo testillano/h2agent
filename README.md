@@ -1554,7 +1554,7 @@ bash-5.1# ./h2agent --verbose &
 
 #### Questions and answers
 
-A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
+A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Also *Groq* model can be used if the proper key is detected. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
 
 #### Play
 
