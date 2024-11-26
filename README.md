@@ -811,8 +811,9 @@ Options:
 [--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
   Scientific notation is allowed, i.e.: "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3".
-  This affects to both mock server-data and client-data processing time values,
-  but normally both flows will not be used together in the same process instance.
+  This affects to both mock server and client processing time values, but normally both flows
+  will not be used together in the same process instance. On the server, it's primarily aimed
+  at controlling local bottlenecks, so it makes more sense to use it on the client endpoint.
 
 [--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
@@ -4438,15 +4439,15 @@ Counters provided by http2comm library:
 
 Gauges provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds_gauge [source]
-   h2agent_traffic_client_sent_messages_size_bytes_gauge [source]
-   h2agent_traffic_client_received_messages_size_bytes_gauge [source]
+   h2agent_traffic_client_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_traffic_client_sent_messages_size_bytes_gauge [source] [method]
+   h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds [source]
-   h2agent_traffic_client_sent_messages_size_bytes [source]
-   h2agent_traffic_client_received_messages_size_bytes [source]
+   h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code]
+   h2agent_traffic_client_sent_messages_size_bytes [source] [method]
+   h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code]
 ```
 
 
@@ -4465,15 +4466,15 @@ Counters provided by http2comm library:
 
 Gauges provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds_gauge [source]
-   udp_server_h2client_sent_messages_size_bytes_gauge [source]
-   udp_server_h2client_received_messages_size_bytes_gauge [source]
+   udp_server_h2client_responses_delay_seconds_gauge [source] [method] [status_code]
+   udp_server_h2client_sent_messages_size_bytes_gauge [source] [method]
+   udp_server_h2client_received_messages_size_bytes_gauge [source] [method] [status_code]
 
 Histograms provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds [source]
-   udp_server_h2client_sent_messages_size_bytes [source]
-   udp_server_h2client_received_messages_size_bytes [source]
+   udp_server_h2client_responses_delay_seconds [source] [method] [status_code]
+   udp_server_h2client_sent_messages_size_bytes [source] [method]
+   udp_server_h2client_received_messages_size_bytes [source] [method] [status_code]
 ```
 
 
@@ -4481,9 +4482,9 @@ Histograms provided by http2comm library:
 Examples:
 
 ```bash
-udp_server_h2client_responses_delay_seconds_bucket{source="udp_server_h2client",le="0.0001"} 21835
-h2agent_traffic_client_observed_responses_timedout_counter{source="http2proxy_myClient"} 134
-h2agent_traffic_client_observed_responses_received_counter{source="h2agent_myClient"} 9776
+udp_server_h2client_responses_delay_seconds_bucket{source="customer",method="POST",status_code="201",le="0.005"} 52
+h2agent_traffic_client_observed_responses_timedout_counter{source="http2proxy_myClient",method="POST"} 1
+h2agent_traffic_client_observed_responses_received_counter{source="h2agent_myClient",method="POST",status_code="201"} 9776
 ```
 
 Note that 'histogram' is not part of histograms' category metrics name suffix (as counters and gauges do). The reason is to avoid confusion because metrics created are not actually histogram containers (except bucket). So, 'sum' and 'count' can be used to represent latencies, but not directly as histograms but doing some intermediate calculations:
@@ -4509,21 +4510,21 @@ Counters provided by http2comm library and h2agent itself(*):
 
 Gauges provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source]
-   h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source]
+   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source] [method]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds [source]
-   h2agent_[traffic|admin]_server_received_messages_size_bytes [source]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source]
+   h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes [source] [method]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code]
 ```
 
 For example:
 
 ```bash
-h2agent_traffic_server_received_messages_size_bytes_bucket{source="myServer"} 38
+h2agent_traffic_server_received_messages_size_bytes_bucket{source="myServer",method="POST",status_code="201",le="322"} 38
 h2agent_traffic_server_provisioned_requests_counter{source="h2agent",result="failed"} 234
 h2agent_traffic_server_purged_contexts_counter{source="h2agent",result="successful"} 2361
 ```
