@@ -83,22 +83,14 @@ bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool 
 /**
  * Tokenizes query parameters string into key/values
  *
- * @param queryParams query parameters URI part
+ * @param queryParams query parameters URI part (? not nicluded)
+ * @param sorted query parameters URI part, filled by reference.
+ * If nullptr provided, the sort procedure is ignored (better performance).
  * @param separator key/values separator, ampersand by default
  *
  * @return Map of key/values for query parameters
  */
-std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator = '&' /* maybe ';' */);
-
-/**
- * Sorts query parameters string
- *
- * @param qmap of key/values for query parameters
- * @param separator key/values separator, ampersand by default
- *
- * @return sorted query parameters URI part.
- */
-std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator = '&' /* maybe ';' */);
+std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, std::string *sortedQueryParameters = nullptr, char separator = '&' /* maybe ';' */);
 
 /**
  * Loads file into string content

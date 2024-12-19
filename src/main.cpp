@@ -193,14 +193,14 @@ void stopAgent()
     delete(myMockServerData);
     myMockServerData = nullptr;
 
+    delete(myMetrics);
+    myMetrics = nullptr;
+
     delete(myTrafficHttp2Server);
     myTrafficHttp2Server = nullptr;
 
     delete(myAdminHttp2Server);
     myAdminHttp2Server = nullptr;
-
-    delete(myMetrics);
-    myMetrics = nullptr;
 
     delete(myFileManager);
     myFileManager = nullptr;

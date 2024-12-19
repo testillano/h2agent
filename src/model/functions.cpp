@@ -89,8 +89,8 @@ bool string2uint64andSign(const std::string &input, std::uint64_t &output, bool 
     return result;
 }
 
-std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, char separator) {
-    std::map<std::string, std::string> result;
+std::map<std::string, std::string> extractQueryParameters(const std::string &queryParams, std::string *sortedQueryParameters, char separator) {
+    std::map<std::string, std::string> result, resultOriginal;
 
     if (queryParams.empty()) return result;
 
@@ -118,6 +118,11 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
             return result;
         }
 
+        // Store original value when sorted query parameters list is requested:
+        if (sortedQueryParameters) {
+            resultOriginal.emplace(key, value);
+        }
+
         std::string valueDecoded = ert::http2comm::URLFunctions::decode(value);
         bool decoded = (valueDecoded != value);
         if (decoded) {
@@ -130,19 +135,18 @@ std::map<std::string, std::string> extractQueryParameters(const std::string &que
     }
     while ((qpair_end != std::string::npos) || (pos != std::string::npos));
 
-    return result;
-} // LCOV_EXCL_LINE
-
-std::string sortQueryParameters(const std::map<std::string, std::string> &qmap, char separator) {
-
-    std::string result = "";
-
-    for(auto it = qmap.begin(); it != qmap.end(); it ++) {
-        if (it != qmap.begin()) result += separator;
-        result += it->first; // key
-        if (!it->second.empty()) {
-            result += "=";
-            result += ert::http2comm::URLFunctions::encode(it->second); // value encoded just in case qmap decoded it before
+    // Build sorted literal:
+    if (sortedQueryParameters) {
+        std::string &ref = *sortedQueryParameters;
+        ref.clear();
+        ref.reserve(queryParams.size());
+        for(auto it = resultOriginal.begin(); it != resultOriginal.end(); it ++) {
+            if (it != resultOriginal.begin()) ref += separator;
+            ref += it->first; // key
+            if (!it->second.empty()) {
+                ref += "=";
+                ref += it->second;
+            }
         }
     }
 
