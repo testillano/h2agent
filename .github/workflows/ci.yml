@@ -176,7 +176,7 @@ jobs:
   unit_tests_and_coverage:
     needs: build_coverage
     name: Run unit tests and upload coverage info
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
       options: "--entrypoint sh"
