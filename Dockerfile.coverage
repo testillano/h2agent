@@ -17,11 +17,15 @@ RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
 
 # Exclusions provided on $@:
 RUN printf %b "#!/bin/sh\n\
-lcov -i --capture --directory \"/code/src/\" --output-file base-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\" --exclude \"*/ut/*\" --exclude \"*/main*\" --exclude \"*/AdminClientProvision*\" --exclude \"*/MyTrafficHttp2Client*\"\n\
+lcov --capture --directory ./src --directory ./ut --directory ./tools --initial --output-file base-coverage.info --ignore-errors mismatch --ignore-errors mismatch,mismatch\n\
 /code/build/Debug/bin/unit-test\n\
-lcov --capture --directory \"/code/src/\" --output-file test-coverage.info --no-external --directory \"./\" --exclude \"*/tools/*\" --exclude \"*/ut/*\" --exclude \"*/main*\" --exclude \"*/AdminClientProvision*\" --exclude \"*/MyTrafficHttp2Client*\"\n\
+lcov --capture --directory ./src --directory ./ut --directory ./tools --output-file test-coverage.info --ignore-errors mismatch --ignore-errors mismatch,mismatch --ignore-errors gcov,gcov --ignore-errors empty\n\
 lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info\n\
-genhtml total-coverage.info -o coverage" > /var/coverage.sh
+\n\
+lcov --extract total-coverage.info '*/src/' --output-file extracted-coverage.info\n\
+lcov --remove extracted-coverage.info 'main.cpp' '*/MyTrafficHttp2Client*' '*/AdminClientProvision*' --output-file final-coverage.info\n\
+\n\
+genhtml final-coverage.info --output-directory coverage" > /var/coverage.sh
 
 RUN chmod a+x /var/coverage.sh
 

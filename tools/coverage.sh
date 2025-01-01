@@ -1,5 +1,6 @@
 #!/bin/bash
 # Coverage image build helper and report generation
+registry=ghcr.io/testillano
 
 echo
 git_root_dir="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -17,6 +18,6 @@ bargs+=" --build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
 
 cd ${git_root_dir}
 rm -rf coverage
-docker build --rm ${bargs} -f Dockerfile.coverage -t testillano/h2agent:latest-cov . || exit 1
-docker run -it --rm -v ${PWD}/coverage:/code/coverage testillano/h2agent:latest-cov || exit 1
+docker build --rm ${bargs} -f Dockerfile.coverage -t ${registry}/h2agent:latest-cov . || exit 1
+docker run -it --rm -v ${PWD}/coverage:/code/coverage ${registry}/h2agent:latest-cov || exit 1
 firefox coverage/index.html &
