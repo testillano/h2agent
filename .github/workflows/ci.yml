@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
-      options: "--entrypoint sh"
+      options: "--entrypoint bash"
     steps:
     -
       name: Run coverage script
