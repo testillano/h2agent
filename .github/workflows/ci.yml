@@ -179,11 +179,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
-      options: "--entrypoint /bin/sh --workdir /code --volume ${{ github.workspace }}/coverage:/coverage"
+      options: "--entrypoint /bin/sh --volume ${{ github.workspace }}/coverage:/coverage"
     steps:
     -
       name: Run container script
-      run: /var/coverage.sh
+      run: |
+        cd /code
+        /var/coverage.sh
     -
       name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@master
