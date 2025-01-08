@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
-      options: "--entrypoint bash --workdir /code"
+      options: "--entrypoint /bin/sh --workdir /code --volume ${{ github.workspace }}/coverage:/coverage"
     steps:
     -
       name: Run container script
@@ -189,10 +189,7 @@ jobs:
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: /code/final-coverage.info
-    -
-      name: Clean up test-cov container
-      run: docker rm test-cov
+        path-to-lcov: ./coverage/lcov.info
 
   push_docker_images_as_latest:
     needs: unit_tests_and_coverage
