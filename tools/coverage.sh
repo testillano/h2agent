@@ -13,7 +13,7 @@ read base_os
 
 # Build debug target:
 bargs="--build-arg base_os=${base_os}"
-bargs+=" --build-arg base_tag=latest"
+bargs+=" --build-arg base_tag=latest" # local
 bargs+=" --build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
 
 cd ${git_root_dir}

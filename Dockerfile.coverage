@@ -17,9 +17,9 @@ RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
 
 # Exclusions provided on $@:
 RUN printf %b "#!/bin/sh\n\
-lcov --capture --directory ./src --directory ./ut --directory ./tools --initial --output-file base-coverage.info\n\
+lcov --capture --directory ./src --directory ./ut --directory ./tools --initial --output-file base-coverage.info --ignore-errors mismatch --ignore-errors mismatch,mismatch\n\
 /code/build/Debug/bin/unit-test\n\
-lcov --capture --directory ./src --directory ./ut --directory ./tools --output-file test-coverage.info --ignore-errors gcov,gcov\n\
+lcov --capture --directory ./src --directory ./ut --directory ./tools --output-file test-coverage.info --ignore-errors gcov,gcov --ignore-errors mismatch --ignore-errors mismatch,mismatch --ignore-errors empty\n\
 lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info\n\
 \n\
 lcov --extract total-coverage.info '/code/src/*' --output-file extracted-coverage.info\n\

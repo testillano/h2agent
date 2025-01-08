@@ -1070,6 +1070,7 @@ TEST_F(Transform_test, SourceCommandFail)
 
     // Validations:
     EXPECT_EQ(status_code_, 200);
+    //EXPECT_EQ(response_body_, "sh: 1: unknowncommand: not found\n127"); // if command would be 'unknowncommand 2>&1'
     EXPECT_EQ(response_body_, "127"); // command output is empty
 }
 
