@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
-      options: "--entrypoint bash"
+      options: "--entrypoint bash --workdir /code"
     steps:
     -
       name: Run container script
