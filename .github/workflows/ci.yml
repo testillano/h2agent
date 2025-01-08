@@ -191,7 +191,7 @@ jobs:
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./coverage/lcov.info
+        path-to-lcov: ${{ github.workspace }}/coverage/lcov.info
 
   push_docker_images_as_latest:
     needs: unit_tests_and_coverage
