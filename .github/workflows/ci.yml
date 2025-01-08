@@ -177,19 +177,19 @@ jobs:
     needs: build_coverage
     name: Run unit tests and upload coverage info
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/testillano/h2agent:latest-cov
+      options: "--entrypoint sh"
     steps:
     -
-      name: Run container
-      run: docker run --name test-cov --entrypoint /bin/sh ghcr.io/testillano/h2agent:latest-cov -c /var/coverage.sh
-    -
-      name: Copy coverage file from container
-      run: docker cp test-cov:/code/final-coverage.info ${{ github.workspace }}/lcov.info
+      name: Run coverage script
+      run: /var/coverage.sh
     -
       name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ${{ github.workspace }}/lcov.info
+        path-to-lcov: final-coverage.info
 
   push_docker_images_as_latest:
     needs: unit_tests_and_coverage
