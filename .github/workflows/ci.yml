@@ -177,19 +177,19 @@ jobs:
     needs: build_coverage
     name: Run unit tests and upload coverage info
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/testillano/h2agent:latest-cov
+      options: "--entrypoint bash"
     steps:
     -
-      name: Run container
-      run: docker run --name test-cov ghcr.io/testillano/h2agent:latest-cov
-    -
-      name: Copy coverage file from container
-      run: docker cp test-cov:/code/final-coverage.info .
+      name: Run container script
+      run: /var/coverage.sh
     -
       name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./final-coverage.info
+        path-to-lcov: /code/final-coverage.info
     -
       name: Clean up test-cov container
       run: docker rm test-cov
@@ -235,15 +235,18 @@ jobs:
 
         echo Processed image_tag=$image_tag
 
-        for hub in docker.io ghcr.io
+        for imgbn in h2agent_builder h2agent h2agent_http1 ct-h2agent h2agent_training
         do
-          for imgbn in h2agent_builder h2agent h2agent_http1 ct-h2agent h2agent_training
+          img=ghcr.io/testillano/${imgbn}:local
+          echo "Pull '${img}' image:"
+          docker pull ${img}
+
+          for hub in docker.io ghcr.io
           do
-            echo "Push '${imgbn}' local image from 'ghcr.io' hub"
-            docker pull ghcr.io/testillano/${imgbn}:local
-            echo "Push '${imgbn}' image to '${hub}' hub"
-            docker tag ghcr.io/testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
-            docker push ${hub}/testillano/${imgbn}:${image_tag}
+            rmt_img=${hub}/testillano/${imgbn}:${image_tag}
+            docker tag ${img} ${rmt_img}
+            echo "Re-tag and push '${rmt_img}' to ${hub}"
+            docker push ${rmt_img}
           done
         done
 
