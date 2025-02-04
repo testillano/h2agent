@@ -312,14 +312,14 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  which means that congestion control is disabled.\n\n"
 
        << "[-k|--traffic-server-key <path file>]\n"
-       << "  Path file for traffic server key to enable SSL/TLS; unsecured by default.\n\n"
+       << "  Path file for traffic server key to enable SSL/TLS; insecured by default.\n\n"
 
        << "[-d|--traffic-server-key-password <password>]\n"
        << "  When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process\n"
        << "  start.\n\n"
 
        << "[-c|--traffic-server-crt <path file>]\n"
-       << "  Path file for traffic server crt to enable SSL/TLS; unsecured by default.\n\n"
+       << "  Path file for traffic server crt to enable SSL/TLS; insecured by default.\n\n"
 
        << "[-s|--secure-admin]\n"
        << "  When key (-k|--traffic-server-key) and crt (-c|--traffic-server-crt) are provided,\n"

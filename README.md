@@ -541,6 +541,8 @@ $ OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-
 $ build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
 $ docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
+- or -
+$ XTRA_ARGS="-v $(pwd -P):$(pwd -P)" ./run.sh # benchmark options are provided within run.sh script
 ```
 
 In other shell we launch the benchmark test:
@@ -744,14 +746,14 @@ Options:
   which means that congestion control is disabled.
 
 [-k|--traffic-server-key <path file>]
-  Path file for traffic server key to enable SSL/TLS; unsecured by default.
+  Path file for traffic server key to enable SSL/TLS; insecured by default.
 
 [-d|--traffic-server-key-password <password>]
   When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process
   start.
 
 [-c|--traffic-server-crt <path file>]
-  Path file for traffic server crt to enable SSL/TLS; unsecured by default.
+  Path file for traffic server crt to enable SSL/TLS; insecured by default.
 
 [-s|--secure-admin]
   When key (-k|--traffic-server-key) and crt (-c|--traffic-server-crt) are provided,
@@ -1368,47 +1370,20 @@ services:
 
 ## Execution with TLS support
 
-`H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
+`H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create key and certificate files for client and server:
 
 ```bash
 $ ls tools/ssl/
-create_all.sh  create_self-signed_certificate.sh
+create_ca-signed-certificates.sh  create_self-signed_certificates.sh
 ```
 
-Using `create_all.sh`, server key and certificate are created at execution directory:
+Once executed, a hint will show how to proceed, mainly adding these parameters to the `h2agent`:
 
 ```bash
-$ tools/ssl/create_all.sh
-tools/ssl/create_all.sh
-+ openssl genrsa -des3 -out ca.key 4096
-Generating RSA private key, 4096 bit long modulus (2 primes)
-..++++
-..........++++
-e is 65537 (0x010001)
-Enter pass phrase for ca.key:
-Verifying - Enter pass phrase for ca.key:
-+ openssl req -new -x509 -days 365 -key ca.key -out ca.crt -subj '/C=ES/ST=Madrid/L=Madrid/O=Security/OU=IT Department/CN=www.example.com'
-Enter pass phrase for ca.key:
-+ openssl genrsa -des3 -out server.key 1024
-Generating RSA private key, 1024 bit long modulus (2 primes)
-...............................................+++++
-.....................+++++
-
-etc.
+--traffic-server-key <server key file> --traffic-server-crt <server certificate file> --traffic-server-key-password <key password to avoid PEM Phrase prompt on startup>
 ```
 
-Add the following parameters to the agent command-line (appended key password to avoid the 'PEM pass phrase' prompt at process start):
-
-```bash
---traffic-server-key server.key --traffic-server-crt server.crt --traffic-server-key-password <key password>
-```
-
-For quick testing, launch unsecured traffic in this way:
-
-```bash
-$ curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
-HTTP/2 501
-```
+As well as some `curl` hints (secure and insecure examples).
 
 **TODO**: support secure client connection for client capabilities.
 

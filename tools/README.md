@@ -61,8 +61,8 @@
 │   └── main.cpp
 ├── schemas.sh
 ├── ssl
-│   ├── create_all.sh
-│   └── create_self-signed_certificate.sh
+│   ├── create_ca-signed-certificates.sh
+│   └── create_self-signed_certificates.sh
 ├── training.sh
 ├── url.sh
 └── valgrind.sh
@@ -82,7 +82,7 @@
 * udp-client: c++ utility to generate UDP datagrams.
 * grafana: docker-compose setup for grafana monitoring. Check `PLAY_GRAFANA.md` as an example to play with it.
 * schemas.sh: shows all the schemas available (also requests schema if configured).
-* ssl: utilities to create certificates and test the server with tls/ssl enabled.
+* ssl: utilities to create keys/certificates and test the server with tls/ssl enabled.
 * training.sh: helper to run training docker image.
 * url.sh: helper to encode/decode URLs.
 * valgrind.sh: helper to launch the application using valgrind.
