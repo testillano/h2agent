@@ -89,10 +89,24 @@ $ git merge master
 ```
 
 ### Overwrite conflicted files with `master`
-If conflicts appear use the following commands:
+If conflicts appear, use the following commands:
 
 ```bash
 $ git checkout master -- .
+$ git status
+$ git rm -f <some master deleted files must be also deleted here>
 $ git add .
 $ git commit
+```
+
+Check that branches only differ in solutions:
+
+```bash
+$ git diff master..kata-solutions
+```
+
+And finally, push the branch:
+
+```bash
+$ git push origin kata-solutions
 ```
