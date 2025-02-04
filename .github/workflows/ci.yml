@@ -36,7 +36,7 @@ jobs:
     steps:
     -
       name: Check out the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     -
       name: Run frankwolf format
       run: |
@@ -54,7 +54,7 @@ jobs:
     steps:
     -
       name: Check out the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     -
       name: Login to Docker Hub
       uses: docker/login-action@v1
@@ -79,7 +79,9 @@ jobs:
       with:
         tags: ghcr.io/testillano/h2agent_builder:local
         file: Dockerfile.build
-        build-args: base_os=ubuntu
+        build-args: |
+          base_os=ubuntu
+          base_tag=latest
         context: .
         push: true
     -
@@ -120,8 +122,20 @@ jobs:
         tags: ghcr.io/testillano/h2agent_training:local
         file: Dockerfile.training
         build-args: |
-          base_os=ubuntu
-          img_tag=local
+          os_type=ubuntu
+          base_tag=local
+        context: .
+        push: true
+    -
+      name: Build local project http1 image
+      id: docker_build5
+      uses: docker/build-push-action@v2
+      with:
+        tags: ghcr.io/testillano/h2agent_http1:local
+        file: Dockerfile.http1
+        build-args: |
+          os_type=ubuntu
+          base_tag=local
         context: .
         push: true
     -
@@ -135,7 +149,7 @@ jobs:
     steps:
     -
       name: Check out the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     -
       name: Login to GitHub Container Registry
       uses: docker/login-action@v1
@@ -147,14 +161,14 @@ jobs:
         logout: true
     -
       name: Build and push coverage image
-      id: docker_build5
+      id: docker_build6
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
         file: Dockerfile.coverage
         build-args: |
-          base_os=ubuntu
           base_tag=local
+          os_type=ubuntu
         context: .
         push: true
     -
@@ -165,6 +179,9 @@ jobs:
     needs: build_coverage
     name: Run unit tests and upload coverage info
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
       options: "--entrypoint sh"
@@ -173,11 +190,30 @@ jobs:
       name: Run coverage script
       run: /var/coverage.sh
     -
-      name: Upload coverage to Coveralls
-      uses: coverallsapp/github-action@master
+      name: Setup Pages
+      uses: actions/configure-pages@v3
+    -
+      name: Create badge json file
+      run: |
+        value=$(grep -oP '(?<=<td class="headerCovTableEntryMed">)[0-9]+\.[0-9]+' /code/coverage/index.html | head -n +1) # tail -n -1 to get Functions coverage
+        if [ "$(echo "${value} < 50" | bc -l)" = "1" ]; then
+          color="red"
+        elif [ "$(echo "${value} < 80" | bc -l)" = "1" ]; then
+          color="orange"
+        else
+          color="brightgreen"
+        fi
+
+        echo '{"schemaVersion":1,"label":"coverage","message":"'${value}'%","color":"'${color}'"}' > /code/coverage/badge.json
+    -
+      name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: total-coverage.info
+        path: /code/coverage
+    -
+      name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
+
 
   push_docker_images_as_latest:
     needs: unit_tests_and_coverage
@@ -220,15 +256,18 @@ jobs:
 
         echo Processed image_tag=$image_tag
 
-        for hub in docker.io ghcr.io
+        for imgbn in h2agent_builder h2agent h2agent_http1 ct-h2agent h2agent_training
         do
-          for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
+          img=ghcr.io/testillano/${imgbn}:local
+          echo "Pull '${img}' image:"
+          docker pull ${img}
+
+          for hub in docker.io ghcr.io
           do
-            echo "Push '${imgbn}' local image from 'ghcr.io' hub"
-            docker pull ghcr.io/testillano/${imgbn}:local
-            echo "Push '${imgbn}' image to '${hub}' hub"
-            docker tag ghcr.io/testillano/${imgbn}:local ${hub}/testillano/${imgbn}:${image_tag}
-            docker push ${hub}/testillano/${imgbn}:${image_tag}
+            rmt_img=${hub}/testillano/${imgbn}:${image_tag}
+            docker tag ${img} ${rmt_img}
+            echo "Re-tag and push '${rmt_img}' to ${hub}"
+            docker push ${rmt_img}
           done
         done
 
@@ -236,7 +275,7 @@ jobs:
     needs: push_docker_images_as_latest
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Publish Helm charts
       uses: stefanprodan/helm-gh-pages@master
       with:

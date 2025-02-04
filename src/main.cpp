@@ -193,14 +193,14 @@ void stopAgent()
     delete(myMockServerData);
     myMockServerData = nullptr;
 
+    delete(myMetrics);
+    myMetrics = nullptr;
+
     delete(myTrafficHttp2Server);
     myTrafficHttp2Server = nullptr;
 
     delete(myAdminHttp2Server);
     myAdminHttp2Server = nullptr;
-
-    delete(myMetrics);
-    myMetrics = nullptr;
 
     delete(myFileManager);
     myFileManager = nullptr;
@@ -312,14 +312,14 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  which means that congestion control is disabled.\n\n"
 
        << "[-k|--traffic-server-key <path file>]\n"
-       << "  Path file for traffic server key to enable SSL/TLS; unsecured by default.\n\n"
+       << "  Path file for traffic server key to enable SSL/TLS; insecured by default.\n\n"
 
        << "[-d|--traffic-server-key-password <password>]\n"
        << "  When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process\n"
        << "  start.\n\n"
 
        << "[-c|--traffic-server-crt <path file>]\n"
-       << "  Path file for traffic server crt to enable SSL/TLS; unsecured by default.\n\n"
+       << "  Path file for traffic server crt to enable SSL/TLS; insecured by default.\n\n"
 
        << "[-s|--secure-admin]\n"
        << "  When key (-k|--traffic-server-key) and crt (-c|--traffic-server-crt) are provided,\n"
@@ -378,8 +378,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]\n"
        << "  Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.\n"
        << "  Scientific notation is allowed, i.e.: \"100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3\".\n"
-       << "  This affects to both mock server-data and client-data processing time values,\n"
-       << "  but normally both flows will not be used together in the same process instance.\n\n"
+       << "  This affects to both mock server and client processing time values, but normally both flows\n"
+       << "  will not be used together in the same process instance. On the server, it's primarily aimed\n"
+       << "  at controlling local bottlenecks, so it makes more sense to use it on the client endpoint.\n\n"
 
        << "[--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]\n"
        << "  Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.\n"

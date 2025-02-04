@@ -1,31 +1,5 @@
 {
   "requestMethod": "POST",
   "requestUri": "/process/numbers",
-  "responseCode": 200,
-  "transform": [
-    {
-      "source": "request.body",
-      "target": "response.body.json.object"
-    },
-    {
-      "source": "request.body./number1",
-      "target": "var.number1"
-    },
-    {
-      "source": "request.body./number2",
-      "target": "var.number2"
-    },
-    {
-      "source": "request.body./number3",
-      "target": "var.number3"
-    },
-    {
-      "source": "value.[ @{number1}, @{number2}, @{number3} ]",
-      "target": "response.body.json.jsonstring./processed/numbers"
-    },
-    {
-      "source": "request.header.app-version",
-      "target": "response.body.json.string./processed/appVersion"
-    }
-  ]
+  "responseCode": 200
 }

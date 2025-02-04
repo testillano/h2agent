@@ -8,7 +8,7 @@
 const std::string QueryParametersExampleDefault = "foo=foo_value&bar=bar_value";
 const std::string QueryParametersExampleSemicolon = "foo=foo_value;bar=bar_value";
 const std::string QueryParametersExampleBadKey = "foo=foo_value&bar=bar_value&foo=foo_value2";
-const std::string QueryParametersExampleEncoded = "requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&foo=foo_value";
+const std::string QueryParametersExampleEncoded = "requestUri=%2Fapp%2Fv1%2Ffoo%2Fbar%3Fid%3D5%26name%3Dtest&foo=foo_value";
 
 class functions_test : public ::testing::Test
 {
@@ -23,7 +23,7 @@ public:
 
     functions_test() {
         qmap_amp_ = h2agent::model::extractQueryParameters(QueryParametersExampleDefault);
-        qmap_scl_ = h2agent::model::extractQueryParameters(QueryParametersExampleSemicolon, ';');
+        qmap_scl_ = h2agent::model::extractQueryParameters(QueryParametersExampleSemicolon, nullptr, ';');
         qmap_enc_ = h2agent::model::extractQueryParameters(QueryParametersExampleEncoded);
 
         headers_.insert(std::pair<std::string, nghttp2::asio_http2::header_value>("content-type", {"application/json; charset=utf-8", false}));
@@ -75,19 +75,31 @@ TEST_F(functions_test, FooBarQueryParameters)
             ASSERT_TRUE(it != qmap.end());
             EXPECT_EQ(it->second, std::string(var) + "_value");
         }
-
-        std::string qmap_str = h2agent::model::sortQueryParameters(qmap);
-        EXPECT_EQ(qmap_str, "bar=bar_value&foo=foo_value");
-        qmap_str = h2agent::model::sortQueryParameters(qmap, ';');
-        EXPECT_EQ(qmap_str, "bar=bar_value;foo=foo_value");
     }
 }
 
-TEST_F(functions_test, BadQueryParameterKey)
+TEST_F(functions_test, ExtractQueryParameters)
 {
     // Bad key
     auto qmap_bkey = h2agent::model::extractQueryParameters(QueryParametersExampleBadKey);
     EXPECT_EQ(qmap_bkey.size(), 0);
+
+    std::string qmap_str;
+    std::string *ptr_qmap_str = &qmap_str;
+
+    // Encoded QP example
+    auto qmap = h2agent::model::extractQueryParameters(QueryParametersExampleEncoded, ptr_qmap_str);
+    EXPECT_EQ(qmap_str, "foo=foo_value&requestUri=%2Fapp%2Fv1%2Ffoo%2Fbar%3Fid%3D5%26name%3Dtest");
+
+    // Regular parameters separated by &
+    qmap_str = "";
+    qmap = h2agent::model::extractQueryParameters(QueryParametersExampleDefault, ptr_qmap_str);
+    EXPECT_EQ(qmap_str, "bar=bar_value&foo=foo_value");
+
+    // Regular parameters separated by ;
+    qmap_str = "";
+    qmap = h2agent::model::extractQueryParameters(QueryParametersExampleSemicolon, ptr_qmap_str, ';');
+    EXPECT_EQ(qmap_str, "bar=bar_value;foo=foo_value");
 }
 
 TEST_F(functions_test, EncodedQueryParameter)
@@ -100,9 +112,6 @@ TEST_F(functions_test, EncodedQueryParameter)
     it = qmap_enc_.find("requestUri");
     ASSERT_TRUE(it != qmap_enc_.end());
     EXPECT_EQ(it->second, "/app/v1/foo/bar?id=5&name=test");
-
-    std::string qmap_str = h2agent::model::sortQueryParameters(qmap_enc_);
-    EXPECT_EQ(qmap_str, "foo=foo_value&requestUri=%2Fapp%2Fv1%2Ffoo%2Fbar%3Fid%3D5%26name%3Dtest");
 }
 
 TEST_F(functions_test, JsonContentSerialization)

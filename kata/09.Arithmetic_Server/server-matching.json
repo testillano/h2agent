@@ -1,6 +1,3 @@
 {
-  "algorithm": "FullMatching",
-  "uriPathQueryParameters": {
-    "filter": "Ignore"
-  }
+  "algorithm": "FullMatching"
 }

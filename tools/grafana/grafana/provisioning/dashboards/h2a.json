@@ -26,14 +26,9 @@
   "graphTooltip": 0,
   "id": 1,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -42,15 +37,6 @@
       },
       "id": 12,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "H2AGENT Process",
       "type": "row"
     },
@@ -67,11 +53,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -80,6 +68,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -112,23 +101,7 @@
           },
           "unit": "reqps"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "unprovisioned"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -153,6 +126,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -161,7 +135,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_observed_resquests_accepted_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_observed_resquests_accepted_counter[$rate_interval]) > 0) by (source, method) ",
           "instant": false,
           "interval": "",
           "legendFormat": "{{source}} accepted {{method}}",
@@ -175,7 +149,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_observed_resquests_errored_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_observed_resquests_errored_counter[$rate_interval]) > 0) by (source)",
           "hide": false,
           "instant": false,
           "interval": "",
@@ -190,7 +164,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_provisioned_requests_counter{result=\"successful\"}[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_provisioned_requests_counter{result=\"successful\"}[$rate_interval]) > 0) by (source)",
           "hide": false,
           "instant": false,
           "interval": "",
@@ -205,7 +179,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_provisioned_requests_counter{result=\"failed\"}[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_provisioned_requests_counter{result=\"failed\"}[$rate_interval]) > 0) by (source)",
           "hide": false,
           "instant": false,
           "interval": "",
@@ -229,11 +203,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -242,6 +218,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -299,6 +276,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -307,10 +285,10 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_observed_responses_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_observed_responses_counter[$rate_interval]) > 0) by (source, method, status_code)",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} {{method}} response [{{status_code}}]",
+          "legendFormat": "{{source}} {{method}}({{status_code}}) response",
           "range": true,
           "refId": "responses"
         },
@@ -321,7 +299,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_purged_contexts_counter{result=\"successful\"}[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_purged_contexts_counter{result=\"successful\"}[$rate_interval]) > 0) by (source, result)",
           "hide": false,
           "instant": false,
           "interval": "",
@@ -336,7 +314,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_purged_contexts_counter{result=\"failed\"}[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_traffic_server_purged_contexts_counter{result=\"failed\"}[$rate_interval]) > 0) by (source, result)",
           "hide": false,
           "instant": false,
           "interval": "",
@@ -360,11 +338,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -373,6 +353,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -405,34 +386,7 @@
           },
           "unit": "ops"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "book-store close ",
-                  "book-store open ",
-                  "book-store delayedClose "
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -457,6 +411,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -465,7 +420,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_file_manager_operations_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_file_manager_operations_counter[$rate_interval]) > 0) by (source, operation, result)",
           "instant": false,
           "interval": "",
           "legendFormat": "{{source}} {{operation}} {{result}}",
@@ -488,11 +443,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -501,6 +458,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -558,6 +516,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -566,7 +525,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_socket_manager_operations_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(h2agent_socket_manager_operations_counter[$rate_interval]) > 0) by (source, operation, result)",
           "instant": false,
           "interval": "",
           "legendFormat": "{{source}} {{operation}} {{result}}",
@@ -588,7 +547,6 @@
           "color": {
             "mode": "thresholds"
           },
-          "displayName": "latency",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -609,12 +567,14 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 4,
+        "w": 11,
         "x": 0,
         "y": 17
       },
       "id": 4,
       "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -624,9 +584,10 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -635,10 +596,10 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(h2agent_traffic_server_responses_delay_seconds_gauge[$rate_interval]))",
+          "expr": "avg_over_time(h2agent_traffic_server_responses_delay_seconds_gauge[$rate_interval])",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} delay",
+          "legendFormat": "{{source}} {{method}}({{status_code}})",
           "range": true,
           "refId": "A"
         }
@@ -651,18 +612,20 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Response delay (latency)",
+      "description": "Responses delay (latency)",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -671,6 +634,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -707,8 +671,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 4,
+        "w": 13,
+        "x": 11,
         "y": 17
       },
       "id": 9,
@@ -728,24 +692,40 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "builder",
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(h2agent_traffic_server_responses_delay_seconds_sum[$rate_interval]) / rate(h2agent_traffic_server_responses_delay_seconds_count[$rate_interval])",
+          "expr": "sum(rate(h2agent_traffic_server_responses_delay_seconds_sum[$rate_interval])) by (source, method, status_code) / sum(rate(h2agent_traffic_server_responses_delay_seconds_count[$rate_interval])) by (source, method, status_code)",
           "hide": false,
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} latency",
+          "legendFormat": "{{source}} {{method}}({{ status_code}})",
           "range": true,
           "refId": "latency"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, method, status_code) (rate(h2agent_traffic_server_responses_delay_seconds_bucket[$rate_interval])))",
+          "hide": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} $percentile% percentile {{method}}({{status_code}})",
+          "range": true,
+          "refId": "A"
         }
       ],
-      "title": "Response delay [traffic server]",
+      "title": "Responses delay [traffic server]",
       "type": "timeseries"
     },
     {
@@ -775,12 +755,14 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 17
+        "w": 11,
+        "x": 0,
+        "y": 25
       },
       "id": 7,
       "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -790,20 +772,22 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "builder",
-          "expr": "h2agent_traffic_server_received_messages_size_bytes_gauge",
+          "editorMode": "code",
+          "expr": "avg_over_time(h2agent_traffic_server_received_messages_size_bytes_gauge[$rate_interval])",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{source}} receptions",
+          "interval": "",
+          "legendFormat": "{{source}} Rx {{method}}",
           "range": true,
           "refId": "messages received"
         },
@@ -813,15 +797,15 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "h2agent_traffic_server_sent_messages_size_bytes_gauge",
+          "expr": "avg_over_time(h2agent_traffic_server_sent_messages_size_bytes_gauge[$rate_interval])",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{source}} transmissions",
+          "legendFormat": "{{source}} Tx {{method}}({{status_code}})",
           "range": true,
           "refId": "messages sent"
         }
       ],
-      "title": "Message sizes [traffic server]",
+      "title": "Messages size gauge [traffic server]",
       "type": "gauge"
     },
     {
@@ -829,22 +813,162 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Messages size",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
+        "h": 8,
+        "w": 13,
+        "x": 11,
         "y": 25
       },
-      "id": 13,
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(h2agent_traffic_server_received_messages_size_bytes_sum[$rate_interval])) by (source, method) / sum(rate(h2agent_traffic_server_received_messages_size_bytes_count[$rate_interval])) by (source, method)",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} Rx {{method}}",
+          "range": true,
+          "refId": "latency"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(h2agent_traffic_server_sent_messages_size_bytes_sum[$rate_interval])) by (source, method, status_code) / sum(rate(h2agent_traffic_server_sent_messages_size_bytes_count[$rate_interval])) by (source, method, status_code)",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} Tx {{method}}({{ status_code}})",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, method) (rate(h2agent_traffic_server_received_message_size_bytes_bucket[$rate_interval])))",
+          "hide": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} $percentile% percentile Rx {{method}}",
+          "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, method, status_code) (rate(h2agent_traffic_server_sent_message_size_bytes_bucket[$rate_interval])))",
+          "hide": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} $percentile% percentile Tx {{method}}({{status_code}})",
+          "range": true,
+          "refId": "C"
         }
       ],
+      "title": "Messages size [traffic server]",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 13,
+      "panels": [],
       "title": "UDP SERVER H2CLIENT Process",
       "type": "row"
     },
@@ -860,11 +984,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -873,6 +999,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -911,7 +1038,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 14,
       "options": {
@@ -930,6 +1057,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -937,9 +1065,9 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(udp_server_h2client_observed_resquests_sents_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(udp_server_h2client_observed_resquests_sents_counter[$rate_interval]) > 0) by (source, method) ",
           "instant": false,
-          "legendFormat": "{{source}} sent {{method}}",
+          "legendFormat": "{{source}} {{method}} sent",
           "range": true,
           "refId": "sents"
         },
@@ -949,10 +1077,10 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(udp_server_h2client_observed_resquests_unsent_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(udp_server_h2client_observed_resquests_unsent_counter[$rate_interval]) > 0) by (source, method) ",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{source}} unsent {{method}}",
+          "legendFormat": "{{source}} {{method}} unsent",
           "range": true,
           "refId": "unsents"
         }
@@ -972,11 +1100,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -985,6 +1115,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1023,7 +1154,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 34
       },
       "id": 15,
       "options": {
@@ -1042,6 +1173,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -1049,10 +1181,10 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(udp_server_h2client_observed_responses_received_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(udp_server_h2client_observed_responses_received_counter[$rate_interval]) > 0) by (source, method, status_code) ",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{source}} {{method}} response [{{status_code}}]",
+          "legendFormat": "{{source}} {{method}}({{status_code}}) response",
           "range": true,
           "refId": "responses"
         },
@@ -1062,10 +1194,10 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(udp_server_h2client_observed_responses_timedout_counter[$rate_interval]) > 0",
+          "expr": "sum(rate(udp_server_h2client_observed_responses_timedout_counter[$rate_interval]) > 0) by (source, method, status_code) ",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{source}} {{method}} timeout",
+          "legendFormat": "{{source}} {{method}}({{status_code}}) timeout",
           "range": true,
           "refId": "timeouts"
         }
@@ -1084,7 +1216,6 @@
           "color": {
             "mode": "thresholds"
           },
-          "displayName": "latency",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1105,12 +1236,14 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 4,
+        "w": 11,
         "x": 0,
-        "y": 34
+        "y": 42
       },
       "id": 17,
       "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -1120,9 +1253,10 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -1131,10 +1265,10 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(udp_server_h2client_responses_delay_seconds_gauge[$rate_interval]))",
+          "expr": "avg_over_time(udp_server_h2client_responses_delay_seconds_gauge[$rate_interval])",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} delay",
+          "legendFormat": "{{source}} {{method}}({{status_code}})",
           "range": true,
           "refId": "A"
         }
@@ -1147,18 +1281,20 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Response delay (latency)",
+      "description": "Responses delay (latency)",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -1167,6 +1303,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1203,9 +1340,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 4,
-        "y": 34
+        "w": 13,
+        "x": 11,
+        "y": 42
       },
       "id": 16,
       "options": {
@@ -1224,6 +1361,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -1232,16 +1370,31 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(udp_server_h2client_responses_delay_seconds_sum[$rate_interval]) / rate(udp_server_h2client_responses_delay_seconds_count[$rate_interval])",
+          "expr": "sum(rate(udp_server_h2client_responses_delay_seconds_sum[$rate_interval])) by (source, method, status_code) / sum(rate(udp_server_h2client_responses_delay_seconds_count[$rate_interval])) by (source, method, status_code)",
           "hide": false,
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} latency",
+          "legendFormat": "{{source}} {{method}}({{status_code}})",
           "range": true,
           "refId": "latency"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, method, status_code) (rate(udp_server_h2client_responses_delay_seconds_bucket[$rate_interval])))",
+          "hide": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} $percentile% percentile {{method}}({{status_code}})",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "Response delay [traffic client]",
+      "title": "Responses delay [traffic client]",
       "type": "timeseries"
     },
     {
@@ -1271,12 +1424,14 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 34
+        "w": 11,
+        "x": 0,
+        "y": 50
       },
       "id": 18,
       "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -1286,9 +1441,10 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "11.3.1",
       "targets": [
         {
           "datasource": {
@@ -1297,10 +1453,10 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "udp_server_h2client_received_messages_size_bytes_gauge",
+          "expr": "avg_over_time(udp_server_h2client_received_messages_size_bytes_gauge[$rate_interval])",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} receptions",
+          "legendFormat": "{{source}} Rx {{method}}({{status_code}})",
           "range": true,
           "refId": "messages received"
         },
@@ -1311,22 +1467,173 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "udp_server_h2client_sent_messages_size_bytes_gauge\n",
+          "expr": "avg_over_time(udp_server_h2client_sent_messages_size_bytes_gauge[$rate_interval])\n",
           "hide": false,
           "instant": false,
           "interval": "",
-          "legendFormat": "{{source}} transmissions",
+          "legendFormat": "{{source}} Tx {{method}}",
           "range": true,
           "refId": "messages sent"
         }
       ],
-      "title": "Message sizes [traffic client]",
+      "title": "Messages size gauge [traffic client]",
       "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Messages size (latency)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 13,
+        "x": 11,
+        "y": 50
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(udp_server_h2client_sent_messages_size_bytes_sum[$rate_interval])) by (source, method) / sum(rate(udp_server_h2client_sent_messages_size_bytes_count[$rate_interval])) by (source, method)",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} Tx {{method}}",
+          "range": true,
+          "refId": "latency"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(udp_server_h2client_received_messages_size_bytes_sum[$rate_interval])) by (source, method, status_code) / sum(rate(udp_server_h2client_received_messages_size_bytes_count[$rate_interval])) by (source, method, status_code)",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} Rx {{method}}({{status_code}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, method) (rate(udp_server_h2client_sent_messages_size_bytes_bucket[$rate_interval])))",
+          "hide": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} $percentile% percentile Tx {{method}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, method, status_code) (rate(udp_server_h2client_received_messages_size_bytes_bucket[$rate_interval])))",
+          "hide": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{source}} $percentile% percentile Rx {{method}}({{status_code}})",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Messages size [traffic client]",
+      "type": "timeseries"
     }
   ],
+  "preload": false,
   "refresh": "",
-  "schemaVersion": 38,
-  "style": "dark",
+  "schemaVersion": 40,
   "tags": [],
   "templating": {
     "list": [
@@ -1335,11 +1642,9 @@
         "auto_count": 30,
         "auto_min": "10s",
         "current": {
-          "selected": false,
           "text": "30s",
           "value": "30s"
         },
-        "hide": 0,
         "name": "rate_interval",
         "options": [
           {
@@ -1404,10 +1709,64 @@
           }
         ],
         "query": "1s,15s,30s,1m,2m,5m,10m,30m,1h,6h,12h,1d",
-        "queryValue": "",
         "refresh": 2,
-        "skipUrlSync": false,
         "type": "interval"
+      },
+      {
+        "current": {
+          "text": "90",
+          "value": "90"
+        },
+        "name": "percentile",
+        "options": [
+          {
+            "selected": false,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": false,
+            "text": "20",
+            "value": "20"
+          },
+          {
+            "selected": false,
+            "text": "30",
+            "value": "30"
+          },
+          {
+            "selected": false,
+            "text": "40",
+            "value": "40"
+          },
+          {
+            "selected": false,
+            "text": "50",
+            "value": "50"
+          },
+          {
+            "selected": false,
+            "text": "60",
+            "value": "60"
+          },
+          {
+            "selected": false,
+            "text": "70",
+            "value": "70"
+          },
+          {
+            "selected": false,
+            "text": "80",
+            "value": "80"
+          },
+          {
+            "selected": true,
+            "text": "90",
+            "value": "90"
+          }
+        ],
+        "query": "10,20,30,40,50,60,70,80,90",
+        "type": "custom"
       }
     ]
   },
@@ -1419,6 +1778,6 @@
   "timezone": "",
   "title": "h2a",
   "uid": "f5dfd490-924e-4a81-8fca-46d7f4d94662",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }

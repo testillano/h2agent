@@ -17,6 +17,11 @@ docs/doxygen/html
 docs/doxygen/man
 docs/doxygen/latex
 
+# SSL keys & certificates
+*key
+*crt
+*csr
+
 # built from templates
 src/version.cpp
 

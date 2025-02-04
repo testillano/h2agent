@@ -247,14 +247,14 @@ server_data() {
     echo "                   [method] [uri] [[-]event number] [event path] ; Positional filters to narrow the server data selection."
     echo "                                                                   Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
-    echo "                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit)."
+    echo "                                                     Displayed keys (method/uri) could be limited (10 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes server data events."
     echo "                   [--surf] [query filters]        ; Interactive sorted (regardless method/uri) server data navigation."
     echo "                   [--dump] [query filters]        ; Dumps all sequences detected for server data under 'server-data-sequences' directory."
     return 0
   elif [ "$1" = "--summary" ]
   then
-    local maxKeys=${2:-5}
+    local maxKeys=${2:-10}
     local queryParams=
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=
@@ -388,7 +388,7 @@ client_data() {
     echo "                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Positional filters to narrow the client data selection."
     echo "                                                                                        Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
-    echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (5 by default, -1: no limit)."
+    echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (10 by default, -1: no limit)."
     echo "                   [--clean] [query filters]       ; Removes client data events."
     echo "                   [--surf] [query filters]        ; Interactive sorted (regardless endpoint/method/uri) client data navigation."
     echo "                   [--dump] [query filters]        ; Dumps all sequences detected for client data under 'client-data-sequences' directory."
@@ -396,7 +396,7 @@ client_data() {
 
   elif [ "$1" = "--summary" ]
   then
-    local maxKeys=${2:-5}
+    local maxKeys=${2:-10}
     local queryParams=
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=

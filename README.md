@@ -2,12 +2,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://codedocs.xyz/testillano/h2agent.svg)](https://codedocs.xyz/testillano/h2agent/index.html)
-[![Coverage Status](https://coveralls.io/repos/github/testillano/h2agent/badge.svg?branch=master&kill_cache=1)](https://coveralls.io/github/testillano/h2agent?branch=master)
+[![Coverage Status](https://img.shields.io/endpoint?url=https://testillano.github.io/h2agent/badge.json)](https://testillano.github.io/h2agent)
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 
-`H2agent` is a network service agent that enables **mocking other network services using HTTP/2 protocol**.
+`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1 is supported via `nghttpx` reverse proxy).
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
 It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
@@ -133,7 +133,7 @@ When developing a network service, one often needs to integrate it with other se
 
 `H2agent` can be used to replace one (or many) of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
-`H2agent` supports HTTP2 as a network protocol and JSON as a data interchange language.
+`H2agent` supports HTTP/2 as a network protocol (also HTTP/1 via proxy) and JSON as a data interchange language.
 
 So, `h2agent` could be used as:
 
@@ -159,13 +159,13 @@ $ ./build.sh --auto
 
 The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
 
-* Run <u>project image</u> with docker (`./h2a.sh` script at root directory can also be used):
+* Run <u>h2agent project image</u> with docker (`./run.sh` script at root directory can also be used):
 
   ```bash
   $ docker run --rm -it -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent:latest # default entrypoint is h2agent process
   ```
 
-  Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080).
+  Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080), but of course you could configure your own externals.
   You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
@@ -187,6 +187,19 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   -or-
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
+
+* Run <u>h2agent_http1 project image</u> with docker (`HTTP1_ENABLED=yes ./run.sh` script at root directory can also be used):
+
+  ```bash
+  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent_http1:latest
+  ```
+
+  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
+
+  We prefer to generate a specific docker image variant for HTTP/1 (`h2agent_http1`) since the proxy could introduce additional latency, so if we only require HTTP/2 it doesn't make sense to consolidate that proxy layer within `h2agent` project image.
+
+  In any case, if you want to run `h2agent` out of docker container and then set the `nghttpx` proxy to provide HTTP/1 support, you may take as reference the `Dockerfile.http1` file where this proxy is configured.
+  This image is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
@@ -528,6 +541,8 @@ $ OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-
 $ build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
 $ docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
+- or -
+$ XTRA_ARGS="-v $(pwd -P):$(pwd -P)" ./run.sh # benchmark options are provided within run.sh script
 ```
 
 In other shell we launch the benchmark test:
@@ -731,14 +746,14 @@ Options:
   which means that congestion control is disabled.
 
 [-k|--traffic-server-key <path file>]
-  Path file for traffic server key to enable SSL/TLS; unsecured by default.
+  Path file for traffic server key to enable SSL/TLS; insecured by default.
 
 [-d|--traffic-server-key-password <password>]
   When using SSL/TLS this may provided to avoid 'PEM pass phrase' prompt at process
   start.
 
 [-c|--traffic-server-crt <path file>]
-  Path file for traffic server crt to enable SSL/TLS; unsecured by default.
+  Path file for traffic server crt to enable SSL/TLS; insecured by default.
 
 [-s|--secure-admin]
   When key (-k|--traffic-server-key) and crt (-c|--traffic-server-crt) are provided,
@@ -798,8 +813,9 @@ Options:
 [--prometheus-response-delay-seconds-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for response delay seconds histogram; no boundaries are defined by default.
   Scientific notation is allowed, i.e.: "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3".
-  This affects to both mock server-data and client-data processing time values,
-  but normally both flows will not be used together in the same process instance.
+  This affects to both mock server and client processing time values, but normally both flows
+  will not be used together in the same process instance. On the server, it's primarily aimed
+  at controlling local bottlenecks, so it makes more sense to use it on the client endpoint.
 
 [--prometheus-message-size-bytes-histogram-boundaries <comma-separated list of doubles>]
   Bucket boundaries for Rx/Tx message size bytes histogram; no boundaries are defined by default.
@@ -1043,11 +1059,11 @@ Waiting for UDP messages...
 
 <timestamp>                         <sequence>      <udp datagram>
 ___________________________________ _______________ _______________________________
-2023-08-02 19:16:36.340339 GMT      1               555000000
-2023-08-02 19:16:37.340441 GMT      2               555000001
-2023-08-02 19:16:38.340656 GMT      3               555000002
+2023-08-02 19:16:36.340339 GMT      0               555000000
+2023-08-02 19:16:37.340441 GMT      1               555000001
+2023-08-02 19:16:38.340656 GMT      2               555000002
 
-Existing (EOF received) !
+Exiting (EOF received) !
 ```
 
 ## Execution of udp-server-h2client utility
@@ -1059,7 +1075,7 @@ You can also use netcat in bash, to generate messages easily:
 echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
 ```
 
-The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for ever UDP reception.
+The difference with previous `udp-server` utility, is that this can trigger actively HTTP/2 requests for every UDP reception.
 This makes possible coordinate actions between `h2agent` acting as a server, to create outgoing requests linked to its receptions through the UDP channel served in this external tool.
 Powerful parsing capabilities allow to create any kind of request dynamically using patterns `@{udp[.n]}` for uri, headers and body configured.
 Prometheus metrics are also available to measure the HTTP/2 performance towards the remote server (check it by mean, for example: `curl http://0.0.0.0:8081/metrics`).
@@ -1083,6 +1099,7 @@ following:
                 be used to build valid IPv4 addresses for a given sequence.
    @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens
                 and this pattern will be replaced by the nth one.
+   @{udp8.<n>}: selects the 8 least significant digits in each part if exists.
 
 To stop the process you can send UDP message 'EOF'.
 To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.
@@ -1198,11 +1215,11 @@ Waiting for UDP messages...
 
 <timestamp>                         <sequence>      <udp datagram>                  <accumulated status codes>
 ___________________________________ _______________ _______________________________ ___________________________________________________________
-2023-08-02 19:16:36.340339 GMT      1               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
-2023-08-02 19:16:37.340441 GMT      2               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
-2023-08-02 19:16:38.340656 GMT      3               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:36.340339 GMT      0               555000000                       0 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:37.340441 GMT      1               555000001                       1 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
+2023-08-02 19:16:38.340656 GMT      2               555000002                       2 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 
-Existing (EOF received) !
+Exiting (EOF received) !
 
 status codes: 3 2xx, 0 3xx, 0 4xx, 0 5xx, 0 timeouts, 0 connection errors
 ```
@@ -1241,11 +1258,13 @@ Options:
 [-f|--final <value>]
   Final value for datagram. Defaults to unlimited.
 
-[--pattern <value>]
-  Pattern to build UDP datagram (reserved @{seq} is replaced by sequence number).
-  Defaults to '@{seq}'. This parameter can occur multiple times to create a random
-  set. For example, passing '--pattern foo --pattern foo --pattern bar', there is a
-  probability of 2/3 to select 'foo' and 1/3 to select 'bar'.
+[--template <value>]
+  Template to build UDP datagram (patterns '@{seq}' and '@{seq[<+|-><integer>]}'
+  will be replaced by sequence number and shifted sequences respectively).
+  Defaults to '@{seq}'.
+  This parameter can occur multiple times to create a random set. For example,
+  passing '--template foo --template foo --template bar', there is a probability
+  of 2/3 to select 'foo' and 1/3 to select 'bar'.
 
 [-e|--print-each <value>]
   Print messages each specific amount (must be positive). Defaults to 1.
@@ -1254,8 +1273,9 @@ Options:
   This help.
 
 Examples:
-   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --pattern "foo/bar/@{seq}"
-   udp-client --udp-socket-path /tmp/udp.sock --final 0 --pattern STATS # sends 1 single datagram 'STATS' to the server
+   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template "foo/bar/@{seq}"
+   udp-client --udp-socket-path /tmp/udp.sock --eps 3500 --initial 555000000 --final 555999999 --template "@{seq}|@{seq-8000}"
+   udp-client --udp-socket-path /tmp/udp.sock --final 0 --template STATS # sends 1 single datagram 'STATS' to the server
 
 To stop the process, just interrupt it.
 ```
@@ -1277,7 +1297,7 @@ Generating UDP messages...
 
 <timestamp>                         <time(s)> <sequence>      <udp datagram>
 ___________________________________ _________ _______________ _______________________________
-2023-08-02 19:16:36.340339 GMT      0         1               555000000
+2023-08-02 19:16:36.340339 GMT      0         0               555000000
 2023-08-02 19:16:37.340441 GMT      1         1000            555000999
 2023-08-02 19:16:38.340656 GMT      2         2000            555001999
 ...
@@ -1350,47 +1370,20 @@ services:
 
 ## Execution with TLS support
 
-`H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create server key and certificate files:
+`H2agent` server mock supports `SSL/TLS`. You may use helpers located under `tools/ssl` to create key and certificate files for client and server:
 
 ```bash
 $ ls tools/ssl/
-create_all.sh  create_self-signed_certificate.sh
+create_ca-signed-certificates.sh  create_self-signed_certificates.sh
 ```
 
-Using `create_all.sh`, server key and certificate are created at execution directory:
+Once executed, a hint will show how to proceed, mainly adding these parameters to the `h2agent`:
 
 ```bash
-$ tools/ssl/create_all.sh
-tools/ssl/create_all.sh
-+ openssl genrsa -des3 -out ca.key 4096
-Generating RSA private key, 4096 bit long modulus (2 primes)
-..++++
-..........++++
-e is 65537 (0x010001)
-Enter pass phrase for ca.key:
-Verifying - Enter pass phrase for ca.key:
-+ openssl req -new -x509 -days 365 -key ca.key -out ca.crt -subj '/C=ES/ST=Madrid/L=Madrid/O=Security/OU=IT Department/CN=www.example.com'
-Enter pass phrase for ca.key:
-+ openssl genrsa -des3 -out server.key 1024
-Generating RSA private key, 1024 bit long modulus (2 primes)
-...............................................+++++
-.....................+++++
-
-etc.
+--traffic-server-key <server key file> --traffic-server-crt <server certificate file> --traffic-server-key-password <key password to avoid PEM Phrase prompt on startup>
 ```
 
-Add the following parameters to the agent command-line (appended key password to avoid the 'PEM pass phrase' prompt at process start):
-
-```bash
---traffic-server-key server.key --traffic-server-crt server.crt --traffic-server-key-password <key password>
-```
-
-For quick testing, launch unsecured traffic in this way:
-
-```bash
-$ curl -i --http2-prior-knowledge --insecure -d'{"foo":1, "bar":2}' https://localhost:8000/any/unprovisioned/path
-HTTP/2 501
-```
+As well as some `curl` hints (secure and insecure examples).
 
 **TODO**: support secure client connection for client capabilities.
 
@@ -1494,7 +1487,12 @@ Then you may build project images and start the `h2agent` with its docker image:
 
 ```bash
 $ ./build.sh --auto # builds project images
-$ ./h2a.sh --verbose # starts agent with docker by mean helper script
+$ ./run.sh --verbose # starts agent with docker by mean helper script
+```
+Also HTTP/1 support could be achieved using `h2agent_http1` image by mean the appropriate prepend:
+
+```bash
+$ HTTP1_ENABLED=yes ./run.sh --verbose # HTTP/1 support on port 8001 by default
 ```
 
 Or build native executable and run it from shell:
@@ -1532,7 +1530,7 @@ bash-5.1# ./h2agent --verbose &
 
 #### Questions and answers
 
-A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
+A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Also *Groq* model can be used if the proper key is detected. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
 
 #### Play
 
@@ -4288,7 +4286,7 @@ Usage: server_data [-h|--help]; Inspects server data events (http://localhost:80
                                                                    Event number may be negative to access by reverse
                                                                    chronological order.
                    [--summary] [max keys]          ; Gets current server data summary to guide further queries.
-                                                     Displayed keys (method/uri) could be limited (5 by default, -1: no limit).
+                                                     Displayed keys (method/uri) could be limited (10 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
                                                      selection.
                    [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation.
@@ -4312,7 +4310,7 @@ Usage: client_data [-h|--help]; Inspects client data events (http://localhost:80
                                                                                         access by reverse chronological order.
                    [--summary] [max keys]          ; Gets current client data summary to guide further queries.
                                                      Displayed keys (client endpoint id/method/uri) could be limited
-                                                     (5 by default, -1: no limit).
+                                                     (10 by default, -1: no limit).
                    [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
                                                      the selection.
                    [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation.
@@ -4404,7 +4402,7 @@ These are the groups of metrics implemented in the project:
 
 
 
-#### HTTP2 clients
+#### HTTP/2 clients
 
 ```
 Counters provided by http2comm library:
@@ -4416,15 +4414,15 @@ Counters provided by http2comm library:
 
 Gauges provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds_gauge [source]
-   h2agent_traffic_client_sent_messages_size_bytes_gauge [source]
-   h2agent_traffic_client_received_messages_size_bytes_gauge [source]
+   h2agent_traffic_client_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_traffic_client_sent_messages_size_bytes_gauge [source] [method]
+   h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds [source]
-   h2agent_traffic_client_sent_messages_size_bytes [source]
-   h2agent_traffic_client_received_messages_size_bytes [source]
+   h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code]
+   h2agent_traffic_client_sent_messages_size_bytes [source] [method]
+   h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code]
 ```
 
 
@@ -4443,15 +4441,15 @@ Counters provided by http2comm library:
 
 Gauges provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds_gauge [source]
-   udp_server_h2client_sent_messages_size_bytes_gauge [source]
-   udp_server_h2client_received_messages_size_bytes_gauge [source]
+   udp_server_h2client_responses_delay_seconds_gauge [source] [method] [status_code]
+   udp_server_h2client_sent_messages_size_bytes_gauge [source] [method]
+   udp_server_h2client_received_messages_size_bytes_gauge [source] [method] [status_code]
 
 Histograms provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds [source]
-   udp_server_h2client_sent_messages_size_bytes [source]
-   udp_server_h2client_received_messages_size_bytes [source]
+   udp_server_h2client_responses_delay_seconds [source] [method] [status_code]
+   udp_server_h2client_sent_messages_size_bytes [source] [method]
+   udp_server_h2client_received_messages_size_bytes [source] [method] [status_code]
 ```
 
 
@@ -4459,9 +4457,9 @@ Histograms provided by http2comm library:
 Examples:
 
 ```bash
-udp_server_h2client_responses_delay_seconds_bucket{source="udp_server_h2client",le="0.0001"} 21835
-h2agent_traffic_client_observed_responses_timedout_counter{source="http2proxy_myClient"} 134
-h2agent_traffic_client_observed_responses_received_counter{source="h2agent_myClient"} 9776
+udp_server_h2client_responses_delay_seconds_bucket{source="customer",method="POST",status_code="201",le="0.005"} 52
+h2agent_traffic_client_observed_responses_timedout_counter{source="http2proxy_myClient",method="POST"} 1
+h2agent_traffic_client_observed_responses_received_counter{source="h2agent_myClient",method="POST",status_code="201"} 9776
 ```
 
 Note that 'histogram' is not part of histograms' category metrics name suffix (as counters and gauges do). The reason is to avoid confusion because metrics created are not actually histogram containers (except bucket). So, 'sum' and 'count' can be used to represent latencies, but not directly as histograms but doing some intermediate calculations:
@@ -4472,7 +4470,7 @@ rate(h2agent_traffic_client_responses_delay_seconds_sum[2m])/rate(h2agent_traffi
 
 So, previous expression (rate is the mean variation in given time interval) is better without 'histogram' in the names, and helps to represent the latency updated in real time (every 2 minutes in the example).
 
-#### HTTP2 servers
+#### HTTP/2 servers
 
 We have two groups of server metrics. One for administrative operations (1 administrative server interface) and one for traffic events (1 traffic server interface):
 
@@ -4487,21 +4485,21 @@ Counters provided by http2comm library and h2agent itself(*):
 
 Gauges provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source]
-   h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source]
+   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source] [method]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds [source]
-   h2agent_[traffic|admin]_server_received_messages_size_bytes [source]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source]
+   h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_received_messages_size_bytes [source] [method]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code]
 ```
 
 For example:
 
 ```bash
-h2agent_traffic_server_received_messages_size_bytes_bucket{source="myServer"} 38
+h2agent_traffic_server_received_messages_size_bytes_bucket{source="myServer",method="POST",status_code="201",le="322"} 38
 h2agent_traffic_server_provisioned_requests_counter{source="h2agent",result="failed"} 234
 h2agent_traffic_server_purged_contexts_counter{source="h2agent",result="successful"} 2361
 ```

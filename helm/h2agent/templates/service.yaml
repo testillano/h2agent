@@ -15,15 +15,24 @@ spec:
       targetPort: {{ .Values.service.admin_port }}
       protocol: TCP
       name: http2-admin
+      {{ if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.admin_nodePort }}
+      {{- end }}
     - port: {{ .Values.service.traffic_port }}
       targetPort: {{ .Values.service.traffic_port }}
       protocol: TCP
       name: http2-traffic
+      {{ if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.traffic_nodePort }}
+      {{- end }}
     {{- if .Values.h2agent_cl.metrics.enabled }}
     - port: {{ .Values.service.prometheus_port }}
       targetPort: {{ .Values.service.prometheus_port }}
       protocol: TCP
       name: http-metrics
+      {{ if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.prometheus_nodePort }}
+      {{- end }}
     {{- end }}
   selector:
     {{- include "h2agent.selectorLabels" . | nindent 4 }}

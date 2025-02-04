@@ -12,19 +12,20 @@ REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged:
 
 # Dependencies
-nghttp2_ver=1.51.0
+nghttp2_ver=1.64.0
+nghttp2_asio_ver=main
 boost_ver=1.84.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
-ert_nghttp2_ver=v1.2.3 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & boost)
+ert_nghttp2_ver=v1.2.5 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & nghttp2-asio & boost)
 ert_logger_ver=v1.1.0
 ert_queuedispatcher_ver=v1.0.3
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
 ert_metrics_ver=v1.1.0
-ert_http2comm_ver=v2.1.6
+ert_http2comm_ver=v2.1.8
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
-arashpartow_exprtk_ver=0.0.1
+arashpartow_exprtk_ver=0.0.3
 ert_multipart_ver=$(grep ^ert_multipart_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 
 # Build requirements
@@ -72,7 +73,7 @@ download_and_unpack_github_archive() {
 }
 
 # Builders
-# $1: what (cmake|boost|nghttp2|ert_logger|ert_queuedispatcher|jupp0r_prometheuscpp|ert_metrics|ert_multipart|ert_http2comm|
+# $1: what (cmake|boost|nghttp2|nghttp2_asio|ert_logger|ert_queuedispatcher|jupp0r_prometheuscpp|ert_metrics|ert_multipart|ert_http2comm|
 #           nlohmann_json|pboettch_json_schema_validator|google_test_framework|arashpartow_exprtk|project)
 build() {
   if [ -n "${INSTALL_PERMISSIONS}" ]
@@ -80,7 +81,8 @@ build() {
     case $1 in
       cmake) ./bootstrap && make -j${make_procs} && sudo make install ;;
       boost) ./bootstrap.sh && sudo ./b2 -j${make_procs} install ;;
-      nghttp2) ./configure --enable-asio-lib --disable-shared --enable-python-bindings=no && sudo make -j${make_procs} install ;;
+      nghttp2) ./configure --disable-shared --enable-python-bindings=no && sudo make -j${make_procs} install ;;
+      nghttp2_asio) autoreconf -i && automake && autoconf && ./configure --enable-shared=false && sudo make -j${make_procs} install ;;
       ert_logger) ${CMAKE} -DERT_LOGGER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && sudo make -j${make_procs} && sudo make install ;;
       ert_queuedispatcher) ${CMAKE} -DERT_QUEUEDISPATCHER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && sudo make -j${make_procs} && sudo make install ;;
       jupp0r_prometheuscpp) ${CMAKE} -DCMAKE_BUILD_TYPE=${build_type} -DENABLE_TESTING=OFF .. && make -j${make_procs} && sudo make install ;;
@@ -98,7 +100,8 @@ build() {
     case $1 in
       cmake) ./bootstrap --prefix=${TMP_DIR}/local && make -j${make_procs} && make install ;;
       boost) ./bootstrap.sh --prefix=${TMP_DIR}/local && ./b2 -j${make_procs} install ;;
-      nghttp2) ./configure --enable-asio-lib --disable-shared --enable-python-bindings=no --prefix=${TMP_DIR}/local --with-boost-libdir=${TMP_DIR}/local/lib && make -j${make_procs} install ;;
+      nghttp2) ./configure --disable-shared --enable-python-bindings=no --prefix=${TMP_DIR}/local --with-boost-libdir=${TMP_DIR}/local/lib && make -j${make_procs} install ;;
+      nghttp2_asio) autoreconf -i && automake && autoconf && ./configure --enable-shared=false && make -j${make_procs} install ;;
       ert_logger) ${CMAKE} -DERT_LOGGER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local . && make -j${make_procs} && make install ;;
       ert_queuedispatcher) ${CMAKE} -DERT_QUEUEDISPATCHER_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local . && make -j${make_procs} && make install ;;
       jupp0r_prometheuscpp) ${CMAKE} -DCMAKE_BUILD_TYPE=${build_type} -DENABLE_TESTING=OFF -DCMAKE_INSTALL_PREFIX=${TMP_DIR}/local .. && make -j${make_procs} && make install ;;
@@ -174,11 +177,25 @@ sudo apt-get install -y libssl-dev libxml2-dev
 
 ask nghttp2 && (
 set -x && \
-download_and_unpack_github_archive https://github.com/testillano/nghttp2 ${ert_nghttp2_ver} && \
-cp nghttp2*/deps/patches/nghttp2/${nghttp2_ver}/*.patch . && clean_all nghttp2 && \
+clean_all nghttp2 && \
 wget https://github.com/nghttp2/nghttp2/releases/download/v${nghttp2_ver}/nghttp2-${nghttp2_ver}.tar.bz2 && tar xvf nghttp2-${nghttp2_ver}.tar.bz2 && \
-cd nghttp2-${nghttp2_ver}/ && for patch in ../*.patch; do patch -p1 < ${patch}; done && \
+cd nghttp2-${nghttp2_ver}/ && \
 build nghttp2 && \
+cd .. && clean_all && \
+set +x
+) || failed $? && \
+
+ask nghttp2_asio && (
+set -x && \
+download_and_unpack_github_archive https://github.com/testillano/nghttp2 ${ert_nghttp2_ver} && \
+cp nghttp2*/deps/patches/nghttp2-asio/${nghttp2_asio_ver}/*.patch . 2>/dev/null && \
+sudo apt-get install -y libtool && \
+sudo apt-get install -y pkg-config && \
+sudo apt-get install -y autoconf && \
+sudo apt-get install -y automake && \
+wget https://github.com/nghttp2/nghttp2-asio/archive/refs/heads/${nghttp2_asio_ver}.zip && unzip ${nghttp2_asio_ver}.zip && \
+cd nghttp2-asio-${nghttp2_asio_ver}/ && for patch in $(ls ../*.patch 2>/dev/null); do patch -p1 < ${patch}; done && \
+build nghttp2_asio && \
 cd .. && clean_all && \
 set +x
 ) || failed $? && \

@@ -213,8 +213,9 @@ ss << "TRAFFIC REQUEST RECEIVED"
     std::map<std::string, std::string> qmap; // query parameters map
     if (!uriQuery.empty()) {
         char separator = ((getAdminData()->getServerMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
-        qmap = h2agent::model::extractQueryParameters(uriQuery, separator); // needed even for 'Ignore' QParam filter type
-        std::string uriQueryNormalized = h2agent::model::sortQueryParameters(qmap, separator);
+        std::string uriQueryNormalized;
+        std::string *ptr_uriQueryNormalized = &uriQueryNormalized;
+        qmap = h2agent::model::extractQueryParameters(uriQuery, ptr_uriQueryNormalized, separator); // needed even for 'Ignore' QParam filter type
 
         normalizedUri += "?";
         normalizedUri += uriQueryNormalized;

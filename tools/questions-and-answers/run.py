@@ -1,17 +1,29 @@
-#######################################################
-# QUESTIONS AND ANSWERS FROM DOCUMENTS - OpenAI-based #
-#######################################################
+################################################
+# QUESTIONS AND ANSWERS FROM PROJECT MARKDOWNS #
+################################################
 
 # Imports
 import os, sys, glob, pickle
 
+from langchain_community.document_loaders import UnstructuredMarkdownLoader # pip3 install --upgrade requests
+from langchain.text_splitter import MarkdownTextSplitter
+#from langchain_community.document_loaders import PyPDFLoader
+#from langchain.text_splitter import CharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAI
+from langchain_groq import ChatGroq
+
+from langchain.chains import ConversationalRetrievalChain # RetrievalQA is more simple (no context)
+
+from langchain_chroma import Chroma
+
 # Script location
 SCR_PATH = os.path.abspath(__file__)
 SCR_DIR, SCR_BN = os.path.split(SCR_PATH)
-REPO_DIR = os.path.abspath(SCR_DIR + "/../..")
+TARGET_DIR = os.path.abspath(SCR_DIR + "/../..")
 
 # Chat history
-CHAT_HISTORY = REPO_DIR + "/." + SCR_BN + "-chat-history"
+CHAT_HISTORY = "chat-history"
 
 # Basic checkings:
 # Python3 version
@@ -22,58 +34,78 @@ if major < 3 or (major == 3 and minor < 8):
   print("Python version must be >= 3.8.1 (current: {x}.{y}.{z}). Try alias it, i.e.: alias python3='/usr/bin/python3.9'".format(x=major, y=minor, z=micro))
   sys.exit(1)
 
-# OpenAI version
-try:
-  apikey = os.environ["OPENAI_API_KEY"]
-except:
-  print("Please, export your OpenAI API KEY over 'OPENAI_API_KEY' environment variable")
-  print("You may create the key here: https://platform.openai.com/account/api-keys")
-  sys.exit(1)
+# API KEYs:
+def has_apikey(key, mandatory = True):
+  result = False
+  try:
+    dummy = os.environ[key]
+    result = True
+  except:
+    if mandatory:
+      print("ERROR: you must define '{}' environment variable".format(key))
+      sys.exit(1)
+    else:
+      print("WARNING: you may want to define '{}' environment variable".format(key))
 
-# Load documents
-print("Loading markdown documents under this directory ({}) ...".format(REPO_DIR))
-wildcard=REPO_DIR + '/**/*.md'
-markdowns = glob.glob(wildcard, recursive = True)
-#print(markdowns)
+  return result
 
-from langchain.document_loaders import UnstructuredMarkdownLoader
-loaders = [UnstructuredMarkdownLoader(os.path.join(SCR_DIR, md)) for md in markdowns]
-#print("Loading URL sources ...")
-#from langchain.document_loaders import UnstructuredURLLoader
-#loaders.append(UnstructuredURLLoader(["https://prezi.com/p/1ijxuu0rt-sj/?present=1)"]))
-documents = []
-for loader in loaders:
-  documents.extend(loader.load())
+# Check OpenAI api key:
+has_apikey("OPENAI_API_KEY")
 
-# create index
-#from langchain.indexes import VectorstoreIndexCreator
-#index = VectorstoreIndexCreator().from_loaders(loaders)
-#index.query_with_sources("here the query...")
-
-# Indexing data:
-print("Indexing data ...")
-
-# Split the document into chunks:
-from langchain.text_splitter import MarkdownTextSplitter
-text_splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
-texts = text_splitter.split_documents(documents)
+# Check optional Groq api key:
+has_groq = has_apikey("GROQ_API_KEY", False)
 
 # Select which enbeddings we want to use
-from langchain.embeddings import OpenAIEmbeddings
 embeddings = OpenAIEmbeddings()
 
-# Create the vectorstore to use as the index
-from langchain.vectorstores import Chroma
-vectorstore = Chroma.from_documents(texts, embeddings)
+# Load documents into RAG: read if exsits
+vectorstore_path = "./vectorstore-data"
+if not os.path.exists(vectorstore_path):
+  print("Creating vectorstore ...")
 
-# Expose this index in a retriever interface
+  wildcard= TARGET_DIR + '/**/*.md' # or '/**/*.pdf' for PDF files
+  files = glob.glob(wildcard, recursive = True)
+
+  loaders = [UnstructuredMarkdownLoader(os.path.join(SCR_DIR, f)) for f in files]
+  #loaders.append(UnstructuredURLLoader(["https://prezi.com/p/1ijxuu0rt-sj/?present=1)"])) # For URLs
+  #loaders = [PyPDFLoader(os.path.join(SCR_DIR, f)) for f in files] # For PDF files
+
+  documents = []
+  for loader in loaders:
+    documents.extend(loader.load())
+
+  # Split the document into chunks:
+  text_splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
+  fragments = text_splitter.split_documents(documents)
+  # For PDF files:
+  #text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=150, length_function=len)
+  #fragments = text_splitter.split_documents(documents)
+
+  # Create the vectorstore to use as the index
+  vectorstore = Chroma.from_documents(fragments, embeddings, persist_directory=vectorstore_path)
+
+else:
+    print("Loading vectorstore ...")
+    vectorstore = Chroma(persist_directory=vectorstore_path, embedding_function=embeddings)
+
+
+# Expose vectorstore index in a retriever interface
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k":9})
 
-# Create a chain to answer questions
-from langchain.chains import ConversationalRetrievalChain
-from langchain.llms import OpenAI
-qa = ConversationalRetrievalChain.from_llm(OpenAI(temperature=0), retriever) # , return_source_documents=True)
-#vectordbkwargs = {"search_distance": 0.9}
+# Create a chain to answer questions (temperature 0 to be more deterministic, less creative)
+llm = OpenAI(temperature=0)
+
+if has_groq:
+  llm=ChatGroq(
+    model="mixtral-8x7b-32768",
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
+    max_retries=2,
+    # other params...
+  )
+
+qa = ConversationalRetrievalChain.from_llm(llm, retriever)
 
 # Chat history: read if exists
 chat_history = []
@@ -87,12 +119,13 @@ except:
 while True:
   query = input("\nAsk me anything (0 = quit): ")
   if query == "0": break
-  result = qa({"question": query, "chat_history": chat_history}) # , "vectordbkwargs": vectordbkwargs1})
+  result = qa.invoke({"question": query, "chat_history": chat_history})
   answer = result["answer"]
   print(answer)
-  chat_history.append([query, answer])
+  chat_history.append((query, answer))
 
-print("\n[saving chat history ...]\n")
+# TODO: chat history rotation is needed to avoid huge data and so, greater cost:
+print("\n[saving chat history for next chatbot sessions ...]\n")
 with open(CHAT_HISTORY, 'wb') as f: # write in binary mode
   pickle.dump(chat_history, f) # serialize the array and write it to the file
 

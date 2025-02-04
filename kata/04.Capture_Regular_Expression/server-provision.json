@@ -1,21 +1,4 @@
 {
   "requestMethod": "GET",
-  "requestUri": "/number/is/even/",
-  "responseCode": 200,
-  "transform": [
-    {
-      "source": "request.uri.path",
-      "filter": {
-        "RegexCapture": "(/number/is/even/)(\\d*[13579]$)"
-      },
-      "target": "var.isOdd"
-    },
-    {
-      "source": "value.400",
-      "filter": {
-        "ConditionVar": "isOdd.2"
-      },
-      "target": "response.statusCode"
-    }
-  ]
+  "responseCode": 200
 }

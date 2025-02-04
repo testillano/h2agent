@@ -110,6 +110,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "                be used to build valid IPv4 addresses for a given sequence.\n"
        << "   @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens\n"
        << "                and this pattern will be replaced by the nth one.\n"
+       << "   @{udp8.<n>}: selects the 8 least significant digits in each part if exists.\n"
        << "\n"
        << "To stop the process you can send UDP message 'EOF'.\n"
        << "To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.\n\n"
@@ -383,36 +384,42 @@ public:
         timeout_ms_ = millisecondsTimeout;
 
         // Main variable @{udp}
-        std::string mainVar = "udp";
-        variables_[mainVar] = data_;
+        variables_["udp"] = data_;
 
         // Reserved variables:
         // @{udp8}
         variables_["udp8"] = extractLastNChars(data_, 8);
 
-        // Variable parts: @{udp.1}, @{udp.2{, etc.
+        // Variable parts: @{udp[8].1}, @{udp[8].2}, etc.
         char delimiter = '|';
         if (data_.find(delimiter) == std::string::npos)
             return;
 
-        std::size_t start = 0;
-        std::size_t pos = data_.find(delimiter);
-        std::string aux;
-        int count = 1;
-        while (pos != std::string::npos) {
-            aux = mainVar;
-            aux += ".";
-            aux += std::to_string(count);
-            count++;
-            variables_[aux] = data_.substr(start, pos - start);
-            start = pos + 1;
-            pos = data_.find(delimiter, start);
+        const std::string patternPrefixes[] = {"udp", "udp8"};
+        for (const std::string& patternPrefix : patternPrefixes) {
+            std::size_t start = 0;
+            std::size_t pos = data_.find(delimiter);
+            std::string var, val;
+            int count = 1;
+            while (pos != std::string::npos) {
+                var = patternPrefix;
+                var += ".";
+                var += std::to_string(count);
+                count++;
+                val = data_.substr(start, pos - start);
+                if (patternPrefix == "udp8") val = extractLastNChars(val, 8);
+                variables_[var] = val;
+                start = pos + 1;
+                pos = data_.find(delimiter, start);
+            }
+            // add latest
+            var = patternPrefix;
+            var += ".";
+            var += std::to_string(count);
+            val = data_.substr(start);
+            if (patternPrefix == "udp8") val = extractLastNChars(val, 8);
+            variables_[var] = val;
         }
-        // add latest
-        aux = mainVar;
-        aux += ".";
-        aux += std::to_string(count);
-        variables_[aux] = data_.substr(start);
     }
 
     std::string getMethod() const { // variables substitution
@@ -453,9 +460,9 @@ public:
     // Process reception
     void process() {
         // Send the request:
-        auto start = std::chrono::high_resolution_clock::now();
+        //auto start = std::chrono::high_resolution_clock::now();
         ert::http2comm::Http2Client::response response = client_->send(getMethod(), getPath(), getBody(), getHeaders(), std::chrono::milliseconds(getMillisecondsTimeout()));
-        auto end = std::chrono::high_resolution_clock::now();
+        //auto end = std::chrono::high_resolution_clock::now();
 
         // Log debug the response, and store status codes statistics:
         int status = response.statusCode;
@@ -845,7 +852,7 @@ int main(int argc, char* argv[])
 
         // exit condition:
         if (udpData == "EOF") {
-            std::cout<<  '\n' << "Existing (EOF received) !" << '\n';
+            std::cout<<  '\n' << "Exiting (EOF received) !" << '\n';
             break;
         }
         else if (udpData == "STATS") {
@@ -855,13 +862,13 @@ int main(int argc, char* argv[])
                       << std::setw(COL4_WIDTH) << std::left << statsAsString() << '\n';
         }
         else {
-            sequence++;
-            if (sequence % i_printEach == 0 || (sequence == 1) /* first one always shown :-)*/) {
+            if (sequence % i_printEach == 0 || (sequence == 0) /* first one always shown :-)*/) {
                 std::cout << std::setw(COL1_WIDTH) << std::left << ert::tracing::getLocaltime()
                           << std::setw(COL2_WIDTH) << std::left << sequence
                           << std::setw(COL3_WIDTH) << std::left << udpData
                           << std::setw(COL4_WIDTH) << std::left << statsAsString() << '\n';
             }
+            sequence++;
 
             /*
             // WITHOUT DELAY FEATURE (also this could cause submit error due to method/path/body not protected in this thread):
