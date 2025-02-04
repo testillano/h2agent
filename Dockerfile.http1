@@ -4,8 +4,8 @@ MAINTAINER testillano
 
 LABEL testillano.h2agent_http1.description="Docker image for h2agent service with HTTP/1 support"
 
-ARG base_os=ubuntu
-RUN if [ "${base_os}" = "alpine" ] ; then apk add nghttp2 && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get install -y nghttp2 && apt-get clean ; fi
+ARG os_type=ubuntu
+RUN if [ "${os_type}" = "alpine" ] ; then apk add nghttp2 && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get install -y nghttp2 && apt-get clean ; fi
 
 # Port 8001 is used for HTTP/1 proxy
 RUN printf %b "#!/bin/sh\n\

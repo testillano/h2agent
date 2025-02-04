@@ -4,8 +4,8 @@ MAINTAINER testillano
 
 LABEL testillano.h2agent.description="Docker image for h2agent coverage"
 
-ARG base_os=ubuntu
-RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add lcov --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y lcov && apt-get clean ; fi
+ARG os_type=ubuntu
+RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add lcov bc --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y lcov bc && apt-get clean ; fi
 
 COPY . /code
 WORKDIR /code
@@ -17,9 +17,11 @@ RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
 
 # Exclusions provided on $@:
 RUN printf %b "#!/bin/sh\n\
-lcov --capture --directory ./src --directory ./ut --directory ./tools --initial --output-file base-coverage.info --ignore-errors mismatch --ignore-errors mismatch,mismatch\n\
+cd /code\n\
+CAPTURE_OPTS=\"--ignore-errors empty --ignore-errors inconsistent --ignore-errors inconsistent,inconsistent --ignore-errors mismatch --ignore-errors mismatch,mismatch\"\n\
+lcov --capture --directory ./src --directory ./ut --directory ./tools --initial --output-file base-coverage.info \${CAPTURE_OPTS}\n\
 /code/build/Debug/bin/unit-test\n\
-lcov --capture --directory ./src --directory ./ut --directory ./tools --output-file test-coverage.info --ignore-errors gcov,gcov --ignore-errors mismatch --ignore-errors mismatch,mismatch --ignore-errors empty --ignore-errors negative\n\
+lcov --capture --directory ./src --directory ./ut --directory ./tools --output-file test-coverage.info --ignore-errors gcov,gcov \${CAPTURE_OPTS}\n\
 lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info\n\
 \n\
 lcov --extract total-coverage.info '/code/src/*' --output-file extracted-coverage.info\n\

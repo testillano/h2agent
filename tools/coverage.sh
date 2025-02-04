@@ -8,12 +8,12 @@ git_root_dir="$(git rev-parse --show-toplevel 2>/dev/null)"
 
 # Base OS:
 echo "Base image (alpine/ubuntu) [ubuntu]:"
-read base_os
-[ -z "${base_os}" ] && base_os=ubuntu
+read os_type
+[ -z "${os_type}" ] && os_type=ubuntu
 
 # Build debug target:
-bargs="--build-arg base_os=${base_os}"
-bargs+=" --build-arg base_tag=latest" # local
+bargs="--build-arg os_type=${os_type}"
+bargs+=" --build-arg base_tag=latest" # local in github flow
 bargs+=" --build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
 
 cd ${git_root_dir}

@@ -28,8 +28,8 @@ COPY --from=builder /code/build/${build_type}/bin/udp-client /opt/
 
 # We add curl & jq for helpers.src
 # Ubuntu has bash already installed, but vim is missing
-ARG base_os=ubuntu
-RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add bash curl jq && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq && apt-get clean ; fi
+ARG os_type=ubuntu
+RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq && apt-get clean ; fi
 
 ENTRYPOINT ["/opt/h2agent"]
 CMD []

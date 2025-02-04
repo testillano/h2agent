@@ -9,6 +9,7 @@ STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57
 image_tag__dflt=latest
 base_os__dflt=ubuntu
 base_tag__dflt=latest
+os_type__dflt=ubuntu
 scratch_img__dflt=${base_os__dflt}
 scratch_img_tag__dflt=latest
 make_procs__dflt=$(grep processor /proc/cpuinfo -c)
@@ -150,6 +151,7 @@ build_project_image() {
   _read scratch_img_tag
   _read make_procs
   _read build_type
+  _read os_type
 
   bargs="--build-arg base_os=${base_os}"
   bargs+=" --build-arg base_tag=${base_tag}"
@@ -157,6 +159,7 @@ build_project_image() {
   bargs+=" --build-arg scratch_img_tag=${scratch_img_tag}"
   bargs+=" --build-arg make_procs=${make_procs}"
   bargs+=" --build-arg build_type=${build_type}"
+  bargs+=" --build-arg os_type=${os_type}"
 
   set -x
   rm -f CMakeCache.txt
