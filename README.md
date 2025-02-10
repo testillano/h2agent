@@ -6,9 +6,7 @@
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
-[![Docker Pulls for h2agent](https://img.shields.io/docker/pulls/testillano/h2agent.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent)
-[![Docker Pulls for h2agent_builder](https://img.shields.io/docker/pulls/testillano/h2agent_builder.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent_builder)
-[![Docker Pulls for h2agent_training](https://img.shields.io/docker/pulls/testillano/h2agent_training.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent_training)
+[![Docker Pulls](https://img.shields.io/docker/pulls/testillano/h2agent.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent)
 
 `H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1 is supported via `nghttpx` reverse proxy).
 It is mainly designed for testing, but could even simulate or complement advanced services.
