@@ -2580,7 +2580,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.json.string.category",
+    "target": "response.body.json.string./category",
     "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
   }
   ```
@@ -2596,7 +2596,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.json.unsigned.data.timestamp",
+    "target": "response.body.json.unsigned./data/timestamp",
     "filter": {
       "RegexReplace" : {
         "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
