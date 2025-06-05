@@ -39,3 +39,14 @@ Ask me anything (0 = quit):
 ````
 
 Also remember that **environment variables** `OPENAI_API_KEY` and/or `GROQ_API_KEY` must be defined (the `openai api key` is mandatory as it is used at least the first time to create the vector store for embeddings. After that, if `groq api key` is defined, it will be used for querying the model because it is free/cheaper compared to `openAI`). Those variables are exported from calling shell when running the training docker image.
+
+Ask me anything (0 = quit): I want to configure a classification algorithm for RegexMatching, ignoring query parameters
+
+json
+{
+  "algorithm": "RegexMatching",
+  "uriPathQueryParameters": {
+    "filter": "Ignore"
+  }
+}
+

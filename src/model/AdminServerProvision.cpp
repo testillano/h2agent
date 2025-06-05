@@ -1216,7 +1216,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         if (hasFilter) {
             if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
                 LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
-                LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+                if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
                 continue;
             }
         }
