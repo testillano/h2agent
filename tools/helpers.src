@@ -751,6 +751,7 @@ help() {
   echo "=== Variables ==="
   echo "TRAFFIC_URL=${TRAFFIC_URL}"
   [ -n "${SERVER_API}" ] && echo "SERVER_API=${SERVER_API}"
+  echo "METRICS_URL=${METRICS_URL}"
   echo "ADMIN_URL=${ADMIN_URL}"
   echo "CURL=\"${CURL}\""
   echo
