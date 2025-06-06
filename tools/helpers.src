@@ -21,7 +21,7 @@ do_curl() {
   ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
   [ $? -ne 0 ] && return 1
 
-  [ -n "${PLAIN}" ] && return 0 # special for trace()
+  [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
 
   # Last empty line or no line feed (no body answered):
   [ -z $(tail -c 1 /tmp/curl.out) ] && return 0
