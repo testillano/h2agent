@@ -127,18 +127,6 @@ jobs:
         context: .
         push: true
     -
-      name: Build local project http1 image
-      id: docker_build5
-      uses: docker/build-push-action@v2
-      with:
-        tags: ghcr.io/testillano/h2agent_http1:local
-        file: Dockerfile.http1
-        build-args: |
-          os_type=ubuntu
-          base_tag=local
-        context: .
-        push: true
-    -
       name: Image4 digest
       run: echo ${{ steps.docker_build4.outputs.digest }}
 
@@ -256,7 +244,7 @@ jobs:
 
         echo Processed image_tag=$image_tag
 
-        for imgbn in h2agent_builder h2agent h2agent_http1 ct-h2agent h2agent_training
+        for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
         do
           img=ghcr.io/testillano/${imgbn}:local
           echo "Pull '${img}' image:"

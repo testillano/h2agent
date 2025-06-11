@@ -3,7 +3,7 @@ test:
   replicaCount: 1
   image:
     repository: ghcr.io/testillano/ct-h2agent
-    pullPolicy: Never
+    pullPolicy: IfNotPresent
     tag: latest
   podAnnotations:
     sidecar.istio.io/inject: "true"

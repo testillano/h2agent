@@ -4,11 +4,11 @@
 # VARIABLES #
 #############
 PNAME=${PNAME:-h2agent}
-TRAFFIC_URL=${TRAFFIC_URL:-"http://localhost:8000"}
+TRAFFIC_URL=${TRAFFIC_URL:-"http://localhost:8000"} # may be HTTP/1 on 8001
 METRICS_URL=${METRICS_URL:-"http://localhost:8080/metrics"}
 ADMIN_URL=${ADMIN_URL:-"http://localhost:8074/admin/v1"}
 [ "${SERVER_API}" = "/" ] && SERVER_API=
-CURL="curl -i --http2-prior-knowledge"
+CURL=${CURL:-"curl -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
 BEAUTIFY_JSON=yes
 
 #############

@@ -29,7 +29,29 @@ COPY --from=builder /code/build/${build_type}/bin/udp-client /opt/
 # We add curl & jq for helpers.src
 # Ubuntu has bash already installed, but vim is missing
 ARG os_type=ubuntu
-RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq && apt-get clean ; fi
+RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq nghttp2 && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq nghttp2 && apt-get clean ; fi
 
-ENTRYPOINT ["/opt/h2agent"]
+RUN printf %b "#!/bin/sh\n\
+if [ -n \"\${H2AGENT_ENABLE_HTTP1_PROXY}\" ]\n\
+then\n\
+  echo\n\
+  echo \"Launching nghttpx proxy for HTTP/1 access (non-empty value for 'H2AGENT_ENABLE_HTTP1_PROXY'):\"\n\
+  echo \"H2AGENT_HTTP1_PORT=\${H2AGENT_HTTP1_PORT}\"\n\
+  echo \"H2AGENT_HTTP2_PORT=\${H2AGENT_HTTP2_PORT}\"\n\
+  /opt/h2agent \$@ &\n\
+  cat << EOF > /etc/nghttpx/nghttpx.conf\n\
+frontend=0.0.0.0,\${H2AGENT_HTTP1_PORT:-8001};no-tls\n\
+backend=0.0.0.0,\${H2AGENT_HTTP2_PORT:-8000};;proto=h2\n\
+http2-proxy=no\n\
+EOF\n\
+  exec nghttpx --host-rewrite --no-server-rewrite --no-add-x-forwarded-proto # --log-level=INFO --no-via\n\
+else\n\
+  exec /opt/h2agent \$@\n\
+fi\n\
+echo \"Exiting h2agent entrypoint\"" > /var/starter.sh
+
+RUN chmod a+x /var/starter.sh
+
+ENTRYPOINT ["sh", "/var/starter.sh" ]
+
 CMD []

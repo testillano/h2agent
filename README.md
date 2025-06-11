@@ -189,18 +189,36 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
-* Run <u>h2agent_http1 project image</u> with docker (`HTTP1_ENABLED=yes ./run.sh` script at root directory can also be used):
+* Enable HTTP/1 support (HTTP/2 upgrade), with docker (`H2AGENT_ENABLE_HTTP1_PROXY=yes ./run.sh` script at root directory can also be used):
 
   ```bash
-  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent_http1:latest
+  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_ENABLE_HTTP1_PROXY=yes ghcr.io/testillano/h2agent:latest
   ```
 
-  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
+  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1). Environment variables `H2AGENT_HTTP2_PORT` and `H2AGENT_HTTP1_PORT` can also be used to modify defaults (8000 and 8001 respectively). If `H2AGENT_HTTP2_PORT` is provided, **it must be aligned with `--traffic-server-port` h2agent parameter**, or Bad Gateway error will be obtained.
 
-  We prefer to generate a specific docker image variant for HTTP/1 (`h2agent_http1`) since the proxy could introduce additional latency, so if we only require HTTP/2 it doesn't make sense to consolidate that proxy layer within `h2agent` project image.
+  ```bash
+  $ curl -i http://localhost:8001/arbitrary/path # or --http1.0, --http1.1
+  HTTP/1.1 501 Not Implemented
+  Date: Wed, 11 Jun 2025 22:47:54 GMT
+  Transfer-Encoding: chunked
+  Via: 2 nghttpx
 
-  In any case, if you want to run `h2agent` out of docker container and then set the `nghttpx` proxy to provide HTTP/1 support, you may take as reference the `Dockerfile.http1` file where this proxy is configured.
-  This image is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
+  $ curl -i --http2 http://localhost:8001/arbitrary/path
+  HTTP/1.1 101 Switching Protocols
+  Connection: Upgrade
+  Upgrade: h2c
+
+  HTTP/2 501
+  date: Wed, 11 Jun 2025 10:48:12 GMT
+  via: 2 nghttpx
+
+  $ curl -i --http2-prior-knowledge http://localhost:8000/arbitrary/path
+  HTTP/2 501
+  date: Wed, 11 Jun 2025 22:48:20 GMT
+  ```
+
+  This mode is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
@@ -1490,10 +1508,10 @@ Then you may build project images and start the `h2agent` with its docker image:
 $ ./build.sh --auto # builds project images
 $ ./run.sh --verbose # starts agent with docker by mean helper script
 ```
-Also HTTP/1 support could be achieved using `h2agent_http1` image by mean the appropriate prepend:
+Also HTTP/1 support could be achieved using `h2agent` image by mean the appropriate prepend:
 
 ```bash
-$ HTTP1_ENABLED=yes ./run.sh --verbose # HTTP/1 support on port 8001 by default
+$ H2AGENT_ENABLE_HTTP1_PROXY=yes ./run.sh --verbose # HTTP/1 support on port 8001 by default
 ```
 
 Or build native executable and run it from shell:
