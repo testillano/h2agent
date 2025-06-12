@@ -8,7 +8,7 @@
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/testillano/h2agent.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent)
 
-`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1 is supported via `nghttpx` reverse proxy).
+`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1.x is supported via `nghttpx` reverse proxy).
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
 It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
@@ -134,7 +134,7 @@ When developing a network service, one often needs to integrate it with other se
 
 `H2agent` can be used to replace one (or many) of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
-`H2agent` supports HTTP/2 as a network protocol (also HTTP/1 via proxy) and JSON as a data interchange language.
+`H2agent` supports HTTP/2 as a network protocol (also HTTP/1.x via proxy) and JSON as a data interchange language.
 
 So, `h2agent` could be used as:
 
@@ -189,33 +189,38 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
-* Enable HTTP/X proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`H2AGENT_TRAFFIC_PROXY_PORT=8001 ./run.sh` script at root directory can also be used):
+* HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`H2AGENT_TRAFFIC_PROXY_PORT=8001 ./run.sh` script at root directory can also be used):
+
+  Internal front-end port (8001 by default) exposes the **proxy service** and redirects the traffic towards the back-end port (8000 by default) which is provided by `h2agent` **traffic server**. Those ports are specified through two environment variables: `H2AGENT_TRAFFIC_PROXY_PORT` (proxy front-end port) and `H2AGENT_TRAFFIC_SERVER_PORT` (proxy back-end port). They are processed by the image entry point (shell script `/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for **`nghttpx` proxy (enabled when `H2AGENT_TRAFFIC_PROXY_PORT` is defined)**. This way, we can simulate all HTTP/x services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1). `H2AGENT_TRAFFIC_SERVER_PORT` variable **must be aligned with `--traffic-server-port` h2agent parameter value**, or `502 Bad Gateway` error will be obtained.
+
+  Example:
 
   ```bash
-  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_TRAFFIC_PROXY_PORT=8001 ghcr.io/testillano/h2agent:latest
-  ```
+  $ docker run --rm -it -p 8555:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_TRAFFIC_PROXY_PORT=8001 ghcr.io/testillano/h2agent:latest &
 
-  Exported ports above, include now the internal front-end port 8001 exposing the **proxy service** (keeping also HTTP/2 'prior knowledge' on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1.x services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1). Environment variables `H2AGENT_TRAFFIC_SERVER_PORT` and `H2AGENT_TRAFFIC_PROXY_PORT` can also be used to modify defaults (8000 and 8001 respectively) when proxy is enabled. The reason to have `H2AGENT_TRAFFIC_SERVER_PORT` is to configure the proxy properly: **must be aligned with `--traffic-server-port` h2agent parameter value**, or Bad Gateway error will be obtained.
-
-  ```bash
-  $ curl -i http://localhost:8001/arbitrary/path # or --http1.0, --http1.1
+  $ curl -i http://localhost:8555/arbitrary/path # through proxy (same using --http1.0 or --http1.1)
   HTTP/1.1 501 Not Implemented
-  Date: Wed, 11 Jun 2025 22:47:54 GMT
+  Date: <date>
   Transfer-Encoding: chunked
   Via: 2 nghttpx
 
-  $ curl -i --http2 http://localhost:8001/arbitrary/path
+  $ curl -i --http2 http://localhost:8555/arbitrary/path # through proxy
   HTTP/1.1 101 Switching Protocols
   Connection: Upgrade
   Upgrade: h2c
 
   HTTP/2 501
-  date: Wed, 11 Jun 2025 10:48:12 GMT
+  date: <date>
   via: 2 nghttpx
 
-  $ curl -i --http2-prior-knowledge http://localhost:8000/arbitrary/path
+  $ curl -i --http2-prior-knowledge http://localhost:8555/arbitrary/path # through proxy
   HTTP/2 501
-  date: Wed, 11 Jun 2025 22:48:20 GMT
+  date: <date>
+  via: 2 nghttpx
+
+  $ curl -i --http2-prior-knowledge http://localhost:8000/arbitrary/path # directly to h2agent
+  HTTP/2 501
+  date: <date>
   ```
 
   This mode is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
