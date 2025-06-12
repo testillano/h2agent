@@ -35,13 +35,13 @@ spec:
       {{- end }}
     {{- end }}
     # HTTP/1 proxy
-    {{- if .Values.service.traffic_http1_port | default false }}
-    - port: {{ .Values.service.traffic_http1_port }}
-      targetPort: {{ .Values.service.traffic_http1_port }}
+    {{- if .Values.service.traffic_proxy_port | default false }}
+    - port: {{ .Values.service.traffic_proxy_port }}
+      targetPort: {{ .Values.service.traffic_proxy_port }}
       protocol: TCP
-      name: http1-traffic
+      name: traffic-proxy
       {{ if eq .Values.service.type "NodePort" }}
-      nodePort: {{ .Values.service.traffic_http1_nodePort }}
+      nodePort: {{ .Values.service.traffic_proxy_nodePort }}
       {{- end }}
     {{- end }}
   selector:

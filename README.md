@@ -189,13 +189,13 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
-* Enable HTTP/1 support (HTTP/2 upgrade), with docker (`H2AGENT_HTTP1_PORT=8001 ./run.sh` script at root directory can also be used):
+* Enable HTTP/X proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`H2AGENT_TRAFFIC_PROXY_PORT=8001 ./run.sh` script at root directory can also be used):
 
   ```bash
-  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_HTTP1_PORT=8001 ghcr.io/testillano/h2agent:latest
+  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_TRAFFIC_PROXY_PORT=8001 ghcr.io/testillano/h2agent:latest
   ```
 
-  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1). Environment variables `H2AGENT_HTTP2_PORT` and `H2AGENT_HTTP1_PORT` can also be used to modify defaults (8000 and 8001 respectively). If `H2AGENT_HTTP2_PORT` is provided, **it must be aligned with `--traffic-server-port` h2agent parameter**, or Bad Gateway error will be obtained.
+  Exported ports above, include now the internal front-end port 8001 exposing the **proxy service** (keeping also HTTP/2 'prior knowledge' on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1.x services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1). Environment variables `H2AGENT_TRAFFIC_SERVER_PORT` and `H2AGENT_TRAFFIC_PROXY_PORT` can also be used to modify defaults (8000 and 8001 respectively) when proxy is enabled. The reason to have `H2AGENT_TRAFFIC_SERVER_PORT` is to configure the proxy properly: **must be aligned with `--traffic-server-port` h2agent parameter value**, or Bad Gateway error will be obtained.
 
   ```bash
   $ curl -i http://localhost:8001/arbitrary/path # or --http1.0, --http1.1
@@ -1511,7 +1511,7 @@ $ ./run.sh --verbose # starts agent with docker by mean helper script
 Also HTTP/1 support could be achieved using `h2agent` image by mean the appropriate prepend:
 
 ```bash
-$ H2AGENT_HTTP1_PORT=8001 ./run.sh --verbose # HTTP/1 support on port 8001 (proxy nghttpx enabled)
+$ H2AGENT_TRAFFIC_PROXY_PORT=8001 ./run.sh --verbose # proxy nghttpx enabled (accepting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade)
 ```
 
 Or build native executable and run it from shell:

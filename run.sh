@@ -2,21 +2,22 @@
 #
 # Prepend variables:
 #
-#   H2AGENT_DCK_TAG:        H2agent docker image tag. Defaults to 'latest'.
-#   H2AGENT_DCK_NAME:       H2agent docker container name. Defaults to 'h2agent'.
-#   H2AGENT_DCK_EXTRA_ARGS: Arguments for docker run, for example mount options, network options (--network=back_tier -p 8000:8000 -p 8001:8001 -p 8074:8074), etc.
-#                           Defaults to '--network=host'.
-#   H2AGENT_HTTP1_PORT:     Http1 port (traffic interface) enables nghttpx reverse proxy allowing http1 & http1 upgrade (--http2), for traffic interface.
-#   H2AGENT_HTTP2_PORT:     Http2 port (traffic interface). Defaults to 8000. MUST ALIGN WITH '--traffic-server-port' h2agent parameter to avoid Bad Gateway error.
+#   H2AGENT_DCK_TAG:             H2agent docker image tag. Defaults to 'latest'.
+#   H2AGENT_DCK_NAME:            H2agent docker container name. Defaults to 'h2agent'.
+#   H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example mount options, network options (--network=back_tier -p 8000:8000 -p 8001:8001 -p 8074:8074), etc.
+#                                Defaults to '--network=host'.
+#   H2AGENT_TRAFFIC_PROXY_PORT:  Traffic proxy port provided by nghttpx allowing http1.0, http1.1, http2 and http2 without http1 upgrade.
+#   H2AGENT_TRAFFIC_SERVER_PORT: Traffic server port. Defaults to 8000. Must be aligned with '--traffic-server-port' h2agent parameter (to avoid 502 Bad Gateway error).
+#
 H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
 H2AGENT_DCK_NAME=${H2AGENT_DCK_NAME:-h2agent}
 H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
 
 docker_args="--rm -it --name ${H2AGENT_DCK_NAME} -u $(id -u)"
-if [ -n "${H2AGENT_HTTP1_PORT}" ]
+if [ -n "${H2AGENT_TRAFFIC_PROXY_PORT}" ]
 then
-  docker_args+=" -e H2AGENT_HTTP2_PORT=${H2AGENT_HTTP2_PORT}"
-  docker_args+=" -e H2AGENT_HTTP1_PORT=${H2AGENT_HTTP1_PORT}"
+  docker_args+=" -e H2AGENT_TRAFFIC_SERVER_PORT=${H2AGENT_TRAFFIC_SERVER_PORT}"
+  docker_args+=" -e H2AGENT_TRAFFIC_PROXY_PORT=${H2AGENT_TRAFFIC_PROXY_PORT}"
 fi
 
 docker_args+=" ${H2AGENT_DCK_EXTRA_ARGS}"
