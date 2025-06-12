@@ -34,13 +34,9 @@ spec:
               mountPath: {{ .Values.utilsMountPath }}
           {{- end }}
           env:
-{{- if .Values.service.enable_http1_proxy | default false }}
-            - name: H2AGENT_ENABLE_HTTP1_PROXY
-              value: "yes"
 {{- if .Values.service.traffic_http1_port | default false }}
             - name: H2AGENT_HTTP1_PORT
               value: {{ .Values.service.traffic_http1_port | quote }}
-{{- end }}
             - name: H2AGENT_HTTP2_PORT
               value: {{ .Values.service.traffic_port | quote }}
 {{- end }}

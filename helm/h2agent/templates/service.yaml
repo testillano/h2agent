@@ -35,7 +35,7 @@ spec:
       {{- end }}
     {{- end }}
     # HTTP/1 proxy
-    {{- if and (.Values.service.enable_http1_proxy | default false) (.Values.service.traffic_http1_port | default false) }}
+    {{- if .Values.service.traffic_http1_port | default false }}
     - port: {{ .Values.service.traffic_http1_port }}
       targetPort: {{ .Values.service.traffic_http1_port }}
       protocol: TCP
