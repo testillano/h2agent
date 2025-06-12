@@ -52,14 +52,15 @@ service:
   admin_port: 8074
   traffic_port: 8000
   prometheus_port: 8080
-  #enable_http1_proxy: true
-  #traffic_http1_port: 8001
+  enable_http1_proxy: true
+  traffic_http1_port: 8001
 
   #type: NodePort
   #(fixed node ports range [30000, 32767])
   #traffic_nodePort: 30000
   #admin_nodePort: 30074
   #prometheus_nodePort: 30080
+  #traffic_http1_nodePort: 30001
 
 image:
   repository: ghcr.io/testillano/h2agent

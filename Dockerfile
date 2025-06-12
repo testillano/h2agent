@@ -39,12 +39,12 @@ then\n\
   echo \"H2AGENT_HTTP1_PORT=\${H2AGENT_HTTP1_PORT}\"\n\
   echo \"H2AGENT_HTTP2_PORT=\${H2AGENT_HTTP2_PORT}\"\n\
   /opt/h2agent \$@ &\n\
-  cat << EOF > /etc/nghttpx/nghttpx.conf\n\
+  cat << EOF > /tmp/nghttpx.conf\n\
 frontend=0.0.0.0,\${H2AGENT_HTTP1_PORT:-8001};no-tls\n\
 backend=0.0.0.0,\${H2AGENT_HTTP2_PORT:-8000};;proto=h2\n\
 http2-proxy=no\n\
 EOF\n\
-  exec nghttpx --host-rewrite --no-server-rewrite --no-add-x-forwarded-proto # --log-level=INFO --no-via\n\
+  exec nghttpx --conf=/tmp/nghttpx.conf --host-rewrite --no-server-rewrite --no-add-x-forwarded-proto # --log-level=INFO --no-via\n\
 else\n\
   exec /opt/h2agent \$@\n\
 fi\n\

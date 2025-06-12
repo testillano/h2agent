@@ -13,14 +13,12 @@ H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
 H2AGENT_DCK_NAME=${H2AGENT_DCK_NAME:-h2agent}
 H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
 
-docker_args="--rm -it --name ${H2AGENT_DCK_NAME}"
+docker_args="--rm -it --name ${H2AGENT_DCK_NAME} -u $(id -u)"
 if [ -n "${H2AGENT_ENABLE_HTTP1_PROXY}" ]
 then
   docker_args+=" -e H2AGENT_ENABLE_HTTP1_PROXY=${H2AGENT_ENABLE_HTTP1_PROXY}"
   docker_args+=" -e H2AGENT_HTTP2_PORT=${H2AGENT_HTTP2_PORT}"
   docker_args+=" -e H2AGENT_HTTP1_PORT=${H2AGENT_HTTP1_PORT}"
-else
-  docker_args+=" -u $(id -u)" # write privileges not needed (nghttpx configuration is not created)
 fi
 
 docker_args+=" ${H2AGENT_DCK_EXTRA_ARGS}"
