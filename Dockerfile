@@ -31,26 +31,8 @@ COPY --from=builder /code/build/${build_type}/bin/udp-client /opt/
 ARG os_type=ubuntu
 RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq nghttp2 && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq nghttp2 && apt-get clean ; fi
 
-RUN printf %b "#!/bin/sh\n\
-if [ -n \"\${H2AGENT_TRAFFIC_PROXY_PORT}\" ]\n\
-then\n\
-  echo\n\
-  echo \"Launching nghttpx proxy for HTTP/1 access (detected variable 'H2AGENT_TRAFFIC_PROXY_PORT'):\"\n\
-  echo \"H2AGENT_TRAFFIC_PROXY_PORT=\${H2AGENT_TRAFFIC_PROXY_PORT}\"\n\
-  echo \"H2AGENT_TRAFFIC_SERVER_PORT=\${H2AGENT_TRAFFIC_SERVER_PORT}\"\n\
-  /opt/h2agent \$@ &\n\
-  cat << EOF > /tmp/nghttpx.conf\n\
-frontend=0.0.0.0,\${H2AGENT_TRAFFIC_PROXY_PORT};no-tls\n\
-backend=0.0.0.0,\${H2AGENT_TRAFFIC_SERVER_PORT:-8000};;proto=h2\n\
-http2-proxy=no\n\
-EOF\n\
-  exec nghttpx --conf=/tmp/nghttpx.conf --host-rewrite --no-server-rewrite --no-add-x-forwarded-proto # --log-level=INFO --no-via\n\
-else\n\
-  exec /opt/h2agent \$@\n\
-fi\n\
-echo \"Exiting h2agent entrypoint\"" > /var/starter.sh
-
-RUN chmod a+x /var/starter.sh
+# Start script:
+COPY deps/starter.sh /var
 
 ENTRYPOINT ["sh", "/var/starter.sh" ]
 

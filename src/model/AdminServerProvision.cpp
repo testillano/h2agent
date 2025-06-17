@@ -1234,7 +1234,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         try {
             responseBody = responseBodyJson.dump(); // this may arise type error, for example in case of trying to set json field value with binary data:
             // When having a provision transformation from 'request.body' to 'response.body.json.string./whatever':
-            // echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "$TRAFFIC_URL/uri" --data-binary @-
+            // echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "<traffic url>/uri" --data-binary @-
             //
             // This is not valid and must be protected. The user should use another kind of target to store binary.
         }

@@ -54,8 +54,8 @@ admin_operation() {
   local operation=$1
   local dataFile=$2
   title "${operation}" ${COLOR_green}
-  ${CURL} -d @${dataFile} -H "content-type: application/json" ${ADMIN_URL}/${operation} &>/dev/null
-  curl -s -XGET --http2-prior-knowledge ${ADMIN_URL}/${operation} | jq '.'
+  ${CURL} -d @${dataFile} -H "content-type: application/json" $(admin_url)/${operation} &>/dev/null
+  curl -s -XGET --http2-prior-knowledge $(admin_url)/${operation} | jq '.'
   echo
 }
 
@@ -78,9 +78,9 @@ send_request() {
   done
 
   title "Result" ${COLOR_magenta}
-  echo "[${CURL} -X ${method} ${body_opt} ${hdrs_opt} ${TRAFFIC_URL}${uri}]"
+  echo "[${CURL} -X ${method} ${body_opt} ${hdrs_opt} $(traffic_url)${uri}]"
   echo
-  ${CURL} -X ${method} ${body_opt} ${hdrs_opt} ${TRAFFIC_URL}${uri}
+  ${CURL} -X ${method} ${body_opt} ${hdrs_opt} $(traffic_url)${uri}
   rm -f ${body}
   echo
 }
@@ -184,7 +184,7 @@ source ../helpers.src &>/dev/null
 
 title "H2agent play"
 
-h2agent_check ${TRAFFIC_URL} ${ADMIN_URL} || exit 1
+h2agent_check $(traffic_url) $(admin_url) || exit 1
 
 while true
 do

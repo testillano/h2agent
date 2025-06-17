@@ -189,11 +189,18 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
-* HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`H2AGENT_TRAFFIC_PROXY_PORT=8001 ./run.sh` script at root directory can also be used):
+* HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`./run.sh` script at root directory can also be used with some prepends):
 
-  Internal front-end port (8001 by default) exposes the **proxy service** and redirects the traffic towards the back-end port (8000 by default) which is provided by `h2agent` **traffic server**. Those ports are specified through two environment variables: `H2AGENT_TRAFFIC_PROXY_PORT` (proxy front-end port) and `H2AGENT_TRAFFIC_SERVER_PORT` (proxy back-end port). They are processed by the image entry point (shell script `/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for **`nghttpx` proxy (enabled when `H2AGENT_TRAFFIC_PROXY_PORT` is defined)**. This way, we can simulate all HTTP/x services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1). `H2AGENT_TRAFFIC_SERVER_PORT` variable **must be aligned with `--traffic-server-port` h2agent parameter value**, or `502 Bad Gateway` error will be obtained.
+  This proxy, encapsulated within the Docker image, is latent until activated by configuration:
+  Proxy front-end ports are configured though environment variables: `H2AGENT_TRAFFIC_PROXY_PORT` (for traffic) and `H2AGENT_ADMIN_PROXY_PORT` (for administration). Proxy back-end ports are also configured, for traffic and administrative interface, by mean `H2AGENT_TRAFFIC_SERVER_PORT` (8000 by default) and `H2AGENT_ADMIN_SERVER_PORT` (8074 by default). Traffic frontend handles requests to the backend port exposed by the `h2agent` traffic server. Likewise, administrative requests are forwarded to the backend port of the `h2agent` administrative server.
 
-  Example:
+  The proxy feature complements `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
+
+  Note that:
+  `H2AGENT_TRAFFIC_SERVER_PORT` **must be aligned with `--traffic-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
+  `H2AGENT_ADMIN_SERVER_PORT` **must be aligned with `--admin-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
+
+  Example with proxy enabled for traffic interface (same applies to enable administrative interface, or both of them):
 
   ```bash
   $ docker run --rm -it -p 8555:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_TRAFFIC_PROXY_PORT=8001 ghcr.io/testillano/h2agent:latest &
@@ -1513,11 +1520,6 @@ Then you may build project images and start the `h2agent` with its docker image:
 $ ./build.sh --auto # builds project images
 $ ./run.sh --verbose # starts agent with docker by mean helper script
 ```
-Also HTTP/1 support could be achieved using `h2agent` image by mean the appropriate prepend:
-
-```bash
-$ H2AGENT_TRAFFIC_PROXY_PORT=8001 ./run.sh --verbose # proxy nghttpx enabled (accepting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade)
-```
 
 Or build native executable and run it from shell:
 
@@ -1559,6 +1561,10 @@ A conversational bot is available in `./tools/questions-and-answers` directory. 
 #### Play
 
 A playground is available at `./tools/play-h2agent` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/play-h2agent/README.md) file to learn more about.
+
+#### Test
+
+A GUI tester implemented in python is available at `./tools/test-h2agent` directory. It is designed to make quick interactions through traffic and administrative interfaces. Check its [README.md](./tools/test-h2agent/README.md) file to learn more about.
 
 #### Demo
 
@@ -4269,10 +4275,15 @@ Shortcut helpers (sourced variables and functions)
 to ease agent operation over management interface:
    https://github.com/testillano/h2agent#management-interface
 
-=== Variables ===
-TRAFFIC_URL=http://localhost:8000
-ADMIN_URL=http://localhost:8074/admin/v1
+=== Common variables & functions ===
+SERVER_ADDR=localhost
+TRAFFIC_PORT=8000
+ADMIN_PORT=8074
+METRICS_PORT=8080
 CURL="curl -i --http2-prior-knowledge"
+traffic_url(): http://localhost:8000
+admin_url():   http://localhost:8074/admin/v1
+metrics_url(): http://localhost:8080/metrics
 
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
