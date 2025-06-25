@@ -304,15 +304,19 @@ class MockClientApp(QWidget):
             {"name": "Show Schema for client endpoints configuration", "method": "GET", "uri": "/client-endpoint/schema", "headers": {}, "body": ""},
             {"name": "Show Schema for client provision configuration", "method": "GET", "uri": "/client-provision/schema", "headers": {}, "body": ""},
 
-            {"name": "Query Schemas", "method": "GET", "uri": "/schema", "headers": {}, "body": ""},
+            {"name": "QUERY SCHEMAS", "method": "GET", "uri": "/schema", "headers": {}, "body": ""},
             {"name": "Update Schema example", "method": "POST", "uri": "/schema", "headers": json__header, "body": json.dumps(schema__body, indent=2)},
             {"name": "Delete Schemas", "method": "DELETE", "uri": "/schema", "headers": {}, "body": ""},
 
-            {"name": "Query Global Variables", "method": "GET", "uri": "/global-variable", "headers": {}, "body": ""},
+            {"name": "QUERY GLOBAL VARIABLES", "method": "GET", "uri": "/global-variable", "headers": {}, "body": ""},
             {"name": "Query Global Variable 'CITY'", "method": "GET", "uri": "/global-variable/?name=CITY", "headers": {}, "body": ""},
             {"name": "Update Global Variable example", "method": "POST", "uri": "/global-variable", "headers": json__header, "body": json.dumps(gvars__body, indent=2)},
             {"name": "Delete Global Variables", "method": "DELETE", "uri": "/global-variable", "headers": {}, "body": ""},
             {"name": "Delete Global Variable 'CITY'", "method": "DELETE", "uri": "/global-variable?name=CITY", "headers": {}, "body": ""},
+
+            {"name": "QUERY LOGGING LEVEL", "method": "GET", "uri": "/logging", "headers": {}, "body": ""},
+            {"name": "Set Debug logging level", "method": "PUT", "uri": "/logging?level=Debug", "headers": {}, "body": ""},
+            {"name": "Set Warning logging level", "method": "PUT", "uri": "/logging?level=Warning", "headers": {}, "body": ""},
 
             {"name": "Query Files processed", "method": "GET", "uri": "/files", "headers": {}, "body": ""},
             {"name": "Query Files configuration", "method": "GET", "uri": "/files/configuration", "headers": {}, "body": ""},
@@ -329,41 +333,41 @@ class MockClientApp(QWidget):
             {"name": "Update Server configuration for dynamic request body allocation", "method": "PUT", "uri": "/server/configuration?preReserveRequestBody=false", "headers": {}, "body": ""},
             {"name": "Update Server configuration for static request body allocation", "method": "PUT", "uri": "/server/configuration?preReserveRequestBody=true", "headers": {}, "body": ""},
 
-            {"name": "Query Server Data configuration", "method": "GET", "uri": "/server-data/configuration", "headers": {}, "body": ""},
+            {"name": "QUERY SERVER DATA CONFIGURATION", "method": "GET", "uri": "/server-data/configuration", "headers": {}, "body": ""},
             {"name": "Update Server Data configuration to discard events", "method": "PUT", "uri": "/server-data/configuration?discard=true&discardKeyHistory=true", "headers": {}, "body": ""},
             {"name": "Update Server Data configuration to keep only the last event processed for a key", "method": "PUT", "uri": "/server-data/configuration?discard=false&discardKeyHistory=true", "headers": {}, "body": ""},
             {"name": "Update Server Data configuration to keep events", "method": "PUT", "uri": "/server-data/configuration?discard=false&discardKeyHistory=false", "headers": {}, "body": ""},
             {"name": "Update Server Data configuration to disable purge", "method": "PUT", "uri": "/server-data/configuration?disablePurge=true", "headers": {}, "body": ""},
             {"name": "Update Server Data configuration to enable purge", "method": "PUT", "uri": "/server-data/configuration?disablePurge=false", "headers": {}, "body": ""},
 
-            {"name": "Query Client Data configuration", "method": "GET", "uri": "/client-data/configuration", "headers": {}, "body": ""},
+            {"name": "QUERY CLIENT DATA CONFIGURATION", "method": "GET", "uri": "/client-data/configuration", "headers": {}, "body": ""},
             {"name": "Update Client Data configuration to discard events", "method": "PUT", "uri": "/client-data/configuration?discard=true&discardKeyHistory=true", "headers": {}, "body": ""},
             {"name": "Update Client Data configuration to keep only the last event processed for a key", "method": "PUT", "uri": "/client-data/configuration?discard=false&discardKeyHistory=true", "headers": {}, "body": ""},
             {"name": "Update Client Data configuration to keep events", "method": "PUT", "uri": "/client-data/configuration?discard=false&discardKeyHistory=false", "headers": {}, "body": ""},
             {"name": "Update Client Data configuration to disable purge", "method": "PUT", "uri": "/client-data/configuration?disablePurge=true", "headers": {}, "body": ""},
             {"name": "Update Client Data configuration to enable purge", "method": "PUT", "uri": "/client-data/configuration?disablePurge=false", "headers": {}, "body": ""},
 
-            {"name": "Query Server Matching (traffic classification)", "method": "GET", "uri": "/server-matching", "headers": {}, "body": ""},
+            {"name": "QUERY SERVER MATCHING (traffic classification)", "method": "GET", "uri": "/server-matching", "headers": {}, "body": ""},
             {"name": "Update Server Matching (traffic classification) to 'full matching'", "method": "POST", "uri": "/server-matching", "headers": json__header, "body": json.dumps(matching_fm__body, indent=2)},
             {"name": "Update Server Matching (traffic classification) to 'regex matching'", "method": "POST", "uri": "/server-matching", "headers": json__header, "body": json.dumps(matching_rm__body, indent=2)},
             {"name": "Update Server Matching (traffic classification) to 'full matching regex replace'", "method": "POST", "uri": "/server-matching", "headers": json__header, "body": json.dumps(matching_fmrr__body, indent=2)},
 
-            {"name": "Query Server Provisions", "method": "GET", "uri": "/server-provision", "headers": {}, "body": ""},
+            {"name": "QUERY SERVER PROVISIONS", "method": "GET", "uri": "/server-provision", "headers": {}, "body": ""},
             {"name": "Update Server Provisions example", "method": "POST", "uri": "/server-provision", "headers": json__header, "body": json.dumps(server_provision__body, indent=2)},
             {"name": "Delete Server Provisions", "method": "DELETE", "uri": "/server-provision", "headers": {}, "body": ""},
             {"name": "Query Server Provisions not used", "method": "GET", "uri": "/server-provision/unused", "headers": {}, "body": ""},
 
-            {"name": "Query Server Data", "method": "GET", "uri": "/server-data", "headers": {}, "body": ""},
+            {"name": "QUERY SERVER DATA", "method": "GET", "uri": "/server-data", "headers": {}, "body": ""},
             {"name": "Query Server Data summary", "method": "GET", "uri": "/server-data/summary", "headers": {}, "body": ""},
             {"name": "Query Server Data with query parameters example", "method": "GET", "uri": "/server-data?requestMethod=GET&requestUri=/app/v1/data&eventNumber=1&eventPath=/responseBody", "headers": {}, "body": ""},
             {"name": "Delete Server Data", "method": "DELETE", "uri": "/server-data", "headers": {}, "body": ""},
             {"name": "Delete Server Data with query parameters example", "method": "DELETE", "uri": "/server-data?requestMethod=GET&requestUri=/app/v1/data&eventNumber=1&eventPath=/responseBody", "headers": {}, "body": ""},
 
-            {"name": "Query Client Data", "method": "GET", "uri": "/client-data", "headers": {}, "body": ""},
+            {"name": "QUERY CLIENT DATA", "method": "GET", "uri": "/client-data", "headers": {}, "body": ""},
             {"name": "Query Client Data summary", "method": "GET", "uri": "/client-data/summary", "headers": {}, "body": ""},
             {"name": "Delete Client Data", "method": "DELETE", "uri": "/client-data", "headers": {}, "body": ""},
 
-            {"name": "Query Client Endpoints", "method": "GET", "uri": "/client-endpoint", "headers": {}, "body": ""},
+            {"name": "QUERY CLIENT ENDPOINTS", "method": "GET", "uri": "/client-endpoint", "headers": {}, "body": ""},
             {"name": "Update Client Endpoints example", "method": "POST", "uri": "/client-endpoint", "headers": {}, "body": json.dumps(client_endpoint__body, indent=2)},
             {"name": "Delete Client Endpoints", "method": "DELETE", "uri": "/client-endpoint", "headers": {}, "body": ""}
 

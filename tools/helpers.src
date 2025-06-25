@@ -5,9 +5,9 @@
 #############
 PNAME=${PNAME:-h2agent}
 
-TRAFFIC_PORT=${TRAFFIC_PORT:-8000} # maybe HTTP/1 on 8001 ?
+TRAFFIC_PORT=${TRAFFIC_PORT:-8000} # maybe proxy on 8001 ...
 [ "${TRAFFIC_SERVER_API}" = "/" ] && TRAFFIC_SERVER_API=
-ADMIN_PORT=${ADMIN_PORT:-8074} # maybe HTTP/1 on 8075 ?
+ADMIN_PORT=${ADMIN_PORT:-8074} # maybe proxy on 8075 ...
 ADMIN_SERVER_API="admin/v1"
 METRICS_PORT=${METRICS_PORT:-8080}
 
