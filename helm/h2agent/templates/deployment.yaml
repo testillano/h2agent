@@ -40,6 +40,12 @@ spec:
             - name: H2AGENT_TRAFFIC_SERVER_PORT
               value: {{ .Values.service.traffic_port | quote }}
 {{- end }}
+{{- if .Values.service.admin_proxy_port | default false }}
+            - name: H2AGENT_ADMIN_PROXY_PORT
+              value: {{ .Values.service.admin_proxy_port | quote }}
+            - name: H2AGENT_ADMIN_SERVER_PORT
+              value: {{ .Values.service.admin_port | quote }}
+{{- end }}
           args:
             - "--log-level"
             - {{ .Values.h2agent_cl.log_level | quote }}
