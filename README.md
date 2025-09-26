@@ -123,6 +123,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 **Practice**
 
 * Brief exercises to ***[play](./README.md#Play)*** with, showing basic configuration "games" to have a quick overview of project possibilities.
+* Tester GUI tool to ***[test](./README.md#Test)*** with, allowing to make quick interactions through traffic and administrative interfaces.
 * A ***[demo](./README.md#Demo)*** exercise which presents a basic use case to better understand the project essentials.
 * And finally, a ***[kata](./README.md#Kata)*** training to acquire better knowledge of project capabilities.
 
