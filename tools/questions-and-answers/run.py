@@ -17,6 +17,11 @@ from langchain.chains import ConversationalRetrievalChain # RetrievalQA is more 
 
 from langchain_chroma import Chroma
 
+# Uncomment for debug purposes:
+#from langchain.globals import set_verbose
+#set_verbose(True)
+
+
 # Script location
 SCR_PATH = os.path.abspath(__file__)
 SCR_DIR, SCR_BN = os.path.split(SCR_PATH)
@@ -64,7 +69,23 @@ if not os.path.exists(vectorstore_path):
   print("Creating vectorstore ...")
 
   wildcard= TARGET_DIR + '/**/*.md' # or '/**/*.pdf' for PDF files
-  files = glob.glob(wildcard, recursive = True)
+  all_files = glob.glob(wildcard, recursive = True)
+
+  # Exclude files I don't want in the RAG:
+  exclude_patterns = [
+    'pull_request_template.md',
+    'AggregatedKeys.md',
+    'tools/questions-and-answers/README.md',
+  ]
+  # Not needed: glob don't catch hidden files: '/.github/ISSUE_TEMPLATE/', # exclude all within this directory
+  files = [
+    f for f in all_files
+    if not any(pattern in f for pattern in exclude_patterns)
+  ]
+  print(f"Files ({len(files)}):")
+  for file in files:
+    print(file)
+  sys.exit(0)
 
   loaders = [UnstructuredMarkdownLoader(os.path.join(SCR_DIR, f)) for f in files]
   #loaders.append(UnstructuredURLLoader(["https://prezi.com/p/1ijxuu0rt-sj/?present=1)"])) # For URLs
@@ -75,7 +96,7 @@ if not os.path.exists(vectorstore_path):
     documents.extend(loader.load())
 
   # Split the document into chunks:
-  text_splitter = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
+  text_splitter = MarkdownTextSplitter(chunk_size=2500, chunk_overlap=250)
   fragments = text_splitter.split_documents(documents)
   # For PDF files:
   #text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=150, length_function=len)
@@ -88,6 +109,7 @@ else:
     print("Loading vectorstore ...")
     vectorstore = Chroma(persist_directory=vectorstore_path, embedding_function=embeddings)
 
+print(f"Vectorstore documents: {vectorstore._collection.count()}")
 
 # Expose vectorstore index in a retriever interface
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k":9})

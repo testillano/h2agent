@@ -12,7 +12,7 @@ And then, execute the python script:
 $ python3 tools/questions-and-answers/run.py
 ```
 
-Please note that the conversational bot has certain limitations and although it relies on the documentation of this project, some questions may be incorrect or incomplete. It is always recommended to carefully read all the documentation, especially the main [README.md](../../README.md) file.
+Please note that the conversational bot has certain limitations and although it relies on the documentation of this project, some questions may be incorrect or incomplete. It is always recommended to carefully read all the documentation, especially the main [README.md](../../README.md) file. Consider to run this bot on `kata-solutions` branch, as `SOLUTION.md` will be also included for every exercise improving the `RAG` database.
 
 ## Using training image
 
