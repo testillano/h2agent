@@ -97,7 +97,7 @@ llm = OpenAI(temperature=0)
 
 if has_groq:
   llm=ChatGroq(
-    model="mixtral-8x7b-32768",
+    model="llama-3.3-70b-versatile",
     temperature=0,
     max_tokens=None,
     timeout=None,
