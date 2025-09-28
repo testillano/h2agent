@@ -34,6 +34,26 @@ spec:
       nodePort: {{ .Values.service.prometheus_nodePort }}
       {{- end }}
     {{- end }}
+    # HTTP/1 proxy (traffic)
+    {{- if .Values.service.traffic_proxy_port | default false }}
+    - port: {{ .Values.service.traffic_proxy_port }}
+      targetPort: {{ .Values.service.traffic_proxy_port }}
+      protocol: TCP
+      name: traffic-proxy
+      {{ if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.traffic_proxy_nodePort }}
+      {{- end }}
+    {{- end }}
+    # HTTP/1 proxy (admin)
+    {{- if .Values.service.admin_proxy_port | default false }}
+    - port: {{ .Values.service.admin_proxy_port }}
+      targetPort: {{ .Values.service.admin_proxy_port }}
+      protocol: TCP
+      name: admin-proxy
+      {{ if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.admin_proxy_nodePort }}
+      {{- end }}
+    {{- end }}
   selector:
     {{- include "h2agent.selectorLabels" . | nindent 4 }}
   publishNotReadyAddresses: true

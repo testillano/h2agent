@@ -6,8 +6,9 @@
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/testillano/h2agent.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent)
 
-`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1 is supported via `nghttpx` reverse proxy).
+`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1.x is supported via `nghttpx` reverse proxy).
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
 It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
@@ -122,6 +123,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 **Practice**
 
 * Brief exercises to ***[play](./README.md#Play)*** with, showing basic configuration "games" to have a quick overview of project possibilities.
+* Tester GUI tool to ***[test](./README.md#Test)*** with, allowing to make quick interactions through traffic and administrative interfaces.
 * A ***[demo](./README.md#Demo)*** exercise which presents a basic use case to better understand the project essentials.
 * And finally, a ***[kata](./README.md#Kata)*** training to acquire better knowledge of project capabilities.
 
@@ -133,7 +135,7 @@ When developing a network service, one often needs to integrate it with other se
 
 `H2agent` can be used to replace one (or many) of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
-`H2agent` supports HTTP/2 as a network protocol (also HTTP/1 via proxy) and JSON as a data interchange language.
+`H2agent` supports HTTP/2 as a network protocol (also HTTP/1.x via proxy) and JSON as a data interchange language.
 
 So, `h2agent` could be used as:
 
@@ -188,18 +190,48 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
-* Run <u>h2agent_http1 project image</u> with docker (`HTTP1_ENABLED=yes ./run.sh` script at root directory can also be used):
+* HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`./run.sh` script at root directory can also be used with some prepends):
+
+  This proxy, encapsulated within the Docker image, is latent until activated by configuration:
+  Proxy front-end ports are configured though environment variables: `H2AGENT_TRAFFIC_PROXY_PORT` (for traffic) and `H2AGENT_ADMIN_PROXY_PORT` (for administration). Proxy back-end ports are also configured, for traffic and administrative interface, by mean `H2AGENT_TRAFFIC_SERVER_PORT` (8000 by default) and `H2AGENT_ADMIN_SERVER_PORT` (8074 by default). Traffic frontend handles requests to the backend port exposed by the `h2agent` traffic server. Likewise, administrative requests are forwarded to the backend port of the `h2agent` administrative server.
+
+  The proxy feature complements `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
+
+  Note that:
+  `H2AGENT_TRAFFIC_SERVER_PORT` **must be aligned with `--traffic-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
+  `H2AGENT_ADMIN_SERVER_PORT` **must be aligned with `--admin-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
+
+  Example with proxy enabled for traffic interface (same applies to enable administrative interface, or both of them):
 
   ```bash
-  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent_http1:latest
+  $ docker run --rm -it -p 8555:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_TRAFFIC_PROXY_PORT=8001 ghcr.io/testillano/h2agent:latest &
+
+  $ curl -i http://localhost:8555/arbitrary/path # through proxy (same using --http1.0 or --http1.1)
+  HTTP/1.1 501 Not Implemented
+  Date: <date>
+  Transfer-Encoding: chunked
+  Via: 2 nghttpx
+
+  $ curl -i --http2 http://localhost:8555/arbitrary/path # through proxy
+  HTTP/1.1 101 Switching Protocols
+  Connection: Upgrade
+  Upgrade: h2c
+
+  HTTP/2 501
+  date: <date>
+  via: 2 nghttpx
+
+  $ curl -i --http2-prior-knowledge http://localhost:8555/arbitrary/path # through proxy
+  HTTP/2 501
+  date: <date>
+  via: 2 nghttpx
+
+  $ curl -i --http2-prior-knowledge http://localhost:8000/arbitrary/path # directly to h2agent
+  HTTP/2 501
+  date: <date>
   ```
 
-  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
-
-  We prefer to generate a specific docker image variant for HTTP/1 (`h2agent_http1`) since the proxy could introduce additional latency, so if we only require HTTP/2 it doesn't make sense to consolidate that proxy layer within `h2agent` project image.
-
-  In any case, if you want to run `h2agent` out of docker container and then set the `nghttpx` proxy to provide HTTP/1 support, you may take as reference the `Dockerfile.http1` file where this proxy is configured.
-  This image is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
+  This mode is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
@@ -1489,11 +1521,6 @@ Then you may build project images and start the `h2agent` with its docker image:
 $ ./build.sh --auto # builds project images
 $ ./run.sh --verbose # starts agent with docker by mean helper script
 ```
-Also HTTP/1 support could be achieved using `h2agent_http1` image by mean the appropriate prepend:
-
-```bash
-$ HTTP1_ENABLED=yes ./run.sh --verbose # HTTP/1 support on port 8001 by default
-```
 
 Or build native executable and run it from shell:
 
@@ -1535,6 +1562,10 @@ A conversational bot is available in `./tools/questions-and-answers` directory. 
 #### Play
 
 A playground is available at `./tools/play-h2agent` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/play-h2agent/README.md) file to learn more about.
+
+#### Test
+
+A GUI tester implemented in python is available at `./tools/test-h2agent` directory. It is designed to make quick interactions through traffic and administrative interfaces. Check its [README.md](./tools/test-h2agent/README.md) file to learn more about.
 
 #### Demo
 
@@ -2579,7 +2610,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.json.string.category",
+    "target": "response.body.json.string./category",
     "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
   }
   ```
@@ -2595,7 +2626,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.json.unsigned.data.timestamp",
+    "target": "response.body.json.unsigned./data/timestamp",
     "filter": {
       "RegexReplace" : {
         "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
@@ -4245,10 +4276,15 @@ Shortcut helpers (sourced variables and functions)
 to ease agent operation over management interface:
    https://github.com/testillano/h2agent#management-interface
 
-=== Variables ===
-TRAFFIC_URL=http://localhost:8000
-ADMIN_URL=http://localhost:8074/admin/v1
+=== Common variables & functions ===
+SERVER_ADDR=localhost
+TRAFFIC_PORT=8000
+ADMIN_PORT=8074
+METRICS_PORT=8080
 CURL="curl -i --http2-prior-knowledge"
+traffic_url(): http://localhost:8000
+admin_url():   http://localhost:8074/admin/v1
+metrics_url(): http://localhost:8080/metrics
 
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration

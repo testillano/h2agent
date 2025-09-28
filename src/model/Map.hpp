@@ -138,7 +138,10 @@ public:
     void add(const map_t& m)
     {
         write_guard_t guard(mutex_);
-        map_.insert(m.begin(), m.end());
+        //map_.insert(m.begin(), m.end());
+        // insert does not replaces existing keys:
+        for (const auto& kv : m)
+            map_.insert_or_assign(kv.first, kv.second);
     }
 
     /**

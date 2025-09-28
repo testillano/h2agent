@@ -1216,7 +1216,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         if (hasFilter) {
             if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
                 LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
-                LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+                if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
                 continue;
             }
         }
@@ -1234,7 +1234,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         try {
             responseBody = responseBodyJson.dump(); // this may arise type error, for example in case of trying to set json field value with binary data:
             // When having a provision transformation from 'request.body' to 'response.body.json.string./whatever':
-            // echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "$TRAFFIC_URL/uri" --data-binary @-
+            // echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "<traffic url>/uri" --data-binary @-
             //
             // This is not valid and must be protected. The user should use another kind of target to store binary.
         }

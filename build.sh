@@ -31,9 +31,7 @@ usage() {
 
          --builder-image: builds base image from './Dockerfile.build'.
          --project:       builds the project process using builder image.
-         --project-image: builds project image from './Dockerfile', and
-                          also builds image variant from './Dockerfile.http1'
-                          which provides HTTP/1 support via nghttpx proxy.
+         --project-image: builds project image from './Dockerfile'.
          --ct-image:      builds component test image from './ct/Dockerfile'.
          --auto:          builds everything using defaults. For headless mode with no default values,
                           you may prepend or export asked/environment variables for the corresponding
@@ -165,7 +163,6 @@ build_project_image() {
   rm -f CMakeCache.txt
   # shellcheck disable=SC2086
   docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t ${registry}/h2agent:"${image_tag}" . || return 1
-  docker build --rm ${DBUILD_XTRA_OPTS} --build-arg base_tag=${base_tag} -t ${registry}/h2agent_http1:"${image_tag}" -f Dockerfile.http1 . || return 1
   set +x
 }
 

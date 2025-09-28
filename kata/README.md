@@ -7,7 +7,7 @@ Check project [README.md](../README.md#Prepare-the-environment).
 ## Content
 
 Under `./kata` directory you will find a problem for every subdirectory available. Inside each one, a `README.md` file contains the introduction/explanation for the specific problem and the question statement.
-Solutions are available at git branch `kata-solutions`, but ... try to solve everything by your own before checkout !
+Solutions are available at git branch `kata-solutions` (`SOLUTION.md` within each exercise directory), but ... try to solve everything by your own before checkout !
 
 Exercises documentation links:
 

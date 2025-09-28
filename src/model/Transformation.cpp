@@ -306,9 +306,9 @@ bool Transformation::load(const nlohmann::json &j) {
         source_type_ = SourceType::ServerEvent;
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
-        for (auto qp: {
-                    "requestMethod", "requestUri", "eventNumber", "eventPath"
-                }) { // tokenized vector order
+        for (auto const & qp: {
+        "requestMethod", "requestUri", "eventNumber", "eventPath"
+    }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
@@ -577,9 +577,9 @@ bool Transformation::load(const nlohmann::json &j) {
         target_type_ = TargetType::ServerEventToPurge;
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
         std::map<std::string, std::string>::const_iterator it;
-        for (auto qp: {
-                    "requestMethod", "requestUri", "eventNumber"
-                }) { // tokenized vector order
+        for (auto const & qp: {
+        "requestMethod", "requestUri", "eventNumber"
+    }) { // tokenized vector order
             it = qmap.find(qp);
             target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }

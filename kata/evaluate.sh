@@ -1,46 +1,17 @@
 #!/bin/bash
+# Set NON_INTERACT=true on calling shell to disable interactivity
 
 #############
 # VARIABLES #
 #############
-# h2agent endpoints
-H2AGENT_ADMIN_ENDPOINT=localhost:8074
-H2AGENT_TRAFFIC_ENDPOINT=localhost:8000
 
 #############
 # FUNCTIONS #
 #############
-
-# Performs cleanup, and server matching/provision configuration
-# $1: 's' to specific plural for multiple provisions
-cleanup_server_matching_server_provision() {
-  local s=$1
-
-  EXPECTED_STATUS_CODES="200 204"
-  test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || exit 1
-  test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
-
-  if [ -f "server-matching.json" ]
-  then
-    EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
-    EXPECTED_STATUS_CODES=201
-    CURL_OPTS="-d@server-matching.json -H \"content-type: application/json\""
-    test_query "Matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
-  fi
-
-  if [ -f "server-provision.json" ]
-  then
-    EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema${s} and provision${s} data received\" }"
-    EXPECTED_STATUS_CODES=201
-    CURL_OPTS="-d@server-provision.json -H \"content-type: application/json\""
-    test_query "Provision configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
-  fi
-}
-export -f cleanup_server_matching_server_provision
-
 evaluate() {
   local dir=$1
 
+  title "$(basename ${dir})" "${COLOR_magenta}"
   ${dir}/test.sh
   if [ $? -eq 0 ]
   then
@@ -107,31 +78,14 @@ menu() {
 #############
 cd $(dirname $0)
 echo
-
-# Temporary directory:
-TMPDIR=$(mktemp -d)
-trap "rm -rf ${TMPDIR}" EXIT
-
-# Load common resources:
 source ../tools/common.src
 
 title "H2agent kata"
-
+echo "(remember: set NON_INTERACT=true on calling shell to disable interactivity)"
 h2agent_check ${H2AGENT_ADMIN_ENDPOINT} ${H2AGENT_TRAFFIC_ENDPOINT} || exit 1
 
-[ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: $0 [-i|--interactive]" && exit 0
 DIRECTORIES=( $(ls -d */) )
 LAST_OPTION=a # execute all
-
-# Enable interactiveness if selected:
-INTERACT=
-[ "$1" = "-i" -o "$1" = "--interactive" ] && INTERACT=true
-
-# Export variables used in test.src:
-export TMPDIR INTERACT
-export H2AGENT_ADMIN_ENDPOINT H2AGENT_TRAFFIC_ENDPOINT
-export COLOR_reset COLOR_red COLOR_magenta
-export -f title test_query
 
 while true
 do

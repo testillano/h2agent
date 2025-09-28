@@ -81,6 +81,16 @@
       {
         "source": "txtFile./etc/group",
         "target": "response.body.json.string./sourceFileContent"
+      },
+      {
+        "source": "request.uri.path",
+        "target": "response.body.json.unsigned./identifier",
+        "filter": {
+          "RegexReplace": {
+            "rgx": "(/app/v1/load-test/v1/id-)([0-9]+)",
+            "fmt": "$2"
+          }
+        }
       }
     ]
   }
