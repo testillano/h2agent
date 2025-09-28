@@ -14,6 +14,8 @@ $ python3 tools/questions-and-answers/run.py
 
 Please note that the conversational bot has certain limitations and although it relies on the documentation of this project, some questions may be incorrect or incomplete. It is always recommended to carefully read all the documentation, especially the main [README.md](../../README.md) file. Consider to run this bot on `kata-solutions` branch, as `SOLUTION.md` will be also included for every exercise improving the `RAG` database.
 
+There is also a migration script to export `Chroma` vectorstore into `QDrant`: `migrate-to-qdrant.py`.
+
 ## Using training image
 
 You may use this python script within the training docker image, but all the dependencies must be installed there (a prompt when executing `./tools/training.sh` script will ask for it because those dependencies are quite big and the user could prefer to run natively if those requirements are already installed in the host). Remember that you will need to activate the virtual python environment inside the training image to use `run.py` python script:
