@@ -67,9 +67,9 @@ TEST_F(jsonSchema_test, CheckSchemaSchema)
 
 TEST_F(jsonSchema_test, CheckGlobalVariableSchema)
 {
-    EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::server_data_global));
+    EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::global_variable));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
-    EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::server_data_global);
+    EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::global_variable);
     std::string error{};
     EXPECT_TRUE(jsonSchema_test::json_schema_.validate(GlobalVariableJson, error));
     EXPECT_TRUE(error.empty());
