@@ -104,13 +104,14 @@ if not os.path.exists(vectorstore_path):
   #fragments = text_splitter.split_documents(documents)
 
   # Create the vectorstore to use as the index
-  vectorstore = Chroma.from_documents(fragments, embeddings, persist_directory=vectorstore_path)
+  vectorstore = Chroma.from_documents(fragments, embeddings, persist_directory=vectorstore_path, collection_name='h2agent-docs')
 
 else:
     print("Loading vectorstore ...")
     vectorstore = Chroma(persist_directory=vectorstore_path, embedding_function=embeddings)
 
 print(f"Vectorstore documents: {vectorstore._collection.count()}")
+print(f"Collection name: {vectorstore._collection.name}")
 
 # Expose vectorstore index in a retriever interface
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k":9})
