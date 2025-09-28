@@ -18,3 +18,5 @@ CURL_OPTS="-d'{ \"number1\":\"${number1}\", \"number2\":\"${number2}\", \"number
 EXPECTED_RESPONSE="{ \"number1\":\"${number1}\", \"number2\":\"${number2}\", \"number3\":\"${number3}\", \"processed\": { \"appVersion\": \"${appVersion}\", \"numbers\": [ ${number1}, ${number2}, ${number3} ] } }"
 test_query "Send POST request" POST "http://${H2AGENT_TRAFFIC_ENDPOINT}/process/numbers" || exit 1
 
+echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
+git diff master...kata-solutions -- server-provision.json

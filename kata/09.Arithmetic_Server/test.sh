@@ -24,3 +24,5 @@ EXPECTED_RESPONSE=$(echo "${EXPECTED_RESPONSE} / 1" | bc) # truncate
 title "RANDOM FUNCTION: '${a}*${x}^2 + ${b}*${x} + ${c}' truncated = ${EXPECTED_RESPONSE}" "" "*"
 test_query "Send GET request" GET "http://${H2AGENT_TRAFFIC_ENDPOINT}/calculate/sdpf?a=${a}&b=${b}&c=${c}&x=${x}" || exit 1
 
+echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
+git diff master...kata-solutions -- server-matching.json server-provision.json

@@ -1,3 +1,2 @@
-Use a regular expression to detect odd numbers dumping the filter result on a variable (isOdd). This variable is empty (so, false) when it does not match.
-
-Then, using a condition variable filter, we use that variable to rule the tranfer into final response status code (400) only for odd numbers.
+Use a regular expression to capture and URI with an odd number, and dump the filter result on a variable like `hasOdd`. This variable will be empty (so, false) when it does not match. Then, using a condition variable filter, we use that variable to rule the tranfer into final response status code (400) only for odd numbers.
+You could also filter even numbers using a variable like `hasEven` as result, so condition variable should negate it to return status code 400: `"ConditionVar": "!hasEven"`.

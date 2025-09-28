@@ -26,3 +26,5 @@ else
   title "Well done !" "" "+"
 fi
 
+echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
+git diff master...kata-solutions -- server-provision.json

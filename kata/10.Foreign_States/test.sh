@@ -24,3 +24,5 @@ test_query "Send DELETE request" DELETE "http://${H2AGENT_TRAFFIC_ENDPOINT}/ctrl
 EXPECTED_STATUS_CODES=404
 test_query "Send GET request" GET "http://${H2AGENT_TRAFFIC_ENDPOINT}/ctrl/v2/items/id-${number}" || exit 1
 
+echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
+git diff master...kata-solutions -- server-provision.json

@@ -1,4 +1,20 @@
 {
   "requestMethod": "GET",
-  "responseCode": 200
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "request.uri.path",
+      "filter": {
+        "RegexCapture": "/number/is/even/[0-9]*[13579]$"
+      },
+      "target": "var.hasOdd"
+    },
+    {
+      "source": "value.400",
+      "filter": {
+        "ConditionVar": "hasOdd"
+      },
+      "target": "response.statusCode"
+    }
+  ]
 }
