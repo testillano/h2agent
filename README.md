@@ -100,6 +100,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Questions and answers for project documentation using **openai** (ChatGPT-based).
   * Playground.
   * Demo.
+  * Tester.
   * Kata exercises.
 
 * Tools programs:
