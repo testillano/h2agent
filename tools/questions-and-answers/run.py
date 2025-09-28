@@ -85,7 +85,8 @@ if not os.path.exists(vectorstore_path):
   print(f"Files ({len(files)}):")
   for file in files:
     print(file)
-  sys.exit(0)
+
+  print("\nWait while embeddings are created ...")
 
   loaders = [UnstructuredMarkdownLoader(os.path.join(SCR_DIR, f)) for f in files]
   #loaders.append(UnstructuredURLLoader(["https://prezi.com/p/1ijxuu0rt-sj/?present=1)"])) # For URLs
