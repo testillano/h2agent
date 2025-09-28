@@ -4,9 +4,9 @@
 # EXECUTION #
 #############
 cd $(dirname $0)
+source ../../tools/common.src
 
-title "$(dirname $0)" "${COLOR_magenta}"
-cleanup_server_matching_server_provision
+h2agent_server_configuration
 
 number=${RANDOM}
 next_number=$((number+1))

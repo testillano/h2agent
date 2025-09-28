@@ -23,12 +23,12 @@ separator() {
 
 select_option() {
   echo
-  echo "Select option to e[x]ecute, (s)napshot, (b)ack to menu, (q)uit [x]:"
+  echo "Select option to e[x]ecute, (s)napshot, (b)ack to menu [x]:"
   read opt
-  [ -z "${opt}" ] && opt=E
-  [ "${opt^^}" = "Q" ] && exit 0
+  [ -z "${opt}" ] && opt=X
+  #[ "${opt^^}" = "Q" ] && exit 0
   [ "${opt^^}" = "B" ] && return 1
-  [ "${opt^^}" = "E" ] && return 0
+  [ "${opt^^}" = "X" ] && return 0
   if [ "${opt^^}" = "S" ]
   then
      rm -rf ${EXAMPLE}/snapshot
@@ -177,8 +177,6 @@ menu() {
 #############
 cd $(dirname $0)
 echo
-
-# Load common resources:
 source ../common.src
 source ../helpers.src &>/dev/null
 

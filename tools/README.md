@@ -73,7 +73,7 @@
 ## Description
 
 * README.md: this readme file
-* common.src: common functions used in `./demo` and `./kata`.
+* common.src: common functions used in `./demo`, `tools/play-h2agent` and `./kata`.
 * coverage.sh: automated coverage report based in unit tests.
 * helpers.src: helper functions to administrate and inspect the `h2agent` application.
 * play-h2agent: examples and a guide through them (`run.sh`).
