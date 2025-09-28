@@ -1,0 +1,15 @@
+Matching algorithm, by default, sorts query parameters by ampersand to do the classification, but values for 'a', 'b', 'c' and 'x' are unpredictable for us, so we need to ignore the query parameters part on classification:
+
+```json
+{
+  "algorithm": "FullMatching",
+  "uriPathQueryParameters": {
+    "filter": "Ignore"
+  }
+}
+```
+
+In this way, our request 'uri' is constant within the provision definition.
+Regarding the function calculation, we will use variables substitution to build the math expression, getting the function coeficients (a, b, c) and variable (x) from query parameters received.
+Finally, the target as integer type implies truncating the float result for the function value.
+Note that a target like 'response.body.string' would return the result but not truncated, because we used the trick to store it on json integer value (although we missed reponse headers indicating 'application/json' as content-type, this is not noticed in final response).
