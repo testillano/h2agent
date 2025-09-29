@@ -26,6 +26,9 @@ export COLOR_l_cyan='\e[96m'
 export H2AGENT_ADMIN_ENDPOINT=localhost:8074
 export H2AGENT_TRAFFIC_ENDPOINT=localhost:8000
 
+# Avoid interactivity with 'git diff' output:
+export GIT_PAGER=cat
+
 # $1: title literal; $2: color code (red by default); $3: pattern character (= by default)
 title()
 {

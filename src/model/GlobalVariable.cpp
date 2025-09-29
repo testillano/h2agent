@@ -46,7 +46,7 @@ namespace model
 {
 
 GlobalVariable::GlobalVariable() {
-    global_variable_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
+    global_variable_schema_.setJson(h2agent::adminSchemas::global_variable); // won't fail
 }
 
 void GlobalVariable::load(const std::string &variable, const std::string &value) {

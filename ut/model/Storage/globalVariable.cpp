@@ -54,6 +54,6 @@ TEST_F(GlobalVariable_test, LoadGlobalVariableFail)
 
 TEST_F(GlobalVariable_test, GetGlobalVariableSchema)
 {
-    EXPECT_EQ(GlobalVariable_test::gvars_.getSchema().getJson(), h2agent::adminSchemas::server_data_global);
+    EXPECT_EQ(GlobalVariable_test::gvars_.getSchema().getJson(), h2agent::adminSchemas::global_variable);
 }
 
