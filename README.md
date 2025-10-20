@@ -4441,8 +4441,8 @@ These are the groups of metrics implemented in the project:
 ```
 Counters provided by http2comm library:
 
-   h2agent_traffic_client_observed_resquests_sents_counter [source] [method]
-   h2agent_traffic_client_observed_resquests_unsent_counter [source] [method]
+   h2agent_traffic_client_observed_requests_sents_counter [source] [method]
+   h2agent_traffic_client_observed_requests_unsent_counter [source] [method]
    h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code]
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
 
@@ -4468,8 +4468,8 @@ As commented, same metrics described above, are also generated for the other app
 ```
 Counters provided by http2comm library:
 
-   udp_server_h2client_observed_resquests_sents_counter [source] [method]
-   udp_server_h2client_observed_resquests_unsent_counter [source] [method]
+   udp_server_h2client_observed_requests_sents_counter [source] [method]
+   udp_server_h2client_observed_requests_unsent_counter [source] [method]
    udp_server_h2client_observed_responses_received_counter [source] [method] [status_code]
    udp_server_h2client_observed_responses_timedout_counter [source] [method]
 
@@ -4511,8 +4511,8 @@ We have two groups of server metrics. One for administrative operations (1 admin
 ```
 Counters provided by http2comm library and h2agent itself(*):
 
-   h2agent_[traffic|admin]_server_observed_resquests_accepted_counter [source] [method]
-   h2agent_[traffic|admin]_server_observed_resquests_errored_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_requests_accepted_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_requests_errored_counter [source] [method]
    h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code]
    h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
