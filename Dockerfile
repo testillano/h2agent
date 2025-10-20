@@ -2,7 +2,7 @@ ARG base_tag=latest
 ARG scratch_img=ubuntu
 ARG scratch_img_tag=latest
 FROM ghcr.io/testillano/h2agent_builder:${base_tag} as builder
-MAINTAINER testillano
+LABEL maintainer="testillano"
 
 LABEL testillano.h2agent.description="Docker image for h2agent service"
 
@@ -29,7 +29,7 @@ COPY --from=builder /code/build/${build_type}/bin/udp-client /opt/
 # We add curl & jq for helpers.src
 # Ubuntu has bash already installed, but vim is missing
 ARG os_type=ubuntu
-RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq nghttp2 && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq nghttp2 && apt-get clean ; fi
+RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq nghttp2 netcat-openbsd && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq nghttp2 netcat-openbsd && apt-get clean ; fi
 
 # Start script:
 COPY deps/starter.sh /var

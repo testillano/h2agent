@@ -1144,12 +1144,8 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
   UDP unix socket path.
 
 [-w|--workers <value>]
-  Number of worker threads to post outgoing requests. By default, 10x times 'hardware
-  concurrency' is configured (10*8 = 80), but you could consider increase even more
-  if high I/O is expected (high response times raise busy threads, so context switching
-  is not wasted as much as low latencies setups do). We should consider Amdahl law and
-  other specific conditions to set the default value, but 10*CPUs is a good approach
-  to start with. You may also consider using 'perf' tool to optimize your configuration.
+  Number of worker threads to post outgoing requests and manage asynchronous timers (timeout, pre-delay).
+  Defaults to system hardware concurrency (8), however 2 could be enough.
 
 [-e|--print-each <value>]
   Print UDP receptions each specific amount (must be positive). Defaults to 1.
@@ -1240,8 +1236,9 @@ Client endpoint:
 
 Remember:
  To get prometheus metrics:       curl http://localhost:8081/metrics
- To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U /tmp/udp.sock
- To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U /tmp/udp.sock
+ To send ad-hoc UDP message:      echo -n <data> | nc -u -q0 -w1 -U /tmp/udp.sock
+ To print accumulated statistics: echo -n STATS  | nc -u -q0 -w1 -U /tmp/udp.sock
+ To stop process:                 echo -n EOF    | nc -u -q0 -w1 -U /tmp/udp.sock
 
 
 Waiting for UDP messages...
