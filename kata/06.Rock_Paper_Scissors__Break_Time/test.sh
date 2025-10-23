@@ -34,7 +34,7 @@ result() {
 # EXECUTION #
 #############
 cd $(dirname $0)
-source ../../tools/common.src
+source ../../tools/common.bash
 
 h2agent_server_configuration
 

@@ -45,7 +45,7 @@ There, you will find the `h2agent` pre-configured dashboard, in order to observe
 To excite the monitoring system, we have prepared a simple use case involving `h2agent` main process and also `udp-client` and `udp-server-h2agent`:
 
 ```bash
-$ source use-case.src
+$ source use-case.bash
 ```
 
 It simulates some customers requesting books to a book store. When the book exists, they buy it and the system annotates the book information through a logging system. Those requests will be `GET /buy/book/<request-order>`, and request order will be a monotonically increasing sequence. The book store was recently created so very few books are available. Assume for example that only 2% of requests are positive. We will program this by mean `mod` operation (`sequence % 100`) as the book identifier, and matching only two of the values in range `0-99`, for example 81 and 99, corresponding for example to these two books:

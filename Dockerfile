@@ -26,7 +26,7 @@ COPY --from=builder /code/build/${build_type}/bin/udp-server /opt/
 COPY --from=builder /code/build/${build_type}/bin/udp-server-h2client /opt/
 COPY --from=builder /code/build/${build_type}/bin/udp-client /opt/
 
-# We add curl & jq for helpers.src
+# We add curl & jq for helpers.bash
 # Ubuntu has bash already installed, but vim is missing
 ARG os_type=ubuntu
 RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq nghttp2 netcat-openbsd && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq nghttp2 netcat-openbsd && apt-get clean ; fi

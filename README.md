@@ -269,7 +269,7 @@ So, you could run `h2agent` (or any other binary available under `build/<build t
   You may also play with project helpers functions and examples:
 
   ```bash
-  $ source tools/helpers.src # type help in any moment after sourcing
+  $ source tools/helpers.bash # type help in any moment after sourcing
   $ server_example # follow instructions or just source it: source <(server_example)
   $ client_example # follow instructions or just source it: source <(client_example)
   ```
@@ -4223,7 +4223,7 @@ No response body.
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
-This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.src` (default directory path can be modified through `utilsMountPath` helm chart value).
+This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.bash` (default directory path can be modified through `utilsMountPath` helm chart value).
 Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a file requirement but could also be added from helm repository:
 
 ## How it integrates in a service
@@ -4264,10 +4264,10 @@ Some [command line](#Command-line) arguments used by the `h2agent` process are f
 
 ### Helper functions
 
-As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
+As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.bash`):
 
 ```bash
-$ source ./tools/helpers.src
+$ source ./tools/helpers.bash
 
 ===== h2agent operation helpers =====
 Shortcut helpers (sourced variables and functions)

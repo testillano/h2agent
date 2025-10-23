@@ -34,7 +34,7 @@ Imagine the following current server data map:
 ]
 ```
 
-**Note**: remember that `./tools/helpers.src` can be sourced to access some helper functions, for example you could execute `server_data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
+**Note**: remember that `./tools/helpers.bash` can be sourced to access some helper functions, for example you could execute `server_data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
 
 Now, you can prepare an event source to access the request body for the last event in events history shown above (the last is the first as only one event is registered). Take into account the request *URI* must be encoded in this case (you can use the utility `./tools/url.sh` within the project):
 
