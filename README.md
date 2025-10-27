@@ -733,7 +733,7 @@ Options:
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
 
-[--verbose]
+[-v|--verbose]
   Output log traces on console.
 
 [--ipv6]
@@ -875,7 +875,7 @@ Options:
   By default connections are performed when adding client endpoints.
   This option configures remote addresses to be connected on demand.
 
-[-v|--version]
+[-V|--version]
   Program version.
 
 [-h|--help]
@@ -2279,6 +2279,8 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
 
+The modern `HTTP` specification (RFC 9110) states that all general-purpose `HTTP` servers must implement at least the `GET` and `HEAD` methods. The implementation of `HEAD` must be equivalent to `GET` for the same resource, with the sole and crucial difference that the `HEAD` response must never contain a message body (entity). A `HEAD` response is obligated by the `HTTP` specification to include exactly the same headers as the corresponding `GET` response. Therefore, the headers that become "mandatory" for `HEAD` are those that the server's logic would generate for the `GET` to that `URI`, in addition to the fundamental headers for any `HTTP` response. However, the "mock server" mode of this application allows simulating `HEAD` responses that are incorrect or do not follow the specification. In fact, by default, the `HEAD` response corresponding to a `GET` provision configured is not automatically implemented; instead, the user must actively do this when setting up the mock. That is to say: by default, the mock server does not follow strictly the specification, as it is not a real `HTTP` server, until the user configures it.
+
 ##### requestUri
 
 Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
@@ -2303,8 +2305,25 @@ Header fields for the response. For example:
 
 
 ##### responseCode
-
 Response status code.
+
+It can also be used to transport `RST_STREAM` and `GOAWAY` [error codes](https://datatracker.ietf.org/doc/html/rfc7540#section-7):
+
+```
+Hex value   Name                  Description
+---------   ----                  -----------
+ 0x0        NO_ERROR              Normal graceful close GOAWAY
+ 0x1        PROTOCOL_ERROR        Protocol error at frame level
+ 0x2        INTERNAL_ERROR        Internal error
+ 0x3        FLOW_CONTROL_ERROR    Flow control error
+ 0x7        REFUSED_STREAM        Frame rejected before processing
+ 0x8        CANCEL                Stream cancelled by application
+ 0xB        STREAM_CLOSED         Reception of frame already closed
+```
+
+Those vales are also defined in `nghttp2_error_code` enum type within `https://nghttp2.org/documentation/nghttp2.h.html`.
+
+Any value lesser than 100, will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
 ##### responseBody
 
@@ -4413,7 +4432,7 @@ Metrics implemented could be divided **counters**, **gauges** or **histograms**:
 
 
 
-The metrics naming in this project, includes a family prefix which is the project applications name (`h2agent` or `udp_server_h2client`) and the endpoint category (`traffic_server`, `admin_server`, `traffic_client` for `h2agent`, and empty (as implicit), for `udp-server-h2client`). This convention and the labels provided (`[label] `: source, method, status_code, operation, result), are designed to ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com).
+The metrics naming in this project, includes a family prefix which is the project applications name (`h2agent` or `udp_server_h2client`) and the endpoint category (`traffic_server`, `admin_server`, `traffic_client` for `h2agent`, and empty (as implicit), for `udp-server-h2client`). This convention and the labels provided (`[label] `: source, method, status_code, rst_stream_goaway_error_code, operation, result), are designed to ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com).
 
 The label ''**source**'': one of these labels is the source of information, which could be optionally dynamic (if `--name` parameter is provided to the applications, so we could have `h2agent` by default, or `h2agentB` to be more specific, although grafana provides the `instance` label anyway), or dynamic anyway for the case of client endpoints, which provisioned names are also part of source label.
 
@@ -4443,20 +4462,20 @@ Counters provided by http2comm library:
 
    h2agent_traffic_client_observed_requests_sents_counter [source] [method]
    h2agent_traffic_client_observed_requests_unsent_counter [source] [method]
-   h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code]
+   h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
 
 Gauges provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_traffic_client_responses_delay_seconds_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_sent_messages_size_bytes_gauge [source] [method]
-   h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code]
+   h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code]
+   h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_sent_messages_size_bytes [source] [method]
-   h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code]
+   h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
 ```
 
 
@@ -4470,20 +4489,20 @@ Counters provided by http2comm library:
 
    udp_server_h2client_observed_requests_sents_counter [source] [method]
    udp_server_h2client_observed_requests_unsent_counter [source] [method]
-   udp_server_h2client_observed_responses_received_counter [source] [method] [status_code]
+   udp_server_h2client_observed_responses_received_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    udp_server_h2client_observed_responses_timedout_counter [source] [method]
 
 Gauges provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds_gauge [source] [method] [status_code]
+   udp_server_h2client_responses_delay_seconds_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
    udp_server_h2client_sent_messages_size_bytes_gauge [source] [method]
-   udp_server_h2client_received_messages_size_bytes_gauge [source] [method] [status_code]
+   udp_server_h2client_received_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
 Histograms provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds [source] [method] [status_code]
+   udp_server_h2client_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    udp_server_h2client_sent_messages_size_bytes [source] [method]
-   udp_server_h2client_received_messages_size_bytes [source] [method] [status_code]
+   udp_server_h2client_received_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
 ```
 
 
@@ -4513,21 +4532,21 @@ Counters provided by http2comm library and h2agent itself(*):
 
    h2agent_[traffic|admin]_server_observed_requests_accepted_counter [source] [method]
    h2agent_[traffic|admin]_server_observed_requests_errored_counter [source] [method]
-   h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
 
 Gauges provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source] [method]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_[traffic|admin]_server_received_messages_size_bytes [source] [method]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
 ```
 
 For example:

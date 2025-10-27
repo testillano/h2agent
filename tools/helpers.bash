@@ -12,7 +12,7 @@ ADMIN_SERVER_API="admin/v1"
 METRICS_PORT=${METRICS_PORT:-8080}
 
 SCHEME=${SCHEME:-http}
-CURL=${CURL:-"curl -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
+CURL=${CURL:-"curl -s -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
 SERVER_ADDR=${SERVER_ADDR:-localhost}
 
 BEAUTIFY_JSON=yes
@@ -40,7 +40,7 @@ do_curl() {
   echo
   echo [${CURL} $@]
   echo
-  ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
+  ${CURL} $@ | tee /tmp/curl.out
   [ $? -ne 0 ] && return 1
 
   [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
@@ -640,7 +640,7 @@ trace() {
 
 metrics() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics [-h|--help]; Prometheus metrics." && return 0
-  curl $(metrics_url)
+  curl -s $(metrics_url)
 }
 
 snapshot() {
@@ -712,7 +712,7 @@ server_example() {
 
   # If h2agent is up, we will suggest as example the same server matching configuration detected, to avoid breaking its behaviour
   #  (provisions and schemas are probably not harmful because of their dummy names):
-  local foo_server_matching=$(curl --http2-prior-knowledge $(admin_url)/server-matching 2>/dev/null | jq '.' -c)
+  local foo_server_matching=$(curl -s --http2-prior-knowledge $(admin_url)/server-matching | jq '.' -c)
   [ -z "${foo_server_matching}" ] && foo_server_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
 
   local traffic_server_api_path=

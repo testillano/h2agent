@@ -256,7 +256,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
 
-       << "[--verbose]\n"
+       << "[-v|--verbose]\n"
        << "  Output log traces on console.\n\n"
 
        << "[--ipv6]\n"
@@ -407,7 +407,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  By default connections are performed when adding client endpoints.\n"
        << "  This option configures remote addresses to be connected on demand.\n\n"
 
-       << "[-v|--version]\n"
+       << "[-V|--version]\n"
        << "  Program version.\n\n"
 
        << "[-h|--help]\n"
@@ -541,7 +541,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (readCmdLine(argv, argv + argc, "--verbose"))
+    if (readCmdLine(argv, argv + argc, "-v")
+            || readCmdLine(argv, argv + argc, "--verbose"))
     {
         verbose = true;
     }
@@ -726,10 +727,10 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::verbose(verbose);
 
     std::string gitVersion = h2agent::GIT_VERSION;
-    if (readCmdLine(argv, argv + argc, "-v")
+    if (readCmdLine(argv, argv + argc, "-V")
             || readCmdLine(argv, argv + argc, "--version"))
     {
-        std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
+        std::cout << (gitVersion.empty() ? "unknown version: not built on git repository, may be forked":gitVersion) << '\n';
         myExit(EXIT_SUCCESS);
     }
 
