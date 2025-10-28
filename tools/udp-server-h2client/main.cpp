@@ -126,7 +126,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
 
-       << "-o|--udp-output-socket-path <value>\n"
+       << "[-o|--udp-output-socket-path <value>]\n"
        << "  UDP unix output socket path. Written for every response received. This socket must be previously created by UDP server (bind()).\n"
        << "  Try this bash recipe to create an UDP server socket (or use another " << progname << " instance for that):\n"
        << "     $ path=\"/tmp/udp2.sock\"\n"

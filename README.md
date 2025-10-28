@@ -1144,7 +1144,7 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
 -k|--udp-socket-path <value>
   UDP unix socket path.
 
--o|--udp-output-socket-path <value>
+[-o|--udp-output-socket-path <value>]
   UDP unix output socket path. Written for every response received. This socket must be previously created by UDP server (bind()).
   Try this bash recipe to create an UDP server socket (or use another udp-server-h2client instance for that):
      $ path="/tmp/udp2.sock"
