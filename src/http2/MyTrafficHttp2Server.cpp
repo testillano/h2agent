@@ -178,7 +178,6 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
             maxBusyThreads = currentBusyThreads;
             max_busy_threads_.store(maxBusyThreads);
         }
-
         LOGINFORMATIONAL(
         if (receptionId % 1000 == 0) {
         std::string msg = ert::tracing::Logger::asString("QueueDispatcher [workers/size/max-size]: %d/%d/%d | Busy workers [current/maximum reached]: %d/%d", getQueueDispatcherThreads(), getQueueDispatcherSize(), getQueueDispatcherMaxSize(), currentBusyThreads, maxBusyThreads);
@@ -389,6 +388,36 @@ ss << "TRAFFIC REQUEST RECEIVED"
     }
     ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
+}
+
+std::chrono::microseconds MyTrafficHttp2Server::responseDelayTimer(const std::uint64_t &receptionId) {
+
+    bool exists{};
+    long long micro_count{};
+
+    if (global_variable_ptr_) {
+
+        static const std::string varPrefix = "ResponseDelayTimerUS.ReceptionId.";
+        std::string var = varPrefix + std::to_string(receptionId);
+        std::string val = global_variable_ptr_->getValue(var, exists);
+        if (exists) {
+            try {
+                micro_count = std::stoll(val);
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable value processed (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+            } catch (const std::invalid_argument& e) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Variable value is not a number (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+                return std::chrono::microseconds::zero();
+            } catch (const std::out_of_range& e) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Variable value invalid range (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+                return std::chrono::microseconds::zero();
+            }
+        }
+    }
+    else {
+        LOGWARNING(ert::tracing::Logger::warning("You may need to set global variable map to server instance: myTrafficHttp2Server->setGlobalVariable(myGlobalVariable);", ERT_FILE_LOCATION));
+    }
+
+    return std::chrono::microseconds(micro_count);
 }
 
 }

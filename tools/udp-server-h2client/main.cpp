@@ -82,13 +82,18 @@ std::atomic<unsigned int> TIMEOUTS{};
 std::atomic<unsigned int> CONNECTION_ERRORS{};
 
 // Globals
+std::map<std::string, std::string> UdpOutputValuePatterns{};
 std::map<std::string, std::string> MethodPatterns{};
 std::map<std::string, std::string> PathPatterns{};
 std::map<std::string, std::string> BodyPatterns{};
 std::map<std::string, std::string> HeadersPatterns{};
 ert::metrics::Metrics *myMetrics{}; // global to allow signal wrapup
 int Sockfd{}; // global to allow signal wrapup
+int OutputSockfd{}; // global to allow signal wrapup
 std::string UdpSocketPath{}; // global to allow signal wrapup
+std::string UdpOutputSocketPath{}; // global to allow signal wrapup
+struct sockaddr_un TargetAddr {};
+
 int HardwareConcurrency = std::thread::hardware_concurrency();
 int Workers = HardwareConcurrency; // default
 
@@ -120,6 +125,17 @@ void usage(int rc, const std::string &errorMessage = "")
 
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
+
+       << "-o|--udp-output-socket-path <value>\n"
+       << "  UDP unix output socket path. Written for every response received. This socket must be previously created by UDP server (bind()).\n"
+       << "  Try this bash recipe to create an UDP server socket (or use another " << progname << " instance for that):\n"
+       << "     $ path=\"/tmp/udp2.sock\"\n"
+       << "     $ rm -f ${path}\n"
+       << "     $ socat -lm -ly UNIX-RECV:\"${path}\" STDOUT\n\n"
+
+       << "[--udp-output-value <value>]\n"
+       << "  UDP datagram to be written on output socket, for every response received. By default,\n"
+       << "  original received datagram is used (@{udp}). Same patterns described above are valid for this parameter.\n\n"
 
        << "[-w|--workers <value>]\n"
        << "  Number of worker threads to post outgoing requests and manage asynchronous timers (timeout, pre-delay).\n"
@@ -238,6 +254,10 @@ std::string statsAsString() {
 void wrapup() {
     close(Sockfd);
     unlink(UdpSocketPath.c_str());
+    if (!UdpOutputSocketPath.empty()) {
+        unlink(UdpOutputSocketPath.c_str());
+        close(OutputSockfd);
+    }
     delete (myMetrics);
     LOGWARNING(ert::tracing::Logger::warning("Stopping logger", ERT_FILE_LOCATION));
     ert::tracing::Logger::terminate();
@@ -361,6 +381,7 @@ class Stream {
     std::map<std::string, std::string> variables_;
 
     std::shared_ptr<ert::http2comm::Http2Client> client_{};
+    std::string udp_output_value_{};
     std::string method_{};
     std::string path_{};
     std::string body_{};
@@ -372,8 +393,9 @@ public:
     Stream(const std::string &data) : data_(data) {;}
 
     // Set HTTP/2 components
-    void setRequest(std::shared_ptr<ert::http2comm::Http2Client> client, const std::string &method, const std::string &path, const std::string &body, nghttp2::asio_http2::header_map &headers, int millisecondsTimeout, int millisecondsDelay) {
+    void setRequest(std::shared_ptr<ert::http2comm::Http2Client> client, const std::string &method, const std::string &path, const std::string &body, nghttp2::asio_http2::header_map &headers, int millisecondsTimeout, int millisecondsDelay, const std::string &udpOutputValue) {
         client_ = client;
+        udp_output_value_ = udpOutputValue;
         method_ = method;
         path_ = path;
         body_ = body;
@@ -418,6 +440,12 @@ public:
             if (patternPrefix == "udp8") val = extractLastNChars(val, 8);
             variables_[var] = val;
         }
+    }
+
+    std::string getUdpOutputValue() const { // variables substitution
+        std::string result = udp_output_value_;
+        replaceVariables(result, UdpOutputValuePatterns, variables_);
+        return result;
     }
 
     std::string getMethod() const { // variables substitution
@@ -487,6 +515,20 @@ public:
             }
 
             LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("[process] Data processed: %s", data_.c_str()), ERT_FILE_LOCATION));
+
+            if (!UdpOutputSocketPath.empty()) {
+                // sendto is thread-safe:
+                const char *dataToSend = getUdpOutputValue().c_str();
+                ssize_t bytes_sent = sendto(OutputSockfd, dataToSend, strlen(dataToSend), 0, (struct sockaddr*)&TargetAddr, sizeof(struct sockaddr_un));
+                if (bytes_sent == -1) {
+                    ert::tracing::Logger::error(ert::tracing::Logger::asString("Error sending datagram to %s (check if socket was created by an UDP server)", UdpOutputSocketPath.c_str()), ERT_FILE_LOCATION);
+                } else {
+                    LOGDEBUG(
+                        std::string msg = ert::tracing::Logger::asString("Successful sent (%zd bytes) to: %s", bytes_sent, UdpOutputSocketPath.c_str());
+                        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                    );
+                }
+            }
         };
 
         // Asynchronous send:
@@ -524,6 +566,7 @@ int main(int argc, char* argv[])
     std::string s_messageSizeBytesHistogramBucketBoundaries = "";
     ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
     ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
+    std::string udpOutputValue = "@{udp}";
 
 
     std::string value;
@@ -543,6 +586,17 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--udp-socket-path", value))
     {
         UdpSocketPath = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-o", value)
+            || cmdOptionExists(argv, argv + argc, "--udp-output-socket-path", value))
+    {
+        UdpOutputSocketPath = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--udp-output-value", value))
+    {
+        udpOutputValue = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-w", value)
@@ -666,6 +720,8 @@ int main(int argc, char* argv[])
 
     std::cout << "Application/process name: " << applicationName << '\n';
     std::cout << "UDP socket path: " << UdpSocketPath << '\n';
+    if (!UdpOutputSocketPath.empty()) std::cout << "UDP output socket path: " << UdpOutputSocketPath << '\n';
+    if (!udpOutputValue.empty()) std::cout << "UDP output value: " << udpOutputValue << '\n';
     std::cout << "Workers: " << Workers << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
@@ -722,6 +778,7 @@ int main(int argc, char* argv[])
     }
 
     // Collect variable patterns:
+    collectVariablePatterns(udpOutputValue, UdpOutputValuePatterns);
     collectVariablePatterns(method, MethodPatterns);
     collectVariablePatterns(path, PathPatterns);
     collectVariablePatterns(body, BodyPatterns);
@@ -737,6 +794,7 @@ int main(int argc, char* argv[])
         }
     };
 
+    iterateMap(UdpOutputValuePatterns);
     iterateMap(MethodPatterns);
     iterateMap(PathPatterns);
     iterateMap(BodyPatterns);
@@ -789,7 +847,7 @@ int main(int argc, char* argv[])
         client->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, applicationName/*source label*/);
     }
 
-    // Creating UDP server:
+    // Creating UDP server ////////////////////////////////////////////////////
     Sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (Sockfd < 0) {
         perror("Error creating UDP socket !");
@@ -802,6 +860,22 @@ int main(int argc, char* argv[])
     strcpy(serverAddr.sun_path, UdpSocketPath.c_str());
 
     unlink(UdpSocketPath.c_str()); // just in case
+
+
+    // Creating UDP client ////////////////////////////////////////////////////
+    if (!UdpOutputSocketPath.empty()) {
+
+        OutputSockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+        if (OutputSockfd < 0) {
+            perror("Error creating UDP output socket");
+            exit(EXIT_FAILURE);
+        }
+
+        memset(&TargetAddr, 0, sizeof(struct sockaddr_un));
+        TargetAddr.sun_family = AF_UNIX;
+        strncpy(TargetAddr.sun_path, UdpOutputSocketPath.c_str(), sizeof(TargetAddr.sun_path) - 1);
+    }
+
 
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);
@@ -879,7 +953,7 @@ int main(int argc, char* argv[])
             boost::asio::post(io_ctx, [&]() {
                 auto stream = std::make_shared<Stream>(udpData);
                 int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
-                stream->setRequest(client, method, path, body, headers, millisecondsTimeout, delayMs);
+                stream->setRequest(client, method, path, body, headers, millisecondsTimeout, delayMs, udpOutputValue);
                 stream->process();
             });
         }

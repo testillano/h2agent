@@ -902,6 +902,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
         myTrafficHttp2Server->setMockClientData(myMockClientData);
         myAdminHttp2Server->setMockClientData(myMockClientData); // stored at administrative class to pass through created client provisions
+
+        myTrafficHttp2Server->setGlobalVariable(myGlobalVariable); // used by responseDelayTimer()
     }
 
     // Schema configuration

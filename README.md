@@ -94,6 +94,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints and schema id.
     * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
+  * Pseudo-notification mechanism (response delayed by global variable condition).
 
 * Training:
 
@@ -1580,7 +1581,7 @@ A kata is available at `./kata` directory. It is designed to guide through a set
 We will start describing **general** mock operations:
 
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
-* Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
+* Global variables: shared variables between different provision contexts and flows. Extra feature to solve some situations by other means, and also used for built-in response condition mechanism: [Dynamic response delays](#Dynamic-response-delays).
 * Logging: dynamic logger configuration (update and check).
 * General configuration (server).
 
@@ -1739,7 +1740,7 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. In any case, load operation is done appending provided data to the current one (in case that the variable already exists). This allows to use global variables as memory buckets, typical when they are managed from transformation steps (within provision context). But this operation is more focused on the use of global variables as constants for the whole execution (although they could be reloaded or reset from provisions, as commented, or even appended by other `POST` operations).
+Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. This operation is mainly focused on the use of global variables as constants for the whole execution (although they could be updated or reset from provisions).
 
 Global variables are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
@@ -4238,6 +4239,58 @@ Same restrictions apply here for deletion: query parameters could be omitted to 
 #### Response body
 
 No response body.
+
+## Dynamic response delays
+
+Provision model could configure the response delay milliseconds for an specific reception. But there is an additional mechanism that can be used as a pseudo-notification procedure to block answers under certain condition. It is based on the existence of a global variable with this name format: `ResponseDelayTimerUS.ReceptionId.<recvseq>`. This variable will hold a microseconds delay value that will postpone the answer for an specific reception identifier. When this variable does not exists, or exists with invalid value (not a number) or zeroed value, then the delay is ignored, so the answer will be immediate. This procedure works regardless the provision response delay (which is provided in milliseconds, not microseconds) although that one is executed first if available.
+
+*WARNING*: small values could provoke a burst of timer events in the server when checking the answer condition if that condition takes too much time (and client-side request timeout is also big). So take it into account, and note that variable value is measured in **microseconds**.
+
+### Use case example
+
+Consider this server mock provision:
+
+```json
+{
+  "requestMethod": "GET",
+  "requestUri": "/foo/bar",
+  "responseCode": 200,
+  "responseDelayMs": 20,
+  "responseHeaders": {
+    "content-type": "text/html"
+  },
+  "responseBody": "done!",
+  "transform": [
+    {
+      "source": "recvseq",
+      "target": "var.recvseq"
+    },
+    {
+      "source": "value.1000",
+      "target": "globalVar.ResponseDelayTimerUS.ReceptionId.@{recvseq}"
+    }
+  ]
+}
+```
+
+When a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond:
+
+```bash
+$ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/global-variable | jq '.'
+{
+  "ResponseDelayTimerUS.ReceptionId.1": "1000"
+}
+```
+
+The answer is firstly delayed 20 ms (as configured in the provision), and then, the dynamic mechanism start to work: the server checks the variable value, which is 1 ms updating the timer expiration again and again until the variable is removed (normally externally through the administrative interface) or updated to invalid numeric value or zero microseconds:
+
+```bash
+$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-variable?name=ResponseDelayTimerUS.ReceptionId.1"
+- or -
+$curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"ResponseDelayTimerUS.ReceptionId.1":"0"}'
+```
+
+Now, think about `udp-server-h2client` tool. It allows to configure an output `UDP` socket to notify when requests are answered. Those requests could carry the reception-id header and write it to UDP datagram. Then another instance could read it and launch the administrative operation to notify on target server mock by mean removal of proper global variable. Of course, other events could update the global variable, for example own server mock events caused by other receptions or client mode request responses.
 
 ## How it is delivered
 

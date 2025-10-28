@@ -7,8 +7,9 @@ Remember prepend variables:
    H2AGENT_DCK_TAG:             H2agent docker image tag. Defaults to 'latest'.
    H2AGENT_DCK_NAME:            H2agent docker container name. Defaults to
                                 'h2agent'.
-   H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example mount
-                                options, network options (--network=back_tier
+   H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example alternative
+                                entrypoints (--entrypoint /opt/udp-server-h2client),
+                                mount options, network options (--network=back_tier
                                 -p 8000:8000 -p 8001:8001 -p 8074:8074), etc.
                                 Defaults to '--network=host'.
    H2AGENT_TRAFFIC_PROXY_PORT:  Traffic proxy port provided by nghttpx allowing
