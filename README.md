@@ -4293,12 +4293,12 @@ $ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/global-variable
 }
 ```
 
-The answer is firstly delayed 20 ms (as configured in the provision), and then, the dynamic mechanism start to work: the server checks the variable value, which is 1 ms updating the timer expiration again and again until the variable is removed (normally externally through the administrative interface) or updated to invalid numeric value or zero microseconds:
+The answer is firstly delayed 20 ms (as configured in the provision), and then, the dynamic mechanism start to work: the server checks the variable value, which is 1 ms updating the timer expiration again and again until the variable is updated to zero microseconds (also, an invalid value will release wait loop), or the variable is removed (normally externally through the administrative interface):
 
 ```bash
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"ResponseDelayTimerUS.ReceptionId.1":"0"}'
+- or better: -
 $ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-variable?name=ResponseDelayTimerUS.ReceptionId.1"
-- or -
-$curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"ResponseDelayTimerUS.ReceptionId.1":"0"}'
 ```
 
 Now, think about `udp-server-h2client` tool. It allows to configure an output `UDP` socket to notify when requests are answered. Those requests could carry the reception-id header and write it to UDP datagram. Then another instance could read it and launch the administrative operation to notify on target server mock by mean removal of proper global variable. Of course, other events could update the global variable, for example own server mock events caused by other receptions or client mode request responses.
