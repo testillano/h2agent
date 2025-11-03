@@ -37,8 +37,6 @@ SOFTWARE.
 
 #include <vector>
 #include <string>
-#include <mutex>
-#include <shared_mutex>
 
 #include <nlohmann/json.hpp>
 
@@ -61,6 +59,9 @@ public:
     AdminClientEndpointData();
     ~AdminClientEndpointData() = default;
 
+    using KeyType = admin_client_endpoint_key_t;
+    using ValueType = std::shared_ptr<AdminClientEndpoint>;
+
     // Load result
     enum LoadResult { Success = 0, Accepted, BadSchema, BadContent };
 
@@ -80,12 +81,6 @@ public:
      * @return Load operation result
      */
     LoadResult load(const nlohmann::json &j, const common_resources_t &cr);
-
-    /** Clears internal data (map and ordered keys vector)
-     *
-     * @return True if something was removed, false if already empty
-     */
-    bool clear();
 
     /**
      * Finds client endpoint item.
@@ -108,8 +103,6 @@ private:
     h2agent::jsonschema::JsonSchema client_endpoint_schema_{};
 
     LoadResult loadSingle(const nlohmann::json &j, const common_resources_t &cr);
-
-    mutable mutex_t rw_mutex_{};
 };
 
 }

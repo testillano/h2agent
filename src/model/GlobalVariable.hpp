@@ -51,8 +51,6 @@ namespace model
  */
 class GlobalVariable : public Map<std::string, std::string>
 {
-    mutable mutex_t rw_mutex_{};
-
     h2agent::jsonschema::JsonSchema global_variable_schema_{};
 
 public:
@@ -79,36 +77,12 @@ public:
      */
     bool loadJson(const nlohmann::json &j);
 
-    /** Clears list
-     *
-     * @return Boolean about success of operation (something removed, nothing removed: already empty)
-     */
-    bool clear();
-
     /**
      * Json string representation for class information (json object)
      *
      * @return Json string representation ('{}' for empty object).
      */
     std::string asJsonString() const;
-
-    /**
-     * Gets the variable value for the variable name provided
-     *
-     * @param variableName Variable name for which the query was performed
-     * @param exists Variable was found (true) or missing (false)
-     *
-     * @return variable value
-     */
-    std::string getValue(const std::string &variableName, bool &exists) const;
-
-    /**
-     * Removes the variable name provided from map
-     *
-     * @param variableName Variable name to be removed
-     * @param exists Variable was found (true) or missing (false)
-     */
-    void removeVariable(const std::string &variableName, bool &exists);
 
     /**
      * Builds json document for class information

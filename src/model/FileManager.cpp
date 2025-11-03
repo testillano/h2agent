@@ -95,9 +95,10 @@ void FileManager::write(const std::string &path, const std::string &data, bool t
 
     std::shared_ptr<SafeFile> safeFile;
 
-    auto it = get(path);
-    if (it != end()) {
-        safeFile = it->second;
+    bool exists{};
+    auto result = get(path, exists);
+    if (exists) {
+        safeFile = result;
     }
     else {
         std::ios_base::openmode mode = std::ofstream::out | std::ios_base::app; // for text files
@@ -117,9 +118,10 @@ bool FileManager::read(const std::string &path, std::string &data, bool textOrBi
     std::shared_ptr<SafeFile> safeFile;
     std::ios_base::openmode mode = std::ifstream::in; // for text files
 
-    auto it = get(path);
-    if (it != end()) {
-        safeFile = it->second;
+    bool exists{};
+    auto value = get(path, exists);
+    if (exists) {
+        safeFile = value;
     }
     else {
         if (!textOrBinary) mode |= std::ios::binary;
@@ -137,9 +139,10 @@ void FileManager::empty(const std::string &path) {
 
     std::shared_ptr<SafeFile> safeFile;
 
-    auto it = get(path);
-    if (it != end()) {
-        safeFile = it->second;
+    bool exists{};
+    auto value = get(path, exists);
+    if (exists) {
+        safeFile = value;
     }
     else {
         safeFile = std::make_shared<SafeFile>(this, path, io_context_);
@@ -147,15 +150,6 @@ void FileManager::empty(const std::string &path) {
     }
 
     safeFile->empty();
-}
-
-bool FileManager::clear()
-{
-    bool result = (map_.size() > 0); // something deleted
-
-    map_.clear(); // shared_ptr dereferenced too
-
-    return result;
 }
 
 nlohmann::json FileManager::getConfigurationJson() const {
@@ -175,11 +169,9 @@ nlohmann::json FileManager::getJson() const {
 
     nlohmann::json result;
 
-    read_guard_t guard(rw_mutex_);
-
-    for (auto it = begin(); it != end(); it++) {
-        result.push_back(it->second->getJson());
-    };
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        result.push_back(value->getJson());
+    });
 
     return result;
 }

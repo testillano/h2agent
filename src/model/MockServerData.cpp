@@ -47,7 +47,6 @@ namespace model
 
 void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
-    write_guard_t guard(rw_mutex_);
     bool maiden{};
     auto events = std::static_pointer_cast<MockServerEventsHistory>(getEvents(dataKey, maiden));
 

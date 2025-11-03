@@ -37,8 +37,6 @@ SOFTWARE.
 
 #include <vector>
 #include <string>
-#include <mutex>
-#include <shared_mutex>
 
 #include <nlohmann/json.hpp>
 
@@ -62,6 +60,9 @@ public:
     AdminClientProvisionData();
     ~AdminClientProvisionData() = default;
 
+    using KeyType = admin_client_provision_key_t;
+    using ValueType = std::shared_ptr<AdminClientProvision>;
+
     // Load result
     enum LoadResult { Success = 0, BadSchema, BadContent };
 
@@ -83,12 +84,6 @@ public:
      * @return Load operation result
      */
     LoadResult load(const nlohmann::json &j, const common_resources_t &cr);
-
-    /** Clears internal data map
-     *
-     * @return True if something was removed, false if already empty
-     */
-    bool clear();
 
     /**
      * Finds provision item for traffic requirement.
@@ -112,8 +107,6 @@ private:
     h2agent::jsonschema::JsonSchema client_provision_schema_{};
 
     LoadResult loadSingle(const nlohmann::json &j, const common_resources_t &cr);
-
-    mutable mutex_t rw_mutex_{};
 };
 
 }

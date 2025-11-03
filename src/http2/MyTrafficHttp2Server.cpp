@@ -399,7 +399,7 @@ std::chrono::microseconds MyTrafficHttp2Server::responseDelayTimer(const std::ui
 
         static const std::string varPrefix = "ResponseDelayTimerUS.ReceptionId.";
         std::string var = varPrefix + std::to_string(receptionId);
-        std::string val = global_variable_ptr_->getValue(var, exists);
+        std::string val = global_variable_ptr_->get(var, exists);
         if (exists) {
             try {
                 micro_count = std::stoll(val);
