@@ -65,13 +65,15 @@ void searchReplaceAll(std::string& str,
     );
 }
 
-void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars) {
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars) {
 
     if (patterns.empty()) return;
-    if (vars.empty() && gvars.empty()) return;
+    if (vars.empty() && gvars->empty()) return;
 
     std::map<std::string,std::string>::const_iterator it;
     std::unordered_map<std::string,std::string>::const_iterator git;
+
+    std::string aux{};
 
     for (auto pit = patterns.begin(); pit != patterns.end(); pit++) {
 
@@ -84,10 +86,9 @@ void replaceVariables(std::string &str, const std::map<std::string, std::string>
             }
         }
 
-        if (!gvars.empty()) { // this is much more efficient that find() == end() below
-            git = gvars.find(pit->second);
-            if (git != gvars.end()) {
-                searchReplaceAll(str, pit->first, git->second);
+        if (!gvars->empty()) { // this is much more efficient that find() == end() below
+            if (gvars->tryGet(pit->second, aux)) {
+                searchReplaceAll(str, pit->first, aux);
             }
         }
     }
@@ -128,7 +129,7 @@ void TypeConverter::setBoolean(bool boolean) {
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false"), ERT_FILE_LOCATION));
 }
 
-void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars) {
+void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars) {
 
     setString(str);
     replaceVariables(s_value_, patterns, vars, gvars);

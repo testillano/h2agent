@@ -3,13 +3,13 @@
     "requestMethod": "GET",
     "requestUri": "/rothbard/says",
     "responseCode": 200,
-    "responseBody": "the great single enemy of the human race"
+    "responseBody": "the great single enemy of the human race, "
   },
   {
     "requestMethod": "GET",
     "requestUri": "/rothbard/says",
     "responseCode": 200,
-    "responseBody": "The State is, and always has been"
+    "responseBody": "The State is, and always has been, "
   },
   {
     "requestMethod": "GET",

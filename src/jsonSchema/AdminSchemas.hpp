@@ -64,7 +64,7 @@ const nlohmann::json schema = R"(
 }
 )"_json;
 
-const nlohmann::json server_data_global = R"(
+const nlohmann::json global_variable = R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
 

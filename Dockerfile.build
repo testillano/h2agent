@@ -1,6 +1,6 @@
 ARG base_tag=latest
 FROM ghcr.io/testillano/http2comm:${base_tag}
-MAINTAINER testillano
+LABEL maintainer="testillano"
 
 LABEL testillano.h2agent_build.description="Docker image to build h2agent executable"
 

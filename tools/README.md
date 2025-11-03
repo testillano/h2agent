@@ -5,7 +5,7 @@
 ```
 .
 ├── README.md
-├── common.src
+├── common.bash
 ├── coverage.sh
 ├── grafana
 │   ├── PLAY_GRAFANA.md
@@ -22,7 +22,7 @@
 │   │           └── datasource.yaml
 │   ├── prometheus
 │   │   └── prometheus.yaml
-│   └── use-case.src
+│   └── use-case.bash
 ├── play-h2agent
 │   ├── examples
 │   │   ├── Evolution
@@ -37,8 +37,10 @@
 │   │   │   └── server-provision.json
 .   .   .
 .   .   .
-│   └── play.sh
-├── helpers.src
+│   └── run.sh
+├── test-h2agent
+│   └── run.py
+├── helpers.bash
 ├── matching-helper
 │   ├── CMakeLists.txt
 │   ├── Makefile
@@ -71,10 +73,11 @@
 ## Description
 
 * README.md: this readme file
-* common.src: common functions used in `./demo` and `./kata`.
+* common.bash: common functions used in `./demo`, `tools/play-h2agent` and `./kata`.
 * coverage.sh: automated coverage report based in unit tests.
-* helpers.src: helper functions to administrate and inspect the `h2agent` application.
-* play-h2agent: examples and a guide through them (`play.sh`).
+* helpers.bash: helper functions to administrate and inspect the `h2agent` application.
+* play-h2agent: examples and a guide through them (`run.sh`).
+* test-h2agent: graphical interaction with `h2agent` (`run.py`).
 * matching-helper: c++ utility to test regular expressions as a configuration helper.
 * arashpartow-helper: c++ utility to test Arash-Partow math expressions.
 * udp-server: c++ utility to test UDP messages written by `h2agent` by mean `UDPSocket` target (or any other process writting the socket).

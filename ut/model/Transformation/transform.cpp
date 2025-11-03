@@ -1358,7 +1358,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonStringMissingPathException) // json
 }
 
 // Setting json field with binary data may raise an exception:
-// echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "$TRAFFIC_URL/uri" --data-binary @-
+// echo -en '\x80\x01' | curl --http2-prior-knowledge -i -H 'content-type:application/octet-stream' -X GET "<traffic url>/uri" --data-binary @-
 TEST_F(Transform_test, TargetResponseBodyJsonStringPathExceptionDueToBinary)
 {
     // Build test provision:

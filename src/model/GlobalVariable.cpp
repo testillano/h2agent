@@ -46,12 +46,12 @@ namespace model
 {
 
 GlobalVariable::GlobalVariable() {
-    global_variable_schema_.setJson(h2agent::adminSchemas::server_data_global); // won't fail
+    global_variable_schema_.setJson(h2agent::adminSchemas::global_variable); // won't fail
 }
 
 void GlobalVariable::load(const std::string &variable, const std::string &value) {
-    bool exists;
-    std::string currentValue = getValue(variable, exists);
+    std::string currentValue{};
+    bool exists = tryGet(variable, currentValue);
     add(variable, currentValue + value);
 }
 
@@ -67,38 +67,13 @@ bool GlobalVariable::loadJson(const nlohmann::json &j) {
     return true;
 }
 
-bool GlobalVariable::clear()
-{
-    write_guard_t guard(rw_mutex_);
-    bool result = (map_.size() > 0); // something deleted
-
-    map_.clear();
-
-    return result;
-}
-
 std::string GlobalVariable::asJsonString() const {
 
     return ((size() != 0) ? getJson().dump() : "{}"); // server data is shown as an object
 }
 
-std::string GlobalVariable::getValue(const std::string &variableName, bool &exists) const {
-
-    read_guard_t guard(rw_mutex_);
-
-    auto it = get(variableName);
-    exists = (it != end());
-
-    return (exists ? (it->second):"");
-}
-
-void GlobalVariable::removeVariable(const std::string &variableName, bool &exists) {
-    exists = (get(variableName) != end());
-    remove(variableName);
-}
-
 nlohmann::json GlobalVariable::getJson() const {
-    return get();
+    return Map::getJson();
 }
 
 }

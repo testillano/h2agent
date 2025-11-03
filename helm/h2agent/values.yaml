@@ -52,12 +52,16 @@ service:
   admin_port: 8074
   traffic_port: 8000
   prometheus_port: 8080
+  traffic_proxy_port: 8001 # proxy enabled by default (set "" to disable)
+  admin_proxy_port: 8076 # proxy enabled by default (set "" to disable)
 
   #type: NodePort
   #(fixed node ports range [30000, 32767])
   #traffic_nodePort: 30000
   #admin_nodePort: 30074
   #prometheus_nodePort: 30080
+  #traffic_proxy_nodePort: 30001
+  #admin_proxy_nodePort: 30076
 
 image:
   repository: ghcr.io/testillano/h2agent

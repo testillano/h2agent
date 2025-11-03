@@ -34,11 +34,11 @@ result() {
 # EXECUTION #
 #############
 cd $(dirname $0)
+source ../../tools/common.bash
 
-title "$(dirname $0)" "${COLOR_magenta}"
-cleanup_server_matching_server_provision
+h2agent_server_configuration
 
-if [ -n "${INTERACT}" ] # user playing
+if [ -z "${NON_INTERACT}" ] # user playing
 then
   while true
   do

@@ -265,6 +265,6 @@ The demo script is interactive to follow the use case step by step.
 Just in case you want to test demo procedure health, you can execute in non-interactive mode:
 
 ```bash
-$ INTERACT=false demo/run.sh
+$ NON_INTERACT=true demo/run.sh
 $ echo $?
 ```

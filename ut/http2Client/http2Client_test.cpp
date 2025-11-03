@@ -128,6 +128,7 @@ public:
         traffic_http2_server_->setMockClientData(mock_client_events_data_);
         traffic_http2_server_->setAdminData(admin_http2_server_->getAdminData()); // to retrieve mock behaviour configuration
         traffic_http2_server_->enableMetrics(metrics_);
+        traffic_http2_server_->setGlobalVariable(global_variable_);
 
         admin_http2_server_->setHttp2Server(traffic_http2_server_);
 

@@ -64,10 +64,10 @@ SOFTWARE.
 
 
 #define BUFFER_SIZE 256
-#define COL1_WIDTH 36 // date time and microseconds
-#define COL2_WIDTH 16 // sequence
-#define COL3_WIDTH 32 // 256 is too much, but we could accept UDP datagrams with that size ...
-#define COL4_WIDTH 100 // status codes
+#define COL1_WIDTH 36 // <timestamp>: date time and microseconds
+#define COL2_WIDTH 16 // <sequence>
+#define COL3_WIDTH 64 // <udp datagram> 256 is too much, but we could accept UDP datagrams with that size ...
+#define COL4_WIDTH 100 // <accumulated status codes>
 
 
 const char* progname;
@@ -82,15 +82,20 @@ std::atomic<unsigned int> TIMEOUTS{};
 std::atomic<unsigned int> CONNECTION_ERRORS{};
 
 // Globals
+std::map<std::string, std::string> UdpOutputValuePatterns{};
 std::map<std::string, std::string> MethodPatterns{};
 std::map<std::string, std::string> PathPatterns{};
 std::map<std::string, std::string> BodyPatterns{};
 std::map<std::string, std::string> HeadersPatterns{};
 ert::metrics::Metrics *myMetrics{}; // global to allow signal wrapup
 int Sockfd{}; // global to allow signal wrapup
+int OutputSockfd{}; // global to allow signal wrapup
 std::string UdpSocketPath{}; // global to allow signal wrapup
+std::string UdpOutputSocketPath{}; // global to allow signal wrapup
+struct sockaddr_un TargetAddr {};
+
 int HardwareConcurrency = std::thread::hardware_concurrency();
-int Workers = 10*HardwareConcurrency; // default
+int Workers = HardwareConcurrency; // default
 
 ////////////////////////////
 // Command line functions //
@@ -121,13 +126,20 @@ void usage(int rc, const std::string &errorMessage = "")
        << "-k|--udp-socket-path <value>\n"
        << "  UDP unix socket path.\n\n"
 
+       << "[-o|--udp-output-socket-path <value>]\n"
+       << "  UDP unix output socket path. Written for every response received. This socket must be previously created by UDP server (bind()).\n"
+       << "  Try this bash recipe to create an UDP server socket (or use another " << progname << " instance for that):\n"
+       << "     $ path=\"/tmp/udp2.sock\"\n"
+       << "     $ rm -f ${path}\n"
+       << "     $ socat -lm -ly UNIX-RECV:\"${path}\" STDOUT\n\n"
+
+       << "[--udp-output-value <value>]\n"
+       << "  UDP datagram to be written on output socket, for every response received. By default,\n"
+       << "  original received datagram is used (@{udp}). Same patterns described above are valid for this parameter.\n\n"
+
        << "[-w|--workers <value>]\n"
-       << "  Number of worker threads to post outgoing requests. By default, 10x times 'hardware\n"
-       << "  concurrency' is configured (10*" << HardwareConcurrency << " = " << Workers << "), but you could consider increase even more\n"
-       << "  if high I/O is expected (high response times raise busy threads, so context switching\n"
-       << "  is not wasted as much as low latencies setups do). We should consider Amdahl law and\n"
-       << "  other specific conditions to set the default value, but 10*CPUs is a good approach\n"
-       << "  to start with. You may also consider using 'perf' tool to optimize your configuration.\n\n"
+       << "  Number of worker threads to post outgoing requests and manage asynchronous timers (timeout, pre-delay).\n"
+       << "  Defaults to system hardware concurrency (" << HardwareConcurrency << "), however 2 could be enough.\n\n"
 
        << "[-e|--print-each <value>]\n"
        << "  Print UDP receptions each specific amount (must be positive). Defaults to 1.\n"
@@ -159,7 +171,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Header in the form 'name:value'. This parameter can occur multiple times.\n\n"
 
        << "[-b|--body <value>]\n"
-       << "  Plain text for request body content.\n\n"
+       << "  Plain text for request body content. Ignored by underlying library for GET, DELETE and HEAD methods.\n\n"
 
        << "[--secure]\n"
        << " Use secure connection.\n\n"
@@ -242,6 +254,10 @@ std::string statsAsString() {
 void wrapup() {
     close(Sockfd);
     unlink(UdpSocketPath.c_str());
+    if (!UdpOutputSocketPath.empty()) {
+        unlink(UdpOutputSocketPath.c_str());
+        close(OutputSockfd);
+    }
     delete (myMetrics);
     LOGWARNING(ert::tracing::Logger::warning("Stopping logger", ERT_FILE_LOCATION));
     ert::tracing::Logger::terminate();
@@ -365,23 +381,27 @@ class Stream {
     std::map<std::string, std::string> variables_;
 
     std::shared_ptr<ert::http2comm::Http2Client> client_{};
+    std::string udp_output_value_{};
     std::string method_{};
     std::string path_{};
     std::string body_{};
     nghttp2::asio_http2::header_map headers_{};
     int timeout_ms_{};
+    int delay_ms_{};
 
 public:
     Stream(const std::string &data) : data_(data) {;}
 
     // Set HTTP/2 components
-    void setRequest(std::shared_ptr<ert::http2comm::Http2Client> client, const std::string &method, const std::string &path, const std::string &body, nghttp2::asio_http2::header_map &headers, int millisecondsTimeout) {
+    void setRequest(std::shared_ptr<ert::http2comm::Http2Client> client, const std::string &method, const std::string &path, const std::string &body, nghttp2::asio_http2::header_map &headers, int millisecondsTimeout, int millisecondsDelay, const std::string &udpOutputValue) {
         client_ = client;
+        udp_output_value_ = udpOutputValue;
         method_ = method;
         path_ = path;
         body_ = body;
         headers_ = headers;
         timeout_ms_ = millisecondsTimeout;
+        delay_ms_ = millisecondsDelay;
 
         // Main variable @{udp}
         variables_["udp"] = data_;
@@ -422,6 +442,12 @@ public:
         }
     }
 
+    std::string getUdpOutputValue() const { // variables substitution
+        std::string result = udp_output_value_;
+        replaceVariables(result, UdpOutputValuePatterns, variables_);
+        return result;
+    }
+
     std::string getMethod() const { // variables substitution
         std::string result = method_;
         replaceVariables(result, MethodPatterns, variables_);
@@ -457,35 +483,56 @@ public:
         return timeout_ms_;
     }
 
+    int getMillisecondsDelay() const { // No sense to do substitutions
+        return delay_ms_;
+    }
+
     // Process reception
     void process() {
-        // Send the request:
-        //auto start = std::chrono::high_resolution_clock::now();
-        ert::http2comm::Http2Client::response response = client_->send(getMethod(), getPath(), getBody(), getHeaders(), std::chrono::milliseconds(getMillisecondsTimeout()));
-        //auto end = std::chrono::high_resolution_clock::now();
 
-        // Log debug the response, and store status codes statistics:
-        int status = response.statusCode;
-        if (status >= 200 && status < 300) {
-            STATUS_CODES_2xx++;
-        }
-        else if (status >= 300 && status < 400) {
-            STATUS_CODES_3xx++;
-        }
-        else if (status >= 400 && status < 500) {
-            STATUS_CODES_4xx++;
-        }
-        else if (status >= 500 && status < 600) {
-            STATUS_CODES_5xx++;
-        }
-        else if (status == -2) {
-            TIMEOUTS++;
-        }
-        else if (status == -1) {
-            CONNECTION_ERRORS++;
-        }
+        // Callback:
+        ert::http2comm::Http2Client::ResponseCallback response_handler = [this](ert::http2comm::Http2Client::response res) -> void {
+            // Log debug the response, and store status codes statistics:
+            int status = res.statusCode;
 
-        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("[process] Data processed: %s", data_.c_str()), ERT_FILE_LOCATION));
+            if (status >= 200 && status < 300) {
+                STATUS_CODES_2xx++;
+            }
+            else if (status >= 300 && status < 400) {
+                STATUS_CODES_3xx++;
+            }
+            else if (status >= 400 && status < 500) {
+                STATUS_CODES_4xx++;
+            }
+            else if (status >= 500 && status < 600) {
+                STATUS_CODES_5xx++;
+            }
+            else if (status == -2) {
+                TIMEOUTS++;
+            }
+            else if (status == -1 || status == -3 || status == -4) {
+                CONNECTION_ERRORS++;
+            }
+
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("[process] Data processed: %s", data_.c_str()), ERT_FILE_LOCATION));
+
+            if (!UdpOutputSocketPath.empty()) {
+                // sendto is thread-safe:
+                const char *dataToSend = getUdpOutputValue().c_str();
+                ssize_t bytes_sent = sendto(OutputSockfd, dataToSend, strlen(dataToSend), 0, (struct sockaddr*)&TargetAddr, sizeof(struct sockaddr_un));
+                if (bytes_sent == -1) {
+                    ert::tracing::Logger::error(ert::tracing::Logger::asString("Error sending datagram to %s (check if socket was created by an UDP server)", UdpOutputSocketPath.c_str()), ERT_FILE_LOCATION);
+                } else {
+                    LOGDEBUG(
+                        std::string msg = ert::tracing::Logger::asString("Successful sent (%zd bytes) to: %s", bytes_sent, UdpOutputSocketPath.c_str());
+                        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                    );
+                }
+            }
+        };
+
+        // Asynchronous send:
+        client_->asyncSend(getMethod(), getPath(), getBody(), getHeaders(), response_handler, std::chrono::milliseconds(getMillisecondsTimeout()), std::chrono::milliseconds(getMillisecondsDelay()));
     };
 };
 
@@ -519,6 +566,7 @@ int main(int argc, char* argv[])
     std::string s_messageSizeBytesHistogramBucketBoundaries = "";
     ert::metrics::bucket_boundaries_t responseDelaySecondsHistogramBucketBoundaries{};
     ert::metrics::bucket_boundaries_t messageSizeBytesHistogramBucketBoundaries{};
+    std::string udpOutputValue = "@{udp}";
 
 
     std::string value;
@@ -538,6 +586,17 @@ int main(int argc, char* argv[])
             || cmdOptionExists(argv, argv + argc, "--udp-socket-path", value))
     {
         UdpSocketPath = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "-o", value)
+            || cmdOptionExists(argv, argv + argc, "--udp-output-socket-path", value))
+    {
+        UdpOutputSocketPath = value;
+    }
+
+    if (cmdOptionExists(argv, argv + argc, "--udp-output-value", value))
+    {
+        udpOutputValue = value;
     }
 
     if (cmdOptionExists(argv, argv + argc, "-w", value)
@@ -661,6 +720,8 @@ int main(int argc, char* argv[])
 
     std::cout << "Application/process name: " << applicationName << '\n';
     std::cout << "UDP socket path: " << UdpSocketPath << '\n';
+    if (!UdpOutputSocketPath.empty()) std::cout << "UDP output socket path: " << UdpOutputSocketPath << '\n';
+    if (!udpOutputValue.empty()) std::cout << "UDP output value: " << udpOutputValue << '\n';
     std::cout << "Workers: " << Workers << '\n';
     std::cout << "Log level: " << ert::tracing::Logger::levelAsString(ert::tracing::Logger::getLevel()) << '\n';
     std::cout << "Verbose (stdout): " << (verbose ? "true":"false") << '\n';
@@ -717,6 +778,7 @@ int main(int argc, char* argv[])
     }
 
     // Collect variable patterns:
+    collectVariablePatterns(udpOutputValue, UdpOutputValuePatterns);
     collectVariablePatterns(method, MethodPatterns);
     collectVariablePatterns(path, PathPatterns);
     collectVariablePatterns(body, BodyPatterns);
@@ -732,6 +794,7 @@ int main(int argc, char* argv[])
         }
     };
 
+    iterateMap(UdpOutputValuePatterns);
     iterateMap(MethodPatterns);
     iterateMap(PathPatterns);
     iterateMap(BodyPatterns);
@@ -784,7 +847,7 @@ int main(int argc, char* argv[])
         client->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, applicationName/*source label*/);
     }
 
-    // Creating UDP server:
+    // Creating UDP server ////////////////////////////////////////////////////
     Sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (Sockfd < 0) {
         perror("Error creating UDP socket !");
@@ -797,6 +860,22 @@ int main(int argc, char* argv[])
     strcpy(serverAddr.sun_path, UdpSocketPath.c_str());
 
     unlink(UdpSocketPath.c_str()); // just in case
+
+
+    // Creating UDP client ////////////////////////////////////////////////////
+    if (!UdpOutputSocketPath.empty()) {
+
+        OutputSockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+        if (OutputSockfd < 0) {
+            perror("Error creating UDP output socket");
+            exit(EXIT_FAILURE);
+        }
+
+        memset(&TargetAddr, 0, sizeof(struct sockaddr_un));
+        TargetAddr.sun_family = AF_UNIX;
+        strncpy(TargetAddr.sun_path, UdpOutputSocketPath.c_str(), sizeof(TargetAddr.sun_path) - 1);
+    }
+
 
     // Capture TERM/INT signals for graceful exit:
     signal(SIGTERM, sighndl);
@@ -815,8 +894,9 @@ int main(int argc, char* argv[])
 
     std::cout << "Remember:" << '\n';
     if (!disableMetrics) std::cout << " To get prometheus metrics:       curl http://" << bindAddressPortPrometheusExposer << "/metrics" << '\n';
-    std::cout << " To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
-    std::cout << " To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
+    std::cout << " To send ad-hoc UDP message:      echo -n <data> | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
+    std::cout << " To print accumulated statistics: echo -n STATS  | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
+    std::cout << " To stop process:                 echo -n EOF    | nc -u -q0 -w1 -U " << UdpSocketPath << '\n';
 
     std::cout << '\n';
     std::cout << '\n';
@@ -870,21 +950,10 @@ int main(int argc, char* argv[])
             }
             sequence++;
 
-            /*
-            // WITHOUT DELAY FEATURE (also this could cause submit error due to method/path/body not protected in this thread):
             boost::asio::post(io_ctx, [&]() {
                 auto stream = std::make_shared<Stream>(udpData);
-                stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
-                stream->process();
-            });
-            */
-
-            // WITH DELAY FEATURE:
-            int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
-            auto timer = std::make_shared<boost::asio::steady_timer>(io_ctx, std::chrono::milliseconds(delayMs));
-            timer->async_wait([&, udpData /* must be passed by copy because it changes its value in every iteration */, timer] (const boost::system::error_code& e) {
-                auto stream = std::make_shared<Stream>(udpData);
-                stream->setRequest(client, method, path, body, headers, millisecondsTimeout);
+                int delayMs = randomSendDelay ? (rand() % (millisecondsSendDelay + 1)):millisecondsSendDelay;
+                stream->setRequest(client, method, path, body, headers, millisecondsTimeout, delayMs, udpOutputValue);
                 stream->process();
             });
         }

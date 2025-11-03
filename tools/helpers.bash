@@ -4,24 +4,46 @@
 # VARIABLES #
 #############
 PNAME=${PNAME:-h2agent}
-TRAFFIC_URL=${TRAFFIC_URL:-"http://localhost:8000"}
-METRICS_URL=${METRICS_URL:-"http://localhost:8080/metrics"}
-ADMIN_URL=${ADMIN_URL:-"http://localhost:8074/admin/v1"}
-[ "${SERVER_API}" = "/" ] && SERVER_API=
-CURL="curl -i --http2-prior-knowledge"
+
+TRAFFIC_PORT=${TRAFFIC_PORT:-8000} # maybe proxy on 8001 ...
+[ "${TRAFFIC_SERVER_API}" = "/" ] && TRAFFIC_SERVER_API=
+ADMIN_PORT=${ADMIN_PORT:-8074} # maybe proxy on 8075 ...
+ADMIN_SERVER_API="admin/v1"
+METRICS_PORT=${METRICS_PORT:-8080}
+
+SCHEME=${SCHEME:-http}
+CURL=${CURL:-"curl -s -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
+SERVER_ADDR=${SERVER_ADDR:-localhost}
+
 BEAUTIFY_JSON=yes
 
 #############
 # FUNCTIONS #
 #############
+
+# -----------------------------------------------------------------------------
+# INTERNAL
+
+traffic_url() {
+  echo "${SCHEME}://${SERVER_ADDR}:${TRAFFIC_PORT}"
+}
+
+admin_url() {
+  echo -n "${SCHEME}://${SERVER_ADDR}:${ADMIN_PORT}/${ADMIN_SERVER_API}"
+}
+
+metrics_url() {
+  echo "${SCHEME}://${SERVER_ADDR}:${METRICS_PORT}/metrics"
+}
+
 do_curl() {
   echo
   echo [${CURL} $@]
   echo
-  ${CURL} $@ 2>/dev/null | tee /tmp/curl.out
+  ${CURL} $@ | tee /tmp/curl.out
   [ $? -ne 0 ] && return 1
 
-  [ -n "${PLAIN}" ] && return 0 # special for trace()
+  [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
 
   # Last empty line or no line feed (no body answered):
   [ -z $(tail -c 1 /tmp/curl.out) ] && return 0
@@ -30,44 +52,37 @@ do_curl() {
   echo -e "\n\n(type 'pretty' or 'raw' to isolate body printout)\n"
 }
 
+# -----------------------------------------------------------------------------
+# GENERAL RESOURCES
+
 schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration (${ADMIN_URL}/schema)." && return 0
-  [ -z "$1" ] && do_curl ${ADMIN_URL}/schema && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration ($(admin_url)/schema)." && return 0
+  [ -z "$1" ] && do_curl $(admin_url)/schema && return 0
   if [ "$1" = "--clean" ]
   then
-    do_curl -XDELETE ${ADMIN_URL}/schema
+    do_curl -XDELETE $(admin_url)/schema
   else
-    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/schema
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/schema
   fi
 }
 
-schema_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema_schema [-h|--help]; Gets the schema configuration schema (${ADMIN_URL}/schema/schema)." && return 0
-  do_curl "${ADMIN_URL}/schema/schema"
-}
-
 global_variable() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration (${ADMIN_URL}/global-variable)." && return 0
-  [ -z "$1" ] && do_curl ${ADMIN_URL}/global-variable && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration ($(admin_url)/global-variable)." && return 0
+  [ -z "$1" ] && do_curl $(admin_url)/global-variable && return 0
   local queryParam=
   if [ "$1" = "--clean" ]
   then
     [ -n "$2" ] && queryParam="?name=$2"
-    do_curl -XDELETE ${ADMIN_URL}/global-variable${queryParam}
+    do_curl -XDELETE $(admin_url)/global-variable${queryParam}
   else
     [ -n "$1" ] && queryParam="?name=$1"
     if [ -f "$1" ]
     then
-      do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/global-variable
+      do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/global-variable
     else
-      do_curl ${ADMIN_URL}/global-variable${queryParam}
+      do_curl $(admin_url)/global-variable${queryParam}
     fi
   fi
-}
-
-global_variable_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema (${ADMIN_URL}/global-variable/schema)." && return 0
-  do_curl "${ADMIN_URL}/global-variable/schema"
 }
 
 files() {
@@ -76,7 +91,7 @@ files() {
     echo "Usage: files [-h|--help]; Gets the files processed."
     return 0
   else
-    do_curl ${ADMIN_URL}/files
+    do_curl $(admin_url)/files
   fi
 }
 
@@ -89,12 +104,12 @@ files_configuration() {
     return 0
   elif [ "$1" = "--enable-read-cache" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/files/configuration?readCache=true"
+    do_curl -XPUT "$(admin_url)/files/configuration?readCache=true"
   elif [ "$1" = "--disable-read-cache" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/files/configuration?readCache=false"
+    do_curl -XPUT "$(admin_url)/files/configuration?readCache=false"
   else
-    do_curl ${ADMIN_URL}/files/configuration
+    do_curl $(admin_url)/files/configuration
   fi
 }
 
@@ -104,7 +119,7 @@ udp_sockets() {
     echo "Usage: udp_sockets [-h|--help]; Gets the udp sockets processed."
     return 0
   else
-    do_curl ${ADMIN_URL}/udp-sockets
+    do_curl $(admin_url)/udp-sockets
   fi
 }
 
@@ -114,9 +129,12 @@ configuration() {
     echo "Usage: configuration [-h|--help]; Gets agent general static configuration."
     return 0
   else
-    do_curl ${ADMIN_URL}/configuration
+    do_curl $(admin_url)/configuration
   fi
 }
+
+# -----------------------------------------------------------------------------
+# TRAFFIC SERVER
 
 server_configuration() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
@@ -129,18 +147,18 @@ server_configuration() {
     return 0
   elif [ "$1" = "--traffic-server-ignore-request-body" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=false"
+    do_curl -XPUT "$(admin_url)/server/configuration?receiveRequestBody=false"
   elif [ "$1" = "--traffic-server-receive-request-body" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server/configuration?receiveRequestBody=true"
+    do_curl -XPUT "$(admin_url)/server/configuration?receiveRequestBody=true"
   elif [ "$1" = "--traffic-server-dynamic-request-body-allocation" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server/configuration?preReserveRequestBody=false"
+    do_curl -XPUT "$(admin_url)/server/configuration?preReserveRequestBody=false"
   elif [ "$1" = "--traffic-server-initial-request-body-allocation" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server/configuration?preReserveRequestBody=true"
+    do_curl -XPUT "$(admin_url)/server/configuration?preReserveRequestBody=true"
   else
-    do_curl ${ADMIN_URL}/server/configuration
+    do_curl $(admin_url)/server/configuration
   fi
 }
 
@@ -156,84 +174,44 @@ server_data_configuration() {
     return 0
   elif [ "$1" = "--discard-all" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=true&discardKeyHistory=true"
+    do_curl -XPUT "$(admin_url)/server-data/configuration?discard=true&discardKeyHistory=true"
   elif [ "$1" = "--discard-history" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardKeyHistory=true"
+    do_curl -XPUT "$(admin_url)/server-data/configuration?discard=false&discardKeyHistory=true"
   elif [ "$1" = "--keep-all" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?discard=false&discardKeyHistory=false"
+    do_curl -XPUT "$(admin_url)/server-data/configuration?discard=false&discardKeyHistory=false"
   elif [ "$1" = "--disable-purge" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=true"
+    do_curl -XPUT "$(admin_url)/server-data/configuration?disablePurge=true"
   elif [ "$1" = "--enable-purge" ]
   then
-    do_curl -XPUT "${ADMIN_URL}/server-data/configuration?disablePurge=false"
+    do_curl -XPUT "$(admin_url)/server-data/configuration?disablePurge=false"
   else
-    do_curl ${ADMIN_URL}/server-data/configuration
-  fi
-}
-
-client_data_configuration() {
-  if [ "$1" = "-h" -o "$1" = "--help" ]
-  then
-    echo "Usage: client_data_configuration [-h|--help]; Manages agent client data configuration (gets current status by default)."
-    echo "                                 [--discard-all]     ; Discards all the events processed."
-    echo "                                 [--discard-history] ; Keeps only the last event processed for a key."
-    echo "                                 [--keep-all]        ; Keeps all the events processed."
-    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
-    echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
-    return 0
-  elif [ "$1" = "--discard-all" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?discard=true&discardKeyHistory=true"
-  elif [ "$1" = "--discard-history" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?discard=false&discardKeyHistory=true"
-  elif [ "$1" = "--keep-all" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?discard=false&discardKeyHistory=false"
-  elif [ "$1" = "--disable-purge" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?disablePurge=true"
-  elif [ "$1" = "--enable-purge" ]
-  then
-    do_curl -XPUT "${ADMIN_URL}/client-data/configuration?disablePurge=false"
-  else
-    do_curl ${ADMIN_URL}/client-data/configuration
+    do_curl $(admin_url)/server-data/configuration
   fi
 }
 
 server_matching() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help] [file]; Gets/updates current server matching configuration (${ADMIN_URL}/server-matching)." && return 0
-  [ -z "$1" ] && do_curl ${ADMIN_URL}/server-matching && return 0
-  do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/server-matching
-}
-
-server_matching_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema (${ADMIN_URL}/server-matching/schema)." && return 0
-  do_curl "${ADMIN_URL}/server-matching/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching [-h|--help] [file]; Gets/updates current server matching configuration ($(admin_url)/server-matching)." && return 0
+  [ -z "$1" ] && do_curl $(admin_url)/server-matching && return 0
+  do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/server-matching
 }
 
 server_provision() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration (${ADMIN_URL}/server-provision)." && return 0
-  [ -z "$1" ] && do_curl ${ADMIN_URL}/server-provision && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration ($(admin_url)/server-provision)." && return 0
+  [ -z "$1" ] && do_curl $(admin_url)/server-provision && return 0
   if [ "$1" = "--clean" ]
   then
-    do_curl -XDELETE ${ADMIN_URL}/server-provision
+    do_curl -XDELETE $(admin_url)/server-provision
   else
-    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/server-provision
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/server-provision
   fi
 }
 
 server_provision_unused() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used (${ADMIN_URL}/server-provision/unused)." && return 0
-  do_curl ${ADMIN_URL}/server-provision/unused && return 0
-}
-
-server_provision_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema (${ADMIN_URL}/server-provision/schema)." && return 0
-  do_curl "${ADMIN_URL}/server-provision/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used ($(admin_url)/server-provision/unused)." && return 0
+  do_curl $(admin_url)/server-provision/unused && return 0
 }
 
 server_data() {
@@ -243,7 +221,7 @@ server_data() {
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: server_data [-h|--help]; Inspects server data events (${ADMIN_URL}/server-data)."
+    echo "Usage: server_data [-h|--help]; Inspects server data events ($(admin_url)/server-data)."
     echo "                   [method] [uri] [[-]event number] [event path] ; Positional filters to narrow the server data selection."
     echo "                                                                   Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
@@ -258,7 +236,7 @@ server_data() {
     local queryParams=
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=
-    do_curl "${ADMIN_URL}/server-data/summary${queryParams}"
+    do_curl "$(admin_url)/server-data/summary${queryParams}"
     return 0
   elif [ "$1" = "--clean" ]
   then
@@ -301,7 +279,7 @@ server_data() {
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
-    eval do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/server-data${queryParams}" ${devnull}
+    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data'${queryParams}'" ${devnull}
   else
     if [ -z "${clean}${dump}${surf}" ]
     then
@@ -312,7 +290,7 @@ server_data() {
       echo "Press ENTER to continue, CTRL-C to abort ..."
       read -r dummy
     fi
-    eval do_curl ${curl_method} "${ADMIN_URL}/server-data" ${devnull}
+    eval do_curl ${curl_method} "$(admin_url)/server-data" ${devnull}
   fi
 
   [ -z "${clean}${dump}${surf}" ] && return 0
@@ -377,6 +355,91 @@ server_data() {
   fi
 }
 
+# -----------------------------------------------------------------------------
+# TRAFFIC CLIENT
+
+client_data_configuration() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_data_configuration [-h|--help]; Manages agent client data configuration (gets current status by default)."
+    echo "                                 [--discard-all]     ; Discards all the events processed."
+    echo "                                 [--discard-history] ; Keeps only the last event processed for a key."
+    echo "                                 [--keep-all]        ; Keeps all the events processed."
+    echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
+    echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
+    return 0
+  elif [ "$1" = "--discard-all" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?discard=true&discardKeyHistory=true"
+  elif [ "$1" = "--discard-history" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?discard=false&discardKeyHistory=true"
+  elif [ "$1" = "--keep-all" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?discard=false&discardKeyHistory=false"
+  elif [ "$1" = "--disable-purge" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?disablePurge=true"
+  elif [ "$1" = "--enable-purge" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?disablePurge=false"
+  else
+    do_curl $(admin_url)/client-data/configuration
+  fi
+}
+
+client_endpoint() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration ($(admin_url)/client-endpoint)." && return 0
+  [ -z "$1" ] && do_curl $(admin_url)/client-endpoint && return 0
+  if [ "$1" = "--clean" ]
+  then
+    do_curl -XDELETE $(admin_url)/client-endpoint
+  else
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/client-endpoint
+  fi
+}
+
+client_provision() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration ($(admin_url)/client-provision)."
+    echo "                                       [file]; Configure client provision by mean json specification."
+    echo "                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics configuration (omit with empty value):"
+    echo "                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    return 0
+  fi
+
+  [ -z "$1" ] && do_curl $(admin_url)/client-provision && return 0
+  if [ "$1" = "--clean" ]
+  then
+    do_curl -XDELETE $(admin_url)/client-provision
+  else
+    if [ -f "$1" ]
+    then
+      do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/client-provision
+    else
+      local queryParams=
+      [ -n "$2" ] && queryParams+="&inState=$2"
+      [ -n "$3" ] && queryParams+="&sequenceBegin=$3"
+      [ -n "$4" ] && queryParams+="&sequenceEnd=$4"
+      [ -n "$5" ] && queryParams+="&rps=$5"
+      [ -n "$6" ] && queryParams+="&repeat=$6"
+      [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
+      do_curl -XGET "$(admin_url)/client-provision/${1}'${queryParams}'"
+    fi
+  fi
+}
+
+client_provision_unused() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used ($(admin_url)/client-provision/unused)." && return 0
+  do_curl $(admin_url)/client-provision/unused && return 0
+}
+
+launch_client_provision() {
+  [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ] && echo "Usage: launch_client_provision [-h|--help] <id>; Activates client provision given its identifier ($(admin_url)/client-provision/<id>)." && return 0
+  do_curl -XPUT $(admin_url)/client-provision/$1
+}
+
 client_data() {
   local clean=
   local surf=
@@ -384,7 +447,7 @@ client_data() {
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: client_data [-h|--help]; Inspects client data events (${ADMIN_URL}/client-data)."
+    echo "Usage: client_data [-h|--help]; Inspects client data events ($(admin_url)/client-data)."
     echo "                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Positional filters to narrow the client data selection."
     echo "                                                                                        Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
@@ -400,7 +463,7 @@ client_data() {
     local queryParams=
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=
-    do_curl "${ADMIN_URL}/client-data/summary${queryParams}"
+    do_curl "$(admin_url)/client-data/summary${queryParams}"
     return 0
   elif [ "$1" = "--clean" ]
   then
@@ -446,7 +509,7 @@ client_data() {
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
-    eval do_curl ${curl_method} -G ${urlencode} "${ADMIN_URL}/client-data${queryParams}" ${devnull}
+    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data'${queryParams}'" ${devnull}
   else
     if [ -z "${clean}${dump}${surf}" ]
     then
@@ -457,7 +520,7 @@ client_data() {
       echo "Press ENTER to continue, CTRL-C to abort ..."
       read -r dummy
     fi
-    eval do_curl ${curl_method} "${ADMIN_URL}/client-data" ${devnull}
+    eval do_curl ${curl_method} "$(admin_url)/client-data" ${devnull}
   fi
 
   [ -z "${clean}${dump}${surf}" ] && return 0
@@ -496,67 +559,41 @@ client_data() {
   fi
 }
 
-client_endpoint() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration (${ADMIN_URL}/client-endpoint)." && return 0
-  [ -z "$1" ] && do_curl ${ADMIN_URL}/client-endpoint && return 0
-  if [ "$1" = "--clean" ]
-  then
-    do_curl -XDELETE ${ADMIN_URL}/client-endpoint
-  else
-    do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-endpoint
-  fi
+# -----------------------------------------------------------------------------
+# OPERATION SCHEMAS
+
+schema_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema_schema [-h|--help]; Gets the schema configuration schema ($(admin_url)/schema/schema)." && return 0
+  do_curl "$(admin_url)/schema/schema"
+}
+
+global_variable_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema ($(admin_url)/global-variable/schema)." && return 0
+  do_curl "$(admin_url)/global-variable/schema"
+}
+
+server_matching_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema ($(admin_url)/server-matching/schema)." && return 0
+  do_curl "$(admin_url)/server-matching/schema"
+}
+
+server_provision_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema ($(admin_url)/server-provision/schema)." && return 0
+  do_curl "$(admin_url)/server-provision/schema"
 }
 
 client_endpoint_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema (${ADMIN_URL}/client-endpoint/schema)." && return 0
-  do_curl "${ADMIN_URL}/client-endpoint/schema"
-}
-
-client_provision() {
-  if [ "$1" = "-h" -o "$1" = "--help" ]
-  then
-    echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration (${ADMIN_URL}/client-provision)."
-    echo "                                       [file]; Configure client provision by mean json specification."
-    echo "                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics configuration (omit with empty value):"
-    echo "                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
-    return 0
-  fi
-
-  [ -z "$1" ] && do_curl ${ADMIN_URL}/client-provision && return 0
-  if [ "$1" = "--clean" ]
-  then
-    do_curl -XDELETE ${ADMIN_URL}/client-provision
-  else
-    if [ -f "$1" ]
-    then
-      do_curl -XPOST -d@${1} -H 'content-type:application/json' ${ADMIN_URL}/client-provision
-    else
-      local queryParams=
-      [ -n "$2" ] && queryParams+="&inState=$2"
-      [ -n "$3" ] && queryParams+="&sequenceBegin=$3"
-      [ -n "$4" ] && queryParams+="&sequenceEnd=$4"
-      [ -n "$5" ] && queryParams+="&rps=$5"
-      [ -n "$6" ] && queryParams+="&repeat=$6"
-      [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
-      do_curl -XGET "${ADMIN_URL}/client-provision/${1}${queryParams}"
-    fi
-  fi
-}
-
-client_provision_unused() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used (${ADMIN_URL}/client-provision/unused)." && return 0
-  do_curl ${ADMIN_URL}/client-provision/unused && return 0
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema ($(admin_url)/client-endpoint/schema)." && return 0
+  do_curl "$(admin_url)/client-endpoint/schema"
 }
 
 client_provision_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema (${ADMIN_URL}/client-provision/schema)." && return 0
-  do_curl "${ADMIN_URL}/client-provision/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema ($(admin_url)/client-provision/schema)." && return 0
+  do_curl "$(admin_url)/client-provision/schema"
 }
 
-launch_client_provision() {
-  [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ] && echo "Usage: launch_client_provision [-h|--help] <id>; Activates client provision given its identifier (${ADMIN_URL}/client-provision/<id>)." && return 0
-  do_curl -XPUT ${ADMIN_URL}/client-provision/$1
-}
+# -----------------------------------------------------------------------------
+# AUXILIARY
 
 pretty() {
   local jq_expr=${1:-.}
@@ -595,15 +632,15 @@ trace() {
     local recommended_level="Warning"
     [ "$1" != "${recommended_level}" ] && echo -n " (recommended '${recommended_level}' for normal operation)."
     echo
-    PLAIN=true do_curl -XPUT ${ADMIN_URL}/logging?level=${level}
+    PLAIN=true do_curl -XPUT $(admin_url)/logging?level=${level}
   else
-    PLAIN=true do_curl -XGET ${ADMIN_URL}/logging
+    PLAIN=true do_curl -XGET $(admin_url)/logging
   fi
 }
 
 metrics() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: metrics [-h|--help]; Prometheus metrics." && return 0
-  curl ${METRICS_URL}
+  curl -s $(metrics_url)
 }
 
 snapshot() {
@@ -675,11 +712,11 @@ server_example() {
 
   # If h2agent is up, we will suggest as example the same server matching configuration detected, to avoid breaking its behaviour
   #  (provisions and schemas are probably not harmful because of their dummy names):
-  local foo_server_matching=$(curl --http2-prior-knowledge ${ADMIN_URL}/server-matching 2>/dev/null | jq '.' -c)
+  local foo_server_matching=$(curl -s --http2-prior-knowledge $(admin_url)/server-matching | jq '.' -c)
   [ -z "${foo_server_matching}" ] && foo_server_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
 
-  local server_api_path=
-  [ -n "${SERVER_API}" ] && server_api_path="/${SERVER_API}"
+  local traffic_server_api_path=
+  [ -n "${TRAFFIC_SERVER_API}" ] && traffic_server_api_path="/${TRAFFIC_SERVER_API}"
 
   cat << EOF
 
@@ -710,7 +747,7 @@ server_example() {
   cat << ! > /tmp/dummyServerProvision.json
   {
     "requestMethod": "POST",
-    "requestUri": "${server_api_path}/my/dummy/path",
+    "requestUri": "${traffic_server_api_path}/my/dummy/path",
     "requestSchemaId": "dummySchemaId",
     "responseSchemaId": "dummySchemaId",
     "responseDelayMs": 0,
@@ -723,13 +760,16 @@ server_example() {
     ]
   }
 !
+  server_provision --clean
   server_provision /tmp/dummyServerProvision.json # configuration
 
   # Check configuration
   schema && server_matching && server_provision
 
   # Test it !
-  \${CURL} -d'{"foo":1, "bar":2}' \${TRAFFIC_URL}${server_api_path}/my/dummy/path
+  server_data --clean
+  \${CURL} -d'{"foo":1, "bar":2}' -H'Content-Type: application/json' $(traffic_url)${traffic_server_api_path}/my/dummy/path ; echo # must respond 201
+  \${CURL} -d'{"foo":"hi", "bar":2}' -H'Content-Type: application/json' $(traffic_url)${traffic_server_api_path}/my/dummy/path ; echo # must respond 400 (foo value is not numeric)
 
 EOF
 }
@@ -737,62 +777,43 @@ EOF
 client_example() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_example [-h|--help]; Basic client configuration examples. Try: source <(client_example)" && return 0
 
-  # Implementation pending
-  echo TODO
+  cat << EOF
+
+  # CLIENT EXAMPLE IMPLEMENTATION PENDING
+  echo TODO !
+
+EOF
 }
 
 help() {
   echo
   echo "===== ${PNAME} operation helpers ====="
-  echo "Shortcut helpers (sourced variables and functions)"
-  echo "to ease agent operation over management interface:"
-  echo "   https://github.com/testillano/h2agent#management-interface"
+  echo "Management interface: https://github.com/testillano/h2agent#management-interface"
+  echo "Usage: help; This help summary."
   echo
-  echo "=== Variables ==="
-  echo "TRAFFIC_URL=${TRAFFIC_URL}"
-  [ -n "${SERVER_API}" ] && echo "SERVER_API=${SERVER_API}"
-  echo "ADMIN_URL=${ADMIN_URL}"
-  echo "CURL=\"${CURL}\""
+  echo "=== Internal Functions And Variables ==="
+  echo -n "traffic_url: $(traffic_url) (TRAFFIC_PORT=${TRAFFIC_PORT}"
+  [ -n "${TRAFFIC_SERVER_API}" ] && echo -n "; TRAFFIC_SERVER_API=${TRAFFIC_SERVER_API}"
+  echo ")"
+  echo "admin_url:   $(admin_url) (ADMIN_PORT=${ADMIN_PORT})"
+  echo "metrics_url: $(metrics_url) (METRICS_PORT=${METRICS_PORT})"
+  echo "do_curl:     CURL=\"${CURL}\"; SCHEME=${SCHEME}; SERVER_ADDR=${SERVER_ADDR}"
+  export -f traffic_url admin_url metrics_url do_curl
   echo
-  echo "=== General ==="
-  schema -h
-  global_variable -h
-  files -h
-  files_configuration -h
-  udp_sockets -h
-  configuration -h
+  echo "=== General Resources' Functions ==="
+  for f in schema global_variable files files_configuration udp_sockets configuration; do ${f} -h | head -n +1; export -f ${f} ; done
   echo
-  echo "=== Traffic server ==="
-  server_configuration -h
-  server_data_configuration -h
-  server_matching -h
-  server_provision -h
-  server_provision_unused -h
-  server_data -h
+  echo "=== Traffic Server Functions === "
+  for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n +1; export -f ${f} ; done
   echo
-  echo "=== Traffic client ==="
-  client_endpoint -h
-  client_provision -h
-  client_provision_unused -h
-  client_data -h
+  echo "=== Traffic Client Functions === "
+  for f in client_data_configuration client_endpoint client_provision client_provision_unused client_data launch_client_provision; do ${f} -h | head -n +1; export -f ${f} ; done
   echo
-  echo "=== Schemas ==="
-  schema_schema -h
-  global_variable_schema -h
-  server_matching_schema -h
-  server_provision_schema -h
-  client_endpoint_schema -h
-  client_provision_schema -h
+  echo "=== Operation Schemas' Functions === "
+  for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n +1; export -f ${f} ; done
   echo
-  echo "=== Auxiliary ==="
-  pretty -h
-  raw -h
-  trace -h
-  metrics -h
-  snapshot -h
-  server_example -h
-  client_example -h
-  echo "Usage: help; This help. Overview: help | grep ^Usage"
+  echo "=== Auxiliary Functions === "
+  for f in pretty raw trace metrics snapshot server_example client_example; do ${f} -h | head -n +1; export -f ${f} ; done
   echo
 }
 
@@ -807,3 +828,4 @@ if ! type jq &>/dev/null; then echo "Missing required dependency (jq) !" ; retur
 # Initialize temporary and show help
 touch /tmp/curl.out
 help
+

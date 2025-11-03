@@ -221,7 +221,7 @@ then
 
 You may want to start a proxy to minikube Cluster IP, in order to use native utilities like:
    $ benchmark/start.sh -y    # traffic load
-   $ source tools/helpers.src # troubleshooting
+   $ source tools/helpers.bash # troubleshooting
    etc.
 
 Then, just execute these port-forward commands:

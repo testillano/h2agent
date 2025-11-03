@@ -7,7 +7,7 @@ Check project [README.md](../README.md#Prepare-the-environment).
 ## Content
 
 Under `./kata` directory you will find a problem for every subdirectory available. Inside each one, a `README.md` file contains the introduction/explanation for the specific problem and the question statement.
-Solutions are available at git branch `kata-solutions`, but ... try to solve everything by your own before checkout !
+Solutions are available at git branch `kata-solutions` (`SOLUTION.md` within each exercise directory), but ... try to solve everything by your own before checkout !
 
 Exercises documentation links:
 
@@ -50,6 +50,6 @@ Remember that reading the whole project documentation carefully could help you t
 
 Anyway, enable debugging traces to the executable if you are completely lost (just add `-l Debug` to verbose output), but take into account that those traces could be useful or not as they are not intended to solve this kind of exercises.
 
-Remember to source `./tools/helpers.src` which is a very good set of functions to better troubleshoot.
+Remember to source `./tools/helpers.bash` which is a very good set of functions to better troubleshoot.
 
 Thank you and enjoy !

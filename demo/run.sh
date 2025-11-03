@@ -1,12 +1,9 @@
 #!/bin/bash
-# Set INTERACT=false on calling shell to test without prompts
+# Set NON_INTERACT=true on calling shell to disable interactivity
 
 #############
 # VARIABLES #
 #############
-# h2agent endpoints
-H2AGENT_ADMIN_ENDPOINT=localhost:8074
-H2AGENT_TRAFFIC_ENDPOINT=localhost:8000
 
 #############
 # FUNCTIONS #
@@ -22,21 +19,11 @@ get_uri() {
 #############
 cd $(dirname $0)
 echo
-
-# Temporary directory:
-TMPDIR=$(mktemp -d)
-trap "rm -rf ${TMPDIR}" EXIT
-
-# Load common resources:
-source ../tools/common.src
+source ../tools/common.bash
 
 title "H2agent demo"
 
 h2agent_check ${H2AGENT_ADMIN_ENDPOINT} ${H2AGENT_TRAFFIC_ENDPOINT} || exit 1
-
-# Enable interactiveness:
-INTERACT=${INTERACT:-true}
-[ "${INTERACT}" = "false" ] && INTERACT=
 
 # Initial cleanup
 EXPECTED_STATUS_CODES="200 204"

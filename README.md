@@ -6,8 +6,9 @@
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/h2agent/graphs/commit-activity)
 [![CI](https://github.com/testillano/h2agent/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/h2agent/actions/workflows/ci.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/testillano/h2agent.svg)](https://github.com/testillano/h2agent/pkgs/container/h2agent)
 
-`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1 is supported via `nghttpx` reverse proxy).
+`H2agent` is a network service agent that enables **mocking HTTP/2 applications** (also HTTP/1.x is supported via `nghttpx` reverse proxy).
 It is mainly designed for testing, but could even simulate or complement advanced services.
 
 It is being used intensively in E/// company, as part of testing environment for some telecommunication products.
@@ -33,7 +34,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
 * Traffic protocols
 
-  * HTTP/2.
+  * HTTP/1/2.
   * UDP.
 
 * TLS/SSL support
@@ -93,12 +94,14 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints and schema id.
     * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
+  * Pseudo-notification mechanism (response delayed by global variable condition).
 
 * Training:
 
   * Questions and answers for project documentation using **openai** (ChatGPT-based).
   * Playground.
   * Demo.
+  * Tester.
   * Kata exercises.
 
 * Tools programs:
@@ -122,6 +125,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 **Practice**
 
 * Brief exercises to ***[play](./README.md#Play)*** with, showing basic configuration "games" to have a quick overview of project possibilities.
+* Tester GUI tool to ***[test](./README.md#Test)*** with, allowing to make quick interactions through traffic and administrative interfaces.
 * A ***[demo](./README.md#Demo)*** exercise which presents a basic use case to better understand the project essentials.
 * And finally, a ***[kata](./README.md#Kata)*** training to acquire better knowledge of project capabilities.
 
@@ -133,7 +137,7 @@ When developing a network service, one often needs to integrate it with other se
 
 `H2agent` can be used to replace one (or many) of those, which allows development to progress and testing to be conducted in isolation against such a service.
 
-`H2agent` supports HTTP/2 as a network protocol (also HTTP/1 via proxy) and JSON as a data interchange language.
+`H2agent` supports HTTP/2 as a network protocol (also HTTP/1.x via proxy) and JSON as a data interchange language.
 
 So, `h2agent` could be used as:
 
@@ -188,18 +192,48 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
   ```
 
-* Run <u>h2agent_http1 project image</u> with docker (`HTTP1_ENABLED=yes ./run.sh` script at root directory can also be used):
+* HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`./run.sh` script at root directory can also be used with some prepends):
+
+  This proxy, encapsulated within the Docker image, is latent until activated by configuration:
+  Proxy front-end ports are configured though environment variables: `H2AGENT_TRAFFIC_PROXY_PORT` (for traffic) and `H2AGENT_ADMIN_PROXY_PORT` (for administration). Proxy back-end ports are also configured, for traffic and administrative interface, by mean `H2AGENT_TRAFFIC_SERVER_PORT` (8000 by default) and `H2AGENT_ADMIN_SERVER_PORT` (8074 by default). Traffic frontend handles requests to the backend port exposed by the `h2agent` traffic server. Likewise, administrative requests are forwarded to the backend port of the `h2agent` administrative server.
+
+  The proxy feature complements `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
+
+  Note that:
+  `H2AGENT_TRAFFIC_SERVER_PORT` **must be aligned with `--traffic-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
+  `H2AGENT_ADMIN_SERVER_PORT` **must be aligned with `--admin-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
+
+  Example with proxy enabled for traffic interface (same applies to enable administrative interface, or both of them):
 
   ```bash
-  $ docker run --rm -it -p 8001:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 ghcr.io/testillano/h2agent_http1:latest
+  $ docker run --rm -it -p 8555:8001 -p 8000:8000 -p 8074:8074 -p 8080:8080 -e H2AGENT_TRAFFIC_PROXY_PORT=8001 ghcr.io/testillano/h2agent:latest &
+
+  $ curl -i http://localhost:8555/arbitrary/path # through proxy (same using --http1.0 or --http1.1)
+  HTTP/1.1 501 Not Implemented
+  Date: <date>
+  Transfer-Encoding: chunked
+  Via: 2 nghttpx
+
+  $ curl -i --http2 http://localhost:8555/arbitrary/path # through proxy
+  HTTP/1.1 101 Switching Protocols
+  Connection: Upgrade
+  Upgrade: h2c
+
+  HTTP/2 501
+  date: <date>
+  via: 2 nghttpx
+
+  $ curl -i --http2-prior-knowledge http://localhost:8555/arbitrary/path # through proxy
+  HTTP/2 501
+  date: <date>
+  via: 2 nghttpx
+
+  $ curl -i --http2-prior-knowledge http://localhost:8000/arbitrary/path # directly to h2agent
+  HTTP/2 501
+  date: <date>
   ```
 
-  Exported ports include now the internal front-end port 8001 exposing the **HTTP/1 service** (keeping also HTTP/2 on port 8000). The image entry point is a shell script (`/var/starter.sh`) which runs `h2agent` process in background (passing provided arguments) acting as back-end service for `nghttpx` proxy. This way, we could also simulate HTTP/1 services using `h2agent` mocking features (this trick is used to complement `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
-
-  We prefer to generate a specific docker image variant for HTTP/1 (`h2agent_http1`) since the proxy could introduce additional latency, so if we only require HTTP/2 it doesn't make sense to consolidate that proxy layer within `h2agent` project image.
-
-  In any case, if you want to run `h2agent` out of docker container and then set the `nghttpx` proxy to provide HTTP/1 support, you may take as reference the `Dockerfile.http1` file where this proxy is configured.
-  This image is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
+  This mode is also useful to play with `nginx` balancing capabilities (check this [gist](https://gist.github.com/testillano/3f7ff732850f42a6e7ee625aa182e617)).
 
 * Run within `kubernetes` deployment: corresponding `helm charts` are normally packaged into releases. This is described in ["how it is delivered"](#How-it-is-delivered) section, but in summary, you could do the following:
 
@@ -236,7 +270,7 @@ So, you could run `h2agent` (or any other binary available under `build/<build t
   You may also play with project helpers functions and examples:
 
   ```bash
-  $ source tools/helpers.src # type help in any moment after sourcing
+  $ source tools/helpers.bash # type help in any moment after sourcing
   $ server_example # follow instructions or just source it: source <(server_example)
   $ client_example # follow instructions or just source it: source <(client_example)
   ```
@@ -700,7 +734,7 @@ Options:
 [-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]
   Set the logging level; defaults to warning.
 
-[--verbose]
+[-v|--verbose]
   Output log traces on console.
 
 [--ipv6]
@@ -842,7 +876,7 @@ Options:
   By default connections are performed when adding client endpoints.
   This option configures remote addresses to be connected on demand.
 
-[-v|--version]
+[-V|--version]
   Program version.
 
 [-h|--help]
@@ -1110,13 +1144,20 @@ To print accumulated statistics you can send UDP message 'STATS' or stop/interru
 -k|--udp-socket-path <value>
   UDP unix socket path.
 
+[-o|--udp-output-socket-path <value>]
+  UDP unix output socket path. Written for every response received. This socket must be previously created by UDP server (bind()).
+  Try this bash recipe to create an UDP server socket (or use another udp-server-h2client instance for that):
+     $ path="/tmp/udp2.sock"
+     $ rm -f ${path}
+     $ socat -lm -ly UNIX-RECV:"${path}" STDOUT
+
+[--udp-output-value <value>]
+  UDP datagram to be written on output socket, for every response received. By default,
+  original received datagram is used (@{udp}). Same patterns described above are valid for this parameter.
+
 [-w|--workers <value>]
-  Number of worker threads to post outgoing requests. By default, 10x times 'hardware
-  concurrency' is configured (10*8 = 80), but you could consider increase even more
-  if high I/O is expected (high response times raise busy threads, so context switching
-  is not wasted as much as low latencies setups do). We should consider Amdahl law and
-  other specific conditions to set the default value, but 10*CPUs is a good approach
-  to start with. You may also consider using 'perf' tool to optimize your configuration.
+  Number of worker threads to post outgoing requests and manage asynchronous timers (timeout, pre-delay).
+  Defaults to system hardware concurrency (8), however 2 could be enough.
 
 [-e|--print-each <value>]
   Print UDP receptions each specific amount (must be positive). Defaults to 1.
@@ -1207,8 +1248,9 @@ Client endpoint:
 
 Remember:
  To get prometheus metrics:       curl http://localhost:8081/metrics
- To print accumulated statistics: echo -n STATS | nc -u -q0 -w1 -U /tmp/udp.sock
- To stop process:                 echo -n EOF   | nc -u -q0 -w1 -U /tmp/udp.sock
+ To send ad-hoc UDP message:      echo -n <data> | nc -u -q0 -w1 -U /tmp/udp.sock
+ To print accumulated statistics: echo -n STATS  | nc -u -q0 -w1 -U /tmp/udp.sock
+ To stop process:                 echo -n EOF    | nc -u -q0 -w1 -U /tmp/udp.sock
 
 
 Waiting for UDP messages...
@@ -1489,11 +1531,6 @@ Then you may build project images and start the `h2agent` with its docker image:
 $ ./build.sh --auto # builds project images
 $ ./run.sh --verbose # starts agent with docker by mean helper script
 ```
-Also HTTP/1 support could be achieved using `h2agent_http1` image by mean the appropriate prepend:
-
-```bash
-$ HTTP1_ENABLED=yes ./run.sh --verbose # HTTP/1 support on port 8001 by default
-```
 
 Or build native executable and run it from shell:
 
@@ -1536,6 +1573,10 @@ A conversational bot is available in `./tools/questions-and-answers` directory. 
 
 A playground is available at `./tools/play-h2agent` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/play-h2agent/README.md) file to learn more about.
 
+#### Test
+
+A GUI tester implemented in python is available at `./tools/test-h2agent` directory. It is designed to make quick interactions through traffic and administrative interfaces. Check its [README.md](./tools/test-h2agent/README.md) file to learn more about.
+
 #### Demo
 
 A demo is available at `./demo` directory. It is designed to introduce the `h2agent` in a funny way with an easy use case. Open its [README.md](./demo/README.md) file to learn more about.
@@ -1551,7 +1592,7 @@ A kata is available at `./kata` directory. It is designed to guide through a set
 We will start describing **general** mock operations:
 
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
-* Global variables: shared variables between different provision contexts and flows. Normally not needed, but it is an extra feature to solve some situations by other means.
+* Global variables: shared variables between different provision contexts and flows. Extra feature to solve some situations by other means, and also used for built-in response condition mechanism: [Dynamic response delays](#Dynamic-response-delays).
 * Logging: dynamic logger configuration (update and check).
 * General configuration (server).
 
@@ -1710,7 +1751,7 @@ No response body.
 
 ### POST /admin/v1/global-variable
 
-Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. In any case, load operation is done appending provided data to the current one (in case that the variable already exists). This allows to use global variables as memory buckets, typical when they are managed from transformation steps (within provision context). But this operation is more focused on the use of global variables as constants for the whole execution (although they could be reloaded or reset from provisions, as commented, or even appended by other `POST` operations).
+Global variables can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this `REST API` operation. This operation is mainly focused on the use of global variables as constants for the whole execution (although they could be updated or reset from provisions).
 
 Global variables are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
@@ -2250,6 +2291,8 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 Expected request method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*).
 
+The modern `HTTP` specification (RFC 9110) states that all general-purpose `HTTP` servers must implement at least the `GET` and `HEAD` methods. The implementation of `HEAD` must be equivalent to `GET` for the same resource, with the sole and crucial difference that the `HEAD` response must never contain a message body (entity). A `HEAD` response is obligated by the `HTTP` specification to include exactly the same headers as the corresponding `GET` response. Therefore, the headers that become "mandatory" for `HEAD` are those that the server's logic would generate for the `GET` to that `URI`, in addition to the fundamental headers for any `HTTP` response. However, the "mock server" mode of this application allows simulating `HEAD` responses that are incorrect or do not follow the specification. In fact, by default, the `HEAD` response corresponding to a `GET` provision configured is not automatically implemented; instead, the user must actively do this when setting up the mock. That is to say: by default, the mock server does not follow strictly the specification, as it is not a real `HTTP` server, until the user configures it.
+
 ##### requestUri
 
 Request *URI* path (percent-encoded) to match depending on the algorithm selected. It includes possible query parameters, depending on matching filters provided for them.
@@ -2274,8 +2317,25 @@ Header fields for the response. For example:
 
 
 ##### responseCode
-
 Response status code.
+
+It can also be used to transport `RST_STREAM` and `GOAWAY` [error codes](https://datatracker.ietf.org/doc/html/rfc7540#section-7):
+
+```
+Hex value   Name                  Description
+---------   ----                  -----------
+ 0x0        NO_ERROR              Normal graceful close GOAWAY
+ 0x1        PROTOCOL_ERROR        Protocol error at frame level
+ 0x2        INTERNAL_ERROR        Internal error
+ 0x3        FLOW_CONTROL_ERROR    Flow control error
+ 0x7        REFUSED_STREAM        Frame rejected before processing
+ 0x8        CANCEL                Stream cancelled by application
+ 0xB        STREAM_CLOSED         Reception of frame already closed
+```
+
+Those vales are also defined in `nghttp2_error_code` enum type within `https://nghttp2.org/documentation/nghttp2.h.html`.
+
+Any value lesser than 100, will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
 ##### responseBody
 
@@ -2579,7 +2639,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.json.string.category",
+    "target": "response.body.json.string./category",
     "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
   }
   ```
@@ -2595,7 +2655,7 @@ Filters give you the chance to make complex transformations:
   ```json
   {
     "source": "request.uri.path",
-    "target": "response.body.json.unsigned.data.timestamp",
+    "target": "response.body.json.unsigned./data/timestamp",
     "filter": {
       "RegexReplace" : {
         "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
@@ -4191,10 +4251,62 @@ Same restrictions apply here for deletion: query parameters could be omitted to 
 
 No response body.
 
+## Dynamic response delays
+
+Provision model could configure the response delay milliseconds for an specific reception. But there is an additional mechanism that can be used as a pseudo-notification procedure to block answers under certain condition. It is based on the existence of a global variable with this name format: `ResponseDelayTimerUS.ReceptionId.<recvseq>`. This variable will hold a microseconds delay value that will postpone the answer for an specific reception identifier. When this variable does not exists, or exists with invalid value (not a number) or zeroed value, then the delay is ignored, so the answer will be immediate. This procedure works regardless the provision response delay (which is provided in milliseconds, not microseconds) although that one is executed first if available.
+
+*WARNING*: small values could provoke a burst of timer events in the server when checking the answer condition if that condition takes too much time (and client-side request timeout is also big). So take it into account, and note that variable value is measured in **microseconds**.
+
+### Use case example
+
+Consider this server mock provision:
+
+```json
+{
+  "requestMethod": "GET",
+  "requestUri": "/foo/bar",
+  "responseCode": 200,
+  "responseDelayMs": 20,
+  "responseHeaders": {
+    "content-type": "text/html"
+  },
+  "responseBody": "done!",
+  "transform": [
+    {
+      "source": "recvseq",
+      "target": "var.recvseq"
+    },
+    {
+      "source": "value.1000",
+      "target": "globalVar.ResponseDelayTimerUS.ReceptionId.@{recvseq}"
+    }
+  ]
+}
+```
+
+When a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond:
+
+```bash
+$ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/global-variable | jq '.'
+{
+  "ResponseDelayTimerUS.ReceptionId.1": "1000"
+}
+```
+
+The answer is firstly delayed 20 ms (as configured in the provision), and then, the dynamic mechanism start to work: the server checks the variable value, which is 1 ms updating the timer expiration again and again until the variable is updated to zero microseconds (also, an invalid value will release wait loop), or the variable is removed (normally externally through the administrative interface):
+
+```bash
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"ResponseDelayTimerUS.ReceptionId.1":"0"}'
+- or better: -
+$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-variable?name=ResponseDelayTimerUS.ReceptionId.1"
+```
+
+Now, think about `udp-server-h2client` tool. It allows to configure an output `UDP` socket to notify when requests are answered. Those requests could carry the reception-id header and write it to UDP datagram. Then another instance could read it and launch the administrative operation to notify on target server mock by mean removal of proper global variable. Of course, other events could update the global variable, for example own server mock events caused by other receptions or client mode request responses.
+
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
-This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.src` (default directory path can be modified through `utilsMountPath` helm chart value).
+This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.bash` (default directory path can be modified through `utilsMountPath` helm chart value).
 Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a file requirement but could also be added from helm repository:
 
 ## How it integrates in a service
@@ -4235,20 +4347,25 @@ Some [command line](#Command-line) arguments used by the `h2agent` process are f
 
 ### Helper functions
 
-As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.src`):
+As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages a helper functions script which is very useful for troubleshooting. This script is also available for native usage (`./tools/helpers.bash`):
 
 ```bash
-$ source ./tools/helpers.src
+$ source ./tools/helpers.bash
 
 ===== h2agent operation helpers =====
 Shortcut helpers (sourced variables and functions)
 to ease agent operation over management interface:
    https://github.com/testillano/h2agent#management-interface
 
-=== Variables ===
-TRAFFIC_URL=http://localhost:8000
-ADMIN_URL=http://localhost:8074/admin/v1
+=== Common variables & functions ===
+SERVER_ADDR=localhost
+TRAFFIC_PORT=8000
+ADMIN_PORT=8074
+METRICS_PORT=8080
 CURL="curl -i --http2-prior-knowledge"
+traffic_url(): http://localhost:8000
+admin_url():   http://localhost:8074/admin/v1
+metrics_url(): http://localhost:8080/metrics
 
 === General ===
 Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
@@ -4379,7 +4496,7 @@ Metrics implemented could be divided **counters**, **gauges** or **histograms**:
 
 
 
-The metrics naming in this project, includes a family prefix which is the project applications name (`h2agent` or `udp_server_h2client`) and the endpoint category (`traffic_server`, `admin_server`, `traffic_client` for `h2agent`, and empty (as implicit), for `udp-server-h2client`). This convention and the labels provided (`[label] `: source, method, status_code, operation, result), are designed to ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com).
+The metrics naming in this project, includes a family prefix which is the project applications name (`h2agent` or `udp_server_h2client`) and the endpoint category (`traffic_server`, `admin_server`, `traffic_client` for `h2agent`, and empty (as implicit), for `udp-server-h2client`). This convention and the labels provided (`[label] `: source, method, status_code, rst_stream_goaway_error_code, operation, result), are designed to ease metrics identification when using monitoring systems like [grafana](https://www.grafana.com).
 
 The label ''**source**'': one of these labels is the source of information, which could be optionally dynamic (if `--name` parameter is provided to the applications, so we could have `h2agent` by default, or `h2agentB` to be more specific, although grafana provides the `instance` label anyway), or dynamic anyway for the case of client endpoints, which provisioned names are also part of source label.
 
@@ -4407,22 +4524,22 @@ These are the groups of metrics implemented in the project:
 ```
 Counters provided by http2comm library:
 
-   h2agent_traffic_client_observed_resquests_sents_counter [source] [method]
-   h2agent_traffic_client_observed_resquests_unsent_counter [source] [method]
-   h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code]
+   h2agent_traffic_client_observed_requests_sents_counter [source] [method]
+   h2agent_traffic_client_observed_requests_unsent_counter [source] [method]
+   h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
 
 Gauges provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_traffic_client_responses_delay_seconds_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_sent_messages_size_bytes_gauge [source] [method]
-   h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code]
+   h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code]
+   h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_sent_messages_size_bytes [source] [method]
-   h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code]
+   h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
 ```
 
 
@@ -4434,22 +4551,22 @@ As commented, same metrics described above, are also generated for the other app
 ```
 Counters provided by http2comm library:
 
-   udp_server_h2client_observed_resquests_sents_counter [source] [method]
-   udp_server_h2client_observed_resquests_unsent_counter [source] [method]
-   udp_server_h2client_observed_responses_received_counter [source] [method] [status_code]
+   udp_server_h2client_observed_requests_sents_counter [source] [method]
+   udp_server_h2client_observed_requests_unsent_counter [source] [method]
+   udp_server_h2client_observed_responses_received_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    udp_server_h2client_observed_responses_timedout_counter [source] [method]
 
 Gauges provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds_gauge [source] [method] [status_code]
+   udp_server_h2client_responses_delay_seconds_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
    udp_server_h2client_sent_messages_size_bytes_gauge [source] [method]
-   udp_server_h2client_received_messages_size_bytes_gauge [source] [method] [status_code]
+   udp_server_h2client_received_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
 Histograms provided by http2comm library:
 
-   udp_server_h2client_responses_delay_seconds [source] [method] [status_code]
+   udp_server_h2client_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    udp_server_h2client_sent_messages_size_bytes [source] [method]
-   udp_server_h2client_received_messages_size_bytes [source] [method] [status_code]
+   udp_server_h2client_received_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
 ```
 
 
@@ -4477,23 +4594,23 @@ We have two groups of server metrics. One for administrative operations (1 admin
 ```
 Counters provided by http2comm library and h2agent itself(*):
 
-   h2agent_[traffic|admin]_server_observed_resquests_accepted_counter [source] [method]
-   h2agent_[traffic|admin]_server_observed_resquests_errored_counter [source] [method]
-   h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_observed_requests_accepted_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_requests_errored_counter [source] [method]
+   h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
 
 Gauges provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_responses_delay_seconds_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source] [method]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
 Histograms provided by http2comm library:
 
-   h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_[traffic|admin]_server_received_messages_size_bytes [source] [method]
-   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code]
+   h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
 ```
 
 For example:
