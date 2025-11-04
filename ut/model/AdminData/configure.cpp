@@ -501,7 +501,6 @@ TEST_F(Configure_test, Delete)
 
 TEST_F(Configure_test, LoadClientEndpointSuccess)
 {
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__Success, common_resources_), h2agent::model::AdminClientEndpointData::Success);
     nlohmann::json jarray = nlohmann::json::array();
     jarray.push_back(ClientEndpointConfiguration__Success);
@@ -520,16 +519,16 @@ TEST_F(Configure_test, LoadClientEndpointSuccess)
     }
     EXPECT_EQ(Configure_test::adata_.getClientEndpointData().asJsonString(), rjarray.dump());
     EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
-//
-//    // client endpoint array
-//    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__SuccessArray, common_resources_), h2agent::model::AdminClientEndpointData::Success);
-//    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
-//
-//    // client endpoint accepted array
-//    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayChangePort, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
-//    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayChangeSecure, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
-//    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayNoChanges, common_resources_), h2agent::model::AdminClientEndpointData::Success);
-//    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+
+    // client endpoint array
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__SuccessArray, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
+
+    // client endpoint accepted array
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayChangePort, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayChangeSecure, common_resources_), h2agent::model::AdminClientEndpointData::Accepted);
+    EXPECT_EQ(Configure_test::adata_.loadClientEndpoint(ClientEndpointConfiguration__AcceptedArrayNoChanges, common_resources_), h2agent::model::AdminClientEndpointData::Success);
+    EXPECT_TRUE(Configure_test::adata_.clearClientEndpoints());
 }
 
 TEST_F(Configure_test, LoadClientEndpointFail)
