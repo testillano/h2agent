@@ -1023,6 +1023,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
             rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, TRAFFIC_NGHTTP2_SERVER_THREADS);
         }
     });
+    // asyncronous serve: no thread:
+    // rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", <hardware concurrency here>, true /* asynchronous */);
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for rc1/rc2 update from threads
     if (rc1 != EXIT_SUCCESS) myExit(rc1);

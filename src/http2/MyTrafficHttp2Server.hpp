@@ -126,6 +126,7 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
+    void streamClosed(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req);
     std::chrono::microseconds responseDelayTimer(const std::uint64_t &receptionId);
 
     void setAdminData(model::AdminData *p) {

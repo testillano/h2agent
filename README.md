@@ -2337,6 +2337,15 @@ Those vales are also defined in `nghttp2_error_code` enum type within `https://n
 
 Any value lesser than 100, will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
+Also, this error codes are registered as global variables with key `'StreamClosed.<Server name>.<Reception Id>.<Request Method>.<Request Uri>'` and value `'<error code>'`.
+For example:
+
+```json
+{
+  "StreamClosed.h2agent_traffic_server.23342.GET./foo/bar": "7"
+}
+```
+
 ##### responseBody
 
 Response body. Currently supported: object (`json` and arrays), string, integer, number, boolean and null types.

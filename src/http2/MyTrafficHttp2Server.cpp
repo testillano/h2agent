@@ -390,6 +390,24 @@ ss << "TRAFFIC REQUEST RECEIVED"
     );
 }
 
+void MyTrafficHttp2Server::streamClosed(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req) {
+
+    // Inner class implementation (trace): "Error code: %d | Server: %s | Reception id: %llu | Request Method: %s | Request Uri: %s"
+    ert::http2comm::Http2Server::streamClosed(errorCode, serverName, receptionId, req);
+
+    // Update data map (mark response as incompleted) is costly: sequential search for receptionId, and we don't have here normalized URI to narrow the search
+    // So, we will create a global variable with key "StreamClosed.<server>.<reception id>.<method>.<uri>" and value "<error code>"
+    // TODO: make configurable the creation or not, of this variable items. We think, that this is useful to inspect errors and discard server data (response sections),
+    //       or at least interpret them as "intention to send". Anyway, we also have error logs for this kind of events.
+    if (global_variable_ptr_) {
+        std::string var = "StreamClosed." + serverName + "." + std::to_string(receptionId) + "." + req.method() + "." + req.uri().path; // should not exists: reception id is unique
+        std::string val = std::to_string(errorCode);
+
+        global_variable_ptr_->add(var, val);
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable processed (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+    }
+}
+
 std::chrono::microseconds MyTrafficHttp2Server::responseDelayTimer(const std::uint64_t &receptionId) {
 
     bool exists{};
