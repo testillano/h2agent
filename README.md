@@ -481,7 +481,7 @@ You may provide extra arguments to Google test executable, for example:
 
 ```bash
 $ ./ut.sh --gtest_list_tests # to list the available tests
-$ ./ut.sh --gtest_filter=Transform_test.ResponseBodyHexString # to filter and run 1 specific test
+$ ./ut.sh --gtest_filter=Transform_test.ProvisionWithResponseBodyAsString # to filter and run 1 specific test
 $ ./ut.sh --gtest_filter=Transform_test.* # to filter and run 1 specific suite
 etc.
 ```
