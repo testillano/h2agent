@@ -113,7 +113,6 @@ public:
         read_guard_t guard(mutex_);
         auto it = map_.find(key);
         if (it != map_.end()) {
-            // Copia solo si se encuentra. out_value es una referencia.
             out_value = it->second;
             return true;
         }

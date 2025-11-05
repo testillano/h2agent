@@ -2,12 +2,12 @@
 
 if [ -z "$1" ]
 then
-  echo "Usage:   $0 <microseconds> [request on-the-fly: defaults to 10] [max streams: defaults to 'concurrent requests'] [timeout: none by default (0)]"
-  echo "Example: $0 1000000 1000 1000 3"
+  echo "Usage:   $0 <milliseconds> [request on-the-fly: defaults to 10] [max streams: defaults to 'concurrent requests'] [timeout: none by default (0)]"
+  echo "Example: $0 1000 1000 1000 3"
   exit 1
 fi
 
-microseconds=$1
+milliseconds=$1
 requests=${2:-10}
 streams=${3:-${requests}}
 timeout=${4:-0}
@@ -31,8 +31,8 @@ cat << EOF > ${json}
       "target": "var.recvseq"
     },
     {
-      "source": "value.${microseconds}",
-      "target": "globalVar.ResponseDelayTimerUS.ReceptionId.@{recvseq}"
+      "source": "value.${milliseconds}",
+      "target": "globalVar.__core.response-delay-ms.@{recvseq}"
     }
   ]
 }
@@ -52,7 +52,7 @@ Execute this:
    $ h2load -n${requests} -m${streams} ${s_timeout} http://localhost:8000/foo/bar
 
    In other terminal, you could see ${requests} global variables which indicate that
-   ${requests} timers are repeated each ${microseconds} microseconds:
+   ${requests} timers are repeated each ${milliseconds} milliseconds:
 
    $ source helpers.bash
    $ global_variable

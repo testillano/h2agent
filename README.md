@@ -2337,12 +2337,11 @@ Those vales are also defined in `nghttp2_error_code` enum type within `https://n
 
 Any value lesser than 100, will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
-Also, this error codes are registered as global variables with key `'StreamClosed.<Server name>.<Reception Id>.<Request Method>.<Request Uri>'` and value `'<error code>'`.
-For example:
+Also, this error codes are registered as global variables with key `'__core.stream-error-traffic-server.<recvseq>.<method>.<uri>'` and value `'<error code>'`. For example:
 
 ```json
 {
-  "StreamClosed.h2agent_traffic_server.23342.GET./foo/bar": "7"
+  "__core.stream-error-traffic-server.23342.GET./foo/bar": "7"
 }
 ```
 
@@ -4262,13 +4261,11 @@ No response body.
 
 ## Dynamic response delays
 
-Provision model could configure the response delay milliseconds for an specific reception. But there is an additional mechanism that can be used as a pseudo-notification procedure to block answers under certain condition. It is based on the existence of a global variable with this name format: `ResponseDelayTimerUS.ReceptionId.<recvseq>`. This variable will hold a microseconds delay value that will postpone the answer for an specific reception identifier. When this variable does not exists, or exists with invalid value (not a number) or zeroed value, then the delay is ignored, so the answer will be immediate. This procedure works regardless the provision response delay (which is provided in milliseconds, not microseconds) although that one is executed first if available.
+The provisioning model allows configuration of the response delay, in milliseconds, for a received request. This delay may be a fixed or a random value, but is always a single, static delay overall. However, an additional mechanism -the dynamic delay- can be employed as a pseudo-notification procedure to suppress (or block) answers under specific conditions. This feature is activated via a global variable with the naming format: `__core.response-delay-ms.<recvseq>`.
 
-*WARNING*: small values could provoke a burst of timer events in the server when checking the answer condition if that condition takes too much time (and client-side request timeout is also big). So take it into account, and note that variable value is measured in **microseconds**.
+This variable holds a millisecond value that postpones the answer for a specific reception identifier. The dynamic delay is ignored (and the answer is immediate) if the variable does not exist, holds an invalid (non-numeric) value, or a zeroed value. This procedure operates independently of the provisioned response delay, which is executed first (if configured).
 
-### Use case example
-
-Consider this server mock provision:
+The simplest way to use this feature is to configure the server provisioning to create this variable using the received server sequence as the unique reception identifier:
 
 ```json
 {
@@ -4286,31 +4283,71 @@ Consider this server mock provision:
       "target": "var.recvseq"
     },
     {
-      "source": "value.1000",
-      "target": "globalVar.ResponseDelayTimerUS.ReceptionId.@{recvseq}"
+      "source": "value.1",
+      "target": "globalVar.__core.response-delay-ms.@{recvseq}"
     }
   ]
 }
 ```
 
-When a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond:
+In that use case, when a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond. You could confirm that just checking global variables hold by the h2agent process:
 
 ```bash
 $ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/global-variable | jq '.'
 {
-  "ResponseDelayTimerUS.ReceptionId.1": "1000"
+  "__core.response-delay-ms.1": "1"
 }
 ```
 
-The answer is firstly delayed 20 ms (as configured in the provision), and then, the dynamic mechanism start to work: the server checks the variable value, which is 1 ms updating the timer expiration again and again until the variable is updated to zero microseconds (also, an invalid value will release wait loop), or the variable is removed (normally externally through the administrative interface):
+The procedure is as follows: the answer is first delayed by 20 ms (as configured in the provisioning model). Subsequently, the dynamic mechanism begins: the server checks the variable's value, which is currently 1 ms, thereby updating the timer expiration repeatedly until the variable is updated to zero milliseconds (an invalid value will also release the wait loop), or until the variable is removed. Caution should be exercised with small delay values, as they could provoke a burst of timer events in the server when checking the answer condition, especially if that condition takes too long to resolve (and the client-side request timeout is also large).
+
+The server provisioning model can modify the variable upon subsequent receptions (it may need to correlate information from those requests with an auxiliary storage where the original server sequence is kept). However, these updates are typically managed externally through the administrative interface, for example:
 
 ```bash
-$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"ResponseDelayTimerUS.ReceptionId.1":"0"}'
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"__core.response-delay-ms.1":"0"}'
 - or better: -
-$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-variable?name=ResponseDelayTimerUS.ReceptionId.1"
+$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-variable?name=__core.response-delay-ms.1"
 ```
 
-Now, think about `udp-server-h2client` tool. It allows to configure an output `UDP` socket to notify when requests are answered. Those requests could carry the reception-id header and write it to UDP datagram. Then another instance could read it and launch the administrative operation to notify on target server mock by mean removal of proper global variable. Of course, other events could update the global variable, for example own server mock events caused by other receptions or client mode request responses.
+How the server sequence is determined is a separate issue. For example, the provisioning configuration could write UDP datagrams (containing the server sequence), which might trigger other external operations that ultimately lead to those administrative operations.
+
+## Reserved Global Variables
+
+The following variables are used internally by the server engine (`__core`) to manage critical functions such as dynamic response latency and stream error handling. These variables **must not be manipulated or overwritten** by user configurations for different purposes as expected, to avoid interference.
+
+---
+
+### 1. Dynamic Response Delay
+
+| Variable | Description |
+| :--- | :--- |
+| `__core.response-delay-ms.<recvseq>` | Stores a dynamic delay value (in milliseconds) that **postpones the response** to a request. It functions as a pseudo-notification mechanism. If the value is zero, non-numeric, or the variable is removed, the dynamic delay is ignored. <u>This is an "input" variable</u> as it is used to feed a procedure. |
+
+#### Components
+
+| Component | Example Value | Description |
+| :--- | :--- | :--- |
+| `__core` | N/A | **Reserved Prefix:** Indicates the variable belongs to the core system and is reserved. |
+| `response-delay-ms` | N/A | **Reserved Function:** Identifies the variable as the dynamic response delay (in milliseconds). |
+| `<recvseq>` | `12345` | **Sequence Identifier Value:** The unique reception sequence value (`server sequence`) for the specific request. |
+
+---
+
+### 2. Stream Error Indicator
+
+| Variable | Description |
+| :--- | :--- |
+| `__core.stream-error-traffic-server.<recvseq>.<method>.<uri>` | Stores an [error code](https://datatracker.ietf.org/doc/html/rfc7540#section-7) indicating a stream or connection error detected from traffic server. Used to notify external failure conditions that must be reflected in the response. <u>This is an "output" variable</u> as it is dumped automatically on errors. |
+
+#### Components
+
+| Component | Example Value | Description |
+| :--- | :--- | :--- |
+| `__core` | N/A | **Reserved Prefix:** Indicates the variable belongs to the core system and is reserved. |
+| `stream-error-traffic-server` | N/A | **Reserved Function:** Identifies the variable as a stream or connection error indicator. |
+| `<recvseq>` | `12345` | **Sequence Identifier Value:** The unique reception sequence value (`server sequence`) for the request. |
+| `<method>` | `GET` | **Request Method Value:** The method used in the HTTP request (e.g., GET, POST, PUT, etc.). |
+| `<uri>` | `/api/users` | **Request Uri Value:** The Uniform Resource Identifier (URI) or path of the HTTP request. |
 
 ## How it is delivered
 

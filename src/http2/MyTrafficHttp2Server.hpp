@@ -126,8 +126,8 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
-    void streamClosed(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req);
-    std::chrono::microseconds responseDelayTimer(const std::uint64_t &receptionId);
+    void streamError(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req);
+    std::chrono::milliseconds responseDelayMs(const std::uint64_t &receptionId);
 
     void setAdminData(model::AdminData *p) {
         admin_data_ = p;
@@ -173,7 +173,7 @@ public:
         pre_reserve_request_body_.store(preReserve);
     }
 
-    // Used for re-schedule of delay timers through responseDelayTimer()
+    // Used for re-schedule of delay timers through responseDelayMs()
     void setGlobalVariable(model::GlobalVariable *p) {
         global_variable_ptr_ = p;
     }
