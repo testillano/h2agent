@@ -197,9 +197,10 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (cmdOptionExists(argv, argv + argc, "-m", method)
+    if (cmdOptionExists(argv, argv + argc, "-m", value)
             || cmdOptionExists(argv, argv + argc, "--method", value))
     {
+        method = value;
         if (method != "POST" && method != "GET" && method != "PUT" && method != "DELETE" && method != "HEAD")
         {
             usage(EXIT_FAILURE, "Invalid '--method' value. Allowed: POST, GET, PUT, DELETE, HEAD.");
@@ -299,16 +300,12 @@ int main(int argc, char* argv[])
     std::cout << std::endl;
 
     // Create client class
-    ert::http2comm::Http2Client client("myClient", host, port, secure);
-
-    ert::http2comm::Http2Client::response response = client.send(method, path, body, headers, std::chrono::milliseconds(millisecondsTimeout));
+    std::shared_ptr<ert::http2comm::Http2Client> client = std::make_shared<ert::http2comm::Http2Client>("myClient", host, port, secure);
+    ert::http2comm::Http2Client::response response = client->send(method, path, body, headers, std::chrono::milliseconds(millisecondsTimeout));
+    std::cout << response.asString() << '\n' << '\n';
 
     int status = response.statusCode;
-    std::cout << "Response status code: " << status << ((status == -1) ? " (connection error)":"") <<std::endl;
-    if (!response.body.empty()) std::cout << "Response body: " << response.body << std::endl;
-    if (response.headers.size() != 0) std::cout << "Response headers: " << ert::http2comm::headersAsString(response.headers) << '\n';
-
-    int rc = (status == -1) ? EXIT_FAILURE:EXIT_SUCCESS;
+    int rc = (status < 0) ? EXIT_FAILURE:EXIT_SUCCESS;
     if (rcProbe) rc = !(status >= 200 && status < 400);
 
     LOGWARNING(ert::tracing::Logger::warning("Stopping logger", ERT_FILE_LOCATION));

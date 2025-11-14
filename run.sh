@@ -7,9 +7,11 @@ Remember prepend variables:
    H2AGENT_DCK_TAG:             H2agent docker image tag. Defaults to 'latest'.
    H2AGENT_DCK_NAME:            H2agent docker container name. Defaults to
                                 'h2agent'.
-   H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example mount
-                                options, network options (--network=back_tier
-                                -p 8000:8000 -p 8001:8001 -p 8074:8074), etc.
+   H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example alternative
+                                entrypoints (--entrypoint /opt/udp-server-h2client),
+                                mount options, network options (--network=back_tier
+                                -p 8000:8000 -p 8001:8001 -p 8074:8074), debugging
+                                (--cap-add=SYS_PTRACE), etc.
                                 Defaults to '--network=host'.
    H2AGENT_TRAFFIC_PROXY_PORT:  Traffic proxy port provided by nghttpx allowing
                                 http1.0, http1.1, http2 and http2 without http1
@@ -68,7 +70,9 @@ docker_args+=" ${H2AGENT_DCK_EXTRA_ARGS}"
 benchmark_args=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
 
 # Run './build.sh --auto' to have docker image available:
+set -x
 docker run ${docker_args} ghcr.io/testillano/h2agent:${H2AGENT_DCK_TAG} ${benchmark_args[*]} $@
+set +x
 
 # Using ctr-tools:
 #

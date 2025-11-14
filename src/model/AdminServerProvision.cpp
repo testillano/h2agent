@@ -145,7 +145,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     {
         if (requestBodyDataPart.isJson()) {
             std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
-            replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
+            replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
             if (!sourceVault.setObject(requestBodyDataPart.getJson(), path)) {
                 LOGDEBUG(
                     std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from request body (it is null) in transformation item", transformation->getSource().c_str());
@@ -162,7 +162,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::ResponseBody:
     {
         std::string path = transformation->getSource(); // document path (empty or not to be whole or node)
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
         if (!sourceVault.setObject(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson:getResponseBody(), path)) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract path '%s' from response body (it is null) in transformation item", transformation->getSource().c_str());
@@ -194,7 +194,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::Math:
     {
         std::string expressionString = transformation->getSource();
-        replaceVariables(expressionString, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(expressionString, transformation->getSourcePatterns(), variables, global_variable_);
 
         /*
            We don't use builtin variables as we can parse h2agent ones which is easier to implement:
@@ -225,7 +225,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     }
     case Transformation::SourceType::RandomSet:
     {
-        sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
+        sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], transformation->getSourcePatterns(), variables, global_variable_); // replace variables if they exist
         break;
     }
     case Transformation::SourceType::Timestamp:
@@ -255,7 +255,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         //    sprintf(buffer + size - 2, ":%s", minute);
         //}
 
-        sourceVault.setStringReplacingVariables(std::string(buffer), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
+        sourceVault.setStringReplacingVariables(std::string(buffer), transformation->getSourcePatterns(), variables, global_variable_); // replace variables if they exist
         break;
     }
     case Transformation::SourceType::Recvseq:
@@ -266,7 +266,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::SVar:
     {
         std::string varname = transformation->getSource();
-        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_);
         auto iter = variables.find(varname);
         if (iter != variables.end()) sourceVault.setString(iter->second);
         else {
@@ -281,9 +281,9 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::SGVar:
     {
         std::string varname = transformation->getSource();
-        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_->get());
-        bool exists = false;
-        std::string globalVariableValue = global_variable_->getValue(varname, exists);
+        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string globalVariableValue{};
+        bool exists = global_variable_->tryGet(varname, globalVariableValue);
         if (exists) sourceVault.setString(globalVariableValue);
         else {
             LOGDEBUG(
@@ -296,7 +296,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     }
     case Transformation::SourceType::Value:
     {
-        sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_->get()); // replace variables if they exist
+        sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_); // replace variables if they exist
         break;
     }
     case Transformation::SourceType::ServerEvent:
@@ -308,13 +308,13 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         // eventNumber:   index 2
         // eventPath:     index 3
         std::string event_method = transformation->getSourceTokenized()[0];
-        replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_uri = transformation->getSourceTokenized()[1];
-        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_number = transformation->getSourceTokenized()[2];
-        replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_path = transformation->getSourceTokenized()[3];
-        replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
@@ -350,7 +350,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::STxtFile:
     {
         std::string path = transformation->getSource();
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
 
         std::string content;
         file_manager_->read(path, content, true/*text*/);
@@ -360,7 +360,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::SBinFile:
     {
         std::string path = transformation->getSource();
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
 
         std::string content;
         file_manager_->read(path, content, false/*binary*/);
@@ -370,7 +370,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::Command:
     {
         std::string command = transformation->getSource();
-        replaceVariables(command, transformation->getSourcePatterns(), variables, global_variable_->get());
+        replaceVariables(command, transformation->getSourcePatterns(), variables, global_variable_);
 
         static char buffer[256];
         std::string output{};
@@ -455,7 +455,7 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::Append:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
 
         targetS = source + filter;
         sourceVault.setString(targetS);
@@ -464,7 +464,7 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::Prepend:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
 
         targetS = filter + source;
         sourceVault.setString(targetS);
@@ -546,12 +546,8 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (local)", varname.c_str()), ERT_FILE_LOCATION));
         }
         else {
-            auto giter = global_variable_->get().find(varname);
-            varFound = (giter != global_variable_->get().end());
-            if (varFound) {
-                varvalue = giter->second;
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (global)", varname.c_str()), ERT_FILE_LOCATION));
-            }
+            varFound = global_variable_->tryGet(varname, varvalue);
+            LOGDEBUG(if (varFound) ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable '%s' found (global)", varname.c_str()), ERT_FILE_LOCATION));
         }
 
         bool conditionVar = (varFound && !(varvalue.empty()));
@@ -570,7 +566,7 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::EqualTo:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
 
         // Get value for the comparison 'transformation->getFilter()':
         if (source == filter) {
@@ -586,7 +582,7 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::DifferentFrom:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_->get());
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
 
         // Get value for the comparison 'transformation->getFilter()':
         if (source != filter) {
@@ -680,9 +676,9 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         std::string target = transformation->getTarget();
         std::string target2 = transformation->getTarget2(); // foreign outState URI
 
-        replaceVariables(target, transformation->getTargetPatterns(), variables, global_variable_->get());
+        replaceVariables(target, transformation->getTargetPatterns(), variables, global_variable_);
         if (!target2.empty()) {
-            replaceVariables(target2, transformation->getTarget2Patterns(), variables, global_variable_->get());
+            replaceVariables(target2, transformation->getTarget2Patterns(), variables, global_variable_);
         }
 
         switch (transformation->getTargetType()) {
@@ -931,7 +927,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         {
             if (eraser) {
                 bool exists;
-                global_variable_->removeVariable(target, exists);
+                global_variable_->remove(target, exists);
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Eraser source into global variable '%s' (%s)", target.c_str(), exists ? "removed":"missing"), ERT_FILE_LOCATION));
             }
             else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
@@ -1042,11 +1038,11 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             // requestUri:    index 1
             // eventNumber:   index 2
             std::string event_method = transformation->getTargetTokenized()[0];
-            replaceVariables(event_method, transformation->getTargetPatterns(), variables, global_variable_->get());
+            replaceVariables(event_method, transformation->getTargetPatterns(), variables, global_variable_);
             std::string event_uri = transformation->getTargetTokenized()[1];
-            replaceVariables(event_uri, transformation->getTargetPatterns(), variables, global_variable_->get());
+            replaceVariables(event_uri, transformation->getTargetPatterns(), variables, global_variable_);
             std::string event_number = transformation->getTargetTokenized()[2];
-            replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_->get());
+            replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_);
 
             bool serverDataDeleted = false;
             EventKey ekey(event_method, event_uri, event_number);

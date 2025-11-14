@@ -448,8 +448,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
                 statusCode = ((responseBody == "{}") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
             else {
-                bool exists;
-                responseBody = getGlobalVariable()->getValue(name, exists);
+                bool exists = getGlobalVariable()->tryGet(name, responseBody);
                 statusCode = (exists ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
         }
@@ -675,7 +674,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             }
             else {
                 bool exists;
-                getGlobalVariable()->removeVariable(name, exists);
+                getGlobalVariable()->remove(name, exists);
                 statusCode = (exists ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // 200 or 204
             }
         }

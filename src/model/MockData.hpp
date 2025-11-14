@@ -61,15 +61,16 @@ namespace model
 class MockData : public Map<mock_events_key_t, std::shared_ptr<MockEventsHistory>>
 {
 protected:
-    mutable mutex_t rw_mutex_{};
-
     // Get the events list for data key provided, and pass by reference a boolean to know if the list must be inaugurated
-    // Set write guard for rw_mutex_ before calling this
     std::shared_ptr<MockEventsHistory> getEvents(const DataKey &dataKey, bool &maiden);
 
 public:
     MockData() {};
     ~MockData() = default;
+
+    using KeyType = mock_events_key_t;
+    using ValueType = std::shared_ptr<MockEventsHistory>;
+
 
     /** Clears internal data
      *

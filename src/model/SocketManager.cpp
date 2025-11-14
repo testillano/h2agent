@@ -84,10 +84,10 @@ void SocketManager::incrementObservedErrorOpenOperationCounter() {
 void SocketManager::write(const std::string &path, const std::string &data, unsigned int writeDelayUs) {
 
     std::shared_ptr<SafeSocket> safeSocket;
-
-    auto it = get(path);
-    if (it != end()) {
-        safeSocket = it->second;
+    bool exists{};
+    auto result = get(path, exists);
+    if (exists) {
+        safeSocket = result;
     }
     else {
         safeSocket = std::make_shared<SafeSocket>(this, path, io_context_);
@@ -97,24 +97,13 @@ void SocketManager::write(const std::string &path, const std::string &data, unsi
     safeSocket->write(data, writeDelayUs);
 }
 
-bool SocketManager::clear()
-{
-    bool result = (map_.size() > 0); // something deleted
-
-    map_.clear(); // shared_ptr dereferenced too
-
-    return result;
-}
-
 nlohmann::json SocketManager::getJson() const {
 
     nlohmann::json result;
 
-    read_guard_t guard(rw_mutex_);
-
-    for (auto it = begin(); it != end(); it++) {
-        result.push_back(it->second->getJson());
-    };
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        result.push_back(value->getJson());
+    });
 
     return result;
 }

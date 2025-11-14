@@ -78,7 +78,7 @@ menu() {
 #############
 cd $(dirname $0)
 echo
-source ../tools/common.src
+source ../tools/common.bash
 
 title "H2agent kata"
 echo "(remember: set NON_INTERACT=true on calling shell to disable interactivity)"

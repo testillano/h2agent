@@ -178,7 +178,6 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
             maxBusyThreads = currentBusyThreads;
             max_busy_threads_.store(maxBusyThreads);
         }
-
         LOGINFORMATIONAL(
         if (receptionId % 1000 == 0) {
         std::string msg = ert::tracing::Logger::asString("QueueDispatcher [workers/size/max-size]: %d/%d/%d | Busy workers [current/maximum reached]: %d/%d", getQueueDispatcherThreads(), getQueueDispatcherSize(), getQueueDispatcherMaxSize(), currentBusyThreads, maxBusyThreads);
@@ -389,6 +388,63 @@ ss << "TRAFFIC REQUEST RECEIVED"
     }
     ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
+}
+
+void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req) {
+
+    // Inner class implementation (trace): "Error code: %d | Server: %s | Reception id: %llu | Request Method: %s | Request Uri: %s"
+    //ert::http2comm::Http2Server::streamError(errorCode, serverName, receptionId, req);
+    // For us, receptionId is the serverSequence.
+    // Also, we will ignore the serverName as we have only 1 server in this application (h2agent_traffic_server), and the global variable name itself, autoexplains.
+    std::string msg = ert::tracing::Logger::asString("Error code: %d | Traffic server sequence (recvseq): %llu | Request Method: %s | Request Uri: %s", errorCode, receptionId, req.method().c_str(), req.uri().path.c_str());
+    ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+
+
+    // Update data map (mark response as incompleted) is costly: sequential search for receptionId, and we don't have here normalized URI to narrow the search
+    // So, we will create a global variable with key "__core.stream-error-traffic-server.<recvseq>.<method>.<uri>" and value "<error code>"
+    // These variables are useful to inspect errors and discard server data (response sections), or at least interpret them as "intention to send".
+    // We also have error logs for this kind of events.
+    if (global_variable_ptr_) {
+        static const std::string varPrefix = "__core.stream-error-traffic-server.";
+        std::string var = varPrefix + std::to_string(receptionId) + "." + req.method() + "." + req.uri().path;
+        std::string val = std::to_string(errorCode);
+
+        global_variable_ptr_->add(var, val); // shall not exists: server sequence (reception id) is unique
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable processed (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+    }
+}
+
+std::chrono::milliseconds MyTrafficHttp2Server::responseDelayMs(const std::uint64_t &receptionId) {
+
+    bool exists{};
+    long long ms_count{};
+
+    if (global_variable_ptr_) {
+        static const std::string varPrefix = "__core.response-delay-ms.";
+        std::string var = varPrefix + std::to_string(receptionId);
+        std::string val = global_variable_ptr_->get(var, exists);
+        if (exists) {
+            try {
+                ms_count = std::stoll(val);
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable processed successfully (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+            } catch (const std::invalid_argument& e) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Variable value is not a number (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+                return std::chrono::milliseconds::zero();
+            } catch (const std::out_of_range& e) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Variable value invalid range (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
+                return std::chrono::milliseconds::zero();
+            }
+        }
+        else {
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("No additional dynamic response delay found (%s = <missing>)", var.c_str()), ERT_FILE_LOCATION));
+        }
+    }
+    else {
+        // This must not happen, that's hardcoded on main.cpp:
+        ert::tracing::Logger::critical("You may need to set global variable map to server instance: myTrafficHttp2Server->setGlobalVariable(myGlobalVariable);", ERT_FILE_LOCATION);
+    }
+
+    return std::chrono::milliseconds(ms_count);
 }
 
 }

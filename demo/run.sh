@@ -19,7 +19,7 @@ get_uri() {
 #############
 cd $(dirname $0)
 echo
-source ../tools/common.src
+source ../tools/common.bash
 
 title "H2agent demo"
 

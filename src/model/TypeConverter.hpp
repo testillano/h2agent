@@ -40,7 +40,7 @@ SOFTWARE.
 #include <string>
 #include <sstream>
 #include <cstdint>
-#include <unordered_map>
+#include <GlobalVariable.hpp>
 
 namespace h2agent
 {
@@ -63,9 +63,9 @@ void searchReplaceAll(std::string& str, const std::string& from, const std::stri
  * @param str string to update with replaced values
  * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
  * @param vars local variables source map
- * @param gvars global variables source map
+ * @param gvars global variables
  */
-void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars);
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars);
 
 
 class TypeConverter {
@@ -115,9 +115,9 @@ public:
     * @param str string assigned
     * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
     * @param vars local variables source map
-    * @param gvars global variables source map
+    * @param gvars global variables
     */
-    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, const std::unordered_map<std::string,std::string> &gvars);
+    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars);
 
     /**
     * Sets integer to vault

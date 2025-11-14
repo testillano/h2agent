@@ -61,7 +61,6 @@ namespace model
  */
 class FileManager : public Map<std::string, std::shared_ptr<SafeFile>>
 {
-    mutable mutex_t rw_mutex_{};
     boost::asio::io_context *io_context_{};
 
     // metrics (will be passed to SafeFile):
@@ -78,6 +77,9 @@ class FileManager : public Map<std::string, std::shared_ptr<SafeFile>>
     bool read_cache_;
 
 public:
+    using KeyType = std::string;
+    using ValueType = std::shared_ptr<SafeFile>;
+
     /**
     * File manager class
     *
@@ -159,12 +161,6 @@ public:
      * @param path path file to empty. Can be relative (to execution directory) or absolute.
      */
     void empty(const std::string &path);
-
-    /** Clears list
-     *
-     * @return Boolean about success of operation (something removed, nothing removed: already empty)
-     */
-    bool clear();
 
     /**
      * Builds json document for class configuration

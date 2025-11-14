@@ -5,9 +5,9 @@ metadata:
   labels:
 {{ include "h2agent.labels" . | indent 4 }}
 data:
-{{ (.Files.Glob "native-helpers.src").AsConfig | indent 2 }}
+{{ (.Files.Glob "native-helpers.bash").AsConfig | indent 2 }}
 
-  helpers.src: |
+  helpers.bash: |
     #!/bin/echo "source me!"
 
     #######################
@@ -25,5 +25,5 @@ data:
     #############
 
     # Source native helpers:
-    source "{{ .Values.utilsMountPath }}/native-helpers.src"
+    source "{{ .Values.utilsMountPath }}/native-helpers.bash"
 

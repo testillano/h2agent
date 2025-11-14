@@ -177,8 +177,8 @@ menu() {
 #############
 cd $(dirname $0)
 echo
-source ../common.src
-source ../helpers.src &>/dev/null
+source ../common.bash
+source ../helpers.bash &>/dev/null
 
 title "H2agent play"
 

@@ -117,7 +117,7 @@ build_project() {
   sources="$(find src -name "*.hpp" -o -name "*.cpp")"
   sources+=" $(find ut -name "*.hpp" -o -name "*.cpp")"
   sources+=" $(find tools -name "*.hpp" -o -name "*.cpp")"
-  docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
+  docker run -i --rm -v $PWD:/data --user $(id -u):$(id -g) frankwolf/astyle ${sources}
 
   echo
   echo "=== Build h2agent project ==="

@@ -52,7 +52,7 @@ namespace model
 class MockEventsHistory
 {
     std::vector<std::shared_ptr<MockEvent>> events_{};
-    mutable mutex_t rw_mutex_{};
+    mutable mutex_t rw_mutex_{}; // specific mutex to protect events_
 
 protected:
     DataKey data_key_;

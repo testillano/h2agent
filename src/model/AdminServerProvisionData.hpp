@@ -62,6 +62,9 @@ public:
     AdminServerProvisionData();
     ~AdminServerProvisionData() = default;
 
+    using KeyType = admin_server_provision_key_t;
+    using ValueType = std::shared_ptr<AdminServerProvision>;
+
     // Load result
     enum LoadResult { Success = 0, BadSchema, BadContent };
 
@@ -131,7 +134,7 @@ private:
 
     LoadResult loadSingle(const nlohmann::json &j, bool regexMatchingConfigured, const common_resources_t &cr);
 
-    mutable mutex_t rw_mutex_{};
+    mutable mutex_t rw_mutex_{}; // specific mutex (apart from Map's one) to protect own ordered_keys_ version of keys.
 };
 
 }

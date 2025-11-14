@@ -256,7 +256,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-l|--log-level <Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency>]\n"
        << "  Set the logging level; defaults to warning.\n\n"
 
-       << "[--verbose]\n"
+       << "[-v|--verbose]\n"
        << "  Output log traces on console.\n\n"
 
        << "[--ipv6]\n"
@@ -407,7 +407,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  By default connections are performed when adding client endpoints.\n"
        << "  This option configures remote addresses to be connected on demand.\n\n"
 
-       << "[-v|--version]\n"
+       << "[-V|--version]\n"
        << "  Program version.\n\n"
 
        << "[-h|--help]\n"
@@ -541,7 +541,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (readCmdLine(argv, argv + argc, "--verbose"))
+    if (readCmdLine(argv, argv + argc, "-v")
+            || readCmdLine(argv, argv + argc, "--verbose"))
     {
         verbose = true;
     }
@@ -726,10 +727,10 @@ int main(int argc, char* argv[])
     ert::tracing::Logger::verbose(verbose);
 
     std::string gitVersion = h2agent::GIT_VERSION;
-    if (readCmdLine(argv, argv + argc, "-v")
+    if (readCmdLine(argv, argv + argc, "-V")
             || readCmdLine(argv, argv + argc, "--version"))
     {
-        std::cout << (gitVersion.empty() ? "unknown: not built on git repository, may be forked":gitVersion) << '\n';
+        std::cout << (gitVersion.empty() ? "unknown version: not built on git repository, may be forked":gitVersion) << '\n';
         myExit(EXIT_SUCCESS);
     }
 
@@ -901,6 +902,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
         myTrafficHttp2Server->setMockClientData(myMockClientData);
         myAdminHttp2Server->setMockClientData(myMockClientData); // stored at administrative class to pass through created client provisions
+
+        myTrafficHttp2Server->setGlobalVariable(myGlobalVariable); // used by responseDelayMs()
     }
 
     // Schema configuration
@@ -1020,6 +1023,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
             rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, TRAFFIC_NGHTTP2_SERVER_THREADS);
         }
     });
+    // asyncronous serve: no thread:
+    // rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", <hardware concurrency here>, true /* asynchronous */);
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for rc1/rc2 update from threads
     if (rc1 != EXIT_SUCCESS) myExit(rc1);

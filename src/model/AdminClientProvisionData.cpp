@@ -57,11 +57,11 @@ std::string AdminClientProvisionData::asJsonString(bool getUnused) const {
 
     nlohmann::json result = nlohmann::json::array();
 
-    read_guard_t guard(rw_mutex_);
-    for (auto it = map_.begin(); it != map_.end(); it++) {
-        if (getUnused && it->second->employed()) continue;
-        result.push_back(it->second->getJson());
-    };
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        if (!(getUnused && value->employed())) {
+            result.push_back(value->getJson());
+        }
+    });
 
     // Provision is shown as an array regardless if there is 1 item, N items or none ([]):
     return (result.dump());
@@ -85,8 +85,6 @@ AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const 
         // Push the key just in case we configure ordered algorithm 'RegexMatching'.
         // So, we always have both lists available; as each algorithm finds within the proper
         // list, we don't need to drop provisions when swaping the matching mode on the fly:
-        write_guard_t guard(rw_mutex_);
-
         add(key, provision);
 
         // Set common resources:
@@ -120,28 +118,15 @@ AdminClientProvisionData::LoadResult AdminClientProvisionData::load(const nlohma
     return loadSingle(j, cr);
 }
 
-bool AdminClientProvisionData::clear()
-{
-    write_guard_t guard(rw_mutex_);
-
-    bool result = (size() != 0);
-
-    map_.clear();
-
-    return result;
-}
-
 std::shared_ptr<AdminClientProvision> AdminClientProvisionData::find(const std::string &inState, const std::string &clientProvisionId) const {
 
     admin_client_provision_key_t key{};
     h2agent::model::calculateStringKey(key, inState, clientProvisionId);
 
-    read_guard_t guard(rw_mutex_);
-    auto it = get(key);
-    if (it != end())
-        return it->second;
+    bool exists{};
+    auto result = get(key, exists);
 
-    return nullptr;
+    return (exists ? result:nullptr);
 }
 
 }

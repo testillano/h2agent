@@ -59,17 +59,19 @@ std::string AdminServerProvisionData::asJsonString(bool ordered, bool getUnused)
 
     read_guard_t guard(rw_mutex_);
     if (ordered) {
+        bool aux;
         for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
-            auto element =  get(*it);
-            if (getUnused && element->second->employed()) continue;
-            result.push_back(element->second->getJson());
+            auto element =  get(*it, aux);
+            if (getUnused && element->employed()) continue;
+            result.push_back(element->getJson());
         };
     }
     else {
-        for (auto it = map_.begin(); it != map_.end(); it++) {
-            if (getUnused && it->second->employed()) continue;
-            result.push_back(it->second->getJson());
-        };
+        this->forEach([&](const KeyType& k, const ValueType& value) {
+            if (!(getUnused && value->employed())) {
+                result.push_back(value->getJson());
+            }
+        });
     }
 
     // Provision is shown as an array regardless if there is 1 item, N items or none ([]):
@@ -96,9 +98,7 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         // list, we don't need to drop provisions when swaping the matching mode on the fly:
         write_guard_t guard(rw_mutex_);
 
-        // https://github.com/testillano/h2agent/issues/52
-        auto key_it = get(key);
-        if (key_it == end()) {
+        if (!exists(key)) {
             ordered_keys_.push_back(key);
         }
 
@@ -138,26 +138,17 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::load(const nlohma
 bool AdminServerProvisionData::clear()
 {
     write_guard_t guard(rw_mutex_);
-
-    bool result = (size() != 0);
-
-    map_.clear();
-
     ordered_keys_.clear();
-
-    return result;
+    return Map::clear_unsafe();
 }
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
     admin_server_provision_key_t key{};
     h2agent::model::calculateStringKey(key, inState, method, uri);
 
-    read_guard_t guard(rw_mutex_);
-    auto it = get(key);
-    if (it != end())
-        return it->second;
-
-    return nullptr;
+    bool exists{};
+    auto result = get(key, exists);
+    return (exists ? result:nullptr);
 }
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findRegexMatching(const std::string &inState, const std::string &method, const std::string &uri) const {
@@ -165,8 +156,9 @@ std::shared_ptr<AdminServerProvision> AdminServerProvisionData::findRegexMatchin
     h2agent::model::calculateStringKey(key, inState, method, uri);
 
     read_guard_t guard(rw_mutex_);
+    bool aux{};
     for (auto it = ordered_keys_.begin(); it != ordered_keys_.end(); it++) {
-        auto provision = get(*it)->second;
+        auto provision = get(*it, aux);
         if (std::regex_match(key, provision->getRegex()))
             return provision;
     };

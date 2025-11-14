@@ -47,9 +47,10 @@ namespace model
 
 std::shared_ptr<MockEventsHistory> MockData::getEvents(const DataKey &dataKey, bool &maiden) {
 
-    auto it = get(dataKey.getKey());
-    if (it != end()) {
-        return it->second;
+    bool exists;
+    auto result = get(dataKey.getKey(), exists);
+    if (exists) {
+        return result;
     }
     maiden = true;
     return std::make_shared<MockEventsHistory>(dataKey);
@@ -61,31 +62,31 @@ bool MockData::clear(bool &somethingDeleted, const EventKey &ekey)
     somethingDeleted = false;
 
     if (ekey.empty()) {
-        write_guard_t guard(rw_mutex_);
-        somethingDeleted = (map_.size() > 0);
-        map_.clear();
+        somethingDeleted = (size() > 0);
+        Map::clear();
         return result;
     }
 
     if (!ekey.checkSelection())
         return false;
 
-    write_guard_t guard(rw_mutex_);
-
-    auto it = get(ekey.getKey());
-    if (it == end())
+    bool exists;
+    auto key = ekey.getKey();
+    auto value = get(key, exists);
+    if (!exists)
         return true; // nothing found to be removed
 
     // Check event number:
+    bool aux{};
     if (ekey.hasNumber()) {
         if (!ekey.validNumber())
             return false;
-        somethingDeleted = it->second->removeEvent(ekey.getUNumber(), ekey.reverse());
-        if (it->second->size() == 0) remove(it); // remove key when history is dropped (https://github.com/testillano/h2agent/issues/53).
+        somethingDeleted = value->removeEvent(ekey.getUNumber(), ekey.reverse());
+        if (value->size() == 0) remove(key, aux); // remove key when history is dropped (https://github.com/testillano/h2agent/issues/53).
     }
     else {
         somethingDeleted = true;
-        remove(it); // remove key
+        remove(key, aux); // remove key
     }
 
     return result;
@@ -107,10 +108,9 @@ std::string MockData::asJsonString(const EventLocationKey &elkey, bool &validQue
 
     validQuery = true;
 
-    read_guard_t guard(rw_mutex_);
-
-    auto it = get(elkey.getKey());
-    if (it == end())
+    bool exists;
+    auto result = get(elkey.getKey(), exists);
+    if (!exists)
         return "[]"; // nothing found to be built
 
     // Check event number:
@@ -120,14 +120,14 @@ std::string MockData::asJsonString(const EventLocationKey &elkey, bool &validQue
             return "[]";
         }
 
-        auto ptr = it->second->getEvent(elkey.getUNumber(), elkey.reverse());
+        auto ptr = result->getEvent(elkey.getUNumber(), elkey.reverse());
         if (ptr) {
             return ptr->getJson(elkey.getPath()).dump();
         }
         else return "[]";
     }
     else {
-        return it->second->getJson().dump();
+        return result->getJson().dump();
     }
 
     return "[]";
@@ -149,17 +149,17 @@ std::string MockData::summary(const std::string &maxKeys) const {
     size_t displayedKeys = 0;
     nlohmann::json key;
 
-    read_guard_t guard(rw_mutex_);
-    for (auto it = begin(); it != end(); it++) {
-        size_t historySize = it->second->size();
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        size_t historySize = value->size();
         totalEvents += historySize;
-        if (displayedKeys >= u_maxKeys) continue;
+        if (displayedKeys < u_maxKeys) {
+            value->getKey().keyToJson(key);
+            key["amount"] = (std::uint64_t)historySize;
+            result["displayedKeys"]["list"].push_back(key);
+            displayedKeys += 1;
+        }
+    });
 
-        it->second->getKey().keyToJson(key);
-        key["amount"] = (std::uint64_t)historySize;
-        result["displayedKeys"]["list"].push_back(key);
-        displayedKeys += 1;
-    };
     if (displayedKeys > 0) result["displayedKeys"]["amount"] = (std::uint64_t)displayedKeys;
     result["totalEvents"] = (std::uint64_t)totalEvents;
 
@@ -175,38 +175,35 @@ std::shared_ptr<MockEvent> MockData::getEvent(const EventKey &ekey) const {
 
     LOGDEBUG(ert::tracing::Logger::debug(ekey.asString(), ERT_FILE_LOCATION));
 
-    read_guard_t guard(rw_mutex_);
-
-    auto it = get(ekey.getKey());
-    if (it == end())
+    bool exists{};
+    auto result = get(ekey.getKey(), exists);
+    if (!exists)
         return nullptr; // nothing found
 
     if (!ekey.validNumber())
         return nullptr;
 
-    return (it->second->getEvent(ekey.getUNumber(), ekey.reverse()));
+    return (result->getEvent(ekey.getUNumber(), ekey.reverse()));
 }
 
 nlohmann::json MockData::getJson() const {
 
     nlohmann::json result;
 
-    read_guard_t guard(rw_mutex_);
-
-    for (auto it = begin(); it != end(); it++) {
-        result.push_back(it->second->getJson());
-    };
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        result.push_back(value->getJson());
+    });
 
     return result;
 }
 
 bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &state) const {
 
-    read_guard_t guard(rw_mutex_);
+    bool exists{};
+    auto result = get(key.getKey(), exists);
 
-    auto it = get(key.getKey());
-    if (it != end()) {
-        state = it->second->getLastRegisteredRequestState(); // by design, a key always contains at least one history event (https://github.com/testillano/h2agent/issues/53).
+    if (exists) {
+        state = result->getLastRegisteredRequestState(); // by design, a key always contains at least one history event (https://github.com/testillano/h2agent/issues/53).
         if (state.empty()) { // unprovisioned event must be understood as missing (ignore register)
             state = DEFAULT_ADMIN_PROVISION_STATE;
         }

@@ -419,6 +419,7 @@ TEST_F(Configure_test, LoadProvisionSuccess)
     EXPECT_EQ(Configure_test::adata_.getServerProvisionData().asJsonString(), jarray.dump());
     //EXPECT_TRUE(Configure_test::adata_.clearServerProvisions());
 
+
     // two ordered provisions:
     nlohmann::json anotherProvision = ProvisionConfiguration__Success;
     anotherProvision["requestUri"] = std::string(ProvisionConfiguration__Success["requestUri"]) + "_bis";

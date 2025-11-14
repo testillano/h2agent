@@ -55,10 +55,9 @@ std::string AdminSchemaData::asJsonString() const {
 
     nlohmann::json result = nlohmann::json::array();
 
-    read_guard_t guard(rw_mutex_);
-    for (auto it = map_.begin(); it != map_.end(); it++) {
-        result.push_back(it->second->getJson());
-    };
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        result.push_back(value->getJson());
+    });
 
     // Schema configuration is shown as an array regardless if there is 1 item, N items or none ([]):
     return (result.dump());
@@ -101,24 +100,12 @@ AdminSchemaData::LoadResult AdminSchemaData::load(const nlohmann::json &j) {
     return loadSingle(j);
 }
 
-bool AdminSchemaData::clear()
-{
-    write_guard_t guard(rw_mutex_);
-
-    bool result = (size() != 0);
-
-    map_.clear();
-
-    return result;
-}
-
 std::shared_ptr<AdminSchema> AdminSchemaData::find(const std::string &id) const {
-    read_guard_t guard(rw_mutex_);
-    auto it = get(id);
-    if (it != end())
-        return it->second;
 
-    return nullptr;
+    bool exists;
+    auto result = get(id, exists);
+
+    return (exists ? result:nullptr);
 }
 
 }

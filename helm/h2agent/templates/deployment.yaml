@@ -123,4 +123,4 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: ["/bin/sh", "-c", "echo source '{{ .Values.utilsMountPath }}/helpers.src' >> ~/.bashrc"]
+                command: ["/bin/sh", "-c", "echo source '{{ .Values.utilsMountPath }}/helpers.bash' >> ~/.bashrc"]

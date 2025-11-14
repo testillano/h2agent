@@ -61,7 +61,6 @@ namespace model
  */
 class SocketManager : public Map<std::string, std::shared_ptr<SafeSocket>>
 {
-    mutable mutex_t rw_mutex_{};
     boost::asio::io_context *io_context_{};
 
     // metrics (will be passed to SafeSocket):
@@ -74,6 +73,9 @@ class SocketManager : public Map<std::string, std::shared_ptr<SafeSocket>>
     ert::metrics::counter_t *observed_error_open_operation_counter_{};
 
 public:
+    using KeyType = std::string;
+    using ValueType = std::shared_ptr<SafeSocket>;
+
     /**
     * Socket manager class
     *
@@ -120,12 +122,6 @@ public:
      * Zero value means that no planned write is scheduled, so the socket is written instantly.
      */
     void write(const std::string &path, const std::string &data, unsigned int writeDelayUs);
-
-    /** Clears list
-     *
-     * @return Boolean about success of operation (something removed, nothing removed: already empty)
-     */
-    bool clear();
 
     /**
      * Builds json document for class configuration

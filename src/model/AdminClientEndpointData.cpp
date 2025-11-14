@@ -57,11 +57,9 @@ std::string AdminClientEndpointData::asJsonString() const {
 
     nlohmann::json result = nlohmann::json::array();
 
-    read_guard_t guard(rw_mutex_);
-    for (auto it = map_.begin(); it != map_.end(); it++) {
-        //result.push_back(it->second->getJson());
-        result.push_back(it->second->asJson()); // json_ is altered with connection status
-    };
+    this->forEach([&](const KeyType& k, const ValueType& value) {
+        result.push_back(value->asJson()); // json_ is altered with connection status
+    });
 
     // Client endpoint configuration is shown as an array regardless if there is 1 item, N items or none ([]):
     return (result.dump());
@@ -87,9 +85,6 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
 
         // First find (avoid deadlock):
         auto registeredClientEndpoint = find(key);
-
-        // Then write:
-        write_guard_t guard(rw_mutex_);
 
         // host, port or secure changes implies re-creation for the client connection id:
         if (registeredClientEndpoint) {
@@ -137,25 +132,12 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::load(const nlohmann
     return loadSingle(j, cr);
 }
 
-bool AdminClientEndpointData::clear()
-{
-    write_guard_t guard(rw_mutex_);
-
-    bool result = (size() != 0);
-
-    map_.clear();
-
-    return result;
-}
-
 std::shared_ptr<AdminClientEndpoint> AdminClientEndpointData::find(const admin_client_endpoint_key_t &id) const {
 
-    read_guard_t guard(rw_mutex_);
-    auto it = get(id);
-    if (it != end())
-        return it->second;
+    bool exists{};
+    auto result = get(id, exists);
 
-    return nullptr;
+    return (exists ? result:nullptr);
 }
 
 }
