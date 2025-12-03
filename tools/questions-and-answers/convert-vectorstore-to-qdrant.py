@@ -6,10 +6,15 @@ import sys
 
 # --- Configuration ---
 CHROMA_PERSIST_DIR = "vectorstore-data"
-CHROMA_COLLECTION_NAME = "h2agent-docs"
-QDRANT_URL = "http://192.168.100.205:6333"
-QDRANT_COLLECTION_NAME = "h2agent-vectorstore"
+CHROMA_COLLECTION_NAME = "h2agent"
+QDRANT_COLLECTION_NAME = "h2agent-test"
+QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+
+if not QDRANT_URL:
+   print("\nWARNING: missing 'QDRANT_URL' environment variable (try: source source.me.bash). Press ENTER to continue, CTRL-C to abort ...")
+   input()
+
 if not QDRANT_API_KEY:
    print("\nWARNING: missing 'QDRANT_API_KEY' environment variable. Press ENTER to continue, CTRL-C to abort ...")
    input()

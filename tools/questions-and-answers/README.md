@@ -14,7 +14,7 @@ $ python3 tools/questions-and-answers/run.py
 
 Please note that the conversational bot has certain limitations and although it relies on the documentation of this project, some questions may be incorrect or incomplete. It is always recommended to carefully read all the documentation, especially the main [README.md](../../README.md) file. Consider to run this bot on `kata-solutions` branch, as `SOLUTION.md` will be also included for every exercise improving the `RAG` database.
 
-There is also a migration script to export `Chroma` vectorstore into `QDrant`: `migrate-to-qdrant.py`.
+There is also a migration script to export `Chroma` vectorstore into `QDrant` compatible one: `convert-vectorstore-to-qdrant.py`.
 
 ## Using training image
 
@@ -23,7 +23,18 @@ You may use this python script within the training docker image, but all the dep
 ````bash
 root@998063cf6a4f:/home/h2agent# source /opt/venv/bin/activate
 (venv) root@998063cf6a4f:/home/h2agent# python3 tools/questions-and-answers/run.py
+Initiating RAG Chatbot in console mode (CLI)...
+--- Inicializando RAG Service ---
 Creating vectorstore ...
+Files to process (19):
+
+Wait while embeddings are created ...
+Vectorstore documents: 134
+Collection name: h2agent
+--- RAG Service initialized ---
+Chat history loaded: 0 interactions.
+
+--- H2AGENT RAG Console Chat ---
 
 Ask me anything (0 = quit): What is a transformation item within h2agent process configuration ?
 In the context of h2agent process configuration, a transformation item is a configuration object that defines a transformation to be applied to a message received by h2agent. The transformation item specifies the source of the data to be transformed, the target location for the transformed data, and the transformation to be applied.
