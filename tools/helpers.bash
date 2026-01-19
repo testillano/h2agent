@@ -277,7 +277,7 @@ server_data() {
   if [ -n "${requestUri}" ]
   then
     local urlencode=
-    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data'${queryParams}'" ${devnull}
   else
@@ -507,7 +507,7 @@ client_data() {
   if [ -n "${requestUri}" ]
   then
     local urlencode=
-    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data'${queryParams}'" ${devnull}
   else
@@ -801,19 +801,19 @@ help() {
   export -f traffic_url admin_url metrics_url do_curl
   echo
   echo "=== General Resources' Functions ==="
-  for f in schema global_variable files files_configuration udp_sockets configuration; do ${f} -h | head -n +1; export -f ${f} ; done
+  for f in schema global_variable files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Server Functions === "
-  for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n +1; export -f ${f} ; done
+  for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_unused client_data launch_client_provision; do ${f} -h | head -n +1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_unused client_data launch_client_provision; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
-  for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n +1; export -f ${f} ; done
+  for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Auxiliary Functions === "
-  for f in pretty raw trace metrics snapshot server_example client_example; do ${f} -h | head -n +1; export -f ${f} ; done
+  for f in pretty raw trace metrics snapshot server_example client_example; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
 }
 

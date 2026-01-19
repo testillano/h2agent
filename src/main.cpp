@@ -602,8 +602,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (readCmdLine(argv, argv + argc, "--traffic-server-queue-dispatcher-max-size", value)
-            || readCmdLine(argv, argv + argc, "--traffic-server-queue-dispatcher-max-size", value))
+    if (readCmdLine(argv, argv + argc, "--traffic-server-queue-dispatcher-max-size", value))
     {
         queue_dispatcher_max_size = toNumber(value);
         if (traffic_server_worker_threads < 0) queue_dispatcher_max_size = -1;

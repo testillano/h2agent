@@ -1,2 +1,3 @@
 vectorstore-data
-chat-history
+chat-history.pkl
+__pycache__
