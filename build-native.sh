@@ -16,17 +16,17 @@ nghttp2_ver=1.64.0
 nghttp2_asio_ver=main
 boost_ver=1.84.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
 ert_nghttp2_ver=v1.2.5 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & nghttp2-asio & boost)
-ert_logger_ver=v1.1.0
-ert_queuedispatcher_ver=v1.0.3
+ert_logger_ver=v1.1.1
+ert_queuedispatcher_ver=v1.0.4
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
-ert_metrics_ver=v1.1.0
-ert_http2comm_ver=v2.2.1
+ert_metrics_ver=v1.1.1
+ert_http2comm_ver=v2.2.2
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
 arashpartow_exprtk_ver=0.0.3
-ert_multipart_ver=$(grep ^ert_multipart_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
+ert_multipart_ver=$(grep ^"ARG ert_multipart_ver=" ${REPO_DIR}/Dockerfile.build | cut -d= -f2)
 
 # Build requirements
 cmake_ver=3.23.2
