@@ -277,7 +277,7 @@ server_data() {
   if [ -n "${requestUri}" ]
   then
     local urlencode=
-    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data'${queryParams}'" ${devnull}
   else
@@ -507,7 +507,7 @@ client_data() {
   if [ -n "${requestUri}" ]
   then
     local urlencode=
-    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=${requestUri}"
+    [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data'${queryParams}'" ${devnull}
   else

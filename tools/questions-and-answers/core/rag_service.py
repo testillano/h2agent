@@ -2,7 +2,8 @@ import os, sys, glob, pickle
 from langchain_community.document_loaders import (
     UnstructuredMarkdownLoader,
 )  # pip3 install --upgrade requests
-from langchain.text_splitter import MarkdownTextSplitter
+#from langchain.text_splitter import MarkdownTextSplitter
+from langchain_text_splitters import MarkdownTextSplitter
 
 # from langchain_community.document_loaders import PyPDFLoader
 # from langchain.text_splitter import CharacterTextSplitter
@@ -71,6 +72,7 @@ class RAGService:
         # Embeddings
         self.embeddings = OpenAIEmbeddings(
             model=OPENAI_EMBEDDINGS_MODEL,
+            openai_api_base="http://localhost:5050/v1",
             #dimensions=1536 # must coincide with Qdrant !
         )
 
@@ -97,7 +99,9 @@ class RAGService:
                 max_retries=2,
             )
         else:
-            self.llm = OpenAI(temperature=0)
+            self.llm = OpenAI(temperature=0,
+                openai_api_base="http://localhost:5050/v1",
+            )
 
         # Conversational Retrieval Chain
         self.qa_chain = ConversationalRetrievalChain.from_llm(self.llm, retriever)
