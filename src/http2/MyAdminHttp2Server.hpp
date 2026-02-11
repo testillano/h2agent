@@ -45,6 +45,8 @@ SOFTWARE.
 #include <ert/http2comm/Http2Server.hpp>
 #include <common.hpp>
 
+#include <nlohmann/json.hpp>
+
 namespace h2agent
 {
 namespace model

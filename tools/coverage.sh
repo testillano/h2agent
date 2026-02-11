@@ -20,4 +20,9 @@ cd ${git_root_dir}
 rm -rf coverage
 docker build --rm ${bargs} -f Dockerfile.coverage -t ${registry}/h2agent:latest-cov . || exit 1
 docker run -it --rm -v ${PWD}/coverage:/code/coverage ${registry}/h2agent:latest-cov || exit 1
-firefox coverage/index.html &
+if type firefox &>/dev/null; then
+  echo "Opening coverage/index.html ..."
+  firefox coverage/index.html &
+else
+  echo "Created coverage/index.html !"
+fi
