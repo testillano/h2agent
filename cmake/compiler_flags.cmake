@@ -11,9 +11,16 @@ function(set_cmake_compiler_flags)
     "-Wno-unused"
     "-Wno-reorder"
     $<$<CONFIG:Release>:-Ofast>
+    $<$<CONFIG:Release>:-march=native>
+    $<$<CONFIG:Release>:-flto=auto>
     $<$<CONFIG:Debug>:-O0>
     $<$<CONFIG:Debug>:-g3>
     $<$<CONFIG:Debug>:--coverage>
+  )
+
+  # LTO linker flags for Release
+  add_link_options(
+    $<$<CONFIG:Release>:-flto=auto>
   )
 
   # -Wno-deprecated -Wwrite-strings -Wno-unknown-pragmas -Wno-sign-compare -Wno-maybe-uninitialized -Wno-unused -Wno-reorder
