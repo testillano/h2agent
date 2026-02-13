@@ -837,10 +837,10 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
 
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
-    std::string method = req.method();
-    //std::string uriPath = req.uri().raw_path; // percent-encoded
-    std::string uriPath = req.uri().path; // decoded
-    std::string uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
+    // Use const references to avoid unnecessary copies - nghttp2 returns const refs
+    const std::string &method = req.method();
+    const std::string &uriPath = req.uri().path; // decoded
+    const std::string &uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
 
     // Get path suffix normalized:
     std::string pathSuffix = getPathSuffix(uriPath);

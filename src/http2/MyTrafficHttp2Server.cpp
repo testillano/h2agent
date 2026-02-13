@@ -161,11 +161,10 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
 
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
-    std::string method = req.method();
-    //std::string uriRawPath = req.uri().raw_path; // percent-encoded
-    std::string uriPath = req.uri().path; // decoded
-    std::string uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
-    //std::string reqUriFragment = req.uri().fragment; // https://stackoverflow.com/a/65198345/2576671
+    // Use const references to avoid unnecessary copies - nghttp2 returns const refs
+    const std::string &method = req.method();
+    const std::string &uriPath = req.uri().path; // decoded
+    const std::string &uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
 
     // Move request body to internal encoded body data:
     h2agent::model::DataPart requestBodyDataPart(std::move(requestBody));

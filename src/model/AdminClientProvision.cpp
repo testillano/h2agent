@@ -135,14 +135,14 @@ void AdminClientProvision::transform( std::string &requestMethod,
 
     // Find out if request body will need to be cloned (this is true if any transformation uses it as target):
     bool usesRequestBodyAsTransformationJsonTarget = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-        if ((*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_String ||
-                (*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_Integer ||
-                (*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_Unsigned ||
-                (*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_Float ||
-                (*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_Boolean ||
-                (*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_Object ||
-                (*it)->getTargetType() == Transformation::TargetType::RequestBodyJson_JsonString) {
+    for (const auto &t : transformations_) {
+        if (t->getTargetType() == Transformation::TargetType::RequestBodyJson_String ||
+                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Integer ||
+                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Unsigned ||
+                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Float ||
+                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Boolean ||
+                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Object ||
+                t->getTargetType() == Transformation::TargetType::RequestBodyJson_JsonString) {
             usesRequestBodyAsTransformationJsonTarget = true;
             break;
         }
@@ -165,11 +165,10 @@ void AdminClientProvision::transform( std::string &requestMethod,
 
     // Apply transformations sequentially
     bool breakCondition = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+    for (const auto &transformation : transformations_) {
 
         if (breakCondition) break;
 
-        auto transformation = (*it);
         bool eraser = false;
 
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));

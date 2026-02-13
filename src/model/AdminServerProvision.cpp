@@ -1131,8 +1131,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
         mustDecodeRequestBody = true;
     }
     else {
-        for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-            if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
+        for (const auto &t : transformations_) {
+            if (t->getSourceType() == Transformation::SourceType::RequestBody) {
                 if (!requestBodyDataPart.str().empty()) {
                     mustDecodeRequestBody = true;
                 }
@@ -1158,14 +1158,14 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
     // Find out if response body will need to be cloned (this is true if any transformation uses it as target):
     bool usesResponseBodyAsTransformationJsonTarget = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-        if ((*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_String ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
+    for (const auto &t : transformations_) {
+        if (t->getTargetType() == Transformation::TargetType::ResponseBodyJson_String ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
             usesResponseBodyAsTransformationJsonTarget = true;
             break;
         }
@@ -1188,11 +1188,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
     // Apply transformations sequentially
     bool breakCondition = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+    for (const auto &transformation : transformations_) {
 
         if (breakCondition) break;
 
-        auto transformation = (*it);
         bool eraser = false;
 
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
