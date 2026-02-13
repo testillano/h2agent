@@ -27,6 +27,12 @@ protected:
             "test_client", "127.0.0.1", "8080", false, &io_context_);
         admin_data_ = std::make_unique<model::AdminData>();
     }
+
+    void TearDown() override {
+        client_.reset();
+        admin_data_.reset();
+        io_context_.stop();
+    }
 };
 
 // Constructor tests
