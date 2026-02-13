@@ -83,6 +83,7 @@ jobs:
           base_os=ubuntu
           base_tag=latest
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image digest
@@ -98,6 +99,7 @@ jobs:
           base_os=ubuntu
           base_tag=local
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image2 digest
@@ -110,6 +112,7 @@ jobs:
         tags: ghcr.io/testillano/ct-h2agent:local
         file: ct/Dockerfile
         context: ct
+        platforms: linux/amd64
         push: true
     -
       name: Image3 digest
@@ -125,6 +128,7 @@ jobs:
           os_type=ubuntu
           base_tag=local
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image4 digest
@@ -158,6 +162,7 @@ jobs:
           base_tag=local
           os_type=ubuntu
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image digest
