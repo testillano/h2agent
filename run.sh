@@ -14,7 +14,8 @@ Remember prepend variables:
                                 (--cap-add=SYS_PTRACE), etc.
                                 Defaults to '--network=host'.
    H2AGENT_LD_PRELOAD:          LD_PRELOAD library path for alternative allocators.
-                                Example: /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+                                Defaults to jemalloc if available.
+                                Set to empty string to use glibc malloc.
    H2AGENT_TRAFFIC_PROXY_PORT:  Traffic proxy port provided by nghttpx allowing
                                 http1.0, http1.1, http2 and http2 without http1
                                 upgrade.
@@ -68,8 +69,11 @@ fi
 
 docker_args+=" ${H2AGENT_DCK_EXTRA_ARGS}"
 
-if [ -n "${H2AGENT_LD_PRELOAD}" ]
-then
+# Use jemalloc by default for better performance and lower variance
+if [ -z "${H2AGENT_LD_PRELOAD+x}" ]; then
+  H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+fi
+if [ -n "${H2AGENT_LD_PRELOAD}" ]; then
   docker_args+=" -e LD_PRELOAD=${H2AGENT_LD_PRELOAD}"
 fi
 
