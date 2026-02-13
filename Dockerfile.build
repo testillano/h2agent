@@ -27,7 +27,7 @@ RUN set -x && \
 RUN set -x && \
     wget https://github.com/pboettch/json-schema-validator/archive/${pboettch_jsonschemavalidator_ver}.tar.gz && \
     tar xvf ${pboettch_jsonschemavalidator_ver}.tar.gz && cd json-schema-validator*/ && mkdir build && cd build && \
-    cmake .. && make -j${make_procs} && make install && \
+    cmake -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON .. && make -j${make_procs} && make install && \
     cd ../.. && rm -rf * && \
     set +x
 
@@ -47,6 +47,6 @@ RUN set -x && \
 # ert_multipart
 RUN set -x && \
     wget https://github.com/testillano/multipart/archive/${ert_multipart_ver}.tar.gz && tar xvf ${ert_multipart_ver}.tar.gz && cd multipart-*/ && \
-    cmake -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} . && make -j${make_procs} && make install && \
+    cmake -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON . && make -j${make_procs} && make install && \
     cd .. && rm -rf * && \
     set +x
