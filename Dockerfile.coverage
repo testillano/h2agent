@@ -18,16 +18,16 @@ RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs}
 # Exclusions provided on $@:
 RUN printf %b "#!/bin/sh\n\
 cd /code\n\
-CAPTURE_OPTS=\"--ignore-errors empty --ignore-errors inconsistent --ignore-errors inconsistent,inconsistent --ignore-errors mismatch --ignore-errors mismatch,mismatch\"\n\
+CAPTURE_OPTS=\"--ignore-errors empty --ignore-errors negative --ignore-errors inconsistent --ignore-errors inconsistent,inconsistent --ignore-errors mismatch --ignore-errors mismatch,mismatch\"\n\
 lcov --capture --directory ./src --directory ./ut --directory ./tools --initial --output-file base-coverage.info \${CAPTURE_OPTS}\n\
 /code/build/Debug/bin/unit-test\n\
 lcov --capture --directory ./src --directory ./ut --directory ./tools --output-file test-coverage.info --ignore-errors gcov,gcov \${CAPTURE_OPTS}\n\
-lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info\n\
+lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info \${CAPTURE_OPTS}\n\
 \n\
-lcov --extract total-coverage.info '/code/src/*' --output-file extracted-coverage.info\n\
-lcov --remove extracted-coverage.info 'main.cpp' '*/MyTrafficHttp2Client*' '*/AdminClientProvision*' --output-file final-coverage.info\n\
+lcov --extract total-coverage.info '/code/src/*' --output-file extracted-coverage.info \${CAPTURE_OPTS}\n\
+lcov --remove extracted-coverage.info 'main.cpp' '*/MyTrafficHttp2Client*' '*/AdminClientProvision*' --output-file final-coverage.info \${CAPTURE_OPTS}\n\
 \n\
-genhtml final-coverage.info --output-directory coverage\n\
+genhtml final-coverage.info --output-directory coverage --ignore-errors negative\n\
 cp final-coverage.info coverage/lcov.info" > /var/coverage.sh
 
 RUN chmod a+x /var/coverage.sh
