@@ -84,6 +84,7 @@ jobs:
           base_tag=latest
         context: .
         platforms: linux/amd64
+        no-cache: true
         push: true
     -
       name: Image digest
