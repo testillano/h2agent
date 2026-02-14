@@ -25,7 +25,7 @@ lcov --capture --directory ./src --directory ./ut --directory ./tools --output-f
 lcov -a base-coverage.info -a test-coverage.info -o total-coverage.info \${CAPTURE_OPTS}\n\
 \n\
 lcov --extract total-coverage.info '/code/src/*' --output-file extracted-coverage.info \${CAPTURE_OPTS}\n\
-lcov --remove extracted-coverage.info 'main.cpp' '*/MyTrafficHttp2Client*' '*/AdminClientProvision*' --output-file final-coverage.info \${CAPTURE_OPTS}\n\
+lcov --remove extracted-coverage.info 'main.cpp' --output-file final-coverage.info \${CAPTURE_OPTS}\n\
 \n\
 genhtml final-coverage.info --output-directory coverage --ignore-errors negative\n\
 cp final-coverage.info coverage/lcov.info" > /var/coverage.sh

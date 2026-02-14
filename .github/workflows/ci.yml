@@ -256,7 +256,14 @@ jobs:
           echo "Pull '${img}' image:"
           docker pull --platform linux/amd64 ${img}
 
-          for hub in docker.io ghcr.io
+          # Only push public images to Docker Hub
+          if [ "${imgbn}" = "h2agent" ] || [ "${imgbn}" = "h2agent_training" ]; then
+            hubs="docker.io ghcr.io"
+          else
+            hubs="ghcr.io"
+          fi
+
+          for hub in ${hubs}
           do
             rmt_img=${hub}/testillano/${imgbn}:${image_tag}
             docker tag ${img} ${rmt_img}
