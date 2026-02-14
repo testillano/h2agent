@@ -253,7 +253,7 @@ jobs:
         do
           img=ghcr.io/testillano/${imgbn}:local
           echo "Pull '${img}' image:"
-          docker pull ${img}
+          docker pull --platform linux/amd64 ${img}
 
           for hub in docker.io ghcr.io
           do
