@@ -20,7 +20,7 @@ ert_queuedispatcher_ver=v1.0.4
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
 ert_metrics_ver=v1.1.1
-ert_http2comm_ver=v2.2.3
+ert_http2comm_ver=v2.2.4
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
