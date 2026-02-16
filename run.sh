@@ -82,7 +82,7 @@ benchmark_args=(--verbose --traffic-server-worker-threads 5 --prometheus-respons
 
 # Run './build.sh --auto' to have docker image available:
 set -x
-docker run ${docker_args} ghcr.io/testillano/h2agent:${H2AGENT_DCK_TAG} ${benchmark_args[*]} $@
+docker run ${docker_args} ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} ${benchmark_args[*]} $@
 set +x
 
 # Using ctr-tools:
@@ -92,4 +92,4 @@ set +x
 # sudo ctr -n test images list # check if correctly loaded
 #
 # Run image:
-# sudo ctr -n test run --rm --tty --net-host ghcr.io/testillano/h2agent:${H2AGENT_DCK_TAG} myapp
+# sudo ctr -n test run --rm --tty --net-host ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} myapp
