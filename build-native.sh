@@ -6,8 +6,7 @@ DEBUG=true
 # VARIABLES #
 #############
 
-REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
+project_root_dir="$(dirname "$(readlink -f "$0")")"
 
 STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged:
 
@@ -22,11 +21,11 @@ jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
 ert_metrics_ver=v1.1.1
 ert_http2comm_ver=v2.2.3
-nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
-pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
-google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
+nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
+pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
+google_test_ver=$(grep ^google_test_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
 arashpartow_exprtk_ver=0.0.3
-ert_multipart_ver=$(grep ^"ARG ert_multipart_ver=" ${REPO_DIR}/Dockerfile.build | cut -d= -f2)
+ert_multipart_ver=$(grep ^"ARG ert_multipart_ver=" ${project_root_dir}/Dockerfile.build | cut -d= -f2)
 
 # Build requirements
 cmake_ver=3.23.2
@@ -122,7 +121,7 @@ build() {
 # EXECUTION #
 #############
 
-TMP_DIR=${REPO_DIR}/$(basename $0 .sh)
+TMP_DIR=${project_root_dir}/$(basename $0 .sh)
 if [ -d "${TMP_DIR}" ]
 then
   echo "Temporary already exists. Remove ? (y/n) [y]:"
@@ -295,5 +294,5 @@ set +x
 #) || failed $? && \
 
 # h2agent project root:
-ask "main project" && cd ${REPO_DIR} && rm -rf build CMakeCache.txt CMakeFiles && build project
+ask "main project" && cd ${project_root_dir} && rm -rf build CMakeCache.txt CMakeFiles && build project
 

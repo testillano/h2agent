@@ -2,10 +2,9 @@
 # Valgrind helper
 
 echo
-git_root_dir="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$git_root_dir" ] && { echo "Go into the git repository !" ; exit 1 ; }
+project_root_dir="$(dirname "$(readlink -f "$0")")/.."
 
-execs=( $(ls ${git_root_dir}/build/*/bin/h2agent 2>/dev/null) )
+execs=( $(ls ${project_root_dir}/build/*/bin/h2agent 2>/dev/null) )
 [ $? -ne 0 ] && echo -e "Warning: you should build the project before using valgrind suite (i.e.: build_type=Debug ./build.sh --auto)\n"
 
 

@@ -4,9 +4,8 @@ cat << EOF
 
 Remember prepend variables:
 
+   H2AGENT_DCK_IMG:             H2agent docker image path. Defaults to 'ghcr.io/testillano/h2agent'.
    H2AGENT_DCK_TAG:             H2agent docker image tag. Defaults to 'latest'.
-   H2AGENT_DCK_NAME:            H2agent docker container name. Defaults to
-                                'h2agent'.
    H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example alternative
                                 entrypoints (--entrypoint /opt/udp-server-h2client),
                                 mount options, network options (--network=back_tier
@@ -41,11 +40,12 @@ env | grep -q ^H2AGENT_
 #   H2AGENT_PROXY_TLS_KEY:          Proxy server key to enable SSL/TLS
 #   H2AGENT_PROXY_TLS_CRT:          Proxy server crt to enable SSL/TLS
 
+H2AGENT_DCK_IMG=${H2AGENT_DCK_IMG:-ghcr.io/testillano/h2agent}
 H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
-H2AGENT_DCK_NAME=${H2AGENT_DCK_NAME:-h2agent}
 H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
 
-docker_args="--rm -it --name ${H2AGENT_DCK_NAME} -u $(id -u)"
+name=$(basename ${H2AGENT_DCK_IMG}
+docker_args="--rm -it --name ${name} -u $(id -u)"
 if [ -n "${H2AGENT_TRAFFIC_PROXY_PORT}" ]
 then
   docker_args+=" -e H2AGENT_TRAFFIC_PROXY_PORT=${H2AGENT_TRAFFIC_PROXY_PORT}"

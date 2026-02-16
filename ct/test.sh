@@ -4,8 +4,8 @@
 # VARIABLES #
 #############
 
-REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
+# Avoid using git command to know:
+project_root_dir="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 
 CHART_NAME=ct-h2agent
 NAMESPACE="ns-${CHART_NAME}"
@@ -13,7 +13,7 @@ HELM_CHART="helm/${CHART_NAME}"
 TAG=${TAG:-latest}
 CT_TAG=${CT_TAG:-latest}
 # shellcheck disable=SC2207,SC2012
-ALL_TESTS=( $(ls "${REPO_DIR}"/ct/src/*/*_test.py | awk -F/ '{ print $(NF-1)"/"$NF }') )
+ALL_TESTS=( $(ls "${project_root_dir}"/ct/src/*/*_test.py | awk -F/ '{ print $(NF-1)"/"$NF }') )
 
 # Prepends:
 s_XTRA_HELM_SETS="-"
@@ -86,7 +86,7 @@ do_test() {
 #############
 
 # shellcheck disable=SC2164
-cd "${REPO_DIR}"
+cd "${project_root_dir}"
 
 # shellcheck disable=SC2166
 [ "$1" = "-h" -o "$1" = "--help" ] && usage && exit 0

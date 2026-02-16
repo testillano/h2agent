@@ -5,10 +5,9 @@
 #        Default: all (generates ut/, ct/, combined/)
 
 registry=ghcr.io/testillano
-git_root_dir="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$git_root_dir" ] && { echo "Go into the git repository !" ; exit 1 ; }
+project_root_dir="$(dirname "$(readlink -f "$0")")/.."
 
-cd "${git_root_dir}"
+cd "${project_root_dir}"
 echo
 rm -rf coverage 2>/dev/null || { echo "You must remove './coverage' directory. I will do if you run: sudo chown -R $(id -u -n):$(id -g -n) coverage" ; exit 1 ; }
 
