@@ -44,7 +44,7 @@ H2AGENT_DCK_IMG=${H2AGENT_DCK_IMG:-ghcr.io/testillano/h2agent}
 H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
 H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
 
-name=$(basename ${H2AGENT_DCK_IMG}
+name=$(basename ${H2AGENT_DCK_IMG})
 docker_args="--rm -it --name ${name} -u $(id -u)"
 if [ -n "${H2AGENT_TRAFFIC_PROXY_PORT}" ]
 then
