@@ -11,6 +11,7 @@ CHART_NAME=ct-h2agent
 NAMESPACE="ns-${CHART_NAME}"
 HELM_CHART="helm/${CHART_NAME}"
 TAG=${TAG:-latest}
+CT_TAG=${CT_TAG:-latest}
 # shellcheck disable=SC2207,SC2012
 ALL_TESTS=( $(ls "${REPO_DIR}"/ct/src/*/*_test.py | awk -F/ '{ print $(NF-1)"/"$NF }') )
 
@@ -44,8 +45,8 @@ Usage: $0 [-h|--help] [action: [all]|deploy|test|hints] [ pytest extra options ]
 
        XTRA_HELM_SETS: additional setters for helm install execution.
        SKIP_HELM_DEPS: non-empty value skip helm dependencies update.
-       TAG:            h2agent and ct-h2agent images tag for deployment
-                       (latest by default).
+       TAG:            h2agent image tag for deployment (latest by default).
+       CT_TAG:         ct-h2agent image tag for deployment (latest by default).
        TEST_PROMPT:    non-empty value enables interactive testing.
 
        Examples:
@@ -53,7 +54,7 @@ Usage: $0 [-h|--help] [action: [all]|deploy|test|hints] [ pytest extra options ]
        XTRA_HELM_SETS="--set h2agent.service.admin_port=8075 --set h2agent.service.traffic_port=8001" $0
        XTRA_HELM_SETS="--set h2agent.h2agent_cl.verbose.enabled=false" $0
        XTRA_HELM_SETS="--set h2agent.h2agent_cl.metrics.enabled=false" $0
-       TAG=test1 $0 deploy
+       TAG=test1 CT_TAG=test1 $0 deploy
        $0 hints
        $0 test ${ALL_TESTS[$((RANDOM%${#ALL_TESTS[@]}))]} -k test_001 # pytest arguments
        TEST_PROMPT=true $0 # a menu with all the available tests is shown
@@ -119,6 +120,7 @@ echo
 echo "XTRA_HELM_SETS:   ${s_XTRA_HELM_SETS}"
 echo "SKIP_HELM_DEPS:   ${s_SKIP_HELM_DEPS}"
 echo "TAG:              ${TAG}"
+echo "CT_TAG:           ${CT_TAG}"
 echo "TEST_PROMPT:      ${s_TEST_PROMPT}"
 shift
 [ $# -gt 0 -a -n "${TEST}" ] && echo "Pytest arguments: $*"
@@ -153,10 +155,9 @@ then
   helm install "${CHART_NAME}" "${HELM_CHART}" -n "${NAMESPACE}" --wait \
      --set h2agent.h2agent_cl.traffic_server_api_name="app" \
      --set h2agent.h2agent_cl.traffic_server_api_version="v1" \
-     --set test.image.tag="${TAG}" \
      --set h2agent.image.tag="${TAG}" \
+     --set test.image.tag="${CT_TAG}" \
      ${XTRA_HELM_SETS} || { echo "Error !"; exit 1 ; }
-#     --set h2agent_image.tag="${TAG}" \
 else
   echo -e "\nDeployment skipped !"
 fi

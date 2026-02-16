@@ -164,7 +164,7 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
-        file: Dockerfile.coverage
+        file: Dockerfile.coverage.ut
         build-args: |
           base_tag=local
           os_type=ubuntu
@@ -188,7 +188,7 @@ jobs:
     steps:
     -
       name: Run coverage script
-      run: /var/coverage.sh
+      run: /var/starter-coverage-ut.sh
     -
       name: Setup Pages
       uses: actions/configure-pages@v3

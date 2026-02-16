@@ -31,7 +31,7 @@ COPY --from=builder /code/build/${build_type}/bin/udp-client /opt/
 ARG os_type=ubuntu
 RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add bash curl jq nghttp2 netcat-openbsd socat libjemalloc2 && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y vim curl jq nghttp2 netcat-openbsd socat libjemalloc2 && apt-get clean ; fi
 
-# Start script:
+# Entrypoint script:
 COPY deps/starter.sh /var
 
 ENTRYPOINT ["sh", "/var/starter.sh" ]

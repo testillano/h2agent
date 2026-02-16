@@ -488,10 +488,24 @@ etc.
 
 #### Coverage
 
-Unit test coverage could be easily calculated executing the script `./tools/coverage.sh`. This script builds and runs an image based in `./Dockerfile.coverage` which uses the `lcov` utility behind. Finally, a `firefox` instance is launched showing the coverage report where you could navigate the source tree to check the current status of the project. This stage is also executed as part of `h2agent` continuous integration (`github workflow`).
+Coverage reports can be generated using `./tools/coverage.sh`:
 
-Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
-If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
+```bash
+./tools/coverage.sh [ut|ct|all]
+```
+
+- `ut`: Unit test coverage only (default for CI)
+- `ct`: Component test coverage only (requires Kubernetes cluster)
+- `all`: Combined UT + CT coverage (default)
+
+Reports are generated in:
+- `coverage/ut/` - Unit test coverage
+- `coverage/ct/` - Component test coverage
+- `coverage/combined/` - Combined coverage
+
+The script builds Docker images from `Dockerfile.coverage.ut` and `Dockerfile.coverage.ct`, using `lcov` for instrumentation. A `firefox` instance is launched to display the report.
+
+Both `ubuntu` and `alpine` base images are supported.
 
 ### Component test
 
