@@ -195,7 +195,7 @@ jobs:
     -
       name: Create badge json file
       run: |
-        value=$(grep -oP '(?<=<td class="headerCovTableEntryMed">)[0-9]+\.[0-9]+' /code/coverage/index.html | head -n 1) # tail -n -1 to get Functions coverage
+        value=$(grep -oP 'headerCovTableEntry(Hi|Med|Lo)">[0-9]+\.[0-9]+' /code/coverage/index.html | grep -oP '[0-9]+\.[0-9]+' | head -n 1) # tail -n -1 to get Functions coverage
         if [ "$(echo "${value} < 50" | bc -l)" = "1" ]; then
           color="red"
         elif [ "$(echo "${value} < 80" | bc -l)" = "1" ]; then
