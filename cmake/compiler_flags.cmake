@@ -11,7 +11,7 @@ function(set_cmake_compiler_flags)
     "-Wno-unused"
     "-Wno-reorder"
     $<$<CONFIG:Release>:-Ofast>
-    $<$<CONFIG:Release>:-march=native>
+    $<$<CONFIG:Release>:-march=x86-64-v3>
     $<$<CONFIG:Release>:-flto=auto>
     $<$<CONFIG:Debug>:-O0>
     $<$<CONFIG:Debug>:-g3>
