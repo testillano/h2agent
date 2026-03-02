@@ -114,7 +114,42 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * UDP server to trigger active HTTP/2 client requests.
   * UDP client.
 
+---
 
+<details>
+<summary>Table of Contents</summary>
+
+- [Quick start](#quick-start)
+- [Scope](#scope)
+- [How can you use it ?](#how-can-you-use-it-)
+- [Static linking](#static-linking)
+- [Project image](#project-image)
+- [Build project with docker](#build-project-with-docker)
+- [Build project natively](#build-project-natively)
+- [Testing](#testing)
+- [Execution of main agent](#execution-of-main-agent)
+- [Execution of matching helper utility](#execution-of-matching-helper-utility)
+- [Execution of Arash Partow's helper utility](#execution-of-arash-partows-helper-utility)
+- [Execution of h2client utility](#execution-of-h2client-utility)
+- [Execution of udp-server utility](#execution-of-udp-server-utility)
+- [Execution of udp-server-h2client utility](#execution-of-udp-server-h2client-utility)
+- [Execution of udp-client utility](#execution-of-udp-client-utility)
+- [Working with unix sockets and docker containers](#working-with-unix-sockets-and-docker-containers)
+- [Execution with TLS support](#execution-with-tls-support)
+- [Metrics](#metrics)
+- [Traces and printouts](#traces-and-printouts)
+- [Training](#training)
+- [Management interface](#management-interface)
+- [Dynamic response delays](#dynamic-response-delays)
+- [Reserved Global Variables](#reserved-global-variables)
+- [How it is delivered](#how-it-is-delivered)
+- [How it integrates in a service](#how-it-integrates-in-a-service)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+
+</details>
+
+---
 
 ## Quick start
 
@@ -735,6 +770,9 @@ Created test report:
 
 You may take a look to `h2agent` command line by just typing the build path, for example for `Release` target using native executable:
 
+<details>
+<summary>h2agent --help</summary>
+
 ```bash
 $ build/Release/bin/h2agent --help
 h2agent - HTTP/2 Agent service
@@ -898,6 +936,8 @@ Options:
   This help.
 ```
 
+</details>
+
 ## Execution of matching helper utility
 
 This utility could be useful to test regular expressions before putting them at provision objects (`requestUri` or transformation filters which use regular expressions).
@@ -905,6 +945,9 @@ This utility could be useful to test regular expressions before putting them at 
 ### Command line
 
 You may take a look to `matching-helper` command line by just typing the build path, for example for `Release` target using native executable:
+
+<details>
+<summary>matching-helper --help</summary>
 
 ```bash
 $ build/Release/bin/matching-helper --help
@@ -931,6 +974,8 @@ Examples:
    matching-helper --regex "1|3|5|9" --test 2
 ```
 
+</details>
+
 Execution example:
 
 ```bash
@@ -952,6 +997,9 @@ This utility could be useful to test [Arash Partow's](https://github.com/ArashPa
 
 You may take a look to `arashpartow-helper` command line by just typing the build path, for example for `Release` target using native executable:
 
+<details>
+<summary>arashpartow-helper --help</summary>
+
 ```bash
 $ build/Release/bin/arashpartow-helper --help
 Usage: arashpartow-helper [options]
@@ -972,6 +1020,8 @@ Examples:
 Arash Partow help: https://raw.githubusercontent.com/ArashPartow/exprtk/master/readme.txt
 ```
 
+</details>
+
 Execution example:
 
 ```bash
@@ -989,6 +1039,9 @@ This utility could be useful to test simple HTTP/2 requests.
 ### Command line
 
 You may take a look to `h2client` command line by just typing the build path, for example for `Release` target using native executable:
+
+<details>
+<summary>h2client --help</summary>
 
 ```bash
 $ build/Release/bin/h2client --help
@@ -1035,6 +1088,8 @@ Examples:
    h2client --method POST --header "content-type:application/json" --body '{"foo":"bar"}' --uri http://localhost:8000/data
 ```
 
+</details>
+
 Execution example:
 
 ```bash
@@ -1068,6 +1123,9 @@ echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
 
 You may take a look to `udp-server` command line by just typing the build path, for example for `Release` target using native executable:
 
+<details>
+<summary>udp-server --help</summary>
+
 ```bash
 $ build/Release/bin/udp-server --help
 Usage: udp-server [options]
@@ -1091,6 +1149,8 @@ Examples:
 To stop the process you can send UDP message 'EOF':
    echo -n EOF | nc -u -q0 -w1 -U /tmp/udp.sock
 ```
+
+</details>
 
 Execution example:
 
@@ -1132,6 +1192,9 @@ Prometheus metrics are also available to measure the HTTP/2 performance towards 
 ### Command line
 
 You may take a look to `udp-server-h2client` command line by just typing the build path, for example for `Release` target using native executable:
+
+<details>
+<summary>udp-server-h2client --help</summary>
 
 ```bash
 $ build/Release/bin/udp-server-h2client --help
@@ -1232,6 +1295,8 @@ Examples:
    To provide body from file, use this trick: --body "$(jq -c '.' long-body.json)"
 ```
 
+</details>
+
 Execution example:
 
 ```bash
@@ -1291,6 +1356,9 @@ Although we could launch multiple UDP clients towards the UDP server (such serve
 
 You may take a look to `udp-client` command line by just typing the build path, for example for `Release` target using native executable:
 
+<details>
+<summary>udp-client --help</summary>
+
 ```bash
 $ build/Release/bin/udp-client --help
 Usage: udp-client [options]
@@ -1336,6 +1404,8 @@ Examples:
 
 To stop the process, just interrupt it.
 ```
+
+</details>
 
 Execution example:
 

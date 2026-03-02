@@ -74,5 +74,5 @@ The script uses `curl --http2-prior-knowledge`.
 ## Local preview
 
 ```bash
-./serve-api-docs.sh    # opens http://localhost:8080
+./serve-api-docs.sh    # opens http://localhost:8001
 ```
