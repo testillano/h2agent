@@ -1608,7 +1608,7 @@ The full API reference is documented using the [OpenAPI 3.1 specification](./doc
 
 **[https://testillano.github.io/h2agent/api/](https://testillano.github.io/h2agent/api/)**
 
-For detailed conceptual documentation (matching algorithms, state machines, transformation pipeline with sources/targets/filters, triggering, data querying), see the [API User Guide](./docs/api/guide.md).
+For detailed conceptual documentation (matching algorithms, state machines, transformation pipeline with sources/targets/filters, triggering, data querying), see the [API User Guide](./docs/api/README.md).
 
 The API is organized in the following groups:
 
