@@ -206,10 +206,16 @@ jobs:
 
         echo '{"schemaVersion":1,"label":"coverage","message":"'${value}'%","color":"'${color}'"}' > /code/coverage/badge.json
     -
+      name: Assemble GitHub Pages site
+      run: |
+        mkdir -p /code/site
+        cp -r /code/coverage /code/site/coverage
+        cp -r /code/docs/api /code/site/api
+    -
       name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: /code/coverage
+        path: /code/site
     -
       name: Deploy to GitHub Pages
       uses: actions/deploy-pages@v4

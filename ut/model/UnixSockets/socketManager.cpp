@@ -77,6 +77,7 @@ TEST_F(SocketManager_test, SocketManager)
     // write:
     sm.write(path2, SocketManagerSafeSocketContent2, 0);
     sm.write(path1, SocketManagerSafeSocketContent1, 0);
+    sm.write(path1, "again", 0); // write again to existing socket (covers cache hit)
 
     // read:
     // Check socket content:
@@ -88,6 +89,12 @@ TEST_F(SocketManager_test, SocketManager)
     ASSERT_TRUE(bytesRead > 0);
     buffer[bytesRead] = '\0';
     EXPECT_EQ(buffer, SocketManagerSafeSocketContent1);
+
+    // Read second message from path1 (the "again" write)
+    bytesRead = recvfrom(sockfd1, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen);
+    ASSERT_TRUE(bytesRead > 0);
+    buffer[bytesRead] = '\0';
+    EXPECT_EQ(std::string(buffer), "again");
 
     bytesRead = recvfrom(sockfd2, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&clientAddr, &clientAddrLen);
     ASSERT_TRUE(bytesRead > 0);
@@ -104,6 +111,9 @@ TEST_F(SocketManager_test, SocketManager)
 
     // Check empty:
     EXPECT_EQ(sm.asJsonString(), "[]");
+
+    // Cover incrementObservedErrorOpenOperationCounter (no-op when metrics_ is null)
+    sm.incrementObservedErrorOpenOperationCounter();
 
     // Cleanup sockets
     close(sockfd1);

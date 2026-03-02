@@ -1,0 +1,1363 @@
+openapi: 3.1.0
+info:
+  title: h2agent Management API
+  description: |
+    REST API to manage h2agent mock behavior for HTTP/2 traffic testing.
+    All operations are served under the `/admin/v1/` base path on the
+    management port (default 8074).
+  version: "1.0"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: h2agent
+    url: https://github.com/testillano/h2agent
+
+servers:
+  - url: http://localhost:8074
+    description: Default management endpoint
+
+tags:
+  - name: schema
+    description: Validation schemas management
+  - name: global-variable
+    description: Global variables management
+  - name: files
+    description: Processed files information
+  - name: logging
+    description: Logging configuration
+  - name: configuration
+    description: General and server configuration
+  - name: server-matching
+    description: Traffic server matching configuration
+  - name: server-provision
+    description: Traffic server provision configuration
+  - name: server-data
+    description: Traffic server data storage
+  - name: client-endpoint
+    description: Client endpoints configuration
+  - name: client-provision
+    description: Client provision configuration
+  - name: client-data
+    description: Client data storage
+
+paths:
+  # ===== GENERAL =====
+
+  /admin/v1/schema:
+    post:
+      tags: [schema]
+      summary: Load validation schema(s)
+      description: >
+        Loads schema(s) for future event validation. Schemas can be
+        referenced within provision configurations by their string
+        identifier. Accepts a single object or an array for bulk load.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SchemaConfig'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/SchemaConfig'
+      responses:
+        '201':
+          description: Schema(s) created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [schema]
+      summary: Retrieve all configured schemas
+      responses:
+        '200':
+          description: Schemas retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaConfig'
+        '204':
+          description: No schemas configured
+    delete:
+      tags: [schema]
+      summary: Delete all schemas
+      responses:
+        '200':
+          description: Schemas deleted
+        '204':
+          description: No schemas to delete
+
+  /admin/v1/schema/schema:
+    get:
+      tags: [schema]
+      summary: Retrieve the schema operation schema
+      responses:
+        '200':
+          description: Schema definition retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/v1/global-variable:
+    post:
+      tags: [global-variable]
+      summary: Load global variables
+      description: >
+        Creates or updates global variables. Variables are string-valued
+        and interpreted as numbers or other types depending on the
+        transformation involved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlobalVariableMap'
+      responses:
+        '201':
+          description: Variables created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [global-variable]
+      summary: Retrieve global variables
+      description: >
+        Without query parameter returns all variables as a JSON object.
+        With `name` parameter returns the specific variable value as
+        plain string.
+      parameters:
+        - name: name
+          in: query
+          description: Variable name to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Variable(s) retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalVariableMap'
+            text/plain:
+              schema:
+                type: string
+                description: Single variable value (when name parameter is used)
+        '204':
+          description: No variables stored
+        '400':
+          description: Bad request (invalid name)
+    delete:
+      tags: [global-variable]
+      summary: Delete global variables
+      description: >
+        Deletes all global variables or a specific one when the `name`
+        query parameter is provided.
+      parameters:
+        - name: name
+          in: query
+          description: Variable name to delete
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Variable(s) deleted
+        '204':
+          description: No variables to delete
+        '400':
+          description: Bad request
+
+  /admin/v1/global-variable/schema:
+    get:
+      tags: [global-variable]
+      summary: Retrieve the global variables schema
+      responses:
+        '200':
+          description: Schema retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/v1/files:
+    get:
+      tags: [files]
+      summary: Retrieve processed files list
+      responses:
+        '200':
+          description: Files list retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileInfo'
+        '204':
+          description: No files processed
+
+  /admin/v1/logging:
+    get:
+      tags: [logging]
+      summary: Retrieve current logging level
+      responses:
+        '200':
+          description: Current log level
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/LogLevel'
+    put:
+      tags: [logging]
+      summary: Change logging level
+      parameters:
+        - name: level
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/LogLevel'
+      responses:
+        '200':
+          description: Log level updated
+        '400':
+          description: Invalid log level
+
+  /admin/v1/configuration:
+    get:
+      tags: [configuration]
+      summary: Retrieve general process configuration
+      responses:
+        '200':
+          description: Configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralConfiguration'
+
+  /admin/v1/server/configuration:
+    put:
+      tags: [configuration]
+      summary: Update server configuration
+      description: >
+        Controls request body reception and memory pre-reservation.
+        Useful to optimize server processing when request body content
+        is not needed by provisions.
+      parameters:
+        - name: receiveRequestBody
+          in: query
+          schema:
+            type: boolean
+        - name: preReserveRequestBody
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Configuration updated
+        '400':
+          description: Bad request
+    get:
+      tags: [configuration]
+      summary: Retrieve server configuration
+      responses:
+        '200':
+          description: Server configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerConfiguration'
+
+  # ===== SERVER MOCK =====
+
+  /admin/v1/server-matching:
+    post:
+      tags: [server-matching]
+      summary: Configure server matching algorithm
+      description: >
+        Defines the matching procedure for incoming receptions.
+        Three algorithms available: FullMatching (direct key lookup),
+        FullMatchingRegexReplace (regex transform then lookup),
+        RegexMatching (sequential regex matching with priority).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerMatching'
+      responses:
+        '201':
+          description: Matching configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [server-matching]
+      summary: Retrieve current server matching configuration
+      responses:
+        '200':
+          description: Matching configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMatching'
+
+  /admin/v1/server-matching/schema:
+    get:
+      tags: [server-matching]
+      summary: Retrieve the server matching schema
+      responses:
+        '200':
+          description: Schema retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/v1/server-provision:
+    post:
+      tags: [server-provision]
+      summary: Configure server provision(s)
+      description: >
+        Defines response behavior for incoming requests matching
+        conditions (method, uri) with programmable response (headers,
+        code, body) and optional transformation pipeline. Accepts a
+        single object or an array for bulk provisioning.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ServerProvision'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ServerProvision'
+      responses:
+        '201':
+          description: Provision(s) created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [server-provision]
+      summary: Retrieve all server provisions
+      responses:
+        '200':
+          description: Provisions retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServerProvision'
+        '204':
+          description: No provisions configured
+    delete:
+      tags: [server-provision]
+      summary: Delete all server provisions
+      responses:
+        '200':
+          description: Provisions deleted
+        '204':
+          description: No provisions to delete
+
+  /admin/v1/server-provision/schema:
+    get:
+      tags: [server-provision]
+      summary: Retrieve the server provision schema
+      responses:
+        '200':
+          description: Schema retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/v1/server-provision/unused:
+    get:
+      tags: [server-provision]
+      summary: Retrieve unused server provisions
+      description: >
+        Returns provisions that have not been matched yet. Useful for
+        troubleshooting unnecessary provisions during test development.
+      responses:
+        '200':
+          description: Unused provisions retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServerProvision'
+        '204':
+          description: No unused provisions
+
+  /admin/v1/server-data/configuration:
+    put:
+      tags: [server-data]
+      summary: Update server data storage configuration
+      description: >
+        Controls event storage behavior. Valid combinations:
+        discard=true&discardKeyHistory=true (nothing stored),
+        discard=false&discardKeyHistory=true (last event per key only),
+        discard=false&discardKeyHistory=false (full history).
+        disablePurge controls purge execution independently.
+      parameters:
+        - name: discard
+          in: query
+          schema:
+            type: boolean
+        - name: discardKeyHistory
+          in: query
+          schema:
+            type: boolean
+        - name: disablePurge
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Configuration updated
+        '400':
+          description: Invalid combination (discard=true with discardKeyHistory=false)
+    get:
+      tags: [server-data]
+      summary: Retrieve server data storage configuration
+      responses:
+        '200':
+          description: Configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStorageConfiguration'
+
+  /admin/v1/server-data:
+    get:
+      tags: [server-data]
+      summary: Retrieve server data events
+      description: >
+        Returns stored server events. Without parameters returns all data.
+        Filter by requestMethod+requestUri, optionally narrow with
+        eventNumber and eventPath. URI parameter may need URL-encoding
+        if it contains query parameters.
+      parameters:
+        - name: requestMethod
+          in: query
+          description: HTTP method filter (must be provided with requestUri)
+          schema:
+            type: string
+            enum: [POST, GET, PUT, DELETE, HEAD]
+        - name: requestUri
+          in: query
+          description: Request URI filter (URL-encoded if contains query params)
+          schema:
+            type: string
+        - name: eventNumber
+          in: query
+          description: "Event position: 1..N chronological, -1..-N reverse"
+          schema:
+            type: integer
+        - name: eventPath
+          in: query
+          description: JSON pointer path within the selected event
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data retrieved
+          content:
+            application/json:
+              schema: {}
+        '204':
+          description: No data found
+        '400':
+          description: Bad request (incomplete parameters)
+    delete:
+      tags: [server-data]
+      summary: Delete server data events
+      description: >
+        Deletes stored events. Without parameters deletes all.
+        Filter with requestMethod+requestUri, optionally eventNumber.
+      parameters:
+        - name: requestMethod
+          in: query
+          schema:
+            type: string
+            enum: [POST, GET, PUT, DELETE, HEAD]
+        - name: requestUri
+          in: query
+          schema:
+            type: string
+        - name: eventNumber
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Data deleted
+        '204':
+          description: No data to delete
+        '400':
+          description: Bad request
+
+  /admin/v1/server-data/summary:
+    get:
+      tags: [server-data]
+      summary: Retrieve server data summary
+      description: >
+        Returns summary information about stored events including
+        total keys, total events, and a limited list of displayed keys.
+      parameters:
+        - name: maxKeys
+          in: query
+          description: Maximum number of keys to display
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Summary retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDataSummary'
+
+  # ===== CLIENT MOCK =====
+
+  /admin/v1/client-endpoint:
+    post:
+      tags: [client-endpoint]
+      summary: Define client endpoint(s)
+      description: >
+        Defines client endpoint with remote server connection info.
+        Endpoints connect on creation (unless lazy mode). Accepts a
+        single object or an array for bulk configuration. Updating
+        host/port/secure on existing id returns 202 and reconnects.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ClientEndpoint'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ClientEndpoint'
+      responses:
+        '201':
+          description: Endpoint(s) created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '202':
+          description: Endpoint updated (connection re-created)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [client-endpoint]
+      summary: Retrieve client endpoints
+      description: >
+        Returns all configured client endpoints with an additional
+        status field indicating current connection status.
+      responses:
+        '200':
+          description: Endpoints retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientEndpoint'
+        '204':
+          description: No endpoints configured
+    delete:
+      tags: [client-endpoint]
+      summary: Delete all client endpoints
+      description: All connections will be closed and endpoints removed.
+      responses:
+        '200':
+          description: Endpoints deleted
+        '204':
+          description: No endpoints to delete
+
+  /admin/v1/client-endpoint/schema:
+    get:
+      tags: [client-endpoint]
+      summary: Retrieve the client endpoint schema
+      responses:
+        '200':
+          description: Schema retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/v1/client-provision:
+    post:
+      tags: [client-provision]
+      summary: Configure client provision(s)
+      description: >
+        Defines client request behavior identified by mandatory `id`
+        and optional `inState`. Includes request configuration,
+        transformation pipeline (pre-send and on-response), endpoint
+        selection, delays and timeouts. Accepts single or array.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ClientProvision'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ClientProvision'
+      responses:
+        '201':
+          description: Provision(s) created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [client-provision]
+      summary: Retrieve all client provisions
+      responses:
+        '200':
+          description: Provisions retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientProvision'
+        '204':
+          description: No provisions configured
+    delete:
+      tags: [client-provision]
+      summary: Delete all client provisions
+      responses:
+        '200':
+          description: Provisions deleted
+        '202':
+          description: Accepted
+        '204':
+          description: No provisions to delete
+
+  /admin/v1/client-provision/schema:
+    get:
+      tags: [client-provision]
+      summary: Retrieve the client provision schema
+      responses:
+        '200':
+          description: Schema retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/v1/client-provision/unused:
+    get:
+      tags: [client-provision]
+      summary: Retrieve unused client provisions
+      description: >
+        Returns provisions not yet triggered. Useful for troubleshooting.
+      responses:
+        '200':
+          description: Unused provisions retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientProvision'
+        '204':
+          description: No unused provisions
+
+  /admin/v1/client-provision/{id}:
+    get:
+      tags: [client-provision]
+      summary: Trigger client provision
+      description: >
+        Triggers a client provision by its identifier. Without extra
+        query parameters, sends a single request with sequence=0.
+        With sequenceBegin/sequenceEnd/rps, triggers multiple requests
+        at the specified rate for load testing.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Client provision identifier
+          schema:
+            type: string
+        - name: inState
+          in: query
+          description: Initial state (defaults to "initial")
+          schema:
+            type: string
+        - name: sequenceBegin
+          in: query
+          description: Start of sequence range (non-negative)
+          schema:
+            type: integer
+            minimum: 0
+        - name: sequenceEnd
+          in: query
+          description: End of sequence range (non-negative)
+          schema:
+            type: integer
+            minimum: 0
+        - name: rps
+          in: query
+          description: "Requests per second (0 to stop)"
+          schema:
+            type: integer
+            minimum: 0
+        - name: repeat
+          in: query
+          description: Repeat range once exhausted
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Single request triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '202':
+          description: Multiple requests triggered (range mode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '404':
+          description: Provision not found
+
+  /admin/v1/client-data/configuration:
+    put:
+      tags: [client-data]
+      summary: Update client data storage configuration
+      description: >
+        Same storage behavior as server-data configuration. Key includes
+        clientEndpointId in addition to method and uri. Purge operates
+        over provision id and current sequence.
+      parameters:
+        - name: discard
+          in: query
+          schema:
+            type: boolean
+        - name: discardKeyHistory
+          in: query
+          schema:
+            type: boolean
+        - name: disablePurge
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Configuration updated
+        '400':
+          description: Invalid combination
+    get:
+      tags: [client-data]
+      summary: Retrieve client data storage configuration
+      responses:
+        '200':
+          description: Configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStorageConfiguration'
+
+  /admin/v1/client-data:
+    get:
+      tags: [client-data]
+      summary: Retrieve client data events
+      description: >
+        Returns stored client events. Without parameters returns all.
+        Filter by clientEndpointId+requestMethod+requestUri (all three
+        required together), optionally narrow with eventNumber and
+        eventPath.
+      parameters:
+        - name: clientEndpointId
+          in: query
+          description: Client endpoint identifier
+          schema:
+            type: string
+        - name: requestMethod
+          in: query
+          schema:
+            type: string
+            enum: [POST, GET, PUT, DELETE, HEAD]
+        - name: requestUri
+          in: query
+          description: Request URI (URL-encoded if contains query params)
+          schema:
+            type: string
+        - name: eventNumber
+          in: query
+          description: "Event position: 1..N chronological, -1..-N reverse"
+          schema:
+            type: integer
+        - name: eventPath
+          in: query
+          description: JSON pointer path within the selected event
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data retrieved
+          content:
+            application/json:
+              schema: {}
+        '204':
+          description: No data found
+        '400':
+          description: Bad request (incomplete parameters)
+    delete:
+      tags: [client-data]
+      summary: Delete client data events
+      description: >
+        Deletes stored events. Without parameters deletes all.
+        Filter with clientEndpointId+requestMethod+requestUri,
+        optionally eventNumber.
+      parameters:
+        - name: clientEndpointId
+          in: query
+          schema:
+            type: string
+        - name: requestMethod
+          in: query
+          schema:
+            type: string
+            enum: [POST, GET, PUT, DELETE, HEAD]
+        - name: requestUri
+          in: query
+          schema:
+            type: string
+        - name: eventNumber
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Data deleted
+        '204':
+          description: No data to delete
+        '400':
+          description: Bad request
+
+  /admin/v1/client-data/summary:
+    get:
+      tags: [client-data]
+      summary: Retrieve client data summary
+      description: >
+        Returns summary with total keys, total events, and a limited
+        list of displayed keys (clientEndpointId/method/uri).
+      parameters:
+        - name: maxKeys
+          in: query
+          description: Maximum number of keys to display
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Summary retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDataSummary'
+
+
+components:
+  schemas:
+    ResultResponse:
+      type: object
+      properties:
+        result:
+          type: boolean
+        response:
+          type: string
+
+    SchemaConfig:
+      type: object
+      required: [id, schema]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: Schema unique identifier (overwritten if exists)
+        schema:
+          type: object
+          description: JSON Schema definition content
+
+    GlobalVariableMap:
+      type: object
+      description: Key-value pairs where all values are strings
+      additionalProperties: false
+      patternProperties:
+        ^.*$:
+          anyOf:
+            - type: string
+
+    FileInfo:
+      type: object
+      properties:
+        bytes:
+          type: integer
+        closeDelayUsecs:
+          type: integer
+        path:
+          type: string
+        state:
+          type: string
+          enum: [opened, closed, missing]
+
+    LogLevel:
+      type: string
+      enum:
+        - Debug
+        - Informational
+        - Notice
+        - Warning
+        - Error
+        - Critical
+        - Alert
+        - Emergency
+
+    GeneralConfiguration:
+      type: object
+      properties:
+        longTermFilesCloseDelayUsecs:
+          type: integer
+        shortTermFilesCloseDelayUsecs:
+          type: integer
+        lazyClientConnection:
+          type: boolean
+
+    ServerConfiguration:
+      type: object
+      properties:
+        preReserveRequestBody:
+          type: boolean
+        receiveRequestBody:
+          type: boolean
+
+    ServerMatching:
+      type: object
+      required: [algorithm]
+      additionalProperties: false
+      properties:
+        algorithm:
+          type: string
+          enum: [FullMatching, FullMatchingRegexReplace, RegexMatching]
+          description: >
+            FullMatching: direct key lookup (default, best performance).
+            FullMatchingRegexReplace: regex transform then lookup (requires rgx+fmt).
+            RegexMatching: sequential regex matching with priority order.
+        rgx:
+          type: string
+          description: Regex pattern (required for FullMatchingRegexReplace)
+        fmt:
+          type: string
+          description: Format specifier for regex replace (required for FullMatchingRegexReplace)
+        uriPathQueryParameters:
+          type: object
+          additionalProperties: false
+          properties:
+            filter:
+              type: string
+              enum: [Sort, PassBy, Ignore]
+              description: >
+                Sort (default): sorts query parameters for predictable matching.
+                PassBy: uses query parameters as received.
+                Ignore: removes query parameters from classification.
+            separator:
+              type: string
+              enum: [Ampersand, Semicolon]
+              description: "Query parameter separator (default: Ampersand)"
+          required: [filter]
+
+    TransformFilter:
+      type: object
+      additionalProperties: false
+      description: >
+        Optional filter applied over source before storing in target.
+        Exactly one filter type must be specified.
+      properties:
+        RegexCapture:
+          type: string
+          description: Regex with optional capture groups applied to source
+        RegexReplace:
+          type: object
+          additionalProperties: false
+          required: [rgx, fmt]
+          properties:
+            rgx:
+              type: string
+            fmt:
+              type: string
+        Append:
+          type: string
+          description: String appended to source (admits variable substitution)
+        Prepend:
+          type: string
+          description: String prepended to source (admits variable substitution)
+        Sum:
+          type: number
+          description: Added to numeric source (negative/float allowed)
+        Multiply:
+          type: number
+          description: Multiplied with numeric source (negative/<1 allowed)
+        ConditionVar:
+          type: string
+          pattern: '^!?.*$'
+          description: >
+            Conditional transfer based on variable boolean interpretation.
+            Prefix with ! to invert condition.
+        EqualTo:
+          type: string
+          description: Conditional transfer if source equals value (admits variable substitution)
+        DifferentFrom:
+          type: string
+          description: Conditional transfer if source differs from value (admits variable substitution)
+        JsonConstraint:
+          type: object
+          description: JSON object subset validation against source
+        SchemaId:
+          type: string
+          description: Registered schema identifier for JSON schema validation
+
+    ServerTransformItem:
+      type: object
+      required: [source, target]
+      minProperties: 2
+      maxProperties: 3
+      properties:
+        source:
+          type: string
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+)$|^response\.body(\..+)?$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^recvseq$|^(var|globalVar|serverEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          description: >
+            Data source expression. Examples: request.uri, request.body,
+            request.body./path, request.header.<name>, response.body,
+            eraser, math.<expr>, random.<min>.<max>, randomset.<values>,
+            timestamp.<unit>, strftime.<fmt>, recvseq, var.<id>,
+            globalVar.<id>, value.<val>, serverEvent.<params>,
+            inState, txtFile.<path>, binFile.<path>, command.<cmd>
+        target:
+          type: string
+          pattern: '^response\.body\.(string$|hexstring$)|^response\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^response\.(header\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\..+|^outState(\.(POST|GET|PUT|DELETE|HEAD)(\..+)?)?$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
+          description: >
+            Data target expression. Examples: response.body.string,
+            response.body.json.object./path, response.header.<name>,
+            response.statusCode, response.delayMs, var.<id>,
+            globalVar.<id>, outState, txtFile.<path>, binFile.<path>,
+            udpSocket.<path>, serverEvent.<params>, break
+      additionalProperties:
+        $ref: '#/components/schemas/TransformFilter'
+
+    ServerProvision:
+      type: object
+      required: [requestMethod, responseCode]
+      additionalProperties: false
+      properties:
+        inState:
+          type: string
+          pattern: '^[^#]*$'
+          description: "Input state for FSM (default: 'initial')"
+        outState:
+          type: string
+          pattern: '^[^#]*$'
+          description: "Output state for FSM (default: 'initial'). Use 'purge' to clean event history."
+        requestMethod:
+          type: string
+          enum: [POST, GET, PUT, DELETE, HEAD]
+        requestUri:
+          type: string
+          description: URI to match (empty string = default/fallback provision)
+        requestSchemaId:
+          type: string
+          description: Schema id to validate incoming request body
+        responseHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        responseCode:
+          type: integer
+          description: "HTTP status code (>=100) or HTTP/2 stream error code (<100)"
+        responseBody:
+          description: Response body (any JSON type)
+          anyOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: integer
+            - type: number
+            - type: boolean
+            - type: 'null'
+        responseDelayMs:
+          type: integer
+          description: Response delay in milliseconds
+        responseSchemaId:
+          type: string
+          description: Schema id to validate built response body
+        transform:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ServerTransformItem'
+
+    ClientEndpoint:
+      type: object
+      required: [id, host, port]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          pattern: '^[^#]*$'
+          description: Endpoint unique identifier
+        host:
+          type: string
+        port:
+          type: integer
+          minimum: 0
+          maximum: 65536
+        secure:
+          type: boolean
+          description: "Use HTTPS (default: false)"
+        permit:
+          type: boolean
+          description: "Process requests through this endpoint (default: true)"
+
+    ClientRequestTransformItem:
+      type: object
+      required: [source, target]
+      minProperties: 2
+      maxProperties: 3
+      properties:
+        source:
+          type: string
+          pattern: '^request\.(uri|body(\..+)?|header\..+)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          description: >
+            Data source for request transformation. Examples: request.uri,
+            request.body, eraser, math.<expr>, random.<min>.<max>,
+            randomset.<values>, timestamp.<unit>, strftime.<fmt>,
+            sendseq, seq, var.<id>, globalVar.<id>, clientEvent.<params>,
+            value.<val>, inState, txtFile.<path>, binFile.<path>,
+            command.<cmd>
+        target:
+          type: string
+          pattern: '^request\.body\.(string$|hexstring$)|^request\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^request\.(header\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+'
+          description: >
+            Data target for request transformation. Examples:
+            request.body.string, request.body.json.object./path,
+            request.header.<name>, request.delayMs, request.timeoutMs,
+            var.<id>, globalVar.<id>, clientEvent.<params>, outState,
+            txtFile.<path>, binFile.<path>, udpSocket.<path>
+      additionalProperties:
+        $ref: '#/components/schemas/TransformFilter'
+
+    ClientResponseTransformItem:
+      type: object
+      required: [source, target]
+      minProperties: 2
+      maxProperties: 3
+      properties:
+        source:
+          type: string
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+)$|^response\.(body(\..+)?|header\..+|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          description: >
+            Data source for response transformation. Includes all
+            request transform sources plus: response.body, response.body./path,
+            response.header.<name>, response.statusCode, request.uri.path,
+            request.uri.param.<name>
+        target:
+          type: string
+          pattern: '^(var|globalVar|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
+          description: >
+            Data target for response transformation. Examples:
+            var.<id>, globalVar.<id>, clientEvent.<params>, outState,
+            txtFile.<path>, binFile.<path>, udpSocket.<path>, break
+      additionalProperties:
+        $ref: '#/components/schemas/TransformFilter'
+
+    ClientProvision:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          pattern: '^[^#]*$'
+          description: Client provision identifier
+        inState:
+          type: string
+          pattern: '^[^#]*$'
+          description: "Input state for scenario FSM (default: 'initial')"
+        outState:
+          type: string
+          pattern: '^[^#]*$'
+          description: "Output state (default: 'road-closed'). Use 'purge' to clean scenario history."
+        endpoint:
+          type: string
+          pattern: '^[^#]*$'
+          description: Client endpoint identifier to use
+        requestMethod:
+          type: string
+          enum: [POST, GET, PUT, DELETE, HEAD]
+        requestUri:
+          type: string
+          description: Request URI template (typically completed by transformations)
+        requestSchemaId:
+          type: string
+          description: Schema id to validate built request body
+        requestHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        requestBody:
+          description: Request body template (any JSON type)
+          anyOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: integer
+            - type: number
+            - type: boolean
+            - type: 'null'
+        requestDelayMs:
+          type: integer
+          description: Delay before sending in milliseconds
+        timeoutMs:
+          type: integer
+          description: Response timeout in milliseconds
+        responseSchemaId:
+          type: string
+          description: Schema id to validate received response body
+        transform:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ClientRequestTransformItem'
+          description: Transformations applied before sending the request
+        onResponseTransform:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ClientResponseTransformItem'
+          description: Transformations applied after receiving the response
+
+    DataStorageConfiguration:
+      type: object
+      properties:
+        purgeExecution:
+          type: boolean
+          description: Whether purge state triggers event removal
+        storeEvents:
+          type: boolean
+          description: Whether events are stored
+        storeEventsKeyHistory:
+          type: boolean
+          description: Whether full event history per key is stored
+
+    ServerDataSummary:
+      type: object
+      properties:
+        displayedKeys:
+          type: object
+          properties:
+            amount:
+              type: integer
+            list:
+              type: array
+              items:
+                type: object
+                properties:
+                  amount:
+                    type: integer
+                  method:
+                    type: string
+                  uri:
+                    type: string
+        totalEvents:
+          type: integer
+        totalKeys:
+          type: integer
+
+    ClientDataSummary:
+      type: object
+      properties:
+        displayedKeys:
+          type: object
+          properties:
+            amount:
+              type: integer
+            list:
+              type: array
+              items:
+                type: object
+                properties:
+                  amount:
+                    type: integer
+                  clientEndpointId:
+                    type: string
+                  method:
+                    type: string
+                  uri:
+                    type: string
+        totalEvents:
+          type: integer
+        totalKeys:
+          type: integer
