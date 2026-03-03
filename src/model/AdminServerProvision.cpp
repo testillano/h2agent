@@ -396,6 +396,13 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setString(std::move(output));
         break;
     }
+    // Not applicable in server context:
+    case Transformation::SourceType::Sendseq:
+    case Transformation::SourceType::Seq:
+    case Transformation::SourceType::ClientEvent:
+    case Transformation::SourceType::ResponseHeader:
+    case Transformation::SourceType::ResponseStatusCode:
+        return false;
     }
 
 
@@ -1088,6 +1095,10 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         case Transformation::TargetType::RequestBodyJson_Boolean:
         case Transformation::TargetType::RequestBodyJson_Object:
         case Transformation::TargetType::RequestBodyJson_JsonString:
+        case Transformation::TargetType::RequestHeader_t:
+        case Transformation::TargetType::RequestDelayMs:
+        case Transformation::TargetType::RequestTimeoutMs:
+        case Transformation::TargetType::ClientEventToPurge:
             break;
         }
     }

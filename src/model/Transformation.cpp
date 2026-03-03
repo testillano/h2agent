@@ -562,7 +562,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // CLIENT MODE ADDITIONAL TARGET TYPES:
     else if (std::regex_match(targetSpec, matches, requestHeader_target)) { // request header name
         target_ = matches.str(1);
-        target_type_ = TargetType::RequestHeader;
+        target_type_ = TargetType::RequestHeader_t;
     }
     else if (targetSpec == "request.delayMs") {
         target_type_ = TargetType::RequestDelayMs;

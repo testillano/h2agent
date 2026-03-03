@@ -42,6 +42,8 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <ert/http2comm/Http2Client.hpp>
+
 #include <AdminSchema.hpp>
 #include <Transformation.hpp>
 #include <TypeConverter.hpp>
@@ -116,41 +118,37 @@ class AdminClientProvision
 
     void saveDynamics();
 
-    /*
-        // Three processing stages: get sources, apply filters and store targets:
-        bool processSources(std::shared_ptr<Transformation> transformation,
-                            TypeConverter& sourceVault,
-                            std::map<std::string, std::string>& variables,
-                            const std::string &requestUri,
-                            const std::string &requestUriPath,
-                            const std::map<std::string, std::string> &requestQueryParametersMap,
-                            const DataPart &requestBodyDataPart,
-                            const nghttp2::asio_http2::header_map &requestHeaders,
-                            bool &eraser,
-                            std::uint64_t generalUniqueServerSequence) const;
+    // Three processing stages: get sources, apply filters and store targets:
+    // When receivedResponse is not nullptr, response.* sources are available (post-response phase)
+    bool processSources(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        std::map<std::string, std::string>& variables,
+                        const std::string &requestUri,
+                        const nghttp2::asio_http2::header_map &requestHeaders,
+                        bool &eraser,
+                        std::uint64_t generalUniqueClientSequence,
+                        bool usesRequestBodyAsTransformationJsonTarget, const nlohmann::json &requestBodyJson,
+                        const ert::http2comm::Http2Client::response *receivedResponse = nullptr) const;
 
-        bool processFilters(std::shared_ptr<Transformation> transformation,
-                            TypeConverter& sourceVault,
-                            const std::map<std::string, std::string>& variables,
-                            std::smatch &matches,
-                            std::string &source,
-                            bool eraser) const;
+    bool processFilters(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        const std::map<std::string, std::string>& variables,
+                        std::smatch &matches,
+                        std::string &source) const;
 
-        bool processTargets(std::shared_ptr<Transformation> transformation,
-                            TypeConverter& sourceVault,
-                            std::map<std::string, std::string>& variables,
-                            const std::smatch &matches,
-                            bool eraser,
-                            bool hasFilter,
-                            unsigned int &responseStatusCode,
-                            nlohmann::json &responseBodyJson, // to manipulate json
-                            std::string &responseBodyAsString, // to set native data (readable or not)
-                            nghttp2::asio_http2::header_map &responseHeaders,
-                            unsigned int &responseDelayMs,
-                            std::string &outState,
-                            std::string &outStateMethod,
-                            std::string &outStateUri) const;
-    */
+    bool processTargets(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        std::map<std::string, std::string>& variables,
+                        const std::smatch &matches,
+                        bool eraser,
+                        bool hasFilter,
+                        nlohmann::json &requestBodyJson,
+                        std::string &requestBodyAsString,
+                        nghttp2::asio_http2::header_map &requestHeaders,
+                        unsigned int &requestDelayMs,
+                        unsigned int &requestTimeoutMs,
+                        std::string &outState,
+                        bool &breakCondition) const;
 
 
 public:
@@ -304,6 +302,15 @@ public:
      */
     const std::string &getClientEndpointId() const {
         return client_endpoint_id_;
+    }
+
+    /**
+     * Provisioned in state
+     *
+     * @return In state
+     */
+    const std::string &getInState() const {
+        return in_state_;
     }
 
     /**
