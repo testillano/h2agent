@@ -218,6 +218,8 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
     static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
     static std::regex serverEvent("^serverEvent.(.*)", std::regex::optimize);
+    static std::regex clientEvent("^clientEvent.(.*)", std::regex::optimize);
+    static std::regex responseHeader_source("^response.header.(.*)", std::regex::optimize);
     static std::regex txtFile("^txtFile.(.*)", std::regex::optimize);
     static std::regex binFile("^binFile.(.*)", std::regex::optimize);
     static std::regex command("^command.(.*)", std::regex::optimize);
@@ -289,6 +291,12 @@ bool Transformation::load(const nlohmann::json &j) {
     else if (sourceSpec == "recvseq") {
         source_type_ = SourceType::Recvseq;
     }
+    else if (sourceSpec == "sendseq") {
+        source_type_ = SourceType::Sendseq;
+    }
+    else if (sourceSpec == "seq") {
+        source_type_ = SourceType::Seq;
+    }
     else if (std::regex_match(sourceSpec, matches, varId)) { // variable id
         source_ = matches.str(1);
         source_type_ = SourceType::SVar;
@@ -312,6 +320,25 @@ bool Transformation::load(const nlohmann::json &j) {
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
+    }
+    else if (std::regex_match(sourceSpec, matches, clientEvent)) { // client event data
+        source_ = matches.str(1); // i.e. clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/app/v1/foo/bar&eventNumber=3&eventPath=/responseBody
+        source_type_ = SourceType::ClientEvent;
+        std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
+        std::map<std::string, std::string>::const_iterator it;
+        for (auto const & qp: {
+        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath"
+    }) { // tokenized vector order
+            it = qmap.find(qp);
+            source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
+        }
+    }
+    else if (sourceSpec == "response.statusCode") {
+        source_type_ = SourceType::ResponseStatusCode;
+    }
+    else if (std::regex_match(sourceSpec, matches, responseHeader_source)) { // response header name
+        source_ = matches.str(1);
+        source_type_ = SourceType::ResponseHeader;
     }
     else if (sourceSpec == "inState") {
         source_type_ = SourceType::InState;
@@ -339,7 +366,7 @@ bool Transformation::load(const nlohmann::json &j) {
     //    return false;
     //}
 
-    // TARGET (enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break };)
+    // TARGET (enum TargetType { ResponseBodyString = 0, ..., ResponseHeader_t, ResponseStatusCode_t, ..., RequestHeader, RequestDelayMs, RequestTimeoutMs, ClientEventToPurge };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
     target2_ = ""; // same
 
@@ -414,6 +441,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex requestBodyJson_JsonStringNode("^request.body.json.jsonstring.(.*)", std::regex::optimize);
 
     // Only target
+    static std::regex requestHeader_target("^request.header.(.*)", std::regex::optimize);
     static std::regex udpSocket("^udpSocket.(.*)", std::regex::optimize);
 
     // no need to try (controlled regex)
@@ -531,12 +559,24 @@ bool Transformation::load(const nlohmann::json &j) {
         target_type_ = TargetType::RequestBodyJson_JsonString;
     }
 
+    // CLIENT MODE ADDITIONAL TARGET TYPES:
+    else if (std::regex_match(targetSpec, matches, requestHeader_target)) { // request header name
+        target_ = matches.str(1);
+        target_type_ = TargetType::RequestHeader;
+    }
+    else if (targetSpec == "request.delayMs") {
+        target_type_ = TargetType::RequestDelayMs;
+    }
+    else if (targetSpec == "request.timeoutMs") {
+        target_type_ = TargetType::RequestTimeoutMs;
+    }
+
     else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
         target_ = matches.str(1);
-        target_type_ = TargetType::ResponseHeader;
+        target_type_ = TargetType::ResponseHeader_t;
     }
     else if (targetSpec == "response.statusCode") {
-        target_type_ = TargetType::ResponseStatusCode;
+        target_type_ = TargetType::ResponseStatusCode_t;
     }
     else if (targetSpec == "response.delayMs") {
         target_type_ = TargetType::ResponseDelayMs;
@@ -584,6 +624,18 @@ bool Transformation::load(const nlohmann::json &j) {
             target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
     }
+    else if (std::regex_match(targetSpec, matches, clientEvent)) { // client event purge
+        target_ = matches.str(1); // i.e. clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/app/v1/foo/bar&eventNumber=3
+        target_type_ = TargetType::ClientEventToPurge;
+        std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
+        std::map<std::string, std::string>::const_iterator it;
+        for (auto const & qp: {
+        "clientEndpointId", "requestMethod", "requestUri", "eventNumber"
+    }) { // tokenized vector order
+            it = qmap.find(qp);
+            target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
+        }
+    }
     else if (targetSpec == "break") {
         target_type_ = TargetType::Break;
     }
@@ -616,7 +668,7 @@ std::string Transformation::asString() const {
 
     // SOURCE
     ss << "SourceType: " << SourceTypeAsText(source_type_);
-    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::Recvseq && source_type_ != SourceType::InState) {
+    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::Recvseq && source_type_ != SourceType::Sendseq && source_type_ != SourceType::Seq && source_type_ != SourceType::InState && source_type_ != SourceType::ResponseStatusCode) {
         ss << " | source_: " << source_;
 
         if (source_type_ == SourceType::RequestBody || source_type_ == SourceType::ResponseBody) {
@@ -625,7 +677,7 @@ std::string Transformation::asString() const {
         else if (source_type_ == SourceType::Random) {
             ss << " | source_i1_: " << source_i1_ << " (Random min)" << " | source_i2_: " << source_i2_ << " (Random max)";
         }
-        else if (source_type_ == SourceType::RandomSet || source_type_ == SourceType::ServerEvent) {
+        else if (source_type_ == SourceType::RandomSet || source_type_ == SourceType::ServerEvent || source_type_ == SourceType::ClientEvent) {
             ss << " | source_tokenized_:";
             for(auto it: source_tokenized_) {
                 ss << " '" << it << "'";
@@ -648,14 +700,19 @@ std::string Transformation::asString() const {
 
     // TARGET
     ss << " | TargetType: " << TargetTypeAsText(target_type_);
-    if (target_type_ != TargetType::ResponseStatusCode &&
+    if (target_type_ != TargetType::ResponseStatusCode_t &&
             target_type_ != TargetType::ResponseDelayMs &&
             target_type_ != TargetType::ResponseBodyString &&
-            target_type_ != TargetType::ResponseBodyHexString ) {
+            target_type_ != TargetType::ResponseBodyHexString &&
+            target_type_ != TargetType::RequestDelayMs &&
+            target_type_ != TargetType::RequestTimeoutMs &&
+            target_type_ != TargetType::RequestBodyString &&
+            target_type_ != TargetType::RequestBodyHexString ) {
 
         ss << " | target_: " << target_;
 
-        if (target_type_ == TargetType::ResponseBodyJson_String || target_type_ == TargetType::ResponseBodyJson_Integer || target_type_ == TargetType::ResponseBodyJson_Unsigned || target_type_ == TargetType::ResponseBodyJson_Float || target_type_ == TargetType::ResponseBodyJson_Boolean || target_type_ == TargetType::ResponseBodyJson_Object) {
+        if (target_type_ == TargetType::ResponseBodyJson_String || target_type_ == TargetType::ResponseBodyJson_Integer || target_type_ == TargetType::ResponseBodyJson_Unsigned || target_type_ == TargetType::ResponseBodyJson_Float || target_type_ == TargetType::ResponseBodyJson_Boolean || target_type_ == TargetType::ResponseBodyJson_Object ||
+                target_type_ == TargetType::RequestBodyJson_String || target_type_ == TargetType::RequestBodyJson_Integer || target_type_ == TargetType::RequestBodyJson_Unsigned || target_type_ == TargetType::RequestBodyJson_Float || target_type_ == TargetType::RequestBodyJson_Boolean || target_type_ == TargetType::RequestBodyJson_Object) {
             ss << " (empty: whole, path: node)";
         }
         else if (target_type_ == TargetType::OutState) {

@@ -852,7 +852,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             break;
         }
-        case Transformation::TargetType::ResponseHeader:
+        case Transformation::TargetType::ResponseHeader_t:
         {
             // extraction
             targetS = sourceVault.getString(success);
@@ -861,7 +861,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             responseHeaders.emplace(target, nghttp2::asio_http2::header_value{targetS});
             break;
         }
-        case Transformation::TargetType::ResponseStatusCode:
+        case Transformation::TargetType::ResponseStatusCode_t:
         {
             // extraction
             targetU = sourceVault.getUnsigned(success);
