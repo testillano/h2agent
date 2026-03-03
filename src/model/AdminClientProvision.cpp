@@ -280,6 +280,17 @@ void AdminClientProvision::transformResponse( const std::string &requestUri,
             continue;
         }
     }
+
+    // Response schema validation:
+    if (getResponseSchema()) {
+        nlohmann::json responseJson;
+        if (h2agent::model::parseJsonContent(receivedResponse.body, responseJson)) {
+            std::string error{};
+            if (!getResponseSchema()->validate(responseJson, error)) {
+                ert::tracing::Logger::error(ert::tracing::Logger::asString("Response schema validation failed: %s", error.c_str()), ERT_FILE_LOCATION);
+            }
+        }
+    }
 }
 
 bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transformation,
