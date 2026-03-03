@@ -561,10 +561,12 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server/configuration") {
+        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         responseBody = getHttp2Server()->configurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-data/configuration") {
+        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         responseBody = getHttp2Server()->dataConfigurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
@@ -716,6 +718,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         //);
     }
     else if (pathSuffix == "server/configuration") {
+        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         std::string receiveRequestBody;
         std::string preReserveRequestBody;
 
@@ -776,6 +779,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
 
         bool serverMode = (pathSuffix == "server-data/configuration"); // true: server mode, false: client mode
+        if (serverMode && !getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         const char *mode = (serverMode ? "server":"client");
 
         if (success) {

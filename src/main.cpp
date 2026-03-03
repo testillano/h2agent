@@ -889,6 +889,10 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myMockServerData = new h2agent::model::MockServerData();
     myMockClientData = new h2agent::model::MockClientData();
 
+    // Always set mock data on admin server (needed even when traffic server is disabled, e.g. client-only mode):
+    myAdminHttp2Server->setMockServerData(myMockServerData);
+    myAdminHttp2Server->setMockClientData(myMockClientData);
+
     // Traffic server
     if (traffic_server_enabled) {
         myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server("h2agent_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
@@ -898,11 +902,10 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
 
         myTrafficHttp2Server->setMockServerData(myMockServerData);
-        myAdminHttp2Server->setMockServerData(myMockServerData); // stored at administrative class to pass through created server provisions
+        // myAdminHttp2Server->setMockServerData already called above (unconditionally)
 
         myTrafficHttp2Server->setMockClientData(myMockClientData);
-        myAdminHttp2Server->setMockClientData(myMockClientData); // stored at administrative class to pass through created client provisions
-
+        // myAdminHttp2Server->setMockClientData already called above (unconditionally)
         myTrafficHttp2Server->setGlobalVariable(myGlobalVariable); // used by responseDelayMs()
     }
 

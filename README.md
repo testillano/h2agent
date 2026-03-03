@@ -604,7 +604,23 @@ Reference:
 
 
 
-Load testing is done with both [h2load](https://nghttp2.org/documentation/h2load-howto.html) and [hermes](https://github.com/jgomezselles/hermes) utilities using the helper script `benchmark/start.sh` (check `-h|--help` for more information). Client capabilities benchmarking is done towards the `h2agent` itself, so we also could select `h2agent` with a simple client provision to work as the former utilities.
+Load testing is done with [h2load](https://nghttp2.org/documentation/h2load-howto.html), [hermes](https://github.com/jgomezselles/hermes) and `h2agent` itself (client mode) using the helper script `benchmark/start.sh` (check `-h|--help` for more information). The available launchers are:
+
+* **h2load**: uses the `nghttp2` load testing tool. Requires `h2load` in `PATH`.
+* **hermes**: uses the [hermes](https://github.com/jgomezselles/hermes) Docker image. Requires Docker.
+* **h2client**: starts a second `h2agent` instance in client-only mode (`--traffic-server-port -1`) on a separate admin port (default `8075`), configures a client endpoint pointing to the server `h2agent`, and drives load via the timer-based client provision trigger (`rps` + `sequenceEnd`). Polls `client-data` to track progress and reports actual throughput. Requires `h2agent` in `PATH`.
+
+  The client uses a single `boost::asio::steady_timer` that fires one request per tick at `1.000.000/rps` microsecond intervals. The practical throughput limit is around **15.000–20.000 req/s**, depending on:
+  - CPU speed and number of cores available to the OS scheduler.
+  - OS timer resolution (typically ~100µs on Linux; finer intervals increase jitter).
+  - Round-trip latency to the server (responses are processed asynchronously and do not block the timer).
+
+  Beyond ~20.000 req/s the timer fires less frequently than requested and the achieved rate saturates. For higher loads, use `h2load` (concurrent streams, no timer overhead).
+
+  Example (non-interactive):
+  ```bash
+  $ ST_LAUNCHER=h2client H2CLIENT__RPS=10000 H2CLIENT__ITERATIONS=100000 benchmark/start.sh -y
+  ```
 
 Also, `benchmark/repeat.sh` script repeats a previous execution (last by default) in headless mode.
 
@@ -713,7 +729,7 @@ Server data configuration:
 
 Removing current server data information ... done !
 
-Input Launcher type (h2load|hermes)
+Input Launcher type (h2load|hermes|h2client)
  (or set 'ST_LAUNCHER' to be non-interactive) [h2load]: h2load
 
 Input Number of h2load iterations

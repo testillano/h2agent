@@ -123,7 +123,7 @@ class AdminClientProvision
     boost::asio::steady_timer *timer_{};
     boost::asio::io_context *io_context_{};
     std::function<void()> tick_callback_{};
-    void scheduleTick();
+    void scheduleTick(bool first = true);
 
     void saveDynamics();
 

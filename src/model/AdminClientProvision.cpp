@@ -1007,18 +1007,20 @@ void AdminClientProvision::stopTicking() {
     tick_callback_ = nullptr;
 }
 
-void AdminClientProvision::scheduleTick() {
+void AdminClientProvision::scheduleTick(bool first) {
     if (!timer_ || rps_ == 0) {
         stopTicking();
         return;
     }
 
     auto period = std::chrono::microseconds(1000000 / rps_);
-    timer_->expires_after(period);
+    if (first)
+        timer_->expires_after(period);               // first tick: relative to now
+    else
+        timer_->expires_at(timer_->expiry() + period); // subsequent: anchored, no drift
+
     timer_->async_wait([this](const boost::system::error_code &ec) {
         if (ec) return; // cancelled
-
-        if (tick_callback_) tick_callback_();
 
         seq_++;
         saveDynamics();
@@ -1030,11 +1032,13 @@ void AdminClientProvision::scheduleTick() {
             }
             else {
                 stopTicking();
+                if (tick_callback_) tick_callback_();
                 return;
             }
         }
 
-        scheduleTick();
+        scheduleTick(false); // schedule next BEFORE callback to avoid drift
+        if (tick_callback_) tick_callback_();
     });
 }
 
