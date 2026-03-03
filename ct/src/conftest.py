@@ -45,6 +45,8 @@ ADMIN_SERVER_MATCHING_URI = ADMIN_URI_PREFIX + 'server-matching'
 ADMIN_SERVER_PROVISION_URI = ADMIN_URI_PREFIX + 'server-provision'
 ADMIN_SERVER_DATA_URI = ADMIN_URI_PREFIX + 'server-data'
 ADMIN_CLIENT_ENDPOINT_URI = ADMIN_URI_PREFIX + 'client-endpoint'
+ADMIN_CLIENT_PROVISION_URI = ADMIN_URI_PREFIX + 'client-provision'
+ADMIN_CLIENT_DATA_URI = ADMIN_URI_PREFIX + 'client-data'
 
 #########
 # HOOKS #
@@ -368,6 +370,8 @@ def admin_cleanup(h2ac_admin):
     response = h2ac_admin.delete(ADMIN_SERVER_PROVISION_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI)
     response = h2ac_admin.delete(ADMIN_CLIENT_ENDPOINT_URI)
+    response = h2ac_admin.delete(ADMIN_CLIENT_PROVISION_URI)
+    response = h2ac_admin.delete(ADMIN_CLIENT_DATA_URI)
 
     if matchingFile:
       response = h2ac_admin.post(ADMIN_SERVER_MATCHING_URI, files(matchingFile, callerDistance = 3))
