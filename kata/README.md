@@ -9,36 +9,55 @@ Check project [README.md](../README.md#Prepare-the-environment).
 Under `./kata` directory you will find a problem for every subdirectory available. Inside each one, a `README.md` file contains the introduction/explanation for the specific problem and the question statement.
 Solutions are available at git branch `kata-solutions` (`SOLUTION.md` within each exercise directory), but ... try to solve everything by your own before checkout !
 
+Exercise categories:
+
+- `server`: exercises focused on server-side provisions and matching algorithms.
+- `client`: exercises focused on client-side provisions and transforms.
+- `client+server`: exercises requiring both client and server provisions.
+- `break`: fun demos with no missing files to complete — just run and enjoy!
+
 Exercises documentation links:
 
-[1 Matching Algorithms I (FullMatching)](./01.Matching_Algorithms_I____FullMatching/README.md)
+[1 (server) Matching Algorithms I (FullMatching)](./01.server.Matching_Algorithms_I____FullMatching/README.md)
 
-[2 Matching Algorithms II (FullMatchingRegexReplace)](./02.Matching_Algorithms_II___FullMatchingRegexReplace/README.md)
+[2 (server) Matching Algorithms II (FullMatchingRegexReplace)](./02.server.Matching_Algorithms_II___FullMatchingRegexReplace/README.md)
 
-[3 Matching Algorithms III (RegexMatching)](./03.Matching_Algorithms_III__RegexMatching/README.md)
+[3 (server) Matching Algorithms III (RegexMatching)](./03.server.Matching_Algorithms_III__RegexMatching/README.md)
 
-[4 Capture Regular Expression](./04.Capture_Regular_Expression/README.md)
+[4 (server) Capture Regular Expression](./04.server.Capture_Regular_Expression/README.md)
 
-[5 The Anarchy Of States](./05.The_Anarchy_Of_States/README.md)
+[5 (server) The Anarchy Of States](./05.server.The_Anarchy_Of_States/README.md)
 
-[6 Rock Paper Scissors (Break Time)](./06.Rock_Paper_Scissors__Break_Time/README.md)
+[6 (break) Rock Paper Scissors](./06.break.Rock_Paper_Scissors/README.md)
 
-[7 Only Those Who Wander Find New Paths](./07.Only_Those_Who_Wander_Find_New_Paths/README.md)
+[7 (server) Only Those Who Wander Find New Paths](./07.server.Only_Those_Who_Wander_Find_New_Paths/README.md)
 
-[8 Server Data History](./08.Server_Data_History/README.md)
+[8 (server) Server Data History](./08.server.Server_Data_History/README.md)
 
-[9 Arithmetic Server](./09.Arithmetic_Server/README.md)
+[9 (server) Arithmetic Server](./09.server.Arithmetic_Server/README.md)
 
-[10 Foreign States](./10.Foreign_States/README.md)
+[10 (server) Foreign States](./10.server.Foreign_States/README.md)
+
+[11 (client) Dynamic Request Body](./11.client.Dynamic_Request_Body/README.md)
+
+[12 (break) Rate My Service](./12.break.Rate_My_Service/README.md)
+
+[13 (client+server) The Forgetful Server](./13.client+server.The_Forgetful_Server/README.md)
+
+[14 (client+server) Knock Knock](./14.client+server.Knock_Knock/README.md)
+
+[15 (client) The Timestamp Oracle](./15.client.The_Timestamp_Oracle/README.md)
 
 ## How it works
 
-The student must complete each test directory with the corresponding missing stuff: `server-matching.json` or `server-provision.json` are normally required. The testing procedure is always the same:
+Depending on the exercise category, the student must create or complete the missing files:
 
-1. The agent is configured with `server-matching.json` to set the server matching algorithm.
-2. The agent is configured with `server-provision.json` to set its server reaction behavior.
-2. An HTTP/2 request (provided by the problem) is sent to the agent.
-3. The answer received from the agent is validated to check if the solution is correct.
+- `server` exercises: create `server-matching.json` and/or `server-provision.json`.
+- `client` exercises: complete `client-provision.json`.
+- `client+server` exercises: create `server-provision.json` (client files are provided).
+- `break` exercises: nothing to do — just run `test.sh` and have fun!
+
+The testing procedure is always the same: run `test.sh` inside the exercise directory. It configures the agent, sends the required requests and validates the responses.
 
 ## Run the kata: evaluation
 

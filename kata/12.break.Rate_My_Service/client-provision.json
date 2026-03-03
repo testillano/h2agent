@@ -1,0 +1,6 @@
+{
+  "id": "rater",
+  "endpoint": "myServer",
+  "requestMethod": "POST",
+  "requestUri": "/rate/test"
+}

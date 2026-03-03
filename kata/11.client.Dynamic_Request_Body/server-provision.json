@@ -1,0 +1,9 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/game/ping",
+  "responseCode": 200,
+  "responseHeaders": {"content-type": "application/json"},
+  "transform": [
+    {"source": "request.body", "target": "response.body.json.object"}
+  ]
+}

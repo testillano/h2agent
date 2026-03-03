@@ -1,0 +1,7 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/rate/test",
+  "responseCode": 200,
+  "responseHeaders": {"content-type": "application/json"},
+  "responseBody": {"status": "ok"}
+}

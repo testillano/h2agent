@@ -1027,8 +1027,9 @@ void AdminClientProvision::scheduleTick(bool first) {
                 saveDynamics();
             }
             else {
+                auto cb = tick_callback_;
                 stopTicking();
-                if (tick_callback_) tick_callback_();
+                if (cb) cb();
                 return;
             }
         }

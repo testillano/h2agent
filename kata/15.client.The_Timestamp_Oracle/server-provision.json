@@ -1,0 +1,12 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/time",
+  "responseCode": 200,
+  "responseHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "source": "timestamp.ms",
+      "target": "response.body.json.integer./ts"
+    }
+  ]
+}
