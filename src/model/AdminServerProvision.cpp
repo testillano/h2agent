@@ -1099,6 +1099,8 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         case Transformation::TargetType::RequestDelayMs:
         case Transformation::TargetType::RequestTimeoutMs:
         case Transformation::TargetType::ClientEventToPurge:
+        case Transformation::TargetType::RequestUri_t:
+        case Transformation::TargetType::RequestMethod_t:
             break;
         }
     }

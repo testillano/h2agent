@@ -151,6 +151,8 @@ class AdminClientProvision
                         const std::smatch &matches,
                         bool eraser,
                         bool hasFilter,
+                        std::string &requestMethod,
+                        std::string &requestUri,
                         nlohmann::json &requestBodyJson,
                         std::string &requestBodyAsString,
                         nghttp2::asio_http2::header_map &requestHeaders,

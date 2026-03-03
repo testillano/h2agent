@@ -194,7 +194,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
         }
 
         // TARGETS
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, requestBodyJson, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, outState, breakCondition)) {
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, requestMethod, requestUri, requestBodyJson, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, outState, breakCondition)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;
         }
@@ -272,10 +272,12 @@ void AdminClientProvision::transformResponse( const std::string &requestUri,
         // We reuse processTargets with dummy request body params
         nlohmann::json dummyJson;
         std::string dummyString;
+        std::string dummyMethod;
+        std::string dummyUri;
         nghttp2::asio_http2::header_map dummyHeaders;
         unsigned int dummyDelayMs = 0;
         unsigned int dummyTimeoutMs = 0;
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, dummyJson, dummyString, dummyHeaders, dummyDelayMs, dummyTimeoutMs, outState, breakCondition)) {
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, dummyMethod, dummyUri, dummyJson, dummyString, dummyHeaders, dummyDelayMs, dummyTimeoutMs, outState, breakCondition)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;
         }
@@ -647,6 +649,8 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         const std::smatch &matches,
         bool eraser,
         bool hasFilter,
+        std::string &requestMethod,
+        std::string &requestUri,
         nlohmann::json &requestBodyJson,
         std::string &requestBodyAsString,
         nghttp2::asio_http2::header_map &requestHeaders,
@@ -772,6 +776,20 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
             targetU = sourceVault.getUnsigned(success);
             if (!success) return false;
             requestTimeoutMs = targetU;
+            break;
+        }
+        case Transformation::TargetType::RequestUri_t:
+        {
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+            requestUri = targetS;
+            break;
+        }
+        case Transformation::TargetType::RequestMethod_t:
+        {
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+            requestMethod = targetS;
             break;
         }
         case Transformation::TargetType::TVar:

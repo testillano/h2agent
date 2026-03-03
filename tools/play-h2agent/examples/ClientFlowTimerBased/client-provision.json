@@ -5,8 +5,14 @@
     "inState":"initial",
     "outState":"step2",
     "requestMethod":"GET",
-    "requestUri":"/api/v1/hello",
     "requestHeaders":{"content-type":"application/json"},
+    "transform":[
+      {
+        "source":"value./api/v1/hello/",
+        "filter":{"Append":"@{sequence}"},
+        "target":"request.uri"
+      }
+    ],
     "onResponseTransform":[
       {
         "source":"response.body",
@@ -20,9 +26,13 @@
     "inState":"step2",
     "outState":"road-closed",
     "requestMethod":"POST",
-    "requestUri":"/api/v1/goodbye",
     "requestHeaders":{"content-type":"application/json"},
     "transform":[
+      {
+        "source":"value./api/v1/goodbye/",
+        "filter":{"Append":"@{sequence}"},
+        "target":"request.uri"
+      },
       {
         "source":"globalVar.helloResponse",
         "target":"request.body.json.jsonstring"

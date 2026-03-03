@@ -570,6 +570,12 @@ bool Transformation::load(const nlohmann::json &j) {
     else if (targetSpec == "request.timeoutMs") {
         target_type_ = TargetType::RequestTimeoutMs;
     }
+    else if (targetSpec == "request.uri") {
+        target_type_ = TargetType::RequestUri_t;
+    }
+    else if (targetSpec == "request.method") {
+        target_type_ = TargetType::RequestMethod_t;
+    }
 
     else if (std::regex_match(targetSpec, matches, responseHeader)) { // header name
         target_ = matches.str(1);

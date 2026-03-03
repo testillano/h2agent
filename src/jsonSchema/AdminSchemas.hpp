@@ -430,7 +430,7 @@ const nlohmann::json client_provision = R"(
           },
           "target": {
             "type": "string",
-            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
+            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs|uri|method)$|^(var|globalVar|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
           }
         },
         "additionalProperties" : {
