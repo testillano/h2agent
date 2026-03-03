@@ -15,6 +15,10 @@
     ],
     "onResponseTransform":[
       {
+        "source":"eraser",
+        "target":"globalVar.helloResponse"
+      },
+      {
         "source":"response.body",
         "target":"globalVar.helloResponse"
       }
