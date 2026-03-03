@@ -1022,7 +1022,18 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         return;
     }
 
-    sendClientRequest(provision, inState, clientEndpoint);
+    // Timer-based triggering (rps > 0) or single request
+    if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getRps() > 0) {
+        provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
+            sendClientRequest(provision, inState, clientEndpoint);
+        });
+    }
+    else if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getRps() == 0) {
+        provision->stopTicking(); // rps=0 stops the timer
+    }
+    else {
+        sendClientRequest(provision, inState, clientEndpoint);
+    }
 }
 
 std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {

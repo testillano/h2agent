@@ -45,6 +45,8 @@ SOFTWARE.
 #include <ert/http2comm/Http2Server.hpp>
 #include <common.hpp>
 
+#include <boost/asio.hpp>
+
 #include <nlohmann/json.hpp>
 
 namespace h2agent
@@ -75,6 +77,8 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     model::common_resources_t common_resources_{}; // general configuration, global variables, file manager and mock server events data
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
+
+    boost::asio::io_context *timers_io_context_{};
 
     // Client data storage:
     bool client_data_{};
@@ -167,6 +171,10 @@ public:
     }
     model::MockClientData *getMockClientData() const {
         return common_resources_.MockClientDataPtr;
+    }
+
+    void setTimersIoContext(boost::asio::io_context *p) {
+        timers_io_context_ = p;
     }
 
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {

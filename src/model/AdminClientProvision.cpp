@@ -72,7 +72,7 @@ namespace model
 AdminClientProvision::AdminClientProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_PROVISION_CLIENT_OUT_STATE),
     request_delay_ms_(0), request_timeout_ms_(0), mock_client_events_data_(nullptr), mock_server_events_data_(nullptr),
-    seq_(0), seq_begin_(0), seq_end_(0), rps_(0), repeat_(false) {;}
+    seq_(0), seq_begin_(0), seq_end_(0), rps_(0), repeat_(false), timer_(nullptr), io_context_(nullptr) {;}
 
 
 std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getRequestSchema() {
@@ -967,6 +967,56 @@ bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, co
     saveDynamics();
 
     return true;
+}
+
+void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std::function<void()> tickCallback) {
+    stopTicking();
+    io_context_ = ioContext;
+    tick_callback_ = std::move(tickCallback);
+    seq_ = seq_begin_;
+    saveDynamics();
+    timer_ = new boost::asio::steady_timer(*io_context_);
+    scheduleTick();
+}
+
+void AdminClientProvision::stopTicking() {
+    if (timer_) {
+        timer_->cancel();
+        delete timer_;
+        timer_ = nullptr;
+    }
+    tick_callback_ = nullptr;
+}
+
+void AdminClientProvision::scheduleTick() {
+    if (!timer_ || rps_ == 0) {
+        stopTicking();
+        return;
+    }
+
+    auto period = std::chrono::microseconds(1000000 / rps_);
+    timer_->expires_after(period);
+    timer_->async_wait([this](const boost::system::error_code &ec) {
+        if (ec) return; // cancelled
+
+        if (tick_callback_) tick_callback_();
+
+        seq_++;
+        saveDynamics();
+
+        if (seq_ > seq_end_) {
+            if (repeat_) {
+                seq_ = seq_begin_;
+                saveDynamics();
+            }
+            else {
+                stopTicking();
+                return;
+            }
+        }
+
+        scheduleTick();
+    });
 }
 
 bool AdminClientProvision::load(const nlohmann::json &j) {

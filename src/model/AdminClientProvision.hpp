@@ -42,6 +42,9 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/io_context.hpp>
+
 #include <ert/http2comm/Http2Client.hpp>
 
 #include <AdminSchema.hpp>
@@ -116,6 +119,12 @@ class AdminClientProvision
     unsigned int rps_{};
     bool repeat_{};
 
+    // Timer-based triggering:
+    boost::asio::steady_timer *timer_{};
+    boost::asio::io_context *io_context_{};
+    std::function<void()> tick_callback_{};
+    void scheduleTick();
+
     void saveDynamics();
 
     // Three processing stages: get sources, apply filters and store targets:
@@ -154,6 +163,7 @@ class AdminClientProvision
 public:
 
     AdminClientProvision();
+    ~AdminClientProvision() { stopTicking(); }
 
     // transform logic
 
@@ -216,6 +226,19 @@ public:
      * @return Operation success
      */
     bool updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &rps, const std::string &repeat);
+
+    /**
+     * Starts timer-based triggering at configured rps rate
+     *
+     * @param ioContext Timer io_context
+     * @param tickCallback Callback invoked on each tick (should call sendClientRequest)
+     */
+    void startTicking(boost::asio::io_context *ioContext, std::function<void()> tickCallback);
+
+    /**
+     * Stops timer-based triggering
+     */
+    void stopTicking();
 
     /**
      * Load provision information
@@ -426,6 +449,14 @@ public:
      */
     const std::uint64_t & getSeq() const {
         return seq_;
+    }
+
+    /** Configured requests per second
+     *
+     * @return rps value
+     */
+    unsigned int getRps() const {
+        return rps_;
     }
 
     /** Provision was employed

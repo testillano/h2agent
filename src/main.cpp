@@ -876,6 +876,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
     myAdminHttp2Server->setFileManager(myFileManager);
     myAdminHttp2Server->setSocketManager(mySocketManager);
+    myAdminHttp2Server->setTimersIoContext(myTimersIoContext);
     myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name); // for client connection class
 
     // Timers thread:
