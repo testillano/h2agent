@@ -67,6 +67,8 @@ public:
     }
 
     // Target type
+    // Note: some labels use '_t' suffix (e.g. ResponseHeader_t, RequestUri_t) to avoid name collision
+    // with identically-named values in SourceType, since both enums share the same class scope.
     enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader_t, ResponseStatusCode_t, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString, RequestHeader_t, RequestDelayMs, RequestTimeoutMs, ClientEventToPurge, RequestUri_t, RequestMethod_t, ClientProvision_t };
     const char* TargetTypeAsText(const TargetType & type) const
     {
