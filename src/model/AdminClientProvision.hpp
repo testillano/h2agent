@@ -181,6 +181,22 @@ public:
                   );
 
     /**
+     * Applies on-response transformations over the received response
+     *
+     * @param requestUri Request URI that was sent
+     * @param requestHeaders Request headers that were sent
+     * @param receivedResponse Response received from server
+     * @param generalUniqueClientSequence Client endpoint sending sequence
+     * @param outState out-state updated by reference (may change based on response)
+     */
+    void transformResponse( const std::string &requestUri,
+                            const nghttp2::asio_http2::header_map &requestHeaders,
+                            const ert::http2comm::Http2Client::response &receivedResponse,
+                            std::uint64_t generalUniqueClientSequence,
+                            std::string &outState
+                          );
+
+    /**
      * Provision is being employed
      */
     void employ() {

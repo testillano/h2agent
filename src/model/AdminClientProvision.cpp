@@ -220,6 +220,68 @@ void AdminClientProvision::transform( std::string &requestMethod,
     }
 }
 
+void AdminClientProvision::transformResponse( const std::string &requestUri,
+        const nghttp2::asio_http2::header_map &requestHeaders,
+        const ert::http2comm::Http2Client::response &receivedResponse,
+        std::uint64_t generalUniqueClientSequence,
+        std::string &outState
+                                            )
+{
+    if (on_response_transformations_.empty()) return;
+
+    // Dynamic variables map: inherited along the transformation chain
+    std::map<std::string, std::string> variables;
+    variables["sequence"] = std::to_string(seq_);
+
+    // Type converter:
+    TypeConverter sourceVault{};
+
+    // Dummy request body json (not modified in response phase, but needed by processSources signature)
+    nlohmann::json dummyRequestBodyJson;
+
+    // Apply transformations sequentially
+    bool breakCondition = false;
+    for (const auto &transformation : on_response_transformations_) {
+
+        if (breakCondition) break;
+
+        bool eraser = false;
+
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing on-response transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
+
+        // SOURCES (with response context)
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestHeaders, eraser, generalUniqueClientSequence, false, dummyRequestBodyJson, &receivedResponse)) {
+            LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
+            continue;
+        }
+
+        std::smatch matches;
+        std::string source;
+
+        // FILTERS
+        bool hasFilter = transformation->hasFilter();
+        if (hasFilter) {
+            if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
+                LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
+                if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+                continue;
+            }
+        }
+
+        // TARGETS (response phase: only var/globalVar/outState/file/socket/break/clientEvent targets apply)
+        // We reuse processTargets with dummy request body params
+        nlohmann::json dummyJson;
+        std::string dummyString;
+        nghttp2::asio_http2::header_map dummyHeaders;
+        unsigned int dummyDelayMs = 0;
+        unsigned int dummyTimeoutMs = 0;
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, dummyJson, dummyString, dummyHeaders, dummyDelayMs, dummyTimeoutMs, outState, breakCondition)) {
+            LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
+            continue;
+        }
+    }
+}
+
 bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transformation,
         TypeConverter& sourceVault,
         std::map<std::string, std::string>& variables,
