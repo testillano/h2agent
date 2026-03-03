@@ -1,0 +1,16 @@
+[
+  {
+    "requestMethod":"GET",
+    "requestUri":"/api/v1/hello",
+    "responseCode":200,
+    "responseBody":{"greeting":"hello world"},
+    "responseHeaders":{"content-type":"application/json"}
+  },
+  {
+    "requestMethod":"POST",
+    "requestUri":"/api/v1/goodbye",
+    "responseCode":200,
+    "responseBody":{"farewell":"see you"},
+    "responseHeaders":{"content-type":"application/json"}
+  }
+]
