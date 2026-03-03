@@ -1269,7 +1269,7 @@ Optional request delay simulation in milliseconds.
 
 #### timeoutMs
 
-Optional timeout for response in milliseconds.
+Optional timeout for response in milliseconds. Defaults to 1000 ms (1 second) when not specified, aligned with the underlying `Http2Client::asyncSend` default. A value of 0 is treated as unset and also defaults to 1000 ms.
 
 #### responseSchemaId
 

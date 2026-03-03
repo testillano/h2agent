@@ -58,6 +58,8 @@ class SocketManager;
 class AdminData;
 class MockServerData;
 class MockClientData;
+class AdminClientProvision;
+class AdminClientEndpoint;
 }
 
 namespace http2
@@ -89,6 +91,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode);
 
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
+    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint) const;
 
 public:
     MyAdminHttp2Server(const std::string &name, size_t workerThreads);
