@@ -453,6 +453,10 @@ public:
         return seq_;
     }
 
+    void setSeq(std::uint64_t seq) {
+        seq_ = seq;
+    }
+
     /** Configured requests per second
      *
      * @return rps value

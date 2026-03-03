@@ -957,6 +957,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 auto nextProvision = provisionData.find(finalOutState, clientProvisionId);
                 if (nextProvision) {
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
+                    nextProvision->setSeq(provisionSeq); // propagate sequence through chain
                     sendClientRequest(nextProvision, finalOutState, clientEndpoint);
                 }
             }
