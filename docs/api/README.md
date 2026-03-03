@@ -623,6 +623,19 @@ The **target** of information is classified after parsing the following possible
 
   This target, as its source counterpart, **admits variables substitution**.
 
+- clientProvision.`<clientProvisionId>` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. The source value is used as the `inState` for the client provision (defaults to `"initial"` when `eraser` source is used or source is empty). This target identifier **admits variables substitution**. Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
+
+  For example, to trigger a client provision named `myNotificationFlow` starting from state `initial`:
+
+  ```json
+  {
+    "source": "value.initial",
+    "target": "clientProvision.myNotificationFlow"
+  }
+  ```
+
+  The triggered client provision must be previously configured (via `POST /admin/v1/client-provision`) along with its associated client endpoint (via `POST /admin/v1/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
+
 - break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
 
 
@@ -1290,7 +1303,11 @@ New **targets**:
 
 - `request.delayMs` *[unsigned integer]*: simulated delay before sending the request: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 - `request.timeoutMs` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- `request.uri` *[string]*: overrides the request URI to be sent. This is useful in combination with `seq` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
+- `request.method` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
 - `break`: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis).
+
+Note that `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 
 ### Multiple client provisions
 
@@ -1410,6 +1427,26 @@ And finally, note that we could also solve the previous exercise just providing 
     curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&rps=200
   done
   ```
+
+#### Server-triggered client flows
+
+Client provisions can also be triggered from within server provision transformations using the `clientProvision.<clientProvisionId>` target (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source value determines the `inState` for the triggered client provision. For example, when the server receives a webhook notification, it could trigger a client flow to forward or acknowledge it:
+
+```json
+{
+  "requestMethod": "POST",
+  "requestUri": "/webhook/notify",
+  "responseCode": 200,
+  "transform": [
+    {
+      "source": "value.initial",
+      "target": "clientProvision.forwardNotification"
+    }
+  ]
+}
+```
+
+The triggers are executed asynchronously after the server response is fully built, so they do not affect server response latency. Multiple `clientProvision` targets can coexist in the same transformation list.
 
 ## Client data
 

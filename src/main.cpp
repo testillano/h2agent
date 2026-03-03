@@ -998,6 +998,9 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // Associate data containers:
     if (traffic_server_enabled) {
         myTrafficHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
+        myTrafficHttp2Server->setClientProvisionTrigger([](const std::string &clientProvisionId, const std::string &inState) {
+            myAdminHttp2Server->triggerClientProvision(clientProvisionId, inState);
+        });
     }
 
     // Server key password:

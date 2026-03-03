@@ -311,10 +311,18 @@ ss << "TRAFFIC REQUEST RECEIVED"
         std::string outState;
         std::string outStateMethod;
         std::string outStateUri;
+        std::vector<std::pair<std::string, std::string>> clientProvisionTriggers;
 
         // Process provision
         provision->transform(normalizedUri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
-                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri);
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers);
+
+        // Trigger client provisions (fire-and-forget):
+        if (client_provision_trigger_) {
+            for (const auto &trigger : clientProvisionTriggers) {
+                client_provision_trigger_(trigger.first, trigger.second);
+            }
+        }
 
         // Special out-states:
         if (purge_execution_ && outState == "purge") {

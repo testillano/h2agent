@@ -667,6 +667,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         std::string &outState,
         std::string &outStateMethod,
         std::string &outStateUri,
+        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
         bool &breakCondition) const
 {
     bool success = false;
@@ -1069,6 +1070,23 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             );
             break;
         }
+        case Transformation::TargetType::ClientProvision_t:
+        {
+            std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // "initial" by default
+            if (!eraser) {
+                targetS = sourceVault.getString(success);
+                if (success && !targetS.empty()) inState = targetS;
+            }
+            std::string clientProvisionId = transformation->getTarget();
+            replaceVariables(clientProvisionId, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(inState, transformation->getSourcePatterns(), variables, global_variable_);
+            clientProvisionTriggers.emplace_back(clientProvisionId, inState);
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Scheduled client provision trigger: id='%s', inState='%s'", clientProvisionId.c_str(), inState.c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            break;
+        }
         case Transformation::TargetType::Break:
         {
             // extraction
@@ -1127,7 +1145,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       unsigned int &responseDelayMs,
                                       std::string &outState,
                                       std::string &outStateMethod,
-                                      std::string &outStateUri
+                                      std::string &outStateUri,
+                                      std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers
                                     )
 {
     // Default values without transformations:
@@ -1230,7 +1249,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         }
 
         // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, breakCondition)) {
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, breakCondition)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;
         }

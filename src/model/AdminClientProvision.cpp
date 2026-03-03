@@ -919,6 +919,7 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         case Transformation::TargetType::ResponseStatusCode_t:
         case Transformation::TargetType::ResponseDelayMs:
         case Transformation::TargetType::ServerEventToPurge:
+        case Transformation::TargetType::ClientProvision_t:
             break;
         }
     }

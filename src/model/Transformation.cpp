@@ -443,6 +443,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // Only target
     static std::regex requestHeader_target("^request.header.(.*)", std::regex::optimize);
     static std::regex udpSocket("^udpSocket.(.*)", std::regex::optimize);
+    static std::regex clientProvision("^clientProvision.(.*)", std::regex::optimize);
 
     // no need to try (controlled regex)
     //try {
@@ -644,6 +645,10 @@ bool Transformation::load(const nlohmann::json &j) {
     }
     else if (targetSpec == "break") {
         target_type_ = TargetType::Break;
+    }
+    else if (std::regex_match(targetSpec, matches, clientProvision)) { // client provision id
+        target_ = matches.str(1);
+        target_type_ = TargetType::ClientProvision_t;
     }
     // PROTECTED BY SCHEMA:
     //else { // very strange to reach this:

@@ -967,6 +967,25 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     );
 }
 
+void MyAdminHttp2Server::triggerClientProvision(const std::string &clientProvisionId, const std::string &inState) const {
+
+    const h2agent::model::AdminClientProvisionData & provisionData = getAdminData()->getClientProvisionData();
+    std::shared_ptr<h2agent::model::AdminClientProvision> provision = provisionData.find(inState, clientProvisionId);
+    if (!provision) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Client provision '%s' with inState '%s' not found for server trigger", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION);
+        return;
+    }
+
+    const h2agent::model::AdminClientEndpointData & clientEndpointData = getAdminData()->getClientEndpointData();
+    std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint = clientEndpointData.find(provision->getClientEndpointId());
+    if (!clientEndpoint || !clientEndpoint->getPermit()) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Client endpoint '%s' not found or disabled for server trigger", provision->getClientEndpointId().c_str()), ERT_FILE_LOCATION);
+        return;
+    }
+
+    sendClientRequest(provision, inState, clientEndpoint);
+}
+
 void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const {
 
     std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // administrative operation triggers "initial" provisions by default

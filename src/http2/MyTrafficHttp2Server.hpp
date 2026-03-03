@@ -40,6 +40,7 @@ SOFTWARE.
 #include <memory>
 #include <cstdint>
 #include <atomic>
+#include <functional>
 #include <chrono>
 
 #include <boost/asio.hpp>
@@ -89,6 +90,8 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     std::atomic<bool> pre_reserve_request_body_{true};
 
     model::GlobalVariable* global_variable_ptr_{};
+
+    std::function<void(const std::string& /*clientProvisionId*/, const std::string& /*inState*/)> client_provision_trigger_{};
 
 public:
     MyTrafficHttp2Server(const std::string &name, size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize);
@@ -179,6 +182,11 @@ public:
     }
     model::GlobalVariable *getGlobalVariable() const {
         return global_variable_ptr_;
+    }
+
+    // Callback to trigger client provisions from server transformations
+    void setClientProvisionTrigger(std::function<void(const std::string&, const std::string&)> trigger) {
+        client_provision_trigger_ = std::move(trigger);
     }
 };
 

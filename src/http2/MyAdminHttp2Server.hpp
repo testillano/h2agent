@@ -177,6 +177,15 @@ public:
         timers_io_context_ = p;
     }
 
+    /**
+     * Triggers a client provision (fire-and-forget) from server context.
+     * Looks up the provision and endpoint, then sends asynchronously.
+     *
+     * @param clientProvisionId Client provision identifier
+     * @param inState Initial state for the client provision (default "initial")
+     */
+    void triggerClientProvision(const std::string &clientProvisionId, const std::string &inState) const;
+
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {
         http2_server_ = ptr;
     }
