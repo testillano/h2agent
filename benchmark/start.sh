@@ -41,6 +41,11 @@ HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
 HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 
+H2CLIENT__ADMIN_PORT__dflt=8075
+H2CLIENT__PROMETHEUS_PORT__dflt=8081
+H2CLIENT__RPS__dflt=10000
+H2CLIENT__ITERATIONS__dflt=100000
+
 # Hermes image
 HERMES_IMG=jgomezselles/hermes:0.0.2
 
@@ -306,7 +311,7 @@ echo "done !"
 h2a_admin_curl POST admin/v1/global-variable 201 ${H2AGENT_GLOBAL_VARIABLE} || exit 1
 
 # Launcher type
-read_value "Launcher type" ST_LAUNCHER "h2load|hermes" # TODO: |h2client
+read_value "Launcher type" ST_LAUNCHER "h2load|hermes|h2client"
 
 if [ "${ST_LAUNCHER}" = "h2load" ] ################################################### H2LOAD
 then
@@ -378,6 +383,104 @@ EOF
   set -x
   time docker run -it --network host -v ${TMP_DIR}/scripts:/etc/scripts --entrypoint /hermes/hermes ${HERMES_IMG} -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
   set +x
+
+elif [ "${ST_LAUNCHER}" = "h2client" ] ################################################# H2CLIENT
+then
+  which docker &>/dev/null || { echo "Required 'docker'" ; exit 1 ; }
+
+  read_value "Client h2agent admin port" H2CLIENT__ADMIN_PORT
+  read_value "Client h2agent prometheus port" H2CLIENT__PROMETHEUS_PORT
+  read_value "Requests per second" H2CLIENT__RPS
+  read_value "Number of iterations" H2CLIENT__ITERATIONS
+
+  # Start client-only h2agent (same image as run.sh, detached)
+  H2AGENT_DCK_IMG=${H2AGENT_DCK_IMG:-ghcr.io/testillano/h2agent}
+  H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
+  H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
+  if [ -z "${H2AGENT_LD_PRELOAD+x}" ]; then
+    H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+  fi
+  ld_preload_arg=
+  [ -n "${H2AGENT_LD_PRELOAD}" ] && ld_preload_arg="-e LD_PRELOAD=${H2AGENT_LD_PRELOAD}"
+
+  # Stop leftover client container if exists
+  docker kill h2agent-client 2>/dev/null
+  docker rm h2agent-client 2>/dev/null
+
+  # Check ports are free
+  for port in ${H2CLIENT__ADMIN_PORT} ${H2CLIENT__PROMETHEUS_PORT}; do
+    ss -tln | grep -q ":${port} " && echo "ERROR: port ${port} already in use (run: ss -tlnp | grep ${port})" && exit 1
+  done
+
+  H2CLIENT_CONTAINER=$(docker run -d --rm --name h2agent-client ${H2AGENT_DCK_EXTRA_ARGS} ${ld_preload_arg} \
+    ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} \
+    --admin-port ${H2CLIENT__ADMIN_PORT} --prometheus-port ${H2CLIENT__PROMETHEUS_PORT} --traffic-server-port -1 --log-level Warning)
+
+  [ -z "${H2CLIENT_CONTAINER}" ] && echo "ERROR: failed to start client h2agent container (image: ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG})" && exit 1
+  echo "Started client container: ${H2CLIENT_CONTAINER}"
+  trap "docker stop ${H2CLIENT_CONTAINER} 2>/dev/null; rm -rf ${TMP_DIR}" EXIT
+
+  # Wait for client h2agent to be ready
+  echo -n "Waiting for client h2agent to start..."
+  for i in $(seq 1 30); do
+    sleep 1
+    curl -sf --http2-prior-knowledge "http://localhost:${H2CLIENT__ADMIN_PORT}/admin/v1/logging" &>/dev/null && break
+    echo -n "."
+  done
+  curl -sf --http2-prior-knowledge "http://localhost:${H2CLIENT__ADMIN_PORT}/admin/v1/logging" &>/dev/null \
+    || { echo -e "\nERROR: client h2agent did not start (check docker logs h2agent-client)" ; exit 1 ; }
+  echo " ready"
+
+  # $1: method; $2: uri; $3: optional body file
+  h2a_client_curl() {
+    local s_data=
+    [ -n "$3" ] && s_data="-d@$3"
+    curl -s --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${s_data} \
+      "http://localhost:${H2CLIENT__ADMIN_PORT}/$2"
+  }
+
+  # Disable client data storage (bottleneck at high rps) - use timing instead
+  h2a_client_curl PUT "admin/v1/client-data/configuration?discard=true&discardKeyHistory=true&disablePurge=true" > /dev/null
+
+  # Configure client endpoint pointing to server h2agent
+  echo "{\"id\":\"server\",\"host\":\"${H2AGENT__BIND_ADDRESS}\",\"port\":${H2AGENT__TRAFFIC_PORT}}" > ${TMP_DIR}/client-endpoint.json
+  h2a_client_curl POST admin/v1/client-endpoint ${TMP_DIR}/client-endpoint.json
+
+  # Configure client provision
+  PROVISION_JSON="{\"id\":\"benchmark\",\"endpoint\":\"server\",\"requestMethod\":\"${ST_REQUEST_METHOD}\",\"requestUri\":\"/${ST_REQUEST_URL}\""
+  [ "${ST_REQUEST_METHOD}" = "POST" ] && PROVISION_JSON="${PROVISION_JSON},\"requestBody\":${ST_REQUEST_BODY}"
+  PROVISION_JSON="${PROVISION_JSON}}"
+  echo "${PROVISION_JSON}" > ${TMP_DIR}/client-provision.json
+  h2a_client_curl POST admin/v1/client-provision ${TMP_DIR}/client-provision.json
+
+  REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_rps${H2CLIENT__RPS}_iters${H2CLIENT__ITERATIONS}.txt
+  init_report H2CLIENT__ADMIN_PORT H2CLIENT__PROMETHEUS_PORT H2CLIENT__RPS H2CLIENT__ITERATIONS
+
+  # Trigger timer-based load
+  EXPECTED_SECS=$(( (H2CLIENT__ITERATIONS + H2CLIENT__RPS - 1) / H2CLIENT__RPS ))
+  echo
+  echo "Triggering ${H2CLIENT__ITERATIONS} requests at ${H2CLIENT__RPS} rps (~${EXPECTED_SECS}s expected)..."
+  START_NS=$(date +%s%N)
+  h2a_client_curl GET "admin/v1/client-provision/benchmark?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&rps=${H2CLIENT__RPS}"
+  echo
+
+  # Wait for timer to complete by polling dynamics.sequence
+  TIMEOUT_SECS=$(( (H2CLIENT__ITERATIONS / H2CLIENT__RPS + 1) * 3 ))
+  echo "Waiting for completion (timeout ${TIMEOUT_SECS}s)..."
+  while true; do
+    sleep 0.2
+    seq=$(h2a_client_curl GET "admin/v1/client-provision" 2>/dev/null | \
+      python3 -c "import sys,json; d=json.load(sys.stdin); p=[x for x in d if x.get('id')=='benchmark']; print(p[0]['dynamics']['sequence'] if p else 0)" 2>/dev/null || echo 0)
+    [ "${seq:-0}" -gt "${H2CLIENT__ITERATIONS}" ] && break
+    now=$(date +%s%N)
+    [ $(( (now - START_NS) / 1000000000 )) -ge ${TIMEOUT_SECS} ] && echo "Timeout!" && break
+  done
+  END_NS=$(date +%s%N)
+
+  ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
+  ACTUAL_RPS=$(( H2CLIENT__ITERATIONS * 1000 / ELAPSED_MS ))
+  echo
+  echo "Completed: ${H2CLIENT__ITERATIONS} requests in ${ELAPSED_MS}ms (~${ACTUAL_RPS} req/s)" | tee -a ${REPORT}
 fi
 
 rm -f last

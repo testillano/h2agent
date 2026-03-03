@@ -59,18 +59,20 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState, STxtFile, SBinFile, Command };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState, STxtFile, SBinFile, Command, Sendseq, Seq, ClientEvent, ResponseHeader, ResponseStatusCode };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "ServerEvent", "InState", "STxtFile", "SBinFile", "Command" };
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "ServerEvent", "InState", "STxtFile", "SBinFile", "Command", "Sendseq", "Seq", "ClientEvent", "ResponseHeader", "ResponseStatusCode" };
         return text [type];
     }
 
     // Target type
-    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString };
+    // Note: some labels use '_t' suffix (e.g. ResponseHeader_t, RequestUri_t) to avoid name collision
+    // with identically-named values in SourceType, since both enums share the same class scope.
+    enum TargetType { ResponseBodyString = 0, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader_t, ResponseStatusCode_t, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break, RequestBodyString, RequestBodyHexString, RequestBodyJson_String, RequestBodyJson_Integer, RequestBodyJson_Unsigned, RequestBodyJson_Float, RequestBodyJson_Boolean, RequestBodyJson_Object, RequestBodyJson_JsonString, RequestHeader_t, RequestDelayMs, RequestTimeoutMs, ClientEventToPurge, RequestUri_t, RequestMethod_t, ClientProvision_t };
     const char* TargetTypeAsText(const TargetType & type) const
     {
-        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "UDPSocket", "ServerEventToPurge", "Break", "RequestBodyString", "RequestBodyHexString", "RequestBodyJson_String", "RequestBodyJson_Integer", "RequestBodyJson_Unsigned", "RequestBodyJson_Float", "RequestBodyJson_Boolean", "RequestBodyJson_Object", "RequestBodyJson_JsonString" };
+        static const char* text [] = { "ResponseBodyString", "ResponseBodyHexString", "ResponseBodyJson_String", "ResponseBodyJson_Integer", "ResponseBodyJson_Unsigned", "ResponseBodyJson_Float", "ResponseBodyJson_Boolean", "ResponseBodyJson_Object", "ResponseBodyJson_JsonString", "ResponseHeader", "ResponseStatusCode", "ResponseDelayMs", "TVar", "TGVar", "OutState", "TTxtFile", "TBinFile", "UDPSocket", "ServerEventToPurge", "Break", "RequestBodyString", "RequestBodyHexString", "RequestBodyJson_String", "RequestBodyJson_Integer", "RequestBodyJson_Unsigned", "RequestBodyJson_Float", "RequestBodyJson_Boolean", "RequestBodyJson_Object", "RequestBodyJson_JsonString", "RequestHeader", "RequestDelayMs", "RequestTimeoutMs", "ClientEventToPurge", "RequestUri", "RequestMethod", "ClientProvision" };
         return text [type];
     }
 

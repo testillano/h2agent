@@ -60,6 +60,17 @@ Finally, push the commit(s) from your local fork towards its repository origin:
 $ git push origin <branch>
 ```
 
+## Development Workflow (Project Members)
+
+Feature branches workflow:
+
+1. Create a branch: `git checkout -b feature/my-change`
+2. Push to origin: `git push -u origin feature/my-change`
+3. Open a PR on GitHub for review
+4. Squash merge to master when approved
+
+This keeps master clean and allows iteration on the branch without polluting the main history.
+
 ## Check project work-flow
 
 Go to `Actions` tab in your fork page and wait for the "green ball" of *Continuous Integration* (`CI`) work-flow execution.

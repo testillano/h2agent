@@ -561,10 +561,12 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server/configuration") {
+        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         responseBody = getHttp2Server()->configurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-data/configuration") {
+        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         responseBody = getHttp2Server()->dataConfigurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
@@ -716,6 +718,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         //);
     }
     else if (pathSuffix == "server/configuration") {
+        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         std::string receiveRequestBody;
         std::string preReserveRequestBody;
 
@@ -776,6 +779,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
 
         bool serverMode = (pathSuffix == "server-data/configuration"); // true: server mode, false: client mode
+        if (serverMode && !getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
         const char *mode = (serverMode ? "server":"client");
 
         if (success) {
@@ -837,10 +841,10 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     LOGDEBUG(ert::tracing::Logger::debug("receive()",  ERT_FILE_LOCATION));
 
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
-    std::string method = req.method();
-    //std::string uriPath = req.uri().raw_path; // percent-encoded
-    std::string uriPath = req.uri().path; // decoded
-    std::string uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
+    // Use const references to avoid unnecessary copies - nghttp2 returns const refs
+    const std::string &method = req.method();
+    const std::string &uriPath = req.uri().path; // decoded
+    const std::string &uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
 
     // Get path suffix normalized:
     std::string pathSuffix = getPathSuffix(uriPath);
@@ -896,6 +900,96 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     }
 }
 
+void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint) const {
+
+    provision->employ();
+    std::string requestMethod{};
+    std::string requestUri{};
+    std::string requestBody{};
+    nghttp2::asio_http2::header_map requestHeaders;
+    std::string outState{};
+    unsigned int requestDelayMs{};
+    unsigned int requestTimeoutMs{};
+    std::string error{};
+
+    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error);
+    LOGDEBUG(
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
+        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request body: %s", requestBody.c_str()), ERT_FILE_LOCATION);
+    );
+
+    if (!error.empty()) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Error transforming client provision: %s", error.c_str()), ERT_FILE_LOCATION);
+        return;
+    }
+
+    clientEndpoint->connect();
+    clientEndpoint->getClient()->incrementGeneralUniqueClientSequence();
+    std::uint64_t clientSequence = clientEndpoint->getGeneralUniqueClientSequence();
+    std::uint64_t provisionSeq = provision->getSeq();
+    std::string clientProvisionId = provision->getClientProvisionId();
+    std::string clientEndpointId = provision->getClientEndpointId();
+
+    clientEndpoint->getClient()->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
+        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, clientSequence, provisionSeq, clientEndpoint](ert::http2comm::Http2Client::response response) {
+
+            // Apply on-response transformations (may update outState)
+            std::string finalOutState = outState;
+            const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
+            auto provision = provisionData.find(inState, clientProvisionId);
+            if (provision) {
+                provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
+            }
+
+            // Store event
+            if (client_data_) {
+                h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
+                h2agent::model::DataPart responseBodyDataPart(response.body);
+                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, clientSequence, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+            }
+
+            // Purge
+            if (purge_execution_ && finalOutState == "purge") {
+                bool somethingDeleted = false;
+                h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
+                getMockClientData()->clear(somethingDeleted, h2agent::model::EventKey(dataKey, ""));
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Client event purge: %s", somethingDeleted ? "successful":"nothing to delete"), ERT_FILE_LOCATION));
+            }
+            // State progression
+            else if (!finalOutState.empty() && finalOutState != inState) {
+                auto nextProvision = provisionData.find(finalOutState, clientProvisionId);
+                if (nextProvision) {
+                    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
+                    nextProvision->setSeq(provisionSeq); // propagate sequence through chain
+                    sendClientRequest(nextProvision, finalOutState, clientEndpoint);
+                }
+            }
+        },
+        std::chrono::milliseconds(requestTimeoutMs == 0 ? 1000 : requestTimeoutMs), // 0 means unset: default to 1 second (aligned with Http2Client::asyncSend default)
+        std::chrono::milliseconds(requestDelayMs)
+    );
+}
+
+void MyAdminHttp2Server::triggerClientProvision(const std::string &clientProvisionId, const std::string &inState) const {
+
+    const h2agent::model::AdminClientProvisionData & provisionData = getAdminData()->getClientProvisionData();
+    std::shared_ptr<h2agent::model::AdminClientProvision> provision = provisionData.find(inState, clientProvisionId);
+    if (!provision) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Client provision '%s' with inState '%s' not found for server trigger", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION);
+        return;
+    }
+
+    const h2agent::model::AdminClientEndpointData & clientEndpointData = getAdminData()->getClientEndpointData();
+    std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint = clientEndpointData.find(provision->getClientEndpointId());
+    if (!clientEndpoint || !clientEndpoint->getPermit()) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Client endpoint '%s' not found or disabled for server trigger", provision->getClientEndpointId().c_str()), ERT_FILE_LOCATION);
+        return;
+    }
+
+    sendClientRequest(provision, inState, clientEndpoint);
+}
+
 void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const {
 
     std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // administrative operation triggers "initial" provisions by default
@@ -938,53 +1032,31 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         }
     }
 
-    // Process provision (before sending)
-    provision->employ(); // set provision as employed:
-    std::string requestMethod{};
-    std::string requestUri{};
-    std::string requestBody{};
-    nghttp2::asio_http2::header_map requestHeaders;
+    // Find client endpoint
+    const h2agent::model::AdminClientEndpointData & clientEndpointData = getAdminData()->getClientEndpointData();
+    std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint = clientEndpointData.find(provision->getClientEndpointId());
+    if (!clientEndpoint) {
+        ert::tracing::Logger::error("Referenced client endpoint is not provisioned", ERT_FILE_LOCATION);
+        statusCode = ert::http2comm::ResponseCode::NOT_FOUND; // 404
+        return;
+    }
+    if (!clientEndpoint->getPermit()) {
+        ert::tracing::Logger::error("Referenced client endpoint is disabled (not permitted)", ERT_FILE_LOCATION);
+        statusCode = ert::http2comm::ResponseCode::FORBIDDEN;
+        return;
+    }
 
-    std::string outState{};
-    unsigned int requestDelayMs{};
-    unsigned int requestTimeoutMs{};
-
-    std::string error{}; // error detail (empty when all is OK)
-
-    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error);
-    LOGDEBUG(
-        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
-        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
-        ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request body: %s", requestBody.c_str()), ERT_FILE_LOCATION);
-    );
-
-    if (error.empty()) {
-        const h2agent::model::AdminClientEndpointData & clientEndpointData = getAdminData()->getClientEndpointData();
-        std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint(nullptr);
-        clientEndpoint = clientEndpointData.find(provision->getClientEndpointId());
-        if (clientEndpoint) {
-            if (clientEndpoint->getPermit()) {
-                clientEndpoint->connect();
-                ert::http2comm::Http2Client::response response = clientEndpoint->getClient()->send(requestMethod, requestUri, requestBody, requestHeaders, std::chrono::milliseconds(requestTimeoutMs));
-                clientEndpoint->getClient()->incrementGeneralUniqueClientSequence();
-
-                // Store event:
-                if (client_data_) {
-                    h2agent::model::DataKey dataKey(provision->getClientEndpointId(), requestMethod, requestUri);
-                    h2agent::model::DataPart responseBodyDataPart(response.body);
-                    getMockClientData()->loadEvent(dataKey, provision->getClientProvisionId(), inState, outState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, clientEndpoint->getGeneralUniqueClientSequence(), provision->getSeq(), requestDelayMs, requestTimeoutMs, client_data_key_history_ /* history enabled */);
-                }
-            }
-            else {
-                error = "Referenced client endpoint is disabled (not permitted)";
-            }
-        }
-        else {
-            error = "Referenced client endpoint is not provisioned";
-        }
+    // Timer-based triggering (rps > 0) or single request
+    if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getRps() > 0) {
+        provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
+            sendClientRequest(provision, inState, clientEndpoint);
+        });
+    }
+    else if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getRps() == 0) {
+        provision->stopTicking(); // rps=0 stops the timer
     }
     else {
-        statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+        sendClientRequest(provision, inState, clientEndpoint);
     }
 }
 

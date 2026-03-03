@@ -151,6 +151,7 @@ class AdminServerProvision
                         std::string &outState,
                         std::string &outStateMethod,
                         std::string &outStateUri,
+                        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
                         bool &breakCondition) const;
 
 
@@ -192,7 +193,8 @@ public:
                     unsigned int &responseDelayMs,
                     std::string &outState,
                     std::string &outStateMethod,
-                    std::string &outStateUri
+                    std::string &outStateUri,
+                    std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers
                   );
 
     // setters:

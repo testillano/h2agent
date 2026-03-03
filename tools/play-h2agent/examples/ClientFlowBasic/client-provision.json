@@ -1,0 +1,21 @@
+[
+  {
+    "id":"myFlow",
+    "endpoint":"myServer",
+    "inState":"initial",
+    "outState":"step2",
+    "requestMethod":"GET",
+    "requestUri":"/api/v1/hello",
+    "requestHeaders":{"content-type":"application/json"}
+  },
+  {
+    "id":"myFlow",
+    "endpoint":"myServer",
+    "inState":"step2",
+    "outState":"road-closed",
+    "requestMethod":"POST",
+    "requestUri":"/api/v1/goodbye",
+    "requestBody":{"message":"done"},
+    "requestHeaders":{"content-type":"application/json"}
+  }
+]

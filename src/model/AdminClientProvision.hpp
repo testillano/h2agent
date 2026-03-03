@@ -42,6 +42,11 @@ SOFTWARE.
 
 #include <nlohmann/json.hpp>
 
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/io_context.hpp>
+
+#include <ert/http2comm/Http2Client.hpp>
+
 #include <AdminSchema.hpp>
 #include <Transformation.hpp>
 #include <TypeConverter.hpp>
@@ -114,48 +119,53 @@ class AdminClientProvision
     unsigned int rps_{};
     bool repeat_{};
 
+    // Timer-based triggering:
+    boost::asio::steady_timer *timer_{};
+    boost::asio::io_context *io_context_{};
+    std::function<void()> tick_callback_{};
+    void scheduleTick(bool first = true);
+
     void saveDynamics();
 
-    /*
-        // Three processing stages: get sources, apply filters and store targets:
-        bool processSources(std::shared_ptr<Transformation> transformation,
-                            TypeConverter& sourceVault,
-                            std::map<std::string, std::string>& variables,
-                            const std::string &requestUri,
-                            const std::string &requestUriPath,
-                            const std::map<std::string, std::string> &requestQueryParametersMap,
-                            const DataPart &requestBodyDataPart,
-                            const nghttp2::asio_http2::header_map &requestHeaders,
-                            bool &eraser,
-                            std::uint64_t generalUniqueServerSequence) const;
+    // Three processing stages: get sources, apply filters and store targets:
+    // When receivedResponse is not nullptr, response.* sources are available (post-response phase)
+    bool processSources(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        std::map<std::string, std::string>& variables,
+                        const std::string &requestUri,
+                        const nghttp2::asio_http2::header_map &requestHeaders,
+                        bool &eraser,
+                        std::uint64_t generalUniqueClientSequence,
+                        bool usesRequestBodyAsTransformationJsonTarget, const nlohmann::json &requestBodyJson,
+                        const ert::http2comm::Http2Client::response *receivedResponse = nullptr) const;
 
-        bool processFilters(std::shared_ptr<Transformation> transformation,
-                            TypeConverter& sourceVault,
-                            const std::map<std::string, std::string>& variables,
-                            std::smatch &matches,
-                            std::string &source,
-                            bool eraser) const;
+    bool processFilters(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        const std::map<std::string, std::string>& variables,
+                        std::smatch &matches,
+                        std::string &source) const;
 
-        bool processTargets(std::shared_ptr<Transformation> transformation,
-                            TypeConverter& sourceVault,
-                            std::map<std::string, std::string>& variables,
-                            const std::smatch &matches,
-                            bool eraser,
-                            bool hasFilter,
-                            unsigned int &responseStatusCode,
-                            nlohmann::json &responseBodyJson, // to manipulate json
-                            std::string &responseBodyAsString, // to set native data (readable or not)
-                            nghttp2::asio_http2::header_map &responseHeaders,
-                            unsigned int &responseDelayMs,
-                            std::string &outState,
-                            std::string &outStateMethod,
-                            std::string &outStateUri) const;
-    */
+    bool processTargets(std::shared_ptr<Transformation> transformation,
+                        TypeConverter& sourceVault,
+                        std::map<std::string, std::string>& variables,
+                        const std::smatch &matches,
+                        bool eraser,
+                        bool hasFilter,
+                        std::string &requestMethod,
+                        std::string &requestUri,
+                        nlohmann::json &requestBodyJson,
+                        std::string &requestBodyAsString,
+                        nghttp2::asio_http2::header_map &requestHeaders,
+                        unsigned int &requestDelayMs,
+                        unsigned int &requestTimeoutMs,
+                        std::string &outState,
+                        bool &breakCondition) const;
 
 
 public:
 
     AdminClientProvision();
+    ~AdminClientProvision() { stopTicking(); }
 
     // transform logic
 
@@ -183,6 +193,22 @@ public:
                   );
 
     /**
+     * Applies on-response transformations over the received response
+     *
+     * @param requestUri Request URI that was sent
+     * @param requestHeaders Request headers that were sent
+     * @param receivedResponse Response received from server
+     * @param generalUniqueClientSequence Client endpoint sending sequence
+     * @param outState out-state updated by reference (may change based on response)
+     */
+    void transformResponse( const std::string &requestUri,
+                            const nghttp2::asio_http2::header_map &requestHeaders,
+                            const ert::http2comm::Http2Client::response &receivedResponse,
+                            std::uint64_t generalUniqueClientSequence,
+                            std::string &outState
+                          );
+
+    /**
      * Provision is being employed
      */
     void employ() {
@@ -202,6 +228,19 @@ public:
      * @return Operation success
      */
     bool updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &rps, const std::string &repeat);
+
+    /**
+     * Starts timer-based triggering at configured rps rate
+     *
+     * @param ioContext Timer io_context
+     * @param tickCallback Callback invoked on each tick (should call sendClientRequest)
+     */
+    void startTicking(boost::asio::io_context *ioContext, std::function<void()> tickCallback);
+
+    /**
+     * Stops timer-based triggering
+     */
+    void stopTicking();
 
     /**
      * Load provision information
@@ -307,6 +346,15 @@ public:
     }
 
     /**
+     * Provisioned in state
+     *
+     * @return In state
+     */
+    const std::string &getInState() const {
+        return in_state_;
+    }
+
+    /**
      * Provisioned out state
      *
      * @return Out state
@@ -403,6 +451,18 @@ public:
      */
     const std::uint64_t & getSeq() const {
         return seq_;
+    }
+
+    void setSeq(std::uint64_t seq) {
+        seq_ = seq;
+    }
+
+    /** Configured requests per second
+     *
+     * @return rps value
+     */
+    unsigned int getRps() const {
+        return rps_;
     }
 
     /** Provision was employed

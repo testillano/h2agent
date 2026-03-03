@@ -231,6 +231,7 @@ public:
     std::string out_state_{};
     std::string out_state_method_{};
     std::string out_state_uri_{};
+    std::vector<std::pair<std::string, std::string>> client_provision_triggers_{};
 
     Transform_test() {
         adata_.loadServerMatching(MatchingConfiguration_FullMatching);
@@ -280,7 +281,7 @@ public:
         EXPECT_EQ(adata_.getServerProvisionData().size(), 1);
 
         request_body_data_part_.assign(requestBody);
-        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_);
+        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_);
     }
 
     ~Transform_test() {
@@ -1678,6 +1679,40 @@ TEST_F(Transform_test, TargetBreak)
     // Validations:
     EXPECT_EQ(status_code_, 200);
     EXPECT_EQ(response_body_, "hello");
+}
+
+TEST_F(Transform_test, TargetClientProvision)
+{
+    // Build test provision with clientProvision trigger:
+    const nlohmann::json item1 = R"({ "source": "value.initial", "target": "clientProvision.myFlow" })"_json;
+    const nlohmann::json item2 = R"({ "source": "value.step2", "target": "clientProvision.anotherFlow" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations: triggers collected
+    ASSERT_EQ(client_provision_triggers_.size(), 2);
+    EXPECT_EQ(client_provision_triggers_[0].first, "myFlow");
+    EXPECT_EQ(client_provision_triggers_[0].second, "initial");
+    EXPECT_EQ(client_provision_triggers_[1].first, "anotherFlow");
+    EXPECT_EQ(client_provision_triggers_[1].second, "step2");
+}
+
+TEST_F(Transform_test, TargetClientProvisionWithEraser)
+{
+    // When eraser source is used, inState defaults to "initial":
+    const nlohmann::json item = R"({ "source": "eraser", "target": "clientProvision.myFlow" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations:
+    ASSERT_EQ(client_provision_triggers_.size(), 1);
+    EXPECT_EQ(client_provision_triggers_[0].first, "myFlow");
+    EXPECT_EQ(client_provision_triggers_[0].second, "initial");
 }
 
 ///////////////////////////////////////////////////

@@ -73,6 +73,9 @@ jobs:
         # logout at job end:
         logout: true
     -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    -
       name: Build local builder image
       id: docker_build1
       uses: docker/build-push-action@v2
@@ -83,6 +86,8 @@ jobs:
           base_os=ubuntu
           base_tag=latest
         context: .
+        platforms: linux/amd64
+        no-cache: true
         push: true
     -
       name: Image digest
@@ -98,6 +103,7 @@ jobs:
           base_os=ubuntu
           base_tag=local
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image2 digest
@@ -110,6 +116,7 @@ jobs:
         tags: ghcr.io/testillano/ct-h2agent:local
         file: ct/Dockerfile
         context: ct
+        platforms: linux/amd64
         push: true
     -
       name: Image3 digest
@@ -125,6 +132,7 @@ jobs:
           os_type=ubuntu
           base_tag=local
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image4 digest
@@ -148,16 +156,20 @@ jobs:
         # logout at job end:
         logout: true
     -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    -
       name: Build and push coverage image
       id: docker_build6
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent:latest-cov
-        file: Dockerfile.coverage
+        file: Dockerfile.coverage.ut
         build-args: |
           base_tag=local
           os_type=ubuntu
         context: .
+        platforms: linux/amd64
         push: true
     -
       name: Image digest
@@ -176,14 +188,14 @@ jobs:
     steps:
     -
       name: Run coverage script
-      run: /var/coverage.sh
+      run: /var/starter-coverage-ut.sh
     -
       name: Setup Pages
       uses: actions/configure-pages@v3
     -
       name: Create badge json file
       run: |
-        value=$(grep -oP '(?<=<td class="headerCovTableEntryMed">)[0-9]+\.[0-9]+' /code/coverage/index.html | head -n 1) # tail -n -1 to get Functions coverage
+        value=$(grep -oP 'headerCovTableEntry(Hi|Med|Lo)">[0-9]+\.[0-9]+' /code/coverage/index.html | grep -oP '[0-9]+\.[0-9]+' | head -n 1) # tail -n -1 to get Functions coverage
         if [ "$(echo "${value} < 50" | bc -l)" = "1" ]; then
           color="red"
         elif [ "$(echo "${value} < 80" | bc -l)" = "1" ]; then
@@ -194,10 +206,16 @@ jobs:
 
         echo '{"schemaVersion":1,"label":"coverage","message":"'${value}'%","color":"'${color}'"}' > /code/coverage/badge.json
     -
+      name: Assemble GitHub Pages site
+      run: |
+        mkdir -p /code/site
+        cp -r /code/coverage /code/site/coverage
+        cp -r /code/docs/api /code/site/api
+    -
       name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: /code/coverage
+        path: /code/site
     -
       name: Deploy to GitHub Pages
       uses: actions/deploy-pages@v4
@@ -227,6 +245,9 @@ jobs:
         # logout at job end:
         logout: true
     -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    -
       name: Push images manually
       run: |
         # workflow dispatch event:
@@ -244,19 +265,18 @@ jobs:
 
         echo Processed image_tag=$image_tag
 
-        for imgbn in h2agent_builder h2agent ct-h2agent h2agent_training
+        # Use buildx imagetools to create tags directly in registry (avoids manifest issues)
+        for imgbn in h2agent_builder ct-h2agent
         do
-          img=ghcr.io/testillano/${imgbn}:local
-          echo "Pull '${img}' image:"
-          docker pull ${img}
+          echo "Creating tag ${image_tag} for ${imgbn} in ghcr.io"
+          docker buildx imagetools create -t ghcr.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local
+        done
 
-          for hub in docker.io ghcr.io
-          do
-            rmt_img=${hub}/testillano/${imgbn}:${image_tag}
-            docker tag ${img} ${rmt_img}
-            echo "Re-tag and push '${rmt_img}' to ${hub}"
-            docker push ${rmt_img}
-          done
+        for imgbn in h2agent h2agent_training
+        do
+          echo "Creating tag ${image_tag} for ${imgbn} in ghcr.io and docker.io"
+          docker buildx imagetools create -t ghcr.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local
+          docker buildx imagetools create -t docker.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local
         done
 
   helm_publish:

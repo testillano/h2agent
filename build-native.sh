@@ -6,8 +6,7 @@ DEBUG=true
 # VARIABLES #
 #############
 
-REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$REPO_DIR" ] && { echo "You must execute under a valid git repository !" ; exit 1 ; }
+project_root_dir="$(dirname "$(readlink -f "$0")")"
 
 STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged:
 
@@ -15,18 +14,18 @@ STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57
 nghttp2_ver=1.64.0
 nghttp2_asio_ver=main
 boost_ver=1.84.0 # safer to have this version (https://github.com/nghttp2/nghttp2/issues/1721).
-ert_nghttp2_ver=v1.2.5 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & nghttp2-asio & boost)
+ert_nghttp2_ver=v1.2.7 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & nghttp2-asio & boost)
 ert_logger_ver=v1.1.1
 ert_queuedispatcher_ver=v1.0.4
 jupp0r_prometheuscpp_ver=v0.13.0
 civetweb_civetweb_ver=v1.14
 ert_metrics_ver=v1.1.1
-ert_http2comm_ver=v2.2.2
-nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
-pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
-google_test_ver=$(grep ^google_test_ver__dflt= ${REPO_DIR}/build.sh | cut -d= -f2)
+ert_http2comm_ver=v2.2.6
+nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
+pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
+google_test_ver=$(grep ^google_test_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
 arashpartow_exprtk_ver=0.0.3
-ert_multipart_ver=$(grep ^"ARG ert_multipart_ver=" ${REPO_DIR}/Dockerfile.build | cut -d= -f2)
+ert_multipart_ver=$(grep ^"ARG ert_multipart_ver=" ${project_root_dir}/Dockerfile.build | cut -d= -f2)
 
 # Build requirements
 cmake_ver=3.23.2
@@ -122,7 +121,7 @@ build() {
 # EXECUTION #
 #############
 
-TMP_DIR=${REPO_DIR}/$(basename $0 .sh)
+TMP_DIR=${project_root_dir}/$(basename $0 .sh)
 if [ -d "${TMP_DIR}" ]
 then
   echo "Temporary already exists. Remove ? (y/n) [y]:"
@@ -295,5 +294,5 @@ set +x
 #) || failed $? && \
 
 # h2agent project root:
-ask "main project" && cd ${REPO_DIR} && rm -rf build CMakeCache.txt CMakeFiles && build project
+ask "main project" && cd ${project_root_dir} && rm -rf build CMakeCache.txt CMakeFiles && build project
 

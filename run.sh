@@ -4,15 +4,17 @@ cat << EOF
 
 Remember prepend variables:
 
+   H2AGENT_DCK_IMG:             H2agent docker image path. Defaults to 'ghcr.io/testillano/h2agent'.
    H2AGENT_DCK_TAG:             H2agent docker image tag. Defaults to 'latest'.
-   H2AGENT_DCK_NAME:            H2agent docker container name. Defaults to
-                                'h2agent'.
    H2AGENT_DCK_EXTRA_ARGS:      Arguments for docker run, for example alternative
                                 entrypoints (--entrypoint /opt/udp-server-h2client),
                                 mount options, network options (--network=back_tier
                                 -p 8000:8000 -p 8001:8001 -p 8074:8074), debugging
                                 (--cap-add=SYS_PTRACE), etc.
                                 Defaults to '--network=host'.
+   H2AGENT_LD_PRELOAD:          LD_PRELOAD library path for alternative allocators.
+                                Defaults to jemalloc if available.
+                                Set to empty string to use glibc malloc.
    H2AGENT_TRAFFIC_PROXY_PORT:  Traffic proxy port provided by nghttpx allowing
                                 http1.0, http1.1, http2 and http2 without http1
                                 upgrade.
@@ -38,11 +40,12 @@ env | grep -q ^H2AGENT_
 #   H2AGENT_PROXY_TLS_KEY:          Proxy server key to enable SSL/TLS
 #   H2AGENT_PROXY_TLS_CRT:          Proxy server crt to enable SSL/TLS
 
+H2AGENT_DCK_IMG=${H2AGENT_DCK_IMG:-ghcr.io/testillano/h2agent}
 H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
-H2AGENT_DCK_NAME=${H2AGENT_DCK_NAME:-h2agent}
 H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
 
-docker_args="--rm -it --name ${H2AGENT_DCK_NAME} -u $(id -u)"
+name=$(basename ${H2AGENT_DCK_IMG})
+docker_args="--rm -it --name ${name} -u $(id -u)"
 if [ -n "${H2AGENT_TRAFFIC_PROXY_PORT}" ]
 then
   docker_args+=" -e H2AGENT_TRAFFIC_PROXY_PORT=${H2AGENT_TRAFFIC_PROXY_PORT}"
@@ -66,12 +69,20 @@ fi
 
 docker_args+=" ${H2AGENT_DCK_EXTRA_ARGS}"
 
+# Use jemalloc by default for better performance and lower variance
+if [ -z "${H2AGENT_LD_PRELOAD+x}" ]; then
+  H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+fi
+if [ -n "${H2AGENT_LD_PRELOAD}" ]; then
+  docker_args+=" -e LD_PRELOAD=${H2AGENT_LD_PRELOAD}"
+fi
+
 # Recommended for 'benchmark/start.sh' (comment to use only provided arguments):
 benchmark_args=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
 
 # Run './build.sh --auto' to have docker image available:
 set -x
-docker run ${docker_args} ghcr.io/testillano/h2agent:${H2AGENT_DCK_TAG} ${benchmark_args[*]} $@
+docker run ${docker_args} ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} ${benchmark_args[*]} $@
 set +x
 
 # Using ctr-tools:
@@ -81,4 +92,4 @@ set +x
 # sudo ctr -n test images list # check if correctly loaded
 #
 # Run image:
-# sudo ctr -n test run --rm --tty --net-host ghcr.io/testillano/h2agent:${H2AGENT_DCK_TAG} myapp
+# sudo ctr -n test run --rm --tty --net-host ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} myapp

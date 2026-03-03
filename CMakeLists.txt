@@ -1,7 +1,8 @@
 ############
 # Versions #
 ############
-cmake_minimum_required (VERSION 3.5.1)
+cmake_minimum_required (VERSION 3.9)
+cmake_policy(SET CMP0069 NEW)
 project(h2agent LANGUAGES CXX)
 
 set(MAIN_PROJECT OFF)

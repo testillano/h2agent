@@ -1,0 +1,24 @@
+# Build artifacts
+build/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
+
+# Coverage
+coverage/
+
+# Benchmark reports (keep scripts, exclude reports)
+benchmark/*.txt
+benchmark/*.txt.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Documentation build
+docs/doxygen/html/
+docs/doxygen/latex/

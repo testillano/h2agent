@@ -396,6 +396,13 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setString(std::move(output));
         break;
     }
+    // Not applicable in server context:
+    case Transformation::SourceType::Sendseq:
+    case Transformation::SourceType::Seq:
+    case Transformation::SourceType::ClientEvent:
+    case Transformation::SourceType::ResponseHeader:
+    case Transformation::SourceType::ResponseStatusCode:
+        return false;
     }
 
 
@@ -660,6 +667,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         std::string &outState,
         std::string &outStateMethod,
         std::string &outStateUri,
+        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
         bool &breakCondition) const
 {
     bool success = false;
@@ -852,7 +860,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             break;
         }
-        case Transformation::TargetType::ResponseHeader:
+        case Transformation::TargetType::ResponseHeader_t:
         {
             // extraction
             targetS = sourceVault.getString(success);
@@ -861,7 +869,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             responseHeaders.emplace(target, nghttp2::asio_http2::header_value{targetS});
             break;
         }
-        case Transformation::TargetType::ResponseStatusCode:
+        case Transformation::TargetType::ResponseStatusCode_t:
         {
             // extraction
             targetU = sourceVault.getUnsigned(success);
@@ -1062,6 +1070,23 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             );
             break;
         }
+        case Transformation::TargetType::ClientProvision_t:
+        {
+            std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // "initial" by default
+            if (!eraser) {
+                targetS = sourceVault.getString(success);
+                if (success && !targetS.empty()) inState = targetS;
+            }
+            std::string clientProvisionId = transformation->getTarget();
+            replaceVariables(clientProvisionId, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(inState, transformation->getSourcePatterns(), variables, global_variable_);
+            clientProvisionTriggers.emplace_back(clientProvisionId, inState);
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Scheduled client provision trigger: id='%s', inState='%s'", clientProvisionId.c_str(), inState.c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            break;
+        }
         case Transformation::TargetType::Break:
         {
             // extraction
@@ -1088,6 +1113,12 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         case Transformation::TargetType::RequestBodyJson_Boolean:
         case Transformation::TargetType::RequestBodyJson_Object:
         case Transformation::TargetType::RequestBodyJson_JsonString:
+        case Transformation::TargetType::RequestHeader_t:
+        case Transformation::TargetType::RequestDelayMs:
+        case Transformation::TargetType::RequestTimeoutMs:
+        case Transformation::TargetType::ClientEventToPurge:
+        case Transformation::TargetType::RequestUri_t:
+        case Transformation::TargetType::RequestMethod_t:
             break;
         }
     }
@@ -1114,7 +1145,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       unsigned int &responseDelayMs,
                                       std::string &outState,
                                       std::string &outStateMethod,
-                                      std::string &outStateUri
+                                      std::string &outStateUri,
+                                      std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers
                                     )
 {
     // Default values without transformations:
@@ -1131,8 +1163,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
         mustDecodeRequestBody = true;
     }
     else {
-        for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-            if ((*it)->getSourceType() == Transformation::SourceType::RequestBody) {
+        for (const auto &t : transformations_) {
+            if (t->getSourceType() == Transformation::SourceType::RequestBody) {
                 if (!requestBodyDataPart.str().empty()) {
                     mustDecodeRequestBody = true;
                 }
@@ -1158,14 +1190,14 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
     // Find out if response body will need to be cloned (this is true if any transformation uses it as target):
     bool usesResponseBodyAsTransformationJsonTarget = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
-        if ((*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_String ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object ||
-                (*it)->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
+    for (const auto &t : transformations_) {
+        if (t->getTargetType() == Transformation::TargetType::ResponseBodyJson_String ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Integer ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Unsigned ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Float ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Boolean ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_Object ||
+                t->getTargetType() == Transformation::TargetType::ResponseBodyJson_JsonString) {
             usesResponseBodyAsTransformationJsonTarget = true;
             break;
         }
@@ -1188,11 +1220,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
 
     // Apply transformations sequentially
     bool breakCondition = false;
-    for (auto it = transformations_.begin(); it != transformations_.end(); it ++) {
+    for (const auto &transformation : transformations_) {
 
         if (breakCondition) break;
 
-        auto transformation = (*it);
         bool eraser = false;
 
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
@@ -1218,7 +1249,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         }
 
         // TARGETS: ResponseBodyString, ResponseBodyHexString, ResponseBodyJson_String, ResponseBodyJson_Integer, ResponseBodyJson_Unsigned, ResponseBodyJson_Float, ResponseBodyJson_Boolean, ResponseBodyJson_Object, ResponseBodyJson_JsonString, ResponseHeader, ResponseStatusCode, ResponseDelayMs, TVar, TGVar, OutState, TTxtFile, TBinFile, UDPSocket, ServerEventToPurge, Break
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, breakCondition)) {
+        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, breakCondition)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
             continue;
         }

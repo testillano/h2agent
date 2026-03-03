@@ -105,6 +105,7 @@ spec:
             - "--remote-servers-lazy-connection"
             {{- end }}
 
+          {{- if not (and .Values.coverage .Values.coverage.enabled) }}
           # livenessProbe & readinessProbe look for admin port, as main app is
           #  blocking on startup and will restart the container in case of crash.
           livenessProbe:
@@ -120,6 +121,7 @@ spec:
               port: {{ .Values.service.admin_port }}
             initialDelaySeconds: 10
             periodSeconds: 5
+          {{- end }}
           lifecycle:
             postStart:
               exec:

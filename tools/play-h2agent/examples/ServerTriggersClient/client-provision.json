@@ -1,0 +1,13 @@
+{
+  "id": "forwardNotification",
+  "endpoint": "myServer",
+  "requestMethod": "POST",
+  "requestUri": "/api/v1/forward",
+  "requestHeaders": {"content-type":"application/json"},
+  "transform": [
+    {
+      "source": "globalVar.notificationBody",
+      "target": "request.body.json.jsonstring"
+    }
+  ]
+}

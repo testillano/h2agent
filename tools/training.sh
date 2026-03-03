@@ -4,8 +4,7 @@
 registry=ghcr.io/testillano
 
 echo
-git_root_dir="$(git rev-parse --show-toplevel 2>/dev/null)"
-[ -z "$git_root_dir" ] && { echo "Go into the git repository !" ; exit 1 ; }
+project_root_dir="$(dirname "$(readlink -f "$0")")/.."
 
 # Base OS:
 echo "Base image (alpine/ubuntu) [ubuntu]:"
@@ -28,6 +27,6 @@ then
 fi
 bargs+=" --build-arg enable_qa=${qa}"
 
-cd ${git_root_dir}
+cd ${project_root_dir}
 docker build --rm ${bargs} -f Dockerfile.training  ${NO_CACHE} -t ${registry}/h2agent_training:latest . || exit 1
 docker run -it --rm --entrypoint=/bin/bash -e OPENAI_API_KEY=${OPENAI_API_KEY} -e GROQ_API_KEY=${GROQ_API_KEY} ${registry}/h2agent_training:latest || exit 1

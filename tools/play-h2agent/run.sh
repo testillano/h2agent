@@ -7,6 +7,7 @@ EXAMPLES=examples
 DESCRIPTION=readme.txt
 REQUEST=request.json
 REQUEST_GENERATOR=request.sh
+TRIGGER=trigger.sh
 
 #############
 # FUNCTIONS #
@@ -46,6 +47,8 @@ cleanup() {
   global_variable --clean
   server_provision --clean
   server_data --clean
+  client_provision --clean
+  client_data --clean
   client_endpoint --clean
 }
 
@@ -97,7 +100,7 @@ configure_example() {
   press_enter
   cleanup >/dev/null
 
-  for operation in client-endpoint server-matching server-provision global-variable schema
+  for operation in client-endpoint server-matching server-provision client-provision global-variable schema
   do
     local f="$1/${operation}.json"
     [ -f "${f}" ] && admin_operation ${operation} ${f}
@@ -136,7 +139,19 @@ menu() {
 
   EXAMPLE=$(dirname $file)
   configure_example ${EXAMPLE}
-  if [ ! -f "${EXAMPLE}/${REQUEST}" -a ! "${EXAMPLE}/${REQUEST_GENERATOR}" ] # no request means just didactic content
+  if [ -x "${EXAMPLE}/${TRIGGER}" ]
+  then
+    # Client flow: trigger.sh handles the full execution
+    while true
+    do
+      title "Trigger client flow" ${COLOR_green}
+      separator
+      select_option
+      rc=$?
+      [ $rc -eq 0 ] && source ${EXAMPLE}/${TRIGGER} && press_enter
+      [ $rc -eq 1 ] && break
+    done
+  elif [ ! -f "${EXAMPLE}/${REQUEST}" -a ! "${EXAMPLE}/${REQUEST_GENERATOR}" ] # no request means just didactic content
   then
     press_enter # no request means just didactic content
   else

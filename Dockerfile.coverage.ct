@@ -1,0 +1,25 @@
+ARG base_tag=latest
+FROM ghcr.io/testillano/h2agent_builder:${base_tag}
+LABEL maintainer="testillano"
+
+LABEL testillano.h2agent.description="Docker image for h2agent CT coverage"
+
+ARG os_type=ubuntu
+RUN if [ "${os_type}" = "alpine" ] ; then apk update && apk add lcov bc curl jq nghttp2 netcat-openbsd socat --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ && rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update && apt-get install -y lcov bc curl jq nghttp2 netcat-openbsd socat && apt-get clean ; fi
+
+COPY . /code
+WORKDIR /code
+
+ARG make_procs=4
+RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs} h2agent
+
+# Reuse starter.sh but point to Debug binary
+RUN sed 's|/opt/h2agent|/code/build/Debug/bin/h2agent|g' deps/starter.sh > /var/starter.sh && chmod a+x /var/starter.sh
+
+# Entrypoint script:
+COPY deps/starter-coverage-ct.sh /var
+
+ENTRYPOINT ["sh", "/var/starter-coverage-ct.sh" ]
+
+CMD []
+

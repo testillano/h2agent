@@ -45,6 +45,10 @@ SOFTWARE.
 #include <ert/http2comm/Http2Server.hpp>
 #include <common.hpp>
 
+#include <boost/asio.hpp>
+
+#include <nlohmann/json.hpp>
+
 namespace h2agent
 {
 namespace model
@@ -56,6 +60,8 @@ class SocketManager;
 class AdminData;
 class MockServerData;
 class MockClientData;
+class AdminClientProvision;
+class AdminClientEndpoint;
 }
 
 namespace http2
@@ -72,6 +78,8 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
+    boost::asio::io_context *timers_io_context_{};
+
     // Client data storage:
     bool client_data_{};
     bool client_data_key_history_{};
@@ -87,6 +95,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode);
 
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
+    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint) const;
 
 public:
     MyAdminHttp2Server(const std::string &name, size_t workerThreads);
@@ -163,6 +172,19 @@ public:
     model::MockClientData *getMockClientData() const {
         return common_resources_.MockClientDataPtr;
     }
+
+    void setTimersIoContext(boost::asio::io_context *p) {
+        timers_io_context_ = p;
+    }
+
+    /**
+     * Triggers a client provision (fire-and-forget) from server context.
+     * Looks up the provision and endpoint, then sends asynchronously.
+     *
+     * @param clientProvisionId Client provision identifier
+     * @param inState Initial state for the client provision (default "initial")
+     */
+    void triggerClientProvision(const std::string &clientProvisionId, const std::string &inState) const;
 
     void setHttp2Server(h2agent::http2::MyTrafficHttp2Server* ptr) {
         http2_server_ = ptr;
