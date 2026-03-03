@@ -41,6 +41,10 @@ HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
 HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 
+H2CLIENT__ADMIN_PORT__dflt=8075
+H2CLIENT__RPS__dflt=5000
+H2CLIENT__ITERATIONS__dflt=100000
+
 # Hermes image
 HERMES_IMG=jgomezselles/hermes:0.0.2
 
@@ -306,7 +310,7 @@ echo "done !"
 h2a_admin_curl POST admin/v1/global-variable 201 ${H2AGENT_GLOBAL_VARIABLE} || exit 1
 
 # Launcher type
-read_value "Launcher type" ST_LAUNCHER "h2load|hermes" # TODO: |h2client
+read_value "Launcher type" ST_LAUNCHER "h2load|hermes|h2client"
 
 if [ "${ST_LAUNCHER}" = "h2load" ] ################################################### H2LOAD
 then
@@ -378,6 +382,68 @@ EOF
   set -x
   time docker run -it --network host -v ${TMP_DIR}/scripts:/etc/scripts --entrypoint /hermes/hermes ${HERMES_IMG} -r${HERMES__RPS} -p1 -t${HERMES__DURATION} | tee -a ${REPORT}
   set +x
+
+elif [ "${ST_LAUNCHER}" = "h2client" ] ################################################# H2CLIENT
+then
+  which h2agent &>/dev/null || { echo "Required 'h2agent' binary in PATH" ; exit 1 ; }
+
+  read_value "Client h2agent admin port" H2CLIENT__ADMIN_PORT
+  read_value "Requests per second" H2CLIENT__RPS
+  read_value "Number of iterations" H2CLIENT__ITERATIONS
+
+  # Start client-only h2agent instance
+  h2agent --admin-port ${H2CLIENT__ADMIN_PORT} --traffic-server-port -1 --log-level Warning &>/dev/null &
+  H2CLIENT_PID=$!
+  trap "kill ${H2CLIENT_PID} 2>/dev/null; rm -rf ${TMP_DIR}" EXIT
+  sleep 1
+
+  # $1: method; $2: uri; $3: optional body file
+  h2a_client_curl() {
+    local s_data=
+    [ -n "$3" ] && s_data="-d@$3"
+    curl -s --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${s_data} \
+      "http://localhost:${H2CLIENT__ADMIN_PORT}/$2"
+  }
+
+  # Configure client endpoint pointing to server h2agent
+  echo "{\"id\":\"server\",\"host\":\"${H2AGENT__BIND_ADDRESS}\",\"port\":${H2AGENT__TRAFFIC_PORT}}" > ${TMP_DIR}/client-endpoint.json
+  h2a_client_curl POST admin/v1/client-endpoint ${TMP_DIR}/client-endpoint.json
+
+  # Configure client provision
+  PROVISION_JSON="{\"id\":\"benchmark\",\"endpoint\":\"server\",\"requestMethod\":\"${ST_REQUEST_METHOD}\",\"requestUri\":\"/${ST_REQUEST_URL}\""
+  [ "${ST_REQUEST_METHOD}" = "POST" ] && PROVISION_JSON="${PROVISION_JSON},\"requestBody\":${ST_REQUEST_BODY}"
+  PROVISION_JSON="${PROVISION_JSON}}"
+  echo "${PROVISION_JSON}" > ${TMP_DIR}/client-provision.json
+  h2a_client_curl POST admin/v1/client-provision ${TMP_DIR}/client-provision.json
+
+  REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_rps${H2CLIENT__RPS}_iters${H2CLIENT__ITERATIONS}.txt
+  init_report H2CLIENT__ADMIN_PORT H2CLIENT__RPS H2CLIENT__ITERATIONS
+
+  # Trigger timer-based load
+  EXPECTED_SECS=$(( (H2CLIENT__ITERATIONS + H2CLIENT__RPS - 1) / H2CLIENT__RPS ))
+  echo
+  echo "Triggering ${H2CLIENT__ITERATIONS} requests at ${H2CLIENT__RPS} rps (~${EXPECTED_SECS}s expected)..."
+  START_NS=$(date +%s%N)
+  h2a_client_curl POST "admin/v1/client-provision/trigger?id=benchmark&sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&rps=${H2CLIENT__RPS}"
+  echo
+
+  # Poll client-data until all events recorded or timeout
+  TIMEOUT=$(( EXPECTED_SECS * 3 + 10 ))
+  echo -n "Progress: "
+  while true; do
+    sleep 1
+    EVENTS=$(h2a_client_curl GET admin/v1/client-data | jq '[.[].events | length] | add // 0' 2>/dev/null)
+    echo -n "${EVENTS:-?}/${H2CLIENT__ITERATIONS} "
+    [ "${EVENTS:-0}" -ge "${H2CLIENT__ITERATIONS}" ] && break
+    ELAPSED=$(( ($(date +%s%N) - START_NS) / 1000000000 ))
+    [ ${ELAPSED} -gt ${TIMEOUT} ] && echo -e "\n(timeout after ${ELAPSED}s)" && break
+  done
+  END_NS=$(date +%s%N)
+
+  ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
+  ACTUAL_RPS=$(( H2CLIENT__ITERATIONS * 1000 / ELAPSED_MS ))
+  echo
+  echo "Completed: ${EVENTS:-?}/${H2CLIENT__ITERATIONS} requests in ${ELAPSED_MS}ms (~${ACTUAL_RPS} req/s)" | tee -a ${REPORT}
 fi
 
 rm -f last
