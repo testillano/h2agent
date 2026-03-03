@@ -610,12 +610,7 @@ Load testing is done with [h2load](https://nghttp2.org/documentation/h2load-howt
 * **hermes**: uses the [hermes](https://github.com/jgomezselles/hermes) Docker image. Requires Docker.
 * **h2client**: starts a second `h2agent` instance in client-only mode (`--traffic-server-port -1`) on a separate admin port (default `8075`), configures a client endpoint pointing to the server `h2agent`, and drives load via the timer-based client provision trigger (`rps` + `sequenceEnd`). Polls `client-data` to track progress and reports actual throughput. Requires `h2agent` in `PATH`.
 
-  The client uses a single `boost::asio::steady_timer` that fires one request per tick at `1.000.000/rps` microsecond intervals. The practical throughput limit is around **15.000–20.000 req/s**, depending on:
-  - CPU speed and number of cores available to the OS scheduler.
-  - OS timer resolution (typically ~100µs on Linux; finer intervals increase jitter).
-  - Round-trip latency to the server (responses are processed asynchronously and do not block the timer).
-
-  Beyond ~20.000 req/s the timer fires less frequently than requested and the achieved rate saturates. For higher loads, use `h2load` (concurrent streams, no timer overhead).
+  The client uses a single `boost::asio::steady_timer` that fires one request per tick at `1.000.000/rps` microsecond intervals. The timer is accurate up to at least **30.000 req/s** (~-3% error, dominated by measurement overhead). The default is `rps=10000`. For higher loads, use `h2load` (concurrent streams, no timer overhead).
 
   Example (non-interactive):
   ```bash
@@ -1712,6 +1707,48 @@ The API is organized in the following groups:
 | **client-endpoint** | `POST` `GET` `DELETE` `/admin/v1/client-endpoint` | Remote server connection definitions |
 | **client-provision** | `POST` `GET` `DELETE` `/admin/v1/client-provision` | Client mock request behavior, triggering and transformation pipeline |
 | **client-data** | `GET` `PUT` `DELETE` `/admin/v1/client-data` | Client events storage and inspection |
+
+## Server-triggered client flows with serverEvent source
+
+When a server provision triggers a client provision (via `clientProvision.<id>` target), the client provision can read data directly from the originating server event using the `serverEvent` source. This avoids copying fields to intermediate `globalVar` variables and is the recommended approach when the client request must be built from server request data.
+
+**Source syntax:** `serverEvent.<method>.<uri>.<event-number>.<json-path>`
+
+**Example:** A webhook receiver that forwards the notification body to another endpoint:
+
+```json
+// server-provision.json
+{
+  "requestMethod": "POST",
+  "requestUri": "/api/v1/webhook/notify",
+  "responseCode": 200,
+  "responseBody": {"status": "received"},
+  "transform": [
+    { "source": "value.initial", "target": "clientProvision.forwardNotification" }
+  ]
+}
+```
+
+```json
+// client-provision.json
+{
+  "id": "forwardNotification",
+  "endpoint": "myServer",
+  "requestMethod": "POST",
+  "requestUri": "/api/v1/forward",
+  "requestHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "source": "serverEvent.POST./api/v1/webhook/notify.0.body",
+      "target": "request.body.json.object"
+    }
+  ]
+}
+```
+
+The client provision reads the last received body at `POST /api/v1/webhook/notify` and uses it as the outgoing request body — no `globalVar` needed. A full runnable example is available at `tools/play-h2agent/examples/ServerTriggersClientViaServerEvent`.
+
+> **Note:** `serverEvent` requires server-data storage to be enabled (default). If `--discard-data` is set, the source will fail and the transformation is skipped.
 
 ## Dynamic response delays
 

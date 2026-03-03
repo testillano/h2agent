@@ -1,0 +1,22 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/api/v1/webhook/notify",
+    "responseCode": 200,
+    "responseBody": {"status":"received"},
+    "responseHeaders": {"content-type":"application/json"},
+    "transform": [
+      {
+        "source": "value.initial",
+        "target": "clientProvision.forwardNotification"
+      }
+    ]
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/api/v1/forward",
+    "responseCode": 200,
+    "responseBody": {"status":"forwarded"},
+    "responseHeaders": {"content-type":"application/json"}
+  }
+]

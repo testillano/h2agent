@@ -464,11 +464,17 @@ then
   h2a_client_curl GET "admin/v1/client-provision/benchmark?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&rps=${H2CLIENT__RPS}"
   echo
 
-  # Wait for timer to complete (sequenceEnd/rps seconds + 10% margin)
-  EXPECTED_SECS=$(( (H2CLIENT__ITERATIONS + H2CLIENT__RPS - 1) / H2CLIENT__RPS ))
-  WAIT_SECS=$(( EXPECTED_SECS + EXPECTED_SECS / 10 + 2 ))
-  echo "Waiting ${WAIT_SECS}s for completion (~${EXPECTED_SECS}s expected)..."
-  sleep ${WAIT_SECS}
+  # Wait for timer to complete by polling dynamics.sequence
+  TIMEOUT_SECS=$(( (H2CLIENT__ITERATIONS / H2CLIENT__RPS + 1) * 3 ))
+  echo "Waiting for completion (timeout ${TIMEOUT_SECS}s)..."
+  while true; do
+    sleep 0.2
+    seq=$(h2a_client_curl GET "admin/v1/client-provision" 2>/dev/null | \
+      python3 -c "import sys,json; d=json.load(sys.stdin); p=[x for x in d if x.get('id')=='benchmark']; print(p[0]['dynamics']['sequence'] if p else 0)" 2>/dev/null || echo 0)
+    [ "${seq:-0}" -gt "${H2CLIENT__ITERATIONS}" ] && break
+    now=$(date +%s%N)
+    [ $(( (now - START_NS) / 1000000000 )) -ge ${TIMEOUT_SECS} ] && echo "Timeout!" && break
+  done
   END_NS=$(date +%s%N)
 
   ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
