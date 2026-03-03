@@ -414,11 +414,6 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setUnsigned(seq_);
         break;
     }
-    case Transformation::SourceType::Recvseq:
-    {
-        sourceVault.setUnsigned(generalUniqueClientSequence); // reuse for client context
-        break;
-    }
     case Transformation::SourceType::SVar:
     {
         std::string varname = transformation->getSource();
@@ -520,6 +515,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     // Not applicable in client context:
     case Transformation::SourceType::RequestUriPath:
     case Transformation::SourceType::RequestUriParam:
+    case Transformation::SourceType::Recvseq:
         return false;
     }
 
