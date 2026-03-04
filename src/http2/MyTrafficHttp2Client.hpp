@@ -74,10 +74,10 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
     // metrics:
     ert::metrics::Metrics *metrics_{};
 
-    // TODO:
-    /*
-    ert::metrics::counter_t *observed_ ...
-    */
+    ert::metrics::counter_t *provisioned_requests_successful_counter_{};
+    ert::metrics::counter_t *provisioned_requests_failed_counter_{};
+    ert::metrics::counter_t *purged_contexts_successful_counter_{};
+    ert::metrics::counter_t *purged_contexts_failed_counter_{};
 
 public:
 
@@ -99,7 +99,12 @@ public:
     *
     * @param metrics Optional metrics object to compute counters
     */
-    void enableMyMetrics(ert::metrics::Metrics *metrics);
+    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "");
+
+    void incrementProvisionedRequestsSuccessful() { if (provisioned_requests_successful_counter_) provisioned_requests_successful_counter_->Increment(); }
+    void incrementProvisionedRequestsFailed()     { if (provisioned_requests_failed_counter_)     provisioned_requests_failed_counter_->Increment(); }
+    void incrementPurgedContextsSuccessful()      { if (purged_contexts_successful_counter_)      purged_contexts_successful_counter_->Increment(); }
+    void incrementPurgedContextsFailed()          { if (purged_contexts_failed_counter_)          purged_contexts_failed_counter_->Increment(); }
 
     //void responseTimeout();
 

@@ -37,8 +37,10 @@ set_property(TARGET nlohmann_json_schema_validator PROPERTY IMPORTED_LOCATION ${
 target_link_libraries( ${H2AGENT_TARGET_NAME}
 PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}
-        h2agent-http2
+        -Wl,--start-group
         h2agent-model
+        h2agent-http2
+        -Wl,--end-group
 
         ert_logger
         ert_http2comm

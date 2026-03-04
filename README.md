@@ -2059,12 +2059,14 @@ These are the groups of metrics implemented in the project:
 #### HTTP/2 clients
 
 ```
-Counters provided by http2comm library:
+Counters provided by http2comm library and h2agent itself(*):
 
    h2agent_traffic_client_observed_requests_sents_counter [source] [method]
    h2agent_traffic_client_observed_requests_unsent_counter [source] [method]
    h2agent_traffic_client_observed_responses_received_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
+   h2agent_traffic_client_provisioned_requests_counter (*) [source] [result: successful/failed]
+   h2agent_traffic_client_purged_contexts_counter (*) [source] [result: successful/failed]
 
 Gauges provided by http2comm library:
 

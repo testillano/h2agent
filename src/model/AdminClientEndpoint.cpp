@@ -62,10 +62,12 @@ void AdminClientEndpoint::connect(bool fromScratch) {
         client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>("h2agent_traffic_client", host_, std::to_string(port_), secure_, nullptr);
         try {
             client_->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_, application_name_ + "_" + h2agent::model::fixMetricsName(key_)/*source label*/);
+            client_->enableMyMetrics(metrics_, application_name_);
         }
         catch(std::exception &e)
         {
             client_->enableMetrics(nullptr); // force no metrics again
+            client_->enableMyMetrics(nullptr);
             std::string msg = ert::tracing::Logger::asString("Cannot enable metrics for client endpoint '%s': %s", key_.c_str(), e.what());
             ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
         }

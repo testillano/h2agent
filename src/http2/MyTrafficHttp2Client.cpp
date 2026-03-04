@@ -59,14 +59,21 @@ namespace h2agent
 namespace http2
 {
 
-void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics) {
+void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source) {
 
     metrics_ = metrics;
-    /*
-        if (metrics_) {
-            // TODO
-        }
-    */
+
+    if (metrics_) {
+        ert::metrics::labels_t familyLabels = {{"source", (source.empty() ? name_ : source)}};
+
+        ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_traffic_client_provisioned_requests_counter", "Requests provisioned counter in h2agent_traffic_client", familyLabels);
+        provisioned_requests_successful_counter_ = &(cf.Add({{"result", "successful"}}));
+        provisioned_requests_failed_counter_ = &(cf.Add({{"result", "failed"}}));
+
+        ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily("h2agent_traffic_client_purged_contexts_counter", "Contexts purged counter in h2agent_traffic_client", familyLabels);
+        purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
+        purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
+    }
 }
 
 }
