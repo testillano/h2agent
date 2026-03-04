@@ -3,5 +3,11 @@
   "endpoint": "myServer",
   "requestMethod": "POST",
   "requestUri": "/game/ping",
-  "requestHeaders": {"content-type": "application/json"}
+  "requestHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "source": "value.@{sequence}",
+      "target": "request.body.json.integer./bounce"
+    }
+  ]
 }
