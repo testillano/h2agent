@@ -106,13 +106,29 @@ TEST_F(MyTrafficHttp2ClientUnitTest, SequenceIsIndependentPerClient) {
 // Metrics tests
 TEST_F(MyTrafficHttp2ClientUnitTest, EnableMetricsWithValidMetrics) {
     ert::metrics::Metrics metrics;
-    // Should not throw
     EXPECT_NO_THROW(client_->enableMyMetrics(&metrics));
 }
 
 TEST_F(MyTrafficHttp2ClientUnitTest, EnableMetricsWithNull) {
-    // Should not throw even with nullptr
     EXPECT_NO_THROW(client_->enableMyMetrics(nullptr));
+}
+
+// Increment counters without metrics (null guards)
+TEST_F(MyTrafficHttp2ClientUnitTest, IncrementCountersWithoutMetrics) {
+    EXPECT_NO_THROW(client_->incrementProvisionedRequestsSuccessful());
+    EXPECT_NO_THROW(client_->incrementProvisionedRequestsFailed());
+    EXPECT_NO_THROW(client_->incrementPurgedContextsSuccessful());
+    EXPECT_NO_THROW(client_->incrementPurgedContextsFailed());
+}
+
+// Increment counters with metrics enabled
+TEST_F(MyTrafficHttp2ClientUnitTest, IncrementCountersWithMetrics) {
+    ert::metrics::Metrics metrics;
+    client_->enableMyMetrics(&metrics, "test");
+    EXPECT_NO_THROW(client_->incrementProvisionedRequestsSuccessful());
+    EXPECT_NO_THROW(client_->incrementProvisionedRequestsFailed());
+    EXPECT_NO_THROW(client_->incrementPurgedContextsSuccessful());
+    EXPECT_NO_THROW(client_->incrementPurgedContextsFailed());
 }
 
 } // namespace test
