@@ -46,7 +46,7 @@ SOFTWARE.
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
-//#include <MyTrafficHttp2Client.hpp>
+#include <MyTrafficHttp2Client.hpp>
 
 #include <AdminData.hpp>
 #include <MockServerData.hpp>
@@ -942,6 +942,10 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
             }
 
+            // Provisioned request counter
+            if (response.statusCode != 0) clientEndpoint->getClient()->incrementProvisionedRequestsSuccessful();
+            else clientEndpoint->getClient()->incrementProvisionedRequestsFailed();
+
             // Store event
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
@@ -955,6 +959,8 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 getMockClientData()->clear(somethingDeleted, h2agent::model::EventKey(dataKey, ""));
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Client event purge: %s", somethingDeleted ? "successful":"nothing to delete"), ERT_FILE_LOCATION));
+                if (somethingDeleted) clientEndpoint->getClient()->incrementPurgedContextsSuccessful();
+                else clientEndpoint->getClient()->incrementPurgedContextsFailed();
             }
             // State progression
             else if (!finalOutState.empty() && finalOutState != inState) {

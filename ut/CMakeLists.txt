@@ -37,8 +37,10 @@ ${CMAKE_EXE_LINKER_FLAGS}
         gmock
         gtest_main
 
-        h2agent-http2
+        -Wl,--start-group
         h2agent-model
+        h2agent-http2
+        -Wl,--end-group
 
         ert_logger
         ert_http2comm
