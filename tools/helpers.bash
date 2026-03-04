@@ -436,8 +436,22 @@ client_provision_unused() {
 }
 
 launch_client_provision() {
-  [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ] && echo "Usage: launch_client_provision [-h|--help] <id>; Activates client provision given its identifier ($(admin_url)/client-provision/<id>)." && return 0
-  do_curl -XPUT $(admin_url)/client-provision/$1
+  if [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ]
+  then
+    echo "Usage: launch_client_provision [-h|--help] <id> [sequenceBegin] [sequenceEnd] [rps] [repeat]; Activates client provision given its identifier ($(admin_url)/client-provision/<id>)."
+    echo "                               Dynamics (all optional): sequenceBegin, sequenceEnd, rps, repeat true|false. Omitted params keep their current server-side value."
+    return 0
+  fi
+  local id=$1
+  local query=
+  [ -n "$2" ] && query="${query}sequenceBegin=$2&"
+  [ -n "$3" ] && query="${query}sequenceEnd=$3&"
+  [ -n "$4" ] && query="${query}rps=$4&"
+  [ -n "$5" ] && query="${query}repeat=$5&"
+  query="${query%&}"
+  local url="$(admin_url)/client-provision/${id}"
+  [ -n "$query" ] && url="${url}?${query}"
+  do_curl -XPUT "${url}"
 }
 
 client_data() {
