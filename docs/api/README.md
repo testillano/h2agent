@@ -1297,7 +1297,7 @@ Most items are described in the [transformation pipeline](#transformation-pipeli
 New **sources**:
 
 - `sendseq`: sequence id number increased for every mock sending over specific client endpoint (starts on *1* when the *h2agent* is started).
-- `seq`: sequence id number provided by client provision trigger procedure (we will explain later in [triggering](#triggering)). This value is accessible for every provision processing and is used to create dynamically things like the final request *URI* sent (containing for example, a session identifier) and probably some parts of the request body content.
+- `seq`: sequence id number provided by client provision trigger procedure (we will explain later in [triggering](#triggering)). This value is accessible for every provision processing and is used to create dynamically things like the final request *URI* sent (containing for example, a session identifier) and probably some parts of the request body content. Note that `seq` is the **only** way to access the current sequence value inside a transform — the `dynamics.sequence` field exposed by the REST API is a read-only external snapshot and is **not** available as a transform variable.
 
 New **targets**:
 
@@ -1373,6 +1373,8 @@ So, together with provision information configured, we store dynamic load config
   "sequenceEnd": 10000000
 }
 ```
+
+> **Note**: `dynamics` fields are a read-only external snapshot accessible via the REST API only (e.g., to poll for completion). They are **not** available as transform variables. To use the current sequence value inside a transform, use the `seq` source instead.
 
 *Configuration rules:*
 

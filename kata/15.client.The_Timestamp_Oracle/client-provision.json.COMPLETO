@@ -1,0 +1,38 @@
+[
+  {
+    "id": "first-tick",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/time",
+    "onResponseTransform": [
+      {
+        "source": "response.body./ts",
+        "target": "globalVar.t1"
+      }
+    ]
+  },
+  {
+    "id": "second-tick",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/time",
+    "onResponseTransform": [
+      {
+        "source": "response.body./ts",
+        "target": "globalVar.t2"
+      },
+      {
+        "source": "globalVar.t2",
+        "target": "var.t2"
+      },
+      {
+        "source": "globalVar.t1",
+        "target": "var.t1"
+      },
+      {
+        "source": "math.@{t2} - @{t1}",
+        "target": "globalVar.elapsed"
+      }
+    ]
+  }
+]

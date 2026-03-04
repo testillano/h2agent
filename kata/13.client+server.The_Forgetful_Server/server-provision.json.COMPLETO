@@ -1,0 +1,27 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/items/id",
+    "responseCode": 201,
+    "transform": [
+      {"source": "request.uri", "filter": {"RegexCapture": "(/items/id-[0-9]+)"}, "target": "var.item-uri"},
+      {"source": "value.stored", "target": "outState.GET.@{item-uri}"}
+    ]
+  },
+  {
+    "inState": "stored",
+    "requestMethod": "GET",
+    "requestUri": "/items/id",
+    "responseCode": 200,
+    "outState": "purge",
+    "transform": [
+      {"source": "request.uri", "target": "var.my-uri"},
+      {"source": "serverEvent.requestMethod=POST&requestUri=@{my-uri}&eventNumber=-1&eventPath=/requestBody", "target": "response.body.json.object"}
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/items/id",
+    "responseCode": 404
+  }
+]

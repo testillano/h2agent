@@ -1,0 +1,24 @@
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "/enter",
+    "responseCode": 403,
+    "responseBody": {"error": "knock first"}
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/knock",
+    "responseCode": 200,
+    "transform": [
+      {"source": "value.open", "target": "outState.GET./enter"}
+    ]
+  },
+  {
+    "inState": "open",
+    "requestMethod": "GET",
+    "requestUri": "/enter",
+    "responseCode": 200,
+    "responseBody": {"message": "welcome"},
+    "outState": "initial"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "first-tick",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/time"
+  },
+  {
+    "id": "second-tick",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/time"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "try-enter",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/enter"
+  },
+  {
+    "id": "knock",
+    "endpoint": "myServer",
+    "requestMethod": "POST",
+    "requestUri": "/knock"
+  }
+]

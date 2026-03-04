@@ -1,0 +1,12 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/items/id",
+    "responseCode": 201
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/items/id",
+    "responseCode": 404
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "store-item",
+    "endpoint": "myServer",
+    "requestMethod": "POST",
+    "requestUri": "/items/id-42",
+    "requestHeaders": {"content-type": "application/json"},
+    "requestBody": {"value": 42}
+  },
+  {
+    "id": "read-item",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/items/id-42"
+  }
+]

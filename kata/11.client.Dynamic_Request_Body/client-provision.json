@@ -1,0 +1,7 @@
+{
+  "id": "ping",
+  "endpoint": "myServer",
+  "requestMethod": "POST",
+  "requestUri": "/game/ping",
+  "requestHeaders": {"content-type": "application/json"}
+}
