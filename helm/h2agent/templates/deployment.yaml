@@ -78,6 +78,14 @@ spec:
             - "--traffic-server-provision"
             - {{ .Values.h2agent_cl.traffic_server_provision | quote }}
             {{- end }}
+            {{- if ne .Values.h2agent_cl.traffic_client_endpoint ""  }}
+            - "--traffic-client-endpoint"
+            - {{ .Values.h2agent_cl.traffic_client_endpoint | quote }}
+            {{- end }}
+            {{- if ne .Values.h2agent_cl.traffic_client_provision ""  }}
+            - "--traffic-client-provision"
+            - {{ .Values.h2agent_cl.traffic_client_provision | quote }}
+            {{- end }}
             {{- if ne .Values.h2agent_cl.schema ""  }}
             - "--schema"
             - {{ .Values.h2agent_cl.schema | quote }}

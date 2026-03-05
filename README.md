@@ -870,6 +870,12 @@ Options:
 [--traffic-server-provision <path file>]
   Path file for optional startup traffic server provision configuration.
 
+[--traffic-client-endpoint <path file>]
+  Path file for optional startup traffic client endpoint configuration.
+
+[--traffic-client-provision <path file>]
+  Path file for optional startup traffic client provision configuration.
+
 [--traffic-server-ignore-request-body]
   Ignores traffic server request body reception processing as optimization in
   case that its content is not required by planned provisions (enabled by default).
