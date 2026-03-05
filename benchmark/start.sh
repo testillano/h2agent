@@ -1,5 +1,5 @@
 #!/bin/bash
-# Prepend variables: H2AGENT__ADMIN_PORT and H2AGENT__TRAFFIC_PORT
+# Prepend variables: H2AGENT__ADMIN_PORT, H2AGENT__TRAFFIC_PORT and H2AGENT__PROMETHEUS_PORT
 
 #############
 # VARIABLES #
@@ -41,8 +41,8 @@ HERMES__RPS__dflt=5000
 HERMES__DURATION__dflt=10
 HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 
-H2CLIENT__ADMIN_PORT__dflt=8075
-H2CLIENT__PROMETHEUS_PORT__dflt=8081
+H2CLIENT__DATA_STORAGE_CONFIGURATION__dflt=discard-all
+H2CLIENT__DATA_PURGE_CONFIGURATION__dflt=disable-purge
 H2CLIENT__RPS__dflt=10000
 H2CLIENT__ITERATIONS__dflt=100000
 
@@ -55,9 +55,10 @@ ST_REQUEST_BODY=${ST_REQUEST_BODY-${ST_REQUEST_BODY__dflt}}
 # Prepend values
 H2AGENT__ADMIN_PORT=${H2AGENT__ADMIN_PORT:-8074}
 H2AGENT__TRAFFIC_PORT=${H2AGENT__TRAFFIC_PORT:-8000}
+H2AGENT__PROMETHEUS_PORT=${H2AGENT__PROMETHEUS_PORT:-8080}
 
 # Common variables
-COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
+COMMON_VARS="H2AGENT_VALIDATE_SCHEMAS H2AGENT_SCHEMA H2AGENT_SERVER_MATCHING H2AGENT_SERVER_PROVISION H2AGENT_GLOBAL_VARIABLE H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION H2AGENT__DATA_STORAGE_CONFIGURATION H2AGENT__DATA_PURGE_CONFIGURATION H2CLIENT__DATA_STORAGE_CONFIGURATION H2CLIENT__DATA_PURGE_CONFIGURATION H2AGENT__BIND_ADDRESS H2AGENT__RESPONSE_DELAY_MS ST_REQUEST_METHOD ST_REQUEST_URL ST_LAUNCHER"
 
 #############
 # FUNCTIONS #
@@ -386,82 +387,54 @@ EOF
 
 elif [ "${ST_LAUNCHER}" = "h2client" ] ################################################# H2CLIENT
 then
-  which docker &>/dev/null || { echo "Required 'docker'" ; exit 1 ; }
-
-  read_value "Client h2agent admin port" H2CLIENT__ADMIN_PORT
-  read_value "Client h2agent prometheus port" H2CLIENT__PROMETHEUS_PORT
+  read_value "Client data storage configuration" H2CLIENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
+  read_value "Client data purge configuration" H2CLIENT__DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
   read_value "Requests per second" H2CLIENT__RPS
   read_value "Number of iterations" H2CLIENT__ITERATIONS
 
-  # Start client-only h2agent (same image as run.sh, detached)
-  H2AGENT_DCK_IMG=${H2AGENT_DCK_IMG:-ghcr.io/testillano/h2agent}
-  H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
-  H2AGENT_DCK_EXTRA_ARGS=${H2AGENT_DCK_EXTRA_ARGS:-"--network=host"}
-  if [ -z "${H2AGENT_LD_PRELOAD+x}" ]; then
-    H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
-  fi
-  ld_preload_arg=
-  [ -n "${H2AGENT_LD_PRELOAD}" ] && ld_preload_arg="-e LD_PRELOAD=${H2AGENT_LD_PRELOAD}"
-
-  # Stop leftover client container if exists
-  docker kill h2agent-client 2>/dev/null
-  docker rm h2agent-client 2>/dev/null
-
-  # Check ports are free
-  for port in ${H2CLIENT__ADMIN_PORT} ${H2CLIENT__PROMETHEUS_PORT}; do
-    ss -tln | grep -q ":${port} " && echo "ERROR: port ${port} already in use (run: ss -tlnp | grep ${port})" && exit 1
-  done
-
-  H2CLIENT_CONTAINER=$(docker run -d --rm --name h2agent-client ${H2AGENT_DCK_EXTRA_ARGS} ${ld_preload_arg} \
-    ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} \
-    --admin-port ${H2CLIENT__ADMIN_PORT} --prometheus-port ${H2CLIENT__PROMETHEUS_PORT} --traffic-server-port -1 --log-level Warning)
-
-  [ -z "${H2CLIENT_CONTAINER}" ] && echo "ERROR: failed to start client h2agent container (image: ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG})" && exit 1
-  echo "Started client container: ${H2CLIENT_CONTAINER}"
-  trap "docker stop ${H2CLIENT_CONTAINER} 2>/dev/null; rm -rf ${TMP_DIR}" EXIT
-
-  # Wait for client h2agent to be ready
-  echo -n "Waiting for client h2agent to start..."
-  for i in $(seq 1 30); do
-    sleep 1
-    curl -sf --http2-prior-knowledge "http://localhost:${H2CLIENT__ADMIN_PORT}/admin/v1/logging" &>/dev/null && break
-    echo -n "."
-  done
-  curl -sf --http2-prior-knowledge "http://localhost:${H2CLIENT__ADMIN_PORT}/admin/v1/logging" &>/dev/null \
-    || { echo -e "\nERROR: client h2agent did not start (check docker logs h2agent-client)" ; exit 1 ; }
-  echo " ready"
-
-  # $1: method; $2: uri; $3: optional body file
-  h2a_client_curl() {
-    local s_data=
-    [ -n "$3" ] && s_data="-d@$3"
-    curl -s --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${s_data} \
-      "http://localhost:${H2CLIENT__ADMIN_PORT}/$2"
-  }
-
-  # Disable client data storage (bottleneck at high rps) - use timing instead
-  h2a_client_curl PUT "admin/v1/client-data/configuration?discard=true&discardKeyHistory=true&disablePurge=true" > /dev/null
+  # Client data configuration (same admin port as server)
+  case ${H2CLIENT__DATA_STORAGE_CONFIGURATION} in
+    discard-all) CLIENT_DISCARD_DATA=true; CLIENT_DISCARD_DATA_HISTORY=true ;;
+    discard-history) CLIENT_DISCARD_DATA=false; CLIENT_DISCARD_DATA_HISTORY=true ;;
+    keep-all) CLIENT_DISCARD_DATA=false; CLIENT_DISCARD_DATA_HISTORY=false ;;
+  esac
+  case ${H2CLIENT__DATA_PURGE_CONFIGURATION} in
+    enable-purge) CLIENT_DISABLE_PURGE=false ;;
+    disable-purge) CLIENT_DISABLE_PURGE=true ;;
+  esac
+  h2a_admin_curl PUT "admin/v1/client-data/configuration?discard=${CLIENT_DISCARD_DATA}&discardKeyHistory=${CLIENT_DISCARD_DATA_HISTORY}&disablePurge=${CLIENT_DISABLE_PURGE}" 200 || exit 1
+  echo -e "\nClient data configuration:"
+  h2a_admin_curl GET "admin/v1/client-data/configuration" || exit 1
+  cat ${TMP_DIR}/curl.output
+  echo -en "\n\nRemoving current client data information ... "
+  h2a_admin_curl DELETE "admin/v1/client-data"
+  echo "done !"
 
   # Configure client endpoint pointing to server h2agent
   echo "{\"id\":\"server\",\"host\":\"${H2AGENT__BIND_ADDRESS}\",\"port\":${H2AGENT__TRAFFIC_PORT}}" > ${TMP_DIR}/client-endpoint.json
-  h2a_client_curl POST admin/v1/client-endpoint ${TMP_DIR}/client-endpoint.json
+  h2a_admin_curl POST admin/v1/client-endpoint 201 ${TMP_DIR}/client-endpoint.json || exit 1
 
   # Configure client provision
   PROVISION_JSON="{\"id\":\"benchmark\",\"endpoint\":\"server\",\"requestMethod\":\"${ST_REQUEST_METHOD}\",\"requestUri\":\"/${ST_REQUEST_URL}\""
   [ "${ST_REQUEST_METHOD}" = "POST" ] && PROVISION_JSON="${PROVISION_JSON},\"requestBody\":${ST_REQUEST_BODY}"
   PROVISION_JSON="${PROVISION_JSON}}"
   echo "${PROVISION_JSON}" > ${TMP_DIR}/client-provision.json
-  h2a_client_curl POST admin/v1/client-provision ${TMP_DIR}/client-provision.json
+  h2a_admin_curl POST admin/v1/client-provision 201 ${TMP_DIR}/client-provision.json || exit 1
 
   REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_rps${H2CLIENT__RPS}_iters${H2CLIENT__ITERATIONS}.txt
-  init_report H2CLIENT__ADMIN_PORT H2CLIENT__PROMETHEUS_PORT H2CLIENT__RPS H2CLIENT__ITERATIONS
+  init_report H2CLIENT__DATA_STORAGE_CONFIGURATION H2CLIENT__DATA_PURGE_CONFIGURATION H2CLIENT__RPS H2CLIENT__ITERATIONS
+
+  # Snapshot prometheus counters before benchmark
+  PROMETHEUS_URL="http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__PROMETHEUS_PORT}/metrics"
+  curl -sf "${PROMETHEUS_URL}" > ${TMP_DIR}/prom_before.txt 2>/dev/null
 
   # Trigger timer-based load
   EXPECTED_SECS=$(( (H2CLIENT__ITERATIONS + H2CLIENT__RPS - 1) / H2CLIENT__RPS ))
   echo
   echo "Triggering ${H2CLIENT__ITERATIONS} requests at ${H2CLIENT__RPS} rps (~${EXPECTED_SECS}s expected)..."
   START_NS=$(date +%s%N)
-  h2a_client_curl GET "admin/v1/client-provision/benchmark?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&rps=${H2CLIENT__RPS}"
+  h2a_admin_curl GET "admin/v1/client-provision/benchmark?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&rps=${H2CLIENT__RPS}" || exit 1
+  cat ${TMP_DIR}/curl.output
   echo
 
   # Wait for timer to complete by polling dynamics.sequence
@@ -469,8 +442,8 @@ then
   echo "Waiting for completion (timeout ${TIMEOUT_SECS}s)..."
   while true; do
     sleep 0.2
-    seq=$(h2a_client_curl GET "admin/v1/client-provision" 2>/dev/null | \
-      python3 -c "import sys,json; d=json.load(sys.stdin); p=[x for x in d if x.get('id')=='benchmark']; print(p[0]['dynamics']['sequence'] if p else 0)" 2>/dev/null || echo 0)
+    h2a_admin_curl GET "admin/v1/client-provision"
+    seq=$(python3 -c "import sys,json; d=json.load(open('${TMP_DIR}/curl.output')); p=[x for x in d if x.get('id')=='benchmark']; print(p[0]['dynamics']['sequence'] if p else 0)" 2>/dev/null || echo 0)
     [ "${seq:-0}" -gt "${H2CLIENT__ITERATIONS}" ] && break
     now=$(date +%s%N)
     [ $(( (now - START_NS) / 1000000000 )) -ge ${TIMEOUT_SECS} ] && echo "Timeout!" && break
@@ -481,6 +454,75 @@ then
   ACTUAL_RPS=$(( H2CLIENT__ITERATIONS * 1000 / ELAPSED_MS ))
   echo
   echo "Completed: ${H2CLIENT__ITERATIONS} requests in ${ELAPSED_MS}ms (~${ACTUAL_RPS} req/s)" | tee -a ${REPORT}
+
+  # Collect response status code statistics from prometheus
+  curl -sf "${PROMETHEUS_URL}" > ${TMP_DIR}/prom_after.txt 2>/dev/null
+  if [ -s ${TMP_DIR}/prom_after.txt ]; then
+    echo | tee -a ${REPORT}
+    python3 -c "
+import re, sys
+
+def parse_counters(path, prefix):
+    counts = {}
+    try:
+        with open(path) as f:
+            for line in f:
+                if line.startswith(prefix):
+                    m = re.search(r'status_code=\"(\d+)\"', line)
+                    if m:
+                        val = float(line.rstrip().split()[-1])
+                        counts[m.group(1)] = counts.get(m.group(1), 0) + val
+    except: pass
+    return counts
+
+prefix = 'h2agent_traffic_client_observed_responses_received_counter'
+before = parse_counters('${TMP_DIR}/prom_before.txt', prefix)
+after = parse_counters('${TMP_DIR}/prom_after.txt', prefix)
+
+# Compute deltas
+delta = {}
+for code in after:
+    delta[code] = after[code] - before.get(code, 0)
+
+# Group by class
+classes = {'2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0}
+total = 0
+for code, count in sorted(delta.items()):
+    c = int(count)
+    total += c
+    key = code[0] + 'xx'
+    if key in classes:
+        classes[key] += c
+
+# Timedout
+prefix_to = 'h2agent_traffic_client_observed_responses_timedout_counter'
+before_to = parse_counters('${TMP_DIR}/prom_before.txt', prefix_to)
+after_to = parse_counters('${TMP_DIR}/prom_after.txt', prefix_to)
+timedout = sum(after_to.values()) - sum(before_to.values())
+
+# Sent/unsent
+prefix_sent = 'h2agent_traffic_client_observed_requests_sents_counter'
+prefix_unsent = 'h2agent_traffic_client_observed_requests_unsent_counter'
+def sum_counter(path, pfx):
+    total = 0
+    try:
+        with open(path) as f:
+            for line in f:
+                if line.startswith(pfx) and not line.startswith(pfx + '_'):
+                    total += float(line.rstrip().split()[-1])
+    except: pass
+    return total
+
+sent = sum_counter('${TMP_DIR}/prom_after.txt', prefix_sent) - sum_counter('${TMP_DIR}/prom_before.txt', prefix_sent)
+unsent = sum_counter('${TMP_DIR}/prom_after.txt', prefix_unsent) - sum_counter('${TMP_DIR}/prom_before.txt', prefix_unsent)
+
+parts = ', '.join(f'{int(v)} {k}' for k, v in classes.items())
+print(f'requests: {int(sent)} sent, {int(unsent)} unsent')
+print(f'status codes: {parts}')
+if int(timedout) > 0:
+    print(f'timedout: {int(timedout)}')
+" | tee -a ${REPORT}
+  fi
 fi
 
 rm -f last
