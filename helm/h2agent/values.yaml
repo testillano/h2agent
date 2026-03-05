@@ -37,6 +37,8 @@ h2agent_cl:
   traffic_server_crt: ""
   traffic_server_matching: ""
   traffic_server_provision: ""
+  traffic_client_endpoint: ""
+  traffic_client_provision: ""
   schema: ""
   data:
     enabled: true

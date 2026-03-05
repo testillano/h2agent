@@ -2,6 +2,7 @@
   {
     "id": "first-tick",
     "endpoint": "myServer",
+    "expectedResponseStatusCode": 200,
     "requestMethod": "GET",
     "requestUri": "/time",
     "onResponseTransform": [
@@ -14,6 +15,7 @@
   {
     "id": "second-tick",
     "endpoint": "myServer",
+    "expectedResponseStatusCode": 200,
     "requestMethod": "GET",
     "requestUri": "/time",
     "onResponseTransform": [

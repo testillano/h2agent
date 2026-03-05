@@ -338,6 +338,12 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--traffic-server-provision <path file>]\n"
        << "  Path file for optional startup traffic server provision configuration.\n\n"
 
+       << "[--traffic-client-endpoint <path file>]\n"
+       << "  Path file for optional startup traffic client endpoint configuration.\n\n"
+
+       << "[--traffic-client-provision <path file>]\n"
+       << "  Path file for optional startup traffic client provision configuration.\n\n"
+
        << "[--traffic-server-ignore-request-body]\n"
        << "  Ignores traffic server request body reception processing as optimization in\n"
        << "  case that its content is not required by planned provisions (enabled by default).\n\n"
@@ -510,6 +516,8 @@ int main(int argc, char* argv[])
     std::string schema_file = "";
     std::string traffic_server_matching_file = "";
     std::string traffic_server_provision_file = "";
+    std::string traffic_client_endpoint_file = "";
+    std::string traffic_client_provision_file = "";
     std::string global_variable_file = "";
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
@@ -645,6 +653,16 @@ int main(int argc, char* argv[])
     if (readCmdLine(argv, argv + argc, "--traffic-server-provision", value))
     {
         traffic_server_provision_file = value;
+    }
+
+    if (readCmdLine(argv, argv + argc, "--traffic-client-endpoint", value))
+    {
+        traffic_client_endpoint_file = value;
+    }
+
+    if (readCmdLine(argv, argv + argc, "--traffic-client-provision", value))
+    {
+        traffic_client_provision_file = value;
     }
 
     if (readCmdLine(argv, argv + argc, "--global-variable", value))
@@ -826,6 +844,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         std::cout << "Traffic server matching configuration file: " << ((traffic_server_matching_file != "") ? traffic_server_matching_file : "<not provided>") << '\n';
         std::cout << "Traffic server provision configuration file: " << ((traffic_server_provision_file != "") ? traffic_server_provision_file : "<not provided>") << '\n';
     }
+    std::cout << "Traffic client endpoint configuration file: " << ((traffic_client_endpoint_file != "") ? traffic_client_endpoint_file : "<not provided>") << '\n';
+    std::cout << "Traffic client provision configuration file: " << ((traffic_client_provision_file != "") ? traffic_client_provision_file : "<not provided>") << '\n';
 
     if (disable_metrics) {
         std::cout << "Metrics (prometheus): disabled" << '\n';
@@ -959,7 +979,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
             if (success) {
                 log += ": ";
-                success = myAdminHttp2Server->serverProvision(jsonObject, log);
+                std::string warning;
+                success = myAdminHttp2Server->serverProvision(jsonObject, log, warning);
             }
 
             if (!success) {
@@ -975,6 +996,40 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         myTrafficHttp2Server->discardData(discard_data);
         myTrafficHttp2Server->discardDataKeyHistory(discard_data_key_history);
         myTrafficHttp2Server->disablePurge(disable_purge);
+    }
+
+    // Client configuration
+    if (traffic_client_endpoint_file != "") {
+        success = h2agent::model::getFileContent(traffic_client_endpoint_file, fileContent);
+        std::string log = "Client endpoint configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            success = myAdminHttp2Server->clientEndpoint(jsonObject, log);
+        }
+
+        if (!success) {
+            std::cerr << currentDateTime() << ": " << log << std::endl;
+        }
+    }
+
+    if (traffic_client_provision_file != "") {
+        success = h2agent::model::getFileContent(traffic_client_provision_file, fileContent);
+        std::string log = "Client provision configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            std::string warning;
+            success = myAdminHttp2Server->clientProvision(jsonObject, log, warning);
+        }
+
+        if (!success) {
+            std::cerr << currentDateTime() << ": " << log << std::endl;
+        }
     }
 
     // Set the traffic server reference (if used) to the admin server

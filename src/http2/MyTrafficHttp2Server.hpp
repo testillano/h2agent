@@ -160,6 +160,10 @@ public:
         server_data_ = !discard;
     }
 
+    bool isDataStored() const {
+        return server_data_;
+    }
+
     void discardDataKeyHistory(bool discard = true) {
         server_data_key_history_ = !discard;
     }

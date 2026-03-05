@@ -464,6 +464,11 @@ const nlohmann::json client_provision = R"(
     },
     "responseSchemaId": {
       "type": "string"
+    },
+    "expectedResponseStatusCode": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
     }
   },
   "required": [ "id" ]

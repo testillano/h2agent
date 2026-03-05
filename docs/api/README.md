@@ -1129,11 +1129,38 @@ Be careful using this `PUT` operation in the middle of traffic load, because it 
 
 ```json
 {
+    "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
     "storeEventsKeyHistory": true
 }
 ```
+
+The `needsStorage` field is a computed boolean: `true` when any loaded provision contains transformation items with source type `serverEvent`/`clientEvent` or target type `serverEventToPurge`/`clientEventToPurge`. This allows runners to auto-detect whether storage must be enabled for the current test scenario.
+
+#### Stateful detection warnings
+
+When a provision is loaded (`POST`) that references event-dependent transformations but `storeEvents` is currently disabled, the response includes a `warning` field:
+
+```json
+{
+    "result": "true",
+    "response": "server-provision operation; valid schema and server provision data received",
+    "warning": "provision references serverEvent/clientEvent but storeEvents is disabled"
+}
+```
+
+Similarly, when storage is disabled via `PUT /admin/v1/server-data/configuration?discard=true` but loaded provisions require it, the response includes a warning body:
+
+```json
+{
+    "result": "true",
+    "response": "server-data configuration updated",
+    "warning": "active provisions require storeEvents (serverEvent/clientEvent references found)"
+}
+```
+
+Both are advisory only — the operation proceeds normally.
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
@@ -1288,6 +1315,26 @@ Optional timeout for response in milliseconds. Defaults to 1000 ms (1 second) wh
 
 We could optionally validate received responses against a `json` schema. When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
+#### expectedResponseStatusCode
+
+Optional expected HTTP status code for the response (integer, 100-599). When configured and the received response status code does not match, the provision flow chain is interrupted (no state progression) and a validation failure counter is incremented. This is useful for automated verdict without requiring event storage:
+
+```json
+{
+  "id": "myFlow",
+  "endpoint": "myServer",
+  "requestMethod": "GET",
+  "requestUri": "/api/v1/resource",
+  "expectedResponseStatusCode": 200
+}
+```
+
+When either `expectedResponseStatusCode` or `responseSchemaId` validation fails:
+- The error is logged
+- The `h2agent_traffic_client_response_validation_failures_counter` prometheus metric is incremented
+- The event is still stored (if storage is enabled) for debugging
+- The state progression chain is interrupted (no purge, no next provision)
+
 ### Client transformation differences
 
 As in the server mode, we have transformations to be applied, but this time we can transform the context before sending (`transform` node), and when the response is received (`onResponseTransform` node).
@@ -1351,7 +1398,28 @@ To trigger a client provision (`GET /admin/v1/client-provision/<id>`), we will u
 
 Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state, that is probably for debugging purposes.
 
-Also, optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200* used for single request sending). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
+There are two triggering modes: **synchronous** (single request) and **asynchronous** (timer-based). Their query parameters are mutually exclusive.
+
+#### Synchronous triggering
+
+A single request is sent immediately and the operation returns status code *200*. This is the default behavior when no query parameters are provided (using `sequence` value of '0').
+
+Optionally, the `sequence` query parameter can be provided to set a specific sequence value before sending:
+
+* `sequence`: specific `sequence` value for the request (non-negative value).
+
+This is useful when the provision uses `seq` in its transformations to build dynamic content (e.g., a unique URI or body field). Successive calls with different `sequence` values allow sending varied requests synchronously:
+
+```bash
+# Send three requests with sequence values 10, 20 and 30:
+for seq in 10 20 30; do
+  curl --http2-prior-knowledge "http://localhost:8074/admin/v1/client-provision/myFlow?sequence=${seq}"
+done
+```
+
+#### Asynchronous triggering
+
+Optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200*). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
 
 Each client provision can evolve the range of values independently of others, and triggering process may be stopped (with `rps` zero-valued) and then resumed again with a positive rate. Also repeat mode is stored as part of provision trigger configuration with these defaults: range `[0, 0]`, rate of '0' and repeat 'false'.
 
@@ -1361,6 +1429,8 @@ Each client provision can evolve the range of values independently of others, an
 * `sequenceEnd`: final `sequence` variable (non-negative value).
 * `rps`: rate in requests per second triggered (non-negative value, '0' to stop).
 * `repeat`: range repetition once exhausted (true or false).
+
+> **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `rps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
 
 So, together with provision information configured, we store dynamic load configuration and state (current `sequence`):
 
@@ -1462,6 +1532,7 @@ The same agent could manage server and client connections, so you have specific 
 
 ```json
 {
+    "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
     "storeEventsKeyHistory": true

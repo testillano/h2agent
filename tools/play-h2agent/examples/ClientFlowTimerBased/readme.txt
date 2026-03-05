@@ -16,3 +16,7 @@ Flow (repeated 3 times, once per second):
   3. road-closed -> chain stops, timer schedules next tick
 
 After execution, check client-data for 6 events (3 pairs with unique URIs).
+
+Both provisions use expectedResponseStatusCode=200 to validate server responses
+inline — if the server returns an unexpected status code, the chain breaks and
+the validation failure counter increments.

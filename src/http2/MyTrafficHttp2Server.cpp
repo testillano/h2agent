@@ -123,6 +123,7 @@ std::string MyTrafficHttp2Server::dataConfigurationAsJsonString() const {
     result["storeEvents"] = server_data_;
     result["storeEventsKeyHistory"] = server_data_key_history_;
     result["purgeExecution"] = purge_execution_;
+    result["needsStorage"] = admin_data_->getServerProvisionData().needsStorage();
 
     return result.dump();
 }

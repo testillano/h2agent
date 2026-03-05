@@ -45,28 +45,28 @@ protected:
 // Test dataConfigurationAsJsonString with default values
 TEST_F(MyTrafficHttp2ServerUnitTest, DataConfigurationDefault) {
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
+              "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
 }
 
 // Test dataConfigurationAsJsonString after discardData
 TEST_F(MyTrafficHttp2ServerUnitTest, DataConfigurationAfterDiscardData) {
     server_->discardData();
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":true,\"storeEvents\":false,\"storeEventsKeyHistory\":true}");
+              "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":false,\"storeEventsKeyHistory\":true}");
 }
 
 // Test dataConfigurationAsJsonString after discardDataKeyHistory
 TEST_F(MyTrafficHttp2ServerUnitTest, DataConfigurationAfterDiscardKeyHistory) {
     server_->discardDataKeyHistory();
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":false}");
+              "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":false}");
 }
 
 // Test dataConfigurationAsJsonString after disablePurge
 TEST_F(MyTrafficHttp2ServerUnitTest, DataConfigurationAfterDisablePurge) {
     server_->disablePurge();
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":false,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
+              "{\"needsStorage\":false,\"purgeExecution\":false,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
 }
 
 // Test dataConfigurationAsJsonString with all disabled
@@ -75,7 +75,7 @@ TEST_F(MyTrafficHttp2ServerUnitTest, DataConfigurationAllDisabled) {
     server_->discardDataKeyHistory();
     server_->disablePurge();
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":false,\"storeEvents\":false,\"storeEventsKeyHistory\":false}");
+              "{\"needsStorage\":false,\"purgeExecution\":false,\"storeEvents\":false,\"storeEventsKeyHistory\":false}");
 }
 
 // Test configurationAsJsonString with default values
@@ -184,17 +184,17 @@ TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsOutOfRange) {
 TEST_F(MyTrafficHttp2ServerUnitTest, DiscardDataToggle) {
     // Default: storing enabled
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
+              "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
 
     // Discard
     server_->discardData(true);
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":true,\"storeEvents\":false,\"storeEventsKeyHistory\":true}");
+              "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":false,\"storeEventsKeyHistory\":true}");
 
     // Re-enable
     server_->discardData(false);
     EXPECT_EQ(server_->dataConfigurationAsJsonString(),
-              "{\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
+              "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
 }
 
 } // namespace test

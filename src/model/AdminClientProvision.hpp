@@ -92,6 +92,7 @@ class AdminClientProvision
 
     unsigned int request_delay_ms_{};
     unsigned int request_timeout_ms_{};
+    unsigned int expected_response_status_code_{}; // 0 = not configured
 
     // Schemas:
     std::string request_schema_id_{};
@@ -200,8 +201,10 @@ public:
      * @param receivedResponse Response received from server
      * @param generalUniqueClientSequence Client endpoint sending sequence
      * @param outState out-state updated by reference (may change based on response)
+     *
+     * @return True if response validation passed (status code + schema), false otherwise (chain should break)
      */
-    void transformResponse( const std::string &requestUri,
+    bool transformResponse( const std::string &requestUri,
                             const nghttp2::asio_http2::header_map &requestHeaders,
                             const ert::http2comm::Http2Client::response &receivedResponse,
                             std::uint64_t generalUniqueClientSequence,
@@ -465,12 +468,38 @@ public:
         return rps_;
     }
 
+    /** Configured expected response status code
+     *
+     * @return expected status code (0 = not configured)
+     */
+    unsigned int getExpectedResponseStatusCode() const {
+        return expected_response_status_code_;
+    }
+
     /** Provision was employed
      *
      * @return Boolean about if this provision has been used
      */
     bool employed() const {
         return employed_;
+    }
+
+    /**
+     * Checks if this provision references event-dependent transformation types
+     *
+     * @return True if any transformation requires stored events
+     */
+    bool needsStorage() const {
+        for (const auto* vec : {&transformations_, &on_response_transformations_}) {
+            for (const auto& t : *vec) {
+                auto st = t->getSourceType();
+                auto tt = t->getTargetType();
+                if (st == Transformation::ServerEvent || st == Transformation::ClientEvent ||
+                    tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
+                    return true;
+            }
+        }
+        return false;
     }
 };
 

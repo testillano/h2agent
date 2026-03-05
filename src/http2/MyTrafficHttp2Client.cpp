@@ -73,6 +73,9 @@ void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const
         ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily("h2agent_traffic_client_purged_contexts_counter", "Contexts purged counter in h2agent_traffic_client", familyLabels);
         purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
+
+        ert::metrics::counter_family_t& cf3 = metrics->addCounterFamily("h2agent_traffic_client_response_validation_failures_counter", "Response validation failures counter in h2agent_traffic_client", familyLabels);
+        response_validation_failures_counter_ = &(cf3.Add({}));
     }
 }
 

@@ -2189,3 +2189,33 @@ TEST_F(Transform_test, FilterSchemaId)
     EXPECT_EQ(response_body_, "At  of {\"node1\":{\"delaymilliseconds\":25,\"node2\":\"value-of-node1-node2\"}} - required property 'foo' not found in object\n");
 }
 
+
+// ==================== NEEDS STORAGE ====================
+
+TEST_F(Transform_test, NeedsStorageFalseForBasicProvision)
+{
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_FALSE(provision->needsStorage());
+    EXPECT_FALSE(adata_.getServerProvisionData().needsStorage());
+}
+
+TEST_F(Transform_test, NeedsStorageTrueForServerEventSource)
+{
+    server_provision_json_["transform"] = R"([{"source":"serverEvent.requestBody","target":"response.body.json.string./result"}])"_json;
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_TRUE(provision->needsStorage());
+    EXPECT_TRUE(adata_.getServerProvisionData().needsStorage());
+}
+
+TEST_F(Transform_test, NeedsStorageTrueForServerEventToPurgeTarget)
+{
+    server_provision_json_["transform"] = R"([{"source":"eraser","target":"serverEvent.purge"}])"_json;
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_TRUE(provision->needsStorage());
+}

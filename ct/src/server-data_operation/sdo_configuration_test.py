@@ -12,7 +12,7 @@ def test_001_i_want_to_set_discard_true_and_key_history_discard_true(h2ac_admin)
 
   # Check configuration
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": False, "storeEventsKeyHistory": False, "purgeExecution": True }
+  responseBodyRef = { "needsStorage": False, "storeEvents": False, "storeEventsKeyHistory": False, "purgeExecution": True }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -25,7 +25,7 @@ def test_002_i_want_to_set_discard_true_and_key_history_discard_false(h2ac_admin
 
   # Check configuration (must be the configuration from previous test, as this one failed):
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": False, "storeEventsKeyHistory": False, "purgeExecution": True }
+  responseBodyRef = { "needsStorage": False, "storeEvents": False, "storeEventsKeyHistory": False, "purgeExecution": True }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -38,7 +38,7 @@ def test_003_i_want_to_set_discard_false_and_key_history_discard_true(h2ac_admin
 
   # Check configuration
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": True, "storeEventsKeyHistory": False, "purgeExecution": True }
+  responseBodyRef = { "needsStorage": False, "storeEvents": True, "storeEventsKeyHistory": False, "purgeExecution": True }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -51,7 +51,7 @@ def test_004_i_want_to_set_discard_false_and_key_history_discard_false(h2ac_admi
 
   # Check configuration
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": True, "storeEventsKeyHistory": True, "purgeExecution": True }
+  responseBodyRef = { "needsStorage": False, "storeEvents": True, "storeEventsKeyHistory": True, "purgeExecution": True }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -64,7 +64,7 @@ def test_005_i_want_to_set_disable_purge_true(h2ac_admin):
 
   # Check configuration
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": True, "storeEventsKeyHistory": True, "purgeExecution": False }
+  responseBodyRef = { "needsStorage": False, "storeEvents": True, "storeEventsKeyHistory": True, "purgeExecution": False }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -78,7 +78,7 @@ def test_006_i_want_to_set_disable_purge_false(h2ac_admin):
 
   # Check configuration
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "/configuration")
-  responseBodyRef = { "storeEvents": True, "storeEventsKeyHistory": True, "purgeExecution": True }
+  responseBodyRef = { "needsStorage": False, "storeEvents": True, "storeEventsKeyHistory": True, "purgeExecution": True }
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 

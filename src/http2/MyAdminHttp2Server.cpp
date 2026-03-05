@@ -158,7 +158,7 @@ void MyAdminHttp2Server::buildJsonResponse(bool result, const std::string &respo
 THIS WAS REPLACED TEMPORARILY BY A SLIGHTLY LESS EFFICIENT VERSION, TO AVOID VALGRIND COMPLAIN:
 */
 
-std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody) const
+std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning) const
 {
     std::string result;
     result = R"({ "result":")";
@@ -166,7 +166,13 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
     result += R"(", "response": )";
     result += R"(")";
     result += responseBody;
-    result += R"(" })";
+    result += R"(")";
+    if (!warning.empty()) {
+        result += R"(, "warning": ")";
+        result += warning;
+        result += R"(")";
+    }
+    result += R"( })";
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Json Response %s", result.c_str()), ERT_FILE_LOCATION));
 
     return result;
@@ -213,7 +219,7 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
     return result;
 }
 
-int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "server-provision operation; ";
 
@@ -223,6 +229,10 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
         log += (isArray ? "valid schemas and server provisions data received":"valid schema and server provision data received");
+        if (getAdminData()->getServerProvisionData().needsStorage() && getHttp2Server() && !getHttp2Server()->isDataStored()) {
+            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+        }
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
@@ -261,7 +271,7 @@ int MyAdminHttp2Server::clientEndpoint(const nlohmann::json &configurationObject
     return result;
 }
 
-int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "client-provision operation; ";
 
@@ -271,6 +281,10 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminClientProvisionData::Success) {
         log += (isArray ? "valid schemas and client provisions data received":"valid schema and client provision data received");
+        if (getAdminData()->getClientProvisionData().needsStorage() && !client_data_) {
+            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+        }
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
@@ -319,6 +333,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     std::string jsonResponse_response;
+    std::string warning;
 
     // All responses are json content:
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
@@ -332,13 +347,13 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             statusCode = serverMatching(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "server-provision") {
-            statusCode = serverProvision(requestJson, jsonResponse_response);
+            statusCode = serverProvision(requestJson, jsonResponse_response, warning);
         }
         else if (pathSuffix == "client-endpoint") {
             statusCode = clientEndpoint(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "client-provision") {
-            statusCode = clientProvision(requestJson, jsonResponse_response);
+            statusCode = clientProvision(requestJson, jsonResponse_response, warning);
         }
         else if (pathSuffix == "schema") {
             statusCode = schema(requestJson, jsonResponse_response);
@@ -359,7 +374,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     }
 
     // Build json response body:
-    responseBody = buildJsonResponse(statusCodeOK(statusCode), jsonResponse_response);
+    responseBody = buildJsonResponse(statusCodeOK(statusCode), jsonResponse_response, warning);
 }
 
 void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
@@ -686,7 +701,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     }
 }
 
-void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode)
+void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody)
 {
     LOGDEBUG(ert::tracing::Logger::debug("receivePUT()",  ERT_FILE_LOCATION));
 
@@ -808,6 +823,19 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         else {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot keep requests history if %s data storage is discarded", mode), ERT_FILE_LOCATION);
         }
+
+        // Warning when disabling storage but provisions need it
+        if (success && b_discard) {
+            bool provisionsNeedStorage = serverMode ?
+                getAdminData()->getServerProvisionData().needsStorage() :
+                getAdminData()->getClientProvisionData().needsStorage();
+            if (provisionsNeedStorage) {
+                std::string warning = "active provisions require storeEvents (serverEvent/clientEvent references found)";
+                LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+                headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+                responseBody = buildJsonResponse(true, std::string(mode) + "-data configuration updated", warning);
+            }
+        }
     }
     else if (pathSuffix == "files/configuration") {
         std::string readCache;
@@ -894,8 +922,8 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         return;
     }
     else if (method == "PUT") {
-        receivePUT(pathSuffix, uriQuery, statusCode);
-        headers.clear();
+        receivePUT(pathSuffix, uriQuery, statusCode, headers, responseBody);
+        if (responseBody.empty()) headers.clear();
         return;
     }
 }
@@ -938,19 +966,31 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             std::string finalOutState = outState;
             const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
             auto provision = provisionData.find(inState, clientProvisionId);
+            bool responseValidationOk = true;
             if (provision) {
-                provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
+                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
             }
 
             // Provisioned request counter
             if (response.statusCode != 0) clientEndpoint->getClient()->incrementProvisionedRequestsSuccessful();
             else clientEndpoint->getClient()->incrementProvisionedRequestsFailed();
 
+            // Response validation counters
+            if (!responseValidationOk) {
+                clientEndpoint->getClient()->incrementResponseValidationFailures();
+            }
+
             // Store event
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 h2agent::model::DataPart responseBodyDataPart(response.body);
                 getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, clientSequence, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+            }
+
+            // Chain break on validation failure
+            if (!responseValidationOk) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Response validation failed for provision '%s': chain interrupted", clientProvisionId.c_str()), ERT_FILE_LOCATION));
+                return;
             }
 
             // Purge
@@ -999,6 +1039,7 @@ void MyAdminHttp2Server::triggerClientProvision(const std::string &clientProvisi
 void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const {
 
     std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // administrative operation triggers "initial" provisions by default
+    std::string sequence = "";
     std::string sequenceBegin = "";
     std::string sequenceEnd = "";
     std::string rps = "";
@@ -1008,6 +1049,8 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
         auto it = qmap.find("inState");
         if (it != qmap.end()) inState = it->second;
+        it = qmap.find("sequence");
+        if (it != qmap.end()) sequence = it->second;
         it = qmap.find("sequenceBegin");
         if (it != qmap.end()) sequenceBegin = it->second;
         it = qmap.find("sequenceEnd");
@@ -1016,6 +1059,14 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         if (it != qmap.end()) rps = it->second;
         it = qmap.find("repeat");
         if (it != qmap.end()) repeat = it->second;
+    }
+
+    // Validate exclusivity: 'sequence' cannot be mixed with async dynamics parameters
+    bool hasDynamics = (!sequenceBegin.empty() || !sequenceEnd.empty() || !rps.empty() || !repeat.empty());
+    if (!sequence.empty() && hasDynamics) {
+        LOGWARNING(ert::tracing::Logger::warning("Parameter 'sequence' is exclusive and cannot be mixed with 'sequenceBegin', 'sequenceEnd', 'rps' or 'repeat'", ERT_FILE_LOCATION));
+        statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+        return;
     }
 
     // Admin provision:
@@ -1028,7 +1079,20 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     }
 
     statusCode = ert::http2comm::ResponseCode::OK; // 200
-    if (!sequenceBegin.empty() || !sequenceEnd.empty() || !rps.empty() || !repeat.empty()) {
+
+    // Synchronous single-shot with specific sequence value
+    if (!sequence.empty()) {
+        bool negative = false;
+        std::uint64_t u_sequence{};
+        if (!h2agent::model::string2uint64andSign(sequence, u_sequence, negative) || negative) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequence' value: %s (must be >= 0)", sequence.c_str()), ERT_FILE_LOCATION));
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            return;
+        }
+        provision->setSeq(u_sequence);
+    }
+
+    if (hasDynamics) {
         if (provision->updateTriggering(sequenceBegin, sequenceEnd, rps, repeat)) {
             statusCode = ert::http2comm::ResponseCode::ACCEPTED; // 202; "sender" operates asynchronously
         }
@@ -1072,6 +1136,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
     result["storeEvents"] = client_data_;
     result["storeEventsKeyHistory"] = client_data_key_history_;
     result["purgeExecution"] = purge_execution_;
+    result["needsStorage"] = admin_data_->getClientProvisionData().needsStorage();
 
     return result.dump();
 }

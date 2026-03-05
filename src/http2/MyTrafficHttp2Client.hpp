@@ -78,6 +78,7 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
     ert::metrics::counter_t *provisioned_requests_failed_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
+    ert::metrics::counter_t *response_validation_failures_counter_{};
 
 public:
 
@@ -105,6 +106,7 @@ public:
     void incrementProvisionedRequestsFailed()     { if (provisioned_requests_failed_counter_)     provisioned_requests_failed_counter_->Increment(); }
     void incrementPurgedContextsSuccessful()      { if (purged_contexts_successful_counter_)      purged_contexts_successful_counter_->Increment(); }
     void incrementPurgedContextsFailed()          { if (purged_contexts_failed_counter_)          purged_contexts_failed_counter_->Increment(); }
+    void incrementResponseValidationFailures()    { if (response_validation_failures_counter_)    response_validation_failures_counter_->Increment(); }
 
     //void responseTimeout();
 

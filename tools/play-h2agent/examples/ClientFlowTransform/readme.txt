@@ -18,3 +18,7 @@ After execution, verify:
   - Client-data: 2 events, both with responseStatusCode=200
   - Server-data: POST /goodbye received {"greeting":"hello world"} as body
   - Global variables: helloResponse set to the hello response body
+
+Both provisions use expectedResponseStatusCode=200 to validate server responses
+inline — if the server returns an unexpected status code, the chain breaks and
+the validation failure counter increments.

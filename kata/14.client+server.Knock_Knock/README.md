@@ -20,6 +20,8 @@ The `server-matching.json` is provided. Create both:
   - `try-enter`: `GET /enter`
   - `knock`: `POST /knock`
 
+  Use `expectedResponseStatusCode` on each provision to validate the server response inline (e.g. `200` for knock, `200` for enter after knocking).
+
 - `server-provision.json` with the three provisions that implement the protocol above.
 
 The `test.sh` verifies the full sequence.

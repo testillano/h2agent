@@ -86,13 +86,13 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     bool purge_execution_{};
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
-    std::string buildJsonResponse(bool responseResult, const std::string &responseBody) const;
+    std::string buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning = "") const;
 
     void receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
-    void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode);
+    void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody);
 
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
     void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint) const;
@@ -195,9 +195,9 @@ public:
     }
 
     int serverMatching(const nlohmann::json &configurationObject, std::string& log) const;
-    int serverProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const;
     int clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const;
-    int clientProvision(const nlohmann::json &configurationObject, std::string& log) const;
+    int clientProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const;
     int globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
     int schema(const nlohmann::json &configurationObject, std::string& log) const;
 

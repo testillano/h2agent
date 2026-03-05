@@ -870,6 +870,12 @@ Options:
 [--traffic-server-provision <path file>]
   Path file for optional startup traffic server provision configuration.
 
+[--traffic-client-endpoint <path file>]
+  Path file for optional startup traffic client endpoint configuration.
+
+[--traffic-client-provision <path file>]
+  Path file for optional startup traffic client provision configuration.
+
 [--traffic-server-ignore-request-body]
   Ignores traffic server request body reception processing as optimization in
   case that its content is not required by planned provisions (enabled by default).
@@ -1954,7 +1960,7 @@ Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers curr
                                        [file]; Configure client provision by mean json specification.
                         [id] [id query param]; Triggers client provision identifier and optionally provide dynamics
                                                configuration (omit with empty value):
-                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]
+                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, rps, repeat (true|false)]
 Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used
                                             (http://localhost:8074/admin/v1/client-provision/unused).
 Usage: client_data [-h|--help]; Inspects client data events (http://localhost:8074/admin/v1/client-data).
@@ -2067,6 +2073,7 @@ Counters provided by http2comm library and h2agent itself(*):
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
    h2agent_traffic_client_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_client_purged_contexts_counter (*) [source] [result: successful/failed]
+   h2agent_traffic_client_response_validation_failures_counter (*) [source]
 
 Gauges provided by http2comm library:
 

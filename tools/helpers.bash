@@ -355,6 +355,42 @@ server_data() {
   fi
 }
 
+ensure_storage() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: ensure_storage [-h|--help]; Auto-detects if loaded provisions need event storage and enables it."
+    echo "                      [--server] ; Check server provisions only."
+    echo "                      [--client] ; Check client provisions only."
+    echo "                      By default, checks both server and client."
+    return 0
+  fi
+
+  local check_server=true
+  local check_client=true
+  [ "$1" = "--server" ] && check_client=false
+  [ "$1" = "--client" ] && check_server=false
+
+  if [ "${check_server}" = "true" ]
+  then
+    local needs=$(do_curl "$(admin_url)/server-data/configuration" 2>/dev/null | jq -r '.needsStorage // false')
+    if [ "${needs}" = "true" ]
+    then
+      echo "Server provisions require storage: enabling storeEvents ..."
+      do_curl -XPUT "$(admin_url)/server-data/configuration?discard=false&discardKeyHistory=false"
+    fi
+  fi
+
+  if [ "${check_client}" = "true" ]
+  then
+    local needs=$(do_curl "$(admin_url)/client-data/configuration" 2>/dev/null | jq -r '.needsStorage // false')
+    if [ "${needs}" = "true" ]
+    then
+      echo "Client provisions require storage: enabling storeEvents ..."
+      do_curl -XPUT "$(admin_url)/client-data/configuration?discard=false&discardKeyHistory=false"
+    fi
+  fi
+}
+
 # -----------------------------------------------------------------------------
 # TRAFFIC CLIENT
 
@@ -405,7 +441,8 @@ client_provision() {
     echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration ($(admin_url)/client-provision)."
     echo "                                       [file]; Configure client provision by mean json specification."
     echo "                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics configuration (omit with empty value):"
-    echo "                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    echo "                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    echo "                                               Note: 'sequence' (sync, returns 200) is exclusive with sequenceBegin/sequenceEnd/rps/repeat (async, returns 202)."
     return 0
   fi
 
@@ -420,10 +457,11 @@ client_provision() {
     else
       local queryParams=
       [ -n "$2" ] && queryParams+="&inState=$2"
-      [ -n "$3" ] && queryParams+="&sequenceBegin=$3"
-      [ -n "$4" ] && queryParams+="&sequenceEnd=$4"
-      [ -n "$5" ] && queryParams+="&rps=$5"
-      [ -n "$6" ] && queryParams+="&repeat=$6"
+      [ -n "$3" ] && queryParams+="&sequence=$3"
+      [ -n "$4" ] && queryParams+="&sequenceBegin=$4"
+      [ -n "$5" ] && queryParams+="&sequenceEnd=$5"
+      [ -n "$6" ] && queryParams+="&rps=$6"
+      [ -n "$7" ] && queryParams+="&repeat=$7"
       [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
       do_curl -XGET "$(admin_url)/client-provision/${1}'${queryParams}'"
     fi
