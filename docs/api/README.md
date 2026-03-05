@@ -1351,7 +1351,28 @@ To trigger a client provision (`GET /admin/v1/client-provision/<id>`), we will u
 
 Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state, that is probably for debugging purposes.
 
-Also, optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200* used for single request sending). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
+There are two triggering modes: **synchronous** (single request) and **asynchronous** (timer-based). Their query parameters are mutually exclusive.
+
+#### Synchronous triggering
+
+A single request is sent immediately and the operation returns status code *200*. This is the default behavior when no query parameters are provided (using `sequence` value of '0').
+
+Optionally, the `sequence` query parameter can be provided to set a specific sequence value before sending:
+
+* `sequence`: specific `sequence` value for the request (non-negative value).
+
+This is useful when the provision uses `seq` in its transformations to build dynamic content (e.g., a unique URI or body field). Successive calls with different `sequence` values allow sending varied requests synchronously:
+
+```bash
+# Send three requests with sequence values 10, 20 and 30:
+for seq in 10 20 30; do
+  curl --http2-prior-knowledge "http://localhost:8074/admin/v1/client-provision/myFlow?sequence=${seq}"
+done
+```
+
+#### Asynchronous triggering
+
+Optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200*). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
 
 Each client provision can evolve the range of values independently of others, and triggering process may be stopped (with `rps` zero-valued) and then resumed again with a positive rate. Also repeat mode is stored as part of provision trigger configuration with these defaults: range `[0, 0]`, rate of '0' and repeat 'false'.
 
@@ -1361,6 +1382,8 @@ Each client provision can evolve the range of values independently of others, an
 * `sequenceEnd`: final `sequence` variable (non-negative value).
 * `rps`: rate in requests per second triggered (non-negative value, '0' to stop).
 * `repeat`: range repetition once exhausted (true or false).
+
+> **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `rps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
 
 So, together with provision information configured, we store dynamic load configuration and state (current `sequence`):
 

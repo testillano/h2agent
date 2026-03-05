@@ -999,6 +999,7 @@ void MyAdminHttp2Server::triggerClientProvision(const std::string &clientProvisi
 void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const {
 
     std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // administrative operation triggers "initial" provisions by default
+    std::string sequence = "";
     std::string sequenceBegin = "";
     std::string sequenceEnd = "";
     std::string rps = "";
@@ -1008,6 +1009,8 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
         auto it = qmap.find("inState");
         if (it != qmap.end()) inState = it->second;
+        it = qmap.find("sequence");
+        if (it != qmap.end()) sequence = it->second;
         it = qmap.find("sequenceBegin");
         if (it != qmap.end()) sequenceBegin = it->second;
         it = qmap.find("sequenceEnd");
@@ -1016,6 +1019,14 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         if (it != qmap.end()) rps = it->second;
         it = qmap.find("repeat");
         if (it != qmap.end()) repeat = it->second;
+    }
+
+    // Validate exclusivity: 'sequence' cannot be mixed with async dynamics parameters
+    bool hasDynamics = (!sequenceBegin.empty() || !sequenceEnd.empty() || !rps.empty() || !repeat.empty());
+    if (!sequence.empty() && hasDynamics) {
+        LOGWARNING(ert::tracing::Logger::warning("Parameter 'sequence' is exclusive and cannot be mixed with 'sequenceBegin', 'sequenceEnd', 'rps' or 'repeat'", ERT_FILE_LOCATION));
+        statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+        return;
     }
 
     // Admin provision:
@@ -1028,7 +1039,20 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     }
 
     statusCode = ert::http2comm::ResponseCode::OK; // 200
-    if (!sequenceBegin.empty() || !sequenceEnd.empty() || !rps.empty() || !repeat.empty()) {
+
+    // Synchronous single-shot with specific sequence value
+    if (!sequence.empty()) {
+        bool negative = false;
+        std::uint64_t u_sequence{};
+        if (!h2agent::model::string2uint64andSign(sequence, u_sequence, negative) || negative) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequence' value: %s (must be >= 0)", sequence.c_str()), ERT_FILE_LOCATION));
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            return;
+        }
+        provision->setSeq(u_sequence);
+    }
+
+    if (hasDynamics) {
         if (provision->updateTriggering(sequenceBegin, sequenceEnd, rps, repeat)) {
             statusCode = ert::http2comm::ResponseCode::ACCEPTED; // 202; "sender" operates asynchronously
         }

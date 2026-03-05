@@ -405,7 +405,8 @@ client_provision() {
     echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration ($(admin_url)/client-provision)."
     echo "                                       [file]; Configure client provision by mean json specification."
     echo "                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics configuration (omit with empty value):"
-    echo "                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    echo "                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    echo "                                               Note: 'sequence' (sync, returns 200) is exclusive with sequenceBegin/sequenceEnd/rps/repeat (async, returns 202)."
     return 0
   fi
 
@@ -420,10 +421,11 @@ client_provision() {
     else
       local queryParams=
       [ -n "$2" ] && queryParams+="&inState=$2"
-      [ -n "$3" ] && queryParams+="&sequenceBegin=$3"
-      [ -n "$4" ] && queryParams+="&sequenceEnd=$4"
-      [ -n "$5" ] && queryParams+="&rps=$5"
-      [ -n "$6" ] && queryParams+="&repeat=$6"
+      [ -n "$3" ] && queryParams+="&sequence=$3"
+      [ -n "$4" ] && queryParams+="&sequenceBegin=$4"
+      [ -n "$5" ] && queryParams+="&sequenceEnd=$5"
+      [ -n "$6" ] && queryParams+="&rps=$6"
+      [ -n "$7" ] && queryParams+="&repeat=$7"
       [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
       do_curl -XGET "$(admin_url)/client-provision/${1}'${queryParams}'"
     fi

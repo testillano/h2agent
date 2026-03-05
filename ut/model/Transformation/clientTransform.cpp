@@ -510,3 +510,80 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
     EXPECT_EQ(outState, "500"); // DifferentFrom 200 passes, statusCode "500" written to outState
 }
+
+// ==================== TRIGGERING ====================
+
+TEST_F(ClientTransform_test, SetSeqGetSeq)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    EXPECT_EQ(provision->getSeq(), 0u);
+    provision->setSeq(42);
+    EXPECT_EQ(provision->getSeq(), 42u);
+    provision->setSeq(0);
+    EXPECT_EQ(provision->getSeq(), 0u);
+}
+
+TEST_F(ClientTransform_test, UpdateTriggeringValidRange)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    EXPECT_TRUE(provision->updateTriggering("1", "100", "50", "false"));
+    EXPECT_EQ(provision->getRps(), 50u);
+}
+
+TEST_F(ClientTransform_test, UpdateTriggeringInvalidRange)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    // sequenceBegin > sequenceEnd
+    EXPECT_FALSE(provision->updateTriggering("100", "1", "", ""));
+}
+
+TEST_F(ClientTransform_test, UpdateTriggeringInvalidSequenceBegin)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    EXPECT_FALSE(provision->updateTriggering("-1", "100", "", ""));
+}
+
+TEST_F(ClientTransform_test, UpdateTriggeringInvalidRps)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    EXPECT_FALSE(provision->updateTriggering("", "", "-1", ""));
+}
+
+TEST_F(ClientTransform_test, UpdateTriggeringInvalidRepeat)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    EXPECT_FALSE(provision->updateTriggering("", "", "", "invalid"));
+}
+
+TEST_F(ClientTransform_test, UpdateTriggeringPartialUpdate)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    // Set initial values
+    EXPECT_TRUE(provision->updateTriggering("1", "100", "50", "false"));
+    EXPECT_EQ(provision->getRps(), 50u);
+
+    // Partial update: only rps, range keeps previous
+    EXPECT_TRUE(provision->updateTriggering("", "", "200", ""));
+    EXPECT_EQ(provision->getRps(), 200u);
+}

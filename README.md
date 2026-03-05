@@ -1954,7 +1954,7 @@ Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers curr
                                        [file]; Configure client provision by mean json specification.
                         [id] [id query param]; Triggers client provision identifier and optionally provide dynamics
                                                configuration (omit with empty value):
-                                               [inState, sequenceBegin, sequenceEnd, rps, repeat (true|false)]
+                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, rps, repeat (true|false)]
 Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used
                                             (http://localhost:8074/admin/v1/client-provision/unused).
 Usage: client_data [-h|--help]; Inspects client data events (http://localhost:8074/admin/v1/client-data).
