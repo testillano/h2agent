@@ -1024,9 +1024,113 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 33
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(h2agent_traffic_client_response_validation_failures_counter[$rate_interval]) > 0) by (source)",
+          "instant": false,
+          "legendFormat": "{{source}} validation failures",
+          "range": true,
+          "refId": "failures"
+        }
+      ],
+      "title": "Response validation failures [traffic client]",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 41
       },
       "id": 23,
       "options": {
@@ -1142,7 +1246,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 41
       },
       "id": 24,
       "options": {
@@ -1225,7 +1329,7 @@
         "h": 8,
         "w": 11,
         "x": 0,
-        "y": 41
+        "y": 49
       },
       "id": 27,
       "options": {
@@ -1328,7 +1432,7 @@
         "h": 8,
         "w": 13,
         "x": 11,
-        "y": 41
+        "y": 49
       },
       "id": 25,
       "options": {
@@ -1407,7 +1511,7 @@
         "h": 8,
         "w": 11,
         "x": 0,
-        "y": 49
+        "y": 57
       },
       "id": 28,
       "options": {
@@ -1522,7 +1626,7 @@
         "h": 8,
         "w": 13,
         "x": 11,
-        "y": 49
+        "y": 57
       },
       "id": 26,
       "options": {
@@ -1662,7 +1766,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "id": 21,
       "options": {
@@ -1778,7 +1882,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 65
       },
       "id": 22,
       "options": {
@@ -1834,7 +1938,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 73
       },
       "id": 13,
       "panels": [],
@@ -1908,7 +2012,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 66
+        "y": 74
       },
       "id": 14,
       "options": {
@@ -2025,7 +2129,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 66
+        "y": 74
       },
       "id": 15,
       "options": {
@@ -2108,7 +2212,7 @@
         "h": 8,
         "w": 11,
         "x": 0,
-        "y": 74
+        "y": 82
       },
       "id": 17,
       "options": {
@@ -2213,7 +2317,7 @@
         "h": 8,
         "w": 13,
         "x": 11,
-        "y": 74
+        "y": 82
       },
       "id": 16,
       "options": {
@@ -2297,7 +2401,7 @@
         "h": 8,
         "w": 11,
         "x": 0,
-        "y": 82
+        "y": 90
       },
       "id": 18,
       "options": {
@@ -2416,7 +2520,7 @@
         "h": 8,
         "w": 13,
         "x": 11,
-        "y": 82
+        "y": 90
       },
       "id": 20,
       "options": {

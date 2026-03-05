@@ -966,19 +966,31 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             std::string finalOutState = outState;
             const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
             auto provision = provisionData.find(inState, clientProvisionId);
+            bool responseValidationOk = true;
             if (provision) {
-                provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
+                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
             }
 
             // Provisioned request counter
             if (response.statusCode != 0) clientEndpoint->getClient()->incrementProvisionedRequestsSuccessful();
             else clientEndpoint->getClient()->incrementProvisionedRequestsFailed();
 
+            // Response validation counters
+            if (!responseValidationOk) {
+                clientEndpoint->getClient()->incrementResponseValidationFailures();
+            }
+
             // Store event
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 h2agent::model::DataPart responseBodyDataPart(response.body);
                 getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, clientSequence, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+            }
+
+            // Chain break on validation failure
+            if (!responseValidationOk) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Response validation failed for provision '%s': chain interrupted", clientProvisionId.c_str()), ERT_FILE_LOCATION));
+                return;
             }
 
             // Purge

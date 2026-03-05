@@ -626,3 +626,61 @@ TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventToPurgeTarget)
     ASSERT_TRUE(provision != nullptr);
     EXPECT_TRUE(provision->needsStorage());
 }
+
+// ==================== EXPECTED RESPONSE STATUS CODE ====================
+
+TEST_F(ClientTransform_test, LoadProvisionWithExpectedResponseStatusCode)
+{
+    client_provision_json_["expectedResponseStatusCode"] = 200;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_EQ(provision->getExpectedResponseStatusCode(), 200u);
+}
+
+TEST_F(ClientTransform_test, LoadProvisionWithoutExpectedResponseStatusCode)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_EQ(provision->getExpectedResponseStatusCode(), 0u);
+}
+
+TEST_F(ClientTransform_test, TransformResponseReturnsTrueWhenNoValidation)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 200;
+    resp.body = "{}";
+    std::string outState = "initial";
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 1, outState));
+}
+
+TEST_F(ClientTransform_test, TransformResponseReturnsTrueWhenStatusCodeMatches)
+{
+    client_provision_json_["expectedResponseStatusCode"] = 200;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 200;
+    std::string outState = "initial";
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 1, outState));
+}
+
+TEST_F(ClientTransform_test, TransformResponseReturnsFalseWhenStatusCodeMismatch)
+{
+    client_provision_json_["expectedResponseStatusCode"] = 200;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 500;
+    std::string outState = "initial";
+    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState));
+}

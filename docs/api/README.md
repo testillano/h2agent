@@ -1315,6 +1315,26 @@ Optional timeout for response in milliseconds. Defaults to 1000 ms (1 second) wh
 
 We could optionally validate received responses against a `json` schema. When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
+#### expectedResponseStatusCode
+
+Optional expected HTTP status code for the response (integer, 100-599). When configured and the received response status code does not match, the provision flow chain is interrupted (no state progression) and a validation failure counter is incremented. This is useful for automated verdict without requiring event storage:
+
+```json
+{
+  "id": "myFlow",
+  "endpoint": "myServer",
+  "requestMethod": "GET",
+  "requestUri": "/api/v1/resource",
+  "expectedResponseStatusCode": 200
+}
+```
+
+When either `expectedResponseStatusCode` or `responseSchemaId` validation fails:
+- The error is logged
+- The `h2agent_traffic_client_response_validation_failures_counter` prometheus metric is incremented
+- The event is still stored (if storage is enabled) for debugging
+- The state progression chain is interrupted (no purge, no next provision)
+
 ### Client transformation differences
 
 As in the server mode, we have transformations to be applied, but this time we can transform the context before sending (`transform` node), and when the response is received (`onResponseTransform` node).

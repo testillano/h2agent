@@ -2073,6 +2073,7 @@ Counters provided by http2comm library and h2agent itself(*):
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
    h2agent_traffic_client_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_client_purged_contexts_counter (*) [source] [result: successful/failed]
+   h2agent_traffic_client_response_validation_failures_counter (*) [source]
 
 Gauges provided by http2comm library:
 

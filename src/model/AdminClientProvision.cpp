@@ -220,14 +220,16 @@ void AdminClientProvision::transform( std::string &requestMethod,
     }
 }
 
-void AdminClientProvision::transformResponse( const std::string &requestUri,
+bool AdminClientProvision::transformResponse( const std::string &requestUri,
         const nghttp2::asio_http2::header_map &requestHeaders,
         const ert::http2comm::Http2Client::response &receivedResponse,
         std::uint64_t generalUniqueClientSequence,
         std::string &outState
                                             )
 {
-    if (on_response_transformations_.empty()) return;
+    bool validationOk = true;
+
+    if (!on_response_transformations_.empty()) {
 
     // Dynamic variables map: inherited along the transformation chain
     std::map<std::string, std::string> variables;
@@ -283,6 +285,14 @@ void AdminClientProvision::transformResponse( const std::string &requestUri,
         }
     }
 
+    } // !on_response_transformations_.empty()
+
+    // Expected response status code validation:
+    if (expected_response_status_code_ != 0 && receivedResponse.statusCode != (int)expected_response_status_code_) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Expected response status code %u but got %d", expected_response_status_code_, receivedResponse.statusCode), ERT_FILE_LOCATION);
+        validationOk = false;
+    }
+
     // Response schema validation:
     if (getResponseSchema()) {
         nlohmann::json responseJson;
@@ -290,9 +300,12 @@ void AdminClientProvision::transformResponse( const std::string &requestUri,
             std::string error{};
             if (!getResponseSchema()->validate(responseJson, error)) {
                 ert::tracing::Logger::error(ert::tracing::Logger::asString("Response schema validation failed: %s", error.c_str()), ERT_FILE_LOCATION);
+                validationOk = false;
             }
         }
     }
+
+    return validationOk;
 }
 
 bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transformation,
@@ -1140,6 +1153,11 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
     it = j.find("timeoutMs");
     if (it != j.end() && it->is_number()) {
         request_timeout_ms_ = *it;
+    }
+
+    it = j.find("expectedResponseStatusCode");
+    if (it != j.end() && it->is_number()) {
+        expected_response_status_code_ = *it;
     }
 
     auto transform_it = j.find("transform");
