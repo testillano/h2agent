@@ -1,6 +1,7 @@
 {
   "id": "ping",
   "endpoint": "myServer",
+  "expectedResponseStatusCode": 200,
   "requestMethod": "POST",
   "requestUri": "/game/ping",
   "requestHeaders": {"content-type": "application/json"}

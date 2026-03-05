@@ -1,6 +1,7 @@
 {
   "id": "rater",
   "endpoint": "myServer",
+  "expectedResponseStatusCode": 200,
   "requestMethod": "POST",
   "requestUri": "/rate/test"
 }

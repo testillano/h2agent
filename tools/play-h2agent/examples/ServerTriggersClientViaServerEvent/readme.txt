@@ -16,3 +16,7 @@ Flow:
       → client reads serverEvent.POST./api/v1/webhook/notify.0.body
       → client POSTs /api/v1/forward {"event":"login","userId":"u42"}
         → server responds 200 {"status":"forwarded"}
+
+The client provision uses expectedResponseStatusCode=200 to validate the
+forwarded response inline — if the server returns an unexpected status code,
+the validation failure counter increments.

@@ -13,3 +13,7 @@ Flow:
   6. outState="road-closed" -> chain stops
 
 After execution, check client-data for 2 events and server-data for 2 received requests.
+
+Both provisions use expectedResponseStatusCode=200 to validate server responses
+inline — if the server returns an unexpected status code, the chain breaks and
+the validation failure counter increments.

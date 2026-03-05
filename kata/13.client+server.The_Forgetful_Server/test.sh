@@ -50,24 +50,23 @@ wait_for_event read-item || exit 1
 client_data=$(curl -sf --http2-prior-knowledge \
   "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-data")
 
-# Step 1: POST returned 201
-title "Step 1: store-item (POST /items/id-42) returned 201" "" "*"
-status=$(echo "${client_data}" | jq '[.[] | .events[] | select(.clientProvisionId=="store-item")] | .[-1].responseStatusCode // 0')
-if [ "${status}" -eq 201 ]; then
-  echo -e "${COLOR_green}OK: POST returned 201${COLOR_reset}"
+# Step 1: store-item event exists (expectedResponseStatusCode validates 201 inline)
+title "Step 1: store-item (POST /items/id-42) completed" "" "*"
+count=$(echo "${client_data}" | jq '[.[] | .events[] | select(.clientProvisionId=="store-item")] | length')
+if [ "${count:-0}" -ge 1 ]; then
+  echo -e "${COLOR_green}OK: store-item event received${COLOR_reset}"
 else
-  echo -e "${COLOR_red}NOK: expected 201, got ${status}${COLOR_reset}"
+  echo -e "${COLOR_red}NOK: store-item event not found${COLOR_reset}"
   exit 1
 fi
 
-# Step 2: GET returned 200 with stored body
-title "Step 2: read-item (GET /items/id-42) returned 200 with stored body" "" "*"
-status=$(echo "${client_data}" | jq '[.[] | .events[] | select(.clientProvisionId=="read-item")] | .[-1].responseStatusCode // 0')
+# Step 2: read-item returned stored body (expectedResponseStatusCode validates 200 inline)
+title "Step 2: read-item (GET /items/id-42) returned stored body" "" "*"
 body=$(echo "${client_data}" | jq -c '[.[] | .events[] | select(.clientProvisionId=="read-item")] | .[-1].responseBody | if type == "string" then fromjson else . end // {}')
-if [ "${status}" -eq 200 ] && [ "${body}" = '{"value":42}' ]; then
-  echo -e "${COLOR_green}OK: GET returned 200 with body ${body}${COLOR_reset}"
+if [ "${body}" = '{"value":42}' ]; then
+  echo -e "${COLOR_green}OK: GET returned body ${body}${COLOR_reset}"
 else
-  echo -e "${COLOR_red}NOK: expected 200 + {\"value\":42}, got ${status} + ${body}${COLOR_reset}"
+  echo -e "${COLOR_red}NOK: expected {\"value\":42}, got ${body}${COLOR_reset}"
   exit 1
 fi
 

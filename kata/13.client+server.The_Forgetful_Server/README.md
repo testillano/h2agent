@@ -31,8 +31,8 @@ Complete `server-provision.json` so that:
 
 Create `client-provision.json` with two provisions using endpoint `myServer`:
 
-- `store-item`: `POST /items/id-42` with body `{"value": 42}` and header `content-type: application/json`.
-- `read-item`: `GET /items/id-42`.
+- `store-item`: `POST /items/id-42` with body `{"value": 42}` and header `content-type: application/json`. Use `expectedResponseStatusCode: 201` to validate the server response inline.
+- `read-item`: `GET /items/id-42`. Use `expectedResponseStatusCode: 200`.
 
 Complete `server-provision.json` so that:
 

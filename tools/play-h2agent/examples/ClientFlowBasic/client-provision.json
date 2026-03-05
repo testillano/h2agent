@@ -2,6 +2,7 @@
   {
     "id":"myFlow",
     "endpoint":"myServer",
+    "expectedResponseStatusCode": 200,
     "inState":"initial",
     "outState":"step2",
     "requestMethod":"GET",
@@ -11,6 +12,7 @@
   {
     "id":"myFlow",
     "endpoint":"myServer",
+    "expectedResponseStatusCode": 200,
     "inState":"step2",
     "outState":"road-closed",
     "requestMethod":"POST",

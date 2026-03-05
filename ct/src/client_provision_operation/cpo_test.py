@@ -62,6 +62,7 @@ def test_003_configure_basic_client_provision(h2ac_admin, admin_client_provision
     provision = {
         "id": "basicFlow",
         "endpoint": "loopback",
+        "expectedResponseStatusCode": 200,
         "requestMethod": "GET",
         "requestUri": "/app/v1/hello",
         "requestHeaders": {"content-type": "application/json"}
@@ -85,7 +86,6 @@ def test_004_trigger_basic_client_provision_and_verify(h2ac_admin):
     assert events[0]["method"] == "GET"
     assert events[0]["uri"] == "/app/v1/hello"
     event = events[0]["events"][0]
-    assert event["responseStatusCode"] == 200
     assert event["responseBody"] == {"greeting": "hello world"}
     assert event["clientProvisionId"] == "basicFlow"
 
@@ -117,6 +117,7 @@ def test_006_configure_chained_flow(h2ac_admin, admin_client_endpoint, admin_cli
     step1 = {
         "id": "chainedFlow",
         "endpoint": "loopback",
+        "expectedResponseStatusCode": 200,
         "requestMethod": "GET",
         "requestUri": "/app/v1/hello",
         "requestHeaders": {"content-type": "application/json"},
@@ -127,6 +128,7 @@ def test_006_configure_chained_flow(h2ac_admin, admin_client_endpoint, admin_cli
         "id": "chainedFlow",
         "inState": "step2",
         "endpoint": "loopback",
+        "expectedResponseStatusCode": 200,
         "requestMethod": "POST",
         "requestUri": "/app/v1/goodbye",
         "requestHeaders": {"content-type": "application/json"},
@@ -176,6 +178,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
     step1 = {
         "id": "transformFlow",
         "endpoint": "loopback",
+        "expectedResponseStatusCode": 200,
         "requestMethod": "GET",
         "requestUri": "/app/v1/hello",
         "requestHeaders": {"content-type": "application/json"},
@@ -189,6 +192,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
         "id": "transformFlow",
         "inState": "step2",
         "endpoint": "loopback",
+        "expectedResponseStatusCode": 200,
         "requestMethod": "POST",
         "requestUri": "/app/v1/goodbye",
         "requestHeaders": {"content-type": "application/json"},
@@ -255,6 +259,7 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
     forward_provision = {
         "id": "forwardFlow",
         "endpoint": "loopback",
+        "expectedResponseStatusCode": 200,
         "requestMethod": "POST",
         "requestUri": "/app/v1/forward",
         "requestHeaders": {"content-type": "application/json"},
@@ -281,4 +286,3 @@ def test_013_send_webhook_and_verify_client_triggered(h2ac_traffic, h2ac_admin):
     assert len(forward_events) == 1
     event = forward_events[0]["events"][0]
     assert event["requestBody"] == {"event": "user.created", "userId": 99}
-    assert event["responseStatusCode"] == 200

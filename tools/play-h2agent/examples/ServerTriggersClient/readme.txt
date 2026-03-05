@@ -11,3 +11,7 @@ Flow:
     → triggers clientProvision.forwardNotification
       → client POSTs /api/v1/forward with the original notification body
         → server responds 200 {"status":"forwarded"}
+
+The client provision uses expectedResponseStatusCode=200 to validate the
+forwarded response inline — if the server returns an unexpected status code,
+the validation failure counter increments.

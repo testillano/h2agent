@@ -2,12 +2,14 @@
   {
     "id": "first-tick",
     "endpoint": "myServer",
+    "expectedResponseStatusCode": 200,
     "requestMethod": "GET",
     "requestUri": "/time"
   },
   {
     "id": "second-tick",
     "endpoint": "myServer",
+    "expectedResponseStatusCode": 200,
     "requestMethod": "GET",
     "requestUri": "/time"
   }
