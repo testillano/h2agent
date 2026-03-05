@@ -279,7 +279,7 @@ server_data() {
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
-    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data'${queryParams}'" ${devnull}
+    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data${queryParams}" ${devnull}
   else
     if [ -z "${clean}${dump}${surf}" ]
     then
@@ -463,7 +463,7 @@ client_provision() {
       [ -n "$6" ] && queryParams+="&rps=$6"
       [ -n "$7" ] && queryParams+="&repeat=$7"
       [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
-      do_curl -XGET "$(admin_url)/client-provision/${1}'${queryParams}'"
+      do_curl -XGET "$(admin_url)/client-provision/${1}${queryParams}"
     fi
   fi
 }
@@ -561,7 +561,7 @@ client_data() {
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
-    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data'${queryParams}'" ${devnull}
+    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data${queryParams}" ${devnull}
   else
     if [ -z "${clean}${dump}${surf}" ]
     then
