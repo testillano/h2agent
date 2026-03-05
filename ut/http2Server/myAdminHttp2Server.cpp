@@ -112,7 +112,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ServerMatchingInvalidContent) {
 TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionValid) {
     nlohmann::json config = R"({"requestMethod": "GET", "requestUri": "/foo/bar", "responseCode": 200})"_json;
     std::string log;
-    int result = admin_server_->serverProvision(config, log);
+    std::string warning;
+    int result = admin_server_->serverProvision(config, log, warning);
 
     EXPECT_EQ(result, 201);
     EXPECT_EQ(log, "server-provision operation; valid schema and server provision data received");
@@ -121,7 +122,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionValid) {
 TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionInvalidSchema) {
     nlohmann::json config = R"({"requestUri": "/foo/bar", "responseCode": 200})"_json;
     std::string log;
-    int result = admin_server_->serverProvision(config, log);
+    std::string warning;
+    int result = admin_server_->serverProvision(config, log, warning);
 
     EXPECT_EQ(result, 400);
     EXPECT_EQ(log, "server-provision operation; invalid schema");
@@ -135,7 +137,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionWithResponseBody) {
         "responseBody": {"status": "created"}
     })"_json;
     std::string log;
-    int result = admin_server_->serverProvision(config, log);
+    std::string warning;
+    int result = admin_server_->serverProvision(config, log, warning);
 
     EXPECT_EQ(result, 201);
 }
@@ -148,7 +151,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionWithHeaders) {
         "responseHeaders": {"content-type": "application/json", "x-custom": "value"}
     })"_json;
     std::string log;
-    int result = admin_server_->serverProvision(config, log);
+    std::string warning;
+    int result = admin_server_->serverProvision(config, log, warning);
 
     EXPECT_EQ(result, 201);
 }
@@ -312,7 +316,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ClientProvisionValid) {
         "requestMethod": "GET",
         "requestUri": "/test"
     })"_json;
-    int result = admin_server_->clientProvision(config, log);
+    std::string warning;
+    int result = admin_server_->clientProvision(config, log, warning);
 
     EXPECT_EQ(result, 201);
     EXPECT_EQ(log, "client-provision operation; valid schema and client provision data received");
@@ -321,7 +326,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ClientProvisionValid) {
 TEST_F(MyAdminHttp2ServerUnitTest, ClientProvisionInvalidSchema) {
     nlohmann::json config = R"({})"_json;  // missing required "id"
     std::string log;
-    int result = admin_server_->clientProvision(config, log);
+    std::string warning;
+    int result = admin_server_->clientProvision(config, log, warning);
 
     EXPECT_EQ(result, 400);
     EXPECT_EQ(log, "client-provision operation; invalid schema");

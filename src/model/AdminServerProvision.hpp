@@ -392,6 +392,23 @@ public:
     bool employed() const {
         return employed_;
     }
+
+    /**
+     * Checks if this provision references event-dependent transformation types
+     * (serverEvent/clientEvent sources or serverEventToPurge/clientEventToPurge targets)
+     *
+     * @return True if any transformation requires stored events
+     */
+    bool needsStorage() const {
+        for (const auto& t : transformations_) {
+            auto st = t->getSourceType();
+            auto tt = t->getTargetType();
+            if (st == Transformation::ServerEvent || st == Transformation::ClientEvent ||
+                tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
+                return true;
+        }
+        return false;
+    }
 };
 
 }

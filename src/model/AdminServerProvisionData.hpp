@@ -127,6 +127,19 @@ public:
         return server_provision_schema_;
     }
 
+    /**
+    * Checks if any loaded provision references event-dependent transformation types
+    *
+    * @return True if any provision requires stored events
+    */
+    bool needsStorage() const {
+        bool result = false;
+        forEach([&result](const auto&, const auto& provision) {
+            if (!result && provision->needsStorage()) result = true;
+        });
+        return result;
+    }
+
 private:
 
     std::vector<admin_server_provision_key_t> ordered_keys_{}; // this is used to keep the insertion order which shall be used in RegexMatching algorithm

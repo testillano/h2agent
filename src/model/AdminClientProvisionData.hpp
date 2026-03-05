@@ -102,6 +102,19 @@ public:
         return client_provision_schema_;
     }
 
+    /**
+    * Checks if any loaded provision references event-dependent transformation types
+    *
+    * @return True if any provision requires stored events
+    */
+    bool needsStorage() const {
+        bool result = false;
+        forEach([&result](const auto&, const auto& provision) {
+            if (!result && provision->needsStorage()) result = true;
+        });
+        return result;
+    }
+
 private:
 
     h2agent::jsonschema::JsonSchema client_provision_schema_{};

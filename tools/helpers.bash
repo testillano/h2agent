@@ -355,6 +355,42 @@ server_data() {
   fi
 }
 
+ensure_storage() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: ensure_storage [-h|--help]; Auto-detects if loaded provisions need event storage and enables it."
+    echo "                      [--server] ; Check server provisions only."
+    echo "                      [--client] ; Check client provisions only."
+    echo "                      By default, checks both server and client."
+    return 0
+  fi
+
+  local check_server=true
+  local check_client=true
+  [ "$1" = "--server" ] && check_client=false
+  [ "$1" = "--client" ] && check_server=false
+
+  if [ "${check_server}" = "true" ]
+  then
+    local needs=$(do_curl "$(admin_url)/server-data/configuration" 2>/dev/null | jq -r '.needsStorage // false')
+    if [ "${needs}" = "true" ]
+    then
+      echo "Server provisions require storage: enabling storeEvents ..."
+      do_curl -XPUT "$(admin_url)/server-data/configuration?discard=false&discardKeyHistory=false"
+    fi
+  fi
+
+  if [ "${check_client}" = "true" ]
+  then
+    local needs=$(do_curl "$(admin_url)/client-data/configuration" 2>/dev/null | jq -r '.needsStorage // false')
+    if [ "${needs}" = "true" ]
+    then
+      echo "Client provisions require storage: enabling storeEvents ..."
+      do_curl -XPUT "$(admin_url)/client-data/configuration?discard=false&discardKeyHistory=false"
+    fi
+  fi
+}
+
 # -----------------------------------------------------------------------------
 # TRAFFIC CLIENT
 

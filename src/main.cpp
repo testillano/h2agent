@@ -979,7 +979,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
             if (success) {
                 log += ": ";
-                success = myAdminHttp2Server->serverProvision(jsonObject, log);
+                std::string warning;
+                success = myAdminHttp2Server->serverProvision(jsonObject, log, warning);
             }
 
             if (!success) {
@@ -1022,7 +1023,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
         if (success) {
             log += ": ";
-            success = myAdminHttp2Server->clientProvision(jsonObject, log);
+            std::string warning;
+            success = myAdminHttp2Server->clientProvision(jsonObject, log, warning);
         }
 
         if (!success) {

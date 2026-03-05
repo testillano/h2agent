@@ -587,3 +587,42 @@ TEST_F(ClientTransform_test, UpdateTriggeringPartialUpdate)
     EXPECT_TRUE(provision->updateTriggering("", "", "200", ""));
     EXPECT_EQ(provision->getRps(), 200u);
 }
+
+// ==================== NEEDS STORAGE ====================
+
+TEST_F(ClientTransform_test, NeedsStorageFalseForBasicProvision)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_FALSE(provision->needsStorage());
+    EXPECT_FALSE(adata_.getClientProvisionData().needsStorage());
+}
+
+TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventSource)
+{
+    client_provision_json_["transform"] = R"([{"source":"clientEvent.requestMethod","target":"request.uri"}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_TRUE(provision->needsStorage());
+    EXPECT_TRUE(adata_.getClientProvisionData().needsStorage());
+}
+
+TEST_F(ClientTransform_test, NeedsStorageTrueForServerEventSource)
+{
+    client_provision_json_["transform"] = R"([{"source":"serverEvent.requestMethod","target":"request.uri"}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_TRUE(provision->needsStorage());
+}
+
+TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventToPurgeTarget)
+{
+    client_provision_json_["onResponseTransform"] = R"([{"source":"eraser","target":"clientEvent.purge"}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_TRUE(provision->needsStorage());
+}

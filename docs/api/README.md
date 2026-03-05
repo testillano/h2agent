@@ -1129,11 +1129,38 @@ Be careful using this `PUT` operation in the middle of traffic load, because it 
 
 ```json
 {
+    "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
     "storeEventsKeyHistory": true
 }
 ```
+
+The `needsStorage` field is a computed boolean: `true` when any loaded provision contains transformation items with source type `serverEvent`/`clientEvent` or target type `serverEventToPurge`/`clientEventToPurge`. This allows runners to auto-detect whether storage must be enabled for the current test scenario.
+
+#### Stateful detection warnings
+
+When a provision is loaded (`POST`) that references event-dependent transformations but `storeEvents` is currently disabled, the response includes a `warning` field:
+
+```json
+{
+    "result": "true",
+    "response": "server-provision operation; valid schema and server provision data received",
+    "warning": "provision references serverEvent/clientEvent but storeEvents is disabled"
+}
+```
+
+Similarly, when storage is disabled via `PUT /admin/v1/server-data/configuration?discard=true` but loaded provisions require it, the response includes a warning body:
+
+```json
+{
+    "result": "true",
+    "response": "server-data configuration updated",
+    "warning": "active provisions require storeEvents (serverEvent/clientEvent references found)"
+}
+```
+
+Both are advisory only — the operation proceeds normally.
 
 By default, the `h2agent` enables both kinds of storage types (general events and requests history events), and also enables the purge execution if any provision with this state is reached, so the previous response body will be returned on this query operation. This is useful for function/component testing where more information available is good to fulfill the validation requirements. In load testing, we could seize the `purge` out-state to control the memory consumption, or even disable storage flags in case that test plan is stateless and allows to do that simplification.
 
@@ -1485,6 +1512,7 @@ The same agent could manage server and client connections, so you have specific 
 
 ```json
 {
+    "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
     "storeEventsKeyHistory": true

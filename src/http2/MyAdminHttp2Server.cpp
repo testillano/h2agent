@@ -158,7 +158,7 @@ void MyAdminHttp2Server::buildJsonResponse(bool result, const std::string &respo
 THIS WAS REPLACED TEMPORARILY BY A SLIGHTLY LESS EFFICIENT VERSION, TO AVOID VALGRIND COMPLAIN:
 */
 
-std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody) const
+std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning) const
 {
     std::string result;
     result = R"({ "result":")";
@@ -166,7 +166,13 @@ std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std
     result += R"(", "response": )";
     result += R"(")";
     result += responseBody;
-    result += R"(" })";
+    result += R"(")";
+    if (!warning.empty()) {
+        result += R"(, "warning": ")";
+        result += warning;
+        result += R"(")";
+    }
+    result += R"( })";
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Json Response %s", result.c_str()), ERT_FILE_LOCATION));
 
     return result;
@@ -213,7 +219,7 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
     return result;
 }
 
-int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "server-provision operation; ";
 
@@ -223,6 +229,10 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
         log += (isArray ? "valid schemas and server provisions data received":"valid schema and server provision data received");
+        if (getAdminData()->getServerProvisionData().needsStorage() && getHttp2Server() && !getHttp2Server()->isDataStored()) {
+            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+        }
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
@@ -261,7 +271,7 @@ int MyAdminHttp2Server::clientEndpoint(const nlohmann::json &configurationObject
     return result;
 }
 
-int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "client-provision operation; ";
 
@@ -271,6 +281,10 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminClientProvisionData::Success) {
         log += (isArray ? "valid schemas and client provisions data received":"valid schema and client provision data received");
+        if (getAdminData()->getClientProvisionData().needsStorage() && !client_data_) {
+            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+        }
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
@@ -319,6 +333,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     std::string jsonResponse_response;
+    std::string warning;
 
     // All responses are json content:
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
@@ -332,13 +347,13 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
             statusCode = serverMatching(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "server-provision") {
-            statusCode = serverProvision(requestJson, jsonResponse_response);
+            statusCode = serverProvision(requestJson, jsonResponse_response, warning);
         }
         else if (pathSuffix == "client-endpoint") {
             statusCode = clientEndpoint(requestJson, jsonResponse_response);
         }
         else if (pathSuffix == "client-provision") {
-            statusCode = clientProvision(requestJson, jsonResponse_response);
+            statusCode = clientProvision(requestJson, jsonResponse_response, warning);
         }
         else if (pathSuffix == "schema") {
             statusCode = schema(requestJson, jsonResponse_response);
@@ -359,7 +374,7 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
     }
 
     // Build json response body:
-    responseBody = buildJsonResponse(statusCodeOK(statusCode), jsonResponse_response);
+    responseBody = buildJsonResponse(statusCodeOK(statusCode), jsonResponse_response, warning);
 }
 
 void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
@@ -686,7 +701,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
     }
 }
 
-void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode)
+void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody)
 {
     LOGDEBUG(ert::tracing::Logger::debug("receivePUT()",  ERT_FILE_LOCATION));
 
@@ -808,6 +823,19 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         else {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot keep requests history if %s data storage is discarded", mode), ERT_FILE_LOCATION);
         }
+
+        // Warning when disabling storage but provisions need it
+        if (success && b_discard) {
+            bool provisionsNeedStorage = serverMode ?
+                getAdminData()->getServerProvisionData().needsStorage() :
+                getAdminData()->getClientProvisionData().needsStorage();
+            if (provisionsNeedStorage) {
+                std::string warning = "active provisions require storeEvents (serverEvent/clientEvent references found)";
+                LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+                headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+                responseBody = buildJsonResponse(true, std::string(mode) + "-data configuration updated", warning);
+            }
+        }
     }
     else if (pathSuffix == "files/configuration") {
         std::string readCache;
@@ -894,8 +922,8 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         return;
     }
     else if (method == "PUT") {
-        receivePUT(pathSuffix, uriQuery, statusCode);
-        headers.clear();
+        receivePUT(pathSuffix, uriQuery, statusCode, headers, responseBody);
+        if (responseBody.empty()) headers.clear();
         return;
     }
 }
@@ -1096,6 +1124,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
     result["storeEvents"] = client_data_;
     result["storeEventsKeyHistory"] = client_data_key_history_;
     result["purgeExecution"] = purge_execution_;
+    result["needsStorage"] = admin_data_->getClientProvisionData().needsStorage();
 
     return result.dump();
 }
