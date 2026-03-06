@@ -1,0 +1,25 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/foo/bar/scoped-var-chain",
+    "inState": "initial",
+    "outState": "step2",
+    "responseCode": 200,
+    "responseBody": {"step": 1},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"source": "request.body./captured", "target": "var.myData"}
+    ]
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/foo/bar/scoped-var-chain",
+    "inState": "step2",
+    "responseCode": 200,
+    "responseBody": {"step": 2},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"source": "var.myData", "target": "response.body.json.string./propagated"}
+    ]
+  }
+]

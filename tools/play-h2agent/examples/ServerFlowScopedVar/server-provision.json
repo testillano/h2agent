@@ -1,0 +1,30 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/cart",
+    "inState": "initial",
+    "outState": "has-items",
+    "responseCode": 200,
+    "responseBody": {"step": "first"},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"source": "request.body./price", "target": "var.total"},
+      {"source": "var.total", "target": "response.body.json.integer./running"}
+    ]
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/cart",
+    "inState": "has-items",
+    "outState": "has-items",
+    "responseCode": 200,
+    "responseBody": {"step": "added"},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"source": "var.total", "target": "var.accumulated"},
+      {"source": "request.body./price", "target": "var.newPrice"},
+      {"source": "math.@{accumulated}+@{newPrice}", "target": "var.total"},
+      {"source": "var.total", "target": "response.body.json.integer./running"}
+    ]
+  }
+]

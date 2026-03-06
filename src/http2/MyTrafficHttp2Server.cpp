@@ -246,9 +246,10 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
 // Find mock context:
     std::string inState{};
+    std::map<std::string, std::string> chainVariables{};
     h2agent::model::DataKey normalizedKey(method, normalizedUri);
 
-    /*bool requestFound = */getMockServerData()->findLastRegisteredRequestState(normalizedKey, inState); // if not found, inState will be 'initial'
+    /*bool requestFound = */getMockServerData()->findLastRegisteredRequestState(normalizedKey, inState, chainVariables); // if not found, inState will be 'initial'
 
 // Matching algorithm:
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
@@ -316,7 +317,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
         // Process provision
         provision->transform(normalizedUri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
-                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers);
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, chainVariables);
 
         // Trigger client provisions (fire-and-forget):
         if (client_provision_trigger_) {
@@ -346,6 +347,9 @@ ss << "TRAFFIC REQUEST RECEIVED"
             if (server_data_) {
                 normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
                 getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
+
+                // Store chain variables for next outState link:
+                getMockServerData()->storeChainVariables(normalizedKey, chainVariables);
 
                 // Virtual storage:
                 if (hasVirtualMethod) {

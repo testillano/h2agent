@@ -140,6 +140,26 @@ public:
      * @return Boolean about if the request is found or not
      */
     bool findLastRegisteredRequestState(const DataKey &key, std::string &state) const;
+
+    /**
+     * Finds most recent mock context entry state and chain variables.
+     *
+     * @param key Data key triggered.
+     * @param state Request current state filled by reference.
+     * @param chainVariables Chain variables filled by reference.
+     * If nothing found or no state (unprovisioned events), 'initial' will be set and variables will be empty.
+     *
+     * @return Boolean about if the request is found or not
+     */
+    bool findLastRegisteredRequestState(const DataKey &key, std::string &state, std::map<std::string, std::string> &chainVariables) const;
+
+    /**
+     * Stores chain variables for a given data key.
+     *
+     * @param key Data key.
+     * @param chainVariables Chain variables to store.
+     */
+    void storeChainVariables(const DataKey &key, const std::map<std::string, std::string> &chainVariables);
 };
 
 }

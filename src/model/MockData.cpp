@@ -215,6 +215,37 @@ bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &s
     return false;
 }
 
+bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &state, std::map<std::string, std::string> &chainVariables) const {
+
+    bool exists{};
+    auto result = get(key.getKey(), exists);
+
+    if (exists) {
+        state = result->getLastRegisteredRequestState();
+        chainVariables = result->getChainVariables();
+        if (state.empty()) {
+            state = DEFAULT_ADMIN_PROVISION_STATE;
+            chainVariables.clear();
+        }
+
+        return true;
+    }
+
+    state = DEFAULT_ADMIN_PROVISION_STATE;
+    chainVariables.clear();
+    return false;
+}
+
+void MockData::storeChainVariables(const DataKey &key, const std::map<std::string, std::string> &chainVariables) {
+
+    bool exists{};
+    auto result = get(key.getKey(), exists);
+
+    if (exists) {
+        result->setChainVariables(chainVariables);
+    }
+}
+
 }
 }
 

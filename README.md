@@ -178,7 +178,7 @@ When developing a network service, one often needs to integrate it with other se
 So, `h2agent` could be used as:
 
 * **Server** mock: fully implemented.
-* **Client** mock: partially implemented (new features ongoing).
+* **Client** mock: fully implemented.
 
 Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
 
@@ -1529,8 +1529,6 @@ Once executed, a hint will show how to proceed, mainly adding these parameters t
 
 As well as some `curl` hints (secure and insecure examples).
 
-**TODO**: support secure client connection for client capabilities.
-
 ## Metrics
 
 Based in [prometheus data model](https://prometheus.io/docs/concepts/data_model/) and implemented with [prometheus-cpp library](https://github.com/jupp0r/prometheus-cpp), those metrics are collected and exposed through the server scraping port (`8080` by default, but configurable at [command line](#Command-line) by mean `--prometheus-port` option) and could be retrieved using Prometheus or compatible visualization software like [Grafana](https://prometheus.io/docs/visualization/grafana/) or just browsing `http://localhost:8080/metrics`.
@@ -1755,6 +1753,8 @@ When a server provision triggers a client provision (via `clientProvision.<id>` 
 The client provision reads the last received body at `POST /api/v1/webhook/notify` and uses it as the outgoing request body — no `globalVar` needed. A full runnable example is available at `tools/play-h2agent/examples/ServerTriggersClientViaServerEvent`.
 
 > **Note:** `serverEvent` requires server-data storage to be enabled (default). If `--discard-data` is set, the source will fail and the transformation is skipped.
+
+Similarly, server provisions can access client event history using the `clientEvent` source. This is useful when the server acts as an intermediary: it triggers a client flow, and then uses the client response data to build its own response. The `clientEvent` source uses query-parameter addressing with `clientEndpointId`, `requestMethod`, `requestUri`, `eventNumber` and `eventPath` fields (see the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details).
 
 ## Dynamic response delays
 

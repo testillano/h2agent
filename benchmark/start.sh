@@ -417,7 +417,7 @@ then
   # Configure client provision
   PROVISION_JSON="{\"id\":\"benchmark\",\"endpoint\":\"server\",\"requestMethod\":\"${ST_REQUEST_METHOD}\",\"requestUri\":\"/${ST_REQUEST_URL}\""
   [ "${ST_REQUEST_METHOD}" = "POST" ] && PROVISION_JSON="${PROVISION_JSON},\"requestBody\":${ST_REQUEST_BODY}"
-  PROVISION_JSON="${PROVISION_JSON}}"
+  PROVISION_JSON="${PROVISION_JSON},\"expectedResponseStatusCode\":200}"
   echo "${PROVISION_JSON}" > ${TMP_DIR}/client-provision.json
   h2a_admin_curl POST admin/v1/client-provision 201 ${TMP_DIR}/client-provision.json || exit 1
 

@@ -122,7 +122,8 @@ void AdminClientProvision::transform( std::string &requestMethod,
                                       std::string &outState,
                                       unsigned int &requestDelayMs,
                                       unsigned int &requestTimeoutMs,
-                                      std::string &error
+                                      std::string &error,
+                                      std::map<std::string, std::string> &variables
                                     )
 {
     // Default values without transformations:
@@ -157,9 +158,8 @@ void AdminClientProvision::transform( std::string &requestMethod,
         requestBody = getRequestBodyAsString(); // this could be overwritten by targets RequestBodyString or RequestBodyHexString
     }
 
-    // Dynamic variables map: inherited along the transformation chain
-    std::map<std::string, std::string> variables; // source & target variables (key=variable name/value=variable value)
-    variables["sequence"] = std::to_string(seq_); // reserved read-only variable
+    // Scoped variables: update reserved read-only variable
+    variables["sequence"] = std::to_string(seq_);
 
     // Type converter:
     TypeConverter sourceVault{};
@@ -224,15 +224,15 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         const nghttp2::asio_http2::header_map &requestHeaders,
         const ert::http2comm::Http2Client::response &receivedResponse,
         std::uint64_t generalUniqueClientSequence,
-        std::string &outState
+        std::string &outState,
+        std::map<std::string, std::string> &variables
                                             )
 {
     bool validationOk = true;
 
     if (!on_response_transformations_.empty()) {
 
-    // Dynamic variables map: inherited along the transformation chain
-    std::map<std::string, std::string> variables;
+    // Scoped variables: update reserved read-only variable
     variables["sequence"] = std::to_string(seq_);
 
     // Type converter:

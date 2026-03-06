@@ -17,6 +17,7 @@
 #include <AdminClientProvisionData.hpp>
 #include <AdminSchemas.hpp>
 #include <MockServerData.hpp>
+#include <MockClientData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
 #include <FileManager.hpp>
@@ -232,6 +233,7 @@ public:
     std::string out_state_method_{};
     std::string out_state_uri_{};
     std::vector<std::pair<std::string, std::string>> client_provision_triggers_{};
+    std::map<std::string, std::string> variables_{};
 
     Transform_test() {
         adata_.loadServerMatching(MatchingConfiguration_FullMatching);
@@ -260,6 +262,7 @@ public:
         common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
         common_resources_.SocketManagerPtr = new h2agent::model::SocketManager(nullptr);
         common_resources_.MockServerDataPtr = new h2agent::model::MockServerData();
+        common_resources_.MockClientDataPtr = new h2agent::model::MockClientData();
 
         // Global variables:
         common_resources_.GlobalVariablePtr->load("myGlobalVariable","myGlobalVariable_value");
@@ -269,6 +272,15 @@ public:
         postRequestBodyDataPart.assign("{\"foo\":15}");
         std::string responseBody = "{\"bar\":25}";
         common_resources_.MockServerDataPtr->loadEvent(h2agent::model::DataKey("POST", "/app/v1/foo/bar/1"), "previous-state", "state", std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()), 201, request_headers_ /* shared to simplify */, response_headers_ /* shared to simplify */, postRequestBodyDataPart, responseBody, 111 /* server sequence */, 20 /* response delay ms */, true /* history */);
+
+        // Simulated client event:
+        h2agent::model::DataPart clientResponseBodyDataPart;
+        clientResponseBodyDataPart.assign("{\"baz\":42}");
+        std::string clientRequestBody = "{\"qux\":99}";
+        nghttp2::asio_http2::header_map clientResponseHeaders;
+        clientResponseHeaders.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+        auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
+        common_resources_.MockClientDataPtr->loadEvent(h2agent::model::DataKey("myEndpoint", "GET", "/api/v1/data"), "myProvisionId", "initial", "initial", now, now, 200, request_headers_, clientResponseHeaders, clientRequestBody, clientResponseBodyDataPart, 1 /* client sequence */, 1 /* sequence */, 0 /* request delay ms */, 3000 /* timeout ms */, true /* history */);
     }
 
     void provisionAndTransform(const std::string &requestBody) {
@@ -281,7 +293,7 @@ public:
         EXPECT_EQ(adata_.getServerProvisionData().size(), 1);
 
         request_body_data_part_.assign(requestBody);
-        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_);
+        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
     }
 
     ~Transform_test() {
@@ -290,6 +302,7 @@ public:
         delete(common_resources_.FileManagerPtr);
         delete(common_resources_.SocketManagerPtr);
         delete(common_resources_.MockServerDataPtr);
+        delete(common_resources_.MockClientDataPtr);
     }
 };
 
@@ -963,6 +976,48 @@ TEST_F(Transform_test, SourceServerEventPathUnknown)
 {
     // Build test provision:
     const nlohmann::json item = R"({ "source": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/missing", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations:
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, SourceClientEvent)
+{
+    // Build test provision:
+    const nlohmann::json item = R"({ "source": "clientEvent.clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/baz", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations:
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "42");
+}
+
+TEST_F(Transform_test, SourceClientEventPathUnknown)
+{
+    // Build test provision:
+    const nlohmann::json item = R"({ "source": "clientEvent.clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/missing", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations:
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, SourceClientEventEndpointUnknown)
+{
+    // Build test provision:
+    const nlohmann::json item = R"({ "source": "clientEvent.clientEndpointId=unknownEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/baz", "target": "response.body.string" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -2218,4 +2273,44 @@ TEST_F(Transform_test, NeedsStorageTrueForServerEventToPurgeTarget)
     auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision != nullptr);
     EXPECT_TRUE(provision->needsStorage());
+}
+
+/////////////////////////////////////
+// SCOPED VARIABLE CHAIN PROPAGATION //
+/////////////////////////////////////
+TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
+{
+    // Link 1: set var.captured from request body, outState -> "step2"
+    nlohmann::json link1 = ProvisionConfiguration_GET;
+    link1["inState"] = "initial";
+    link1["outState"] = "step2";
+    link1["transform"] = R"([
+        {"source": "request.body./foo", "target": "var.captured"}
+    ])"_json;
+
+    EXPECT_EQ(adata_.loadServerProvision(link1, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision1 = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision1);
+
+    request_body_data_part_.assign(R"({"foo":"hello"})");
+    provision1->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+
+    EXPECT_EQ(variables_["captured"], "hello");
+    EXPECT_EQ(out_state_, "step2");
+
+    // Link 2: read var.captured into response body (same variables_ map = chain propagation)
+    nlohmann::json link2 = ProvisionConfiguration_GET;
+    link2["inState"] = "step2";
+    link2["transform"] = R"([
+        {"source": "var.captured", "target": "response.body.string"}
+    ])"_json;
+
+    EXPECT_EQ(adata_.loadServerProvision(link2, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision2 = adata_.getServerProvisionData().find("step2", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision2);
+
+    request_body_data_part_.assign("{}");
+    provision2->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+
+    EXPECT_EQ(response_body_, "hello");
 }

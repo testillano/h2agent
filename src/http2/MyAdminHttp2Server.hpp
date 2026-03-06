@@ -38,6 +38,7 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <memory>
+#include <map>
 #include <chrono>
 
 #include <ert/metrics/Metrics.hpp>
@@ -95,7 +96,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody);
 
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
-    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint) const;
+    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint, std::shared_ptr<std::map<std::string, std::string>> chainVariables = nullptr) const;
 
 public:
     MyAdminHttp2Server(const std::string &name, size_t workerThreads);

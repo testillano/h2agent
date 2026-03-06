@@ -279,7 +279,7 @@ server_data() {
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
-    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data'${queryParams}'" ${devnull}
+    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data${queryParams}" ${devnull}
   else
     if [ -z "${clean}${dump}${surf}" ]
     then
@@ -355,13 +355,14 @@ server_data() {
   fi
 }
 
-ensure_storage() {
+check_storage() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: ensure_storage [-h|--help]; Auto-detects if loaded provisions need event storage and enables it."
-    echo "                      [--server] ; Check server provisions only."
-    echo "                      [--client] ; Check client provisions only."
-    echo "                      By default, checks both server and client."
+    echo "Usage: check_storage [-h|--help]; Checks if loaded provisions need event storage but it is disabled."
+    echo "                     [--server] ; Check server provisions only."
+    echo "                     [--client] ; Check client provisions only."
+    echo "                     By default, checks both server and client."
+    echo "                     Returns 0 if consistent, 1 if storage is needed but disabled."
     return 0
   fi
 
@@ -370,25 +371,50 @@ ensure_storage() {
   [ "$1" = "--server" ] && check_client=false
   [ "$1" = "--client" ] && check_server=false
 
+  local rc=0
+
   if [ "${check_server}" = "true" ]
   then
-    local needs=$(do_curl "$(admin_url)/server-data/configuration" 2>/dev/null | jq -r '.needsStorage // false')
+    do_curl "$(admin_url)/server-data/configuration" >/dev/null 2>&1
+    local needs=$(pretty '.needsStorage // false' 2>/dev/null)
+    local stores=$(pretty '.storeEvents // false' 2>/dev/null)
+    local history=$(pretty '.storeEventsKeyHistory // false' 2>/dev/null)
     if [ "${needs}" = "true" ]
     then
-      echo "Server provisions require storage: enabling storeEvents ..."
-      do_curl -XPUT "$(admin_url)/server-data/configuration?discard=false&discardKeyHistory=false"
+      if [ "${stores}" != "true" ]
+      then
+        echo "Warning: server provisions require storage but it is disabled. Consider: server_data_configuration --keep-all"
+        rc=1
+      elif [ "${history}" != "true" ]
+      then
+        echo "Warning: server provisions require storage but key history is disabled. Consider: server_data_configuration --keep-all"
+        rc=1
+      fi
     fi
   fi
 
   if [ "${check_client}" = "true" ]
   then
-    local needs=$(do_curl "$(admin_url)/client-data/configuration" 2>/dev/null | jq -r '.needsStorage // false')
+    do_curl "$(admin_url)/client-data/configuration" >/dev/null 2>&1
+    local needs=$(pretty '.needsStorage // false' 2>/dev/null)
+    local stores=$(pretty '.storeEvents // false' 2>/dev/null)
+    local history=$(pretty '.storeEventsKeyHistory // false' 2>/dev/null)
     if [ "${needs}" = "true" ]
     then
-      echo "Client provisions require storage: enabling storeEvents ..."
-      do_curl -XPUT "$(admin_url)/client-data/configuration?discard=false&discardKeyHistory=false"
+      if [ "${stores}" != "true" ]
+      then
+        echo "Warning: client provisions require storage but it is disabled. Consider: client_data_configuration --keep-all"
+        rc=1
+      elif [ "${history}" != "true" ]
+      then
+        echo "Warning: client provisions require storage but key history is disabled. Consider: client_data_configuration --keep-all"
+        rc=1
+      fi
     fi
   fi
+
+  [ ${rc} -eq 0 ] && echo "Storage configuration is consistent."
+  return ${rc}
 }
 
 # -----------------------------------------------------------------------------
@@ -463,7 +489,7 @@ client_provision() {
       [ -n "$6" ] && queryParams+="&rps=$6"
       [ -n "$7" ] && queryParams+="&repeat=$7"
       [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
-      do_curl -XGET "$(admin_url)/client-provision/${1}'${queryParams}'"
+      do_curl -XGET "$(admin_url)/client-provision/${1}${queryParams}"
     fi
   fi
 }
@@ -561,7 +587,7 @@ client_data() {
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
-    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data'${queryParams}'" ${devnull}
+    eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data${queryParams}" ${devnull}
   else
     if [ -z "${clean}${dump}${surf}" ]
     then
@@ -865,7 +891,7 @@ help() {
   for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Auxiliary Functions === "
-  for f in pretty raw trace metrics snapshot server_example client_example; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in pretty raw trace metrics snapshot check_storage server_example client_example; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
 }
 

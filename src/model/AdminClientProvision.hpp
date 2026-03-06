@@ -190,7 +190,8 @@ public:
                     std::string &outState,
                     unsigned int &requestDelayMs,
                     unsigned int &requestTimeoutMs,
-                    std::string &error
+                    std::string &error,
+                    std::map<std::string, std::string> &variables
                   );
 
     /**
@@ -208,7 +209,8 @@ public:
                             const nghttp2::asio_http2::header_map &requestHeaders,
                             const ert::http2comm::Http2Client::response &receivedResponse,
                             std::uint64_t generalUniqueClientSequence,
-                            std::string &outState
+                            std::string &outState,
+                            std::map<std::string, std::string> &variables
                           );
 
     /**

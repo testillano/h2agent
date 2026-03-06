@@ -928,7 +928,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     }
 }
 
-void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint) const {
+void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::shared_ptr<std::map<std::string, std::string>> chainVariables) const {
 
     provision->employ();
     std::string requestMethod{};
@@ -940,7 +940,12 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     unsigned int requestTimeoutMs{};
     std::string error{};
 
-    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error);
+    // Initialize chain variables on first call:
+    if (!chainVariables) {
+        chainVariables = std::make_shared<std::map<std::string, std::string>>();
+    }
+
+    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables);
     LOGDEBUG(
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
@@ -960,7 +965,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     std::string clientEndpointId = provision->getClientEndpointId();
 
     clientEndpoint->getClient()->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
-        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, clientSequence, provisionSeq, clientEndpoint](ert::http2comm::Http2Client::response response) {
+        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, clientSequence, provisionSeq, clientEndpoint, chainVariables](ert::http2comm::Http2Client::response response) {
 
             // Apply on-response transformations (may update outState)
             std::string finalOutState = outState;
@@ -968,7 +973,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             auto provision = provisionData.find(inState, clientProvisionId);
             bool responseValidationOk = true;
             if (provision) {
-                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState);
+                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState, *chainVariables);
             }
 
             // Provisioned request counter
@@ -1008,7 +1013,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 if (nextProvision) {
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
-                    sendClientRequest(nextProvision, finalOutState, clientEndpoint);
+                    sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables);
                 }
             }
         },

@@ -194,7 +194,8 @@ public:
                     std::string &outState,
                     std::string &outStateMethod,
                     std::string &outStateUri,
-                    std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers
+                    std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
+                    std::map<std::string, std::string> &variables
                   );
 
     // setters:
