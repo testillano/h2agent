@@ -1,0 +1,17 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/check-client-event",
+  "responseCode": 200,
+  "responseBody": {
+    "result": "pending"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "clientEvent.clientEndpointId=loopback&requestMethod=GET&requestUri=/app/v1/foo/bar/loopback-data&eventNumber=-1&eventPath=/responseBody/baz",
+      "target": "response.body.json.integer./clientBaz"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI
+from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI, ADMIN_CLIENT_ENDPOINT_URI, ADMIN_CLIENT_PROVISION_URI, ADMIN_CLIENT_DATA_URI
 from conftest import NESTED_NODE1_NODE2_REQUEST, NESTED_VAR1_VAR2_REQUEST, TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE
 
 
@@ -740,3 +740,65 @@ def test_054_breakTransformations(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   h2ac_traffic.assert_response__status_body_headers(response, 200, "response-body-string")
 
+
+
+@pytest.mark.transform
+def test_055_clientEventToResponseBodyPath(admin_cleanup, admin_server_provision, h2ac_admin, h2ac_traffic):
+  import os
+  import time
+
+  # Cleanup
+  admin_cleanup()
+
+  H2AGENT_HOST = os.environ.get('H2AGENT_SERVICE_HOST', 'h2agent')
+  H2AGENT_TRAFFIC_PORT = int(os.environ.get('H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC', 8000))
+
+  # 1) Configure loopback client endpoint
+  endpoint = { "id": "loopback", "host": H2AGENT_HOST, "port": H2AGENT_TRAFFIC_PORT, "secure": False, "permit": True }
+  response = h2ac_admin.postDict(ADMIN_CLIENT_ENDPOINT_URI, endpoint)
+  assert response["status"] == 201
+
+  # 2) Server provision to respond to client request
+  backend_provision = {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/loopback-data",
+    "responseCode": 200,
+    "responseBody": { "baz": 42 },
+    "responseHeaders": { "content-type": "application/json" }
+  }
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, backend_provision)
+  assert response["status"] == 201
+
+  # 3) Client provision to send GET /app/v1/foo/bar/loopback-data
+  client_provision = {
+    "id": "fetchData",
+    "endpoint": "loopback",
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/foo/bar/loopback-data",
+    "requestHeaders": { "content-type": "application/json" },
+    "expectedResponseStatusCode": 200
+  }
+  response = h2ac_admin.postDict(ADMIN_CLIENT_PROVISION_URI, client_provision)
+  assert response["status"] == 201
+
+  # 4) Trigger client provision
+  response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/fetchData")
+  assert response["status"] == 200
+  time.sleep(1)
+
+  # Verify client event was stored
+  response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI)
+  assert response["status"] == 200
+  events = response["body"]
+  assert len(events) >= 1, "No client events stored after trigger: {}".format(events)
+
+  # Debug: print client event structure
+  print("CLIENT DATA:", json.dumps(response["body"], indent=2))
+
+  # 5) Server provision that reads clientEvent
+  admin_server_provision("no_filter_test.ClientEvent.provision.json")
+
+  # 6) Traffic: verify server provision reads client event data
+  response = h2ac_traffic.get("/app/v1/check-client-event")
+  responseBodyRef = { "result": "pending", "clientBaz": 42 }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

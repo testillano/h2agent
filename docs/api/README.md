@@ -537,6 +537,22 @@ The **source** of information is classified after parsing the following possible
 
 - inState: current processing state.
 
+- clientEvent.`<client event address in query parameters format>`: access client context indexed by client endpoint identifier (`clientEndpointId`), request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where query parameters are:
+
+  - *clientEndpointId*: client endpoint identifier. Mandatory.
+  - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
+  - *requestUri*: event *URI* selected. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
+  - *eventPath*: `json` document path within selection. Optional.
+
+  Event addressing will retrieve a `json` object corresponding to a single client event (given by `clientEndpointId`, `requestMethod`, `requestUri` and `eventNumber`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
+
+  For example, `clientEvent.clientEndpointId=myBackend&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody` searches the last client event for `GET /api/v1/data` sent through the `myBackend` endpoint, and `/responseBody` path gives the response body that was received.
+
+  This source **admits variables substitution** and follows the same URL-encoding considerations as `serverEvent` for the `requestUri` parameter.
+
+  <u>Client events history</u> should be kept enabled allowing to access events. This source is available in both server and client provision transformations, enabling server provisions to read data from previous client interactions (e.g., to build responses based on data fetched from a backend).
+
 - txtFile.`<path>`: reads text content from file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing files will fail to open. This source enables the `h2agent` capability to serve files.
 
 - binFile.`<path>`: same as `txtFile` but reading binary data.

@@ -396,10 +396,54 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setString(std::move(output));
         break;
     }
+    case Transformation::SourceType::ClientEvent:
+    {
+        // transformation->getSourceTokenized() is a vector:
+        //
+        // clientEndpointId: index 0
+        // requestMethod:    index 1
+        // requestUri:       index 2
+        // eventNumber:      index 3
+        // eventPath:        index 4
+        std::string event_endpoint = transformation->getSourceTokenized()[0];
+        replaceVariables(event_endpoint, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_method = transformation->getSourceTokenized()[1];
+        replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_uri = transformation->getSourceTokenized()[2];
+        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_number = transformation->getSourceTokenized()[3];
+        replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_path = transformation->getSourceTokenized()[4];
+        replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+
+        DataKey dkey(event_endpoint, event_method, event_uri);
+        EventKey ekey(dkey, event_number);
+        auto mockClientRequest = mock_client_events_data_->getEvent(ekey);
+        if (!mockClientRequest) {
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Unable to extract client event for variable '%s' in transformation item", transformation->getSource().c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            return false;
+        }
+
+        if (!sourceVault.setObject(mockClientRequest->getJson(), event_path)) {
+            LOGDEBUG(
+                std::string msg = ert::tracing::Logger::asString("Unexpected error extracting client event for variable '%s' in transformation item", transformation->getSource().c_str());
+                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+            );
+            return false;
+        }
+
+        LOGDEBUG(
+            std::string msg = ert::tracing::Logger::asString("Extracted object from client event: %s", sourceVault.asString().c_str());
+            ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+        );
+        break;
+    }
     // Not applicable in server context:
     case Transformation::SourceType::Sendseq:
     case Transformation::SourceType::Seq:
-    case Transformation::SourceType::ClientEvent:
     case Transformation::SourceType::ResponseHeader:
     case Transformation::SourceType::ResponseStatusCode:
         return false;
