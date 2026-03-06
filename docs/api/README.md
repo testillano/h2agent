@@ -387,7 +387,7 @@ Let's start describing the available sources of data: regardless the native or n
 
 *Variables substitution:*
 
-Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by local provision variables and global variables. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by scoped provision variables and global variables. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
 
 
@@ -452,7 +452,7 @@ The **source** of information is classified after parsing the following possible
 
 - recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
-- var.`<id>`: general purpose variable (readable at transformation chain, provision-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**.
+- var.`<id>`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Cannot refer json objects. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
 
 - globalVar.`<id>`: general purpose global variable (readable from anywhere, process-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
 
@@ -557,7 +557,7 @@ The **source** of information is classified after parsing the following possible
 
 - binFile.`<path>`: same as `txtFile` but reading binary data.
 
-- command.`<command>`: executes command on process shell and captures the standard output/error ([popen](https://man7.org/linux/man-pages/man3/popen.3.html)() is used behind). Also, the return code is saved into provision local variable `rc`. You may call external scripts or executables, and do whatever needed as if you would be using the shell environment.
+- command.`<command>`: executes command on process shell and captures the standard output/error ([popen](https://man7.org/linux/man-pages/man3/popen.3.html)() is used behind). Also, the return code is saved into scoped variable `rc`. You may call external scripts or executables, and do whatever needed as if you would be using the shell environment.
 
   - Important notes:
     - **Be aware about security problems**, as you could provision via `REST API` any instruction accessible by a running `h2agent` to extract information or break things without interface restriction (remember anyway that `h2agent` supports [secured connection](#Execution-with-TLS-support)).
@@ -613,7 +613,7 @@ The **target** of information is classified after parsing the following possible
 
 - response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- var.`<id>` *[string (or number as string)]*: general purpose variable (writable at transformation chain and intended to be used later, as source, within provision-level scope). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Cannot store json objects. This target variable identifier **admits variables substitution**.
+- var.`<id>` *[string (or number as string)]*: general purpose variable (writable at transformation chain, scoped to the `outState` chain). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Variables set here are automatically available in subsequent provisions linked via `outState`. Cannot store json objects. This target variable identifier **admits variables substitution**.
 
 - globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
 

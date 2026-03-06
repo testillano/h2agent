@@ -1,0 +1,16 @@
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "/api/v1/auth",
+    "responseCode": 200,
+    "responseBody": {"token": "abc-123"},
+    "responseHeaders": {"content-type": "application/json"}
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/api/v1/data",
+    "responseCode": 200,
+    "responseBody": {"status": "ok"},
+    "responseHeaders": {"content-type": "application/json"}
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "authFlow",
+    "endpoint": "myServer",
+    "requestMethod": "GET",
+    "requestUri": "/api/v1/auth",
+    "requestHeaders": {"content-type": "application/json"},
+    "expectedResponseStatusCode": 200,
+    "outState": "authenticated",
+    "onResponseTransform": [
+      {"source": "response.body./token", "target": "var.token"}
+    ]
+  },
+  {
+    "id": "authFlow",
+    "inState": "authenticated",
+    "endpoint": "myServer",
+    "requestMethod": "POST",
+    "requestUri": "/api/v1/data",
+    "requestHeaders": {"content-type": "application/json"},
+    "expectedResponseStatusCode": 200,
+    "transform": [
+      {"source": "var.token", "target": "request.body.json.string./auth"}
+    ]
+  }
+]

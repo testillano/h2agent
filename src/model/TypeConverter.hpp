@@ -57,12 +57,12 @@ void searchReplaceAll(std::string& str, const std::string& from, const std::stri
 
 /**
  * Replace variable patterns with their variable values using 2 sources:
- * local variables and global variables. Local variables are replaced with
+ * scoped variables and global variables. Scoped variables are replaced with
  * priority over existing global variables with the same name.
  *
  * @param str string to update with replaced values
  * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
- * @param vars local variables source map
+ * @param vars scoped variables source map
  * @param gvars global variables
  */
 void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars);
@@ -114,7 +114,7 @@ public:
     *
     * @param str string assigned
     * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
-    * @param vars local variables source map
+    * @param vars scoped variables source map
     * @param gvars global variables
     */
     void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars);

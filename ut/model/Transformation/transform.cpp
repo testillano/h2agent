@@ -233,6 +233,7 @@ public:
     std::string out_state_method_{};
     std::string out_state_uri_{};
     std::vector<std::pair<std::string, std::string>> client_provision_triggers_{};
+    std::map<std::string, std::string> variables_{};
 
     Transform_test() {
         adata_.loadServerMatching(MatchingConfiguration_FullMatching);
@@ -292,7 +293,7 @@ public:
         EXPECT_EQ(adata_.getServerProvisionData().size(), 1);
 
         request_body_data_part_.assign(requestBody);
-        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_);
+        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
     }
 
     ~Transform_test() {
@@ -2272,4 +2273,44 @@ TEST_F(Transform_test, NeedsStorageTrueForServerEventToPurgeTarget)
     auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision != nullptr);
     EXPECT_TRUE(provision->needsStorage());
+}
+
+/////////////////////////////////////
+// SCOPED VARIABLE CHAIN PROPAGATION //
+/////////////////////////////////////
+TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
+{
+    // Link 1: set var.captured from request body, outState -> "step2"
+    nlohmann::json link1 = ProvisionConfiguration_GET;
+    link1["inState"] = "initial";
+    link1["outState"] = "step2";
+    link1["transform"] = R"([
+        {"source": "request.body./foo", "target": "var.captured"}
+    ])"_json;
+
+    EXPECT_EQ(adata_.loadServerProvision(link1, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision1 = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision1);
+
+    request_body_data_part_.assign(R"({"foo":"hello"})");
+    provision1->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+
+    EXPECT_EQ(variables_["captured"], "hello");
+    EXPECT_EQ(out_state_, "step2");
+
+    // Link 2: read var.captured into response body (same variables_ map = chain propagation)
+    nlohmann::json link2 = ProvisionConfiguration_GET;
+    link2["inState"] = "step2";
+    link2["transform"] = R"([
+        {"source": "var.captured", "target": "response.body.string"}
+    ])"_json;
+
+    EXPECT_EQ(adata_.loadServerProvision(link2, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision2 = adata_.getServerProvisionData().find("step2", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision2);
+
+    request_body_data_part_.assign("{}");
+    provision2->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+
+    EXPECT_EQ(response_body_, "hello");
 }

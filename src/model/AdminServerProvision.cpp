@@ -1190,7 +1190,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       std::string &outState,
                                       std::string &outStateMethod,
                                       std::string &outStateUri,
-                                      std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers
+                                      std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
+                                      std::map<std::string, std::string> &variables
                                     )
 {
     // Default values without transformations:
@@ -1255,9 +1256,6 @@ void AdminServerProvision::transform( const std::string &requestUri,
     else {
         responseBody = getResponseBodyAsString(); // this could be overwritten by targets ResponseBodyString or ResponseBodyHexString
     }
-
-    // Dynamic variables map: inherited along the transformation chain
-    std::map<std::string, std::string> variables; // source & target variables (key=variable name/value=variable value)
 
     // Type converter:
     TypeConverter sourceVault{};

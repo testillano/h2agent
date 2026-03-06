@@ -55,6 +55,7 @@ public:
     unsigned int request_delay_ms_{};
     unsigned int request_timeout_ms_{};
     std::string error_{};
+    std::map<std::string, std::string> variables_{};
 
     ClientTransform_test() {
         client_provision_json_ = ClientProvision_POST;
@@ -76,7 +77,7 @@ public:
         EXPECT_TRUE(provision != nullptr);
         if (!provision) return nullptr;
 
-        provision->transform(request_method_, request_uri_, request_body_, request_headers_, out_state_, request_delay_ms_, request_timeout_ms_, error_);
+        provision->transform(request_method_, request_uri_, request_body_, request_headers_, out_state_, request_delay_ms_, request_timeout_ms_, error_, variables_);
         return provision;
     }
 
@@ -274,7 +275,7 @@ TEST_F(ClientTransform_test, TargetBreak)
 
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
-    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     EXPECT_EQ(outState, "stopped"); // break prevented "should-not-reach" from overwriting
 }
 
@@ -415,7 +416,7 @@ TEST_F(ClientTransform_test, TransformResponseSetsOutState)
 
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
-    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     EXPECT_EQ(outState, "step2");
 }
 
@@ -438,7 +439,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseBody)
 
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
-    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
 
     std::string stored;
     EXPECT_TRUE(common_resources_.GlobalVariablePtr->tryGet("respBody", stored));
@@ -460,7 +461,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseStatusCode)
 
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
-    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     // Verify it didn't crash — var is local, can't inspect directly
 }
 
@@ -484,7 +485,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeader)
 
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
-    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     // globalVar.location should now contain "/api/v1/redirected"
 }
 
@@ -507,7 +508,7 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
 
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
-    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState);
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     EXPECT_EQ(outState, "500"); // DifferentFrom 200 passes, statusCode "500" written to outState
 }
 
@@ -656,7 +657,7 @@ TEST_F(ClientTransform_test, TransformResponseReturnsTrueWhenNoValidation)
     resp.statusCode = 200;
     resp.body = "{}";
     std::string outState = "initial";
-    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 1, outState));
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 1, outState, variables_));
 }
 
 TEST_F(ClientTransform_test, TransformResponseReturnsTrueWhenStatusCodeMatches)
@@ -669,7 +670,7 @@ TEST_F(ClientTransform_test, TransformResponseReturnsTrueWhenStatusCodeMatches)
     ert::http2comm::Http2Client::response resp;
     resp.statusCode = 200;
     std::string outState = "initial";
-    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 1, outState));
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 1, outState, variables_));
 }
 
 TEST_F(ClientTransform_test, TransformResponseReturnsFalseWhenStatusCodeMismatch)
@@ -682,5 +683,82 @@ TEST_F(ClientTransform_test, TransformResponseReturnsFalseWhenStatusCodeMismatch
     ert::http2comm::Http2Client::response resp;
     resp.statusCode = 500;
     std::string outState = "initial";
-    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState));
+    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState, variables_));
+}
+
+/////////////////////////////////////
+// SCOPED VARIABLE CHAIN PROPAGATION //
+/////////////////////////////////////
+TEST_F(ClientTransform_test, ScopedVarPropagatesFromTransformToTransformResponse)
+{
+    // Provision sets var.marker in pre-send transform, reads it in onResponseTransform
+    client_provision_json_["transform"] = R"([
+        {"source": "value.pre-send-marker", "target": "var.marker"}
+    ])"_json;
+    client_provision_json_["onResponseTransform"] = R"([
+        {"source": "var.marker", "target": "var.result"}
+    ])"_json;
+
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision);
+
+    provision->transform(request_method_, request_uri_, request_body_, request_headers_, out_state_, request_delay_ms_, request_timeout_ms_, error_, variables_);
+    EXPECT_EQ(variables_["marker"], "pre-send-marker");
+
+    ert::http2comm::Http2Client::response fakeResponse;
+    fakeResponse.statusCode = 200;
+    fakeResponse.body = "{}";
+    std::string outState = "initial";
+    provision->transformResponse("/api/v1/test", request_headers_, fakeResponse, 1, outState, variables_);
+
+    EXPECT_EQ(variables_["result"], "pre-send-marker");
+}
+
+TEST_F(ClientTransform_test, ScopedVarPropagatesAcrossOutStateChain)
+{
+    // Link 1: set var.token in onResponseTransform, outState -> "authenticated"
+    client_provision_json_["outState"] = "authenticated";
+    client_provision_json_["onResponseTransform"] = R"([
+        {"source": "value.my-secret-token", "target": "var.token"}
+    ])"_json;
+
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision1 = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision1);
+
+    provision1->transform(request_method_, request_uri_, request_body_, request_headers_, out_state_, request_delay_ms_, request_timeout_ms_, error_, variables_);
+
+    ert::http2comm::Http2Client::response fakeResponse;
+    fakeResponse.statusCode = 200;
+    fakeResponse.body = "{}";
+    std::string outState = "authenticated";
+    provision1->transformResponse("/api/v1/test", request_headers_, fakeResponse, 1, outState, variables_);
+
+    EXPECT_EQ(variables_["token"], "my-secret-token");
+
+    // Link 2: read var.token into request header (same variables_ map = chain propagation)
+    nlohmann::json link2 = R"({
+        "id": "myFlow",
+        "endpoint": "myServer",
+        "inState": "authenticated",
+        "requestMethod": "GET",
+        "requestUri": "/api/v1/data",
+        "transform": [
+            {"source": "var.token", "target": "request.header.x-auth"}
+        ]
+    })"_json;
+
+    EXPECT_EQ(adata_.loadClientProvision(link2, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision2 = adata_.getClientProvisionData().find("authenticated", "myFlow");
+    ASSERT_TRUE(provision2);
+
+    std::string method2, uri2, body2, error2, outState2;
+    nghttp2::asio_http2::header_map headers2;
+    unsigned int delay2{}, timeout2{};
+    provision2->transform(method2, uri2, body2, headers2, outState2, delay2, timeout2, error2, variables_);
+
+    auto it = headers2.find("x-auth");
+    ASSERT_NE(it, headers2.end());
+    EXPECT_EQ(it->second.value, "my-secret-token");
 }

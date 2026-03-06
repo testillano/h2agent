@@ -1,0 +1,6 @@
+{
+  "method": "POST",
+  "uri": "/cart",
+  "body": {"price": 10},
+  "headers": ["content-type:application/json"]
+}

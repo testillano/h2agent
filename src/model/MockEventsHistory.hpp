@@ -37,6 +37,7 @@ SOFTWARE.
 
 
 #include <vector>
+#include <map>
 #include <memory>
 
 #include <MockEvent.hpp>
@@ -52,7 +53,8 @@ namespace model
 class MockEventsHistory
 {
     std::vector<std::shared_ptr<MockEvent>> events_{};
-    mutable mutex_t rw_mutex_{}; // specific mutex to protect events_
+    std::map<std::string, std::string> chain_variables_{}; // scoped variables propagated across outState chain
+    mutable mutex_t rw_mutex_{}; // specific mutex to protect events_ and chain_variables_
 
 protected:
     DataKey data_key_;
@@ -132,6 +134,24 @@ public:
     * @return Last registered request state
     */
     const std::string &getLastRegisteredRequestState() const;
+
+    /** Sets chain variables (scoped variables propagated across outState chain)
+    *
+    * @param vars Variables map to store
+    */
+    void setChainVariables(const std::map<std::string, std::string> &vars) {
+        write_guard_t guard(rw_mutex_);
+        chain_variables_ = vars;
+    }
+
+    /** Gets chain variables
+    *
+    * @return Chain variables map
+    */
+    std::map<std::string, std::string> getChainVariables() const {
+        read_guard_t guard(rw_mutex_);
+        return chain_variables_;
+    }
 };
 
 }
