@@ -178,7 +178,7 @@ When developing a network service, one often needs to integrate it with other se
 So, `h2agent` could be used as:
 
 * **Server** mock: fully implemented.
-* **Client** mock: partially implemented (new features ongoing).
+* **Client** mock: fully implemented.
 
 Also, `h2agent` can be configured through **command-line** but also dynamically through an **administrative HTTP/2 interface** (`REST API`). This last feature makes the process a key element within an ecosystem of remotely controlled agents, enabling a reliable and powerful orchestration system to develop all kinds of functional, load and integration tests. So, in summary `h2agent` offers two execution planes:
 
@@ -1528,8 +1528,6 @@ Once executed, a hint will show how to proceed, mainly adding these parameters t
 ```
 
 As well as some `curl` hints (secure and insecure examples).
-
-**TODO**: support secure client connection for client capabilities.
 
 ## Metrics
 
