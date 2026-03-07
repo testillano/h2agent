@@ -468,7 +468,12 @@ client_provision() {
     echo "                                       [file]; Configure client provision by mean json specification."
     echo "                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics configuration (omit with empty value):"
     echo "                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, rps, repeat (true|false)]"
+    echo "                                               Note: 'inState' defaults to 'initial' when omitted or empty."
     echo "                                               Note: 'sequence' (sync, returns 200) is exclusive with sequenceBegin/sequenceEnd/rps/repeat (async, returns 202)."
+    echo "                                               Examples:"
+    echo "                                                 client_provision myFlow                          # sync, inState=initial, sequence=0"
+    echo "                                                 client_provision myFlow started 5                # sync, inState=started, sequence=5"
+    echo "                                                 client_provision myFlow \"\" \"\" 1 100 10 false     # async, inState=initial, range 1-100, 10 rps"
     return 0
   fi
 
@@ -503,7 +508,8 @@ launch_client_provision() {
   if [ "$1" = "-h" -o "$1" = "--help" -o -z "$1" ]
   then
     echo "Usage: launch_client_provision [-h|--help] <id> [sequenceBegin] [sequenceEnd] [rps] [repeat]; Activates client provision given its identifier ($(admin_url)/client-provision/<id>)."
-    echo "                               Dynamics (all optional): sequenceBegin, sequenceEnd, rps, repeat true|false. Omitted params keep their current server-side value."
+    echo "                               Triggers from 'initial' inState. Dynamics (all optional): sequenceBegin, sequenceEnd, rps, repeat true|false."
+    echo "                               Omitted dynamics retain values from the previous triggering (sticky)."
     return 0
   fi
   local id=$1
