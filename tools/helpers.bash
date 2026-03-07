@@ -76,7 +76,7 @@ global_variable() {
     do_curl -XDELETE $(admin_url)/global-variable${queryParam}
   else
     [ -n "$1" ] && queryParam="?name=$1"
-    if [ -f "$1" ]
+    if [ -f "$1" -o -p "$1 ]
     then
       do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/global-variable
     else
@@ -482,7 +482,7 @@ client_provision() {
   then
     do_curl -XDELETE $(admin_url)/client-provision
   else
-    if [ -f "$1" ]
+    if [ -f "$1" -o -p "$1 ]
     then
       do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/client-provision
     else
