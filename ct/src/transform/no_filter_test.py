@@ -907,3 +907,49 @@ def test_057_scopedVarChainClientMode(admin_cleanup, admin_server_provision, h2a
   assert len(step2_events) == 1, "Expected step2 server event: {}".format(server_events)
   request_body = step2_events[0]["events"][0]["requestBody"]
   assert request_body == {"auth": "secret-123"}, "var.capturedToken not propagated: {}".format(request_body)
+
+
+# ==================== SEQUENCE SOURCE ====================
+
+@pytest.mark.transform
+def test_058_sequenceSourceInClientProvision(admin_cleanup, admin_server_provision, h2ac_admin, h2ac_traffic):
+  """Client mode: 'sequence' source is substituted into request URI via transform"""
+
+  admin_cleanup()
+
+  H2AGENT_HOST = os.environ.get('H2AGENT_SERVICE_HOST', 'h2agent')
+  H2AGENT_TRAFFIC_PORT = int(os.environ.get('H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC', 8000))
+
+  # 1) Server provision to accept the request built by client
+  server_provision = {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/foo/bar/105",
+    "responseCode": 200,
+    "responseBody": {"ok": True},
+    "responseHeaders": {"content-type": "application/json"}
+  }
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, server_provision)
+  assert response["status"] == 201
+
+  # 2) Loopback client endpoint
+  endpoint = {"id": "loopback", "host": H2AGENT_HOST, "port": H2AGENT_TRAFFIC_PORT, "secure": False, "permit": True}
+  response = h2ac_admin.postDict(ADMIN_CLIENT_ENDPOINT_URI, endpoint)
+  assert response["status"] == 201
+
+  # 3) Client provision using 'sequence' source (sequence=5 + Sum 100 = 105)
+  with open(os.path.join(os.path.dirname(__file__), "no_filter_test.SequenceSource.client-provision.json")) as f:
+    client_prov = json.load(f)
+  response = h2ac_admin.postDict(ADMIN_CLIENT_PROVISION_URI, client_prov)
+  assert response["status"] == 201
+
+  # 4) Trigger with sequence=5
+  response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/seqTest?sequence=5")
+  assert response["status"] == 200
+  time.sleep(1)
+
+  # 5) Verify server received request at /app/v1/foo/bar/105
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
+  assert response["status"] == 200
+  server_events = response["body"]
+  matched = [e for e in server_events if e["uri"] == "/app/v1/foo/bar/105"]
+  assert len(matched) == 1, "Expected request at /app/v1/foo/bar/105, got: {}".format([e["uri"] for e in server_events])

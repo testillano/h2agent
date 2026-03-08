@@ -76,7 +76,7 @@ public:
      * @param sendingTimestampUs Microseconds sending timestamp
      * @param requestBody Request body
      * @param responseBodyDataPart Response body
-     * @param clientSequence Server sequence (1..N)
+     * @param clientSequence Client sequence (1..N)
      * @param sequence test sequence (1..N)
      * @param requestDelayMs Request delay in milliseconds
      * @param timeoutMs Timeout in milliseconds
