@@ -53,4 +53,4 @@ else
 fi
 
 echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff master...kata-solutions -- client-endpoint.json client-provision.json
+git diff -- client-endpoint.json client-provision.json

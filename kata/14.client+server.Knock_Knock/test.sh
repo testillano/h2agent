@@ -35,4 +35,4 @@ EXPECTED_STATUS_CODES=200
 test_query "GET /enter (after knock)" GET "http://${H2AGENT_TRAFFIC_ENDPOINT}/enter" || exit 1
 
 echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff master...kata-solutions -- server-provision.json client-endpoint.json client-provision.json
+git diff -- server-provision.json client-endpoint.json client-provision.json
