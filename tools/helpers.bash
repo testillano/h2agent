@@ -38,9 +38,9 @@ metrics_url() {
 
 do_curl() {
   echo
-  echo [${CURL} $@]
+  echo [${CURL} "$@"]
   echo
-  ${CURL} $@ | tee /tmp/curl.out
+  ${CURL} "$@" | tee /tmp/curl.out
   [ $? -ne 0 ] && return 1
 
   [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
