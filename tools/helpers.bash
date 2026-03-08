@@ -471,14 +471,14 @@ client_provision() {
     echo "                                               Omitted params keep server-side defaults. inState defaults to 'initial'."
     echo
     echo "  Examples:"
-    echo "    client_provision                                          # List current provisions"
-    echo "    client_provision --clean                                  # Delete all provisions"
-    echo "    client_provision my-provision.json                        # Configure from file"
-    echo "    client_provision smf-session                              # Sync trigger (sequence=0, inState=initial)"
-    echo "    client_provision smf-session --in-state established       # Sync trigger with custom inState"
-    echo "    client_provision smf-session 0 99999 5000                 # Async trigger at 5000 rps"
-    echo "    client_provision smf-session 0 99999 5000 true            # Async trigger with repeat"
-    echo "    client_provision smf-session 0 99999 5000 --in-state step2  # Async trigger with custom inState"
+    echo "    client_provision                                      # List current provisions"
+    echo "    client_provision --clean                              # Delete all provisions"
+    echo "    client_provision my-provision.json                    # Configure from file"
+    echo "    client_provision myFlow                               # Sync trigger (sequence=0, inState=initial)"
+    echo "    client_provision myFlow --in-state established        # Sync trigger with custom inState"
+    echo "    client_provision myFlow 0 99999 5000                  # Async trigger at 5000 rps"
+    echo "    client_provision myFlow 0 99999 5000 true             # Async trigger with repeat"
+    echo "    client_provision myFlow 0 99999 5000 --in-state step2 # Async trigger with custom inState"
     return 0
   fi
 
