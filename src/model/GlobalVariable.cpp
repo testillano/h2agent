@@ -50,9 +50,7 @@ GlobalVariable::GlobalVariable() {
 }
 
 void GlobalVariable::load(const std::string &variable, const std::string &value) {
-    std::string currentValue{};
-    bool exists = tryGet(variable, currentValue);
-    add(variable, currentValue + value);
+    add(variable, value);
 }
 
 bool GlobalVariable::loadJson(const nlohmann::json &j) {

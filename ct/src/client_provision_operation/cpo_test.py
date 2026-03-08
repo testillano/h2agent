@@ -184,7 +184,6 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
         "requestHeaders": {"content-type": "application/json"},
         "outState": "step2",
         "onResponseTransform": [
-            {"source": "eraser", "target": "globalVar.helloResponse"},
             {"source": "response.body", "target": "globalVar.helloResponse"}
         ]
     }
@@ -239,7 +238,6 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
         "responseBody": {"status": "received"},
         "responseHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "eraser", "target": "globalVar.webhookBody"},
             {"source": "request.body", "target": "globalVar.webhookBody"},
             {"source": "value.initial", "target": "clientProvision.forwardFlow"}
         ]

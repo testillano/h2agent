@@ -1054,14 +1054,14 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(h2agent_traffic_client_response_validation_failures_counter[$rate_interval]) > 0) by (source)",
+          "expr": "sum(rate(h2agent_traffic_client_unexpected_response_status_code_counter[$rate_interval]) > 0) by (source)",
           "instant": false,
-          "legendFormat": "{{source}} validation failures",
+          "legendFormat": "{{source}} unexpected status code",
           "range": true,
           "refId": "failures"
         }
       ],
-      "title": "Response validation failures [traffic client]",
+      "title": "Unexpected response status code [traffic client]",
       "type": "timeseries"
     },
     {

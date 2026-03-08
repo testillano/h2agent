@@ -982,7 +982,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
 
             // Response validation counters
             if (!responseValidationOk) {
-                clientEndpoint->getClient()->incrementResponseValidationFailures();
+                clientEndpoint->getClient()->incrementUnexpectedResponseStatusCode();
             }
 
             // Store event

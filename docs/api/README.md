@@ -1347,7 +1347,7 @@ Optional expected HTTP status code for the response (integer, 100-599). When con
 
 When either `expectedResponseStatusCode` or `responseSchemaId` validation fails:
 - The error is logged
-- The `h2agent_traffic_client_response_validation_failures_counter` prometheus metric is incremented
+- The `h2agent_traffic_client_unexpected_response_status_code_counter` prometheus metric is incremented
 - The event is still stored (if storage is enabled) for debugging
 - The state progression chain is interrupted (no purge, no next provision)
 
