@@ -520,11 +520,11 @@ TEST_F(ClientTransform_test, SetSeqGetSeq)
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
     ASSERT_TRUE(provision != nullptr);
 
-    EXPECT_EQ(provision->getSeq(), 0u);
+    EXPECT_EQ(provision->getSeq(), 0);
     provision->setSeq(42);
-    EXPECT_EQ(provision->getSeq(), 42u);
+    EXPECT_EQ(provision->getSeq(), 42);
     provision->setSeq(0);
-    EXPECT_EQ(provision->getSeq(), 0u);
+    EXPECT_EQ(provision->getSeq(), 0);
 }
 
 TEST_F(ClientTransform_test, UpdateTriggeringValidRange)
@@ -547,13 +547,22 @@ TEST_F(ClientTransform_test, UpdateTriggeringInvalidRange)
     EXPECT_FALSE(provision->updateTriggering("100", "1", "", ""));
 }
 
+TEST_F(ClientTransform_test, UpdateTriggeringNegativeSequenceBegin)
+{
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    EXPECT_TRUE(provision->updateTriggering("-1", "100", "", ""));
+}
+
 TEST_F(ClientTransform_test, UpdateTriggeringInvalidSequenceBegin)
 {
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
     ASSERT_TRUE(provision != nullptr);
 
-    EXPECT_FALSE(provision->updateTriggering("-1", "100", "", ""));
+    EXPECT_FALSE(provision->updateTriggering("abc", "100", "", ""));
 }
 
 TEST_F(ClientTransform_test, UpdateTriggeringInvalidRps)

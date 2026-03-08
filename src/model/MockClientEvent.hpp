@@ -52,7 +52,7 @@ class MockClientEvent : public MockEvent
     DataPart request_body_data_part_{};
     nlohmann::json response_body_{};
     std::uint64_t client_sequence_{};
-    std::uint64_t sequence_{};
+    std::int64_t sequence_{};
     unsigned int request_delay_ms_{};
     unsigned int timeout_ms_{};
 
@@ -81,7 +81,7 @@ public:
      * @param requestDelayMs Request delay in milliseconds
      * @param timeoutMs Timeout in milliseconds
      */
-    void load(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::uint64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs);
+    void load(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs);
 
     // getters:
 

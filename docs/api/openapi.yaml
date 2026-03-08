@@ -739,18 +739,23 @@ paths:
           description: Initial state (defaults to "initial")
           schema:
             type: string
+        - name: sequence
+          in: query
+          description: >
+            Synchronous single-shot sequence value. Exclusive with
+            sequenceBegin/sequenceEnd/rps/repeat.
+          schema:
+            type: integer
         - name: sequenceBegin
           in: query
-          description: Start of sequence range (non-negative)
+          description: Start of sequence range
           schema:
             type: integer
-            minimum: 0
         - name: sequenceEnd
           in: query
-          description: End of sequence range (non-negative)
+          description: End of sequence range
           schema:
             type: integer
-            minimum: 0
         - name: rps
           in: query
           description: "Requests per second (0 to stop)"

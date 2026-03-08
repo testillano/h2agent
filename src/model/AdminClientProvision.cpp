@@ -424,7 +424,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     }
     case Transformation::SourceType::Seq:
     {
-        sourceVault.setUnsigned(seq_);
+        sourceVault.setInteger(seq_);
         break;
     }
     case Transformation::SourceType::SVar:
@@ -943,37 +943,41 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
 bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &rps, const std::string &repeat) {
 
     // Range reads:
-    bool negative = false;
-    std::uint64_t u_sequenceBegin = seq_begin_;
-    std::uint64_t u_sequenceEnd = seq_end_;
+    std::int64_t i_sequenceBegin = seq_begin_;
+    std::int64_t i_sequenceEnd = seq_end_;
 
     if (!sequenceBegin.empty()) {
-        if (!h2agent::model::string2uint64andSign(sequenceBegin, u_sequenceBegin, negative) || negative) {
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequenceBegin' value: %s (must be >= 0)", sequenceBegin.c_str()), ERT_FILE_LOCATION));
+        try {
+            i_sequenceBegin = std::stoll(sequenceBegin);
+        } catch(std::exception &e) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequenceBegin' value: %s", sequenceBegin.c_str()), ERT_FILE_LOCATION));
             return false;
         }
     }
 
     if (!sequenceEnd.empty()) {
-        if (!h2agent::model::string2uint64andSign(sequenceEnd, u_sequenceEnd, negative) || negative) {
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequenceEnd' value: %s (must be >= 0)", sequenceEnd.c_str()), ERT_FILE_LOCATION));
+        try {
+            i_sequenceEnd = std::stoll(sequenceEnd);
+        } catch(std::exception &e) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequenceEnd' value: %s", sequenceEnd.c_str()), ERT_FILE_LOCATION));
             return false;
         }
     }
 
     // Range check:
-    if (u_sequenceBegin > u_sequenceEnd) {
-        LOGWARNING(std::string fmt = std::string("Incompatible range for 'sequenceBegin' and 'sequenceEnd': %") + PRIu64 + std::string(" > %") + PRIu64; ert::tracing::Logger::warning(ert::tracing::Logger::asString(fmt.c_str(), u_sequenceBegin, u_sequenceEnd), ERT_FILE_LOCATION));
+    if (i_sequenceBegin > i_sequenceEnd) {
+        LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Incompatible range for 'sequenceBegin' and 'sequenceEnd': %" PRId64 " > %" PRId64, i_sequenceBegin, i_sequenceEnd), ERT_FILE_LOCATION));
         return false;
     }
 
     // Range assignment:
-    seq_begin_ = u_sequenceBegin;
-    seq_end_ = u_sequenceEnd;
+    seq_begin_ = i_sequenceBegin;
+    seq_end_ = i_sequenceEnd;
 
 
     // Rate:
     if (!rps.empty()) {
+        bool negative = false;
         std::uint64_t aux;
         if (!h2agent::model::string2uint64andSign(rps, aux, negative) || negative) {
             LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'rps' value: %s (must be >= 0)", rps.c_str()), ERT_FILE_LOCATION));
@@ -1001,7 +1005,7 @@ void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std:
     stopTicking();
     io_context_ = ioContext;
     tick_callback_ = std::move(tickCallback);
-    seq_ = seq_begin_;
+    seq_ = seq_begin_ - 1; // pre-decrement: first seq_++ in scheduleTick will restore seq_begin_
     saveDynamics();
     timer_ = new boost::asio::steady_timer(*io_context_);
     scheduleTick();
@@ -1040,9 +1044,7 @@ void AdminClientProvision::scheduleTick(bool first) {
                 saveDynamics();
             }
             else {
-                auto cb = tick_callback_;
                 stopTicking();
-                if (cb) cb();
                 return;
             }
         }

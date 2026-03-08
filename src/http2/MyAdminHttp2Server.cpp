@@ -960,7 +960,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     clientEndpoint->connect();
     clientEndpoint->getClient()->incrementGeneralUniqueClientSequence();
     std::uint64_t clientSequence = clientEndpoint->getGeneralUniqueClientSequence();
-    std::uint64_t provisionSeq = provision->getSeq();
+    std::int64_t provisionSeq = provision->getSeq();
     std::string clientProvisionId = provision->getClientProvisionId();
     std::string clientEndpointId = provision->getClientEndpointId();
 
@@ -1087,14 +1087,15 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
 
     // Synchronous single-shot with specific sequence value
     if (!sequence.empty()) {
-        bool negative = false;
-        std::uint64_t u_sequence{};
-        if (!h2agent::model::string2uint64andSign(sequence, u_sequence, negative) || negative) {
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequence' value: %s (must be >= 0)", sequence.c_str()), ERT_FILE_LOCATION));
+        std::int64_t i_sequence{};
+        try {
+            i_sequence = std::stoll(sequence);
+        } catch(std::exception &e) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'sequence' value: %s", sequence.c_str()), ERT_FILE_LOCATION));
             statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
             return;
         }
-        provision->setSeq(u_sequence);
+        provision->setSeq(i_sequence);
     }
 
     if (hasDynamics) {

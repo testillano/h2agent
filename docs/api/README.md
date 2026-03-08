@@ -1422,7 +1422,7 @@ A single request is sent immediately and the operation returns status code *200*
 
 Optionally, the `sequence` query parameter can be provided to set a specific sequence value before sending:
 
-* `sequence`: specific `sequence` value for the request (non-negative value).
+* `sequence`: specific `sequence` value for the request.
 
 This is useful when the provision uses `seq` in its transformations to build dynamic content (e.g., a unique URI or body field). Successive calls with different `sequence` values allow sending varied requests synchronously:
 
@@ -1441,10 +1441,18 @@ Each client provision can evolve the range of values independently of others, an
 
 *Query parameters:*
 
-* `sequenceBegin`: initial `sequence` variable (non-negative value).
-* `sequenceEnd`: final `sequence` variable (non-negative value).
+* `sequenceBegin`: initial `sequence` variable.
+* `sequenceEnd`: final `sequence` variable.
 * `rps`: rate in requests per second triggered (non-negative value, '0' to stop).
 * `repeat`: range repetition once exhausted (true or false).
+
+Negative values are allowed for `sequenceBegin` and `sequenceEnd`, which is useful when a transform applies an offset (e.g. `Sum`) over a central base value:
+
+```bash
+# Generate 11 requests with sequence values from -5 to 5 at 100 rps:
+curl --http2-prior-knowledge \
+  "http://localhost:8074/admin/v1/client-provision/myFlow?sequenceBegin=-5&sequenceEnd=5&rps=100"
+```
 
 > **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `rps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
 

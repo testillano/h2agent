@@ -44,7 +44,7 @@ namespace h2agent
 namespace model
 {
 
-void MockClientEventsHistory::loadEvent(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::uint64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
+void MockClientEventsHistory::loadEvent(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
 
     auto event = std::make_shared<MockClientEvent>();
     event->load(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, clientSequence, sequence, requestDelayMs, timeoutMs);

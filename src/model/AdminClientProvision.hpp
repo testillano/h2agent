@@ -114,9 +114,9 @@ class AdminClientProvision
     std::vector<std::shared_ptr<Transformation>> on_response_transformations_{};
 
     // Dynamic load parameters:
-    std::uint64_t seq_{};
-    std::uint64_t seq_begin_{};
-    std::uint64_t seq_end_{};
+    std::int64_t seq_{};
+    std::int64_t seq_begin_{};
+    std::int64_t seq_end_{};
     unsigned int rps_{};
     bool repeat_{};
 
@@ -454,11 +454,11 @@ public:
      *
      * @return Provision sequence
      */
-    const std::uint64_t & getSeq() const {
+    const std::int64_t & getSeq() const {
         return seq_;
     }
 
-    void setSeq(std::uint64_t seq) {
+    void setSeq(std::int64_t seq) {
         seq_ = seq;
     }
 
