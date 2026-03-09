@@ -516,9 +516,56 @@ client_provision() {
   fi
 }
 
+client_provision_rps() {
+  if [ "$1" = "-h" -o "$1" = "--help" -o $# -lt 2 ]
+  then
+    echo "Usage: client_provision_rps <id> <rps> [--repeat true|false] [--in-state <state>]; Changes RPS/repeat for a running provision."
+    return 0
+  fi
+  local id=$1 rps=$2; shift 2
+  local inState="initial" repeat=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --in-state) inState=$2; shift ;;
+      --repeat) repeat=$2; shift ;;
+    esac
+    shift
+  done
+  local q="rps=${rps}&inState=${inState}"
+  [ -n "$repeat" ] && q+="&repeat=${repeat}"
+  do_curl -XGET "$(admin_url)/client-provision/${id}?${q}"
+}
+
 client_provision_unused() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used ($(admin_url)/client-provision/unused)." && return 0
   do_curl $(admin_url)/client-provision/unused && return 0
+}
+
+client_provision_dynamics() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_provision_dynamics [-h|--help] [period]; Shows active client provision dynamics with remaining sequences and ETA."
+    echo "                                 [period]; Refresh period in seconds (default: 0, single shot). Use -1 for fast (0.1s)."
+    return 0
+  fi
+  local period=${1:-0}
+  [ "$period" = "-1" ] && period=0.1
+  while true; do
+    local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
+    [ -z "$json" -o "$json" = "[]" ] && echo "No provisions found." && break
+    local output=$(echo "$json" | jq -r '
+      .[] | select(.dynamics and .dynamics.rps > 0 and .dynamics.sequenceEnd >= .dynamics.sequence) |
+      .id as $id |
+      .dynamics |
+      (.sequenceEnd - .sequence) as $remaining |
+      (($remaining / .rps) | floor) as $eta |
+      "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) rps=\(.rps) repeat=\(.repeat) ETA=\($eta)s"
+    ')
+    [ -z "$output" ] && echo "No active dynamics." && break
+    [ "$period" = "0" ] && echo "$output" && break
+    sleep "$period"
+    echo "$output"
+  done
 }
 
 client_data() {
@@ -888,7 +935,7 @@ help() {
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_unused client_data; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_rps client_provision_unused client_provision_dynamics client_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
   for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done

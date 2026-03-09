@@ -40,6 +40,7 @@ SOFTWARE.
 #include <vector>
 #include <regex>
 #include <cstdint>
+#include <atomic>
 
 #include <nlohmann/json.hpp>
 
@@ -75,6 +76,9 @@ class AdminClientEndpoint
     bool permit_{};
 
     std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> client_{};
+    std::vector<std::shared_ptr<h2agent::http2::MyTrafficHttp2Client>> clients_{}; // worker clients (index 0 == client_)
+    std::atomic<std::uint64_t> general_unique_client_sequence_{0};
+    size_t num_workers_{1};
 
     // Metrics for client:
     std::string application_name_{};
@@ -102,8 +106,9 @@ public:
      * Connects the endpoint
      *
      * @param fromScratch Indicates if the previous client must be dropped
+     * @param numWorkers Number of worker connections to create
      */
-    void connect(bool fromScratch = false);
+    void connect(bool fromScratch = false, size_t numWorkers = 1);
 
     /**
      * Set metrics data
@@ -171,12 +176,32 @@ public:
     }
 
     /*
-     * Get the associated http2 client
+     * Get the associated http2 client for a specific worker
      *
+     * @param workerIndex Worker index (0-based), defaults to 0
      * @return Http2 client
      */
-    std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> getClient() {
+    std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> getClient(size_t workerIndex = 0) {
+        if (workerIndex < clients_.size()) return clients_[workerIndex];
         return client_;
+    }
+
+    /*
+     * Get number of worker connections
+     *
+     * @return Number of workers
+     */
+    size_t getNumWorkers() const {
+        return clients_.empty() ? (client_ ? 1 : 0) : clients_.size();
+    }
+
+    /*
+     * Increment general unique client sequence (thread-safe)
+     *
+     * @return New sequence value
+     */
+    std::uint64_t incrementGeneralUniqueClientSequence() {
+        return ++general_unique_client_sequence_;
     }
 
     /*

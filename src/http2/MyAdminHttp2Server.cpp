@@ -958,14 +958,16 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     }
 
     clientEndpoint->connect();
-    clientEndpoint->getClient()->incrementGeneralUniqueClientSequence();
-    std::uint64_t clientSequence = clientEndpoint->getGeneralUniqueClientSequence();
+    std::uint64_t clientSequence = clientEndpoint->incrementGeneralUniqueClientSequence();
     std::int64_t provisionSeq = provision->getSeq();
+    size_t numWorkers = clientEndpoint->getNumWorkers();
+    size_t workerIndex = (numWorkers > 1) ? (static_cast<size_t>(clientSequence) % numWorkers) : 0;
+    auto client = clientEndpoint->getClient(workerIndex);
     std::string clientProvisionId = provision->getClientProvisionId();
     std::string clientEndpointId = provision->getClientEndpointId();
 
-    clientEndpoint->getClient()->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
-        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, clientSequence, provisionSeq, clientEndpoint, chainVariables](ert::http2comm::Http2Client::response response) {
+    client->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
+        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, clientSequence, provisionSeq, clientEndpoint, client, chainVariables](ert::http2comm::Http2Client::response response) {
 
             // Apply on-response transformations (may update outState)
             std::string finalOutState = outState;
@@ -977,12 +979,12 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             }
 
             // Provisioned request counter
-            if (response.statusCode != 0) clientEndpoint->getClient()->incrementProvisionedRequestsSuccessful();
-            else clientEndpoint->getClient()->incrementProvisionedRequestsFailed();
+            if (response.statusCode != 0) client->incrementProvisionedRequestsSuccessful();
+            else client->incrementProvisionedRequestsFailed();
 
             // Response validation counters
             if (!responseValidationOk) {
-                clientEndpoint->getClient()->incrementUnexpectedResponseStatusCode();
+                client->incrementUnexpectedResponseStatusCode();
             }
 
             // Store event
@@ -1004,8 +1006,8 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 getMockClientData()->clear(somethingDeleted, h2agent::model::EventKey(dataKey, ""));
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Client event purge: %s", somethingDeleted ? "successful":"nothing to delete"), ERT_FILE_LOCATION));
-                if (somethingDeleted) clientEndpoint->getClient()->incrementPurgedContextsSuccessful();
-                else clientEndpoint->getClient()->incrementPurgedContextsFailed();
+                if (somethingDeleted) client->incrementPurgedContextsSuccessful();
+                else client->incrementPurgedContextsFailed();
             }
             // State progression
             else if (!finalOutState.empty() && finalOutState != inState) {

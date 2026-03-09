@@ -413,6 +413,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  By default connections are performed when adding client endpoints.\n"
        << "  This option configures remote addresses to be connected on demand.\n\n"
 
+       << "[--traffic-client-worker-threads <threads>]\n"
+       << "  Number of traffic client worker threads per endpoint; defaults to 1.\n"
+       << "  Each worker creates its own HTTP/2 connection to the endpoint.\n"
+       << "  Requests are dispatched round-robin (sequence % threads) across\n"
+       << "  workers, parallelizing response processing (transforms, JsonConstraint,\n"
+       << "  etc.) while a single timer drives the configured RPS rate.\n\n"
+
        << "[-V|--version]\n"
        << "  Program version.\n\n"
 
@@ -599,6 +606,7 @@ int main(int argc, char* argv[])
             usage(EXIT_FAILURE, "Invalid '--traffic-server-worker-threads' value. Must be greater than 0.");
         }
         traffic_server_max_worker_threads = traffic_server_worker_threads;
+        myConfiguration->setTrafficServerWorkerThreads(traffic_server_worker_threads);
     }
 
     if (readCmdLine(argv, argv + argc, "--traffic-server-max-worker-threads", value))
@@ -608,12 +616,14 @@ int main(int argc, char* argv[])
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-server-max-worker-threads' value. Must be greater or equal than traffic server worker threads.");
         }
+        myConfiguration->setTrafficServerMaxWorkerThreads(traffic_server_max_worker_threads);
     }
 
     if (readCmdLine(argv, argv + argc, "--traffic-server-queue-dispatcher-max-size", value))
     {
         queue_dispatcher_max_size = toNumber(value);
         if (traffic_server_worker_threads < 0) queue_dispatcher_max_size = -1;
+        myConfiguration->setQueueDispatcherMaxSize(queue_dispatcher_max_size);
     }
 
     if (readCmdLine(argv, argv + argc, "-k", value)
@@ -714,6 +724,7 @@ int main(int argc, char* argv[])
     if (readCmdLine(argv, argv + argc, "--disable-metrics"))
     {
         disable_metrics = true;
+        myConfiguration->setDisableMetrics(true);
     }
 
     if (readCmdLine(argv, argv + argc, "--long-term-files-close-delay-usecs", value))
@@ -739,6 +750,16 @@ int main(int argc, char* argv[])
     if (readCmdLine(argv, argv + argc, "--remote-servers-lazy-connection"))
     {
         myConfiguration->setLazyClientConnection(true);
+    }
+
+    if (readCmdLine(argv, argv + argc, "--traffic-client-worker-threads", value))
+    {
+        int traffic_client_worker_threads = toNumber(value);
+        if (traffic_client_worker_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-client-worker-threads' value. Must be greater than 0.");
+        }
+        myConfiguration->setTrafficClientWorkerThreads(traffic_client_worker_threads);
     }
     // Logger verbosity
     ert::tracing::Logger::verbose(verbose);
@@ -863,6 +884,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     std::cout << "Long-term files close delay (usecs): " << myConfiguration->getLongTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
+    std::cout << "Traffic client worker threads: " << myConfiguration->getTrafficClientWorkerThreads() << '\n';
 
     // Flush:
     std::cout << std::endl;

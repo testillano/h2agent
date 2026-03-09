@@ -946,6 +946,13 @@ Options:
   By default connections are performed when adding client endpoints.
   This option configures remote addresses to be connected on demand.
 
+[--traffic-client-worker-threads <threads>]
+  Number of traffic client worker threads per endpoint; defaults to 1.
+  Each worker creates its own HTTP/2 connection to the endpoint.
+  Requests are dispatched round-robin (sequence % threads) across
+  workers, parallelizing response processing (transforms, JsonConstraint,
+  etc.) while a single timer drives the configured RPS rate.
+
 [-V|--version]
   Program version.
 

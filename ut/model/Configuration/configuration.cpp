@@ -6,9 +6,14 @@
 // General configuration:
 const nlohmann::json DefaultConfiguration = R"(
 {
+  "disableMetrics": false,
+  "lazyClientConnection": false,
   "longTermFilesCloseDelayUsecs": 1000000,
+  "queueDispatcherMaxSize": -1,
   "shortTermFilesCloseDelayUsecs": 0,
-  "lazyClientConnection": false
+  "trafficClientWorkerThreads": 1,
+  "trafficServerMaxWorkerThreads": 1,
+  "trafficServerWorkerThreads": 1
 }
 )"_json;
 

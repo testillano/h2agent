@@ -52,26 +52,41 @@ namespace h2agent
 namespace model
 {
 
-void AdminClientEndpoint::connect(bool fromScratch) {
+void AdminClientEndpoint::connect(bool fromScratch, size_t numWorkers) {
 
     if (fromScratch) {
         client_.reset();
+        clients_.clear();
     }
-    if (!client_) {
 
-        client_ = std::make_shared<h2agent::http2::MyTrafficHttp2Client>("h2agent_traffic_client", host_, std::to_string(port_), secure_, nullptr);
-        try {
-            client_->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_, application_name_ + "_" + h2agent::model::fixMetricsName(key_)/*source label*/);
-            client_->enableMyMetrics(metrics_, application_name_);
-        }
-        catch(std::exception &e)
-        {
-            client_->enableMetrics(nullptr); // force no metrics again
-            client_->enableMyMetrics(nullptr);
-            std::string msg = ert::tracing::Logger::asString("Cannot enable metrics for client endpoint '%s': %s", key_.c_str(), e.what());
-            ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+    if (numWorkers > 1) num_workers_ = numWorkers; // store for lazy connection
+    if (num_workers_ < 1) num_workers_ = 1;
+
+    // Ensure we have the right number of clients
+    if (clients_.size() < num_workers_) {
+        clients_.resize(num_workers_);
+    }
+
+    for (size_t i = 0; i < num_workers_; i++) {
+        if (!clients_[i]) {
+            clients_[i] = std::make_shared<h2agent::http2::MyTrafficHttp2Client>("h2agent_traffic_client", host_, std::to_string(port_), secure_, nullptr);
+            try {
+                std::string workerSuffix = (num_workers_ > 1) ? ("_w" + std::to_string(i)) : "";
+                clients_[i]->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_, application_name_ + "_" + h2agent::model::fixMetricsName(key_) + workerSuffix/*source label*/);
+                clients_[i]->enableMyMetrics(metrics_, application_name_);
+            }
+            catch(std::exception &e)
+            {
+                clients_[i]->enableMetrics(nullptr);
+                clients_[i]->enableMyMetrics(nullptr);
+                std::string msg = ert::tracing::Logger::asString("Cannot enable metrics for client endpoint '%s' worker %zu: %s", key_.c_str(), i, e.what());
+                ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
+            }
         }
     }
+
+    // Keep client_ as alias for clients_[0] for backward compatibility
+    if (!clients_.empty()) client_ = clients_[0];
 }
 
 void AdminClientEndpoint::setMetricsData(ert::metrics::Metrics *metrics, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries,
@@ -136,9 +151,7 @@ nlohmann::json AdminClientEndpoint::asJson() const
 
 std::uint64_t AdminClientEndpoint::getGeneralUniqueClientSequence() const
 {
-    if (!client_) return 1;
-
-    return client_->getGeneralUniqueClientSequence();
+    return general_unique_client_sequence_.load();
 }
 
 }

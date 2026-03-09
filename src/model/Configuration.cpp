@@ -54,6 +54,11 @@ nlohmann::json Configuration::getJson() const {
     result["longTermFilesCloseDelayUsecs"] = long_term_files_close_delay_us_;
     result["shortTermFilesCloseDelayUsecs"] = short_term_files_close_delay_us_;
     result["lazyClientConnection"] = lazy_client_connection_;
+    result["trafficServerWorkerThreads"] = traffic_server_worker_threads_;
+    result["trafficServerMaxWorkerThreads"] = traffic_server_max_worker_threads_;
+    result["queueDispatcherMaxSize"] = queue_dispatcher_max_size_;
+    result["trafficClientWorkerThreads"] = traffic_client_worker_threads_;
+    result["disableMetrics"] = disable_metrics_;
 
     return result;
 } // LCOV_EXCL_LINE

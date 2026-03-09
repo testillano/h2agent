@@ -53,6 +53,11 @@ class Configuration
     unsigned int long_term_files_close_delay_us_{};
     unsigned int short_term_files_close_delay_us_{};
     bool lazy_client_connection_{};
+    unsigned int traffic_server_worker_threads_{};
+    unsigned int traffic_server_max_worker_threads_{};
+    int queue_dispatcher_max_size_{};
+    unsigned int traffic_client_worker_threads_{};
+    bool disable_metrics_{};
 
 public:
     /**
@@ -62,6 +67,11 @@ public:
         long_term_files_close_delay_us_ = 1000000; // 1 second
         short_term_files_close_delay_us_ = 0; // instant close
         lazy_client_connection_ = false;
+        traffic_server_worker_threads_ = 1;
+        traffic_server_max_worker_threads_ = 1;
+        queue_dispatcher_max_size_ = -1;
+        traffic_client_worker_threads_ = 1;
+        disable_metrics_ = false;
     }
 
     /**
@@ -121,6 +131,66 @@ public:
      */
     bool getLazyClientConnection() const {
         return lazy_client_connection_;
+    }
+
+    /**
+     * Set traffic server worker threads
+     *
+     * @param threads Number of server worker threads
+     */
+    void setTrafficServerWorkerThreads(unsigned int threads) {
+        traffic_server_worker_threads_ = threads;
+    }
+
+    /**
+     * Get traffic server worker threads
+     *
+     * @return Number of server worker threads
+     */
+    unsigned int getTrafficServerWorkerThreads() const {
+        return traffic_server_worker_threads_;
+    }
+
+    void setTrafficServerMaxWorkerThreads(unsigned int threads) {
+        traffic_server_max_worker_threads_ = threads;
+    }
+
+    unsigned int getTrafficServerMaxWorkerThreads() const {
+        return traffic_server_max_worker_threads_;
+    }
+
+    void setQueueDispatcherMaxSize(int size) {
+        queue_dispatcher_max_size_ = size;
+    }
+
+    int getQueueDispatcherMaxSize() const {
+        return queue_dispatcher_max_size_;
+    }
+
+    /**
+     * Set traffic client worker threads
+     *
+     * @param threads Number of client worker threads
+     */
+    void setTrafficClientWorkerThreads(unsigned int threads) {
+        traffic_client_worker_threads_ = threads;
+    }
+
+    /**
+     * Get traffic client worker threads
+     *
+     * @return Number of client worker threads
+     */
+    unsigned int getTrafficClientWorkerThreads() const {
+        return traffic_client_worker_threads_;
+    }
+
+    void setDisableMetrics(bool disable) {
+        disable_metrics_ = disable;
+    }
+
+    bool getDisableMetrics() const {
+        return disable_metrics_;
     }
 
     /**
