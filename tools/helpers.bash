@@ -76,7 +76,7 @@ global_variable() {
     do_curl -XDELETE $(admin_url)/global-variable${queryParam}
   else
     [ -n "$1" ] && queryParam="?name=$1"
-    if [ -f "$1" -o -p "$1" ]
+    if [ -f "$1" -o -p "$1" -o -r "$1" ]
     then
       do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/global-variable
     else
@@ -464,21 +464,24 @@ client_endpoint() {
 client_provision() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/configures/triggers current client provision configuration ($(admin_url)/client-provision)."
+    echo "Usage: client_provision [-h|--help] [--clean]; Cleans/gets/configures current client provision configuration ($(admin_url)/client-provision)."
     echo "                                       [file]; Configure client provision by mean json specification."
-    echo "                                         [id]; Triggers client provision identifier (sync, sequence=0)."
-    echo "                        [id] [sequenceBegin] [sequenceEnd] [rps] [repeat] [--in-state <state>]; Triggers with optional dynamics."
-    echo "                                               Omitted params keep server-side defaults. inState defaults to 'initial'."
+    echo "                                   [id] [inState]; Filter provisions by id and optionally by inState."
+    echo "                          [--dynamics] [period] [--wait]; Shows active dynamics with remaining sequences and ETA."
+    echo "                                                 No period: single shot. Period <= 0: fastest. Period > 0: refresh interval."
+    echo "                                                 --wait: blocking mode, keeps polling when no activity (waits for new triggers)."
     echo
     echo "  Examples:"
-    echo "    client_provision                                      # List current provisions"
+    echo "    client_provision                                      # List all provisions"
     echo "    client_provision --clean                              # Delete all provisions"
     echo "    client_provision my-provision.json                    # Configure from file"
-    echo "    client_provision myFlow                               # Sync trigger (sequence=0, inState=initial)"
-    echo "    client_provision myFlow --in-state established        # Sync trigger with custom inState"
-    echo "    client_provision myFlow 0 99999 5000                  # Async trigger at 5000 rps"
-    echo "    client_provision myFlow 0 99999 5000 true             # Async trigger with repeat"
-    echo "    client_provision myFlow 0 99999 5000 --in-state step2 # Async trigger with custom inState"
+    echo "    client_provision myFlow                               # Show provisions with id 'myFlow'"
+    echo "    client_provision myFlow established                   # Show provision with id 'myFlow' and inState 'established'"
+    echo "    client_provision --dynamics                           # Single shot dynamics"
+    echo "    client_provision --dynamics 0                         # Fastest continuous"
+    echo "    client_provision --dynamics 2                         # Refresh every 2s"
+    echo "    client_provision --dynamics --wait                    # Fastest continuous, blocking"
+    echo "    client_provision --dynamics 2 --wait                  # Refresh 2s, blocking"
     return 0
   fi
 
@@ -486,34 +489,96 @@ client_provision() {
   if [ "$1" = "--clean" ]
   then
     do_curl -XDELETE $(admin_url)/client-provision
+  elif [ "$1" = "--dynamics" ]
+  then
+    shift
+    local period= wait=false
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --wait) wait=true ;;
+        *) period=$1 ;;
+      esac
+      shift
+    done
+    local single_shot=false
+    local waiting_dot=false
+    [ -z "$period" ] && single_shot=true && period=0
+    while true; do
+      local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
+      local output=
+      [ -n "$json" -a "$json" != "[]" ] && output=$(echo "$json" | jq -r '
+        .[] | select(.dynamics and .dynamics.rps > 0 and .dynamics.sequenceEnd >= .dynamics.sequence) |
+        .id as $id |
+        .dynamics |
+        (.sequenceEnd - .sequence) as $remaining |
+        (($remaining / .rps) | floor) as $eta |
+        "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) rps=\(.rps) repeat=\(.repeat) ETA=\($eta)s"
+      ')
+      if [ -n "$output" ]; then
+        ${waiting_dot} && echo && waiting_dot=false
+        echo "$output"
+        ${single_shot} && break
+        [ "$period" -gt 0 ] 2>/dev/null && sleep "$period"
+      elif ! ${wait}; then
+        echo "No active dynamics."
+        break
+      else
+        ${waiting_dot} || echo -n "No active dynamics."
+        echo -n "."
+        waiting_dot=true
+        sleep 1
+      fi
+    done
+  elif [ -f "$1" -o -p "$1" -o -r "$1" ]
+  then
+    do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/client-provision
   else
-    if [ -f "$1" -o -p "$1" ]
-    then
-      do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/client-provision
-    else
-      local id=$1; shift
-      local seqBegin= seqEnd= rps= repeat= inState=
-      while [ $# -gt 0 ]; do
-        case "$1" in
-          --in-state) inState=$2; shift ;;
-          *) [ -z "${seqBegin}" ] && seqBegin=$1 && shift && continue
-             [ -z "${seqEnd}" ] && seqEnd=$1 && shift && continue
-             [ -z "${rps}" ] && rps=$1 && shift && continue
-             [ -z "${repeat}" ] && repeat=$1 && shift && continue
-             ;;
-        esac
-        shift
-      done
-      local queryParams=
-      [ -n "${seqBegin}" ] && queryParams+="&sequenceBegin=${seqBegin}"
-      [ -n "${seqEnd}" ] && queryParams+="&sequenceEnd=${seqEnd}"
-      [ -n "${rps}" ] && queryParams+="&rps=${rps}"
-      [ -n "${repeat}" ] && queryParams+="&repeat=${repeat}"
-      [ -n "${inState}" ] && queryParams+="&inState=${inState}"
-      [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
-      do_curl -XGET "$(admin_url)/client-provision/${id}${queryParams}"
-    fi
+    local id=$1
+    local inState=$2
+    local filter=".[] | select(.id == \"${id}\")"
+    [ -n "${inState}" ] && filter+=" | select(.inState == \"${inState}\")"
+    do_curl $(admin_url)/client-provision | jq "[${filter}]"
   fi
+}
+
+client_provision_trigger() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: client_provision_trigger [-h|--help] <id> [sequenceBegin] [sequenceEnd] [rps] [repeat] [--in-state <state>]"
+    echo "                               Triggers a client provision. Omitted params keep server-side defaults."
+    echo
+    echo "  Examples:"
+    echo "    client_provision_trigger myFlow                               # Sync trigger (sequence=0, inState=initial)"
+    echo "    client_provision_trigger myFlow --in-state established        # Sync trigger with custom inState"
+    echo "    client_provision_trigger myFlow 0 99999 5000                  # Async trigger at 5000 rps"
+    echo "    client_provision_trigger myFlow 0 99999 5000 true             # Async trigger with repeat"
+    echo "    client_provision_trigger myFlow 0 99999 5000 --in-state step2 # Async trigger with custom inState"
+    return 0
+  fi
+
+  [ -z "$1" ] && echo "Error: provision id required" && return 1
+
+  local id=$1; shift
+  local seqBegin= seqEnd= rps= repeat= inState=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --in-state) inState=$2; shift ;;
+      *) [ -z "${seqBegin}" ] && seqBegin=$1 && shift && continue
+         [ -z "${seqEnd}" ] && seqEnd=$1 && shift && continue
+         [ -z "${rps}" ] && rps=$1 && shift && continue
+         [ -z "${repeat}" ] && repeat=$1 && shift && continue
+         ;;
+    esac
+    shift
+  done
+  local queryParams=
+  [ -n "${seqBegin}" ] && queryParams+="&sequenceBegin=${seqBegin}"
+  [ -n "${seqEnd}" ] && queryParams+="&sequenceEnd=${seqEnd}"
+  [ -n "${rps}" ] && queryParams+="&rps=${rps}"
+  [ -n "${repeat}" ] && queryParams+="&repeat=${repeat}"
+  [ -n "${inState}" ] && queryParams+="&inState=${inState}"
+  [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
+  do_curl -XGET "$(admin_url)/client-provision/${id}${queryParams}"
 }
 
 client_provision_rps() {
@@ -539,33 +604,6 @@ client_provision_rps() {
 client_provision_unused() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used ($(admin_url)/client-provision/unused)." && return 0
   do_curl $(admin_url)/client-provision/unused && return 0
-}
-
-client_provision_dynamics() {
-  if [ "$1" = "-h" -o "$1" = "--help" ]
-  then
-    echo "Usage: client_provision_dynamics [-h|--help] [period]; Shows active client provision dynamics with remaining sequences and ETA."
-    echo "                                 [period]; Refresh period in seconds (default: 0, single shot). Use -1 for fast (0.1s)."
-    return 0
-  fi
-  local period=${1:-0}
-  [ "$period" = "-1" ] && period=0.1
-  while true; do
-    local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
-    [ -z "$json" -o "$json" = "[]" ] && echo "No provisions found." && break
-    local output=$(echo "$json" | jq -r '
-      .[] | select(.dynamics and .dynamics.rps > 0 and .dynamics.sequenceEnd >= .dynamics.sequence) |
-      .id as $id |
-      .dynamics |
-      (.sequenceEnd - .sequence) as $remaining |
-      (($remaining / .rps) | floor) as $eta |
-      "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) rps=\(.rps) repeat=\(.repeat) ETA=\($eta)s"
-    ')
-    [ -z "$output" ] && echo "No active dynamics." && break
-    [ "$period" = "0" ] && echo "$output" && break
-    sleep "$period"
-    echo "$output"
-  done
 }
 
 client_data() {
@@ -935,7 +973,7 @@ help() {
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_rps client_provision_unused client_provision_dynamics client_data; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_rps client_provision_unused client_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
   for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
