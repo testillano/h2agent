@@ -632,7 +632,7 @@ Also, `benchmark/repeat.sh` script repeats a previous execution (last by default
 So you may start the process, again, natively or using docker:
 
 ```bash
-$ OPTS=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
+$ OPTS=(--verbose --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
 $ build/Release/bin/h2agent "${OPTS[@]}" # native executable
 - or -
 $ docker run --rm -it --network=host -v $(pwd -P):$(pwd -P) ghcr.io/testillano/h2agent:latest "${OPTS[@]}" # docker
@@ -811,8 +811,8 @@ Options:
   Admin local <port>; defaults to 8074.
 
 [-p|--traffic-server-port <port>]
-  Traffic server local <port>; defaults to 8000. Set '-1' to disable
-  (mock server service is enabled by default).
+  Traffic server local <port>; defaults to 8000. Set '0' (or negative) to
+  disable (mock server service is enabled by default).
 
 [-m|--traffic-server-api-name <name>]
   Traffic server API name; defaults to empty.
@@ -821,17 +821,26 @@ Options:
   Traffic server API version; defaults to empty.
 
 [-w|--traffic-server-worker-threads <threads>]
-  Number of traffic server worker threads; defaults to 1, which should be enough
-  even for complex logic provisioned (admin server hardcodes 1 worker thread(s)).
-  It could be increased if hardware concurrency (8) permits a greater margin taking
-  into account other process threads considered busy and I/O time spent by server
-  threads. When more than 1 worker is configured, a queue dispatcher model starts
-  to process the traffic, and also enables extra features like congestion control.
+  Number of traffic server worker threads; defaults to 1 (inline processing,
+  no queue dispatcher). When set to 1, requests are processed directly within
+  the nghttp2 I/O thread, which is optimal for fast provisions (e.g. regex
+  matching with static responses). When set above 1, a queue dispatcher model
+  is activated: I/O threads enqueue requests and worker threads process them
+  asynchronously. This helps when provision logic is slow (response delays,
+  file I/O, etc.) as it keeps I/O threads responsive. For trivial logic, the
+  dispatch overhead may negate any benefit. Admin server hardcodes 1 worker
+  thread(s).
 
 [--traffic-server-max-worker-threads <threads>]
-  Number of traffic server maximum worker threads; defaults to the number of worker
-  threads but could be a higher number so they will be created when needed to extend
-  in real time, the queue dispatcher model capacity.
+  Maximum number of worker threads; defaults to '--traffic-server-worker-threads'.
+  When set higher, additional threads are created on demand to handle traffic
+  spikes. Only effective when queue dispatcher is active (workers > 1).
+
+[-t|--traffic-server-io-threads <threads>]
+  Number of nghttp2 traffic server I/O threads; defaults to 1.
+  Connections are assigned to threads round-robin, so multiple
+  threads only help when multiple client connections are used.
+  Admin server hardcodes 1 nghttp2 thread(s).
 
 [--traffic-server-queue-dispatcher-max-size <size>]
   The queue dispatcher model (which is activated for more than 1 server worker)
@@ -958,6 +967,29 @@ Options:
 
 [-h|--help]
   This help.
+
+Typical use cases:
+
+  Mock server (fast static responses):
+    h2agent [--traffic-server-io-threads <N>]
+    Default settings are optimal. Use '-t <N>' with N matching the number
+    of client connections to distribute I/O load across threads.
+
+  Mock server (simulated latency or heavy transforms):
+    h2agent -w <N> [--traffic-server-max-worker-threads <M>]
+    Workers handle slow provisions without blocking I/O threads.
+    Add '--traffic-server-queue-dispatcher-max-size <S>' to enable
+    congestion control (503 responses when queue exceeds S).
+
+  Traffic client (load generator):
+    h2agent --traffic-server-port 0 --traffic-client-worker-threads <N>
+    Disable server with port 0. Each worker opens its own connection,
+    multiplying effective throughput.
+
+  Benchmark:
+    h2agent --verbose --prometheus-response-delay-seconds-histogram-boundaries
+      "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3"
+    Enables detailed latency histograms for performance analysis.
 ```
 
 </details>

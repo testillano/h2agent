@@ -61,12 +61,10 @@ SOFTWARE.
 #include <ert/metrics/Metrics.hpp>
 
 
-// Native Nghttp2 server threads: all the handled requests are passed directly to stream class or queue dispatcher, so there is not gain using this resource.
-// This is provided by nghttp2 library just in case the architecture is designed to manage the work inside the native thread, but not our case.
-// In summary, we will configure a unique native nghttp2 thread for both traffic and admin interfaces. This way, we reduce the memory footprint (usage of
-// threads) and minimize the CPU load (threads context switching):
+// Native Nghttp2 server threads: each thread handles a subset of connections (round-robin assignment).
+// Multiple threads can improve throughput when multiple client connections are used.
+// Admin interface hardcodes 1 thread as it handles low traffic:
 #define ADMIN_NGHTTP2_SERVER_THREADS 1
-#define TRAFFIC_NGHTTP2_SERVER_THREADS 1
 
 // In order to use queue dispatcher, we must set over 1, but performance is usually better without it:
 #define ADMIN_SERVER_WORKER_THREADS 1
@@ -269,8 +267,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Admin local <port>; defaults to 8074.\n\n"
 
        << "[-p|--traffic-server-port <port>]\n"
-       << "  Traffic server local <port>; defaults to 8000. Set '-1' to disable\n"
-       << "  (mock server service is enabled by default).\n\n"
+       << "  Traffic server local <port>; defaults to 8000. Set '0' (or negative) to\n"
+       << "  disable (mock server service is enabled by default).\n\n"
 
        << "[-m|--traffic-server-api-name <name>]\n"
        << "  Traffic server API name; defaults to empty.\n\n"
@@ -279,27 +277,27 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Traffic server API version; defaults to empty.\n\n"
 
        << "[-w|--traffic-server-worker-threads <threads>]\n"
-       << "  Number of traffic server worker threads; defaults to 1, which should be enough\n"
-       << "  even for complex logic provisioned (admin server hardcodes " << ADMIN_SERVER_WORKER_THREADS << " worker thread(s)).\n"
-       << "  It could be increased if hardware concurrency (" << hardwareConcurrency << ") permits a greater margin taking\n"
-       << "  into account other process threads considered busy and I/O time spent by server\n"
-       << "  threads. When more than 1 worker is configured, a queue dispatcher model starts\n"
-       << "  to process the traffic, and also enables extra features like congestion control.\n\n"
+       << "  Number of traffic server worker threads; defaults to 1 (inline processing,\n"
+       << "  no queue dispatcher). When set to 1, requests are processed directly within\n"
+       << "  the nghttp2 I/O thread, which is optimal for fast provisions (e.g. regex\n"
+       << "  matching with static responses). When set above 1, a queue dispatcher model\n"
+       << "  is activated: I/O threads enqueue requests and worker threads process them\n"
+       << "  asynchronously. This helps when provision logic is slow (response delays,\n"
+       << "  file I/O, etc.) as it keeps I/O threads responsive. For trivial logic, the\n"
+       << "  dispatch overhead may negate any benefit. Admin server hardcodes "
+       << ADMIN_SERVER_WORKER_THREADS << " worker\n"
+       << "  thread(s).\n\n"
 
        << "[--traffic-server-max-worker-threads <threads>]\n"
-       << "  Number of traffic server maximum worker threads; defaults to the number of worker\n"
-       << "  threads but could be a higher number so they will be created when needed to extend\n"
-       << "  in real time, the queue dispatcher model capacity.\n\n"
+       << "  Maximum number of worker threads; defaults to '--traffic-server-worker-threads'.\n"
+       << "  When set higher, additional threads are created on demand to handle traffic\n"
+       << "  spikes. Only effective when queue dispatcher is active (workers > 1).\n\n"
 
-//       << "[-t|--traffic-server-threads <threads>]\n"
-//       << "  Number of nghttp2 traffic server native threads; defaults to 1\n"
-//       << "  (admin server hardcodes " << ADMIN_NGHTTP2_SERVER_THREADS << " nghttp2 native threads). Although the\n"
-//       << "  processed requests end up in the same number of workers, a higher\n"
-//       << "  value could alleviate the load that a native nghttp2 thread could\n"
-//       << "  handle (each one could process a smaller set of concurrent requests\n"
-//       << "  which can help distribute the workload among them, and accelerate\n"
-//       << "  the average response time). This option can be exploited by multiple\n"
-//       << "  clients used to send high traffic loads.\n\n"
+       << "[-t|--traffic-server-io-threads <threads>]\n"
+       << "  Number of nghttp2 traffic server I/O threads; defaults to 1.\n"
+       << "  Connections are assigned to threads round-robin, so multiple\n"
+       << "  threads only help when multiple client connections are used.\n"
+       << "  Admin server hardcodes " << ADMIN_NGHTTP2_SERVER_THREADS << " nghttp2 thread(s).\n\n"
 
        << "[--traffic-server-queue-dispatcher-max-size <size>]\n"
        << "  The queue dispatcher model (which is activated for more than 1 server worker)\n"
@@ -426,6 +424,29 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
+       << "Typical use cases:\n\n"
+
+       << "  Mock server (fast static responses):\n"
+       << "    " << progname << " [--traffic-server-io-threads <N>]\n"
+       << "    Default settings are optimal. Use '-t <N>' with N matching the number\n"
+       << "    of client connections to distribute I/O load across threads.\n\n"
+
+       << "  Mock server (simulated latency or heavy transforms):\n"
+       << "    " << progname << " -w <N> [--traffic-server-max-worker-threads <M>]\n"
+       << "    Workers handle slow provisions without blocking I/O threads.\n"
+       << "    Add '--traffic-server-queue-dispatcher-max-size <S>' to enable\n"
+       << "    congestion control (503 responses when queue exceeds S).\n\n"
+
+       << "  Traffic client (load generator):\n"
+       << "    " << progname << " --traffic-server-port 0 --traffic-client-worker-threads <N>\n"
+       << "    Disable server with port 0. Each worker opens its own connection,\n"
+       << "    multiplying effective throughput.\n\n"
+
+       << "  Benchmark:\n"
+       << "    " << progname << " --verbose --prometheus-response-delay-seconds-histogram-boundaries\n"
+       << "      \"100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3\"\n"
+       << "    Enables detailed latency histograms for performance analysis.\n\n"
+
        << '\n';
 
 
@@ -508,6 +529,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_api_name = "";
     std::string traffic_server_api_version = "";
     int traffic_server_worker_threads = 1;
+    int traffic_server_io_threads = 1;
     int traffic_server_max_worker_threads = 1;
     int queue_dispatcher_max_size = -1; // no congestion control
     std::string traffic_server_key_file = "";
@@ -595,6 +617,16 @@ int main(int argc, char* argv[])
             || readCmdLine(argv, argv + argc, "--traffic-server-api-version", value))
     {
         traffic_server_api_version = value;
+    }
+
+    if (readCmdLine(argv, argv + argc, "-t", value)
+            || readCmdLine(argv, argv + argc, "--traffic-server-io-threads", value))
+    {
+        traffic_server_io_threads = toNumber(value);
+        if (traffic_server_io_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-io-threads' value. Must be greater than 0.");
+        }
     }
 
     if (readCmdLine(argv, argv + argc, "-w", value)
@@ -773,7 +805,7 @@ int main(int argc, char* argv[])
     }
 
     // Secure options
-    bool traffic_server_enabled = (traffic_server_port != "-1");
+    bool traffic_server_enabled = (toNumber(traffic_server_port) > 0);
     bool traffic_secured = (!traffic_server_key_file.empty() && !traffic_server_crt_file.empty());
     bool hasPEMpasswordPrompt = (admin_secured && traffic_secured && traffic_server_key_password.empty());
 
@@ -824,6 +856,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         std::cout << "Traffic server api version: " << ((traffic_server_api_version != "") ?  traffic_server_api_version : "<none>") << '\n';
 
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
+        std::cout << "Traffic server I/O threads: " << traffic_server_io_threads << '\n';
         if (traffic_server_worker_threads > 1) { // queue dispatcher is used
             std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
             bool congestionControl = (queue_dispatcher_max_size >= 0);
@@ -832,7 +865,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         }
 
         // h2agent threads may not be 100% busy. So there is not significant time stolen when there are i/o waits (timers for example)
-        // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + 1 /* native nghttp2 threads */ + traffic_server_worker_threads)
+        // even if planned threads (main(1) + admin server workers(hardcoded to 1) + admin nghttp2(1) + io timers(1) + traffic_server_threads + traffic_server_worker_threads)
         // are over hardware concurrency (unsigned int hardwareConcurrency = std::thread::hardware_concurrency();)
 
         std::cout << "Traffic server key password: " << ((traffic_server_key_password != "") ? "***" : "<not provided>") << '\n';
@@ -1103,7 +1136,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     std::thread t2([&] {
         if (myTrafficHttp2Server) {
-            rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, TRAFFIC_NGHTTP2_SERVER_THREADS);
+            rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, traffic_server_io_threads);
         }
     });
     // asyncronous serve: no thread:

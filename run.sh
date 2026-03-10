@@ -79,7 +79,7 @@ if [ -n "${H2AGENT_LD_PRELOAD}" ]; then
 fi
 
 # Recommended for 'benchmark/start.sh' (comment to use only provided arguments):
-benchmark_args=(--verbose --traffic-server-worker-threads 5 --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
+benchmark_args=(--verbose --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3")
 
 # Run './build.sh --auto' to have docker image available:
 set -x
