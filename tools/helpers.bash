@@ -537,7 +537,7 @@ client_provision() {
     local inState=$2
     local filter=".[] | select(.id == \"${id}\")"
     [ -n "${inState}" ] && filter+=" | select(.inState == \"${inState}\")"
-    do_curl $(admin_url)/client-provision | jq "[${filter}]"
+    do_curl $(admin_url)/client-provision >/dev/null && pretty | jq "[${filter}]"
   fi
 }
 
@@ -828,40 +828,43 @@ snapshot() {
     rm -f ${last} && ln -s $(basename ${dir}) ${last}
   fi
 
-  schema && pretty > ${dir}/schema.json
-  schema_schema && pretty > ${dir}/schema_schema.json
-  global_variable && pretty > ${dir}/global-variable.json
-  global_variable_schema && pretty > ${dir}/global-variable_schema.json
-  files && pretty > ${dir}/files.json
-  files_configuration && pretty > ${dir}/files-configuration.json
-  udp_sockets && pretty > ${dir}/udp-sockets.json
-  configuration && pretty > ${dir}/configuration.json
-  server_configuration && pretty > ${dir}/server-configuration.json
-  server_data_configuration && pretty > ${dir}/server-data-configuration.json
-  client_data_configuration && pretty > ${dir}/client-data-configuration.json
+  mkdir -p ${dir}/{general,schemas,server,client}
 
-  server_matching && pretty > ${dir}/server-matching.json
-  server_matching_schema && pretty > ${dir}/server-matching_schema.json
+  # General
+  configuration && pretty > ${dir}/general/configuration.json
+  schema && pretty > ${dir}/general/schema.json
+  global_variable && pretty > ${dir}/general/global-variable.json
+  files && pretty > ${dir}/general/files.json
+  files_configuration && pretty > ${dir}/general/files-configuration.json
+  udp_sockets && pretty > ${dir}/general/udp-sockets.json
+  metrics > ${dir}/general/metrics.txt
 
-  server_provision && pretty > ${dir}/server-provision.json
-  server_provision_unused && pretty > ${dir}/server-provision_unused.json
-  server_provision_schema && pretty > ${dir}/server-provision_schema.json
+  # Schemas
+  schema_schema && pretty > ${dir}/schemas/schema.json
+  global_variable_schema && pretty > ${dir}/schemas/global-variable.json
+  server_matching_schema && pretty > ${dir}/schemas/server-matching.json
+  server_provision_schema && pretty > ${dir}/schemas/server-provision.json
+  client_endpoint_schema && pretty > ${dir}/schemas/client-endpoint.json
+  client_provision_schema && pretty > ${dir}/schemas/client-provision.json
 
-  server_data --summary -1 && pretty > ${dir}/server-data-summary.json
-  echo | server_data && pretty > ${dir}/server-data.json
-  pushd ${dir} ; server_data --dump ; popd
+  # Server
+  server_configuration && pretty > ${dir}/server/configuration.json
+  server_data_configuration && pretty > ${dir}/server/data-configuration.json
+  server_matching && pretty > ${dir}/server/matching.json
+  server_provision && pretty > ${dir}/server/provision.json
+  server_provision_unused && pretty > ${dir}/server/provision-unused.json
+  server_data --summary -1 && pretty > ${dir}/server/data-summary.json
+  echo | server_data && pretty > ${dir}/server/data.json
+  pushd ${dir}/server ; server_data --dump ; [ -d server-data-sequences ] && mv server-data-sequences data-sequences ; popd
 
-  client_data --summary -1 && pretty > ${dir}/client-data-summary.json
-  echo | client_data && pretty > ${dir}/client-data.json
-  pushd ${dir} ; client_data --dump ; popd
-
-  client_endpoint && pretty > ${dir}/client_endpoint.json
-  client_endpoint_schema && pretty > ${dir}/client_endpoint_schema.json
-  client_provision && pretty > ${dir}/client-provision.json
-  client_provision_unused && pretty > ${dir}/client-provision_unused.json
-  client_provision_schema && pretty > ${dir}/client-provision_schema.json
-
-  metrics > ${dir}/metrics.txt
+  # Client
+  client_data_configuration && pretty > ${dir}/client/data-configuration.json
+  client_endpoint && pretty > ${dir}/client/endpoint.json
+  client_provision && pretty > ${dir}/client/provision.json
+  client_provision_unused && pretty > ${dir}/client/provision-unused.json
+  client_data --summary -1 && pretty > ${dir}/client/data-summary.json
+  echo | client_data && pretty > ${dir}/client/data.json
+  pushd ${dir}/client ; client_data --dump ; [ -d client-data-sequences ] && mv client-data-sequences data-sequences ; popd
 
   echo
   echo "Created snapshot at:"
