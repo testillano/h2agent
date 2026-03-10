@@ -443,7 +443,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // Only target
     static std::regex requestHeader_target("^request.header.(.*)", std::regex::optimize);
     static std::regex udpSocket("^udpSocket.(.*)", std::regex::optimize);
-    static std::regex clientProvision("^clientProvision.(.*)", std::regex::optimize);
+    static std::regex clientProvision("^clientProvision\\.([^.]+)(?:\\.(.+))?$", std::regex::optimize);
 
     // no need to try (controlled regex)
     //try {
@@ -646,8 +646,13 @@ bool Transformation::load(const nlohmann::json &j) {
     else if (targetSpec == "break") {
         target_type_ = TargetType::Break;
     }
-    else if (std::regex_match(targetSpec, matches, clientProvision)) { // client provision id
+    else if (std::regex_match(targetSpec, matches, clientProvision)) { // clientProvision.<id>.<inState>
         target_ = matches.str(1);
+        target2_ = matches.str(2);
+        if (target2_.empty()) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Missing inState in clientProvision target: '%s'. Use 'clientProvision.<id>.<inState>'", targetSpec.c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
         target_type_ = TargetType::ClientProvision_t;
     }
     // PROTECTED BY SCHEMA:
@@ -737,6 +742,15 @@ std::string Transformation::asString() const {
         }
         else if (target_type_ == TargetType::TTxtFile || target_type_ == TargetType::TBinFile) {
             ss << " (path file)";
+        }
+        else if (target_type_ == TargetType::ClientProvision_t && !target2_.empty()) {
+            ss << " | target2_: " << target2_ << " (explicit inState)";
+            if (!target2_patterns_.empty()) {
+                ss << " | target2 variables:";
+                for (auto it = target2_patterns_.begin(); it != target2_patterns_.end(); it ++) {
+                    ss << " " << it->second;
+                }
+            }
         }
         else if (target_type_ == TargetType::UDPSocket) {
             ss << " (<path file>[|<write delay ms>])";

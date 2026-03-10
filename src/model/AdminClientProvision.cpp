@@ -1168,6 +1168,9 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
             loadTransformation(transformations_, it);
         }
+        if (!transformations_.empty() && transformations_.back()->getTargetType() == Transformation::TargetType::Break) {
+            LOGWARNING(ert::tracing::Logger::warning("Break as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
+        }
     }
 
     transform_it = j.find("onResponseTransform");
@@ -1175,6 +1178,9 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         LOGDEBUG(ert::tracing::Logger::debug("Load transformations ('onResponseTransform' node)", ERT_FILE_LOCATION));
         for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
             loadTransformation(on_response_transformations_, it);
+        }
+        if (!on_response_transformations_.empty() && on_response_transformations_.back()->getTargetType() == Transformation::TargetType::Break) {
+            LOGWARNING(ert::tracing::Logger::warning("Break as last 'onResponseTransform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
         }
     }
 

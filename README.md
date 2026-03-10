@@ -1767,7 +1767,7 @@ When a server provision triggers a client provision (via `clientProvision.<id>` 
   "responseCode": 200,
   "responseBody": {"status": "received"},
   "transform": [
-    { "source": "value.initial", "target": "clientProvision.forwardNotification" }
+    { "source": "value.1", "target": "clientProvision.forwardNotification.initial" }
   ]
 }
 ```

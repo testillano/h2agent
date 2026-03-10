@@ -239,7 +239,7 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
         "responseHeaders": {"content-type": "application/json"},
         "transform": [
             {"source": "request.body", "target": "globalVar.webhookBody"},
-            {"source": "value.initial", "target": "clientProvision.forwardFlow"}
+            {"source": "value.1", "target": "clientProvision.forwardFlow.initial"}
         ]
     }
     # Server provision: receives forwarded request

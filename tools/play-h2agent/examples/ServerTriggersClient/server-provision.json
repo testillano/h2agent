@@ -11,8 +11,8 @@
         "target": "globalVar.notificationBody"
       },
       {
-        "source": "value.initial",
-        "target": "clientProvision.forwardNotification"
+        "source": "value.1",
+        "target": "clientProvision.forwardNotification.initial"
       }
     ]
   },

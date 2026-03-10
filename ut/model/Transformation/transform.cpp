@@ -1738,9 +1738,9 @@ TEST_F(Transform_test, TargetBreak)
 
 TEST_F(Transform_test, TargetClientProvision)
 {
-    // Build test provision with clientProvision trigger:
-    const nlohmann::json item1 = R"({ "source": "value.initial", "target": "clientProvision.myFlow" })"_json;
-    const nlohmann::json item2 = R"({ "source": "value.step2", "target": "clientProvision.anotherFlow" })"_json;
+    // Build test provision with clientProvision trigger (source as conditional gate):
+    const nlohmann::json item1 = R"({ "source": "value.1", "target": "clientProvision.myFlow.initial" })"_json;
+    const nlohmann::json item2 = R"({ "source": "value.go", "target": "clientProvision.anotherFlow.step2" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1757,17 +1757,41 @@ TEST_F(Transform_test, TargetClientProvision)
 
 TEST_F(Transform_test, TargetClientProvisionWithEraser)
 {
-    // When eraser source is used, inState defaults to "initial":
-    const nlohmann::json item = R"({ "source": "eraser", "target": "clientProvision.myFlow" })"_json;
+    // When eraser source is used, trigger is skipped (conditional gate):
+    const nlohmann::json item = R"({ "source": "eraser", "target": "clientProvision.myFlow.initial" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
     provisionAndTransform(request_body_.dump());
 
-    // Validations:
-    ASSERT_EQ(client_provision_triggers_.size(), 1);
-    EXPECT_EQ(client_provision_triggers_[0].first, "myFlow");
-    EXPECT_EQ(client_provision_triggers_[0].second, "initial");
+    // Validations: no triggers (eraser = empty = skip)
+    ASSERT_EQ(client_provision_triggers_.size(), 0);
+}
+
+TEST_F(Transform_test, TargetClientProvisionSkippedOnEmptyVar)
+{
+    // When source variable does not exist, trigger is skipped:
+    const nlohmann::json item = R"({ "source": "var.nonExistent", "target": "clientProvision.myFlow.initial" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations: no triggers (empty var = skip)
+    ASSERT_EQ(client_provision_triggers_.size(), 0);
+}
+
+TEST_F(Transform_test, TargetClientProvisionMissingInState)
+{
+    // clientProvision without inState should fail to load:
+    const nlohmann::json item = R"({ "source": "value.1", "target": "clientProvision.myFlow" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation (the transform item is discarded at load time):
+    provisionAndTransform(request_body_.dump());
+
+    // Validations: no triggers (discarded provision)
+    ASSERT_EQ(client_provision_triggers_.size(), 0);
 }
 
 ///////////////////////////////////////////////////

@@ -36,6 +36,8 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
   - [Multiple client provisions](#multiple-client-provisions)
   - [Unused client provisions](#unused-client-provisions)
   - [Triggering](#triggering)
+    - [Partial chain execution](#partial-chain-execution)
+    - [Server-triggered client flows](#server-triggered-client-flows)
 - [Client data](#client-data)
   - [Client storage configuration](#client-storage-configuration)
   - [Querying client data](#querying-client-data)
@@ -639,20 +641,40 @@ The **target** of information is classified after parsing the following possible
 
   This target, as its source counterpart, **admits variables substitution**.
 
-- clientProvision.`<clientProvisionId>` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. The source value is used as the `inState` for the client provision (defaults to `"initial"` when `eraser` source is used or source is empty). This target identifier **admits variables substitution**. Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
+- clientProvision.`<clientProvisionId>`.`<inState>` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `clientProvision.@{flowId}.@{myState}`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
 
-  For example, to trigger a client provision named `myNotificationFlow` starting from state `initial`:
+  The source acts as a **conditional gate**: the trigger only fires when the source resolves to a non-empty value. An empty or undefined source (e.g. a variable that does not exist, or `eraser`) silently skips the trigger. This follows the same convention as the `break` target.
 
   ```json
   {
-    "source": "value.initial",
-    "target": "clientProvision.myNotificationFlow"
+    "source": "value.1",
+    "target": "clientProvision.myNotificationFlow.initial"
+  }
+  ```
+
+  Conditional triggering based on a flag variable (no `ConditionVar` filter needed):
+
+  ```json
+  {
+    "source": "var.triggerFlow",
+    "target": "clientProvision.myNotificationFlow.initial"
+  }
+  ```
+
+  Here, if `var.triggerFlow` exists and is non-empty, the trigger fires. If the variable does not exist (resolves to empty), the trigger is skipped.
+
+  Using `eraser` as source deliberately disables the trigger while keeping the provision configured — useful for temporarily deactivating a flow without removing the transformation:
+
+  ```json
+  {
+    "source": "eraser",
+    "target": "clientProvision.myNotificationFlow.initial"
   }
   ```
 
   The triggered client provision must be previously configured (via `POST /admin/v1/client-provision`) along with its associated client endpoint (via `POST /admin/v1/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
 
-- break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action.
+- break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action. Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
 
 
@@ -1368,9 +1390,9 @@ New **targets**:
 - `request.timeoutMs` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 - `request.uri` *[string]*: overrides the request URI to be sent. This is useful in combination with `seq` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
 - `request.method` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
-- `break`: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis).
+- `break`: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
-Note that `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
+Note that `clientProvision.<id>.<inState>` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 
 ### Multiple client provisions
 
@@ -1412,7 +1434,7 @@ The 'unused' status is initialized at creation time (`POST` operation) or when t
 
 To trigger a client provision (`GET /admin/v1/client-provision/<id>`), we will use the *GET* method, providing its identifier in the *URI*.
 
-Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state, that is probably for debugging purposes.
+Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state (via the `inState` query parameter), this is useful for debugging and also for [partial chain execution](#partial-chain-execution) scenarios.
 
 There are two triggering modes: **synchronous** (single request) and **asynchronous** (timer-based). Their query parameters are mutually exclusive.
 
@@ -1524,9 +1546,55 @@ And finally, note that we could also solve the previous exercise just providing 
   done
   ```
 
+#### Partial chain execution
+
+A common pattern is to define a full lifecycle chain (e.g., `initial` → `established` → `updated` → `terminated`) but execute it in stages. This is achieved by combining a global variable with a conditional `break` in the `onResponseTransform` of an intermediate step.
+
+For example, consider a 3-step session flow (create → update → delete). To execute only the establishment phase:
+
+1. Set a global variable to control the chain depth:
+
+   ```bash
+   curl --http2-prior-knowledge -d '{"STOP_AFTER": "establishment"}' \
+     http://localhost:8074/admin/v1/global-variable
+   ```
+
+2. In the `onResponseTransform` of the establishment provision, add a conditional outState override:
+
+   ```json
+   {
+     "source": "globalVar.STOP_AFTER",
+     "target": "var.mustStop",
+     "filter": { "RegexCapture": "establishment" }
+   },
+   {
+     "source": "value.road-closed",
+     "target": "outState",
+     "filter": { "ConditionVar": "mustStop" }
+   }
+   ```
+
+   When `STOP_AFTER` matches `"establishment"`, the `outState` is overridden to an unprovisioned state (`road-closed`), preventing automatic state progression. The chain simply stops because no provision exists for `(mySession, road-closed)`.
+
+3. Later, to complete the remaining steps (update + delete), trigger from the intermediate state:
+
+   ```bash
+   # First, clear the stop condition:
+   curl --http2-prior-knowledge -d '{"STOP_AFTER": ""}' \
+     http://localhost:8074/admin/v1/global-variable
+
+   # Then trigger from the intermediate state:
+   curl --http2-prior-knowledge \
+     "http://localhost:8074/admin/v1/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&rps=500"
+   ```
+
+> **Note**: when triggering from an intermediate state, scoped variables (`var.*`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `globalVar` instead.
+
+This pattern is useful for benchmarking scenarios where you want to measure each phase independently, or when you need to pre-populate sessions before running update/delete workloads.
+
 #### Server-triggered client flows
 
-Client provisions can also be triggered from within server provision transformations using the `clientProvision.<clientProvisionId>` target (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source value determines the `inState` for the triggered client provision. For example, when the server receives a webhook notification, it could trigger a client flow to forward or acknowledge it:
+Client provisions can also be triggered from within server provision transformations using the `clientProvision.<clientProvisionId>.<inState>` target (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source acts as a conditional gate: non-empty fires the trigger, empty or `eraser` skips it.
 
 ```json
 {
@@ -1535,8 +1603,8 @@ Client provisions can also be triggered from within server provision transformat
   "responseCode": 200,
   "transform": [
     {
-      "source": "value.initial",
-      "target": "clientProvision.forwardNotification"
+      "source": "value.1",
+      "target": "clientProvision.forwardNotification.initial"
     }
   ]
 }

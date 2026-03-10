@@ -1116,19 +1116,22 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
         }
         case Transformation::TargetType::ClientProvision_t:
         {
-            std::string inState = DEFAULT_ADMIN_PROVISION_STATE; // "initial" by default
-            if (!eraser) {
-                targetS = sourceVault.getString(success);
-                if (success && !targetS.empty()) inState = targetS;
-            }
             std::string clientProvisionId = transformation->getTarget();
             replaceVariables(clientProvisionId, transformation->getTargetPatterns(), variables, global_variable_);
-            replaceVariables(inState, transformation->getSourcePatterns(), variables, global_variable_);
+
+            // Source acts as conditional gate: non-empty = trigger, empty/eraser = skip
+            targetS = eraser ? "" : sourceVault.getString(success);
+            if (targetS.empty()) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString(
+                    "Client provision trigger skipped (empty source condition): id='%s'", clientProvisionId.c_str()), ERT_FILE_LOCATION));
+                break;
+            }
+
+            std::string inState = transformation->getTarget2();
+            replaceVariables(inState, transformation->getTarget2Patterns(), variables, global_variable_);
             clientProvisionTriggers.emplace_back(clientProvisionId, inState);
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Scheduled client provision trigger: id='%s', inState='%s'", clientProvisionId.c_str(), inState.c_str());
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString(
+                "Scheduled client provision trigger: id='%s', inState='%s'", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION));
             break;
         }
         case Transformation::TargetType::Break:
@@ -1413,6 +1416,9 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     if (transform_it != j.end()) {
         for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
             loadTransformation(it);
+        }
+        if (!transformations_.empty() && transformations_.back()->getTargetType() == Transformation::TargetType::Break) {
+            LOGWARNING(ert::tracing::Logger::warning("Break as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
         }
     }
 
