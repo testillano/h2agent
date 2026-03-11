@@ -809,6 +809,154 @@ metrics() {
   curl -s $(metrics_url)
 }
 
+traffic_summary() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: traffic_summary [-h|--help] [--show] [--clean] [<t1> <t2>]"
+    echo "       Traffic counter summary from prometheus metrics."
+    echo
+    echo "       (no args)   Save a counters snapshot and print its timestamp."
+    echo "       --show      List saved snapshots (does not save a new one)."
+    echo "       <t1> <t2>   Compute delta between two snapshots by timestamp."
+    echo "                   Auto-detects server/client from metric presence."
+    echo "                   Shows PASS/FAIL verdict for client automatically."
+    echo "       --clean     Remove all saved snapshots."
+    echo
+    echo "       Snapshots: /tmp/.h2agent_traffic_summaries/counters.<unix_ts>"
+    echo "       Only counter metrics are stored (no gauges or histograms)."
+    echo
+    echo "       Workflow: traffic_summary              # save baseline"
+    echo "                 # ... run your test ..."
+    echo "                 traffic_summary              # save post-test"
+    echo "                 traffic_summary --show       # list snapshots"
+    echo "                 traffic_summary <t1> <t2>    # delta + verdict"
+    return 0
+  fi
+
+  local snap_dir="/tmp/.h2agent_traffic_summaries"
+
+  if [ "$1" = "--clean" ]
+  then
+    rm -rf "${snap_dir}"
+    echo "Snapshots removed."
+    return 0
+  fi
+
+  mkdir -p "${snap_dir}"
+
+  # Show history
+  if [ "$1" = "--show" ]
+  then
+    local files=$(ls -1 "${snap_dir}"/counters.* 2>/dev/null | sort)
+    if [ -z "$files" ]; then
+      echo "No snapshots saved yet."
+      return 0
+    fi
+    echo "[timestamp unix] [date/time]"
+    for f in ${files}; do
+      local t=${f##*.}
+      printf "%-14s   %s\n" "${t}" "$(date -d @${t} '+%Y-%m-%d %H:%M:%S')"
+    done
+    return 0
+  fi
+
+  # No args: save snapshot
+  if [ $# -eq 0 ]
+  then
+    local m=$(curl -s $(metrics_url))
+    [ -z "$m" ] && echo "No metrics available (is h2agent running?)" && return 1
+    local ts=$(date +%s)
+    echo "$m" | grep '_counter{' > "${snap_dir}/counters.${ts}"
+    echo "Snapshot saved: ${ts}  $(date -d @${ts} '+%Y-%m-%d %H:%M:%S')"
+    return 0
+  fi
+
+  # Two args: delta between timestamps
+  if [ $# -ne 2 ]
+  then
+    traffic_summary -h
+    return 1
+  fi
+
+  local f1="${snap_dir}/counters.$1" f2="${snap_dir}/counters.$2"
+  [ ! -f "$f1" ] && echo "Snapshot $1 not found." && return 1
+  [ ! -f "$f2" ] && echo "Snapshot $2 not found." && return 1
+
+  # Counter delta helper: f2 minus f1
+  _tc() {
+    local pattern=$1
+    local v2=$(awk "/${pattern}/{s+=\$2}END{print s+0}" "$f2")
+    local v1=$(awk "/${pattern}/{s+=\$2}END{print s+0}" "$f1")
+    echo $((v2 - v1))
+  }
+
+  echo "=== Traffic Summary ==="
+  echo "From: $1  $(date -d @$1 '+%Y-%m-%d %H:%M:%S')"
+  echo "To:   $2  $(date -d @$2 '+%Y-%m-%d %H:%M:%S')"
+  echo
+
+  # Server (auto-detect)
+  if grep -q '^h2agent_traffic_server_' "$f2"
+  then
+    local srv_accepted=$(_tc '^h2agent_traffic_server_observed_requests_accepted_counter\{')
+    local srv_errored=$(_tc '^h2agent_traffic_server_observed_requests_errored_counter\{')
+    local srv_responses=$(_tc '^h2agent_traffic_server_observed_responses_counter\{')
+    local srv_prov_ok=$(_tc '^h2agent_traffic_server_provisioned_requests_counter\{.*result="successful"')
+    local srv_prov_fail=$(_tc '^h2agent_traffic_server_provisioned_requests_counter\{.*result="failed"')
+    local srv_purge_ok=$(_tc '^h2agent_traffic_server_purged_contexts_counter\{.*result="successful"')
+    local srv_purge_fail=$(_tc '^h2agent_traffic_server_purged_contexts_counter\{.*result="failed"')
+
+    echo "--- Server ---"
+    echo "Requests:    ${srv_accepted} accepted, ${srv_errored} errored"
+    echo "Responses:   ${srv_responses}"
+
+    local codes=$(grep '^h2agent_traffic_server_observed_responses_counter{' "$f2" | sed 's/.*status_code="\([^"]*\)".*/\1/' | sort -u)
+    for code in ${codes}; do
+      local count=$(_tc "^h2agent_traffic_server_observed_responses_counter\{.*status_code=\"${code}\"")
+      [ $count -gt 0 ] && echo "  ${code}: ${count}"
+    done
+
+    echo "Provisioned: ${srv_prov_ok} ok / ${srv_prov_fail} failed"
+    echo "Purged:      ${srv_purge_ok} ok / ${srv_purge_fail} failed"
+    echo
+  fi
+
+  # Client (auto-detect) + verdict
+  if grep -q '^h2agent_traffic_client_' "$f2"
+  then
+    local sent=$(_tc '^h2agent_traffic_client_observed_requests_sents_counter\{')
+    local unsent=$(_tc '^h2agent_traffic_client_observed_requests_unsent_counter\{')
+    local timedout=$(_tc '^h2agent_traffic_client_observed_responses_timedout_counter\{')
+    local jc_fail=$(_tc '^h2agent_traffic_client_response_validation_failures_counter\{')
+    local rx_2xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="2')
+    local rx_3xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="3')
+    local rx_4xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="4')
+    local rx_5xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="5')
+
+    local received=$((rx_2xx + rx_3xx + rx_4xx + rx_5xx))
+    local failed=$((unsent + timedout + rx_4xx + rx_5xx))
+    local total=$((sent + unsent))
+
+    echo "--- Client ---"
+    echo "Sent:       ${sent}"
+    echo "Unsent:     ${unsent}"
+    echo "Received:   ${received} (2xx:${rx_2xx} 3xx:${rx_3xx} 4xx:${rx_4xx} 5xx:${rx_5xx})"
+    echo "Timeouts:   ${timedout}"
+    [ $jc_fail -gt 0 ] && echo "JC failures: ${jc_fail}"
+    echo "---"
+    if [ $failed -eq 0 ] && [ $total -gt 0 ]; then
+      echo "PASS: 100% (${total}/${total})"
+    elif [ $total -gt 0 ]; then
+      local pass_pct=$(awk "BEGIN{printf \"%.2f\", ($total - $failed) * 100 / $total}")
+      echo "FAIL: ${pass_pct}% pass ($((total - failed))/${total}, ${failed} failed)"
+    else
+      echo "NO DATA"
+    fi
+  fi
+
+  unset -f _tc
+}
+
 snapshot() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
@@ -976,7 +1124,7 @@ help() {
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_rps client_provision_unused client_data; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_rps client_provision_unused client_data traffic_summary; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
   for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
