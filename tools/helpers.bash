@@ -810,30 +810,42 @@ metrics() {
 }
 
 traffic_summary() {
-  if [ "$1" = "-h" -o "$1" = "--help" ]
-  then
-    echo "Usage: traffic_summary [-h|--help] [--show] [--clean] [<t1> <t2>]"
-    echo "       Traffic counter summary from prometheus metrics."
-    echo
-    echo "       (no args)   Save a counters snapshot and print its timestamp."
-    echo "       --show      List saved snapshots (does not save a new one)."
-    echo "       <t1> <t2>   Compute delta between two snapshots by timestamp."
-    echo "                   Auto-detects server/client from metric presence."
-    echo "                   Shows PASS/FAIL verdict for client automatically."
-    echo "       --clean     Remove all saved snapshots."
-    echo
-    echo "       Snapshots: /tmp/.h2agent_traffic_summaries/counters.<unix_ts>"
-    echo "       Only counter metrics are stored (no gauges or histograms)."
-    echo
-    echo "       Workflow: traffic_summary              # save baseline"
-    echo "                 # ... run your test ..."
-    echo "                 traffic_summary              # save post-test"
-    echo "                 traffic_summary --show       # list snapshots"
-    echo "                 traffic_summary <t1> <t2>    # delta + verdict"
-    return 0
+  local snap_dir="/tmp/.h2agent_traffic_summaries"
+
+  # Colors (disabled if not a terminal)
+  local C_RST="" C_BLD="" C_GRN="" C_RED="" C_CYN="" C_YLW=""
+  if [ -t 1 ]; then
+    C_RST='\033[0m'; C_BLD='\033[1m'; C_GRN='\033[32m'
+    C_RED='\033[31m'; C_CYN='\033[36m'; C_YLW='\033[33m'
   fi
 
-  local snap_dir="/tmp/.h2agent_traffic_summaries"
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: traffic_summary [-h|--help] [--show] [--clean] [--json] [<ref1> <ref2>]"
+    echo "       Traffic counter summary from prometheus metrics."
+    echo
+    echo "       (no args)          Save a counters snapshot (auto timestamp)."
+    echo "       --save <label>     Save a snapshot with a label."
+    echo "       --show             List saved snapshots with labels."
+    echo "       <ref1> <ref2>      Delta between two refs (timestamp or label)."
+    echo "       <ref1> <ref2> --json  Delta output in JSON format."
+    echo "       --clean            Remove all saved snapshots."
+    echo
+    echo "       References can be unix timestamps or labels (order does not matter)."
+    echo "       Reserved label 'zeroed': virtual zero-baseline snapshot."
+    echo
+    echo "       Snapshots: ${snap_dir}/counters.<unix_ts>"
+    echo "       Labels:    ${snap_dir}/labels (label=timestamp mapping)"
+    echo
+    echo "       Workflow: traffic_summary --save before  # labeled baseline"
+    echo "                 # ... run your test ..."
+    echo "                 traffic_summary --save after   # labeled post-test"
+    echo "                 traffic_summary --show         # list snapshots"
+    echo "                 traffic_summary before after   # delta by label"
+    echo "                 traffic_summary zeroed after   # absolute values"
+    echo "                 traffic_summary before after --json  # JSON output"
+    return 0
+  fi
 
   if [ "$1" = "--clean" ]
   then
@@ -843,6 +855,49 @@ traffic_summary() {
   fi
 
   mkdir -p "${snap_dir}"
+  touch "${snap_dir}/labels"
+
+  # Resolve a reference (label or timestamp) to "filepath timestamp".
+  _resolve_ref() {
+    local ref=$1
+    if [ "$ref" = "zeroed" ]; then
+      echo "/dev/null 0"
+      return 0
+    fi
+    # Try as label first
+    local ts=$(awk -F= -v l="$ref" '$1==l{print $2;exit}' "${snap_dir}/labels")
+    if [ -n "$ts" ] && [ -f "${snap_dir}/counters.${ts}" ]; then
+      echo "${snap_dir}/counters.${ts} ${ts}"
+      return 0
+    fi
+    # Try as timestamp
+    if [ -f "${snap_dir}/counters.${ref}" ]; then
+      echo "${snap_dir}/counters.${ref} ${ref}"
+      return 0
+    fi
+    return 1
+  }
+
+  # Reverse-lookup: timestamp to label (if any)
+  _label_for_ts() {
+    awk -F= -v t="$1" '$2==t{print $1;exit}' "${snap_dir}/labels"
+  }
+
+  # Format a reference for display: "timestamp (label) date"
+  _fmt_ref() {
+    local ts=$1
+    if [ "$ts" = "0" ]; then
+      printf "${C_CYN}zeroed${C_RST}"
+      return
+    fi
+    local lbl=$(_label_for_ts "$ts")
+    local dt=$(date -d @${ts} '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+    if [ -n "$lbl" ]; then
+      printf "${C_CYN}%s${C_RST} (%s) %s" "$ts" "$lbl" "$dt"
+    else
+      printf "${C_CYN}%s${C_RST} %s" "$ts" "$dt"
+    fi
+  }
 
   # Show history
   if [ "$1" = "--show" ]
@@ -850,37 +905,82 @@ traffic_summary() {
     local files=$(ls -1 "${snap_dir}"/counters.* 2>/dev/null | sort)
     if [ -z "$files" ]; then
       echo "No snapshots saved yet."
+      unset -f _resolve_ref _label_for_ts _fmt_ref
       return 0
     fi
-    echo "[timestamp unix] [date/time]"
+    printf "${C_BLD}%-14s  %-12s  %s${C_RST}\n" "TIMESTAMP" "LABEL" "DATE/TIME"
     for f in ${files}; do
       local t=${f##*.}
-      printf "%-14s   %s\n" "${t}" "$(date -d @${t} '+%Y-%m-%d %H:%M:%S')"
+      local lbl=$(_label_for_ts "$t")
+      printf "%-14s  %-12s  %s\n" "${t}" "${lbl:--}" "$(date -d @${t} '+%Y-%m-%d %H:%M:%S')"
     done
+    unset -f _resolve_ref _label_for_ts _fmt_ref
     return 0
   fi
 
-  # No args: save snapshot
-  if [ $# -eq 0 ]
+  # Save snapshot (with optional label)
+  if [ $# -eq 0 ] || [ "$1" = "--save" ]
   then
+    local label=""
+    if [ "$1" = "--save" ]; then
+      label=$2
+      if [ -z "$label" ]; then
+        echo "Usage: traffic_summary --save <label>"
+        unset -f _resolve_ref _label_for_ts _fmt_ref
+        return 1
+      fi
+      if [ "$label" = "zeroed" ]; then
+        echo "Error: 'zeroed' is a reserved label."
+        unset -f _resolve_ref _label_for_ts _fmt_ref
+        return 1
+      fi
+    fi
     local m=$(curl -s $(metrics_url))
-    [ -z "$m" ] && echo "No metrics available (is h2agent running?)" && return 1
+    if [ -z "$m" ]; then
+      echo "No metrics available (is h2agent running?)"
+      unset -f _resolve_ref _label_for_ts _fmt_ref
+      return 1
+    fi
     local ts=$(date +%s)
-    echo "$m" | grep '_counter{' > "${snap_dir}/counters.${ts}"
-    echo "Snapshot saved: ${ts}  $(date -d @${ts} '+%Y-%m-%d %H:%M:%S')"
+    echo "$m" | grep -E '_counter\{|_gauge\{|_bucket\{|_sum\{|_count\{' > "${snap_dir}/counters.${ts}"
+    if [ -n "$label" ]; then
+      # Remove old mapping for this label if exists
+      sed -i "/^${label}=/d" "${snap_dir}/labels"
+      echo "${label}=${ts}" >> "${snap_dir}/labels"
+      echo -e "Snapshot saved: $(_fmt_ref "$ts")"
+    else
+      echo -e "Snapshot saved: $(_fmt_ref "$ts")"
+    fi
+    unset -f _resolve_ref _label_for_ts _fmt_ref
     return 0
   fi
 
-  # Two args: delta between timestamps
-  if [ $# -ne 2 ]
-  then
+  # Delta mode: need at least 2 refs
+  local json=false
+  local args=()
+  for a in "$@"; do
+    [ "$a" = "--json" ] && json=true || args+=("$a")
+  done
+
+  if [ ${#args[@]} -ne 2 ]; then
     traffic_summary -h
+    unset -f _resolve_ref _label_for_ts _fmt_ref
     return 1
   fi
 
-  local f1="${snap_dir}/counters.$1" f2="${snap_dir}/counters.$2"
-  [ ! -f "$f1" ] && echo "Snapshot $1 not found." && return 1
-  [ ! -f "$f2" ] && echo "Snapshot $2 not found." && return 1
+  local resolved1=$(_resolve_ref "${args[0]}")
+  [ -z "$resolved1" ] && echo "Reference '${args[0]}' not found." && unset -f _resolve_ref _label_for_ts _fmt_ref && return 1
+  local f1=${resolved1% *} ts1=${resolved1##* }
+
+  local resolved2=$(_resolve_ref "${args[1]}")
+  [ -z "$resolved2" ] && echo "Reference '${args[1]}' not found." && unset -f _resolve_ref _label_for_ts _fmt_ref && return 1
+  local f2=${resolved2% *} ts2=${resolved2##* }
+
+  # Silent swap: counters always grow, so ensure older snapshot is first
+  if [ "$ts1" -gt "$ts2" ] 2>/dev/null; then
+    local tmp_f=$f1 tmp_ts=$ts1
+    f1=$f2; ts1=$ts2; f2=$tmp_f; ts2=$tmp_ts
+  fi
 
   # Counter delta helper: f2 minus f1
   _tc() {
@@ -890,13 +990,205 @@ traffic_summary() {
     echo $((v2 - v1))
   }
 
-  echo "=== Traffic Summary ==="
-  echo "From: $1  $(date -d @$1 '+%Y-%m-%d %H:%M:%S')"
-  echo "To:   $2  $(date -d @$2 '+%Y-%m-%d %H:%M:%S')"
+  # Float delta helper (for histogram _sum)
+  _tf() {
+    local pattern=$1
+    local v2=$(awk "/${pattern}/{s+=\$2}END{printf \"%.9f\", s}" "$f2")
+    local v1=$(awk "/${pattern}/{s+=\$2}END{printf \"%.9f\", s}" "$f1")
+    awk "BEGIN{printf \"%.9f\", ${v2} - ${v1}}"
+  }
+
+  # Gauge stats from f2: prints "min avg max" (floats)
+  _gauge_stats() {
+    local pattern=$1
+    awk "/${pattern}/{v=\$2;n++;s+=v;if(n==1||v<mn)mn=v;if(n==1||v>mx)mx=v}END{if(n>0)printf \"%.6f %.6f %.6f\",mn,s/n,mx;else print \"- - -\"}" "$f2"
+  }
+
+  # Percentile from histogram buckets (linear interpolation like Prometheus histogram_quantile)
+  # Usage: _hpct <metric_prefix> <p1> [p2] [p3] ...
+  # Prints space-separated percentile values
+  _hpct() {
+    local prefix=$1; shift
+    awk -v prefix="$prefix" -v pcts="$*" -v file1="$f1" '
+    BEGIN { np = split(pcts, P, " ") }
+    FILENAME==file1 {
+      if (index($0, prefix "_bucket{")) {
+        match($0, /le="[^"]*"/); le = substr($0, RSTART+4, RLENGTH-5)
+        f1[le] += $2
+      }
+      next
+    }
+    {
+      if (index($0, prefix "_bucket{")) {
+        match($0, /le="[^"]*"/); le = substr($0, RSTART+4, RLENGTH-5)
+        f2[le] += $2
+      }
+    }
+    END {
+      n = 0
+      for (le in f2) {
+        d = (f2[le]+0) - (f1[le]+0)
+        if (le == "+Inf") { total = d; continue }
+        n++; bnd[n] = le+0; cnt[le+0] = d
+      }
+      for (i=1;i<=n;i++) for (j=i+1;j<=n;j++) if(bnd[i]>bnd[j]){t=bnd[i];bnd[i]=bnd[j];bnd[j]=t}
+      if (total+0 <= 0) { for (i=1;i<=np;i++) printf "N/A "; print ""; exit }
+      for (pi=1;pi<=np;pi++) {
+        tgt = P[pi]/100 * total; prev_le=0; prev_cnt=0; res="N/A"
+        for (i=1;i<=n;i++) {
+          if (cnt[bnd[i]] >= tgt) {
+            denom = cnt[bnd[i]] - prev_cnt
+            res = (denom>0) ? prev_le + (bnd[i]-prev_le)*(tgt-prev_cnt)/denom : bnd[i]
+            break
+          }
+          prev_le=bnd[i]; prev_cnt=cnt[bnd[i]]
+        }
+        printf "%s ", res
+      }
+      print ""
+    }' "$f1" "$f2"
+  }
+
+  # Per-label latency breakdown (source, method, status_code)
+  # Outputs pipe-separated: source|method|status_code|avg_s|gauge_s|count
+  _latency_by_label() {
+    local prefix=$1
+    awk -v prefix="$prefix" -v file1="$f1" '
+    function xlab(s, name,    p, i, v) {
+      p = name "=\""
+      if ((i = index(s, p)) > 0) { v = substr(s, i+length(p)); return substr(v, 1, index(v, "\"")-1) }
+      return ""
+    }
+    {
+      if (index($0, prefix "_sum{")) t = "sum"
+      else if (index($0, prefix "_count{")) t = "count"
+      else if (index($0, prefix "_gauge{")) t = "gauge"
+      else next
+      match($0, /\{[^}]*\}/); lb = substr($0, RSTART+1, RLENGTH-2)
+      if (FILENAME==file1) a1[t,lb]+=$NF; else { a2[t,lb]+=$NF; seen[lb]=1 }
+    }
+    END {
+      for (lb in seen) {
+        dc = (a2["count",lb]+0) - (a1["count",lb]+0)
+        ds = (a2["sum",lb]+0) - (a1["sum",lb]+0)
+        g = a2["gauge",lb]+0
+        if (dc > 0 || g > 0) {
+          avg = (dc>0) ? ds/dc : 0
+          printf "%s|%s|%s|%.6f|%.6f|%d\n", xlab(lb,"source"), xlab(lb,"method"), xlab(lb,"status_code"), avg, g, dc
+        }
+      }
+    }' "$f1" "$f2" | sort -t'|' -k1,1 -k2,2 -k3,3n
+  }
+
+  # --- JSON output ---
+  if $json; then
+    local j='{'
+    j+="\"from\":\"${ts1}\",\"to\":\"${ts2}\","
+
+    if grep -q '^h2agent_traffic_server_' "$f2" 2>/dev/null; then
+      local srv_accepted=$(_tc '^h2agent_traffic_server_observed_requests_accepted_counter\{')
+      local srv_errored=$(_tc '^h2agent_traffic_server_observed_requests_errored_counter\{')
+      local srv_responses=$(_tc '^h2agent_traffic_server_observed_responses_counter\{')
+      local srv_prov_ok=$(_tc '^h2agent_traffic_server_provisioned_requests_counter\{.*result="successful"')
+      local srv_prov_fail=$(_tc '^h2agent_traffic_server_provisioned_requests_counter\{.*result="failed"')
+      local srv_purge_ok=$(_tc '^h2agent_traffic_server_purged_contexts_counter\{.*result="successful"')
+      local srv_purge_fail=$(_tc '^h2agent_traffic_server_purged_contexts_counter\{.*result="failed"')
+      j+="\"server\":{\"requests_accepted\":${srv_accepted},\"requests_errored\":${srv_errored},"
+      j+="\"responses\":${srv_responses},"
+      # response codes
+      j+="\"response_codes\":{"
+      local codes=$(grep '^h2agent_traffic_server_observed_responses_counter{' "$f2" | sed 's/.*status_code="\([^"]*\)".*/\1/' | sort -u)
+      local first=true
+      for code in ${codes}; do
+        local count=$(_tc "^h2agent_traffic_server_observed_responses_counter\{.*status_code=\"${code}\"")
+        if [ $count -gt 0 ]; then
+          $first || j+=","
+          j+="\"${code}\":${count}"
+          first=false
+        fi
+      done
+      j+="},"
+      j+="\"provisioned_ok\":${srv_prov_ok},\"provisioned_fail\":${srv_prov_fail},"
+      j+="\"purged_ok\":${srv_purge_ok},\"purged_fail\":${srv_purge_fail}},"
+    fi
+
+    if grep -q '^h2agent_traffic_client_' "$f2" 2>/dev/null; then
+      local sent=$(_tc '^h2agent_traffic_client_observed_requests_sents_counter\{')
+      local unsent=$(_tc '^h2agent_traffic_client_observed_requests_unsent_counter\{')
+      local timedout=$(_tc '^h2agent_traffic_client_observed_responses_timedout_counter\{')
+      local jc_fail=$(_tc '^h2agent_traffic_client_response_validation_failures_counter\{')
+      local rx_2xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="2')
+      local rx_3xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="3')
+      local rx_4xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="4')
+      local rx_5xx=$(_tc '^h2agent_traffic_client_observed_responses_received_counter\{.*status_code="5')
+      local received=$((rx_2xx + rx_3xx + rx_4xx + rx_5xx))
+      local failed=$((unsent + timedout + rx_4xx + rx_5xx))
+      local total=$((sent + unsent))
+      local verdict="NO_DATA" pass_pct="0.00"
+      if [ $failed -eq 0 ] && [ $total -gt 0 ]; then
+        verdict="PASS"; pass_pct="100.00"
+      elif [ $total -gt 0 ]; then
+        verdict="FAIL"; pass_pct=$(awk "BEGIN{printf \"%.2f\", ($total - $failed) * 100 / $total}")
+      fi
+      j+="\"client\":{\"sent\":${sent},\"unsent\":${unsent},"
+      j+="\"received\":${received},\"rx_2xx\":${rx_2xx},\"rx_3xx\":${rx_3xx},\"rx_4xx\":${rx_4xx},\"rx_5xx\":${rx_5xx},"
+      j+="\"timedout\":${timedout},\"jc_failures\":${jc_fail},"
+      j+="\"total\":${total},\"failed\":${failed},"
+      j+="\"verdict\":\"${verdict}\",\"pass_pct\":${pass_pct}"
+      # Latency
+      local _lp="h2agent_traffic_client_responses_delay_seconds"
+      local jlat=""
+      if grep -q "^${_lp}_gauge{" "$f2" 2>/dev/null; then
+        local gs=$(_gauge_stats "^${_lp}_gauge\{")
+        local g_min=${gs%% *}; local g_rest=${gs#* }; local g_avg=${g_rest%% *}; local g_max=${g_rest#* }
+        jlat+="\"gauge_min\":${g_min},\"gauge_avg\":${g_avg},\"gauge_max\":${g_max},"
+      fi
+      if grep -q "^${_lp}_count{" "$f2" 2>/dev/null; then
+        local d_sum=$(_tf "^${_lp}_sum\{")
+        local d_count=$(_tc "^${_lp}_count\{")
+        if [ "$d_count" -gt 0 ] 2>/dev/null; then
+          local avg_lat=$(awk "BEGIN{printf \"%.9f\", ${d_sum}/${d_count}}")
+          jlat+="\"avg\":${avg_lat},"
+        fi
+        local pcts=$(_hpct "$_lp" 50 90 99)
+        local p50=${pcts%% *}; local pcts_rest=${pcts#* }; local p90=${pcts_rest%% *}; local p99=${pcts_rest#* }
+        p99=${p99%% *}
+        [ "$p50" != "N/A" ] && jlat+="\"p50\":${p50},\"p90\":${p90},\"p99\":${p99},"
+      fi
+      # Per-label breakdown
+      local breakdown=$(_latency_by_label "$_lp")
+      if [ -n "$breakdown" ]; then
+        jlat+="\"by_label\":["
+        local first_bl=true
+        while IFS='|' read -r src mth sc avg g cnt; do
+          $first_bl || jlat+=","
+          jlat+="{\"source\":\"${src}\",\"method\":\"${mth}\",\"status_code\":\"${sc}\","
+          jlat+="\"avg\":${avg},\"gauge\":${g},\"count\":${cnt}}"
+          first_bl=false
+        done <<< "$breakdown"
+        jlat+="],"
+      fi
+      if [ -n "$jlat" ]; then
+        j+=",\"latency\":{${jlat%,}}"
+      fi
+      j+="},"
+    fi
+
+    # Remove trailing comma and close
+    j="${j%,}}"
+    echo "$j" | python3 -m json.tool 2>/dev/null || echo "$j"
+    unset -f _tc _tf _gauge_stats _hpct _latency_by_label _resolve_ref _label_for_ts _fmt_ref
+    return 0
+  fi
+
+  # --- Table output ---
+  echo -e "${C_BLD}=== Traffic Summary ===${C_RST}"
+  echo -e "From: $(_fmt_ref "$ts1")"
+  echo -e "To:   $(_fmt_ref "$ts2")"
   echo
 
   # Server (auto-detect)
-  if grep -q '^h2agent_traffic_server_' "$f2"
+  if grep -q '^h2agent_traffic_server_' "$f2" 2>/dev/null
   then
     local srv_accepted=$(_tc '^h2agent_traffic_server_observed_requests_accepted_counter\{')
     local srv_errored=$(_tc '^h2agent_traffic_server_observed_requests_errored_counter\{')
@@ -906,23 +1198,23 @@ traffic_summary() {
     local srv_purge_ok=$(_tc '^h2agent_traffic_server_purged_contexts_counter\{.*result="successful"')
     local srv_purge_fail=$(_tc '^h2agent_traffic_server_purged_contexts_counter\{.*result="failed"')
 
-    echo "--- Server ---"
-    echo "Requests:    ${srv_accepted} accepted, ${srv_errored} errored"
-    echo "Responses:   ${srv_responses}"
+    echo -e "${C_BLD}--- Server ---${C_RST}"
+    printf "  %-14s %s accepted, %s errored\n" "Requests:" "${srv_accepted}" "${srv_errored}"
+    printf "  %-14s %s\n" "Responses:" "${srv_responses}"
 
     local codes=$(grep '^h2agent_traffic_server_observed_responses_counter{' "$f2" | sed 's/.*status_code="\([^"]*\)".*/\1/' | sort -u)
     for code in ${codes}; do
       local count=$(_tc "^h2agent_traffic_server_observed_responses_counter\{.*status_code=\"${code}\"")
-      [ $count -gt 0 ] && echo "  ${code}: ${count}"
+      [ $count -gt 0 ] && printf "    %-12s %s\n" "${code}:" "${count}"
     done
 
-    echo "Provisioned: ${srv_prov_ok} ok / ${srv_prov_fail} failed"
-    echo "Purged:      ${srv_purge_ok} ok / ${srv_purge_fail} failed"
+    printf "  %-14s %s ok / %s failed\n" "Provisioned:" "${srv_prov_ok}" "${srv_prov_fail}"
+    printf "  %-14s %s ok / %s failed\n" "Purged:" "${srv_purge_ok}" "${srv_purge_fail}"
     echo
   fi
 
   # Client (auto-detect) + verdict
-  if grep -q '^h2agent_traffic_client_' "$f2"
+  if grep -q '^h2agent_traffic_client_' "$f2" 2>/dev/null
   then
     local sent=$(_tc '^h2agent_traffic_client_observed_requests_sents_counter\{')
     local unsent=$(_tc '^h2agent_traffic_client_observed_requests_unsent_counter\{')
@@ -937,24 +1229,62 @@ traffic_summary() {
     local failed=$((unsent + timedout + rx_4xx + rx_5xx))
     local total=$((sent + unsent))
 
-    echo "--- Client ---"
-    echo "Sent:       ${sent}"
-    echo "Unsent:     ${unsent}"
-    echo "Received:   ${received} (2xx:${rx_2xx} 3xx:${rx_3xx} 4xx:${rx_4xx} 5xx:${rx_5xx})"
-    echo "Timeouts:   ${timedout}"
-    [ $jc_fail -gt 0 ] && echo "JC failures: ${jc_fail}"
-    echo "---"
+    echo -e "${C_BLD}--- Client ---${C_RST}"
+    printf "  %-14s %s\n" "Sent:" "${sent}"
+    printf "  %-14s %s\n" "Unsent:" "${unsent}"
+    printf "  %-14s %s (2xx:${C_GRN}%s${C_RST} 3xx:%s 4xx:${C_YLW}%s${C_RST} 5xx:${C_RED}%s${C_RST})\n" \
+      "Received:" "${received}" "${rx_2xx}" "${rx_3xx}" "${rx_4xx}" "${rx_5xx}"
+    printf "  %-14s %s\n" "Timeouts:" "${timedout}"
+    [ $jc_fail -gt 0 ] && printf "  %-14s %s\n" "JC failures:" "${jc_fail}"
+    echo -e "  ${C_BLD}---${C_RST}"
     if [ $failed -eq 0 ] && [ $total -gt 0 ]; then
-      echo "PASS: 100% (${total}/${total})"
+      echo -e "  ${C_GRN}${C_BLD}PASS: 100% (${total}/${total})${C_RST}"
     elif [ $total -gt 0 ]; then
       local pass_pct=$(awk "BEGIN{printf \"%.2f\", ($total - $failed) * 100 / $total}")
-      echo "FAIL: ${pass_pct}% pass ($((total - failed))/${total}, ${failed} failed)"
+      echo -e "  ${C_RED}${C_BLD}FAIL: ${pass_pct}% pass ($((total - failed))/${total}, ${failed} failed)${C_RST}"
     else
-      echo "NO DATA"
+      echo -e "  ${C_YLW}NO DATA${C_RST}"
+    fi
+
+    # Latency
+    local _lp="h2agent_traffic_client_responses_delay_seconds"
+    local has_gauge=false has_hist=false
+    grep -q "^${_lp}_gauge{" "$f2" 2>/dev/null && has_gauge=true
+    grep -q "^${_lp}_count{" "$f2" 2>/dev/null && has_hist=true
+
+    if $has_gauge || $has_hist; then
+      echo
+      echo -e "  ${C_BLD}Latency (s):${C_RST}"
+      if $has_gauge; then
+        local gs=$(_gauge_stats "^${_lp}_gauge\{")
+        local g_min=${gs%% *}; local g_rest=${gs#* }; local g_avg=${g_rest%% *}; local g_max=${g_rest#* }
+        printf "    %-12s min=%s  avg=%s  max=%s\n" "Gauge:" "$g_min" "$g_avg" "$g_max"
+      fi
+      if $has_hist; then
+        local d_sum=$(_tf "^${_lp}_sum\{")
+        local d_count=$(_tc "^${_lp}_count\{")
+        if [ "$d_count" -gt 0 ] 2>/dev/null; then
+          local avg_lat=$(awk "BEGIN{printf \"%.6f\", ${d_sum}/${d_count}}")
+          printf "    %-12s %s  (sum=%s count=%s)\n" "Average:" "$avg_lat" "$d_sum" "$d_count"
+        fi
+        local pcts=$(_hpct "$_lp" 50 90 99)
+        local p50=${pcts%% *}; local pcts_rest=${pcts#* }; local p90=${pcts_rest%% *}; local p99=${pcts_rest#* }
+        p99=${p99%% *}
+        [ "$p50" != "N/A" ] && printf "    %-12s p50=%s  p90=%s  p99=%s\n" "Percentile:" "$p50" "$p90" "$p99"
+      fi
+      # Per-label breakdown
+      local breakdown=$(_latency_by_label "$_lp")
+      if [ -n "$breakdown" ]; then
+        echo -e "    ${C_BLD}By label:${C_RST}"
+        printf "      ${C_BLD}%-28s %-6s %-6s %-12s %-12s %s${C_RST}\n" "SOURCE" "METHOD" "STATUS" "AVG(s)" "GAUGE(s)" "COUNT"
+        while IFS='|' read -r src mth sc avg g cnt; do
+          printf "      %-28s %-6s %-6s %-12s %-12s %s\n" "$src" "$mth" "$sc" "$avg" "$g" "$cnt"
+        done <<< "$breakdown"
+      fi
     fi
   fi
 
-  unset -f _tc
+  unset -f _tc _tf _gauge_stats _hpct _latency_by_label _resolve_ref _label_for_ts _fmt_ref
 }
 
 snapshot() {
