@@ -88,6 +88,15 @@ public:
      * @return Boolean about if something was deleted
      */
     bool removeEventBySendSeq(std::uint64_t sendSeq);
+
+    /**
+     * Gets event matching a given send sequence
+     *
+     * @param sendSeq Send sequence to match
+     *
+     * @return Mock event or nullptr if not found
+     */
+    std::shared_ptr<MockEvent> getEventBySendSeq(std::uint64_t sendSeq);
 };
 
 }

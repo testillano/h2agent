@@ -82,6 +82,14 @@ public:
 
     // getters
 
+    /** Receive sequence
+     *
+     * @return Receive sequence (1..N)
+     */
+    std::uint64_t getRecvSeq() const {
+        return recv_seq_;
+    }
+
     /** Request body
      *
      * @return Request body

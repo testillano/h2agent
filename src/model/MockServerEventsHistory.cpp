@@ -58,6 +58,29 @@ void MockServerEventsHistory::loadEvent(const std::string &previousState, const 
     MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
 }
 
+bool MockServerEventsHistory::removeEventByRecvSeq(std::uint64_t recvSeq) {
+
+    write_guard_t guard(rw_mutex_);
+    for (auto it = events_.begin(); it != events_.end(); ++it) {
+        if (std::static_pointer_cast<MockServerEvent>(*it)->getRecvSeq() == recvSeq) {
+            events_.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
+std::shared_ptr<MockEvent> MockServerEventsHistory::getEventByRecvSeq(std::uint64_t recvSeq) {
+
+    read_guard_t guard(rw_mutex_);
+    for (const auto& event : events_) {
+        if (std::static_pointer_cast<MockServerEvent>(event)->getRecvSeq() == recvSeq) {
+            return event;
+        }
+    }
+    return nullptr;
+}
+
 }
 }
 

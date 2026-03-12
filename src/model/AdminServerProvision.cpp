@@ -307,6 +307,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         // requestUri:    index 1
         // eventNumber:   index 2
         // eventPath:     index 3
+        // recvseq:       index 4
         std::string event_method = transformation->getSourceTokenized()[0];
         replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_uri = transformation->getSourceTokenized()[1];
@@ -315,11 +316,25 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_path = transformation->getSourceTokenized()[3];
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_recvseq = transformation->getSourceTokenized()[4];
+        replaceVariables(event_recvseq, transformation->getSourcePatterns(), variables, global_variable_);
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
-        EventKey ekey(event_method, event_uri, event_number);
-        auto mockServerRequest = mock_server_events_data_->getEvent(ekey);
+        std::shared_ptr<MockEvent> mockServerRequest;
+
+        if (!event_recvseq.empty()) {
+            try {
+                DataKey dkey(event_method, event_uri);
+                mockServerRequest = mock_server_events_data_->getEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
+            }
+            catch (const std::exception&) { return false; }
+        }
+        else {
+            EventKey ekey(event_method, event_uri, event_number);
+            mockServerRequest = mock_server_events_data_->getEvent(ekey);
+        }
+
         if (!mockServerRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract server event for variable '%s' in transformation item", transformation->getSource().c_str());
@@ -329,10 +344,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
 
         if (!sourceVault.setObject(mockServerRequest->getJson(), event_path /* document path (empty or not to be whole 'requests number' or node) */)) {
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Unexpected error extracting server event for variable '%s' in transformation item", transformation->getSource().c_str());
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
+            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Cannot extract path '%s' from server event for source '%s'", event_path.c_str(), transformation->getSource().c_str()), ERT_FILE_LOCATION);
             return false;
         }
 
@@ -405,6 +417,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         // requestUri:       index 2
         // eventNumber:      index 3
         // eventPath:        index 4
+        // sendseq:          index 5
         std::string event_endpoint = transformation->getSourceTokenized()[0];
         replaceVariables(event_endpoint, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_method = transformation->getSourceTokenized()[1];
@@ -415,10 +428,23 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_path = transformation->getSourceTokenized()[4];
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_sendseq = transformation->getSourceTokenized()[5];
+        replaceVariables(event_sendseq, transformation->getSourcePatterns(), variables, global_variable_);
 
         DataKey dkey(event_endpoint, event_method, event_uri);
-        EventKey ekey(dkey, event_number);
-        auto mockClientRequest = mock_client_events_data_->getEvent(ekey);
+        std::shared_ptr<MockEvent> mockClientRequest;
+
+        if (!event_sendseq.empty()) {
+            try {
+                mockClientRequest = mock_client_events_data_->getEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
+            }
+            catch (const std::exception&) { return false; }
+        }
+        else {
+            EventKey ekey(dkey, event_number);
+            mockClientRequest = mock_client_events_data_->getEvent(ekey);
+        }
+
         if (!mockClientRequest) {
             LOGDEBUG(
                 std::string msg = ert::tracing::Logger::asString("Unable to extract client event for variable '%s' in transformation item", transformation->getSource().c_str());
@@ -428,10 +454,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
 
         if (!sourceVault.setObject(mockClientRequest->getJson(), event_path)) {
-            LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Unexpected error extracting client event for variable '%s' in transformation item", transformation->getSource().c_str());
-                ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-            );
+            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Cannot extract path '%s' from client event for source '%s'", event_path.c_str(), transformation->getSource().c_str()), ERT_FILE_LOCATION);
             return false;
         }
 
@@ -1089,23 +1112,35 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             // requestMethod: index 0
             // requestUri:    index 1
             // eventNumber:   index 2
+            // recvseq:       index 3
             std::string event_method = transformation->getTargetTokenized()[0];
             replaceVariables(event_method, transformation->getTargetPatterns(), variables, global_variable_);
             std::string event_uri = transformation->getTargetTokenized()[1];
             replaceVariables(event_uri, transformation->getTargetPatterns(), variables, global_variable_);
             std::string event_number = transformation->getTargetTokenized()[2];
             replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_);
+            std::string event_recvseq = transformation->getTargetTokenized()[3];
+            replaceVariables(event_recvseq, transformation->getTargetPatterns(), variables, global_variable_);
 
             bool serverDataDeleted = false;
-            EventKey ekey(event_method, event_uri, event_number);
-            bool success = mock_server_events_data_->clear(serverDataDeleted, ekey);
 
-            if (!success) {
-                LOGDEBUG(
-                    std::string msg = ert::tracing::Logger::asString("Unexpected error while removing server data event '%s' in transformation item", transformation->getTarget().c_str());
-                    ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-                );
-                return false;
+            if (!event_recvseq.empty()) {
+                // Stable addressing by receive sequence:
+                DataKey dkey(event_method, event_uri);
+                serverDataDeleted = mock_server_events_data_->removeEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
+            }
+            else {
+                // Positional addressing by event number:
+                EventKey ekey(event_method, event_uri, event_number);
+                bool success = mock_server_events_data_->clear(serverDataDeleted, ekey);
+
+                if (!success) {
+                    LOGDEBUG(
+                        std::string msg = ert::tracing::Logger::asString("Unexpected error while removing server data event '%s' in transformation item", transformation->getTarget().c_str());
+                        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
+                    );
+                    return false;
+                }
             }
 
             LOGDEBUG(

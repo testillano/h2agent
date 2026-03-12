@@ -460,11 +460,26 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_path = transformation->getSourceTokenized()[3];
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_recvseq = transformation->getSourceTokenized()[4];
+        replaceVariables(event_recvseq, transformation->getSourcePatterns(), variables, global_variable_);
 
-        EventKey ekey(event_method, event_uri, event_number);
-        auto mockServerRequest = mock_server_events_data_->getEvent(ekey);
+        std::shared_ptr<MockEvent> mockServerRequest;
+        if (!event_recvseq.empty()) {
+            try {
+                DataKey dkey(event_method, event_uri);
+                mockServerRequest = mock_server_events_data_->getEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
+            }
+            catch (const std::exception&) { return false; }
+        }
+        else {
+            EventKey ekey(event_method, event_uri, event_number);
+            mockServerRequest = mock_server_events_data_->getEvent(ekey);
+        }
         if (!mockServerRequest) return false;
-        if (!sourceVault.setObject(mockServerRequest->getJson(), event_path)) return false;
+        if (!sourceVault.setObject(mockServerRequest->getJson(), event_path)) {
+            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Cannot extract path '%s' from server event for source '%s'", event_path.c_str(), transformation->getSource().c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
         break;
     }
     case Transformation::SourceType::ClientEvent:
@@ -479,12 +494,26 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
         std::string event_path = transformation->getSourceTokenized()[4];
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+        std::string event_sendseq = transformation->getSourceTokenized()[5];
+        replaceVariables(event_sendseq, transformation->getSourcePatterns(), variables, global_variable_);
 
         DataKey dkey(event_endpoint, event_method, event_uri);
-        EventKey ekey(dkey, event_number);
-        auto mockClientRequest = mock_client_events_data_->getEvent(ekey);
+        std::shared_ptr<MockEvent> mockClientRequest;
+        if (!event_sendseq.empty()) {
+            try {
+                mockClientRequest = mock_client_events_data_->getEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
+            }
+            catch (const std::exception&) { return false; }
+        }
+        else {
+            EventKey ekey(dkey, event_number);
+            mockClientRequest = mock_client_events_data_->getEvent(ekey);
+        }
         if (!mockClientRequest) return false;
-        if (!sourceVault.setObject(mockClientRequest->getJson(), event_path)) return false;
+        if (!sourceVault.setObject(mockClientRequest->getJson(), event_path)) {
+            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Cannot extract path '%s' from client event for source '%s'", event_path.c_str(), transformation->getSource().c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
         break;
     }
     case Transformation::SourceType::InState:
@@ -891,6 +920,13 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         case Transformation::TargetType::ClientEventToPurge:
         {
             if (!eraser) return false;
+            // transformation->getTargetTokenized() is a vector:
+            //
+            // clientEndpointId: index 0
+            // requestMethod:    index 1
+            // requestUri:       index 2
+            // eventNumber:      index 3
+            // sendseq:          index 4
             std::string event_endpoint = transformation->getTargetTokenized()[0];
             replaceVariables(event_endpoint, transformation->getTargetPatterns(), variables, global_variable_);
             std::string event_method = transformation->getTargetTokenized()[1];
@@ -899,11 +935,21 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
             replaceVariables(event_uri, transformation->getTargetPatterns(), variables, global_variable_);
             std::string event_number = transformation->getTargetTokenized()[3];
             replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_);
+            std::string event_sendseq = transformation->getTargetTokenized()[4];
+            replaceVariables(event_sendseq, transformation->getTargetPatterns(), variables, global_variable_);
 
             bool clientDataDeleted = false;
             DataKey dkey(event_endpoint, event_method, event_uri);
-            EventKey ekey(dkey, event_number);
-            mock_client_events_data_->clear(clientDataDeleted, ekey);
+
+            if (!event_sendseq.empty()) {
+                // Stable addressing by send sequence:
+                clientDataDeleted = mock_client_events_data_->removeEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
+            }
+            else {
+                // Positional addressing by event number:
+                EventKey ekey(dkey, event_number);
+                mock_client_events_data_->clear(clientDataDeleted, ekey);
+            }
             break;
         }
         case Transformation::TargetType::Break:

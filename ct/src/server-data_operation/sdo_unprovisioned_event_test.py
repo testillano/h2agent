@@ -32,7 +32,7 @@ def test_001_i_want_to_check_internal_data_after_unprovisioned_event(h2ac_admin,
   #        "receptionTimestampUs": 1625996928191588,
   #        "responseDelayMs": 0,
   #        "responseStatusCode": 501,
-  #        "serverSequence": 1,
+  #        "recvseq": 1,
   #        "state": ""
   #      }
   #    ],

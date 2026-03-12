@@ -99,6 +99,16 @@ public:
      * @return Boolean about if something was deleted
      */
     bool removeEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq);
+
+    /**
+     * Gets event matching a given send sequence within a data key
+     *
+     * @param dataKey Events key (client endpoint id, method & uri).
+     * @param sendSeq Send sequence to match
+     *
+     * @return Mock event or nullptr if not found
+     */
+    std::shared_ptr<MockEvent> getEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq);
 };
 
 }

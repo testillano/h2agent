@@ -1,0 +1,41 @@
+[
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/seq-test/data",
+    "responseCode": 200,
+    "responseBody": {"origin": "seq-test"},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {
+        "source": "recvseq",
+        "target": "globalVar.lastRecvSeq"
+      }
+    ]
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/seq-test/read-by-seq",
+    "responseCode": 200,
+    "responseBody": {"status": "pending"},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {
+        "source": "serverEvent.requestMethod=GET&requestUri=/app/v1/seq-test/data&recvseq=@{lastRecvSeq}&eventPath=/responseBody",
+        "target": "response.body.json.object./readResult"
+      }
+    ]
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/seq-test/erase-by-seq",
+    "responseCode": 200,
+    "responseBody": {"erased": true},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {
+        "source": "eraser",
+        "target": "serverEvent.requestMethod=GET&requestUri=/app/v1/seq-test/data&recvseq=@{lastRecvSeq}"
+      }
+    ]
+  }
+]

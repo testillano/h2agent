@@ -18,7 +18,7 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
 
   # Get this first server sequence:
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
-  seq_ini = response["body"][0]["events"][0]["serverSequence"]
+  seq_ini = response["body"][0]["events"][0]["recvseq"]
 
   response = h2ac_traffic.get("/app/v1/foo/bar/1") # this will be seq_ini + 1
   response = h2ac_traffic.postDict("/app/v1/foo/bar/2", { "foo-bar":"first" })  # this will be seq_ini + 2

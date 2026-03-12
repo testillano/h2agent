@@ -156,7 +156,7 @@ class RestClient(object):
         self._connection = HTTP20Connection(host=self._endpoint)
 
     def _log_http(self, kind, method, url, body, headers):
-        length = len(body) if body else 0
+        length = len(body) if hasattr(body, '__len__') else (len(str(body)) if body is not None else 0)
         MyLogger.info(
                 '{} {}{} {} headers: {!s} data: {}:{!a}'.format(
                 method, self._endpoint, url, kind, headers, length, body))
@@ -950,13 +950,13 @@ def string2dict(content, **kwargs):
     return json.loads(content)
 
 # Assert event which had no provision
-def assertUnprovisioned(serverDataEvent, requestBody = None, serverSequence = None):
+def assertUnprovisioned(serverDataEvent, requestBody = None, recvseq = None):
   #assert serverDataEvent["previousState"] == ""
   assert serverDataEvent["responseDelayMs"] == 0
   assert serverDataEvent["responseStatusCode"] == 501
   #assert serverDataEvent["state"] == ""
   if requestBody: assert serverDataEvent["requestBody"] == requestBody
-  if serverSequence: assert serverDataEvent["serverSequence"] == serverSequence
+  if recvseq: assert serverDataEvent["recvseq"] == recvseq
 
   with pytest.raises(KeyError): val = serverDataEvent["virtualOrigin"]
   with pytest.raises(KeyError): val = serverDataEvent["responseHeaders"]

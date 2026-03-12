@@ -77,6 +77,24 @@ public:
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
     void loadEvent(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+
+    /**
+     * Removes event matching a given receive sequence
+     *
+     * @param recvSeq Receive sequence to match
+     *
+     * @return Boolean about if something was deleted
+     */
+    bool removeEventByRecvSeq(std::uint64_t recvSeq);
+
+    /**
+     * Gets event matching a given receive sequence
+     *
+     * @param recvSeq Receive sequence to match
+     *
+     * @return Mock event or nullptr if not found
+     */
+    std::shared_ptr<MockEvent> getEventByRecvSeq(std::uint64_t recvSeq);
 };
 
 }

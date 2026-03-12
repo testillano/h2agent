@@ -391,6 +391,8 @@ Let's start describing the available sources of data: regardless the native or n
 
 Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by scoped provision variables and global variables. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
+> **Important**: the `@{name}` pattern uses the bare variable name, without the `var.`/`globalVar.` prefix. Those prefixes are only used in source/target type declarations (e.g. `"target": "globalVar.myVar"`), not inside substitution patterns. For example, a variable stored via `"target": "globalVar.mySeq"` is referenced as `@{mySeq}`, not `@{globalVar.mySeq}`.
+
 
 
 The **source** of information is classified after parsing the following possible expressions:
@@ -464,12 +466,13 @@ The **source** of information is classified after parsing the following possible
 
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
-  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory unless `recvseq` is provided.
   - *eventPath*: `json` document path within selection. Optional.
+  - *recvseq*: receive sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is accessed.
 
-  > **Concurrency note**: `eventNumber` is a positional index into the events list. It is stable when each key (method + URI) is owned by a single flow (e.g. URIs containing unique identifiers like `/resources/{id}`). However, when multiple concurrent flows share the same key (e.g. a fixed URI like `/resources`), positions may shift unpredictably as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario.
+  > **Concurrency note**: `eventNumber` is a positional index into the events list. It is stable when each key (method + URI) is owned by a single flow (e.g. URIs containing unique identifiers like `/resources/{id}`). However, when multiple concurrent flows share the same key (e.g. a fixed URI like `/resources`), positions may shift unpredictably as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario. Use `recvseq` for reliable event access under concurrency.
 
-  Event addressing will retrieve a `json` object corresponding to a single event (given by `requestMethod`, `requestUri` and `eventNumber`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
+  Event addressing will retrieve a `json` object corresponding to a single event (given by `requestMethod`, `requestUri` and `eventNumber` or `recvseq`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
   For example, `serverEvent.requestMethod=GET&requestUri=/foo/var&eventNumber=3&eventPath=/requestHeaders` searches the third (event number 3) `GET /foo/bar` request and `/requestHeaders` path, as part of event definition, gives the request headers that was received. The particular case of empty event path extracts the whole event structure, and in general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), which are powerful enough to cover addressing needs.
 
@@ -546,10 +549,13 @@ The **source** of information is classified after parsing the following possible
   - *clientEndpointId*: client endpoint identifier. Mandatory.
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
-  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory unless `sendseq` is provided.
   - *eventPath*: `json` document path within selection. Optional.
+  - *sendseq*: send sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is accessed.
 
-  Event addressing will retrieve a `json` object corresponding to a single client event (given by `clientEndpointId`, `requestMethod`, `requestUri` and `eventNumber`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
+  The same concurrency considerations as `serverEvent` apply. Use `sendseq` for reliable event access under concurrency.
+
+  Event addressing will retrieve a `json` object corresponding to a single client event (given by `clientEndpointId`, `requestMethod`, `requestUri` and `eventNumber` or `sendseq`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
   For example, `clientEvent.clientEndpointId=myBackend&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody` searches the last client event for `GET /api/v1/data` sent through the `myBackend` endpoint, and `/responseBody` path gives the response body that was received.
 
@@ -640,10 +646,21 @@ The **target** of information is classified after parsing the following possible
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
   - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Optional: if not provided, all the history may be purged.
+  - *recvseq*: receive sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is removed.
 
-  > **Concurrency note**: `eventNumber` is a positional index. When multiple concurrent flows share the same key, positions may shift as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario.
+  > **Concurrency note**: `eventNumber` is a positional index. When multiple concurrent flows share the same key, positions may shift as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario. Use `recvseq` for reliable event removal under concurrency.
 
   This target, as its source counterpart, **admits variables substitution**.
+
+- clientEvent.`<client event address in query parameters format>`: analogous to the `serverEvent` eraser target above, but for client events. Event addressing is defined by client endpoint identifier (`clientEndpointId`), request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`):
+
+  - *clientEndpointId*: client endpoint identifier. Mandatory.
+  - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
+  - *requestUri*: event *URI* selected. Mandatory.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Optional: if not provided, all the history may be purged.
+  - *sendseq*: send sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is removed.
+
+  The same concurrency considerations as `serverEvent` apply. Use `sendseq` for reliable event removal under concurrency. This target **admits variables substitution**.
 
 - clientProvision.`<clientProvisionId>`.`<inState>` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `clientProvision.@{flowId}.@{myState}`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
 

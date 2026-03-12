@@ -315,7 +315,7 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "requestMethod", "requestUri", "eventNumber", "eventPath"
+        "requestMethod", "requestUri", "eventNumber", "eventPath", "recvseq"
     }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
@@ -327,7 +327,7 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath"
+        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath", "sendseq"
     }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
@@ -625,7 +625,7 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "requestMethod", "requestUri", "eventNumber"
+        "requestMethod", "requestUri", "eventNumber", "recvseq"
     }) { // tokenized vector order
             it = qmap.find(qp);
             target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
@@ -637,7 +637,7 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "clientEndpointId", "requestMethod", "requestUri", "eventNumber"
+        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "sendseq"
     }) { // tokenized vector order
             it = qmap.find(qp);
             target_tokenized_.push_back((it != qmap.end()) ? it->second:"");

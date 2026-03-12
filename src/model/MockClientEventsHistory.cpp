@@ -64,6 +64,17 @@ bool MockClientEventsHistory::removeEventBySendSeq(std::uint64_t sendSeq) {
     return false;
 }
 
+std::shared_ptr<MockEvent> MockClientEventsHistory::getEventBySendSeq(std::uint64_t sendSeq) {
+
+    read_guard_t guard(rw_mutex_);
+    for (const auto& event : events_) {
+        if (std::static_pointer_cast<MockClientEvent>(event)->getSendSeq() == sendSeq) {
+            return event;
+        }
+    }
+    return nullptr;
+}
+
 }
 }
 

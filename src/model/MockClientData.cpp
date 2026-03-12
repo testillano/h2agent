@@ -72,6 +72,15 @@ bool MockClientData::removeEventBySendSeq(const DataKey &dataKey, std::uint64_t 
     return deleted;
 }
 
+std::shared_ptr<MockEvent> MockClientData::getEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq) {
+
+    bool exists{};
+    auto events = std::static_pointer_cast<MockClientEventsHistory>(get(dataKey.getKey(), exists));
+    if (!exists) return nullptr;
+
+    return events->getEventBySendSeq(sendSeq);
+}
+
 }
 }
 

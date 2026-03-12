@@ -55,6 +55,32 @@ void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previo
     if (maiden) add(dataKey.getKey(), events); // push the key in the map:
 }
 
+bool MockServerData::removeEventByRecvSeq(const DataKey &dataKey, std::uint64_t recvSeq) {
+
+    bool exists{};
+    auto events = std::static_pointer_cast<MockServerEventsHistory>(get(dataKey.getKey(), exists));
+    if (!exists) return false;
+
+    bool deleted = events->removeEventByRecvSeq(recvSeq);
+
+    // Cleanup empty map entry:
+    if (deleted && events->size() == 0) {
+        bool aux{};
+        remove(dataKey.getKey(), aux);
+    }
+
+    return deleted;
+}
+
+std::shared_ptr<MockEvent> MockServerData::getEventByRecvSeq(const DataKey &dataKey, std::uint64_t recvSeq) {
+
+    bool exists{};
+    auto events = std::static_pointer_cast<MockServerEventsHistory>(get(dataKey.getKey(), exists));
+    if (!exists) return nullptr;
+
+    return events->getEventByRecvSeq(recvSeq);
+}
+
 }
 }
 
