@@ -329,14 +329,17 @@ ss << "TRAFFIC REQUEST RECEIVED"
         // Special out-states:
         if (purge_execution_ && outState == "purge") {
             bool somethingDeleted = false;
-            bool success = getMockServerData()->clear(somethingDeleted, h2agent::model::EventKey(normalizedKey, ""));
+
+            // Purge current key:
+            getMockServerData()->clear(somethingDeleted, h2agent::model::EventKey(normalizedKey, ""));
+
             LOGDEBUG(
-                std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", success ? "successful":"failed");
+                std::string msg = ert::tracing::Logger::asString("Requested purge in out-state. Removal %s", somethingDeleted ? "successful":"failed");
                 ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
             );
             // metrics
             if(metrics_) {
-                if (success) purged_contexts_successful_counter_->Increment();
+                if (somethingDeleted) purged_contexts_successful_counter_->Increment();
                 else purged_contexts_failed_counter_->Increment();
             }
         }

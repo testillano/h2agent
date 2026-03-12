@@ -52,6 +52,18 @@ void MockClientEventsHistory::loadEvent(const std::string &clientProvisionId, co
     MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
 }
 
+bool MockClientEventsHistory::removeEventByClientSequence(std::uint64_t clientSequence) {
+
+    write_guard_t guard(rw_mutex_);
+    for (auto it = events_.begin(); it != events_.end(); ++it) {
+        if (std::static_pointer_cast<MockClientEvent>(*it)->getClientSequence() == clientSequence) {
+            events_.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
 }
 }
 

@@ -85,6 +85,14 @@ public:
 
     // getters:
 
+    /** Client sequence
+     *
+     * @return Client sequence (1..N)
+     */
+    std::uint64_t getClientSequence() const {
+        return client_sequence_;
+    }
+
     /** Response body
      *
      * @return Response body

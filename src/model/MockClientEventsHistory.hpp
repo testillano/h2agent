@@ -79,6 +79,15 @@ public:
      * @param historyEnabled Events complete history storage
      */
     void loadEvent(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled);
+
+    /**
+     * Removes event matching a given client sequence
+     *
+     * @param clientSequence Client sequence to match
+     *
+     * @return Boolean about if something was deleted
+     */
+    bool removeEventByClientSequence(std::uint64_t clientSequence);
 };
 
 }

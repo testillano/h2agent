@@ -396,7 +396,7 @@ public:
 
     /**
      * Checks if this provision references event-dependent transformation types
-     * (serverEvent/clientEvent sources or serverEventToPurge/clientEventToPurge targets)
+     * (serverEvent/clientEvent as source or target — target with eraser source deletes events)
      *
      * @return True if any transformation requires stored events
      */

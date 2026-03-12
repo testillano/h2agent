@@ -305,7 +305,7 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 #### Special purge state
 
-Stateful scenarios normally require access to former events (available at server data storage) to evolve through different provisions, so disabling server data is not an option to make them work properly. The thing is that high load testing could impact on memory consumption of the mock server if we don't have a way to clean information which is no longer needed and could be dangerously accumulated. Here is where purge operation gets importance: the keyword '*purge*' is a reserved out-state used to indicate that server data related to an event history must be dropped (it should be configured at the last scenario stage provision). This mechanism is useful in long-term load tests to avoid the commented high memory consumption removing those scenarios which have been successfully completed. A nice side-effect of this design, is that all the failed scenarios will be available for further analysis, as purge operation is performed at last scenario stage and won't be reached normally in this case of fail.
+The keyword '*purge*' is a reserved out-state used to indicate that server data for the current data key (method + URI) must be dropped. It should be configured at the last stage of a scenario to control memory consumption in long-term load tests. Incomplete chains (due to timeouts or SUT failures) retain their full event history for forensics, since purge only fires at the chain's final step.
 
 ### Server provision fields
 
@@ -1174,7 +1174,7 @@ Be careful using this `PUT` operation in the middle of traffic load, because it 
 }
 ```
 
-The `needsStorage` field is a computed boolean: `true` when any loaded provision contains transformation items with source type `serverEvent`/`clientEvent` or target type `serverEventToPurge`/`clientEventToPurge`. This allows runners to auto-detect whether storage must be enabled for the current test scenario.
+The `needsStorage` field is a computed boolean: `true` when any loaded provision contains transformation items with source type `serverEvent`/`clientEvent` or target type `serverEvent`/`clientEvent` (with `eraser` source, used for event deletion). This allows runners to auto-detect whether storage must be enabled for the current test scenario.
 
 #### Stateful detection warnings
 
@@ -1314,7 +1314,7 @@ When *scenario1* is triggered, its current state is searched assuming "initial" 
 
 The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning.
 
-<u>Special **purge** state</u>: same concept as in server provisions. The keyword '*purge*' is a reserved out-state used to indicate that client data related to a scenario (everything for a given `id` and internal sequence) history must be dropped (it should be configured at the last scenario stage provision).
+<u>Special **purge** state</u>: the keyword '*purge*' clears all events accumulated during the chain — including events from previous steps with different endpoints, methods or URIs. This is where chain-aware purge is most valuable: client chains are identified by provision `id` + `inState`, and each step typically targets a different method+URI, so without it only the last step's events would be removed. Incomplete chains retain their full event history for forensics. The data-key-level caveat described in the server purge section applies here as well.
 
 ### Client provision fields
 
@@ -1616,7 +1616,7 @@ The triggers are executed asynchronously after the server response is fully buil
 
 ### Client storage configuration
 
-Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v1/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure is performed over the specific provision identifier, removing everything registered for any working `state` and for the current processed `sequence` value.
+Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v1/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure clears all events accumulated during the chain, removing everything registered across all steps (different endpoints, methods and URIs) that participated in the completed flow.
 
 The same agent could manage server and client connections, so you have specific configurations for internal data regarding server or client events, but normally, we shall use only one mode to better separate responsibilities within the testing ecosystem.
 

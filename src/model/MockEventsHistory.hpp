@@ -41,8 +41,8 @@ SOFTWARE.
 #include <memory>
 
 #include <MockEvent.hpp>
-#include <common.hpp>
 #include <keys.hpp>
+#include <common.hpp>
 
 
 namespace h2agent
@@ -52,11 +52,11 @@ namespace model
 
 class MockEventsHistory
 {
-    std::vector<std::shared_ptr<MockEvent>> events_{};
     std::map<std::string, std::string> chain_variables_{}; // scoped variables propagated across outState chain
-    mutable mutex_t rw_mutex_{}; // specific mutex to protect events_ and chain_variables_
 
 protected:
+    std::vector<std::shared_ptr<MockEvent>> events_{};
+    mutable mutex_t rw_mutex_{}; // specific mutex to protect events_ and chain_variables_
     DataKey data_key_;
 
 public:
@@ -152,6 +152,7 @@ public:
         read_guard_t guard(rw_mutex_);
         return chain_variables_;
     }
+
 };
 
 }

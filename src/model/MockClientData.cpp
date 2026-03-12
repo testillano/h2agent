@@ -55,6 +55,23 @@ void MockClientData::loadEvent(const DataKey &dataKey, const std::string &client
     if (maiden) add(dataKey.getKey(), events); // push the key in the map:
 }
 
+bool MockClientData::removeEventByClientSequence(const DataKey &dataKey, std::uint64_t clientSequence) {
+
+    bool exists{};
+    auto events = std::static_pointer_cast<MockClientEventsHistory>(get(dataKey.getKey(), exists));
+    if (!exists) return false;
+
+    bool deleted = events->removeEventByClientSequence(clientSequence);
+
+    // Cleanup empty map entry:
+    if (deleted && events->size() == 0) {
+        bool aux{};
+        remove(dataKey.getKey(), aux);
+    }
+
+    return deleted;
+}
+
 }
 }
 

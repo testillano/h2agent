@@ -920,6 +920,10 @@ Options:
   This affects to both mock server-data and client-data purge procedures,
   but normally both flows will not be used together in the same process instance.
 
+  In server mode, purge clears events for the current data key (method + URI).
+  In client mode, purge clears all events accumulated during the entire state chain,
+  where each step typically targets a different method+URI (see docs/api/README.md).
+
 [--prometheus-port <port>]
   Prometheus local <port>; defaults to 8080.
 
