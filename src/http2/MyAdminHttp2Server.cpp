@@ -964,16 +964,16 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     }
 
     clientEndpoint->connect();
-    std::uint64_t clientSequence = clientEndpoint->incrementGeneralUniqueClientSequence();
+    std::uint64_t sendSeq = clientEndpoint->incrementSendSeq();
     std::int64_t provisionSeq = provision->getSeq();
     size_t numWorkers = clientEndpoint->getNumWorkers();
-    size_t workerIndex = (numWorkers > 1) ? (static_cast<size_t>(clientSequence) % numWorkers) : 0;
+    size_t workerIndex = (numWorkers > 1) ? (static_cast<size_t>(sendSeq) % numWorkers) : 0;
     auto client = clientEndpoint->getClient(workerIndex);
     std::string clientProvisionId = provision->getClientProvisionId();
     std::string clientEndpointId = provision->getClientEndpointId();
 
     client->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
-        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, clientSequence, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys](ert::http2comm::Http2Client::response response) {
+        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys](ert::http2comm::Http2Client::response response) {
 
             // Apply on-response transformations (may update outState)
             std::string finalOutState = outState;
@@ -981,7 +981,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             auto provision = provisionData.find(inState, clientProvisionId);
             bool responseValidationOk = true;
             if (provision) {
-                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, clientSequence, finalOutState, *chainVariables);
+                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables);
             }
 
             // Provisioned request counter
@@ -997,11 +997,11 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 h2agent::model::DataPart responseBodyDataPart(response.body);
-                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, clientSequence, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
 
                 // Accumulate purge key for chain-aware purge:
                 if (purgeKeys) {
-                    purgeKeys->push_back({dataKey, clientSequence});
+                    purgeKeys->push_back({dataKey, sendSeq});
                 }
             }
 
@@ -1015,16 +1015,16 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             if (purge_execution_ && finalOutState == "purge") {
                 bool somethingDeleted = false;
 
-                // Purge all accumulated chain events (event-level by clientSequence):
+                // Purge all accumulated chain events (event-level by sendSeq):
                 if (purgeKeys) {
                     for (const auto& [dk, seq] : *purgeKeys) {
-                        somethingDeleted |= getMockClientData()->removeEventByClientSequence(dk, seq);
+                        somethingDeleted |= getMockClientData()->removeEventBySendSeq(dk, seq);
                     }
                 }
 
                 // Always purge current event too:
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
-                somethingDeleted |= getMockClientData()->removeEventByClientSequence(dataKey, clientSequence);
+                somethingDeleted |= getMockClientData()->removeEventBySendSeq(dataKey, sendSeq);
 
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Client chain purge (%d events): %s", (int)(purgeKeys ? purgeKeys->size() : 0) + 1, somethingDeleted ? "successful":"nothing to delete"), ERT_FILE_LOCATION));
                 if (somethingDeleted) client->incrementPurgedContextsSuccessful();

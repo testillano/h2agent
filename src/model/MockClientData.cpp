@@ -45,23 +45,23 @@ namespace h2agent
 namespace model
 {
 
-void MockClientData::loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
+void MockClientData::loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
 
     bool maiden{};
     auto events = std::static_pointer_cast<MockClientEventsHistory>(getEvents(dataKey, maiden));
 
-    events->loadEvent(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, clientSequence, sequence, requestDelayMs, timeoutMs, historyEnabled);
+    events->loadEvent(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, sendSeq, sequence, requestDelayMs, timeoutMs, historyEnabled);
 
     if (maiden) add(dataKey.getKey(), events); // push the key in the map:
 }
 
-bool MockClientData::removeEventByClientSequence(const DataKey &dataKey, std::uint64_t clientSequence) {
+bool MockClientData::removeEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq) {
 
     bool exists{};
     auto events = std::static_pointer_cast<MockClientEventsHistory>(get(dataKey.getKey(), exists));
     if (!exists) return false;
 
-    bool deleted = events->removeEventByClientSequence(clientSequence);
+    bool deleted = events->removeEventBySendSeq(sendSeq);
 
     // Cleanup empty map entry:
     if (deleted && events->size() == 0) {

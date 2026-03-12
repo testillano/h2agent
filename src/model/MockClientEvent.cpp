@@ -43,7 +43,7 @@ namespace h2agent
 namespace model
 {
 
-void MockClientEvent::load(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs) {
+void MockClientEvent::load(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs) {
 
     // Base class:
     MockEvent::load(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders);
@@ -54,7 +54,7 @@ void MockClientEvent::load(const std::string &clientProvisionId, const std::stri
     request_body_data_part_.decode(requestHeaders);
     responseBodyDataPart.decode(responseHeaders);
     response_body_ = responseBodyDataPart.getJson();
-    client_sequence_ = clientSequence;
+    send_seq_ = sendSeq;
     sequence_ = sequence;
     request_delay_ms_ = requestDelayMs;
     timeout_ms_ = timeoutMs;
@@ -68,7 +68,7 @@ void MockClientEvent::load(const std::string &clientProvisionId, const std::stri
     if (!response_body_.empty()) {
         json_["responseBody"] = response_body_;
     }
-    json_["clientSequence"] = (std::uint64_t)client_sequence_;
+    json_["sendseq"] = (std::uint64_t)send_seq_;
     json_["sequence"] = (std::int64_t)sequence_;
     json_["requestDelayMs"] = (unsigned int)request_delay_ms_;
     json_["timeoutMs"] = (unsigned int)timeout_ms_;

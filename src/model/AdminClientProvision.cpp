@@ -223,7 +223,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
 bool AdminClientProvision::transformResponse( const std::string &requestUri,
         const nghttp2::asio_http2::header_map &requestHeaders,
         const ert::http2comm::Http2Client::response &receivedResponse,
-        std::uint64_t generalUniqueClientSequence,
+        std::uint64_t sendSeq,
         std::string &outState,
         std::map<std::string, std::string> &variables
                                             )
@@ -252,7 +252,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing on-response transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
         // SOURCES (with response context)
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestHeaders, eraser, generalUniqueClientSequence, false, dummyRequestBodyJson, &receivedResponse)) {
+        if (!processSources(transformation, sourceVault, variables, requestUri, requestHeaders, eraser, sendSeq, false, dummyRequestBodyJson, &receivedResponse)) {
             LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
             continue;
         }
@@ -314,7 +314,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         const std::string &requestUri,
         const nghttp2::asio_http2::header_map &requestHeaders,
         bool &eraser,
-        std::uint64_t generalUniqueClientSequence,
+        std::uint64_t sendSeq,
         bool usesRequestBodyAsTransformationJsonTarget, const nlohmann::json &requestBodyJson,
         const ert::http2comm::Http2Client::response *receivedResponse) const {
 
@@ -419,7 +419,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     }
     case Transformation::SourceType::Sendseq:
     {
-        sourceVault.setUnsigned(generalUniqueClientSequence);
+        sourceVault.setUnsigned(sendSeq);
         break;
     }
     case Transformation::SourceType::Seq:

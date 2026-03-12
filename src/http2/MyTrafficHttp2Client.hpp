@@ -66,7 +66,7 @@ namespace http2
 
 class MyTrafficHttp2Client : public ert::http2comm::Http2Client
 {
-    std::uint64_t general_unique_client_sequence_{};
+    std::uint64_t send_seq_{};
 
     model::AdminData *admin_data_{};
     model::MockClientData *mock_client_events_data_{};
@@ -88,7 +88,7 @@ public:
 
         mock_client_events_data_ = new model::MockClientData();
 
-        //general_unique_client_sequence_ = 1;
+        //send_seq_ = 1;
     }
 
     ~MyTrafficHttp2Client() {
@@ -124,12 +124,12 @@ public:
         return mock_client_events_data_;
     }
 
-    const std::uint64_t &getGeneralUniqueClientSequence() const {
-        return general_unique_client_sequence_;
+    const std::uint64_t &getSendSeq() const {
+        return send_seq_;
     }
 
-    void incrementGeneralUniqueClientSequence() {
-        general_unique_client_sequence_++;
+    void incrementSendSeq() {
+        send_seq_++;
     }
 };
 

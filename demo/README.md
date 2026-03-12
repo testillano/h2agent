@@ -133,7 +133,7 @@ Dump the server data map, just executing the corresponding management interface 
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
-        "serverSequence": 1,
+        "recvseq": 1,
         "state": "get-obtains-not-found",
         "virtualOrigin": {
            "method": "DELETE",
@@ -156,7 +156,7 @@ Dump the server data map, just executing the corresponding management interface 
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
-        "serverSequence": 1,
+        "recvseq": 1,
         "state": "delete-not-found"
       }
     ],
@@ -189,7 +189,7 @@ Server data map now:
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
-        "serverSequence": 1,
+        "recvseq": 1,
         "state": "get-obtains-not-found",
         "virtualOrigin": {
           "method": "DELETE",
@@ -206,7 +206,7 @@ Server data map now:
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 404,
-        "serverSequence": 2,
+        "recvseq": 2,
         "state": "get-obtains-not-found"
       }
     ],
@@ -225,7 +225,7 @@ Server data map now:
         "responseBody": null,
         "responseDelayMs": 0,
         "responseStatusCode": 204,
-        "serverSequence": 1,
+        "recvseq": 1,
         "state": "delete-not-found"
       }
     ],

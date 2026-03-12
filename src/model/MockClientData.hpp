@@ -81,24 +81,24 @@ public:
      *
      * @param requestBody Request body
      * @param responseBodyDataPart Response body
-     * @param clientSequence Server sequence (1..N)
+     * @param sendSeq Send sequence (1..N)
      * @param sequence test sequence (1..N)
      * @param requestDelayMs Request delay in milliseconds
      * @param timeoutMs Timeout in milliseconds
      *
      * @param historyEnabled Events complete history storage
      */
-    void loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled);
+    void loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled);
 
     /**
-     * Removes a specific event identified by client sequence
+     * Removes a specific event identified by send sequence
      *
      * @param dataKey Events key (client endpoint id, method & uri).
-     * @param clientSequence Client sequence identifying the event.
+     * @param sendSeq Send sequence identifying the event.
      *
      * @return Boolean about if something was deleted
      */
-    bool removeEventByClientSequence(const DataKey &dataKey, std::uint64_t clientSequence);
+    bool removeEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq);
 };
 
 }

@@ -73,7 +73,7 @@ TEST_F(MockServerEvent_test, GetJson)
     eventJson["responseDelayMs"] = 20;
     eventJson["responseHeaders"] = nlohmann::json::parse("{\"content-type\":\"application/json\",\"response-header1\":\"res-h1\",\"response-header2\":\"res-h2\"}");
     eventJson["responseStatusCode"] = 201;
-    eventJson["serverSequence"] = 111;
+    eventJson["recvseq"] = 111;
     eventJson["state"] = state_;
     eventJson["virtualOrigin"] = nlohmann::json::parse("{\"method\":\"POST\",\"uri\":\"/the/uri\"}");
     EXPECT_EQ(data_.getJson(), eventJson);

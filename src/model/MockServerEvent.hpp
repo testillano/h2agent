@@ -49,7 +49,7 @@ class MockServerEvent : public MockEvent
 {
     nlohmann::json request_body_{};
     DataPart response_body_data_part_{};
-    std::uint64_t server_sequence_{};
+    std::uint64_t recv_seq_{};
     unsigned int response_delay_ms_{};
     std::string virtual_origin_coming_from_method_{};
     std::string virtual_origin_coming_from_uri_{};
@@ -72,13 +72,13 @@ public:
      *
      * @param requestBodyDataPart Request body
      * @param responseBody Response body
-     * @param serverSequence Server sequence (1..N)
+     * @param recvSeq Receive sequence (1..N)
      * @param responseDelayMs Response delay in milliseconds
      *
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
+    void load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t recvSeq, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "");
 
     // getters
 

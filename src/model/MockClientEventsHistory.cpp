@@ -44,19 +44,19 @@ namespace h2agent
 namespace model
 {
 
-void MockClientEventsHistory::loadEvent(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t clientSequence, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
+void MockClientEventsHistory::loadEvent(const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
 
     auto event = std::make_shared<MockClientEvent>();
-    event->load(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, clientSequence, sequence, requestDelayMs, timeoutMs);
+    event->load(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, sendSeq, sequence, requestDelayMs, timeoutMs);
 
     MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
 }
 
-bool MockClientEventsHistory::removeEventByClientSequence(std::uint64_t clientSequence) {
+bool MockClientEventsHistory::removeEventBySendSeq(std::uint64_t sendSeq) {
 
     write_guard_t guard(rw_mutex_);
     for (auto it = events_.begin(); it != events_.end(); ++it) {
-        if (std::static_pointer_cast<MockClientEvent>(*it)->getClientSequence() == clientSequence) {
+        if (std::static_pointer_cast<MockClientEvent>(*it)->getSendSeq() == sendSeq) {
             events_.erase(it);
             return true;
         }

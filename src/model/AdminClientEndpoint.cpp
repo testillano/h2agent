@@ -149,9 +149,9 @@ nlohmann::json AdminClientEndpoint::asJson() const
     return result;
 }
 
-std::uint64_t AdminClientEndpoint::getGeneralUniqueClientSequence() const
+std::uint64_t AdminClientEndpoint::getSendSeq() const
 {
-    return general_unique_client_sequence_.load();
+    return send_seq_.load();
 }
 
 }

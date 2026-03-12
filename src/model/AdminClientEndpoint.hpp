@@ -77,7 +77,7 @@ class AdminClientEndpoint
 
     std::shared_ptr<h2agent::http2::MyTrafficHttp2Client> client_{};
     std::vector<std::shared_ptr<h2agent::http2::MyTrafficHttp2Client>> clients_{}; // worker clients (index 0 == client_)
-    std::atomic<std::uint64_t> general_unique_client_sequence_{0};
+    std::atomic<std::uint64_t> send_seq_{0};
     size_t num_workers_{1};
 
     // Metrics for client:
@@ -196,20 +196,20 @@ public:
     }
 
     /*
-     * Increment general unique client sequence (thread-safe)
+     * Increment send sequence (thread-safe)
      *
      * @return New sequence value
      */
-    std::uint64_t incrementGeneralUniqueClientSequence() {
-        return ++general_unique_client_sequence_;
+    std::uint64_t incrementSendSeq() {
+        return ++send_seq_;
     }
 
     /*
-     * Get http2 client general unique sequence
+     * Get send sequence
      *
-     * @return client sequence (1..N)
+     * @return Send sequence (1..N)
      */
-    std::uint64_t getGeneralUniqueClientSequence() const;
+    std::uint64_t getSendSeq() const;
 };
 
 }

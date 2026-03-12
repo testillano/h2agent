@@ -68,7 +68,7 @@ public:
             "response-header2": "res-h2"
           },
           "responseStatusCode": 201,
-          "serverSequence": 111,
+          "recvseq": 111,
           "state": "state"
         }
         )"_json;

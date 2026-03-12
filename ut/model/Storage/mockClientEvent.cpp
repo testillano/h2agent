@@ -80,7 +80,7 @@ TEST_F(MockClientEvent_test, GetJson)
     eventJson["timeoutMs"] = 2000;
     eventJson["responseHeaders"] = nlohmann::json::parse("{\"content-type\":\"application/json\",\"response-header1\":\"res-h1\",\"response-header2\":\"res-h2\"}");
     eventJson["responseStatusCode"] = 201;
-    eventJson["clientSequence"] = 111;
+    eventJson["sendseq"] = 111;
     eventJson["sequence"] = 100;
     eventJson["state"] = state_;
     EXPECT_EQ(data_.getJson(), eventJson);

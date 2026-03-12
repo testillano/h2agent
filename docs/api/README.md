@@ -518,7 +518,7 @@ The **source** of information is classified after parsing the following possible
           "receptionTimestampUs": 1626039610709978,
           "responseDelayMs": 0,
           "responseStatusCode": 201,
-          "serverSequence": 116,
+          "recvseq": 116,
           "state": "initial"
         }
       ],
@@ -1238,7 +1238,7 @@ The information collected for a server event item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
-* `serverSequence`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
+* `recvseq`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### Server data summary
 
@@ -1656,7 +1656,7 @@ This operation is useful for testing post verification stages (validate content 
 The information collected for a client event item is:
 
 * `clientProvisionId`: provision identifier.
-* `clientSequence`: current client monotonically increased sequence for every sending (`1..N`).
+* `sendseq`: current client monotonically increased sequence for every sending (`1..N`).
 * `sendingTimestampUs`: event sending *timestamp* (request).
 * `receptionTimestampUs`: event reception *timestamp* (response).
 * `state`: working/current state for the event (provision `outState` or target state modified by transformation filters).

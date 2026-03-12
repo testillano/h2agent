@@ -136,7 +136,7 @@ class AdminClientProvision
                         const std::string &requestUri,
                         const nghttp2::asio_http2::header_map &requestHeaders,
                         bool &eraser,
-                        std::uint64_t generalUniqueClientSequence,
+                        std::uint64_t sendSeq,
                         bool usesRequestBodyAsTransformationJsonTarget, const nlohmann::json &requestBodyJson,
                         const ert::http2comm::Http2Client::response *receivedResponse = nullptr) const;
 
@@ -200,7 +200,7 @@ public:
      * @param requestUri Request URI that was sent
      * @param requestHeaders Request headers that were sent
      * @param receivedResponse Response received from server
-     * @param generalUniqueClientSequence Client endpoint sending sequence
+     * @param sendSeq Client endpoint sending sequence
      * @param outState out-state updated by reference (may change based on response)
      *
      * @return True if response validation passed (status code + schema), false otherwise (chain should break)
@@ -208,7 +208,7 @@ public:
     bool transformResponse( const std::string &requestUri,
                             const nghttp2::asio_http2::header_map &requestHeaders,
                             const ert::http2comm::Http2Client::response &receivedResponse,
-                            std::uint64_t generalUniqueClientSequence,
+                            std::uint64_t sendSeq,
                             std::string &outState,
                             std::map<std::string, std::string> &variables
                           );

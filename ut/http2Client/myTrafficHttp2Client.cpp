@@ -39,7 +39,7 @@ protected:
 TEST_F(MyTrafficHttp2ClientUnitTest, ConstructorInitializesCorrectly) {
     EXPECT_NE(client_->getMockClientData(), nullptr);
     EXPECT_EQ(client_->getAdminData(), nullptr);
-    EXPECT_EQ(client_->getGeneralUniqueClientSequence(), 0);
+    EXPECT_EQ(client_->getSendSeq(), 0);
 }
 
 TEST_F(MyTrafficHttp2ClientUnitTest, ConstructorWithSecureConnection) {
@@ -77,30 +77,30 @@ TEST_F(MyTrafficHttp2ClientUnitTest, SetMockClientData) {
 
 // GeneralUniqueClientSequence tests
 TEST_F(MyTrafficHttp2ClientUnitTest, InitialSequenceIsZero) {
-    EXPECT_EQ(client_->getGeneralUniqueClientSequence(), 0);
+    EXPECT_EQ(client_->getSendSeq(), 0);
 }
 
 TEST_F(MyTrafficHttp2ClientUnitTest, IncrementSequence) {
-    client_->incrementGeneralUniqueClientSequence();
-    EXPECT_EQ(client_->getGeneralUniqueClientSequence(), 1);
+    client_->incrementSendSeq();
+    EXPECT_EQ(client_->getSendSeq(), 1);
 }
 
 TEST_F(MyTrafficHttp2ClientUnitTest, IncrementSequenceMultipleTimes) {
     for (int i = 0; i < 100; ++i) {
-        client_->incrementGeneralUniqueClientSequence();
+        client_->incrementSendSeq();
     }
-    EXPECT_EQ(client_->getGeneralUniqueClientSequence(), 100);
+    EXPECT_EQ(client_->getSendSeq(), 100);
 }
 
 TEST_F(MyTrafficHttp2ClientUnitTest, SequenceIsIndependentPerClient) {
     auto client2 = std::make_unique<http2::MyTrafficHttp2Client>(
         "test_client2", "127.0.0.1", "8081", false, &io_context_);
 
-    client_->incrementGeneralUniqueClientSequence();
-    client_->incrementGeneralUniqueClientSequence();
+    client_->incrementSendSeq();
+    client_->incrementSendSeq();
 
-    EXPECT_EQ(client_->getGeneralUniqueClientSequence(), 2);
-    EXPECT_EQ(client2->getGeneralUniqueClientSequence(), 0);
+    EXPECT_EQ(client_->getSendSeq(), 2);
+    EXPECT_EQ(client2->getSendSeq(), 0);
 }
 
 // Metrics tests

@@ -75,7 +75,7 @@ public:
             "response-header2": "res-h2"
           },
           "responseStatusCode": 201,
-          "clientSequence": 111,
+          "sendseq": 111,
           "sequence": 100,
           "state": "state"
         }

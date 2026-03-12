@@ -43,7 +43,7 @@ namespace h2agent
 namespace model
 {
 
-void MockServerEvent::load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerEvent::load(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t recvSeq, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
 
     // Base class:
     MockEvent::load(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders);
@@ -52,7 +52,7 @@ void MockServerEvent::load(const std::string &previousState, const std::string &
     request_body_ = requestBodyDataPart.getJson();
     response_body_data_part_.assign(std::move(responseBody));
     response_body_data_part_.decode(responseHeaders);
-    server_sequence_ = serverSequence;
+    recv_seq_ = recvSeq;
     response_delay_ms_ = responseDelayMs;
     virtual_origin_coming_from_method_ = virtualOriginComingFromMethod;
     virtual_origin_coming_from_uri_ = virtualOriginComingFromUri;
@@ -64,7 +64,7 @@ void MockServerEvent::load(const std::string &previousState, const std::string &
     if (!response_body_data_part_.str().empty()) {
         json_["responseBody"] = response_body_data_part_.getJson();
     }
-    json_["serverSequence"] = (std::uint64_t)server_sequence_;
+    json_["recvseq"] = (std::uint64_t)recv_seq_;
     json_["responseDelayMs"] = (unsigned int)response_delay_ms_;
     if (!virtual_origin_coming_from_method_.empty()) {
         json_["virtualOrigin"]["method"] = virtual_origin_coming_from_method_;

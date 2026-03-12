@@ -25,7 +25,7 @@ Imagine the following current server data map:
         "receptionTimestampUs": 1626039610709567,
         "responseDelayMs": 0,
         "responseStatusCode": 201,
-        "serverSequence": 116,
+        "recvseq": 116,
         "state": "initial"
       }
     ],
