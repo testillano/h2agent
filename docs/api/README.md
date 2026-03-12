@@ -467,6 +467,8 @@ The **source** of information is classified after parsing the following possible
   - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory.
   - *eventPath*: `json` document path within selection. Optional.
 
+  > **Concurrency note**: `eventNumber` is a positional index into the events list. It is stable when each key (method + URI) is owned by a single flow (e.g. URIs containing unique identifiers like `/resources/{id}`). However, when multiple concurrent flows share the same key (e.g. a fixed URI like `/resources`), positions may shift unpredictably as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario.
+
   Event addressing will retrieve a `json` object corresponding to a single event (given by `requestMethod`, `requestUri` and `eventNumber`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
   For example, `serverEvent.requestMethod=GET&requestUri=/foo/var&eventNumber=3&eventPath=/requestHeaders` searches the third (event number 3) `GET /foo/bar` request and `/requestHeaders` path, as part of event definition, gives the request headers that was received. The particular case of empty event path extracts the whole event structure, and in general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), which are powerful enough to cover addressing needs.
@@ -638,6 +640,8 @@ The **target** of information is classified after parsing the following possible
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
   - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Optional: if not provided, all the history may be purged.
+
+  > **Concurrency note**: `eventNumber` is a positional index. When multiple concurrent flows share the same key, positions may shift as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario.
 
   This target, as its source counterpart, **admits variables substitution**.
 
