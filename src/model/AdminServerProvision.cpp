@@ -709,6 +709,53 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         }
         break;
     }
+    case Transformation::FilterType::Split:
+    {
+        std::int64_t size = transformation->getFilterI();
+        std::uint64_t count = transformation->getFilterU();
+        const std::string &sep = transformation->getFilter();
+        const std::string &filler = transformation->getFilterFiller();
+        bool numeric = (transformation->getFilterNumberType() != 0);
+
+        std::uint64_t totalLen = static_cast<std::uint64_t>(size) * count;
+        std::string padded = source;
+
+        // Truncate (left) or pad (left) to reach totalLen
+        if (padded.size() > totalLen) {
+            padded = padded.substr(padded.size() - totalLen);
+        }
+        else if (padded.size() < totalLen && !filler.empty()) {
+            std::string padding;
+            while (padding.size() + padded.size() < totalLen) {
+                padding += filler;
+            }
+            if (padding.size() + padded.size() > totalLen) {
+                padding = padding.substr(padding.size() + padded.size() - totalLen);
+            }
+            padded = padding + padded;
+        }
+
+        // Split into groups and join
+        targetS.clear();
+        for (std::uint64_t i = 0; i < count; i++) {
+            if (i > 0) targetS += sep;
+            std::string group = padded.substr(i * size, size);
+            if (numeric) {
+                // Strip leading zeros by converting to unsigned long
+                try {
+                    targetS += std::to_string(std::stoull(group));
+                }
+                catch (...) {
+                    targetS += group;
+                }
+            }
+            else {
+                targetS += group;
+            }
+        }
+        sourceVault.setString(targetS);
+        break;
+    }
     }
     //}
     //catch (std::exception& e)

@@ -248,3 +248,16 @@ def test_018_SchemaIdFail(admin_server_provision, admin_schema, h2ac_traffic):
 
   h2ac_traffic.assert_response__status_body_headers(response, 400, "At /product/prices of [\"125\",\"108\"] - array does not contain required element as per 'contains'\n")
 
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_019_split(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.Split.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { "foo":"bar-1", "splitDefault":"55.01.12.23", "splitNumeric":"55.1.12.23" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

@@ -80,10 +80,10 @@ public:
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId, Split };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId", "Split" };
         return text [type];
     }
 
@@ -130,6 +130,7 @@ private:
     std::int64_t filter_i_{}; // Sum, Multiply
     std::uint64_t filter_u_{}; // Sum, Multiply
     double filter_f_{}; // Sum, Multiply
+    std::string filter_filler_{}; // Split
 
     /**
      * Builds a map of patterns (pattern, varname) where pattern is @{varname}
@@ -221,6 +222,10 @@ public:
     /** Obecjt container for json constraint */
     const nlohmann::json &getFilterObject() const {
         return filter_object_;
+    }
+    /** Filler string for Split */
+    const std::string &getFilterFiller() const {
+        return filter_filler_;
     }
 
     /** Source patterns */

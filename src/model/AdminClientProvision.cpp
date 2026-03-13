@@ -676,6 +676,50 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
         sourceVault.setString(valid ? "1" : error);
         break;
     }
+    case Transformation::FilterType::Split:
+    {
+        std::int64_t size = transformation->getFilterI();
+        std::uint64_t count = transformation->getFilterU();
+        const std::string &sep = transformation->getFilter();
+        const std::string &filler = transformation->getFilterFiller();
+        bool numeric = (transformation->getFilterNumberType() != 0);
+
+        std::uint64_t totalLen = static_cast<std::uint64_t>(size) * count;
+        std::string padded = source;
+
+        if (padded.size() > totalLen) {
+            padded = padded.substr(padded.size() - totalLen);
+        }
+        else if (padded.size() < totalLen && !filler.empty()) {
+            std::string padding;
+            while (padding.size() + padded.size() < totalLen) {
+                padding += filler;
+            }
+            if (padding.size() + padded.size() > totalLen) {
+                padding = padding.substr(padding.size() + padded.size() - totalLen);
+            }
+            padded = padding + padded;
+        }
+
+        targetS.clear();
+        for (std::uint64_t i = 0; i < count; i++) {
+            if (i > 0) targetS += sep;
+            std::string group = padded.substr(i * size, size);
+            if (numeric) {
+                try {
+                    targetS += std::to_string(std::stoull(group));
+                }
+                catch (...) {
+                    targetS += group;
+                }
+            }
+            else {
+                targetS += group;
+            }
+        }
+        sourceVault.setString(targetS);
+        break;
+    }
     }
 
     return true;

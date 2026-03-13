@@ -193,11 +193,37 @@ const nlohmann::json TransformationAsStringTarget1 = R"({ "source": "value.foo",
 const nlohmann::json TransformationAsStringTarget2 = R"({ "source": "value.foo", "target": "outState.POST.@{uri}" })"_json;
 const nlohmann::json TransformationAsStringTarget3 = R"({ "source": "value.foo", "target": "txtFile.@{filepath}" })"_json;
 
+// Split filter test items:
+const nlohmann::json TransformationItemSplitDefaults = R"(
+{
+  "source": "value.55011223",
+  "target": "response.body.string",
+  "filter": { "Split": {} }
+}
+)"_json;
+
+const nlohmann::json TransformationItemSplitNumeric = R"(
+{
+  "source": "value.55011223",
+  "target": "response.body.string",
+  "filter": { "Split": { "numeric": true } }
+}
+)"_json;
+
+const nlohmann::json TransformationItemSplitCustom = R"(
+{
+  "source": "value.AABBCC",
+  "target": "response.body.string",
+  "filter": { "Split": { "size": 2, "count": 3, "sep": ":", "filler": "X", "numeric": false } }
+}
+)"_json;
+
 // Transformation items to cover asString() for different types of filters:
 const nlohmann::json TransformationAsStringFilter1 = R"({ "source": "value.foo", "filter": { "Sum": 1 }, "target": "response.body.string" })"_json;
 const nlohmann::json TransformationAsStringFilter2 = R"({ "source": "value.foo", "filter": { "EqualTo": "@{bar}" }, "target": "response.body.string" })"_json;
 const nlohmann::json TransformationAsStringFilter3 = TransformationItemRegexCapture;
 const nlohmann::json TransformationAsStringFilter4 = TransformationItemRegexReplace;
+const nlohmann::json TransformationAsStringFilter5 = TransformationItemSplitNumeric;
 
 
 
@@ -406,6 +432,15 @@ TEST_F(Transform_test, TransformationAsStringFilter4)
     // Validations:
     EXPECT_TRUE(transformation.load(TransformationAsStringFilter4));
     EXPECT_EQ(transformation.asString(), "SourceType: RequestUriPath | TargetType: ResponseBodyString | FilterType: RegexReplace | filter_ $2 (fmt)");
+}
+
+TEST_F(Transform_test, TransformationAsStringFilter5)
+{
+    h2agent::model::Transformation transformation{};
+
+    // Validations:
+    EXPECT_TRUE(transformation.load(TransformationAsStringFilter5));
+    EXPECT_EQ(transformation.asString(), "SourceType: Value | source_: 55011223 | TargetType: ResponseBodyString | FilterType: Split | size: 2 | count: 4 | sep: '.' | filler: '0' | numeric: true");
 }
 
 TEST_F(Transform_test, EmptyInStateAndOutStateBecomeDefault)
@@ -2337,4 +2372,86 @@ TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
     provision2->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
 
     EXPECT_EQ(response_body_, "hello");
+}
+
+TEST_F(Transform_test, FilterSplitDefaults)
+{
+    // Build test provision:
+    server_provision_json_["transform"].push_back(TransformationItemSplitDefaults);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations (size=2, count=4, sep=".", numeric=false):
+    // "55011223" -> groups "55","01","12","23" -> "55.01.12.23"
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "55.01.12.23");
+}
+
+TEST_F(Transform_test, FilterSplitNumeric)
+{
+    // Build test provision:
+    server_provision_json_["transform"].push_back(TransformationItemSplitNumeric);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations (numeric=true strips leading zeros):
+    // "55011223" -> groups "55","01","12","23" -> "55.1.12.23"
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "55.1.12.23");
+}
+
+TEST_F(Transform_test, FilterSplitCustom)
+{
+    // Build test provision:
+    server_provision_json_["transform"].push_back(TransformationItemSplitCustom);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // Validations (size=2, count=3, sep=":", filler="X"):
+    // "AABBCC" -> groups "AA","BB","CC" -> "AA:BB:CC"
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "AA:BB:CC");
+}
+
+TEST_F(Transform_test, FilterSplitPadding)
+{
+    // Source shorter than size*count -> left-pad with filler
+    const nlohmann::json item = R"(
+    {
+      "source": "value.123",
+      "target": "response.body.string",
+      "filter": { "Split": { "size": 2, "count": 4, "numeric": true } }
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // "123" padded to "00000123" -> groups "00","00","01","23" -> numeric: "0.0.1.23"
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "0.0.1.23");
+}
+
+TEST_F(Transform_test, FilterSplitTruncation)
+{
+    // Source longer than size*count -> take last size*count chars
+    const nlohmann::json item = R"(
+    {
+      "source": "value.987655011223",
+      "target": "response.body.string",
+      "filter": { "Split": { "numeric": true } }
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // Run transformation:
+    provisionAndTransform(request_body_.dump());
+
+    // "987655011223" (12 chars) truncated to last 8: "55011223" -> "55.1.12.23"
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "55.1.12.23");
 }

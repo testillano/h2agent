@@ -761,22 +761,17 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
-  Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. A simple algorithm could consists in getting the 8 less significant digits (as they are also valid hexadecimal signs) and build the *IPv4* representation in this way:
+  Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. The `Split` filter handles this naturally, taking the last digits, splitting them into groups, and optionally stripping leading zeros:
 
   ```json
   {
     "source": "request.body.phone",
     "target": "var.ipv4",
-    "filter": {
-      "RegexReplace" : {
-        "rgx" : "[0-9]+([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})",
-        "fmt" : "$1.$2.$3.$4"
-      }
-    }
+    "filter": { "Split": { "numeric": true } }
   }
   ```
 
-  Although an specific filter could be created ad-hoc for *IPv4* (or even *IPv6* or whatever), we don't consider at the moment that the probably better performance of such implementations, justify abandon the flexibility in the current abstraction that we achieve thanks to the *RegexReplace* filter.
+  With default parameters (`size`: 2, `count`: 4, `sep`: "."), this takes the last 8 digits, splits into 4 groups of 2, and converts each to a number. For phone `555112233`, the result is `55.11.22.33`.
 
 
 

@@ -149,7 +149,8 @@ const nlohmann::json server_provision = R"(
         {"required": ["EqualTo"]},
         {"required": ["DifferentFrom"]},
         {"required": ["JsonConstraint"]},
-        {"required": ["SchemaId"]}
+        {"required": ["SchemaId"]},
+        {"required": ["Split"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -174,7 +175,18 @@ const nlohmann::json server_provision = R"(
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
         "JsonConstraint": { "type": "object" },
-        "SchemaId": { "type": "string" }
+        "SchemaId": { "type": "string" },
+        "Split": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": { "type": "integer", "minimum": 1 },
+            "count": { "type": "integer", "minimum": 1 },
+            "sep": { "type": "string" },
+            "filler": { "type": "string" },
+            "numeric": { "type": "boolean" }
+          }
+        }
       }
     }
   },
@@ -334,7 +346,8 @@ const nlohmann::json client_provision = R"(
         {"required": ["EqualTo"]},
         {"required": ["DifferentFrom"]},
         {"required": ["JsonConstraint"]},
-        {"required": ["SchemaId"]}
+        {"required": ["SchemaId"]},
+        {"required": ["Split"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -359,7 +372,18 @@ const nlohmann::json client_provision = R"(
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
         "JsonConstraint": { "type": "object" },
-        "SchemaId": { "type": "string" }
+        "SchemaId": { "type": "string" },
+        "Split": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": { "type": "integer", "minimum": 1 },
+            "count": { "type": "integer", "minimum": 1 },
+            "sep": { "type": "string" },
+            "filler": { "type": "string" },
+            "numeric": { "type": "boolean" }
+          }
+        }
       }
     }
   },

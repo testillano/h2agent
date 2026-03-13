@@ -4,7 +4,7 @@ Until now, our provision examples were quite simple: they didn't use transformat
 
 Some of the most versatile and powerful transformations are based in regular expressions. Their typical use is when we need to get information from the `URI` received to put in some place within the response.
 
-We have already used regular expressions when playing with matching algorithms, for example, the `RegexReplace` algorithm. Imagine that we want to build a unique *IPv4* address corresponding to a phone number received in the `URI` after the `id-`. Look at this smart transformation list:
+We have already used regular expressions when playing with matching algorithms, for example, the `RegexReplace` algorithm. Imagine that we receive a `URI` like `/ctrl/v2/id-555112233/ts-1615562841` and we want to build a greeting message extracting and rearranging parts of it. Look at this transformation list:
 
 ```json
 [
@@ -13,20 +13,10 @@ We have already used regular expressions when playing with matching algorithms, 
     "filter": {
       "RegexReplace": {
         "rgx": "(/ctrl/v2/id-)([0-9]{9})(/ts-)([0-9]{10})",
-        "fmt": "$2"
+        "fmt": "User $2 registered at timestamp $4"
       }
     },
-    "target": "var.phone"
-  },
-  {
-    "source": "var.phone",
-    "filter": {
-      "RegexReplace": {
-        "rgx": "[0-9]+([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})",
-        "fmt": "$1.$2.$3.$4"
-      }
-    },
-    "target": "var.ipv4"
+    "target": "response.body.json.string./message"
   }
 ]
 ```

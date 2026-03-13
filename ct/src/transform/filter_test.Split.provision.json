@@ -1,0 +1,24 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.55011223",
+      "target": "response.body.json.string./splitDefault",
+      "filter": { "Split": {} }
+    },
+    {
+      "source": "value.55011223",
+      "target": "response.body.json.string./splitNumeric",
+      "filter": { "Split": { "numeric": true } }
+    }
+  ]
+}

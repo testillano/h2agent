@@ -93,6 +93,7 @@ bool Transformation::load(const nlohmann::json &j) {
         //   DifferentFrom       value -> [filter_]
         //   JsonConstraint      value -> [filter_object_]
         //   SchemaId            value -> [filter_]
+        //   Split               size -> [filter_i_], count -> [filter_u_], sep -> [filter_], filler -> [filter_filler_], numeric -> [filter_number_type_]
 
         auto f_it = it->find("RegexCapture");
 
@@ -168,6 +169,19 @@ bool Transformation::load(const nlohmann::json &j) {
             else if ((f_it = it->find("SchemaId")) != it->end()) {
                 filter_ = *f_it;
                 filter_type_ = FilterType::SchemaId;
+            }
+            else if ((f_it = it->find("Split")) != it->end()) {
+                auto size_it = f_it->find("size");
+                auto count_it = f_it->find("count");
+                auto sep_it = f_it->find("sep");
+                auto filler_it = f_it->find("filler");
+                auto numeric_it = f_it->find("numeric");
+                filter_i_ = (size_it != f_it->end()) ? size_it->get<std::int64_t>() : 2;
+                filter_u_ = (count_it != f_it->end()) ? count_it->get<std::uint64_t>() : 4;
+                filter_ = (sep_it != f_it->end()) ? sep_it->get<std::string>() : ".";
+                filter_filler_ = (filler_it != f_it->end()) ? filler_it->get<std::string>() : "0";
+                filter_number_type_ = (numeric_it != f_it->end() && numeric_it->get<bool>()) ? 1 : 0;
+                filter_type_ = FilterType::Split;
             }
         }
         catch (std::regex_error &e) {
@@ -767,7 +781,7 @@ std::string Transformation::asString() const {
     // FILTER
     if (has_filter_) {
         ss << " | FilterType: " << FilterTypeAsText(filter_type_);
-        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply) {
+        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split) {
             /*<< " | filter_rgx_: ?"*/
             ss << " | filter_ " << filter_;
 
@@ -777,6 +791,9 @@ std::string Transformation::asString() const {
             else if (filter_type_ == FilterType::RegexCapture) {
                 ss << " (literal, although not actually needed, but useful to access & print on traces)";
             }
+        }
+        else if (filter_type_ == FilterType::Split) {
+            ss << " | size: " << filter_i_ << " | count: " << filter_u_ << " | sep: '" << filter_ << "' | filler: '" << filter_filler_ << "' | numeric: " << (filter_number_type_ ? "true" : "false");
         }
         else {
             ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"
