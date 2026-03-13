@@ -131,9 +131,10 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 - [Execution of matching helper utility](#execution-of-matching-helper-utility)
 - [Execution of Arash Partow's helper utility](#execution-of-arash-partows-helper-utility)
 - [Execution of h2client utility](#execution-of-h2client-utility)
-- [Execution of udp-server utility](#execution-of-udp-server-utility)
-- [Execution of udp-server-h2client utility](#execution-of-udp-server-h2client-utility)
-- [Execution of udp-client utility](#execution-of-udp-client-utility)
+- [UDP utilities](#udp-utilities)
+  - [Execution of udp-server utility](#execution-of-udp-server-utility)
+  - [Execution of udp-server-h2client utility](#execution-of-udp-server-h2client-utility)
+  - [Execution of udp-client utility](#execution-of-udp-client-utility)
 - [Working with unix sockets and docker containers](#working-with-unix-sockets-and-docker-containers)
 - [Execution with TLS support](#execution-with-tls-support)
 - [Metrics](#metrics)
@@ -1169,6 +1170,10 @@ Client endpoint:
  Response body: {"author":"Ludwig von Mises"}
  Response headers: [date: Sun, 27 Nov 2022 18:58:32 GMT]
 ```
+
+## UDP utilities
+
+> **Note:** Since `h2agent` now supports native HTTP/2 client capabilities and the `clientProvision` target (which triggers outgoing HTTP/2 flows directly from server transformations), most functional testing scenarios that previously required the UDP channel can be solved entirely within `h2agent`. The UDP tools below are primarily useful for **benchmarking** (controlled-rate load generation via `udp-client` + `udp-server-h2client`) and for **integration with external non-HTTP systems** that need to react to `h2agent` events through the `udpSocket.*` target. Among them, `udp-server-h2client` remains the most versatile, as it bridges UDP events to HTTP/2 requests towards isolated services.
 
 ## Execution of udp-server utility
 
