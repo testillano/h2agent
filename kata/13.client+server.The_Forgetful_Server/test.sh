@@ -40,11 +40,11 @@ wait_for_event() {
 }
 
 # Trigger store-item (POST /items/id-42)
-h2a_curl GET "client-provision/store-item?sequenceBegin=1&sequenceEnd=1&rps=1" >/dev/null
+h2a_curl GET "client-provision/store-item?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_event store-item || exit 1
 
 # Trigger read-item (GET /items/id-42)
-h2a_curl GET "client-provision/read-item?sequenceBegin=1&sequenceEnd=1&rps=1" >/dev/null
+h2a_curl GET "client-provision/read-item?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_event read-item || exit 1
 
 client_data=$(curl -sf --http2-prior-knowledge \

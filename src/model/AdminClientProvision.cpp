@@ -72,7 +72,7 @@ namespace model
 AdminClientProvision::AdminClientProvision() : in_state_(DEFAULT_ADMIN_PROVISION_STATE),
     out_state_(DEFAULT_ADMIN_PROVISION_CLIENT_OUT_STATE),
     request_delay_ms_(0), request_timeout_ms_(0), mock_client_events_data_(nullptr), mock_server_events_data_(nullptr),
-    seq_(0), seq_begin_(0), seq_end_(0), rps_(0), repeat_(false), timer_(nullptr), io_context_(nullptr) {;}
+    seq_(0), seq_begin_(0), seq_end_(0), cps_(0), repeat_(false), timer_(nullptr), io_context_(nullptr) {;}
 
 
 std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getRequestSchema() {
@@ -111,7 +111,7 @@ void AdminClientProvision::saveDynamics() {
     json_["dynamics"]["sequence"] = seq_;
     json_["dynamics"]["sequenceBegin"] = seq_begin_;
     json_["dynamics"]["sequenceEnd"] = seq_end_;
-    json_["dynamics"]["rps"] = rps_;
+    json_["dynamics"]["cps"] = cps_;
     json_["dynamics"]["repeat"] = repeat_;
 }
 
@@ -1030,7 +1030,7 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
     return true;
 }
 
-bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &rps, const std::string &repeat) {
+bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &cps, const std::string &repeat) {
 
     // Range reads:
     std::int64_t i_sequenceBegin = seq_begin_;
@@ -1066,14 +1066,14 @@ bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, co
 
 
     // Rate:
-    if (!rps.empty()) {
+    if (!cps.empty()) {
         bool negative = false;
         std::uint64_t aux;
-        if (!h2agent::model::string2uint64andSign(rps, aux, negative) || negative) {
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'rps' value: %s (must be >= 0)", rps.c_str()), ERT_FILE_LOCATION));
+        if (!h2agent::model::string2uint64andSign(cps, aux, negative) || negative) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid 'cps' value: %s (must be >= 0)", cps.c_str()), ERT_FILE_LOCATION));
             return false;
         }
-        rps_ = aux;
+        cps_ = aux;
     }
 
     // Repeat:
@@ -1111,12 +1111,12 @@ void AdminClientProvision::stopTicking() {
 }
 
 void AdminClientProvision::scheduleTick(bool first) {
-    if (!timer_ || rps_ == 0) {
+    if (!timer_ || cps_ == 0) {
         stopTicking();
         return;
     }
 
-    auto period = std::chrono::microseconds(1000000 / rps_);
+    auto period = std::chrono::microseconds(1000000 / cps_);
     if (first)
         timer_->expires_after(period);               // first tick: relative to now
     else

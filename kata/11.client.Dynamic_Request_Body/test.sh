@@ -25,9 +25,9 @@ curl -sf --http2-prior-knowledge -XDELETE \
 h2a_curl POST client-endpoint client-endpoint.json >/dev/null
 h2a_curl POST client-provision client-provision.json >/dev/null
 
-# Trigger 5 bounces at 2 rps
+# Trigger 5 bounces at 2 cps
 BOUNCES=5
-h2a_curl GET "client-provision/ping?sequenceBegin=1&sequenceEnd=${BOUNCES}&rps=2" >/dev/null
+h2a_curl GET "client-provision/ping?sequenceBegin=1&sequenceEnd=${BOUNCES}&cps=2" >/dev/null
 
 # Wait for completion
 echo "Waiting for ${BOUNCES} bounces..."

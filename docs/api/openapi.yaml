@@ -725,7 +725,7 @@ paths:
       description: >
         Triggers a client provision by its identifier. Without extra
         query parameters, sends a single request with sequence=0.
-        With sequenceBegin/sequenceEnd/rps, triggers multiple requests
+        With sequenceBegin/sequenceEnd/cps, triggers multiple requests
         at the specified rate for load testing.
       parameters:
         - name: id
@@ -743,7 +743,7 @@ paths:
           in: query
           description: >
             Synchronous single-shot sequence value. Exclusive with
-            sequenceBegin/sequenceEnd/rps/repeat.
+            sequenceBegin/sequenceEnd/cps/repeat.
           schema:
             type: integer
         - name: sequenceBegin
@@ -756,9 +756,9 @@ paths:
           description: End of sequence range
           schema:
             type: integer
-        - name: rps
+        - name: cps
           in: query
-          description: "Requests per second (0 to stop)"
+          description: "Calls per second (0 to stop)"
           schema:
             type: integer
             minimum: 0

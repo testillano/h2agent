@@ -416,7 +416,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Each worker creates its own HTTP/2 connection to the endpoint.\n"
        << "  Requests are dispatched round-robin (sequence % threads) across\n"
        << "  workers, parallelizing response processing (transforms, JsonConstraint,\n"
-       << "  etc.) while a single timer drives the configured RPS rate.\n\n"
+       << "  etc.) while a single timer drives the configured provision rate (cps).\n\n"
 
        << "[-V|--version]\n"
        << "  Program version.\n\n"

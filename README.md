@@ -609,13 +609,13 @@ Load testing is done with [h2load](https://nghttp2.org/documentation/h2load-howt
 
 * **h2load**: uses the `nghttp2` load testing tool. Requires `h2load` in `PATH`.
 * **hermes**: uses the [hermes](https://github.com/jgomezselles/hermes) Docker image. Requires Docker.
-* **h2client**: starts a second `h2agent` instance in client-only mode (`--traffic-server-port -1`) on a separate admin port (default `8075`), configures a client endpoint pointing to the server `h2agent`, and drives load via the timer-based client provision trigger (`rps` + `sequenceEnd`). Polls `client-data` to track progress and reports actual throughput. Requires `h2agent` in `PATH`.
+* **h2client**: starts a second `h2agent` instance in client-only mode (`--traffic-server-port -1`) on a separate admin port (default `8075`), configures a client endpoint pointing to the server `h2agent`, and drives load via the timer-based client provision trigger (`cps` + `sequenceEnd`). Polls `client-data` to track progress and reports actual throughput. Requires `h2agent` in `PATH`.
 
-  The client uses a single `boost::asio::steady_timer` that fires one request per tick at `1.000.000/rps` microsecond intervals. The timer is accurate up to at least **30.000 req/s** (~-3% error, dominated by measurement overhead). The default is `rps=10000`. For higher loads, use `h2load` (concurrent streams, no timer overhead).
+  The client uses a single `boost::asio::steady_timer` that fires one provision per tick at `1.000.000/cps` microsecond intervals. The timer is accurate up to at least **30.000 provisions/s** (~-3% error, dominated by measurement overhead). The default is `cps=10000`. For higher loads, use `h2load` (concurrent streams, no timer overhead).
 
   Example (non-interactive):
   ```bash
-  $ ST_LAUNCHER=h2client H2CLIENT__RPS=10000 H2CLIENT__ITERATIONS=100000 benchmark/start.sh -y
+  $ ST_LAUNCHER=h2client H2CLIENT__CPS=10000 H2CLIENT__ITERATIONS=100000 benchmark/start.sh -y
   ```
 
 Also, `benchmark/repeat.sh` script repeats a previous execution (last by default) in headless mode.
@@ -965,7 +965,7 @@ Options:
   Each worker creates its own HTTP/2 connection to the endpoint.
   Requests are dispatched round-robin (sequence % threads) across
   workers, parallelizing response processing (transforms, JsonConstraint,
-  etc.) while a single timer drives the configured RPS rate.
+  etc.) while a single timer drives the configured provision rate (cps).
 
 [-V|--version]
   Program version.
@@ -2008,7 +2008,7 @@ Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers curr
                                        [file]; Configure client provision by mean json specification.
                         [id] [id query param]; Triggers client provision identifier and optionally provide dynamics
                                                configuration (omit with empty value):
-                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, rps, repeat (true|false)]
+                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, cps, repeat (true|false)]
 Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used
                                             (http://localhost:8074/admin/v1/client-provision/unused).
 Usage: client_data [-h|--help]; Inspects client data events (http://localhost:8074/admin/v1/client-data).

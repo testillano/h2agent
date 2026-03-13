@@ -43,12 +43,12 @@ wait_for_gvar() {
 
 # Trigger first-tick
 title "Step 1: first-tick (GET /time, store t1)" "" "*"
-h2a_curl GET "client-provision/first-tick?sequenceBegin=1&sequenceEnd=1&rps=1" >/dev/null
+h2a_curl GET "client-provision/first-tick?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_gvar t1 || exit 1
 
 # Trigger second-tick
 title "Step 2: second-tick (GET /time, store t2, compute elapsed)" "" "*"
-h2a_curl GET "client-provision/second-tick?sequenceBegin=1&sequenceEnd=1&rps=1" >/dev/null
+h2a_curl GET "client-provision/second-tick?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_gvar elapsed || exit 1
 
 # Read globalVar.elapsed

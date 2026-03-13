@@ -534,7 +534,7 @@ TEST_F(ClientTransform_test, UpdateTriggeringValidRange)
     ASSERT_TRUE(provision != nullptr);
 
     EXPECT_TRUE(provision->updateTriggering("1", "100", "50", "false"));
-    EXPECT_EQ(provision->getRps(), 50u);
+    EXPECT_EQ(provision->getCps(), 50u);
 }
 
 TEST_F(ClientTransform_test, UpdateTriggeringInvalidRange)
@@ -565,7 +565,7 @@ TEST_F(ClientTransform_test, UpdateTriggeringInvalidSequenceBegin)
     EXPECT_FALSE(provision->updateTriggering("abc", "100", "", ""));
 }
 
-TEST_F(ClientTransform_test, UpdateTriggeringInvalidRps)
+TEST_F(ClientTransform_test, UpdateTriggeringInvalidCps)
 {
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -591,11 +591,11 @@ TEST_F(ClientTransform_test, UpdateTriggeringPartialUpdate)
 
     // Set initial values
     EXPECT_TRUE(provision->updateTriggering("1", "100", "50", "false"));
-    EXPECT_EQ(provision->getRps(), 50u);
+    EXPECT_EQ(provision->getCps(), 50u);
 
-    // Partial update: only rps, range keeps previous
+    // Partial update: only cps, range keeps previous
     EXPECT_TRUE(provision->updateTriggering("", "", "200", ""));
-    EXPECT_EQ(provision->getRps(), 200u);
+    EXPECT_EQ(provision->getCps(), 200u);
 }
 
 // ==================== NEEDS STORAGE ====================

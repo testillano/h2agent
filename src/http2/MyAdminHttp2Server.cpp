@@ -1070,7 +1070,7 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     std::string sequence = "";
     std::string sequenceBegin = "";
     std::string sequenceEnd = "";
-    std::string rps = "";
+    std::string cps = "";
     std::string repeat = "";
 
     if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
@@ -1083,16 +1083,16 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         if (it != qmap.end()) sequenceBegin = it->second;
         it = qmap.find("sequenceEnd");
         if (it != qmap.end()) sequenceEnd = it->second;
-        it = qmap.find("rps");
-        if (it != qmap.end()) rps = it->second;
+        it = qmap.find("cps");
+        if (it != qmap.end()) cps = it->second;
         it = qmap.find("repeat");
         if (it != qmap.end()) repeat = it->second;
     }
 
     // Validate exclusivity: 'sequence' cannot be mixed with async dynamics parameters
-    bool hasDynamics = (!sequenceBegin.empty() || !sequenceEnd.empty() || !rps.empty() || !repeat.empty());
+    bool hasDynamics = (!sequenceBegin.empty() || !sequenceEnd.empty() || !cps.empty() || !repeat.empty());
     if (!sequence.empty() && hasDynamics) {
-        LOGWARNING(ert::tracing::Logger::warning("Parameter 'sequence' is exclusive and cannot be mixed with 'sequenceBegin', 'sequenceEnd', 'rps' or 'repeat'", ERT_FILE_LOCATION));
+        LOGWARNING(ert::tracing::Logger::warning("Parameter 'sequence' is exclusive and cannot be mixed with 'sequenceBegin', 'sequenceEnd', 'cps' or 'repeat'", ERT_FILE_LOCATION));
         statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
         return;
     }
@@ -1122,7 +1122,7 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     }
 
     if (hasDynamics) {
-        if (provision->updateTriggering(sequenceBegin, sequenceEnd, rps, repeat)) {
+        if (provision->updateTriggering(sequenceBegin, sequenceEnd, cps, repeat)) {
             statusCode = ert::http2comm::ResponseCode::ACCEPTED; // 202; "sender" operates asynchronously
         }
         else {
@@ -1145,14 +1145,14 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
         return;
     }
 
-    // Timer-based triggering (rps > 0) or single request
-    if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getRps() > 0) {
+    // Timer-based triggering (cps > 0) or single request
+    if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
         provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
             sendClientRequest(provision, inState, clientEndpoint);
         });
     }
-    else if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getRps() == 0) {
-        provision->stopTicking(); // rps=0 stops the timer
+    else if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() == 0) {
+        provision->stopTicking(); // cps=0 stops the timer
     }
     else {
         sendClientRequest(provision, inState, clientEndpoint);

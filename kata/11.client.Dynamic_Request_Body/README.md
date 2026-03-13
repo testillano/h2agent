@@ -9,7 +9,7 @@ In client mode, `h2agent` exposes the current execution counter via `sequence`. 
 When a provision is triggered with a range:
 
 ```
-GET /admin/v1/client-provision/sender?sequenceBegin=1&sequenceEnd=5&rps=2
+GET /admin/v1/client-provision/sender?sequenceBegin=1&sequenceEnd=5&cps=2
 ```
 
 The provision fires 5 times. On each execution, `sequence` holds the current counter value (1, 2, 3, 4, 5).

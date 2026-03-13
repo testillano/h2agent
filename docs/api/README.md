@@ -1475,31 +1475,31 @@ done
 
 Optional query parameters can be specified to perform multiple triggering (status code *202* is used in operation response instead of *200*). This operation creates internal events sequenced in a range of values (`sequence` variable will be available in provision process for each iterated value) and with specific rate (events per second) to perform system/load tests.
 
-Each client provision can evolve the range of values independently of others, and triggering process may be stopped (with `rps` zero-valued) and then resumed again with a positive rate. Also repeat mode is stored as part of provision trigger configuration with these defaults: range `[0, 0]`, rate of '0' and repeat 'false'.
+Each client provision can evolve the range of values independently of others, and triggering process may be stopped (with `cps` zero-valued) and then resumed again with a positive rate. Also repeat mode is stored as part of provision trigger configuration with these defaults: range `[0, 0]`, rate of '0' and repeat 'false'.
 
 *Query parameters:*
 
 * `sequenceBegin`: initial `sequence` variable.
 * `sequenceEnd`: final `sequence` variable.
-* `rps`: rate in requests per second triggered (non-negative value, '0' to stop).
+* `cps`: rate in provisions per second triggered (non-negative value, '0' to stop). Each tick fires one provision execution which may send multiple requests if the flow has several steps.
 * `repeat`: range repetition once exhausted (true or false).
 
 Negative values are allowed for `sequenceBegin` and `sequenceEnd`, which is useful when a transform applies an offset (e.g. `Sum`) over a central base value:
 
 ```bash
-# Generate 11 requests with sequence values from -5 to 5 at 100 rps:
+# Trigger 11 provision executions with sequence values from -5 to 5 at 100 cps:
 curl --http2-prior-knowledge \
-  "http://localhost:8074/admin/v1/client-provision/myFlow?sequenceBegin=-5&sequenceEnd=5&rps=100"
+  "http://localhost:8074/admin/v1/client-provision/myFlow?sequenceBegin=-5&sequenceEnd=5&cps=100"
 ```
 
-> **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `rps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
+> **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `cps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
 
 So, together with provision information configured, we store dynamic load configuration and state (current `sequence`):
 
 ```json
 "dynamics": {
   "repeat": false,
-  "rps": 1500,
+  "cps": 1500,
   "sequence": 2994907,
   "sequenceBegin": 0,
   "sequenceEnd": 10000000
@@ -1514,7 +1514,7 @@ So, together with provision information configured, we store dynamic load config
 - Omitted parameter(s) keeps previous value.
 - Provided parameter(s) updates previous value.
 - If both `sequenceBegin` and `sequenceEnd` query parameters are present, a single (when coincide) or multiple list of events are created for each `sequence` value.
-- Whenever `rps` rate is provided, tick period for request sending is updated (stopped with '0').
+- Whenever `cps` rate is provided, tick period for provision triggering is updated (stopped with '0').
 - Cycle `repeat` can be updated in any moment, but its effect will be ignored if the range has been completely processed while it was disabled.
 - When the range of sequences is completed (`sequenceEnd` reached), trigger configuration is reset and a new administrative operation will be needed.
 - Several operations could update load parameters, but `sequence` will evolve if complies with range requirements while rate is positive, so operations could have no effect depending on the information provided.
@@ -1557,8 +1557,8 @@ And finally, note that we could also solve the previous exercise just providing 
 * Using standard range `0..N` needs more transformations but shows the real intention within provision programming which are autonomous and ready for use. So testing automation only need to decide the amount of load (`N`) and could mix other provisions already prepared in the same way, which seems easy to coordinate:
 
   ```bash
-  for provision in script1 script2 script3; do # parallel test scripts, 5000 iterations at 200 requests per second:
-    curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&rps=200
+  for provision in script1 script2 script3; do # parallel test scripts, 5000 iterations at 200 provisions per second:
+    curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&cps=200
   done
   ```
 
@@ -1601,7 +1601,7 @@ For example, consider a 3-step session flow (create → update → delete). To e
 
    # Then trigger from the intermediate state:
    curl --http2-prior-knowledge \
-     "http://localhost:8074/admin/v1/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&rps=500"
+     "http://localhost:8074/admin/v1/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
    ```
 
 > **Note**: when triggering from an intermediate state, scoped variables (`var.*`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `globalVar` instead.

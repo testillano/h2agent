@@ -507,12 +507,12 @@ client_provision() {
       local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
       local output=
       [ -n "$json" -a "$json" != "[]" ] && output=$(echo "$json" | jq -r '
-        .[] | select(.dynamics and .dynamics.rps > 0 and .dynamics.sequenceEnd >= .dynamics.sequence) |
+        .[] | select(.dynamics and .dynamics.cps > 0 and .dynamics.sequenceEnd >= .dynamics.sequence) |
         .id as $id |
         .dynamics |
         (.sequenceEnd - .sequence) as $remaining |
-        (($remaining / .rps) | floor) as $eta |
-        "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) rps=\(.rps) repeat=\(.repeat) ETA=\($eta)s"
+        (($remaining / .cps) | floor) as $eta |
+        "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) cps=\(.cps) repeat=\(.repeat) ETA=\($eta)s"
       ')
       if [ -n "$output" ]; then
         ${waiting_dot} && echo && waiting_dot=false
@@ -544,13 +544,13 @@ client_provision() {
 client_provision_trigger() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: client_provision_trigger [-h|--help] <id> [sequenceBegin] [sequenceEnd] [rps] [repeat] [--in-state <state>]"
+    echo "Usage: client_provision_trigger [-h|--help] <id> [sequenceBegin] [sequenceEnd] [cps] [repeat] [--in-state <state>]"
     echo "                               Triggers a client provision. Omitted params keep server-side defaults."
     echo
     echo "  Examples:"
     echo "    client_provision_trigger myFlow                               # Sync trigger (sequence=0, inState=initial)"
     echo "    client_provision_trigger myFlow --in-state established        # Sync trigger with custom inState"
-    echo "    client_provision_trigger myFlow 0 99999 5000                  # Async trigger at 5000 rps"
+    echo "    client_provision_trigger myFlow 0 99999 5000                  # Async trigger at 5000 cps"
     echo "    client_provision_trigger myFlow 0 99999 5000 true             # Async trigger with repeat"
     echo "    client_provision_trigger myFlow 0 99999 5000 --in-state step2 # Async trigger with custom inState"
     return 0
@@ -559,13 +559,13 @@ client_provision_trigger() {
   [ -z "$1" ] && echo "Error: provision id required" && return 1
 
   local id=$1; shift
-  local seqBegin= seqEnd= rps= repeat= inState=
+  local seqBegin= seqEnd= cps= repeat= inState=
   while [ $# -gt 0 ]; do
     case "$1" in
       --in-state) inState=$2; shift ;;
       *) [ -z "${seqBegin}" ] && seqBegin=$1 && shift && continue
          [ -z "${seqEnd}" ] && seqEnd=$1 && shift && continue
-         [ -z "${rps}" ] && rps=$1 && shift && continue
+         [ -z "${cps}" ] && cps=$1 && shift && continue
          [ -z "${repeat}" ] && repeat=$1 && shift && continue
          ;;
     esac
@@ -574,20 +574,20 @@ client_provision_trigger() {
   local queryParams=
   [ -n "${seqBegin}" ] && queryParams+="&sequenceBegin=${seqBegin}"
   [ -n "${seqEnd}" ] && queryParams+="&sequenceEnd=${seqEnd}"
-  [ -n "${rps}" ] && queryParams+="&rps=${rps}"
+  [ -n "${cps}" ] && queryParams+="&cps=${cps}"
   [ -n "${repeat}" ] && queryParams+="&repeat=${repeat}"
   [ -n "${inState}" ] && queryParams+="&inState=${inState}"
   [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
   do_curl -XGET "$(admin_url)/client-provision/${id}${queryParams}"
 }
 
-client_provision_rps() {
+client_provision_cps() {
   if [ "$1" = "-h" -o "$1" = "--help" -o $# -lt 2 ]
   then
-    echo "Usage: client_provision_rps <id> <rps> [--repeat true|false] [--in-state <state>]; Changes RPS/repeat for a running provision."
+    echo "Usage: client_provision_cps <id> <cps> [--repeat true|false] [--in-state <state>]; Changes CPS(rate) and/or repeat flag for a running provision."
     return 0
   fi
-  local id=$1 rps=$2; shift 2
+  local id=$1 cps=$2; shift 2
   local inState="initial" repeat=
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -596,7 +596,7 @@ client_provision_rps() {
     esac
     shift
   done
-  local q="rps=${rps}&inState=${inState}"
+  local q="cps=${cps}&inState=${inState}"
   [ -n "$repeat" ] && q+="&repeat=${repeat}"
   do_curl -XGET "$(admin_url)/client-provision/${id}?${q}"
 }
@@ -1454,7 +1454,7 @@ help() {
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_rps client_provision_unused client_data traffic_summary; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_cps client_provision_unused client_data traffic_summary; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
   for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done

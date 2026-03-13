@@ -1,6 +1,6 @@
-Timer-based 2-step client flow triggered 3 times at 1 request per second.
+Timer-based 2-step client flow triggered 3 times at 1 provision per second.
 
-Demonstrates rps/range triggering combined with state progression and
+Demonstrates cps/range triggering combined with state progression and
 dynamic URI construction using the 'sequence' variable.
 
 Each tick of the timer fires the full chain (initial->step2->road-closed),

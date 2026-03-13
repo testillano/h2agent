@@ -43,7 +43,7 @@ HERMES__EXPECTED_RESPONSE_CODE__dflt=200
 
 H2CLIENT__DATA_STORAGE_CONFIGURATION__dflt=discard-all
 H2CLIENT__DATA_PURGE_CONFIGURATION__dflt=disable-purge
-H2CLIENT__RPS__dflt=10000
+H2CLIENT__CPS__dflt=10000
 H2CLIENT__ITERATIONS__dflt=100000
 
 # Hermes image
@@ -389,7 +389,7 @@ elif [ "${ST_LAUNCHER}" = "h2client" ] #########################################
 then
   read_value "Client data storage configuration" H2CLIENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
   read_value "Client data purge configuration" H2CLIENT__DATA_PURGE_CONFIGURATION "enable-purge|disable-purge" || exit 1
-  read_value "Requests per second" H2CLIENT__RPS
+  read_value "Calls per second" H2CLIENT__CPS
   read_value "Number of iterations" H2CLIENT__ITERATIONS
 
   # Client data configuration (same admin port as server)
@@ -421,24 +421,24 @@ then
   echo "${PROVISION_JSON}" > ${TMP_DIR}/client-provision.json
   h2a_admin_curl POST admin/v1/client-provision 201 ${TMP_DIR}/client-provision.json || exit 1
 
-  REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_rps${H2CLIENT__RPS}_iters${H2CLIENT__ITERATIONS}.txt
-  init_report H2CLIENT__DATA_STORAGE_CONFIGURATION H2CLIENT__DATA_PURGE_CONFIGURATION H2CLIENT__RPS H2CLIENT__ITERATIONS
+  REPORT__ref=./report_delay${H2AGENT__RESPONSE_DELAY_MS}_cps${H2CLIENT__CPS}_iters${H2CLIENT__ITERATIONS}.txt
+  init_report H2CLIENT__DATA_STORAGE_CONFIGURATION H2CLIENT__DATA_PURGE_CONFIGURATION H2CLIENT__CPS H2CLIENT__ITERATIONS
 
   # Snapshot prometheus counters before benchmark
   PROMETHEUS_URL="http://${H2AGENT__BIND_ADDRESS}:${H2AGENT__PROMETHEUS_PORT}/metrics"
   curl -sf "${PROMETHEUS_URL}" > ${TMP_DIR}/prom_before.txt 2>/dev/null
 
   # Trigger timer-based load
-  EXPECTED_SECS=$(( (H2CLIENT__ITERATIONS + H2CLIENT__RPS - 1) / H2CLIENT__RPS ))
+  EXPECTED_SECS=$(( (H2CLIENT__ITERATIONS + H2CLIENT__CPS - 1) / H2CLIENT__CPS ))
   echo
-  echo "Triggering ${H2CLIENT__ITERATIONS} requests at ${H2CLIENT__RPS} rps (~${EXPECTED_SECS}s expected)..."
+  echo "Triggering ${H2CLIENT__ITERATIONS} provisions at ${H2CLIENT__CPS} cps (~${EXPECTED_SECS}s expected)..."
   START_NS=$(date +%s%N)
-  h2a_admin_curl GET "admin/v1/client-provision/benchmark?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&rps=${H2CLIENT__RPS}" || exit 1
+  h2a_admin_curl GET "admin/v1/client-provision/benchmark?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&cps=${H2CLIENT__CPS}" || exit 1
   cat ${TMP_DIR}/curl.output
   echo
 
   # Wait for timer to complete by polling dynamics.sequence
-  TIMEOUT_SECS=$(( (H2CLIENT__ITERATIONS / H2CLIENT__RPS + 1) * 3 ))
+  TIMEOUT_SECS=$(( (H2CLIENT__ITERATIONS / H2CLIENT__CPS + 1) * 3 ))
   echo "Waiting for completion (timeout ${TIMEOUT_SECS}s)..."
   while true; do
     sleep 0.2
@@ -451,9 +451,9 @@ then
   END_NS=$(date +%s%N)
 
   ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
-  ACTUAL_RPS=$(( H2CLIENT__ITERATIONS * 1000 / ELAPSED_MS ))
+  ACTUAL_CPS=$(( H2CLIENT__ITERATIONS * 1000 / ELAPSED_MS ))
   echo
-  echo "Completed: ${H2CLIENT__ITERATIONS} requests in ${ELAPSED_MS}ms (~${ACTUAL_RPS} req/s)" | tee -a ${REPORT}
+  echo "Completed: ${H2CLIENT__ITERATIONS} provisions in ${ELAPSED_MS}ms (~${ACTUAL_CPS} cps)" | tee -a ${REPORT}
 
   # Collect response status code statistics from prometheus
   curl -sf "${PROMETHEUS_URL}" > ${TMP_DIR}/prom_after.txt 2>/dev/null

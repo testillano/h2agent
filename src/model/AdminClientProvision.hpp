@@ -117,7 +117,7 @@ class AdminClientProvision
     std::int64_t seq_{};
     std::int64_t seq_begin_{};
     std::int64_t seq_end_{};
-    unsigned int rps_{};
+    unsigned int cps_{};
     bool repeat_{};
 
     // Timer-based triggering:
@@ -227,15 +227,15 @@ public:
      *
      * @param sequenceBegin Range initial sequence
      * @param sequenceEnd Range final sequence
-     * @param rps Rate for sequences triggering (in events per second)
+     * @param cps Rate for sequences triggering (in calls/provisions per second)
      * @param repeat Repeat range processing when exhausted
      *
      * @return Operation success
      */
-    bool updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &rps, const std::string &repeat);
+    bool updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &cps, const std::string &repeat);
 
     /**
-     * Starts timer-based triggering at configured rps rate
+     * Starts timer-based triggering at configured cps rate
      *
      * @param ioContext Timer io_context
      * @param tickCallback Callback invoked on each tick (should call sendClientRequest)
@@ -464,10 +464,10 @@ public:
 
     /** Configured requests per second
      *
-     * @return rps value
+     * @return cps value
      */
-    unsigned int getRps() const {
-        return rps_;
+    unsigned int getCps() const {
+        return cps_;
     }
 
     /** Configured expected response status code

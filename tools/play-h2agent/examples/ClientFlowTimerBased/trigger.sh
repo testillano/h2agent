@@ -1,7 +1,7 @@
 #!/bin/bash
-# Trigger 3 iterations at 1 rps and verify
-echo "Triggering client provision 'myFlow' (3 iterations at 1 rps) ..."
-do_curl "$(admin_url)/client-provision/myFlow?sequenceBegin=0&sequenceEnd=2&rps=1"
+# Trigger 3 iterations at 1 cps and verify
+echo "Triggering client provision 'myFlow' (3 iterations at 1 cps) ..."
+do_curl "$(admin_url)/client-provision/myFlow?sequenceBegin=0&sequenceEnd=2&cps=1"
 echo
 echo "Waiting 4 seconds for completion ..."
 sleep 4
