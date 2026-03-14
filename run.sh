@@ -84,6 +84,7 @@ benchmark_args=(--verbose --traffic-server-worker-threads $(( $(nproc) / 2 > 2 ?
 # Run './build.sh --auto' to have docker image available:
 set -x
 docker run ${docker_args} ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} ${benchmark_args[*]} $@
+RC=$?
 set +x
 
 # Using ctr-tools:
@@ -94,3 +95,6 @@ set +x
 #
 # Run image:
 # sudo ctr -n test run --rm --tty --net-host ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} myapp
+
+exit ${RC}
+
