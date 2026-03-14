@@ -1,8 +1,7 @@
 [
   {
     "requestMethod": "POST",
-    "requestUri": "URI",
-    "requestSchemaId": "myRequestSchemaId",
+    "requestUri": "/app/v1/load-test/v1/id-21",
     "responseDelayMs": 0,
     "responseCode": 200,
     "responseBody": {

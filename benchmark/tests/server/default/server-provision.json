@@ -1,0 +1,50 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/load-test/id-21",
+    "responseCode": 200,
+    "responseBody": {
+      "status": "ok",
+      "company": "<to be replaced by global variable>",
+      "uriId": 0,
+      "timestampUs": 0,
+      "requestAge": 0,
+      "doubleAge": 0
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "globalVar.company",
+        "target": "response.body.json.string./company"
+      },
+      {
+        "source": "request.uri.path",
+        "target": "response.body.json.unsigned./uriId",
+        "filter": {
+          "RegexReplace": {
+            "rgx": "/app/v1/load-test/id-([0-9]+)",
+            "fmt": "$1"
+          }
+        }
+      },
+      {
+        "source": "timestamp.us",
+        "target": "response.body.json.unsigned./timestampUs"
+      },
+      {
+        "source": "request.body./age",
+        "target": "var.age"
+      },
+      {
+        "source": "var.age",
+        "target": "response.body.json.unsigned./requestAge"
+      },
+      {
+        "source": "math.@{age} * 2",
+        "target": "response.body.json.unsigned./doubleAge"
+      }
+    ]
+  }
+]

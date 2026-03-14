@@ -307,6 +307,22 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 The keyword '*purge*' is a reserved out-state used to indicate that server data for the current data key (method + URI) must be dropped. It should be configured at the last stage of a scenario to control memory consumption in long-term load tests. Incomplete chains (due to timeouts or SUT failures) retain their full event history for forensics, since purge only fires at the chain's final step.
 
+### Extra fields (description)
+
+Provision objects accept an optional `description` field to annotate the purpose of each entry. This is useful because JSON does not support comments:
+
+```json
+{
+  "description": "Returns 200 with session token for POST /api/v1/sessions",
+  "requestMethod": "POST",
+  "requestUri": "/api/v1/sessions",
+  "responseCode": 200,
+  "responseBody": { "token": "abc123" }
+}
+```
+
+This field has no effect on matching or processing — it is purely informational. Unknown fields are rejected by the schema to catch typos early (e.g. `responseDelay` instead of `responseDelayMs`). See the [benchmark test profiles](../../benchmark/tests) for real-world examples using `description`.
+
 ### Server provision fields
 
 #### requestMethod

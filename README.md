@@ -605,24 +605,17 @@ Reference:
 
 
 
-Load testing is done with [h2load](https://nghttp2.org/documentation/h2load-howto.html), [hermes](https://github.com/jgomezselles/hermes) and `h2agent` itself (client mode) using the helper script `benchmark/start.sh` (check `-h|--help` for more information). The available launchers are:
+Load testing is done with [h2load](https://nghttp2.org/documentation/h2load-howto.html) using the helper script `benchmark/start.sh` (check `-h|--help` for more information). Test scenarios are defined as profiles under `benchmark/tests/`, organized by mode:
 
-* **h2load**: uses the `nghttp2` load testing tool. Requires `h2load` in `PATH`.
-* **hermes**: uses the [hermes](https://github.com/jgomezselles/hermes) Docker image. Requires Docker.
-* **h2client**: starts a second `h2agent` instance in client-only mode (`--traffic-server-port -1`) on a separate admin port (default `8075`), configures a client endpoint pointing to the server `h2agent`, and drives load via the timer-based client provision trigger (`cps` + `sequenceEnd`). Polls `client-data` to track progress and reports actual throughput. Requires `h2agent` in `PATH`.
+- `tests/server/<name>/`: benchmarks the h2agent **server** — h2load sends traffic, the monitor tracks the h2agent process.
+- `tests/client/<name>/`: benchmarks the h2agent **client** — the h2agent under test sends traffic through client provisions against its own server mock (fixture), the monitor tracks the same process.
 
-  The client uses a single `boost::asio::steady_timer` that fires one provision per tick at `1.000.000/cps` microsecond intervals. The timer is accurate up to at least **30.000 provisions/s** (~-3% error, dominated by measurement overhead). The default is `cps=10000`. For higher loads, use `h2load` (concurrent streams, no timer overhead).
+Mode is auto-detected from the profile directory. Use `--list` to see available profiles and `--test <name>` to select one (defaults to `default`).
 
-  Example (non-interactive):
-  ```bash
-  $ ST_LAUNCHER=h2client H2CLIENT__CPS=10000 H2CLIENT__ITERATIONS=100000 benchmark/start.sh -y
-  ```
-
-Also, `benchmark/repeat.sh` script repeats a previous execution (last by default) in headless mode.
+Also, reports are generated as markdown files under the profile's `reports/` subdirectory, including test metadata, resource usage (CPU, RSS) and prometheus counter deltas.
 
 #### Considerations
 
-* As schema validation is normally used only for function tests, it will be disabled here.
 * `h2agent` could be for example started with 5 worker threads to discard application bottlenecks.
 * Add histogram boundaries to better classify internal answer latencies for [metrics](#OAM).
 * Data storage is disabled in the script by default to prevent memory from growing and improve server response times (remember that storage shall be kept when provisions require data persistence).
@@ -644,24 +637,29 @@ $ XTRA_ARGS="-v $(pwd -P):$(pwd -P)" ./run.sh # benchmark options are provided w
 In other shell we launch the benchmark test:
 
 ```bash
+$ benchmark/start.sh --list
+
+Available test profiles:
+
+  [server]
+    default                      Representative mix: globalVar, RegexReplace, timestamp, variable chaining and math.
+    ipv4-with-regexreplace       IPv4 construction from phone number using RegexReplace filter.
+    ipv4-with-split              IPv4 construction from phone number using Split filter.
+    legacy                       Original benchmark provision: large JSON response body with file I/O.
+    light                        Minimal echo: server returns a static JSON body with no transforms.
+
+  [client]
+    default                      3-step session flow (create, update, delete) against a server mock.
+
 $ benchmark/start.sh -y
 
 
-Input Validate schemas (y|n)
- (or set 'H2AGENT_VALIDATE_SCHEMAS' to be non-interactive) [n]:
-n
-
-Input Matching configuration
- (or set 'H2AGENT_SERVER_MATCHING' to be non-interactive) [server-matching.json]:
-server-matching.json
-
-Input Provision configuration
- (or set 'H2AGENT_SERVER_PROVISION' to be non-interactive) [server-provision.json]:
-server-provision.json
-
-Input Global variable(s) configuration
- (or set 'H2AGENT_GLOBAL_VARIABLE' to be non-interactive) [global-variable.json]:
-global-variable.json
+Test profile: default [server]
+Description:  Representative mix: JSON response with globalVar, RegexReplace URI extraction, timestamp, variable chaining and math expression. No file I/O.
+Method:       POST
+URI:          /app/v1/load-test/id-21
+Body:         {"id":"1a8b8863","name":"Ada Lovelace","age":198}
+Headers:      {"content-type":"application/json"}
 
 Input File manager configuration to enable read cache (true|false)
  (or set 'H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION' to be non-interactive) [true]:
@@ -690,59 +688,6 @@ Input H2agent endpoint address
 Input H2agent response delay in milliseconds
  (or set 'H2AGENT__RESPONSE_DELAY_MS' to be non-interactive) [0]:
 0
-
-Input Request method (PUT|DELETE|HEAD|POST|GET)
- (or set 'ST_REQUEST_METHOD' to be non-interactive) [POST]:
-POST
-
-POST request body defaults to:
-   {"id":"1a8b8863","name":"Ada Lovelace","email":"ada@geemail.com","bio":"First programmer. No big deal.","age":198,"avatar":"http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg"}
-
-To override this content from shell, paste the following snippet:
-
-# Define helper function:
-random_request() {
-   echo "Input desired size in bytes [3000]:"
-   read bytes
-   [ -z "${bytes}" ] && bytes=3000
-   local size=$((bytes/15)) # aproximation
-   export ST_REQUEST_BODY="{"$(k=0 ; while [ $k -lt $size ]; do k=$((k+1)); echo -n "\"id${RANDOM}\":${RANDOM}"; [ ${k} -lt $size ] && echo -n "," ; done)"}"
-   echo "Random request created has $(echo ${ST_REQUEST_BODY} | wc -c) bytes (~ ${bytes})"
-   echo "If you need as file: echo \${ST_REQUEST_BODY} > request-${bytes}b.json"
-}
-
-# Invoke the function:
-random_request
-
-
-Input Request url
- (or set 'ST_REQUEST_URL' to be non-interactive) [/app/v1/load-test/v1/id-21]:
-
-Server configuration:
-{"preReserveRequestBody":true,"receiveRequestBody":true}
-Server data configuration:
-{"purgeExecution":false,"storeEvents":false,"storeEventsKeyHistory":false}
-
-Removing current server data information ... done !
-
-Input Launcher type (h2load|hermes|h2client)
- (or set 'ST_LAUNCHER' to be non-interactive) [h2load]: h2load
-
-Input Number of h2load iterations
- (or set 'H2LOAD__ITERATIONS' to be non-interactive) [100000]: 100000
-
-Input Number of h2load clients
- (or set 'H2LOAD__CLIENTS' to be non-interactive) [1]: 1
-
-Input Number of h2load threads
- (or set 'H2LOAD__THREADS' to be non-interactive) [1]: 1
-
-Input Number of h2load concurrent streams
- (or set 'H2LOAD__CONCURRENT_STREAMS' to be non-interactive) [100]: 100
-
-
-+ h2load -t1 -n100000 -c1 -m100 http://0.0.0.0:8000/load-test/v1/id-21 -d /tmp/tmp.6ad32NuVqJ/request.json
-+ tee -a ./report_delay0_iters100000_c1_t1_m100.txt
 starting benchmark...
 spawning thread #0: 1 total client(s). 100000 total requests
 Application protocol: h2c
@@ -772,8 +717,7 @@ user    0m0,217s
 sys     0m0,073s
 + set +x
 
-Created test report:
-  last -> ./report_delay0_iters100000_c1_t1_m100.txt
+Report generated: benchmark/tests/default/reports/20260314_001500_h2load.md
 ```
 
 ## Execution of main agent

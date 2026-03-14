@@ -1,0 +1,29 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/api/v1/session",
+    "responseCode": 201,
+    "responseBody": {
+      "status": "created"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    }
+  },
+  {
+    "requestMethod": "PUT",
+    "requestUri": "/api/v1/session",
+    "responseCode": 200,
+    "responseBody": {
+      "status": "updated"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    }
+  },
+  {
+    "requestMethod": "DELETE",
+    "requestUri": "/api/v1/session",
+    "responseCode": 204
+  }
+]

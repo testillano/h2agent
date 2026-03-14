@@ -33,7 +33,6 @@ set_property(TARGET nghttp2_asio PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}
 set_property(TARGET nghttp2 PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/libnghttp2.a)
 set_property(TARGET nlohmann_json_schema_validator PROPERTY IMPORTED_LOCATION ${CMAKE_PREFIX_PATH}/lib/libnlohmann_json_schema_validator.a)
 
-# https://github.com/jgomezselles/hermes/commit/e659b86f4190598a81783016307768001a9d6fa3: -static is enough
 target_link_libraries( ${H2AGENT_TARGET_NAME}
 PRIVATE
 ${CMAKE_EXE_LINKER_FLAGS}

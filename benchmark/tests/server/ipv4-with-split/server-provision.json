@@ -1,0 +1,24 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/benchmark/ipv4",
+    "responseCode": 200,
+    "responseBody": {
+      "ipv4": ""
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "request.body./phone",
+        "target": "response.body.json.string./ipv4",
+        "filter": {
+          "Split": {
+            "numeric": true
+          }
+        }
+      }
+    ]
+  }
+]

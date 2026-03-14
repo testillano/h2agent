@@ -1,0 +1,14 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/benchmark/echo",
+    "responseCode": 200,
+    "responseBody": {
+      "status": "ok",
+      "id": 1
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    }
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "description": "Minimal echo: server returns a static JSON body with no transforms. Measures raw HTTP/2 throughput.",
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/benchmark/echo"
+}

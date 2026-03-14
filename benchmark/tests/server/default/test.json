@@ -1,0 +1,7 @@
+{
+  "description": "Representative mix: JSON response with globalVar, RegexReplace URI extraction, timestamp, variable chaining and math expression. No file I/O.",
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/load-test/id-21",
+  "requestBody": {"id":"1a8b8863","name":"Ada Lovelace","age":198},
+  "requestHeaders": {"content-type": "application/json"}
+}

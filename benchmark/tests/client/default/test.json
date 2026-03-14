@@ -1,0 +1,3 @@
+{
+  "description": "3-step session flow (create → update → delete) against a server mock. A dedicated h2agent process is started for the client (ports +1). CPS is bounded by the sequential round-trips per tick and the event loop capacity."
+}

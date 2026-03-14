@@ -194,6 +194,9 @@ const nlohmann::json server_provision = R"(
   "additionalProperties": false,
 
   "properties": {
+    "description":{
+      "type": "string"
+    },
     "inState":{
       "type": "string",
       "pattern": "^[^#]*$"
@@ -391,6 +394,9 @@ const nlohmann::json client_provision = R"(
   "additionalProperties": false,
 
   "properties": {
+    "description":{
+      "type": "string"
+    },
     "id":{
       "type": "string",
       "pattern": "^[^#]*$"
