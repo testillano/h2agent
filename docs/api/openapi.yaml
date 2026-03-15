@@ -1084,6 +1084,36 @@ components:
         SchemaId:
           type: string
           description: Registered schema identifier for JSON schema validation
+        Split:
+          type: object
+          additionalProperties: false
+          description: >
+            Splits source string into fixed-size groups joined by a separator.
+            Takes the last (size×count) characters, pads on the left with filler
+            if shorter, and optionally strips leading zeros per group.
+          properties:
+            size:
+              type: integer
+              minimum: 1
+              default: 2
+              description: Characters per group
+            count:
+              type: integer
+              minimum: 1
+              default: 4
+              description: Number of groups
+            sep:
+              type: string
+              default: '.'
+              description: Separator between groups
+            filler:
+              type: string
+              default: '0'
+              description: Left-padding string repeated to reach size×count length (empty to disable padding)
+            numeric:
+              type: boolean
+              default: false
+              description: Strip leading zeros in each group (stoull conversion)
 
     ServerTransformItem:
       type: object

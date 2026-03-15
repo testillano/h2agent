@@ -777,7 +777,19 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
-  Another useful example could be the transformation from a sequence (*msisdn*, phone number, etc.) into an idempotent associated *IPv4*. The `Split` filter handles this naturally, taking the last digits, splitting them into groups, and optionally stripping leading zeros:
+- Split: splits the source string into fixed-size groups joined by a separator. The algorithm takes the last `size × count` characters from the source, pads on the left with `filler` if shorter, and optionally strips leading zeros per group when `numeric` is enabled.
+
+  Parameters (all optional):
+
+  | Parameter | Type | Default | Description |
+  |-----------|------|---------|-------------|
+  | `size` | integer (≥1) | 2 | Characters per group |
+  | `count` | integer (≥1) | 4 | Number of groups |
+  | `sep` | string | `"."` | Separator between groups |
+  | `filler` | string | `"0"` | Left-padding string repeated to reach `size × count` length. Set to `""` to disable padding |
+  | `numeric` | boolean | false | Strip leading zeros in each group (via integer conversion) |
+
+  Example — transform a phone number into an IPv4-like address:
 
   ```json
   {
@@ -787,7 +799,9 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  With default parameters (`size`: 2, `count`: 4, `sep`: "."), this takes the last 8 digits, splits into 4 groups of 2, and converts each to a number. For phone `555112233`, the result is `55.11.22.33`.
+  With defaults (`size`: 2, `count`: 4, `sep`: `"."`), this takes the last 8 digits, splits into 4 groups of 2, and strips leading zeros. For phone `555112233`, the result is `55.11.22.33`.
+
+  The `filler` parameter controls left-padding when the source is shorter than `size × count`. For example, with source `"42"` and defaults, the padded input becomes `"00000042"`, producing `0.0.0.42`. With `"filler": ""`, no padding is applied and the result depends on the actual source length.
 
 
 
