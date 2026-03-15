@@ -94,6 +94,7 @@ bool Transformation::load(const nlohmann::json &j) {
         //   JsonConstraint      value -> [filter_object_]
         //   SchemaId            value -> [filter_]
         //   Split               size -> [filter_i_], count -> [filter_u_], sep -> [filter_], filler -> [filter_filler_], numeric -> [filter_number_type_]
+        //   BaseConvert          in -> [filter_i_], out -> [filter_u_], capital -> [filter_number_type_]
 
         auto f_it = it->find("RegexCapture");
 
@@ -182,6 +183,13 @@ bool Transformation::load(const nlohmann::json &j) {
                 filter_filler_ = (filler_it != f_it->end()) ? filler_it->get<std::string>() : "0";
                 filter_number_type_ = (numeric_it != f_it->end() && numeric_it->get<bool>()) ? 1 : 0;
                 filter_type_ = FilterType::Split;
+            }
+            else if ((f_it = it->find("BaseConvert")) != it->end()) {
+                filter_i_ = f_it->find("in")->get<std::int64_t>();
+                filter_u_ = f_it->find("out")->get<std::uint64_t>();
+                auto capital_it = f_it->find("capital");
+                filter_number_type_ = (capital_it != f_it->end() && capital_it->get<bool>()) ? 1 : 0;
+                filter_type_ = FilterType::BaseConvert;
             }
         }
         catch (std::regex_error &e) {
@@ -781,7 +789,7 @@ std::string Transformation::asString() const {
     // FILTER
     if (has_filter_) {
         ss << " | FilterType: " << FilterTypeAsText(filter_type_);
-        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split) {
+        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split && filter_type_ != FilterType::BaseConvert) {
             /*<< " | filter_rgx_: ?"*/
             ss << " | filter_ " << filter_;
 
@@ -794,6 +802,9 @@ std::string Transformation::asString() const {
         }
         else if (filter_type_ == FilterType::Split) {
             ss << " | size: " << filter_i_ << " | count: " << filter_u_ << " | sep: '" << filter_ << "' | filler: '" << filter_filler_ << "' | numeric: " << (filter_number_type_ ? "true" : "false");
+        }
+        else if (filter_type_ == FilterType::BaseConvert) {
+            ss << " | in: " << filter_i_ << " | out: " << filter_u_ << " | capital: " << (filter_number_type_ ? "true" : "false");
         }
         else {
             ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"

@@ -1114,6 +1114,28 @@ components:
               type: boolean
               default: false
               description: Strip leading zeros in each group (stoull conversion)
+        BaseConvert:
+          type: object
+          additionalProperties: false
+          required: [in, out]
+          description: >
+            Converts source between numeric bases (2–36).
+            Falls back to source unchanged on conversion error.
+          properties:
+            in:
+              type: integer
+              minimum: 2
+              maximum: 36
+              description: Input base
+            out:
+              type: integer
+              minimum: 2
+              maximum: 36
+              description: Output base
+            capital:
+              type: boolean
+              default: false
+              description: Use uppercase letters for digits above 9
 
     ServerTransformItem:
       type: object

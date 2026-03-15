@@ -225,6 +225,39 @@ const nlohmann::json TransformationAsStringFilter3 = TransformationItemRegexCapt
 const nlohmann::json TransformationAsStringFilter4 = TransformationItemRegexReplace;
 const nlohmann::json TransformationAsStringFilter5 = TransformationItemSplitNumeric;
 
+// BaseConvert filter test items:
+const nlohmann::json TransformationItemBaseConvertDecToHex = R"(
+{
+  "source": "value.255",
+  "target": "response.body.string",
+  "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+}
+)"_json;
+
+const nlohmann::json TransformationItemBaseConvertDecToHexCapital = R"(
+{
+  "source": "value.255",
+  "target": "response.body.string",
+  "filter": { "BaseConvert": { "in": 10, "out": 16, "capital": true } }
+}
+)"_json;
+
+const nlohmann::json TransformationItemBaseConvertHexToDec = R"(
+{
+  "source": "value.ff",
+  "target": "response.body.string",
+  "filter": { "BaseConvert": { "in": 16, "out": 10 } }
+}
+)"_json;
+
+const nlohmann::json TransformationItemBaseConvertDecToBin = R"(
+{
+  "source": "value.10",
+  "target": "response.body.string",
+  "filter": { "BaseConvert": { "in": 10, "out": 2 } }
+}
+)"_json;
+
 
 
 
@@ -2454,4 +2487,66 @@ TEST_F(Transform_test, FilterSplitTruncation)
     // "987655011223" (12 chars) truncated to last 8: "55011223" -> "55.1.12.23"
     EXPECT_EQ(status_code_, 200);
     EXPECT_EQ(response_body_, "55.1.12.23");
+}
+
+TEST_F(Transform_test, FilterBaseConvertDecToHex)
+{
+    server_provision_json_["transform"].push_back(TransformationItemBaseConvertDecToHex);
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "ff");
+}
+
+TEST_F(Transform_test, FilterBaseConvertDecToHexCapital)
+{
+    server_provision_json_["transform"].push_back(TransformationItemBaseConvertDecToHexCapital);
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "FF");
+}
+
+TEST_F(Transform_test, FilterBaseConvertHexToDec)
+{
+    server_provision_json_["transform"].push_back(TransformationItemBaseConvertHexToDec);
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "255");
+}
+
+TEST_F(Transform_test, FilterBaseConvertDecToBin)
+{
+    server_provision_json_["transform"].push_back(TransformationItemBaseConvertDecToBin);
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "1010");
+}
+
+TEST_F(Transform_test, FilterBaseConvertZero)
+{
+    const nlohmann::json item = R"(
+    {
+      "source": "value.0",
+      "target": "response.body.string",
+      "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "0");
+}
+
+TEST_F(Transform_test, FilterBaseConvertInvalidSource)
+{
+    const nlohmann::json item = R"(
+    {
+      "source": "value.not_a_number",
+      "target": "response.body.string",
+      "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "not_a_number");
 }

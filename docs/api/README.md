@@ -803,7 +803,23 @@ Filters give you the chance to make complex transformations:
 
   The `filler` parameter controls left-padding when the source is shorter than `size × count`. For example, with source `"42"` and defaults, the padded input becomes `"00000042"`, producing `0.0.0.42`. With `"filler": ""`, no padding is applied and the result depends on the actual source length.
 
+- BaseConvert: converts the source string between numeric bases (2–36). Parameters `in` and `out` are required. On conversion error, the source is returned unchanged.
 
+  | Parameter | Type | Required | Default | Description |
+  |-----------|------|----------|---------|-------------|
+  | `in` | integer (2–36) | yes | — | Input base |
+  | `out` | integer (2–36) | yes | — | Output base |
+  | `capital` | boolean | no | false | Use uppercase letters for digits above 9 |
+
+  ```json
+  {
+    "source": "request.body.id",
+    "target": "var.hex_id",
+    "filter": { "BaseConvert": { "in": 10, "out": 16, "capital": true } }
+  }
+  ```
+
+  With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
 - Append: this appends the provided information to the source. This filter, **admits variables substitution**.
 

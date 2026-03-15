@@ -150,7 +150,8 @@ const nlohmann::json server_provision = R"(
         {"required": ["DifferentFrom"]},
         {"required": ["JsonConstraint"]},
         {"required": ["SchemaId"]},
-        {"required": ["Split"]}
+        {"required": ["Split"]},
+        {"required": ["BaseConvert"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -185,6 +186,16 @@ const nlohmann::json server_provision = R"(
             "sep": { "type": "string" },
             "filler": { "type": "string" },
             "numeric": { "type": "boolean" }
+          }
+        },
+        "BaseConvert": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "in", "out" ],
+          "properties": {
+            "in": { "type": "integer", "minimum": 2, "maximum": 36 },
+            "out": { "type": "integer", "minimum": 2, "maximum": 36 },
+            "capital": { "type": "boolean" }
           }
         }
       }
@@ -350,7 +361,8 @@ const nlohmann::json client_provision = R"(
         {"required": ["DifferentFrom"]},
         {"required": ["JsonConstraint"]},
         {"required": ["SchemaId"]},
-        {"required": ["Split"]}
+        {"required": ["Split"]},
+        {"required": ["BaseConvert"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -385,6 +397,16 @@ const nlohmann::json client_provision = R"(
             "sep": { "type": "string" },
             "filler": { "type": "string" },
             "numeric": { "type": "boolean" }
+          }
+        },
+        "BaseConvert": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "in", "out" ],
+          "properties": {
+            "in": { "type": "integer", "minimum": 2, "maximum": 36 },
+            "out": { "type": "integer", "minimum": 2, "maximum": 36 },
+            "capital": { "type": "boolean" }
           }
         }
       }

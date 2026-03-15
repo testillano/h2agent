@@ -261,3 +261,13 @@ def test_019_split(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   responseBodyRef = { "foo":"bar-1", "splitDefault":"55.01.12.23", "splitNumeric":"55.1.12.23" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+def test_020_baseConvert(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.BaseConvert.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { "foo":"bar-1", "hexLower":"ff", "hexUpper":"FF" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

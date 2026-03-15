@@ -720,6 +720,36 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
         sourceVault.setString(targetS);
         break;
     }
+    case Transformation::FilterType::BaseConvert:
+    {
+        int baseIn = static_cast<int>(transformation->getFilterI());
+        int baseOut = static_cast<int>(transformation->getFilterU());
+        bool capital = (transformation->getFilterNumberType() != 0);
+
+        try {
+            unsigned long long val = std::stoull(source, nullptr, baseIn);
+            if (baseOut == 10) {
+                targetS = std::to_string(val);
+            }
+            else {
+                targetS.clear();
+                if (val == 0) { targetS = "0"; }
+                else {
+                    while (val > 0) {
+                        int d = val % baseOut;
+                        targetS += (d < 10) ? char('0' + d) : char((capital ? 'A' : 'a') + d - 10);
+                        val /= baseOut;
+                    }
+                    std::reverse(targetS.begin(), targetS.end());
+                }
+            }
+        }
+        catch (...) {
+            targetS = source;
+        }
+        sourceVault.setString(targetS);
+        break;
+    }
     }
 
     return true;
