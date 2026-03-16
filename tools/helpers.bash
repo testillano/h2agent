@@ -265,8 +265,7 @@ server_data() {
   [ -n "${eventPath}" -a -z "${eventNumber}" ] && echo "Error: eventNumber is required when eventPath is provided" && return 1
 
   local queryParams=
-  [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
-  [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
+  [ -n "${requestMethod}" ] && queryParams="?requestMethod=${requestMethod}"
 
   local curl_method=
   [ -n "${clean}" ] && curl_method="-XDELETE"
@@ -278,6 +277,7 @@ server_data() {
   then
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
+    [ -n "${eventNumber}" ] && urlencode+=" --data-urlencode eventNumber=${eventNumber}"
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/server-data${queryParams}" ${devnull}
   else
@@ -661,8 +661,7 @@ client_data() {
 
   local queryParams=
   [ -n "${clientEndpointId}" ] && queryParams="?clientEndpointId=${clientEndpointId}"
-  [ -n "${requestMethod}" ] && queryParams="${queryParams}&requestMethod=${requestMethod}" # request URI not added here (it must be encoded with --data-urlencode)
-  [ -n "${eventNumber}" ] && queryParams="${queryParams}&eventNumber=${eventNumber}"
+  [ -n "${requestMethod}" ] && queryParams="${queryParams}&requestMethod=${requestMethod}"
 
   local curl_method=
   [ -n "${clean}" ] && curl_method="-XDELETE"
@@ -674,6 +673,7 @@ client_data() {
   then
     local urlencode=
     [ -n "${requestUri}" ] && urlencode="--data-urlencode requestUri=\"${requestUri}\""
+    [ -n "${eventNumber}" ] && urlencode+=" --data-urlencode eventNumber=${eventNumber}"
     [ -n "${eventPath}" ] && urlencode+=" --data-urlencode eventPath=${eventPath}"
     eval do_curl ${curl_method} -G ${urlencode} "$(admin_url)/client-data${queryParams}" ${devnull}
   else
