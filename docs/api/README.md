@@ -1065,7 +1065,24 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  Validation algorithm consists in object reference restriction over source (which must be an object). So, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does.
+  Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does.
+
+  For **arrays**, every element in the filter array must exist somewhere in the source array. When elements are objects, partial matching is used (same recursive constraint logic), so you only need to specify the fields you care about. This is especially useful with `request.headers` source to validate mandatory headers:
+
+  ```json
+  {
+    "source": "request.headers",
+    "target": "var.validatedHeaders",
+    "filter": {
+      "JsonConstraint": [
+        {"name": "x-mandatory", "value": "required-value"},
+        {"name": "content-type"}
+      ]
+    }
+  }
+  ```
+
+  In this example, the request must contain a header `x-mandatory` with value `required-value` and a header `content-type` (any value). If validation fails, the report indicates which expected element index was not found.
 
   To understand better, imagine the source as the 'received' body, and the json constraint filter object as the 'expected' one, so the restriction is ruled by 'expected' acting as a subset which could miss/ignore nodes actually received without problem (less restrictive), but those ones specified there, must exist and be equal to the ones received.
 

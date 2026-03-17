@@ -1079,8 +1079,16 @@ components:
           type: string
           description: Conditional transfer if source differs from value (admits variable substitution)
         JsonConstraint:
-          type: object
-          description: JSON object subset validation against source
+          oneOf:
+            - type: object
+              description: JSON object subset validation against source (every key/value must exist in source)
+            - type: array
+              description: >
+                JSON array subset validation against source array. Every element in the
+                filter must exist somewhere in the source. Object elements use partial
+                matching (recursive constraint). Useful with request.headers source to
+                validate mandatory headers.
+              items: {}
         SchemaId:
           type: string
           description: Registered schema identifier for JSON schema validation

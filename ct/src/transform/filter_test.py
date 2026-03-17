@@ -296,7 +296,7 @@ def test_022_requestHeadersJsonConstraintSuccess(admin_server_provision, h2ac_tr
   # Provision
   admin_server_provision("filter_test.RequestHeadersJsonConstraint.provision.json")
 
-  # Traffic with the mandatory header present
+  # Traffic with the mandatory header present and correct value
   response = h2ac_traffic.request('GET', "/app/v1/foo/bar/2", requestHeaders={'x-mandatory': 'required-value'})
   assert response["status"] == 200
 

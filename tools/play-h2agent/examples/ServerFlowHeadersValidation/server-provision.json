@@ -1,0 +1,35 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/api/v1/resource",
+  "responseCode": 200,
+  "responseBody": {
+    "status": "authorized",
+    "message": "Welcome"
+  },
+  "transform": [
+    {
+      "source": "request.headers",
+      "target": "var.headersOK",
+      "filter": {
+        "JsonConstraint": [
+          {"name": "x-api-key", "value": "my-secret-key"},
+          {"name": "x-client-id", "value": "service-a"}
+        ]
+      }
+    },
+    {
+      "source": "value.403",
+      "target": "response.statusCode",
+      "filter": {
+        "ConditionVar": "!headersOK"
+      }
+    },
+    {
+      "source": "var.headersOK.fail",
+      "target": "response.body.string",
+      "filter": {
+        "ConditionVar": "!headersOK"
+      }
+    }
+  ]
+}

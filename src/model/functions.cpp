@@ -282,6 +282,33 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Received object: %s", received.dump().c_str()), ERT_FILE_LOCATION));
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Expected object: %s", expected.dump().c_str()), ERT_FILE_LOCATION));
 
+    // Array mode: every element in expected must exist in received
+    if (expected.is_array()) {
+        if (!received.is_array()) {
+            failReport = "JsonConstraint FAILED: expected array but received non-array";
+            LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
+            return false;
+        }
+        for (size_t i = 0; i < expected.size(); i++) {
+            bool found = false;
+            for (size_t j = 0; j < received.size(); j++) {
+                if (expected[i].is_object() && received[j].is_object()) {
+                    std::string dummy;
+                    if (h2agent::model::jsonConstraint(received[j], expected[i], dummy)) { found = true; break; }
+                }
+                else if (received[j] == expected[i]) { found = true; break; }
+            }
+            if (!found) {
+                failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected element at index '%zu' not found in validated source array: %s", i, expected[i].dump().c_str());
+                LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
+                return false;
+            }
+        }
+        LOGDEBUG(ert::tracing::Logger::debug("JsonConstraint SUCCEED", ERT_FILE_LOCATION));
+        return true;
+    }
+
+    // Object mode: every key/value in expected must exist in received
     for (auto& [key, value] : expected.items()) {
 
         // Check if key exists in document:

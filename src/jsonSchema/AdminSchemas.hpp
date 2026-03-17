@@ -175,7 +175,7 @@ const nlohmann::json server_provision = R"(
         "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": "object" },
+        "JsonConstraint": { "type": ["object", "array"] },
         "SchemaId": { "type": "string" },
         "Split": {
           "type": "object",
@@ -386,7 +386,7 @@ const nlohmann::json client_provision = R"(
         "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
         "EqualTo": { "type": "string" },
         "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": "object" },
+        "JsonConstraint": { "type": ["object", "array"] },
         "SchemaId": { "type": "string" },
         "Split": {
           "type": "object",
