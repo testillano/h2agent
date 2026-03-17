@@ -38,3 +38,13 @@ coverage
 # play-h2agent
 tools/play-h2agent/examples/*/snapshot
 .run.py-chat-history
+
+# Temporary test files
+__pycache__/
+*.pyc
+cp.json
+ep.json
+h2server.bash
+h2server.py
+provision.bash
+.kiro/

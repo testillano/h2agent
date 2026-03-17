@@ -271,3 +271,43 @@ def test_020_baseConvert(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   responseBodyRef = { "foo":"bar-1", "hexLower":"ff", "hexUpper":"FF" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+def test_021_requestHeaders(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.RequestHeaders.provision.json")
+
+  # Traffic with explicit headers
+  response = h2ac_traffic.request('GET', "/app/v1/foo/bar/1", requestHeaders={'x-custom': 'test-value', 'x-trace-id': 'abc-123'})
+  assert response["status"] == 200
+  body = response["body"] if isinstance(response["body"], dict) else json.loads(response["body"])
+  assert "hdrs" in body
+  headers = body["hdrs"]
+  assert isinstance(headers, list)
+  header_dict = {h["name"]: h["value"] for h in headers}
+  assert header_dict.get("x-custom") == "test-value"
+  assert header_dict.get("x-trace-id") == "abc-123"
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_022_requestHeadersJsonConstraintSuccess(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.RequestHeadersJsonConstraint.provision.json")
+
+  # Traffic with the mandatory header present
+  response = h2ac_traffic.request('GET', "/app/v1/foo/bar/2", requestHeaders={'x-mandatory': 'required-value'})
+  assert response["status"] == 200
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_023_requestHeadersJsonConstraintFail(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.RequestHeadersJsonConstraint.provision.json")
+
+  # Traffic without the mandatory header
+  response = h2ac_traffic.request('GET', "/app/v1/foo/bar/2")
+  assert response["status"] == 400

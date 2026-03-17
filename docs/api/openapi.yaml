@@ -1145,14 +1145,15 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+)$|^response\.body(\..+)?$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^recvseq$|^(var|globalVar|serverEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|headers)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^recvseq$|^(var|globalVar|serverEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source expression. Examples: request.uri, request.body,
-            request.body./path, request.header.<name>, response.body,
-            eraser, math.<expr>, random.<min>.<max>, randomset.<values>,
-            timestamp.<unit>, strftime.<fmt>, recvseq, var.<id>,
-            globalVar.<id>, value.<val>, serverEvent.<params>,
-            inState, txtFile.<path>, binFile.<path>, command.<cmd>
+            request.body./path, request.header.<name>, request.headers,
+            response.body, response.headers, eraser, math.<expr>,
+            random.<min>.<max>, randomset.<values>, timestamp.<unit>,
+            strftime.<fmt>, recvseq, var.<id>, globalVar.<id>,
+            value.<val>, serverEvent.<params>, inState, txtFile.<path>,
+            binFile.<path>, command.<cmd>
         target:
           type: string
           pattern: '^response\.body\.(string$|hexstring$)|^response\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^response\.(header\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\..+|^outState(\.(POST|GET|PUT|DELETE|HEAD)(\..+)?)?$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
@@ -1246,14 +1247,14 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri|body(\..+)?|header\..+)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri|body(\..+)?|header\..+|headers)$|^response\.headers$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source for request transformation. Examples: request.uri,
-            request.body, eraser, math.<expr>, random.<min>.<max>,
-            randomset.<values>, timestamp.<unit>, strftime.<fmt>,
-            sendseq, seq, var.<id>, globalVar.<id>, clientEvent.<params>,
-            value.<val>, inState, txtFile.<path>, binFile.<path>,
-            command.<cmd>
+            request.body, request.headers, response.headers, eraser,
+            math.<expr>, random.<min>.<max>, randomset.<values>,
+            timestamp.<unit>, strftime.<fmt>, sendseq, seq, var.<id>,
+            globalVar.<id>, clientEvent.<params>, value.<val>, inState,
+            txtFile.<path>, binFile.<path>, command.<cmd>
         target:
           type: string
           pattern: '^request\.body\.(string$|hexstring$)|^request\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^request\.(header\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+'
@@ -1274,7 +1275,7 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+)$|^response\.(body(\..+)?|header\..+|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|header\..+|headers|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source for response transformation. Includes all
             request transform sources plus: response.body, response.body./path,

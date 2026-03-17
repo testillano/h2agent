@@ -276,6 +276,14 @@ bool Transformation::load(const nlohmann::json &j) {
         source_ = matches.str(1);
         source_type_ = SourceType::ResponseBody;
     }
+    // IMPORTANT: literal "request.headers"/"response.headers" must precede the regex "request.header.(.*)"
+    // because the dot in the regex also matches 's', causing "request.headers" to be misclassified as RequestHeader.
+    else if (sourceSpec == "request.headers") {
+        source_type_ = SourceType::RequestHeaders;
+    }
+    else if (sourceSpec == "response.headers") {
+        source_type_ = SourceType::ResponseHeaders;
+    }
     else if (std::regex_match(sourceSpec, matches, requestHeader)) { // header name
         source_ = matches.str(1);
         source_type_ = SourceType::RequestHeader;

@@ -2550,3 +2550,55 @@ TEST_F(Transform_test, FilterBaseConvertInvalidSource)
     EXPECT_EQ(status_code_, 200);
     EXPECT_EQ(response_body_, "not_a_number");
 }
+
+TEST_F(Transform_test, SourceRequestHeaders)
+{
+    const nlohmann::json item = R"(
+    {
+      "source": "request.headers",
+      "target": "response.body.json.object./hdrs"
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    ASSERT_TRUE(body.contains("hdrs"));
+    const auto &hdrs = body["hdrs"];
+    EXPECT_TRUE(hdrs.is_array());
+    EXPECT_GE(hdrs.size(), 2);
+    bool found_ct = false, found_xv = false;
+    for (const auto &h : hdrs) {
+        if (h["name"] == "content-type" && h["value"] == "application/json") found_ct = true;
+        if (h["name"] == "x-version" && h["value"] == "1.0.0") found_xv = true;
+    }
+    EXPECT_TRUE(found_ct);
+    EXPECT_TRUE(found_xv);
+}
+
+TEST_F(Transform_test, SourceRequestHeadersDuplicateKeys)
+{
+    request_headers_.emplace("cookie", nghttp2::asio_http2::header_value{"session=abc"});
+    request_headers_.emplace("cookie", nghttp2::asio_http2::header_value{"lang=en"});
+
+    const nlohmann::json item = R"(
+    {
+      "source": "request.headers",
+      "target": "response.body.json.object./hdrs"
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item);
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    ASSERT_TRUE(body.contains("hdrs"));
+    const auto &hdrs = body["hdrs"];
+    EXPECT_TRUE(hdrs.is_array());
+    int cookie_count = 0;
+    for (const auto &h : hdrs) {
+        if (h["name"] == "cookie") cookie_count++;
+    }
+    EXPECT_EQ(cookie_count, 2);
+}

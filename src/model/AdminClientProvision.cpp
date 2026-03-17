@@ -371,6 +371,21 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setInteger(receivedResponse->statusCode);
         break;
     }
+    case Transformation::SourceType::RequestHeaders:
+    {
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto &h : requestHeaders) arr.push_back({{"name", h.first}, {"value", h.second.value}});
+        sourceVault.setObject(arr, "");
+        break;
+    }
+    case Transformation::SourceType::ResponseHeaders:
+    {
+        if (!receivedResponse) return false;
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto &h : receivedResponse->headers) arr.push_back({{"name", h.first}, {"value", h.second.value}});
+        sourceVault.setObject(arr, "");
+        break;
+    }
     case Transformation::SourceType::Eraser:
     {
         sourceVault.setString("");

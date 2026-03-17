@@ -771,3 +771,40 @@ TEST_F(ClientTransform_test, ScopedVarPropagatesAcrossOutStateChain)
     ASSERT_NE(it, headers2.end());
     EXPECT_EQ(it->second.value, "my-secret-token");
 }
+
+TEST_F(ClientTransform_test, TransformResponseSourceResponseHeaders)
+{
+    client_provision_json_ = R"({
+        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
+        "onResponseTransform": [
+            {"source": "response.headers", "target": "globalVar.resp_hdrs"}
+        ]
+    })"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision);
+
+    ert::http2comm::Http2Client::response fakeResponse;
+    fakeResponse.statusCode = 200;
+    fakeResponse.body = "{}";
+    fakeResponse.headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+    fakeResponse.headers.emplace("x-request-id", nghttp2::asio_http2::header_value{"abc-123"});
+
+    std::string outState = "initial";
+    nghttp2::asio_http2::header_map reqHeaders;
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
+
+    // Verify globalVar contains the headers array
+    bool exists = false;
+    std::string val = common_resources_.GlobalVariablePtr->get("resp_hdrs", exists);
+    ASSERT_TRUE(exists);
+    nlohmann::json hdrs = nlohmann::json::parse(val);
+    EXPECT_TRUE(hdrs.is_array());
+    bool found_ct = false, found_xr = false;
+    for (const auto &h : hdrs) {
+        if (h["name"] == "content-type" && h["value"] == "application/json") found_ct = true;
+        if (h["name"] == "x-request-id" && h["value"] == "abc-123") found_xr = true;
+    }
+    EXPECT_TRUE(found_ct);
+    EXPECT_TRUE(found_xr);
+}

@@ -185,9 +185,20 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         }
         break;
     }
+    case Transformation::SourceType::RequestHeaders:
+    {
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto &h : requestHeaders) arr.push_back({{"name", h.first}, {"value", h.second.value}});
+        sourceVault.setObject(arr, "");
+        break;
+    }
+    case Transformation::SourceType::ResponseHeaders:
+    {
+        // Not available in server provision (no response received yet)
+        return false;
+    }
     case Transformation::SourceType::Eraser:
     {
-        sourceVault.setString(""); // with other than response body nodes, it acts like setting empty string
         eraser = true;
         break;
     }

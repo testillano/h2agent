@@ -466,7 +466,7 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
         }
     }
 
-    if (j_value_.is_object()) {
+    if (j_value_.is_object() || j_value_.is_array()) {
         native_type_ = NativeType::Object;
     }
     else if (j_value_.is_string()) {

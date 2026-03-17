@@ -454,6 +454,10 @@ The **source** of information is classified after parsing the following possible
 
 - request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
+- request.headers: all request headers as a JSON array of `{"name": "<key>", "value": "<val>"}` objects. Useful with `JsonConstraint` filter to validate a set of headers. An array is used instead of an object because HTTP headers may have duplicate keys.
+
+- response.headers: all response headers as a JSON array (same format as `request.headers`). Only available in client provision `onResponseTransform`.
+
 - eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
   - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When the eraser applies to response node root, it just removes response body.
   - global variable: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.

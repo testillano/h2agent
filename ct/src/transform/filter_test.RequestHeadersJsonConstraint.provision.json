@@ -1,0 +1,37 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/2",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-2"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "request.headers",
+      "target": "var.validatedHeaders",
+      "filter": {
+        "JsonConstraint": [
+          {"name": "x-mandatory", "value": "required-value"}
+        ]
+      }
+    },
+    {
+      "source": "value.400",
+      "target": "response.statusCode",
+      "filter": {
+        "ConditionVar": "!validatedHeaders"
+      }
+    },
+    {
+      "source": "var.validatedHeaders.fail",
+      "target": "response.body.string",
+      "filter": {
+        "ConditionVar": "!validatedHeaders"
+      }
+    }
+  ]
+}
