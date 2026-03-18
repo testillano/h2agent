@@ -296,7 +296,7 @@ server_data() {
   [ -z "${clean}${dump}${surf}" ] && return 0
 
   local sequences=
-  if [ -n "${requestUri}" ]; then sequences=( $(pretty ".events[].serverSequence" | sort -n) ) ; else sequences=( $(pretty ".[].events[].serverSequence" | sort -n) ) ; fi
+  if [ -n "${requestUri}" ]; then sequences=( $(pretty ".events[].recvseq" | sort -n) ) ; else sequences=( $(pretty ".[].events[].recvseq" | sort -n) ) ; fi
   local indx_max=${#sequences[@]}
 
   if [ -n "${dump}" ]
@@ -304,7 +304,7 @@ server_data() {
     mkdir -p server-data-sequences
     local arrayPrefix=
     [ -z "${requestUri}" ] && arrayPrefix=".[] | "
-    for s in ${sequences[@]}; do pretty | jq "${arrayPrefix}select (.events[].serverSequence == $s) | del (.events[] | select (.serverSequence != $s))" > server-data-sequences/$(printf "%02d\n" "$s").json ; done
+    for s in ${sequences[@]}; do pretty | jq "${arrayPrefix}select (.events[].recvseq == $s) | del (.events[] | select (.recvseq != $s))" > server-data-sequences/$(printf "%02d\n" "$s").json ; done
 
   elif [ -n "${surf}" ]
   then
@@ -312,7 +312,7 @@ server_data() {
     then
       pretty | jq '.method as $method | .uri as $uri | .provisionUri as $provisionUri | .events | map({events: [.], method: $method, uri: $uri, provisionUri: $provisionUri})' > /tmp/curl.out.sorted
     else
-      pretty | jq 'map(. as $parent | .events |= sort_by(.serverSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri, provisionUri: $parent.provisionUri}) | sort_by(.events[].serverSequence)' > /tmp/curl.out.sorted
+      pretty | jq 'map(. as $parent | .events |= sort_by(.recvseq) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri, provisionUri: $parent.provisionUri}) | sort_by(.events[].recvseq)' > /tmp/curl.out.sorted
     fi
 
     local indx=0
@@ -727,7 +727,7 @@ client_data() {
   [ -z "${clean}${dump}${surf}" ] && return 0
 
   local sequences=
-  if [ -n "${requestUri}" ]; then sequences=( $(pretty ".events[].clientSequence" | sort -n) ) ; else sequences=( $(pretty ".[].events[].clientSequence" | sort -n) ) ; fi
+  if [ -n "${requestUri}" ]; then sequences=( $(pretty ".events[].sendseq" | sort -n) ) ; else sequences=( $(pretty ".[].events[].sendseq" | sort -n) ) ; fi
   local indx_max=${#sequences[@]}
 
   if [ -n "${dump}" ]
@@ -735,7 +735,7 @@ client_data() {
     mkdir -p client-data-sequences
     local arrayPrefix=
     [ -z "${requestUri}" ] && arrayPrefix=".[] | "
-    for s in ${sequences[@]}; do pretty | jq "${arrayPrefix}select (.events[].clientSequence == $s) | del (.events[] | select (.clientSequence != $s))" > client-data-sequences/$(printf "%02d\n" "$s").json ; done
+    for s in ${sequences[@]}; do pretty | jq "${arrayPrefix}select (.events[].sendseq == $s) | del (.events[] | select (.sendseq != $s))" > client-data-sequences/$(printf "%02d\n" "$s").json ; done
 
   elif [ -n "${surf}" ]
   then
@@ -743,7 +743,7 @@ client_data() {
     then
       pretty | jq '.method as $method | .uri as $uri | .events | map({events: [.], method: $method, uri: $uri})' > /tmp/curl.out.sorted
     else
-      pretty | jq 'map(. as $parent | .events |= sort_by(.clientSequence) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].clientSequence)' > /tmp/curl.out.sorted
+      pretty | jq 'map(. as $parent | .events |= sort_by(.sendseq) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].sendseq)' > /tmp/curl.out.sorted
     fi
 
     local indx=0
