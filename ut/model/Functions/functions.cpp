@@ -258,6 +258,26 @@ TEST_F(functions_test, JsonConstraintFailByValue)
     EXPECT_EQ(failReport, "JsonConstraint FAILED: expected value for key 'pi' differs regarding validated source");
 }
 
+TEST_F(functions_test, JsonConstraintArrayUnordered)
+{
+    std::string failReport{};
+    nlohmann::json received = R"([{"name":"b","value":"2"},{"name":"c","value":"3"},{"name":"a","value":"1"}])"_json;
+    nlohmann::json expected = R"([{"name":"a","value":"1"},{"name":"b","value":"2"},{"name":"c","value":"3"}])"_json;
+
+    EXPECT_TRUE(h2agent::model::jsonConstraint(received, expected, failReport));
+    EXPECT_TRUE(failReport.empty());
+}
+
+TEST_F(functions_test, JsonConstraintNestedArrayUnordered)
+{
+    std::string failReport{};
+    nlohmann::json received = R"({"tags":["c","a","b","extra"]})"_json;
+    nlohmann::json expected = R"({"tags":["a","b","c"]})"_json;
+
+    EXPECT_TRUE(h2agent::model::jsonConstraint(received, expected, failReport));
+    EXPECT_TRUE(failReport.empty());
+}
+
 TEST_F(functions_test, String2uint64andSignError)
 {
     std::uint64_t output = 0;

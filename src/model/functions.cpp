@@ -323,6 +323,11 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
             if (!h2agent::model::jsonConstraint(received[key], value, failReport)) {
                 return false;
             }
+        } else if (value.is_array() && received[key].is_array()) {
+            // Recursive call: reuses top-level array "contains" logic (order-independent, extras allowed)
+            if (!h2agent::model::jsonConstraint(received[key], value, failReport)) {
+                return false;
+            }
         } else {
             // Check same value:
             if (received[key] != value) {

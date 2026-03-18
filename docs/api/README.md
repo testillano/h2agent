@@ -1065,7 +1065,15 @@ Filters give you the chance to make complex transformations:
   }
   ```
 
-  Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does.
+  Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does. When a value within the constraint is an **array**, the same "contains" logic applies recursively: every element in the expected array must exist somewhere in the received array, order-independent and allowing extras. Use `SchemaId` for strict positional array validation if needed.
+
+  Examples for nested arrays:
+
+  | received | expected | result |
+  |---|---|---|
+  | `{"tags":["a","b"]}` | `{"tags":["b","a"]}` | SUCCEED (order irrelevant) |
+  | `{"tags":["a","b","c"]}` | `{"tags":["a","b"]}` | SUCCEED (extras allowed) |
+  | `{"tags":["a"]}` | `{"tags":["a","b"]}` | FAIL ("b" missing) |
 
   For **arrays**, every element in the filter array must exist somewhere in the source array. When elements are objects, partial matching is used (same recursive constraint logic), so you only need to specify the fields you care about. This is especially useful with `request.headers` source to validate mandatory headers:
 
