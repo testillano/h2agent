@@ -10,6 +10,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 - [General operations](#general-operations)
   - [Schemas](#schemas)
   - [Global variables](#global-variables)
+    - [Blocking wait](#blocking-wait)
   - [Files](#files)
   - [Logging](#logging)
   - [Configuration](#configuration)
@@ -128,6 +129,15 @@ Global variables (`POST /admin/v1/global-variable`) can be created dynamically f
 Global variables are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
 When querying (`GET /admin/v1/global-variable`), without the `name` query parameter, the whole list of global variables is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
+
+#### Blocking wait
+
+The endpoint `GET /admin/v1/global-variable/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
+
+- **Any change** (no `value` parameter): returns when the variable differs from its value at the time the request was received.
+- **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied.
+
+Parameters: `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32).
 
 ### Files
 

@@ -197,6 +197,50 @@ paths:
               schema:
                 type: object
 
+  /admin/v1/global-variable/{key}/wait:
+    get:
+      tags: [global-variable]
+      summary: Block until a global variable changes
+      description: >
+        Long-poll endpoint that blocks until the specified global variable
+        changes from its current value (any change) or reaches a specific
+        target value. Returns immediately if the condition is already met.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Global variable name to watch
+          schema:
+            type: string
+        - name: value
+          in: query
+          description: >
+            Target value to wait for. When omitted, any change from the
+            current value triggers return.
+          schema:
+            type: string
+        - name: timeoutMs
+          in: query
+          description: Maximum wait time in milliseconds (capped at 300000)
+          schema:
+            type: integer
+            default: 30000
+      responses:
+        '200':
+          description: Condition met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalVariableWaitResponse'
+        '408':
+          description: Timeout — condition not met within the specified time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalVariableWaitResponse'
+        '429':
+          description: Too many concurrent waiters (max 32)
+
   /admin/v1/files:
     get:
       tags: [files]
@@ -956,6 +1000,22 @@ components:
         ^.*$:
           anyOf:
             - type: string
+
+    GlobalVariableWaitResponse:
+      type: object
+      properties:
+        result:
+          type: boolean
+          description: Whether the wait condition was met
+        key:
+          type: string
+          description: Variable name watched
+        value:
+          type: string
+          description: Current variable value
+        previousValue:
+          type: string
+          description: Variable value captured before waiting
 
     FileInfo:
       type: object

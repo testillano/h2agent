@@ -773,8 +773,12 @@ Options:
   is activated: I/O threads enqueue requests and worker threads process them
   asynchronously. This helps when provision logic is slow (response delays,
   file I/O, etc.) as it keeps I/O threads responsive. For trivial logic, the
-  dispatch overhead may negate any benefit. Admin server hardcodes 1 worker
-  thread(s).
+  dispatch overhead may negate any benefit.
+
+[--admin-server-worker-threads <threads>]
+  Number of admin server worker threads; defaults to 33 (max waiters + 1).
+  Higher values allow more concurrent blocking wait requests on global
+  variables. Blocked threads consume no CPU (condition variable sleep).
 
 [--traffic-server-max-worker-threads <threads>]
   Maximum number of worker threads; defaults to '--traffic-server-worker-threads'.
@@ -1693,6 +1697,7 @@ The API is organized in the following groups:
 |-------|-----------|-------------|
 | **schema** | `POST` `GET` `DELETE` `/admin/v1/schema` | Validation schemas for traffic checking |
 | **global-variable** | `POST` `GET` `DELETE` `/admin/v1/global-variable` | Shared variables between provisions |
+| | `GET` `/admin/v1/global-variable/<key>/wait` | Block until variable changes (long-poll) |
 | **files** | `GET` `/admin/v1/files` | Processed files status |
 | **logging** | `GET` `PUT` `/admin/v1/logging` | Dynamic log level configuration |
 | **configuration** | `GET` `/admin/v1/configuration` | General process configuration |
@@ -1799,6 +1804,52 @@ $ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-v
 ```
 
 How the server sequence is determined is a separate issue. For example, the provisioning configuration could write UDP datagrams (containing the server sequence), which might trigger other external operations that ultimately lead to those administrative operations.
+
+## Blocking Wait on Global Variables
+
+The endpoint `GET /admin/v1/global-variable/<key>/wait` blocks until a variable changes, eliminating polling loops in test orchestration:
+
+```bash
+# Wait until SIGNAL equals "done" (30s timeout by default):
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/global-variable/SIGNAL/wait?value=done&timeoutMs=30000"
+
+# Wait for any change on MY_FLAG:
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/global-variable/MY_FLAG/wait?timeoutMs=5000"
+```
+
+Response (200 when met, 408 on timeout, 429 if too many concurrent waiters):
+
+```json
+{
+  "result": true,
+  "key": "SIGNAL",
+  "value": "done",
+  "previousValue": "pending"
+}
+```
+
+### Concurrency sizing
+
+Each blocking wait occupies one admin worker thread (sleeping, no CPU cost).
+The default configuration provides 33 threads (max 32 concurrent waits + 1
+free for normal admin operations). The number of concurrent waits at any
+instant follows a binomial distribution.
+
+**Example**: 200 parallel test cases, 20% use waits, each test lasts 5s with
+3s spent in a blocking wait (p = 3/5 = 0.6):
+
+```
+Binomial(n=40, p=0.6): mean=24, stddev≈3.1
+
+Concurrent waits    Probability of exceeding
+       24           50%    (mean)
+       27           16%    (mean + 1σ)
+       30           2.6%   (mean + 2σ)
+       32           0.5%   (max waiters)
+```
+
+With the default 33 admin threads, fewer than 0.5% of instants would hit the
+limit. Adjust `--admin-server-worker-threads` if your workload requires more.
 
 ## Reserved Global Variables
 

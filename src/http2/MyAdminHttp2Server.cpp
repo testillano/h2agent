@@ -53,6 +53,7 @@ SOFTWARE.
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
 #include <GlobalVariable.hpp>
+#include <WaitManager.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <functions.hpp>
@@ -388,6 +389,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     // composed path suffixes
     std::smatch matches;
     static std::regex clientProvisionId("^client-provision/(.*)", std::regex::optimize);
+    static std::regex globalVariableWait("^global-variable/([^/]+)/wait$", std::regex::optimize);
 
 
     if (pathSuffix == "server-matching/schema") {
@@ -475,6 +477,43 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
+    else if (std::regex_match(pathSuffix, matches, globalVariableWait)) { // global-variable/<key>/wait
+        if (!wait_manager_) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
+
+        std::string targetValue = "";
+        std::string timeoutMsStr = "";
+        if (!queryParams.empty()) {
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("value");
+            if (it != qmap.end()) targetValue = it->second;
+            it = qmap.find("timeoutMs");
+            if (it != qmap.end()) timeoutMsStr = it->second;
+        }
+
+        unsigned int timeoutMs = 30000;
+        if (!timeoutMsStr.empty()) {
+            bool negative = false;
+            std::uint64_t t = 0;
+            if (h2agent::model::string2uint64andSign(timeoutMsStr, t, negative) && !negative) timeoutMs = (unsigned int)t;
+        }
+
+        std::string resultValue, previousValue;
+        bool met = wait_manager_->waitForGlobalVariable(matches.str(1), targetValue, timeoutMs, resultValue, previousValue);
+
+        nlohmann::json result;
+        result["result"] = met;
+        result["key"] = matches.str(1);
+        result["value"] = resultValue;
+        result["previousValue"] = previousValue;
+        responseBody = result.dump();
+
+        if (!met && wait_manager_->isFull()) {
+            statusCode = ert::http2comm::ResponseCode::TOO_MANY_REQUESTS; // 429
+        }
+        else {
+            statusCode = met ? ert::http2comm::ResponseCode::OK : ert::http2comm::ResponseCode::REQUEST_TIMEOUT; // 200 or 408
+        }
     }
     else if (pathSuffix == "server-matching") {
         responseBody = getAdminData()->getServerMatchingData().getJson().dump();

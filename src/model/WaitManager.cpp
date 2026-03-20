@@ -33,50 +33,80 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <string>
+#include <algorithm>
+#include <chrono>
 
-#include <ert/tracing/Logger.hpp>
-
-#include <GlobalVariable.hpp>
-#include <AdminSchemas.hpp>
 #include <WaitManager.hpp>
+#include <GlobalVariable.hpp>
 
 namespace h2agent
 {
 namespace model
 {
 
-GlobalVariable::GlobalVariable() {
-    global_variable_schema_.setJson(h2agent::adminSchemas::global_variable); // won't fail
-}
+bool WaitManager::waitForGlobalVariable(const std::string &key, const std::string &targetValue,
+                                        unsigned int timeoutMs,
+                                        std::string &resultValue, std::string &previousValue) {
 
-void GlobalVariable::load(const std::string &variable, const std::string &value) {
-    add(variable, value);
-    if (wait_manager_) wait_manager_->notify();
-}
+    timeoutMs = std::min(timeoutMs, MAX_TIMEOUT_MS);
 
-bool GlobalVariable::loadJson(const nlohmann::json &j) {
+    std::unique_lock<std::mutex> lock(mutex_);
 
-    std::string error{};
-    if (!global_variable_schema_.validate(j, error)) {
-        return false;
+    if (active_waiters_ >= MAX_WAITERS) {
+        return false; // caller should return 429
     }
 
-    add(j);
-    if (wait_manager_) wait_manager_->notify();
+    if (shutdown_) return false;
 
-    return true;
+    // Capture initial value
+    previousValue.clear();
+    if (global_variable_) global_variable_->tryGet(key, previousValue);
+
+    // Check if already satisfied
+    if (!targetValue.empty() && previousValue == targetValue) {
+        resultValue = previousValue;
+        return true;
+    }
+
+    active_waiters_++;
+    bool result = cv_.wait_for(lock, std::chrono::milliseconds(timeoutMs), [&] {
+        if (shutdown_) return true;
+        resultValue.clear();
+        bool exists = global_variable_ && global_variable_->tryGet(key, resultValue);
+        if (targetValue.empty()) {
+            return exists && resultValue != previousValue;
+        }
+        return exists && resultValue == targetValue;
+    });
+    active_waiters_--;
+
+    if (shutdown_) return false;
+
+    if (!result) {
+        resultValue.clear();
+        if (global_variable_) global_variable_->tryGet(key, resultValue);
+    }
+
+    return result;
 }
 
-std::string GlobalVariable::asJsonString() const {
-
-    return ((size() != 0) ? getJson().dump() : "{}"); // server data is shown as an object
+void WaitManager::shutdown() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    shutdown_ = true;
+    cv_.notify_all();
 }
 
-nlohmann::json GlobalVariable::getJson() const {
-    return Map::getJson();
+void WaitManager::notify() {
+    cv_.notify_all();
+}
+
+size_t WaitManager::activeWaiters() const {
+    return active_waiters_;
+}
+
+bool WaitManager::isFull() const {
+    return active_waiters_ >= MAX_WAITERS;
 }
 
 }
 }
-

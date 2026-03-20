@@ -794,6 +794,44 @@ client_provision_schema() {
 }
 
 # -----------------------------------------------------------------------------
+# BLOCKING WAIT (LONG-POLL)
+
+wait_global_variable() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: wait_global_variable [-h|--help] <key> [timeoutMs] [--value <value>]"
+    echo "       Blocks until global variable <key> changes (or equals <value>), or timeout."
+    echo "       Without --value: waits for any change from current value."
+    echo "       Default timeoutMs: 30000 (30s)."
+    echo
+    echo "  Examples:"
+    echo "    wait_global_variable MY_FLAG                     # Wait for any change"
+    echo "    wait_global_variable MY_FLAG 60000               # Wait 60s for any change"
+    echo "    wait_global_variable MY_FLAG 30000 --value done  # Wait until value is 'done'"
+    return 0
+  fi
+
+  [ -z "$1" ] && echo "Error: key required" && return 1
+  local key=$1; shift
+  local timeoutMs=30000 value=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --value) value=$2; shift ;;
+      *) timeoutMs=$1 ;;
+    esac
+    shift
+  done
+  local maxTime=$(( (timeoutMs / 1000) + 1 ))
+  local q="timeoutMs=${timeoutMs}"
+  [ -n "${value}" ] && q+="&value=${value}"
+
+  ${CURL} --max-time ${maxTime} "$(admin_url)/global-variable/${key}/wait?${q}"
+  local rc=$?
+  echo
+  return ${rc}
+}
+
+# -----------------------------------------------------------------------------
 # AUXILIARY
 
 pretty() {
