@@ -46,16 +46,21 @@ namespace h2agent
 namespace model
 {
 
+class WaitManager;
+
 /**
  * This class stores the global variables list.
  */
 class GlobalVariable : public Map<std::string, std::string>
 {
     h2agent::jsonschema::JsonSchema global_variable_schema_{};
+    WaitManager *wait_manager_{};
 
 public:
     GlobalVariable();
     ~GlobalVariable() = default;
+
+    void setWaitManager(WaitManager *p) { wait_manager_ = p; }
 
     /**
      * Loads variable and value.

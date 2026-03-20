@@ -64,6 +64,7 @@ class MockClientData;
 class AdminClientProvision;
 class AdminClientEndpoint;
 class DataKey;
+class WaitManager;
 }
 
 namespace http2
@@ -77,6 +78,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     model::AdminData *admin_data_{};
     model::common_resources_t common_resources_{}; // general configuration, global variables, file manager and mock server events data
+    model::WaitManager *wait_manager_{};
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
@@ -174,6 +176,8 @@ public:
     model::MockClientData *getMockClientData() const {
         return common_resources_.MockClientDataPtr;
     }
+
+    void setWaitManager(model::WaitManager *p) { wait_manager_ = p; }
 
     void setTimersIoContext(boost::asio::io_context *p) {
         timers_io_context_ = p;

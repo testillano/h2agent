@@ -8,4 +8,5 @@ PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mockClientEvent.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mockClientEventsHistory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mockClientData.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/waitManager.cpp
 )

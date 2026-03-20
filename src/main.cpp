@@ -55,6 +55,7 @@ SOFTWARE.
 #include <SocketManager.hpp>
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
+#include <WaitManager.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -67,7 +68,9 @@ SOFTWARE.
 #define ADMIN_NGHTTP2_SERVER_THREADS 1
 
 // In order to use queue dispatcher, we must set over 1, but performance is usually better without it:
-#define ADMIN_SERVER_WORKER_THREADS 1
+// Admin worker threads: enough to saturate MAX_WAITERS and still serve normal admin requests
+// (see WaitManager.hpp:66 — static constexpr size_t MAX_WAITERS = 32):
+#define ADMIN_SERVER_WORKER_THREADS_DEFAULT 33
 
 
 const char* progname;
@@ -83,6 +86,7 @@ h2agent::model::FileManager* myFileManager = nullptr;
 h2agent::model::SocketManager* mySocketManager = nullptr;
 h2agent::model::MockServerData* myMockServerData = nullptr;
 h2agent::model::MockClientData* myMockClientData = nullptr;
+h2agent::model::WaitManager* myWaitManager = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
@@ -191,6 +195,10 @@ void stopAgent()
     delete(myMockServerData);
     myMockServerData = nullptr;
 
+    if (myWaitManager) myWaitManager->shutdown();
+    delete(myWaitManager);
+    myWaitManager = nullptr;
+
     delete(myMetrics);
     myMetrics = nullptr;
 
@@ -284,9 +292,12 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  is activated: I/O threads enqueue requests and worker threads process them\n"
        << "  asynchronously. This helps when provision logic is slow (response delays,\n"
        << "  file I/O, etc.) as it keeps I/O threads responsive. For trivial logic, the\n"
-       << "  dispatch overhead may negate any benefit. Admin server hardcodes "
-       << ADMIN_SERVER_WORKER_THREADS << " worker\n"
-       << "  thread(s).\n\n"
+       << "  dispatch overhead may negate any benefit.\n\n"
+
+       << "[--admin-server-worker-threads <threads>]\n"
+       << "  Number of admin server worker threads; defaults to "
+       << ADMIN_SERVER_WORKER_THREADS_DEFAULT << " (max waiters + 1).\n"
+       << "  Higher values allow more concurrent blocking wait requests.\n\n"
 
        << "[--traffic-server-max-worker-threads <threads>]\n"
        << "  Maximum number of worker threads; defaults to '--traffic-server-worker-threads'.\n"
@@ -531,6 +542,7 @@ int main(int argc, char* argv[])
     int traffic_server_worker_threads = 1;
     int traffic_server_io_threads = 1;
     int traffic_server_max_worker_threads = 1;
+    int admin_server_worker_threads = ADMIN_SERVER_WORKER_THREADS_DEFAULT;
     int queue_dispatcher_max_size = -1; // no congestion control
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
@@ -656,6 +668,15 @@ int main(int argc, char* argv[])
         queue_dispatcher_max_size = toNumber(value);
         if (traffic_server_worker_threads < 0) queue_dispatcher_max_size = -1;
         myConfiguration->setQueueDispatcherMaxSize(queue_dispatcher_max_size);
+    }
+
+    if (readCmdLine(argv, argv + argc, "--admin-server-worker-threads", value))
+    {
+        admin_server_worker_threads = toNumber(value);
+        if (admin_server_worker_threads < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--admin-server-worker-threads' value. Must be greater than 0.");
+        }
     }
 
     if (readCmdLine(argv, argv + argc, "-k", value)
@@ -943,7 +964,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     mySocketManager->enableMetrics(myMetrics, application_name/*source label*/);
 
     // Admin server
-    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server("h2agent_admin_server", ADMIN_SERVER_WORKER_THREADS);
+    myAdminHttp2Server = new h2agent::http2::MyAdminHttp2Server("h2agent_admin_server", admin_server_worker_threads);
     myAdminHttp2Server->enableMetrics(myMetrics, {}, {}, application_name/*source label*/);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
@@ -964,9 +985,15 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myMockServerData = new h2agent::model::MockServerData();
     myMockClientData = new h2agent::model::MockClientData();
 
+    // Blocking wait (long-poll) manager:
+    myWaitManager = new h2agent::model::WaitManager();
+    myWaitManager->setGlobalVariable(myGlobalVariable);
+    myGlobalVariable->setWaitManager(myWaitManager);
+
     // Always set mock data on admin server (needed even when traffic server is disabled, e.g. client-only mode):
     myAdminHttp2Server->setMockServerData(myMockServerData);
     myAdminHttp2Server->setMockClientData(myMockClientData);
+    myAdminHttp2Server->setWaitManager(myWaitManager);
 
     // Traffic server
     if (traffic_server_enabled) {

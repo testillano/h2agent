@@ -424,7 +424,7 @@ void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &se
         std::string var = varPrefix + std::to_string(receptionId) + "." + req.method() + "." + req.uri().path;
         std::string val = std::to_string(errorCode);
 
-        global_variable_ptr_->add(var, val); // shall not exists: server sequence (reception id) is unique
+        global_variable_ptr_->load(var, val); // shall not exists: server sequence (reception id) is unique
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Variable processed (%s = %s)", var.c_str(), val.c_str()), ERT_FILE_LOCATION));
     }
 }
