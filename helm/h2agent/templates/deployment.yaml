@@ -56,10 +56,14 @@ spec:
             - {{ .Values.service.admin_port | quote }}
             - "--traffic-server-port"
             - {{ .Values.service.traffic_port | quote }}
+            {{- if ne .Values.h2agent_cl.traffic_server_api_name "" }}
             - "--traffic-server-api-name"
             - {{ .Values.h2agent_cl.traffic_server_api_name | quote }}
+            {{- end }}
+            {{- if ne .Values.h2agent_cl.traffic_server_api_version "" }}
             - "--traffic-server-api-version"
             - {{ .Values.h2agent_cl.traffic_server_api_version | quote }}
+            {{- end }}
             - "--traffic-server-worker-threads"
             - {{ .Values.h2agent_cl.traffic_server_worker_threads | quote }}
             {{- if ne .Values.h2agent_cl.traffic_server_key ""  }}
