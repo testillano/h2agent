@@ -13,6 +13,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
     - [Blocking wait](#blocking-wait)
   - [Files](#files)
   - [Logging](#logging)
+  - [Health](#health)
   - [Configuration](#configuration)
 - [Matching algorithms](#matching-algorithms)
   - [URI path query parameters](#uri-path-query-parameters)
@@ -168,6 +169,10 @@ An already managed file could be externally removed or corrupted. In that case, 
 The logging level (`GET /admin/v1/logging`) retrieves the current level: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
 To change it (`PUT /admin/v1/logging?level=<level>`), provide any of the valid log levels as query parameter. This can be also configured on start as described in the [command line](../../README.md#command-line) section.
+
+### Health
+
+`GET /admin/v1/health` returns `{"status":"healthy"}` with HTTP 200. This endpoint is intended for Kubernetes liveness and readiness probes. It is always available as long as the admin server is running.
 
 ### Configuration
 

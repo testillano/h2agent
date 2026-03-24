@@ -118,19 +118,22 @@ spec:
             {{- end }}
 
           {{- if not (and .Values.coverage .Values.coverage.enabled) }}
-          # livenessProbe & readinessProbe look for admin port, as main app is
-          #  blocking on startup and will restart the container in case of crash.
           livenessProbe:
-            tcpSocket:
-              port: {{ .Values.service.traffic_port }}
+            exec:
+              command:
+                - curl
+                - -sf
+                - --http2-prior-knowledge
+                - http://localhost:{{ .Values.service.admin_port }}/admin/v1/health
             initialDelaySeconds: 10
             periodSeconds: 5
-          livenessProbe:
-            #httpGet:
-            #  path: /healthz
-            #  port: {{ .Values.service.admin_port }}
-            tcpSocket:
-              port: {{ .Values.service.admin_port }}
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -sf
+                - --http2-prior-knowledge
+                - http://localhost:{{ .Values.service.admin_port }}/admin/v1/health
             initialDelaySeconds: 10
             periodSeconds: 5
           {{- end }}

@@ -657,6 +657,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         jsonContent = false;
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
+    else if (pathSuffix == "health") {
+        responseBody = "{\"status\":\"healthy\"}";
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
     else {
         statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
         responseBody = buildJsonResponse(false, std::string("invalid operation '") + pathSuffix + std::string("'"));

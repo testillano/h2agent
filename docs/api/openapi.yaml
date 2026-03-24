@@ -283,6 +283,22 @@ paths:
         '400':
           description: Invalid log level
 
+  /admin/v1/health:
+    get:
+      tags: [health]
+      summary: Health check for liveness and readiness probes
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+
   /admin/v1/configuration:
     get:
       tags: [configuration]
