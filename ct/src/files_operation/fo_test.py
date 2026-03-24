@@ -5,7 +5,9 @@ from conftest import ADMIN_FILES_URI, string2dict, FILE_MANAGER_PROVISION
 
 
 @pytest.mark.admin
-def test_001_i_want_to_get_process_files(h2ac_admin, admin_server_provision, h2ac_traffic):
+def test_001_i_want_to_get_process_files(h2ac_admin, admin_server_provision, h2ac_traffic, admin_cleanup):
+
+  admin_cleanup()
 
   # Provision
   admin_server_provision(string2dict(FILE_MANAGER_PROVISION))
