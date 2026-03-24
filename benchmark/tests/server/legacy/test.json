@@ -1,5 +1,5 @@
 {
-  "description": "Original benchmark provision: large JSON response body with globalVar substitution, file I/O, timestamp logging and RegexReplace URI extraction.",
+  "description": "Original benchmark provision: large JSON response body with vault substitution, file I/O, timestamp logging and RegexReplace URI extraction.",
   "requestMethod": "POST",
   "requestUri": "/app/v1/load-test/v1/id-21",
   "requestBody": {"id":"1a8b8863","name":"Ada Lovelace","email":"ada@geemail.com","bio":"First programmer. No big deal.","age":198,"avatar":"http://en.wikipedia.org/wiki/File:Ada_lovelace.jpg"},

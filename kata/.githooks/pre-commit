@@ -2,7 +2,7 @@
 dirty=0
 while read -r enc; do
   target="${enc%.enc}"
-  if git diff --cached --name-only | grep -qF "${target#./}"; then
+  if git diff --cached --name-only | grep -q "^${target#./}$"; then
     echo "ERROR: '${target#./}' is an exposed solution. Run hide_solutions.sh or unstage it."
     dirty=1
   fi

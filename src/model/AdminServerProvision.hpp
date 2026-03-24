@@ -63,7 +63,7 @@ class MockServerData;
 class MockClientData;
 class AdminData;
 class Configuration;
-class GlobalVariable;
+class Vault;
 class FileManager;
 class SocketManager;
 
@@ -107,7 +107,7 @@ class AdminServerProvision
     model::MockClientData *mock_client_events_data_{}; // just in case it is used
     model::AdminData *admin_data_{}; // just in case it is used
     model::Configuration *configuration_{}; // just in case it is used
-    model::GlobalVariable *global_variable_{}; // just in case it is used
+    model::Vault *vault_{}; // just in case it is used
     model::FileManager *file_manager_{}; // just in case it is used
     model::SocketManager *socket_manager_{}; // just in case it is used
 
@@ -243,11 +243,11 @@ public:
     }
 
     /**
-     * Sets the global variables data reference,
+     * Sets the vault data reference,
      * just in case it is used in event source
      */
-    void setGlobalVariable(model::GlobalVariable *p) {
-        global_variable_ = p;
+    void setVault(model::Vault *p) {
+        vault_ = p;
     }
 
     /**

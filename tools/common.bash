@@ -147,6 +147,7 @@ h2agent_server_configuration() {
   EXPECTED_STATUS_CODES="200 204"
   test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || exit 1
   test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
+  test_query "Vault cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/vault || exit 1
 
   if [ -f "server-matching.json" ]
   then

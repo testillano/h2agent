@@ -17,7 +17,7 @@
     "onResponseTransform":[
       {
         "source":"response.body",
-        "target":"globalVar.helloResponse"
+        "target":"vault.helloResponse"
       }
     ]
   },
@@ -36,7 +36,7 @@
         "target":"request.uri"
       },
       {
-        "source":"globalVar.helloResponse",
+        "source":"vault.helloResponse",
         "target":"request.body.json.jsonstring"
       }
     ]

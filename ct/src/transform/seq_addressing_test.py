@@ -2,7 +2,7 @@ import pytest
 import json
 import os
 import time
-from conftest import VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI, ADMIN_CLIENT_ENDPOINT_URI, ADMIN_CLIENT_PROVISION_URI, ADMIN_CLIENT_DATA_URI, ADMIN_SERVER_PROVISION_URI, ADMIN_GLOBAL_VARIABLE_URI
+from conftest import VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI, ADMIN_CLIENT_ENDPOINT_URI, ADMIN_CLIENT_PROVISION_URI, ADMIN_CLIENT_DATA_URI, ADMIN_SERVER_PROVISION_URI, ADMIN_VAULT_URI
 
 
 H2AGENT_HOST = os.environ.get('H2AGENT_SERVICE_HOST', 'h2agent')
@@ -28,7 +28,7 @@ def test_001_provision_seq_addressing(admin_server_provision):
 @pytest.mark.transform
 def test_002_server_recvseq_source_and_eraser(h2ac_traffic, h2ac_admin):
 
-  # Create an event (GET captures recvseq into globalVar.lastRecvSeq)
+  # Create an event (GET captures recvseq into vault.lastRecvSeq)
   response = h2ac_traffic.get("/app/v1/seq-test/data")
   h2ac_traffic.assert_response__status_body_headers(response, 200, {"origin": "seq-test"})
 
@@ -113,7 +113,7 @@ def test_011_provision_client_seq_addressing(h2ac_admin):
     "transform": [
       {
         "source": "clientEvent.clientEndpointId=seqtest&requestMethod=POST&requestUri=/app/v1/seq-test/create&sendseq=@{step1Seq}&eventPath=/responseBody",
-        "target": "globalVar.readBySeqResult"
+        "target": "vault.readBySeqResult"
       },
       {
         "source": "eraser",
@@ -142,6 +142,6 @@ def test_012_client_sendseq_source_and_eraser(h2ac_admin):
   response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI)
   assert response["status"] == 204
 
-  # Verify the globalVar was set (proves clientEvent source with sendseq worked)
-  response = h2ac_admin.get(ADMIN_GLOBAL_VARIABLE_URI + "?name=readBySeqResult")
+  # Verify the vault was set (proves clientEvent source with sendseq worked)
+  response = h2ac_admin.get(ADMIN_VAULT_URI + "?name=readBySeqResult")
   assert response["status"] == 200

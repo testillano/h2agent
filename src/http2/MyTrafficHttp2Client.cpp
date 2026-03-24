@@ -49,7 +49,7 @@ SOFTWARE.
 #include <AdminData.hpp>
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <functions.hpp>

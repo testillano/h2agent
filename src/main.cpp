@@ -50,7 +50,7 @@ SOFTWARE.
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <MockServerData.hpp>
@@ -81,7 +81,7 @@ h2agent::http2::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // incoming traffic
 boost::asio::io_context *myTimersIoContext = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
-h2agent::model::GlobalVariable* myGlobalVariable = nullptr;
+h2agent::model::Vault* myVault = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
 h2agent::model::SocketManager* mySocketManager = nullptr;
 h2agent::model::MockServerData* myMockServerData = nullptr;
@@ -214,8 +214,8 @@ void stopAgent()
     delete(mySocketManager);
     mySocketManager = nullptr;
 
-    delete(myGlobalVariable);
-    myGlobalVariable = nullptr;
+    delete(myVault);
+    myVault = nullptr;
 
     delete(myConfiguration);
     myConfiguration = nullptr;
@@ -338,8 +338,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--schema <path file>]\n"
        << "  Path file for optional startup schema configuration.\n\n"
 
-       << "[--global-variable <path file>]\n"
-       << "  Path file for optional startup global variable(s) configuration.\n\n"
+       << "[--vault <path file>]\n"
+       << "  Path file for optional startup vault configuration.\n\n"
 
        << "[--traffic-server-matching <path file>]\n"
        << "  Path file for optional startup traffic server matching configuration.\n\n"
@@ -524,10 +524,10 @@ int main(int argc, char* argv[])
     // Traces
     ert::tracing::Logger::initialize(progname); // initialize logger (before possible myExit() execution):
 
-    // General resources: timer io context, configuration and global variables and file manager:
+    // General resources: timer io context, configuration and vault and file manager:
     myTimersIoContext = new boost::asio::io_context();
     myConfiguration = new h2agent::model::Configuration();
-    myGlobalVariable = new h2agent::model::GlobalVariable();
+    myVault = new h2agent::model::Vault();
     myFileManager = new h2agent::model::FileManager(myTimersIoContext);
     mySocketManager = new h2agent::model::SocketManager(myTimersIoContext);
 
@@ -559,7 +559,7 @@ int main(int argc, char* argv[])
     std::string traffic_server_provision_file = "";
     std::string traffic_client_endpoint_file = "";
     std::string traffic_client_provision_file = "";
-    std::string global_variable_file = "";
+    std::string vault_file = "";
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
@@ -728,9 +728,9 @@ int main(int argc, char* argv[])
         traffic_client_provision_file = value;
     }
 
-    if (readCmdLine(argv, argv + argc, "--global-variable", value))
+    if (readCmdLine(argv, argv + argc, "--vault", value))
     {
-        global_variable_file = value;
+        vault_file = value;
     }
 
     if (readCmdLine(argv, argv + argc, "--traffic-server-ignore-request-body"))
@@ -906,7 +906,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     std::cout << "Schema configuration file: " << ((schema_file != "") ? schema_file :
               "<not provided>") << '\n';
-    std::cout << "Global variables configuration file: " << ((global_variable_file != "") ? global_variable_file :
+    std::cout << "Vault configuration file: " << ((vault_file != "") ? vault_file :
               "<not provided>") << '\n';
 
     std::cout << "Traffic server process request body: " << (!traffic_server_ignore_request_body ? "true":"false") << '\n';
@@ -969,7 +969,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
     myAdminHttp2Server->setConfiguration(myConfiguration);
-    myAdminHttp2Server->setGlobalVariable(myGlobalVariable);
+    myAdminHttp2Server->setVault(myVault);
     myAdminHttp2Server->setFileManager(myFileManager);
     myAdminHttp2Server->setSocketManager(mySocketManager);
     myAdminHttp2Server->setTimersIoContext(myTimersIoContext);
@@ -987,8 +987,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     // Blocking wait (long-poll) manager:
     myWaitManager = new h2agent::model::WaitManager();
-    myWaitManager->setGlobalVariable(myGlobalVariable);
-    myGlobalVariable->setWaitManager(myWaitManager);
+    myWaitManager->setVault(myVault);
+    myVault->setWaitManager(myWaitManager);
 
     // Always set mock data on admin server (needed even when traffic server is disabled, e.g. client-only mode):
     myAdminHttp2Server->setMockServerData(myMockServerData);
@@ -1008,7 +1008,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
         myTrafficHttp2Server->setMockClientData(myMockClientData);
         // myAdminHttp2Server->setMockClientData already called above (unconditionally)
-        myTrafficHttp2Server->setGlobalVariable(myGlobalVariable); // used by responseDelayMs()
+        myTrafficHttp2Server->setVault(myVault); // used by responseDelayMs()
     }
 
     // Schema configuration
@@ -1117,17 +1117,17 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // Set the traffic server reference (if used) to the admin server
     myAdminHttp2Server->setHttp2Server(myTrafficHttp2Server);
 
-    // Global variables
-    // Now that myTrafficHttp2Server is referenced, I will have access to global variables object:
-    if (global_variable_file != "") {
-        success = h2agent::model::getFileContent(global_variable_file, fileContent);
-        std::string log = "Global variables configuration load failed and will be ignored";
+    // Vault
+    // Now that myTrafficHttp2Server is referenced, I will have access to vault object:
+    if (vault_file != "") {
+        success = h2agent::model::getFileContent(vault_file, fileContent);
+        std::string log = "Vault configuration load failed and will be ignored";
         if (success)
             success = h2agent::model::parseJsonContent(fileContent, jsonObject);
 
         if (success) {
             log += ": ";
-            success = myAdminHttp2Server->globalVariable(jsonObject, log);
+            success = myAdminHttp2Server->vault(jsonObject, log);
         }
 
         if (!success) {

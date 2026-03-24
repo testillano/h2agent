@@ -23,7 +23,7 @@ curl -sf --http2-prior-knowledge -XDELETE \
 curl -sf --http2-prior-knowledge -XDELETE \
   "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-data" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/global-variable" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/vault" >/dev/null
 
 # Configure client
 h2a_curl POST client-endpoint client-endpoint.json >/dev/null
@@ -35,9 +35,9 @@ wait_for_gvar() {
   while true; do
     sleep 0.3
     local val
-    val=$(h2a_curl GET "global-variable" 2>/dev/null | jq -r --arg n "$name" '.[$n] // empty' 2>/dev/null || echo "")
+    val=$(h2a_curl GET "vault" 2>/dev/null | jq -r --arg n "$name" '.[$n] // empty' 2>/dev/null || echo "")
     [ -n "${val}" ] && return 0
-    [ $(( $(date +%s) - start )) -ge $timeout ] && echo "Timeout waiting for globalVar.${name}!" && return 1
+    [ $(( $(date +%s) - start )) -ge $timeout ] && echo "Timeout waiting for vault.${name}!" && return 1
   done
 }
 
@@ -51,12 +51,12 @@ title "Step 2: second-tick (GET /time, store t2, compute elapsed)" "" "*"
 h2a_curl GET "client-provision/second-tick?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_gvar elapsed || exit 1
 
-# Read globalVar.elapsed
-elapsed=$(h2a_curl GET "global-variable" 2>/dev/null | jq -r '.elapsed // empty' 2>/dev/null || echo "")
-echo "globalVar.elapsed = ${elapsed}"
+# Read vault.elapsed
+elapsed=$(h2a_curl GET "vault" 2>/dev/null | jq -r '.elapsed // empty' 2>/dev/null || echo "")
+echo "vault.elapsed = ${elapsed}"
 
 if [ -z "${elapsed}" ]; then
-  echo -e "${COLOR_red}NOK: globalVar.elapsed not set${COLOR_reset}"
+  echo -e "${COLOR_red}NOK: vault.elapsed not set${COLOR_reset}"
   exit 1
 fi
 

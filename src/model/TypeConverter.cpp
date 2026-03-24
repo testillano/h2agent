@@ -65,19 +65,18 @@ void searchReplaceAll(std::string& str,
     );
 }
 
-void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars) {
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, Vault *vault) {
 
     if (patterns.empty()) return;
-    if (vars.empty() && gvars->empty()) return;
+    if (vars.empty() && vault->empty()) return;
 
     std::map<std::string,std::string>::const_iterator it;
-    std::unordered_map<std::string,std::string>::const_iterator git;
 
-    std::string aux{};
+    nlohmann::json aux{};
 
     for (auto pit = patterns.begin(); pit != patterns.end(); pit++) {
 
-        // local var has priority over a global var with the same name
+        // local var has priority over a vault with the same name
         if (!vars.empty()) {
             it = vars.find(pit->second);
             if (it != vars.end()) {
@@ -86,9 +85,9 @@ void replaceVariables(std::string &str, const std::map<std::string, std::string>
             }
         }
 
-        if (!gvars->empty()) { // this is much more efficient that find() == end() below
-            if (gvars->tryGet(pit->second, aux)) {
-                searchReplaceAll(str, pit->first, aux);
+        if (!vault->empty()) { // this is much more efficient that find() == end() below
+            if (vault->tryGet(pit->second, aux)) {
+                searchReplaceAll(str, pit->first, jsonToString(aux));
             }
         }
     }
@@ -129,10 +128,10 @@ void TypeConverter::setBoolean(bool boolean) {
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Boolean value: %s", b_value_ ? "true":"false"), ERT_FILE_LOCATION));
 }
 
-void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars) {
+void TypeConverter::setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, Vault *vault) {
 
     setString(str);
-    replaceVariables(s_value_, patterns, vars, gvars);
+    replaceVariables(s_value_, patterns, vars, vault);
 }
 
 const std::string &TypeConverter::getString(bool &success) {

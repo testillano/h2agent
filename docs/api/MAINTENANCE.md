@@ -22,7 +22,7 @@ They can be regenerated with `generate_openapi_schemas.py` for drift detection.
 | Schema | Source endpoint |
 |---|---|
 | `SchemaConfig` | `/admin/v1/schema/schema` |
-| `GlobalVariableMap` | `/admin/v1/global-variable/schema` |
+| `VaultMap` | `/admin/v1/vault/schema` |
 | `ServerMatching` | `/admin/v1/server-matching/schema` |
 | `ServerProvision` | `/admin/v1/server-provision/schema` |
 | `ClientEndpoint` | `/admin/v1/client-endpoint/schema` |

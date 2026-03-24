@@ -53,7 +53,7 @@ SOFTWARE.
 #include <MockClientData.hpp>
 #include <MockServerData.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <AdminData.hpp>
@@ -270,7 +270,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
             }
         }
 
-        // TARGETS (response phase: only var/globalVar/outState/file/socket/break/clientEvent targets apply)
+        // TARGETS (response phase: only var/vault/outState/file/socket/break/clientEvent targets apply)
         // We reuse processTargets with dummy request body params
         nlohmann::json dummyJson;
         std::string dummyString;
@@ -327,7 +327,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::RequestBody:
     {
         std::string path = transformation->getSource();
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(path, transformation->getSourcePatterns(), variables, vault_);
         if (usesRequestBodyAsTransformationJsonTarget) {
             if (!sourceVault.setObject(requestBodyJson, path)) return false;
         }
@@ -340,7 +340,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     {
         if (!receivedResponse) return false;
         std::string path = transformation->getSource();
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(path, transformation->getSourcePatterns(), variables, vault_);
         nlohmann::json responseJson;
         if (!h2agent::model::parseJsonContent(receivedResponse->body, responseJson)) {
             sourceVault.setString(receivedResponse->body);
@@ -395,7 +395,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::Math:
     {
         std::string expressionString = transformation->getSource();
-        replaceVariables(expressionString, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(expressionString, transformation->getSourcePatterns(), variables, vault_);
         expression_t expression;
         parser_t parser;
         parser.compile(expressionString, expression);
@@ -412,7 +412,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     }
     case Transformation::SourceType::RandomSet:
     {
-        sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], transformation->getSourcePatterns(), variables, global_variable_);
+        sourceVault.setStringReplacingVariables(transformation->getSourceTokenized()[rand () % transformation->getSourceTokenized().size()], transformation->getSourcePatterns(), variables, vault_);
         break;
     }
     case Transformation::SourceType::Timestamp:
@@ -429,7 +429,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         std::time (&unixTime);
         char buffer[100] = {0};
         strftime(buffer, sizeof(buffer), transformation->getSource().c_str(), localtime(&unixTime));
-        sourceVault.setStringReplacingVariables(std::string(buffer), transformation->getSourcePatterns(), variables, global_variable_);
+        sourceVault.setStringReplacingVariables(std::string(buffer), transformation->getSourcePatterns(), variables, vault_);
         break;
     }
     case Transformation::SourceType::Sendseq:
@@ -445,7 +445,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::SVar:
     {
         std::string varname = transformation->getSource();
-        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(varname, transformation->getSourcePatterns(), variables, vault_);
         auto iter = variables.find(varname);
         if (iter != variables.end()) sourceVault.setString(iter->second);
         else return false;
@@ -454,29 +454,33 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::SGVar:
     {
         std::string varname = transformation->getSource();
-        replaceVariables(varname, transformation->getSourcePatterns(), variables, global_variable_);
-        std::string globalVariableValue{};
-        if (global_variable_->tryGet(varname, globalVariableValue)) sourceVault.setString(globalVariableValue);
+        replaceVariables(varname, transformation->getSourcePatterns(), variables, vault_);
+        nlohmann::json vaultValue{};
+        if (vault_->tryGet(varname, vaultValue)) {
+            std::string path = transformation->getSource2();
+            if (!path.empty()) replaceVariables(path, transformation->getSourcePatterns(), variables, vault_);
+            if (!sourceVault.setObject(vaultValue, path)) return false;
+        }
         else return false;
         break;
     }
     case Transformation::SourceType::Value:
     {
-        sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, global_variable_);
+        sourceVault.setStringReplacingVariables(transformation->getSource(), transformation->getSourcePatterns(), variables, vault_);
         break;
     }
     case Transformation::SourceType::ServerEvent:
     {
         std::string event_method = transformation->getSourceTokenized()[0];
-        replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_method, transformation->getSourcePatterns(), variables, vault_);
         std::string event_uri = transformation->getSourceTokenized()[1];
-        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, vault_);
         std::string event_number = transformation->getSourceTokenized()[2];
-        replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_number, transformation->getSourcePatterns(), variables, vault_);
         std::string event_path = transformation->getSourceTokenized()[3];
-        replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_path, transformation->getSourcePatterns(), variables, vault_);
         std::string event_recvseq = transformation->getSourceTokenized()[4];
-        replaceVariables(event_recvseq, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_recvseq, transformation->getSourcePatterns(), variables, vault_);
 
         std::shared_ptr<MockEvent> mockServerRequest;
         if (!event_recvseq.empty()) {
@@ -500,17 +504,17 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::ClientEvent:
     {
         std::string event_endpoint = transformation->getSourceTokenized()[0];
-        replaceVariables(event_endpoint, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_endpoint, transformation->getSourcePatterns(), variables, vault_);
         std::string event_method = transformation->getSourceTokenized()[1];
-        replaceVariables(event_method, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_method, transformation->getSourcePatterns(), variables, vault_);
         std::string event_uri = transformation->getSourceTokenized()[2];
-        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_uri, transformation->getSourcePatterns(), variables, vault_);
         std::string event_number = transformation->getSourceTokenized()[3];
-        replaceVariables(event_number, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_number, transformation->getSourcePatterns(), variables, vault_);
         std::string event_path = transformation->getSourceTokenized()[4];
-        replaceVariables(event_path, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_path, transformation->getSourcePatterns(), variables, vault_);
         std::string event_sendseq = transformation->getSourceTokenized()[5];
-        replaceVariables(event_sendseq, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(event_sendseq, transformation->getSourcePatterns(), variables, vault_);
 
         DataKey dkey(event_endpoint, event_method, event_uri);
         std::shared_ptr<MockEvent> mockClientRequest;
@@ -539,7 +543,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::STxtFile:
     {
         std::string path = transformation->getSource();
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(path, transformation->getSourcePatterns(), variables, vault_);
         std::string content;
         file_manager_->read(path, content, true);
         sourceVault.setString(std::move(content));
@@ -548,7 +552,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::SBinFile:
     {
         std::string path = transformation->getSource();
-        replaceVariables(path, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(path, transformation->getSourcePatterns(), variables, vault_);
         std::string content;
         file_manager_->read(path, content, false);
         sourceVault.setString(std::move(content));
@@ -557,7 +561,7 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
     case Transformation::SourceType::Command:
     {
         std::string command = transformation->getSource();
-        replaceVariables(command, transformation->getSourcePatterns(), variables, global_variable_);
+        replaceVariables(command, transformation->getSourcePatterns(), variables, vault_);
         static char buffer[256];
         std::string output{};
         FILE *fp = popen(command.c_str(), "r");
@@ -615,7 +619,7 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::Append:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, vault_);
         targetS = source + filter;
         sourceVault.setString(targetS);
         break;
@@ -623,7 +627,7 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::Prepend:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, vault_);
         targetS = filter + source;
         sourceVault.setString(targetS);
         break;
@@ -660,14 +664,14 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::EqualTo:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, vault_);
         if (source != filter) return false;
         break;
     }
     case Transformation::FilterType::DifferentFrom:
     {
         std::string filter = transformation->getFilter();
-        replaceVariables(filter, transformation->getFilterPatterns(), variables, global_variable_);
+        replaceVariables(filter, transformation->getFilterPatterns(), variables, vault_);
         if (source == filter) return false;
         break;
     }
@@ -795,7 +799,7 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
     nlohmann::json obj;
 
     std::string target = transformation->getTarget();
-    replaceVariables(target, transformation->getTargetPatterns(), variables, global_variable_);
+    replaceVariables(target, transformation->getTargetPatterns(), variables, vault_);
 
     try {
         switch (transformation->getTargetType()) {
@@ -945,24 +949,46 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         }
         case Transformation::TargetType::TGVar:
         {
+            std::string gvarPath = transformation->getTarget2();
+            if (!gvarPath.empty()) replaceVariables(gvarPath, transformation->getTarget2Patterns(), variables, vault_);
+
             if (eraser) {
                 bool exists;
-                global_variable_->remove(target, exists);
+                vault_->remove(target, exists);
             }
             else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
-                std::string varname;
                 if (matches.size() >=1) {
-                    global_variable_->load(target, matches.str(0));
+                    nlohmann::json captureObj = nlohmann::json::object();
+                    captureObj["0"] = matches.str(0);
                     for(size_t i=1; i < matches.size(); i++) {
-                        varname = target + "." + std::to_string(i);
-                        global_variable_->load(varname, matches.str(i));
+                        captureObj[std::to_string(i)] = matches.str(i);
+                    }
+                    if (gvarPath.empty()) {
+                        vault_->load(target, captureObj);
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, captureObj);
                     }
                 }
             }
             else {
-                targetS = sourceVault.getString(success);
-                if (!success) return false;
-                global_variable_->load(target, targetS);
+                bool objSuccess = false;
+                const nlohmann::json &obj = sourceVault.getObject(objSuccess);
+                if (objSuccess) {
+                    if (gvarPath.empty()) {
+                        vault_->load(target, obj);
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, obj);
+                    }
+                } else {
+                    targetS = sourceVault.getString(success);
+                    if (!success) return false;
+                    nlohmann::json val(targetS);
+                    if (gvarPath.empty()) {
+                        vault_->load(target, val);
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, val);
+                    }
+                }
             }
             break;
         }
@@ -1017,15 +1043,15 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
             // eventNumber:      index 3
             // sendseq:          index 4
             std::string event_endpoint = transformation->getTargetTokenized()[0];
-            replaceVariables(event_endpoint, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(event_endpoint, transformation->getTargetPatterns(), variables, vault_);
             std::string event_method = transformation->getTargetTokenized()[1];
-            replaceVariables(event_method, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(event_method, transformation->getTargetPatterns(), variables, vault_);
             std::string event_uri = transformation->getTargetTokenized()[2];
-            replaceVariables(event_uri, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(event_uri, transformation->getTargetPatterns(), variables, vault_);
             std::string event_number = transformation->getTargetTokenized()[3];
-            replaceVariables(event_number, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(event_number, transformation->getTargetPatterns(), variables, vault_);
             std::string event_sendseq = transformation->getTargetTokenized()[4];
-            replaceVariables(event_sendseq, transformation->getTargetPatterns(), variables, global_variable_);
+            replaceVariables(event_sendseq, transformation->getTargetPatterns(), variables, vault_);
 
             bool clientDataDeleted = false;
             DataKey dkey(event_endpoint, event_method, event_uri);

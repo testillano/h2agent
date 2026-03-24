@@ -1,8 +1,8 @@
-2-step client flow using scoped variables instead of globalVar.
+2-step client flow using scoped variables instead of vault.
 
 Demonstrates var.* propagation across outState links in client mode.
 Link 1 captures a token from the server response into var.token.
-Link 2 uses var.token in the request body — no globalVar, no cleanup.
+Link 2 uses var.token in the request body — no vault, no cleanup.
 
 Flow:
   1. Trigger fires provision (initial, authFlow) -> GET /api/v1/auth
@@ -17,5 +17,5 @@ After execution, verify:
   - Client-data: 2 events (GET /auth, POST /data)
   - Server-data: POST /data received {"auth":"abc-123"} as body
 
-Compare with ClientFlowTransform which uses globalVar for the same pattern.
+Compare with ClientFlowTransform which uses vault for the same pattern.
 Scoped var is simpler: no eraser needed, no namespace pollution.

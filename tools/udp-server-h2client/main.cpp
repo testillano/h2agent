@@ -323,7 +323,7 @@ void replaceVariables(std::string &str, const std::map<std::string, std::string>
 
     for (auto pit = patterns.begin(); pit != patterns.end(); pit++) {
 
-        // local var has priority over a global var with the same name
+        // local var has priority over a vault with the same name
         if (!vars.empty()) {
             it = vars.find(pit->second);
             if (it != vars.end()) {

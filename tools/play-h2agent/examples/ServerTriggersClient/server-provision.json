@@ -8,7 +8,7 @@
     "transform": [
       {
         "source": "request.body",
-        "target": "globalVar.notificationBody"
+        "target": "vault.notificationBody"
       },
       {
         "source": "value.1",

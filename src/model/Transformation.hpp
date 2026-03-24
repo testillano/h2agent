@@ -111,7 +111,8 @@ private:
 
     SourceType source_type_{};
     std::string source_{}; // RequestUriParam, RequestBody(empty: whole, path: node), ResponseBody(empty: whole, path: node),
-    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar, Value, STxtFile(path), SBinFile (path), Command(expression)
+    // RequestHeader, Math, Timestamp, Strftime, SVar, SGVar(key), Value, STxtFile(path), SBinFile (path), Command(expression)
+    std::string source2_{}; // SGVar (optional json path)
     std::vector<std::string> source_tokenized_{}; // RandomSet, ServerEvent
     int source_i1_{}, source_i2_{}; // Random
 
@@ -119,7 +120,7 @@ private:
     std::string target_{}; // ResponseBodyJson_String/Integer/Unsigned/Float/Boolean/Object/JsonString(empty: whole, path: node),
     // ResponseHeader, TVar, TGVar, OutState (foreign method part), TTxtFile(path), TBinFile (path), UDPSocket (path[.delayMs])
     std::vector<std::string> target_tokenized_{}; // ServerEventToPurge
-    std::string target2_{}; // OutState (foreign uri part)
+    std::string target2_{}; // OutState (foreign uri part), TGVar (optional json path)
 
     bool has_filter_{};
     FilterType filter_type_{};
@@ -156,6 +157,10 @@ public:
     /** Gets source */
     const std::string &getSource() const {
         return source_;
+    }
+    /** Gets source2 (SGVar json path) */
+    const std::string &getSource2() const {
+        return source2_;
     }
     /** Gets source tokenized */
     const std::vector<std::string> &getSourceTokenized() const {

@@ -55,7 +55,7 @@ namespace h2agent
 namespace model
 {
 class Configuration;
-class GlobalVariable;
+class Vault;
 class FileManager;
 class SocketManager;
 class AdminData;
@@ -77,7 +77,7 @@ class MyTrafficHttp2Server;
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     model::AdminData *admin_data_{};
-    model::common_resources_t common_resources_{}; // general configuration, global variables, file manager and mock server events data
+    model::common_resources_t common_resources_{}; // general configuration, vault, file manager and mock server events data
     model::WaitManager *wait_manager_{};
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
@@ -131,11 +131,11 @@ public:
         return common_resources_.ConfigurationPtr;
     }
 
-    void setGlobalVariable(model::GlobalVariable *p) {
-        common_resources_.GlobalVariablePtr = p;
+    void setVault(model::Vault *p) {
+        common_resources_.VaultPtr = p;
     }
-    model::GlobalVariable *getGlobalVariable() const {
-        return common_resources_.GlobalVariablePtr;
+    model::Vault *getVault() const {
+        return common_resources_.VaultPtr;
     }
 
     void setFileManager(model::FileManager *p) {
@@ -204,7 +204,7 @@ public:
     int serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const;
     int clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const;
     int clientProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const;
-    int globalVariable(const nlohmann::json &configurationObject, std::string& log) const;
+    int vault(const nlohmann::json &configurationObject, std::string& log) const;
     int schema(const nlohmann::json &configurationObject, std::string& log) const;
 
     // Client data storage:

@@ -37,16 +37,16 @@ SOFTWARE.
 #include <chrono>
 
 #include <WaitManager.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 
 namespace h2agent
 {
 namespace model
 {
 
-bool WaitManager::waitForGlobalVariable(const std::string &key, const std::string &targetValue,
+bool WaitManager::waitForVault(const std::string &key, const nlohmann::json &targetValue,
                                         unsigned int timeoutMs,
-                                        std::string &resultValue, std::string &previousValue) {
+                                        nlohmann::json &resultValue, nlohmann::json &previousValue) {
 
     timeoutMs = std::min(timeoutMs, MAX_TIMEOUT_MS);
 
@@ -59,11 +59,11 @@ bool WaitManager::waitForGlobalVariable(const std::string &key, const std::strin
     if (shutdown_) return false;
 
     // Capture initial value
-    previousValue.clear();
-    if (global_variable_) global_variable_->tryGet(key, previousValue);
+    previousValue = nullptr;
+    if (vault_) vault_->tryGet(key, previousValue);
 
     // Check if already satisfied
-    if (!targetValue.empty() && previousValue == targetValue) {
+    if (!targetValue.is_null() && previousValue == targetValue) {
         resultValue = previousValue;
         return true;
     }
@@ -71,9 +71,9 @@ bool WaitManager::waitForGlobalVariable(const std::string &key, const std::strin
     active_waiters_++;
     bool result = cv_.wait_for(lock, std::chrono::milliseconds(timeoutMs), [&] {
         if (shutdown_) return true;
-        resultValue.clear();
-        bool exists = global_variable_ && global_variable_->tryGet(key, resultValue);
-        if (targetValue.empty()) {
+        resultValue = nullptr;
+        bool exists = vault_ && vault_->tryGet(key, resultValue);
+        if (targetValue.is_null()) {
             return exists && resultValue != previousValue;
         }
         return exists && resultValue == targetValue;
@@ -83,8 +83,8 @@ bool WaitManager::waitForGlobalVariable(const std::string &key, const std::strin
     if (shutdown_) return false;
 
     if (!result) {
-        resultValue.clear();
-        if (global_variable_) global_variable_->tryGet(key, resultValue);
+        resultValue = nullptr;
+        if (vault_) vault_->tryGet(key, resultValue);
     }
 
     return result;

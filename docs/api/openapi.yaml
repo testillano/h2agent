@@ -20,8 +20,8 @@ servers:
 tags:
   - name: schema
     description: Validation schemas management
-  - name: global-variable
-    description: Global variables management
+  - name: vault
+    description: Vaults management
   - name: files
     description: Processed files information
   - name: logging
@@ -110,12 +110,12 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/global-variable:
+  /admin/v1/vault:
     post:
-      tags: [global-variable]
-      summary: Load global variables
+      tags: [vault]
+      summary: Load vaults
       description: >
-        Creates or updates global variables. Variables are string-valued
+        Creates or updates vaults. Variables are string-valued
         and interpreted as numbers or other types depending on the
         transformation involved.
       requestBody:
@@ -123,7 +123,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GlobalVariableMap'
+              $ref: '#/components/schemas/VaultMap'
       responses:
         '201':
           description: Variables created
@@ -138,8 +138,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResultResponse'
     get:
-      tags: [global-variable]
-      summary: Retrieve global variables
+      tags: [vault]
+      summary: Retrieve vaults
       description: >
         Without query parameter returns all variables as a JSON object.
         With `name` parameter returns the specific variable value as
@@ -156,7 +156,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GlobalVariableMap'
+                $ref: '#/components/schemas/VaultMap'
             text/plain:
               schema:
                 type: string
@@ -166,10 +166,10 @@ paths:
         '400':
           description: Bad request (invalid name)
     delete:
-      tags: [global-variable]
-      summary: Delete global variables
+      tags: [vault]
+      summary: Delete vaults
       description: >
-        Deletes all global variables or a specific one when the `name`
+        Deletes all vaults or a specific one when the `name`
         query parameter is provided.
       parameters:
         - name: name
@@ -185,10 +185,10 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/global-variable/schema:
+  /admin/v1/vault/schema:
     get:
-      tags: [global-variable]
-      summary: Retrieve the global variables schema
+      tags: [vault]
+      summary: Retrieve the vaults schema
       responses:
         '200':
           description: Schema retrieved
@@ -197,19 +197,19 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/global-variable/{key}/wait:
+  /admin/v1/vault/{key}/wait:
     get:
-      tags: [global-variable]
-      summary: Block until a global variable changes
+      tags: [vault]
+      summary: Block until a vault changes
       description: >
-        Long-poll endpoint that blocks until the specified global variable
+        Long-poll endpoint that blocks until the specified vault
         changes from its current value (any change) or reaches a specific
         target value. Returns immediately if the condition is already met.
       parameters:
         - name: key
           in: path
           required: true
-          description: Global variable name to watch
+          description: Vault name to watch
           schema:
             type: string
         - name: value
@@ -231,13 +231,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GlobalVariableWaitResponse'
+                $ref: '#/components/schemas/VaultWaitResponse'
         '408':
           description: Timeout — condition not met within the specified time
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GlobalVariableWaitResponse'
+                $ref: '#/components/schemas/VaultWaitResponse'
         '429':
           description: Too many concurrent waiters (max 32)
 
@@ -992,7 +992,7 @@ components:
           type: object
           description: JSON Schema definition content
 
-    GlobalVariableMap:
+    VaultMap:
       type: object
       description: Key-value pairs where all values are strings
       additionalProperties: false
@@ -1001,7 +1001,7 @@ components:
           anyOf:
             - type: string
 
-    GlobalVariableWaitResponse:
+    VaultWaitResponse:
       type: object
       properties:
         result:
@@ -1213,23 +1213,23 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|headers)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^recvseq$|^(var|globalVar|serverEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|headers)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^recvseq$|^(var|vault|serverEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source expression. Examples: request.uri, request.body,
             request.body./path, request.header.<name>, request.headers,
             response.body, response.headers, eraser, math.<expr>,
             random.<min>.<max>, randomset.<values>, timestamp.<unit>,
-            strftime.<fmt>, recvseq, var.<id>, globalVar.<id>,
+            strftime.<fmt>, recvseq, var.<id>, vault.<id>,
             value.<val>, serverEvent.<params>, inState, txtFile.<path>,
             binFile.<path>, command.<cmd>
         target:
           type: string
-          pattern: '^response\.body\.(string$|hexstring$)|^response\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^response\.(header\..+|statusCode|delayMs)$|^(var|globalVar|serverEvent)\..+|^outState(\.(POST|GET|PUT|DELETE|HEAD)(\..+)?)?$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
+          pattern: '^response\.body\.(string$|hexstring$)|^response\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^response\.(header\..+|statusCode|delayMs)$|^(var|vault|serverEvent)\..+|^outState(\.(POST|GET|PUT|DELETE|HEAD)(\..+)?)?$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
           description: >
             Data target expression. Examples: response.body.string,
             response.body.json.object./path, response.header.<name>,
             response.statusCode, response.delayMs, var.<id>,
-            globalVar.<id>, outState, txtFile.<path>, binFile.<path>,
+            vault.<id>, outState, txtFile.<path>, binFile.<path>,
             udpSocket.<path>, serverEvent.<params>, break
       additionalProperties:
         $ref: '#/components/schemas/TransformFilter'
@@ -1315,22 +1315,22 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri|body(\..+)?|header\..+|headers)$|^response\.headers$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri|body(\..+)?|header\..+|headers)$|^response\.headers$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source for request transformation. Examples: request.uri,
             request.body, request.headers, response.headers, eraser,
             math.<expr>, random.<min>.<max>, randomset.<values>,
             timestamp.<unit>, strftime.<fmt>, sendseq, seq, var.<id>,
-            globalVar.<id>, clientEvent.<params>, value.<val>, inState,
+            vault.<id>, clientEvent.<params>, value.<val>, inState,
             txtFile.<path>, binFile.<path>, command.<cmd>
         target:
           type: string
-          pattern: '^request\.body\.(string$|hexstring$)|^request\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^request\.(header\..+|delayMs|timeoutMs)$|^(var|globalVar|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+'
+          pattern: '^request\.body\.(string$|hexstring$)|^request\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^request\.(header\..+|delayMs|timeoutMs)$|^(var|vault|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+'
           description: >
             Data target for request transformation. Examples:
             request.body.string, request.body.json.object./path,
             request.header.<name>, request.delayMs, request.timeoutMs,
-            var.<id>, globalVar.<id>, clientEvent.<params>, outState,
+            var.<id>, vault.<id>, clientEvent.<params>, outState,
             txtFile.<path>, binFile.<path>, udpSocket.<path>
       additionalProperties:
         $ref: '#/components/schemas/TransformFilter'
@@ -1343,7 +1343,7 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|header\..+|headers|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|globalVar|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|header\..+|headers|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source for response transformation. Includes all
             request transform sources plus: response.body, response.body./path,
@@ -1351,10 +1351,10 @@ components:
             request.uri.param.<name>
         target:
           type: string
-          pattern: '^(var|globalVar|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
+          pattern: '^(var|vault|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
           description: >
             Data target for response transformation. Examples:
-            var.<id>, globalVar.<id>, clientEvent.<params>, outState,
+            var.<id>, vault.<id>, clientEvent.<params>, outState,
             txtFile.<path>, binFile.<path>, udpSocket.<path>, break
       additionalProperties:
         $ref: '#/components/schemas/TransformFilter'

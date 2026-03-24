@@ -2,10 +2,10 @@ import pytest
 import json
 import threading
 import time
-from conftest import ADMIN_GLOBAL_VARIABLE_URI, RestClient, H2AGENT_ENDPOINT__admin
+from conftest import ADMIN_VAULT_URI, RestClient, H2AGENT_ENDPOINT__admin
 
 
-WAIT_URI_PREFIX = ADMIN_GLOBAL_VARIABLE_URI + "/"
+WAIT_URI_PREFIX = ADMIN_VAULT_URI + "/"
 
 
 def wait_uri(key, timeout_ms=None, value=None):
@@ -28,7 +28,7 @@ def test_000_cleanup(admin_cleanup):
 @pytest.mark.admin
 def test_001_wait_specific_value_already_satisfied(h2ac_admin):
     """Variable already has the target value => immediate 200"""
-    h2ac_admin.postDict(ADMIN_GLOBAL_VARIABLE_URI, {"MY_KEY": "done"})
+    h2ac_admin.postDict(ADMIN_VAULT_URI, {"MY_KEY": "done"})
 
     response = h2ac_admin.get(wait_uri("MY_KEY", timeout_ms=1000, value="done"))
     assert response["status"] == 200
@@ -41,7 +41,7 @@ def test_001_wait_specific_value_already_satisfied(h2ac_admin):
 @pytest.mark.admin
 def test_002_wait_timeout(h2ac_admin):
     """Variable never changes => 408 after short timeout"""
-    h2ac_admin.postDict(ADMIN_GLOBAL_VARIABLE_URI, {"STUCK": "initial"})
+    h2ac_admin.postDict(ADMIN_VAULT_URI, {"STUCK": "initial"})
 
     response = h2ac_admin.get(wait_uri("STUCK", timeout_ms=200, value="never"))
     assert response["status"] == 408
@@ -54,7 +54,7 @@ def test_002_wait_timeout(h2ac_admin):
 @pytest.mark.admin
 def test_003_wait_any_change(h2ac_admin):
     """Wait for any change: set variable from another connection"""
-    h2ac_admin.postDict(ADMIN_GLOBAL_VARIABLE_URI, {"SIGNAL": "before"})
+    h2ac_admin.postDict(ADMIN_VAULT_URI, {"SIGNAL": "before"})
 
     result = {}
 
@@ -70,7 +70,7 @@ def test_003_wait_any_change(h2ac_admin):
     t.start()
 
     time.sleep(0.3)
-    h2ac_admin.postDict(ADMIN_GLOBAL_VARIABLE_URI, {"SIGNAL": "after"})
+    h2ac_admin.postDict(ADMIN_VAULT_URI, {"SIGNAL": "after"})
 
     t.join(timeout=6)
     assert not t.is_alive()
@@ -93,7 +93,7 @@ def test_004_wait_specific_value_via_traffic(h2ac_admin, h2ac_traffic, admin_ser
         "transform": [
             {
                 "source": "value.ready",
-                "target": "globalVar.TRAFFIC_SIGNAL"
+                "target": "vault.TRAFFIC_SIGNAL"
             }
         ]
     }

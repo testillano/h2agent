@@ -79,7 +79,7 @@ public:
      * Loads client provision operation data
      *
      * @param j json document from operation body request
-     * @param cr common resources references (general configuration, global variables, file manager, mock client events data)
+     * @param cr common resources references (general configuration, vault, file manager, mock client events data)
      *
      * @return Load operation result
      */

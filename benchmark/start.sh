@@ -58,14 +58,14 @@ Test profiles are organized under benchmark/tests/:
   tests/server/<name>/   Server benchmarks (h2load → h2agent server under test)
     test.json              metadata (description, requestMethod, requestUri, requestBody, requestHeaders)
     server-provision.json  server provision configuration
-    global-variable.json   (optional) global variables
+    vault.json   (optional) vault entries
 
   tests/client/<name>/   Client benchmarks (h2agent client under test → h2agent server mock)
     test.json              metadata (description)
     client-provision.json  client provision configuration
     server-provision.json  server mock provision (fixture)
     client-endpoint.json   (optional) client endpoint configuration
-    global-variable.json   (optional) global variables
+    vault.json   (optional) vault entries
 
 Mode is auto-detected from the profile directory (server/ or client/).
 Reports are generated as markdown under the profile's reports/ subdirectory.
@@ -297,7 +297,7 @@ if [ "${BENCH_MODE}" = "server" ]; then
   # Configure server
   echo '{"algorithm":"FullMatching"}' > ${TMP_DIR}/server-matching.json
   h2a_admin_curl DELETE admin/v1/server-provision
-  h2a_admin_curl DELETE admin/v1/global-variable
+  h2a_admin_curl DELETE admin/v1/vault
   h2a_admin_curl POST admin/v1/server-matching 201 ${TMP_DIR}/server-matching.json || exit 1
   h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/server-provision.json || exit 1
   h2a_admin_curl PUT "admin/v1/files/configuration?readCache=${H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION}" 200 || exit 1
@@ -325,8 +325,8 @@ if [ "${BENCH_MODE}" = "server" ]; then
   h2a_admin_curl DELETE "admin/v1/server-data"
   echo "done !"
 
-  # Global variables
-  [ -f "${TEST_DIR}/global-variable.json" ] && h2a_admin_curl POST admin/v1/global-variable 201 "${TEST_DIR}/global-variable.json" || true
+  # Vault
+  [ -f "${TEST_DIR}/vault.json" ] && h2a_admin_curl POST admin/v1/vault 201 "${TEST_DIR}/vault.json" || true
 
   # h2load parameters
   read_value "Number of h2load iterations" H2LOAD__ITERATIONS
@@ -386,14 +386,14 @@ elif [ "${BENCH_MODE}" = "client" ]; then
 
   # Server mock setup (fixture) — on the MAIN h2agent
   h2a_admin_curl DELETE admin/v1/server-provision
-  h2a_admin_curl DELETE admin/v1/global-variable
+  h2a_admin_curl DELETE admin/v1/vault
   if [ -f "${TEST_DIR}/server-provision.json" ]; then
     echo '{"algorithm":"FullMatching"}' > ${TMP_DIR}/server-matching.json
     h2a_admin_curl POST admin/v1/server-matching 201 ${TMP_DIR}/server-matching.json || exit 1
     h2a_admin_curl POST admin/v1/server-provision 201 "${TEST_DIR}/server-provision.json" || exit 1
     echo "Server mock configured (fixture) on port ${H2AGENT__ADMIN_PORT}"
   fi
-  [ -f "${TEST_DIR}/global-variable.json" ] && h2a_admin_curl POST admin/v1/global-variable 201 "${TEST_DIR}/global-variable.json" || true
+  [ -f "${TEST_DIR}/vault.json" ] && h2a_admin_curl POST admin/v1/vault 201 "${TEST_DIR}/vault.json" || true
 
   # Client parameters
   read_value "Client data storage configuration" H2CLIENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1

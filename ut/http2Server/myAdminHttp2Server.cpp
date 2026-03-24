@@ -10,7 +10,7 @@
 #include <MyTrafficHttp2Server.hpp>
 #include <AdminData.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <MockServerData.hpp>
@@ -28,7 +28,7 @@ protected:
     std::unique_ptr<http2::MyTrafficHttp2Server> traffic_server_;
     boost::asio::io_context io_context_;
     std::unique_ptr<model::Configuration> configuration_;
-    std::unique_ptr<model::GlobalVariable> global_variable_;
+    std::unique_ptr<model::Vault> vault_;
     std::unique_ptr<model::FileManager> file_manager_;
     std::unique_ptr<model::SocketManager> socket_manager_;
     std::unique_ptr<model::MockServerData> mock_server_data_;
@@ -40,14 +40,14 @@ protected:
             "test_traffic", 1, 1, &io_context_, -1);
 
         configuration_ = std::make_unique<model::Configuration>();
-        global_variable_ = std::make_unique<model::GlobalVariable>();
+        vault_ = std::make_unique<model::Vault>();
         file_manager_ = std::make_unique<model::FileManager>(&io_context_);
         socket_manager_ = std::make_unique<model::SocketManager>(&io_context_);
         mock_server_data_ = std::make_unique<model::MockServerData>();
         mock_client_data_ = std::make_unique<model::MockClientData>();
 
         admin_server_->setConfiguration(configuration_.get());
-        admin_server_->setGlobalVariable(global_variable_.get());
+        admin_server_->setVault(vault_.get());
         admin_server_->setFileManager(file_manager_.get());
         admin_server_->setSocketManager(socket_manager_.get());
         admin_server_->setMockServerData(mock_server_data_.get());
@@ -158,48 +158,50 @@ TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionWithHeaders) {
 }
 
 // ============================================================================
-// Tests for globalVariable()
+// Tests for vault()
 // ============================================================================
 
-TEST_F(MyAdminHttp2ServerUnitTest, GlobalVariableValid) {
+TEST_F(MyAdminHttp2ServerUnitTest, VaultValid) {
     nlohmann::json config = R"({"var1": "value1", "var2": "value2"})"_json;
     std::string log;
-    int result = admin_server_->globalVariable(config, log);
+    int result = admin_server_->vault(config, log);
 
     EXPECT_EQ(result, 201);
-    EXPECT_EQ(log, "global-variable operation; valid schema and global variables received");
+    EXPECT_EQ(log, "vault operation; valid schema and vault data received");
 }
 
-TEST_F(MyAdminHttp2ServerUnitTest, GlobalVariableInvalidNonString) {
-    nlohmann::json config = R"({"var1": 123})"_json;
+TEST_F(MyAdminHttp2ServerUnitTest, VaultInvalidNonString) {
+    // Non-string values are now valid (JSON native storage); test dots-in-key rejection instead
+    nlohmann::json config = R"({"var.with.dots": 123})"_json;
     std::string log;
-    int result = admin_server_->globalVariable(config, log);
+    int result = admin_server_->vault(config, log);
 
     EXPECT_EQ(result, 400);
-    EXPECT_EQ(log, "global-variable operation; invalid schema");
+    EXPECT_EQ(log, "vault operation; invalid schema");
 }
 
-TEST_F(MyAdminHttp2ServerUnitTest, GlobalVariableInvalidObject) {
-    nlohmann::json config = R"({"var1": {"nested": "object"}})"_json;
+TEST_F(MyAdminHttp2ServerUnitTest, VaultInvalidObject) {
+    // Object values are now valid (JSON native storage); test dots-in-key rejection instead
+    nlohmann::json config = R"({"a.b": {"nested": "object"}})"_json;
     std::string log;
-    int result = admin_server_->globalVariable(config, log);
+    int result = admin_server_->vault(config, log);
 
     EXPECT_EQ(result, 400);
-    EXPECT_EQ(log, "global-variable operation; invalid schema");
+    EXPECT_EQ(log, "vault operation; invalid schema");
 }
 
-TEST_F(MyAdminHttp2ServerUnitTest, GlobalVariableSingleVar) {
+TEST_F(MyAdminHttp2ServerUnitTest, VaultSingleVar) {
     nlohmann::json config = R"({"singleVar": "singleValue"})"_json;
     std::string log;
-    int result = admin_server_->globalVariable(config, log);
+    int result = admin_server_->vault(config, log);
 
     EXPECT_EQ(result, 201);
 }
 
-TEST_F(MyAdminHttp2ServerUnitTest, GlobalVariableEmptyValue) {
+TEST_F(MyAdminHttp2ServerUnitTest, VaultEmptyValue) {
     nlohmann::json config = R"({"emptyVar": ""})"_json;
     std::string log;
-    int result = admin_server_->globalVariable(config, log);
+    int result = admin_server_->vault(config, log);
 
     EXPECT_EQ(result, 201);
 }
@@ -341,8 +343,8 @@ TEST_F(MyAdminHttp2ServerUnitTest, ConfigurationGetterSetter) {
     EXPECT_EQ(admin_server_->getConfiguration(), configuration_.get());
 }
 
-TEST_F(MyAdminHttp2ServerUnitTest, GlobalVariableGetterSetter) {
-    EXPECT_EQ(admin_server_->getGlobalVariable(), global_variable_.get());
+TEST_F(MyAdminHttp2ServerUnitTest, VaultGetterSetter) {
+    EXPECT_EQ(admin_server_->getVault(), vault_.get());
 }
 
 TEST_F(MyAdminHttp2ServerUnitTest, FileManagerGetterSetter) {

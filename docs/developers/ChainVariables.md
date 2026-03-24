@@ -2,17 +2,17 @@
 
 ## Terminology
 
-- **User-facing (docs/api)**: "scoped variable" — contrasts with "global variable" and describes the behavior: `var.*` has a defined lifetime scope (the `outState` chain), unlike `globalVar.*` which persists indefinitely.
+- **User-facing (docs/api)**: "scoped variable" — contrasts with "vault entry" and describes the behavior: `var.*` has a defined lifetime scope (the `outState` chain), unlike `vault.*` which persists indefinitely.
 - **Code internals**: `chain_variables_`, `chainVariables`, `getChainVariables()` — describes the mechanism: these are the variables that persist along the `outState` chain.
 
 The keyword remains `var.*` — no API change.
 
 ## Motivation
 
-Before this change, `var.*` was provision-scoped: created and destroyed within a single provision execution. To pass data across `outState` links, the only option was `globalVar.*`, which has two problems:
+Before this change, `var.*` was provision-scoped: created and destroyed within a single provision execution. To pass data across `outState` links, the only option was `vault.*`, which has two problems:
 
-1. **Namespace pollution**: concurrent flows share the global namespace, requiring `seq`-based naming (`globalVar.flow_@{seq}_myData`) to avoid collisions.
-2. **Manual cleanup**: global variables are never freed automatically, requiring explicit `eraser` transformations at the end of every chain to prevent memory growth.
+1. **Namespace pollution**: concurrent flows share the global namespace, requiring `seq`-based naming (`vault.flow_@{seq}_myData`) to avoid collisions.
+2. **Manual cleanup**: vault are never freed automatically, requiring explicit `eraser` transformations at the end of every chain to prevent memory growth.
 
 ## Design decision: promote `var` vs new `chainVar` keyword
 
@@ -93,7 +93,7 @@ In server mode, `serverEvent` already covers most cross-link data needs (since e
 
 In both modes, concurrent flows to the same `DataKey` share the same chain variables. This is the same limitation that already exists for the state: if two clients send requests to `(GET, /foo)` concurrently, they share the state progression. The chain variables inherit this design constraint.
 
-For concurrent isolation, users should use `globalVar.*` with `seq`-based naming (the existing pattern).
+For concurrent isolation, users should use `vault.*` with `seq`-based naming (the existing pattern).
 
 ## Performance impact
 

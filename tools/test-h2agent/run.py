@@ -248,7 +248,7 @@ class MockClientApp(QWidget):
             }
         }
 
-        gvars__body = {
+        vault__body = {
             "CITY": "Madrid",
             "TZ": "GMT+1"
         }
@@ -298,7 +298,7 @@ class MockClientApp(QWidget):
             {"name": "-- Select an option --", "method": "GET", "uri": "", "headers": {}, "body": ""},
 
             {"name": "Show Schema for schema configuration", "method": "GET", "uri": "/schema/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for global variables configuration", "method": "GET", "uri": "/global-variable/schema", "headers": {}, "body": ""},
+            {"name": "Show Schema for vault entries configuration", "method": "GET", "uri": "/vault/schema", "headers": {}, "body": ""},
             {"name": "Show Schema for server matching (traffic classification) configuration", "method": "GET", "uri": "/server-matching/schema", "headers": {}, "body": ""},
             {"name": "Show Schema for server provision configuration", "method": "GET", "uri": "/server-provision/schema", "headers": {}, "body": ""},
             {"name": "Show Schema for client endpoints configuration", "method": "GET", "uri": "/client-endpoint/schema", "headers": {}, "body": ""},
@@ -308,11 +308,11 @@ class MockClientApp(QWidget):
             {"name": "Update Schema example", "method": "POST", "uri": "/schema", "headers": json__header, "body": json.dumps(schema__body, indent=2)},
             {"name": "Delete Schemas", "method": "DELETE", "uri": "/schema", "headers": {}, "body": ""},
 
-            {"name": "QUERY GLOBAL VARIABLES", "method": "GET", "uri": "/global-variable", "headers": {}, "body": ""},
-            {"name": "Query Global Variable 'CITY'", "method": "GET", "uri": "/global-variable/?name=CITY", "headers": {}, "body": ""},
-            {"name": "Update Global Variable example", "method": "POST", "uri": "/global-variable", "headers": json__header, "body": json.dumps(gvars__body, indent=2)},
-            {"name": "Delete Global Variables", "method": "DELETE", "uri": "/global-variable", "headers": {}, "body": ""},
-            {"name": "Delete Global Variable 'CITY'", "method": "DELETE", "uri": "/global-variable?name=CITY", "headers": {}, "body": ""},
+            {"name": "QUERY VAULT", "method": "GET", "uri": "/vault", "headers": {}, "body": ""},
+            {"name": "Query Vault entry 'CITY'", "method": "GET", "uri": "/vault/?name=CITY", "headers": {}, "body": ""},
+            {"name": "Update Vault entry example", "method": "POST", "uri": "/vault", "headers": json__header, "body": json.dumps(vault__body, indent=2)},
+            {"name": "Delete Vault entrys", "method": "DELETE", "uri": "/vault", "headers": {}, "body": ""},
+            {"name": "Delete Vault entry 'CITY'", "method": "DELETE", "uri": "/vault?name=CITY", "headers": {}, "body": ""},
 
             {"name": "QUERY LOGGING LEVEL", "method": "GET", "uri": "/logging", "headers": {}, "body": ""},
             {"name": "Set Debug logging level", "method": "PUT", "uri": "/logging?level=Debug", "headers": {}, "body": ""},

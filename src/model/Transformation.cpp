@@ -218,7 +218,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + strftime.<format>: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/).
     // - recvseq: sequence id increased for every mock reception (starts on *1* when the *h2agent* is started).
     // + var.<id>: general purpose variable.
-    // + globalVar.<id>: general purpose global variable.
+    // + vault.<id>: general purpose vault entry.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.
     // + serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`).
@@ -237,7 +237,7 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex timestamp("^timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/us/ns as it was done at schema
     static std::regex strftime("^strftime.(.*)", std::regex::optimize); // free format, errors captured
     static std::regex varId("^var.(.*)", std::regex::optimize);
-    static std::regex gvarId("^globalVar.(.*)", std::regex::optimize);
+    static std::regex gvarId("^vault\\.([^.]+)(?:\\.(/.+))?$", std::regex::optimize);
     static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
     static std::regex serverEvent("^serverEvent.(.*)", std::regex::optimize);
     static std::regex clientEvent("^clientEvent.(.*)", std::regex::optimize);
@@ -331,8 +331,9 @@ bool Transformation::load(const nlohmann::json &j) {
         source_ = matches.str(1);
         source_type_ = SourceType::SVar;
     }
-    else if (std::regex_match(sourceSpec, matches, gvarId)) { // global variable id
-        source_ = matches.str(1);
+    else if (std::regex_match(sourceSpec, matches, gvarId)) { // vault entry id
+        source_ = matches.str(1); // key name
+        if (matches[2].matched) source2_ = matches.str(2); // optional json path
         source_type_ = SourceType::SGVar;
     }
     else if (std::regex_match(sourceSpec, matches, value)) { // value content
@@ -422,7 +423,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // - response.statusCode *[unsigned integer]*: response status code.
     // - response.delayMs *[unsigned integer]*: simulated delay to respond.
     // + var.<id> *[string (or number as string)]*: general purpose variable.
-    // + globalVar.<id> *[string (or number as string)]*: general purpose global variable.
+    // + vault.<id> *[string (or number as string)]*: general purpose vault entry.
     // - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
     // + outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
     // + txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided.
@@ -622,8 +623,9 @@ bool Transformation::load(const nlohmann::json &j) {
         target_ = matches.str(1);
         target_type_ = TargetType::TVar;
     }
-    else if (std::regex_match(targetSpec, matches, gvarId)) { // global variable id
-        target_ = matches.str(1);
+    else if (std::regex_match(targetSpec, matches, gvarId)) { // vault entry id
+        target_ = matches.str(1); // key name
+        if (matches[2].matched) target2_ = matches.str(2); // optional json path
         target_type_ = TargetType::TGVar;
     }
     else if (targetSpec == "outState") {

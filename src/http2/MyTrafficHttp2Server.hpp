@@ -58,7 +58,7 @@ namespace model
 class MockServerData;
 class MockClientData;
 //class Configuration;
-class GlobalVariable;
+class Vault;
 //class FileManager;
 //class SocketManager;
 class AdminData;
@@ -89,7 +89,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     std::atomic<bool> receive_request_body_{true};
     std::atomic<bool> pre_reserve_request_body_{true};
 
-    model::GlobalVariable* global_variable_ptr_{};
+    model::Vault* vault_ptr_{};
 
     std::function<void(const std::string& /*clientProvisionId*/, const std::string& /*inState*/)> client_provision_trigger_{};
 
@@ -181,11 +181,11 @@ public:
     }
 
     // Used for re-schedule of delay timers through responseDelayMs()
-    void setGlobalVariable(model::GlobalVariable *p) {
-        global_variable_ptr_ = p;
+    void setVault(model::Vault *p) {
+        vault_ptr_ = p;
     }
-    model::GlobalVariable *getGlobalVariable() const {
-        return global_variable_ptr_;
+    model::Vault *getVault() const {
+        return vault_ptr_;
     }
 
     // Callback to trigger client provisions from server transformations

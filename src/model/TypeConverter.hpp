@@ -40,7 +40,7 @@ SOFTWARE.
 #include <string>
 #include <sstream>
 #include <cstdint>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 
 namespace h2agent
 {
@@ -57,15 +57,15 @@ void searchReplaceAll(std::string& str, const std::string& from, const std::stri
 
 /**
  * Replace variable patterns with their variable values using 2 sources:
- * scoped variables and global variables. Scoped variables are replaced with
- * priority over existing global variables with the same name.
+ * scoped variables and vault. Scoped variables are replaced with
+ * priority over existing vault with the same name.
  *
  * @param str string to update with replaced values
  * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
  * @param vars scoped variables source map
- * @param gvars global variables
+ * @param vault vault
  */
-void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars);
+void replaceVariables(std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, Vault *vault);
 
 
 class TypeConverter {
@@ -115,9 +115,9 @@ public:
     * @param str string assigned
     * @param patterns map of patterns (pattern, varname) where pattern is @{varname}
     * @param vars scoped variables source map
-    * @param gvars global variables
+    * @param vault vault
     */
-    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, GlobalVariable *gvars);
+    void setStringReplacingVariables(const std::string &str, const std::map<std::string, std::string> &patterns, const std::map<std::string,std::string> &vars, Vault *vault);
 
     /**
     * Sets integer to vault

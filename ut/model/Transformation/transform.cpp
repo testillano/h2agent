@@ -19,7 +19,7 @@
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <DataPart.hpp>
@@ -145,10 +145,10 @@ const nlohmann::json TransformationItemRegexCaptureUnmatches = R"delim(
 
 // https://www.geeksforgeeks.org/raw-string-literal-c/
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
-const nlohmann::json TransformationItemRegexCaptureWithGlobalVariable = R"delim(
+const nlohmann::json TransformationItemRegexCaptureWithVault = R"delim(
 {
   "source": "request.uri",
-  "target": "globalVar.g_uri_parts",
+  "target": "vault.g_uri_parts",
   "filter": {
     "RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)"
 }
@@ -317,14 +317,14 @@ public:
         //////////////////////
         common_resources_.AdminDataPtr = &adata_;
         common_resources_.ConfigurationPtr = new h2agent::model::Configuration();
-        common_resources_.GlobalVariablePtr = new h2agent::model::GlobalVariable();
+        common_resources_.VaultPtr = new h2agent::model::Vault();
         common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
         common_resources_.SocketManagerPtr = new h2agent::model::SocketManager(nullptr);
         common_resources_.MockServerDataPtr = new h2agent::model::MockServerData();
         common_resources_.MockClientDataPtr = new h2agent::model::MockClientData();
 
-        // Global variables:
-        common_resources_.GlobalVariablePtr->load("myGlobalVariable","myGlobalVariable_value");
+        // Vault:
+        common_resources_.VaultPtr->load("myVault","myVault_value");
 
         // Simulated event:
         h2agent::model::DataPart postRequestBodyDataPart;
@@ -357,7 +357,7 @@ public:
 
     ~Transform_test() {
         delete(common_resources_.ConfigurationPtr);
-        delete(common_resources_.GlobalVariablePtr);
+        delete(common_resources_.VaultPtr);
         delete(common_resources_.FileManagerPtr);
         delete(common_resources_.SocketManagerPtr);
         delete(common_resources_.MockServerDataPtr);
@@ -840,13 +840,13 @@ TEST_F(Transform_test, SourceEraserWholeJson)
     EXPECT_EQ(response_body_, "");
 }
 
-TEST_F(Transform_test, SourceEraserGlobalVariable)
+TEST_F(Transform_test, SourceEraserVault)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.myGlobalVar_value", "target": "globalVar.myGlobalVar" })"_json;
-    const nlohmann::json item2 = R"({ "source": "globalVar.myGlobalVar", "target": "response.body.json.object./globalVariableBeforeRemoval" })"_json;
-    const nlohmann::json item3 = R"({ "source": "eraser", "target": "globalVar.myGlobalVar" })"_json;
-    const nlohmann::json item4 = R"({ "source": "globalVar.myGlobalVar", "target": "response.body.json.object./globalVariableAfterRemoval" })"_json; // will be skipped
+    const nlohmann::json item1 = R"({ "source": "value.myVaultEntry_value", "target": "vault.myVaultEntry" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.myVaultEntry", "target": "response.body.json.object./vaultBeforeRemoval" })"_json;
+    const nlohmann::json item3 = R"({ "source": "eraser", "target": "vault.myVaultEntry" })"_json;
+    const nlohmann::json item4 = R"({ "source": "vault.myVaultEntry", "target": "response.body.json.object./vaultAfterRemoval" })"_json; // will be skipped
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -859,7 +859,7 @@ TEST_F(Transform_test, SourceEraserGlobalVariable)
     EXPECT_EQ(status_code_, 200);
 
     nlohmann::json expectedJson = ProvisionConfiguration_GET["responseBody"];
-    expectedJson["globalVariableBeforeRemoval"] = "myGlobalVar_value";
+    expectedJson["vaultBeforeRemoval"] = "myVaultEntry_value";
     EXPECT_EQ(response_body_, expectedJson.dump());
 }
 
@@ -998,10 +998,10 @@ TEST_F(Transform_test, SourceVariableUnknown)
     EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
 }
 
-TEST_F(Transform_test, SourceGlobalVariable)
+TEST_F(Transform_test, SourceVault)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "globalVar.myGlobalVariable", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "source": "vault.myVault", "target": "response.body.string" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1009,13 +1009,13 @@ TEST_F(Transform_test, SourceGlobalVariable)
 
     // Validations:
     EXPECT_EQ(status_code_, 200);
-    EXPECT_EQ(response_body_, "myGlobalVariable_value");
+    EXPECT_EQ(response_body_, "myVault_value");
 }
 
-TEST_F(Transform_test, SourceGlobalVariableUnknown)
+TEST_F(Transform_test, SourceVaultUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "globalVar.missingGlobalVariable", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "source": "vault.missingVault", "target": "response.body.string" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1622,11 +1622,11 @@ TEST_F(Transform_test, TargetVariable)
     EXPECT_EQ(response_body_, "hello");
 }
 
-TEST_F(Transform_test, TargetGlobalVariable)
+TEST_F(Transform_test, TargetVault)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.hello", "target": "globalVar.globalvarname" })"_json;
-    const nlohmann::json item2 = R"({ "source": "globalVar.globalvarname", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "source": "value.hello", "target": "vault.vaultname" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.vaultname", "target": "response.body.string" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1869,7 +1869,7 @@ TEST_F(Transform_test, TargetClientProvisionMissingInState)
 TEST_F(Transform_test, FilterIncompatibleWithEraser)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "eraser", "filter": { "ConditionVar": "myGlobalVariable" }, "target": "response.body.json.object./remove-me" })"_json;
+    const nlohmann::json item = R"({ "source": "eraser", "filter": { "ConditionVar": "myVault" }, "target": "response.body.json.object./remove-me" })"_json;
     server_provision_json_["transform"].push_back(TransformationItemBadRegex);
 
     // Run transformation:
@@ -1907,14 +1907,16 @@ TEST_F(Transform_test, FilterRegexCapture)
     EXPECT_EQ(response_body_, expectedJson.dump());
 }
 
-TEST_F(Transform_test, FilterRegexCaptureWithGlobalVariable)
+TEST_F(Transform_test, FilterRegexCaptureWithVault)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "globalVar.g_uri_parts", "target": "response.body.json.string./g_uri_parts" })"_json;
-    const nlohmann::json item2 = R"({ "source": "globalVar.g_uri_parts.1", "target": "response.body.json.string./g_uri_parts.1" })"_json;
-    const nlohmann::json item3 = R"({ "source": "globalVar.g_uri_parts.2", "target": "response.body.json.string./g_uri_parts.2" })"_json;
-    const nlohmann::json item4 = R"({ "source": "globalVar.g_uri_parts.3", "target": "response.body.json.string./g_uri_parts.3" })"_json;
-    server_provision_json_["transform"].push_back(TransformationItemRegexCaptureWithGlobalVariable);
+    // RegexCapture on vault stores captures as JSON object: {"0": "full", "1": "group1", ...}
+    // Access individual captures via json pointer path: vault.g_uri_parts./1
+    const nlohmann::json item1 = R"({ "source": "vault.g_uri_parts", "target": "response.body.json.object./g_uri_parts" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.g_uri_parts./1", "target": "response.body.json.string./g_uri_parts.1" })"_json;
+    const nlohmann::json item3 = R"({ "source": "vault.g_uri_parts./2", "target": "response.body.json.string./g_uri_parts.2" })"_json;
+    const nlohmann::json item4 = R"({ "source": "vault.g_uri_parts./3", "target": "response.body.json.string./g_uri_parts.3" })"_json;
+    server_provision_json_["transform"].push_back(TransformationItemRegexCaptureWithVault);
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -1927,7 +1929,7 @@ TEST_F(Transform_test, FilterRegexCaptureWithGlobalVariable)
     EXPECT_EQ(status_code_, 200);
 
     nlohmann::json expectedJson = ProvisionConfiguration_GET["responseBody"];
-    expectedJson["g_uri_parts"] = "/app/v1/foo/bar/1?name=test";
+    expectedJson["g_uri_parts"] = {{"0", "/app/v1/foo/bar/1?name=test"}, {"1", "/app/v1/foo/bar/"}, {"2", "1"}, {"3", "?name=test"}};
     expectedJson["g_uri_parts.1"] = "/app/v1/foo/bar/";
     expectedJson["g_uri_parts.2"] = "1";
     expectedJson["g_uri_parts.3"] = "?name=test";
@@ -1989,7 +1991,7 @@ TEST_F(Transform_test, FilterAppend)
       "source": "inState",
       "target": "response.body.string",
       "filter": {
-        "Append": " state, and variable is: @{myGlobalVariable}"
+        "Append": " state, and variable is: @{myVault}"
       }
     }
     )"_json;
@@ -2000,7 +2002,7 @@ TEST_F(Transform_test, FilterAppend)
 
     // Validations:
     EXPECT_EQ(status_code_, 200);
-    EXPECT_EQ(response_body_, "initial state, and variable is: myGlobalVariable_value");
+    EXPECT_EQ(response_body_, "initial state, and variable is: myVault_value");
 }
 
 TEST_F(Transform_test, FilterPrepend)
@@ -2011,7 +2013,7 @@ TEST_F(Transform_test, FilterPrepend)
       "source": "inState",
       "target": "response.body.string",
       "filter": {
-        "Prepend": "@{myGlobalVariable} variable value, and state is: "
+        "Prepend": "@{myVault} variable value, and state is: "
       }
     }
     )"_json;
@@ -2022,7 +2024,7 @@ TEST_F(Transform_test, FilterPrepend)
 
     // Validations:
     EXPECT_EQ(status_code_, 200);
-    EXPECT_EQ(response_body_, "myGlobalVariable_value variable value, and state is: initial");
+    EXPECT_EQ(response_body_, "myVault_value variable value, and state is: initial");
 }
 
 TEST_F(Transform_test, FilterSum)
@@ -2114,10 +2116,10 @@ TEST_F(Transform_test, FilterEqualTo)
     // Build test provision:
     const nlohmann::json item1 = R"(
     {
-      "source": "value.myGlobalVariable_value",
+      "source": "value.myVault_value",
       "target": "response.body.string",
       "filter": {
-        "EqualTo": "@{myGlobalVariable}"
+        "EqualTo": "@{myVault}"
       }
     }
     )"_json;
@@ -2126,7 +2128,7 @@ TEST_F(Transform_test, FilterEqualTo)
       "source": "value.this is different",
       "target": "response.body.string",
       "filter": {
-        "EqualTo": "@{myGlobalVariable}"
+        "EqualTo": "@{myVault}"
       }
     }
     )"_json;
@@ -2138,7 +2140,7 @@ TEST_F(Transform_test, FilterEqualTo)
 
     // Validations:
     EXPECT_EQ(status_code_, 200);
-    EXPECT_EQ(response_body_, "myGlobalVariable_value");
+    EXPECT_EQ(response_body_, "myVault_value");
 }
 
 TEST_F(Transform_test, FilterDifferentFrom)
@@ -2146,10 +2148,10 @@ TEST_F(Transform_test, FilterDifferentFrom)
     // Build test provision:
     const nlohmann::json item1 = R"(
     {
-      "source": "value.myGlobalVariable_value",
+      "source": "value.myVault_value",
       "target": "response.body.string",
       "filter": {
-        "DifferentFrom": "@{myGlobalVariable}"
+        "DifferentFrom": "@{myVault}"
       }
     }
     )"_json;
@@ -2158,7 +2160,7 @@ TEST_F(Transform_test, FilterDifferentFrom)
       "source": "value.this is different",
       "target": "response.body.string",
       "filter": {
-        "DifferentFrom": "@{myGlobalVariable}"
+        "DifferentFrom": "@{myVault}"
       }
     }
     )"_json;
@@ -2181,7 +2183,7 @@ TEST_F(Transform_test, FilterConditionVar)
       "source": "value.hi",
       "target": "response.body.string",
       "filter": {
-        "ConditionVar": "myGlobalVariable"
+        "ConditionVar": "myVault"
       }
     }
     )"_json;

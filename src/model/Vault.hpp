@@ -49,29 +49,46 @@ namespace model
 class WaitManager;
 
 /**
- * This class stores the global variables list.
+ * Converts a json value to its string representation for variable substitution.
+ * Strings are returned without quotes (backward compatible with former string storage).
  */
-class GlobalVariable : public Map<std::string, std::string>
+inline std::string jsonToString(const nlohmann::json &j) {
+    if (j.is_string()) return j.get<std::string>();
+    if (j.is_null()) return "";
+    return j.dump();
+}
+
+/**
+ * This class stores the vault list.
+ */
+class Vault : public Map<std::string, nlohmann::json>
 {
-    h2agent::jsonschema::JsonSchema global_variable_schema_{};
+    h2agent::jsonschema::JsonSchema vault_schema_{};
     WaitManager *wait_manager_{};
 
 public:
-    GlobalVariable();
-    ~GlobalVariable() = default;
+    Vault();
+    ~Vault() = default;
 
     void setWaitManager(WaitManager *p) { wait_manager_ = p; }
 
     /**
-     * Loads variable and value.
-     * Append is done if variable already exists. This allows to use global variables
-     * as memory buckets. To reset them, use 'eraser' source or just delete from
-     * REST API.
+     * Loads variable with a json value.
      *
      * @param variable variable name
-     * @param value value to append into variable
+     * @param value json value to store
      */
-    void load(const std::string &variable, const std::string &value);
+    void load(const std::string &variable, const nlohmann::json &value);
+
+    /**
+     * Loads a value at a specific path within an existing json variable.
+     * Creates the variable as an empty object if it does not exist.
+     *
+     * @param variable variable name
+     * @param path json pointer path (e.g. "/request/headers/auth")
+     * @param value json value to set at path
+     */
+    void loadAtPath(const std::string &variable, const std::string &path, const nlohmann::json &value);
 
     /**
      * Loads server data global operation data
@@ -97,10 +114,10 @@ public:
     nlohmann::json getJson() const;
 
     /**
-    * Gets global variables schema
+    * Gets vault schema
     */
     const h2agent::jsonschema::JsonSchema& getSchema() const {
-        return global_variable_schema_;
+        return vault_schema_;
     }
 };
 

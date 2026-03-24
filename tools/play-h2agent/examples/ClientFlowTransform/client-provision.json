@@ -17,7 +17,7 @@
     "onResponseTransform":[
       {
         "source":"response.body",
-        "target":"globalVar.helloResponse"
+        "target":"vault.helloResponse"
       }
     ]
   },
@@ -32,7 +32,7 @@
     "requestHeaders":{"content-type":"application/json"},
     "transform":[
       {
-        "source":"globalVar.helloResponse",
+        "source":"vault.helloResponse",
         "target":"request.body.json.jsonstring"
       }
     ]

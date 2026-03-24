@@ -83,7 +83,7 @@ public:
      *
      * @param j json document from operation body request
      * @param regexMatchingConfigured provision load depends on matching configuration (priority regexp)
-     * @param cr common resources references (general configuration, global variables, file manager, mock server events data)
+     * @param cr common resources references (general configuration, vault, file manager, mock server events data)
      *
      * @return Load operation result
      */

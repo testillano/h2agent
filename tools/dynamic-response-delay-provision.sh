@@ -32,7 +32,7 @@ cat << EOF > ${json}
     },
     {
       "source": "value.${milliseconds}",
-      "target": "globalVar.__core.response-delay-ms.@{recvseq}"
+      "target": "vault.__core.response-delay-ms.@{recvseq}"
     }
   ]
 }
@@ -51,15 +51,15 @@ Execute this:
 
    $ h2load -n${requests} -m${streams} ${s_timeout} http://localhost:8000/foo/bar
 
-   In other terminal, you could see ${requests} global variables which indicate that
+   In other terminal, you could see ${requests} vault which indicate that
    ${requests} timers are repeated each ${milliseconds} milliseconds:
 
    $ source helpers.bash
-   $ global_variable
+   $ vault
 
    Wait for timeout, or force response removing blockers:
 
-   $ global_variable --clean
+   $ vault --clean
 
 
 EOF

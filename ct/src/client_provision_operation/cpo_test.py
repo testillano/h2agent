@@ -161,7 +161,7 @@ def test_007_trigger_chained_flow_and_verify(h2ac_admin):
     assert "/app/v1/goodbye" in server_uris
 
 
-# ==================== TRANSFORM: globalVar PROPAGATION ====================
+# ==================== TRANSFORM: vault PROPAGATION ====================
 
 @pytest.mark.admin
 def test_008_cleanup_for_transform_flow(admin_cleanup):
@@ -184,7 +184,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
         "requestHeaders": {"content-type": "application/json"},
         "outState": "step2",
         "onResponseTransform": [
-            {"source": "response.body", "target": "globalVar.helloResponse"}
+            {"source": "response.body", "target": "vault.helloResponse"}
         ]
     }
     step2 = {
@@ -196,7 +196,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
         "requestUri": "/app/v1/goodbye",
         "requestHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "globalVar.helloResponse", "target": "request.body.json.jsonstring"}
+            {"source": "vault.helloResponse", "target": "request.body.json.jsonstring"}
         ]
     }
     response = h2ac_admin.postDict(ADMIN_CLIENT_PROVISION_URI, [step1, step2])
@@ -238,7 +238,7 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
         "responseBody": {"status": "received"},
         "responseHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "request.body", "target": "globalVar.webhookBody"},
+            {"source": "request.body", "target": "vault.webhookBody"},
             {"source": "value.1", "target": "clientProvision.forwardFlow.initial"}
         ]
     }
@@ -262,7 +262,7 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
         "requestUri": "/app/v1/forward",
         "requestHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "globalVar.webhookBody", "target": "request.body.json.jsonstring"}
+            {"source": "vault.webhookBody", "target": "request.body.json.jsonstring"}
         ]
     }
     admin_client_provision(forward_provision)

@@ -865,7 +865,7 @@ def test_057_scopedVarChainClientMode(admin_cleanup, admin_server_provision, h2a
   response = h2ac_admin.postDict(ADMIN_CLIENT_ENDPOINT_URI, endpoint)
   assert response["status"] == 201
 
-  # Client provisions: 2-link chain using var (not globalVar)
+  # Client provisions: 2-link chain using var (not vault)
   link1 = {
     "id": "scopedVarFlow",
     "endpoint": "loopback",

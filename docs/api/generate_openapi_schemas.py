@@ -10,7 +10,7 @@ BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8074"
 
 SCHEMA_ENDPOINTS = {
     "/admin/v1/schema/schema":           "SchemaConfig",
-    "/admin/v1/global-variable/schema":  "GlobalVariableMap",
+    "/admin/v1/vault/schema":  "VaultMap",
     "/admin/v1/server-matching/schema":  "ServerMatching",
     "/admin/v1/server-provision/schema": "ServerProvision",
     "/admin/v1/client-endpoint/schema":  "ClientEndpoint",

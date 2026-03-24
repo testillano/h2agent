@@ -8,7 +8,7 @@
     "transform": [
       {
         "source": "recvseq",
-        "target": "globalVar.lastRecvSeq"
+        "target": "vault.lastRecvSeq"
       }
     ]
   },

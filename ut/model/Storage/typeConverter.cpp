@@ -4,7 +4,7 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 
 
 #include <gmock/gmock.h>
@@ -15,13 +15,13 @@ class TypeConverter_test : public ::testing::Test
 public:
     h2agent::model::TypeConverter tconv_{};
     std::map<std::string, std::string> vars_{};
-    h2agent::model::GlobalVariable gvars_{};
+    h2agent::model::Vault vault_{};
     nlohmann::json json_{};
 
     TypeConverter_test() {
         vars_["var1"] = "value1";
         vars_["var2"] = "value2";
-        gvars_.add("gvar1", "gvalue1");
+        vault_.add("gvar1", "gvalue1");
         json_ = R"({
             "path_to_basics": {
               "string": "hello",
@@ -59,7 +59,7 @@ TEST_F(TypeConverter_test, ReplaceVariables)
     patterns["@{gvar1}"] = "gvar1";
 
     std::string result = source;
-    h2agent::model::replaceVariables(result, patterns, vars_, &gvars_);
+    h2agent::model::replaceVariables(result, patterns, vars_, &vault_);
 
     EXPECT_EQ(result, expected);
 }
@@ -106,7 +106,7 @@ TEST_F(TypeConverter_test, SetStringReplacingVariables)
     std::string value = "@{var1}";
     std::map<std::string, std::string> patterns;
     patterns[value] = "var1";
-    tconv_.setStringReplacingVariables(value, patterns, vars_, &gvars_);
+    tconv_.setStringReplacingVariables(value, patterns, vars_, &vault_);
 
     bool success;
 

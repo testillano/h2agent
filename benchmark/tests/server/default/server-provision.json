@@ -5,7 +5,7 @@
     "responseCode": 200,
     "responseBody": {
       "status": "ok",
-      "company": "<to be replaced by global variable>",
+      "company": "<to be replaced by vault entry>",
       "uriId": 0,
       "timestampUs": 0,
       "requestAge": 0,
@@ -16,7 +16,7 @@
     },
     "transform": [
       {
-        "source": "globalVar.company",
+        "source": "vault.company",
         "target": "response.body.json.string./company"
       },
       {

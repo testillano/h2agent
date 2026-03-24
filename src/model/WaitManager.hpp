@@ -40,18 +40,20 @@ SOFTWARE.
 #include <condition_variable>
 #include <cstddef>
 
+#include <nlohmann/json.hpp>
+
 namespace h2agent
 {
 namespace model
 {
 
-class GlobalVariable;
+class Vault;
 
 /**
- * Manages blocking wait (long-poll) for global variable changes.
+ * Manages blocking wait (long-poll) for vault entry changes.
  *
  * Provides condition-variable-based synchronization so that external
- * orchestrators can block until a global variable changes, eliminating
+ * orchestrators can block until a vault entry changes, eliminating
  * polling loops.
  */
 class WaitManager
@@ -61,7 +63,7 @@ class WaitManager
     size_t active_waiters_{};
     bool shutdown_{};
 
-    GlobalVariable *global_variable_{};
+    Vault *vault_{};
 
 public:
     static constexpr size_t MAX_WAITERS = 32;
@@ -70,13 +72,13 @@ public:
     WaitManager() = default;
     ~WaitManager() = default;
 
-    void setGlobalVariable(GlobalVariable *p) { global_variable_ = p; }
+    void setVault(Vault *p) { vault_ = p; }
 
     /** Signals all waiters to abort and prevents new waits. */
     void shutdown();
 
     /**
-     * Blocks until a global variable changes (any change or specific value).
+     * Blocks until a vault entry changes (any change or specific value).
      *
      * @param key Variable key to watch.
      * @param targetValue If non-empty, wait until variable equals this value.
@@ -88,11 +90,11 @@ public:
      * @return true if condition met, false on timeout.
      *         Returns false if too many waiters (caller should use 429).
      */
-    bool waitForGlobalVariable(const std::string &key, const std::string &targetValue,
+    bool waitForVault(const std::string &key, const nlohmann::json &targetValue,
                                unsigned int timeoutMs,
-                               std::string &resultValue, std::string &previousValue);
+                               nlohmann::json &resultValue, nlohmann::json &previousValue);
 
-    /** Wakes all waiters (called after global variable mutation). */
+    /** Wakes all waiters (called after vault entry mutation). */
     void notify();
 
     /** Returns current number of active waiters. */

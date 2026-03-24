@@ -66,21 +66,21 @@ schema() {
   fi
 }
 
-global_variable() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration ($(admin_url)/global-variable)." && return 0
-  [ -z "$1" ] && do_curl $(admin_url)/global-variable && return 0
+vault() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: vault [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent vault configuration ($(admin_url)/vault)." && return 0
+  [ -z "$1" ] && do_curl $(admin_url)/vault && return 0
   local queryParam=
   if [ "$1" = "--clean" ]
   then
     [ -n "$2" ] && queryParam="?name=$2"
-    do_curl -XDELETE $(admin_url)/global-variable${queryParam}
+    do_curl -XDELETE $(admin_url)/vault${queryParam}
   else
     [ -n "$1" ] && queryParam="?name=$1"
     if [ -f "$1" -o -p "$1" -o -r "$1" ]
     then
-      do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/global-variable
+      do_curl -XPOST -d@${1} -H 'content-type:application/json' $(admin_url)/vault
     else
-      do_curl $(admin_url)/global-variable${queryParam}
+      do_curl $(admin_url)/vault${queryParam}
     fi
   fi
 }
@@ -768,9 +768,9 @@ schema_schema() {
   do_curl "$(admin_url)/schema/schema"
 }
 
-global_variable_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema ($(admin_url)/global-variable/schema)." && return 0
-  do_curl "$(admin_url)/global-variable/schema"
+vault_schema() {
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: vault_schema [-h|--help]; Gets the agent vault configuration schema ($(admin_url)/vault/schema)." && return 0
+  do_curl "$(admin_url)/vault/schema"
 }
 
 server_matching_schema() {
@@ -796,18 +796,18 @@ client_provision_schema() {
 # -----------------------------------------------------------------------------
 # BLOCKING WAIT (LONG-POLL)
 
-wait_global_variable() {
+wait_vault() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: wait_global_variable [-h|--help] <key> [timeoutMs] [--value <value>]"
-    echo "       Blocks until global variable <key> changes (or equals <value>), or timeout."
+    echo "Usage: wait_vault [-h|--help] <key> [timeoutMs] [--value <value>]"
+    echo "       Blocks until vault entry <key> changes (or equals <value>), or timeout."
     echo "       Without --value: waits for any change from current value."
     echo "       Default timeoutMs: 30000 (30s)."
     echo
     echo "  Examples:"
-    echo "    wait_global_variable MY_FLAG                     # Wait for any change"
-    echo "    wait_global_variable MY_FLAG 60000               # Wait 60s for any change"
-    echo "    wait_global_variable MY_FLAG 30000 --value done  # Wait until value is 'done'"
+    echo "    wait_vault MY_FLAG                     # Wait for any change"
+    echo "    wait_vault MY_FLAG 60000               # Wait 60s for any change"
+    echo "    wait_vault MY_FLAG 30000 --value done  # Wait until value is 'done'"
     return 0
   fi
 
@@ -825,7 +825,7 @@ wait_global_variable() {
   local q="timeoutMs=${timeoutMs}"
   [ -n "${value}" ] && q+="&value=${value}"
 
-  ${CURL} --max-time ${maxTime} "$(admin_url)/global-variable/${key}/wait?${q}"
+  ${CURL} --max-time ${maxTime} "$(admin_url)/vault/${key}/wait?${q}"
   local rc=$?
   echo
   return ${rc}
@@ -1384,7 +1384,7 @@ snapshot() {
   # General
   configuration && pretty > ${dir}/general/configuration.json
   schema && pretty > ${dir}/general/schema.json
-  global_variable && pretty > ${dir}/general/global-variable.json
+  vault && pretty > ${dir}/general/vault.json
   files && pretty > ${dir}/general/files.json
   files_configuration && pretty > ${dir}/general/files-configuration.json
   udp_sockets && pretty > ${dir}/general/udp-sockets.json
@@ -1392,7 +1392,7 @@ snapshot() {
 
   # Schemas
   schema_schema && pretty > ${dir}/schemas/schema.json
-  global_variable_schema && pretty > ${dir}/schemas/global-variable.json
+  vault_schema && pretty > ${dir}/schemas/vault.json
   server_matching_schema && pretty > ${dir}/schemas/server-matching.json
   server_provision_schema && pretty > ${dir}/schemas/server-provision.json
   client_endpoint_schema && pretty > ${dir}/schemas/client-endpoint.json
@@ -1521,7 +1521,7 @@ help() {
   export -f traffic_url admin_url metrics_url do_curl
   echo
   echo "=== General Resources' Functions ==="
-  for f in schema global_variable files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in schema vault files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Server Functions === "
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
@@ -1530,7 +1530,7 @@ help() {
   for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_cps client_provision_unused client_data traffic_summary; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
-  for f in schema_schema global_variable_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in schema_schema vault_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Auxiliary Functions === "
   for f in pretty raw trace metrics snapshot check_storage server_example client_example; do ${f} -h | head -n 1; export -f ${f} ; done

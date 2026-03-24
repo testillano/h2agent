@@ -10,5 +10,5 @@ echo
 echo "Server events:"
 do_curl $(admin_url)/server-data
 echo
-echo "Global variables:"
-do_curl $(admin_url)/global-variable
+echo "Vault:"
+do_curl $(admin_url)/vault

@@ -90,7 +90,7 @@ AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const 
         // Set common resources:
         provision->setAdminData(cr.AdminDataPtr);
         provision->setConfiguration(cr.ConfigurationPtr);
-        provision->setGlobalVariable(cr.GlobalVariablePtr);
+        provision->setVault(cr.VaultPtr);
         provision->setFileManager(cr.FileManagerPtr);
         provision->setSocketManager(cr.SocketManagerPtr);
         provision->setMockClientData(cr.MockClientDataPtr);

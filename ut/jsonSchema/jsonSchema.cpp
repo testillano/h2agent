@@ -11,9 +11,9 @@ const nlohmann::json ServerProvisionJson = R"({"requestMethod": "GET", "requestU
 const nlohmann::json ServerProvisionJson_nok = R"({"requestUri": "/foo/bar", "responseCode": 200})"_json; // mandatory missing: requestMethod
 const nlohmann::json SchemaJson = R"({"id": "myRequestsSchema", "schema": {"$schema":"http://json-schema.org/draft-07/schema#","type":"object","additionalProperties":false,"properties":{"foo":{"type":"string"}},"required":["foo"]}})"_json;
 const nlohmann::json SchemaJson_nok = R"({"id": "myRequestsSchema"})"_json; // mandatory missing: schema
-const nlohmann::json GlobalVariableJson = R"({"var1": "value1", "var2": "value2"})"_json;
-const nlohmann::json GlobalVariableJson_nok = R"({"var1": 1})"_json; // non-string value
-const nlohmann::json GlobalVariableJson_nok2 = R"({"var1": {"foo":"bar"}})"_json; // non-string value
+const nlohmann::json VaultJson = R"({"var1": "value1", "var2": {"nested": true}})"_json;
+const nlohmann::json VaultJson_nok = R"({"var.with.dots": "value"})"_json; // dots in key
+const nlohmann::json VaultJson_nok2 = R"({"a.b": 1})"_json; // dots in key
 const nlohmann::json ClientEndpointJson = R"({"id": "myClientEndpoint", "host": "localhost", "port": 8000, "secure": false, "permit": true})"_json;
 const nlohmann::json ClientEndpointJson_nok = R"({"host": "localhost", "port": 8000, "secure": false, "permit": true})"_json; // mandatory missing: id
 
@@ -65,18 +65,19 @@ TEST_F(jsonSchema_test, CheckSchemaSchema)
     EXPECT_EQ(error, "At  of {\"id\":\"myRequestsSchema\"} - required property 'schema' not found in object\n");
 }
 
-TEST_F(jsonSchema_test, CheckGlobalVariableSchema)
+TEST_F(jsonSchema_test, CheckVaultSchema)
 {
-    EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::global_variable));
+    EXPECT_TRUE(jsonSchema_test::json_schema_.setJson(h2agent::adminSchemas::vault));
     EXPECT_TRUE(jsonSchema_test::json_schema_.isAvailable());
-    EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::global_variable);
+    EXPECT_EQ(jsonSchema_test::json_schema_.getJson(), h2agent::adminSchemas::vault);
     std::string error{};
-    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(GlobalVariableJson, error));
+    EXPECT_TRUE(jsonSchema_test::json_schema_.validate(VaultJson, error));
     EXPECT_TRUE(error.empty());
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok, error));
-    EXPECT_EQ(error, "At /var1 of 1 - no subschema has succeeded, but one of them is required to validate\n");
-    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(GlobalVariableJson_nok2, error));
-    EXPECT_EQ(error, "At /var1 of {\"foo\":\"bar\"} - no subschema has succeeded, but one of them is required to validate\n");
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(VaultJson_nok, error));
+    EXPECT_FALSE(error.empty());
+    error.clear();
+    EXPECT_FALSE(jsonSchema_test::json_schema_.validate(VaultJson_nok2, error));
+    EXPECT_FALSE(error.empty());
 }
 
 TEST_F(jsonSchema_test, CheckSchemaClientEndpoint)

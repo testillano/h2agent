@@ -52,7 +52,7 @@ namespace model
 
 class AdminData;
 class Configuration;
-class GlobalVariable;
+class Vault;
 class FileManager;
 class SocketManager;
 class MockServerData;
@@ -61,7 +61,7 @@ class MockClientData;
 typedef struct {
     AdminData *AdminDataPtr;
     Configuration *ConfigurationPtr;
-    GlobalVariable *GlobalVariablePtr;
+    Vault *VaultPtr;
     FileManager *FileManagerPtr;
     SocketManager *SocketManagerPtr;
     MockServerData *MockServerDataPtr;

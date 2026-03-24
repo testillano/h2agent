@@ -10,7 +10,7 @@
 #include <AdminData.hpp>
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 
 #include <boost/asio.hpp>
 
@@ -24,7 +24,7 @@ protected:
     std::unique_ptr<model::AdminData> admin_data_;
     std::unique_ptr<model::MockServerData> mock_server_data_;
     std::unique_ptr<model::MockClientData> mock_client_data_;
-    std::unique_ptr<model::GlobalVariable> global_variable_;
+    std::unique_ptr<model::Vault> vault_;
 
     void SetUp() override {
         server_ = std::make_unique<http2::MyTrafficHttp2Server>(
@@ -33,12 +33,12 @@ protected:
         admin_data_ = std::make_unique<model::AdminData>();
         mock_server_data_ = std::make_unique<model::MockServerData>();
         mock_client_data_ = std::make_unique<model::MockClientData>();
-        global_variable_ = std::make_unique<model::GlobalVariable>();
+        vault_ = std::make_unique<model::Vault>();
 
         server_->setAdminData(admin_data_.get());
         server_->setMockServerData(mock_server_data_.get());
         server_->setMockClientData(mock_client_data_.get());
-        server_->setGlobalVariable(global_variable_.get());
+        server_->setVault(vault_.get());
     }
 };
 
@@ -144,13 +144,13 @@ TEST_F(MyTrafficHttp2ServerUnitTest, MockClientDataGetterSetter) {
     EXPECT_EQ(server_->getMockClientData(), &other_mock_data);
 }
 
-// Test getters/setters for GlobalVariable
-TEST_F(MyTrafficHttp2ServerUnitTest, GlobalVariableGetterSetter) {
-    EXPECT_EQ(server_->getGlobalVariable(), global_variable_.get());
+// Test getters/setters for Vault
+TEST_F(MyTrafficHttp2ServerUnitTest, VaultGetterSetter) {
+    EXPECT_EQ(server_->getVault(), vault_.get());
 
-    model::GlobalVariable other_global_var;
-    server_->setGlobalVariable(&other_global_var);
-    EXPECT_EQ(server_->getGlobalVariable(), &other_global_var);
+    model::Vault other_vault_instance;
+    server_->setVault(&other_vault_instance);
+    EXPECT_EQ(server_->getVault(), &other_vault_instance);
 }
 
 // Test responseDelayMs with no variable set (returns zero)
@@ -161,21 +161,21 @@ TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsNoVariable) {
 
 // Test responseDelayMs with valid variable
 TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsWithVariable) {
-    global_variable_->add("__core.response-delay-ms.12345", "500");
+    vault_->add("__core.response-delay-ms.12345", "500");
     auto delay = server_->responseDelayMs(12345);
     EXPECT_EQ(delay.count(), 500);
 }
 
 // Test responseDelayMs with invalid (non-numeric) variable
 TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsInvalidVariable) {
-    global_variable_->add("__core.response-delay-ms.12345", "not_a_number");
+    vault_->add("__core.response-delay-ms.12345", "not_a_number");
     auto delay = server_->responseDelayMs(12345);
     EXPECT_EQ(delay.count(), 0);
 }
 
 // Test responseDelayMs with out-of-range variable
 TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsOutOfRange) {
-    global_variable_->add("__core.response-delay-ms.12345", "99999999999999999999999999999");
+    vault_->add("__core.response-delay-ms.12345", "99999999999999999999999999999");
     auto delay = server_->responseDelayMs(12345);
     EXPECT_EQ(delay.count(), 0);
 }

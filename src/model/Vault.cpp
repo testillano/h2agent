@@ -37,7 +37,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <AdminSchemas.hpp>
 #include <WaitManager.hpp>
 
@@ -46,34 +46,56 @@ namespace h2agent
 namespace model
 {
 
-GlobalVariable::GlobalVariable() {
-    global_variable_schema_.setJson(h2agent::adminSchemas::global_variable); // won't fail
+Vault::Vault() {
+    vault_schema_.setJson(h2agent::adminSchemas::vault); // won't fail
 }
 
-void GlobalVariable::load(const std::string &variable, const std::string &value) {
+void Vault::load(const std::string &variable, const nlohmann::json &value) {
     add(variable, value);
     if (wait_manager_) wait_manager_->notify();
 }
 
-bool GlobalVariable::loadJson(const nlohmann::json &j) {
+void Vault::loadAtPath(const std::string &variable, const std::string &path, const nlohmann::json &value) {
+    nlohmann::json current;
+    tryGet(variable, current);
+    if (!current.is_object()) current = nlohmann::json::object();
+    current[nlohmann::json::json_pointer(path)] = value;
+    add(variable, std::move(current));
+    if (wait_manager_) wait_manager_->notify();
+}
+
+bool Vault::loadJson(const nlohmann::json &j) {
 
     std::string error{};
-    if (!global_variable_schema_.validate(j, error)) {
+    if (!vault_schema_.validate(j, error)) {
         return false;
     }
 
-    add(j);
+    // Reject keys containing dots (reserved for JSON path navigation)
+    for (auto it = j.begin(); it != j.end(); ++it) {
+        if (it.key().find('.') != std::string::npos) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Vault entry key '%s' contains dots (not allowed)", it.key().c_str()), ERT_FILE_LOCATION));
+            return false;
+        }
+    }
+
+    // Convert: schema still validates as object, but values can be any JSON type.
+    // Map::add(map_t) expects unordered_map<string, json>, which nlohmann::json
+    // object iteration provides directly.
+    for (auto it = j.begin(); it != j.end(); ++it) {
+        add(it.key(), it.value());
+    }
     if (wait_manager_) wait_manager_->notify();
 
     return true;
 }
 
-std::string GlobalVariable::asJsonString() const {
+std::string Vault::asJsonString() const {
 
     return ((size() != 0) ? getJson().dump() : "{}"); // server data is shown as an object
 }
 
-nlohmann::json GlobalVariable::getJson() const {
+nlohmann::json Vault::getJson() const {
     return Map::getJson();
 }
 

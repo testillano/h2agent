@@ -52,7 +52,7 @@ SOFTWARE.
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <WaitManager.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
@@ -298,12 +298,12 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
     return result;
 }
 
-int MyAdminHttp2Server::globalVariable(const nlohmann::json &configurationObject, std::string& log) const
+int MyAdminHttp2Server::vault(const nlohmann::json &configurationObject, std::string& log) const
 {
-    log = "global-variable operation; ";
+    log = "vault operation; ";
 
-    int result = getGlobalVariable()->loadJson(configurationObject) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST; // 201 or 400
-    log += (statusCodeOK(result) ? "valid schema and global variables received":"invalid schema");
+    int result = getVault()->loadJson(configurationObject) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST; // 201 or 400
+    log += (statusCodeOK(result) ? "valid schema and vault data received":"invalid schema");
 
     return result;
 }
@@ -360,8 +360,8 @@ void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::s
         else if (pathSuffix == "schema") {
             statusCode = schema(requestJson, jsonResponse_response);
         }
-        else if (pathSuffix == "global-variable") {
-            statusCode = globalVariable(requestJson, jsonResponse_response);
+        else if (pathSuffix == "vault") {
+            statusCode = vault(requestJson, jsonResponse_response);
         }
         else {
             statusCode = ert::http2comm::ResponseCode::NOT_IMPLEMENTED; // 501
@@ -389,7 +389,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     // composed path suffixes
     std::smatch matches;
     static std::regex clientProvisionId("^client-provision/(.*)", std::regex::optimize);
-    static std::regex globalVariableWait("^global-variable/([^/]+)/wait$", std::regex::optimize);
+    static std::regex vaultWait("^vault/([^/]+)/wait$", std::regex::optimize);
 
 
     if (pathSuffix == "server-matching/schema") {
@@ -449,7 +449,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getMockClientData()->summary(maxKeys);
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
-    else if (pathSuffix == "global-variable") {
+    else if (pathSuffix == "vault") {
         std::string name = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
@@ -462,31 +462,33 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         }
         if (statusCode != ert::http2comm::ResponseCode::BAD_REQUEST) { // 400
             if (name.empty()) {
-                responseBody = getGlobalVariable()->asJsonString();
+                responseBody = getVault()->asJsonString();
                 statusCode = ((responseBody == "{}") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
             else {
-                bool exists = getGlobalVariable()->tryGet(name, responseBody);
+                nlohmann::json gvarValue;
+                bool exists = getVault()->tryGet(name, gvarValue);
+                if (exists) responseBody = gvarValue.dump();
                 statusCode = (exists ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
         }
     }
-    else if (pathSuffix == "global-variable/schema") {
+    else if (pathSuffix == "vault/schema") {
         // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getGlobalVariable()->getSchema().getJson();
+        nlohmann::json jsonSchema = getVault()->getSchema().getJson();
         jsonSchema["$id"] = uri;
         responseBody = jsonSchema.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
-    else if (std::regex_match(pathSuffix, matches, globalVariableWait)) { // global-variable/<key>/wait
+    else if (std::regex_match(pathSuffix, matches, vaultWait)) { // vault/<key>/wait
         if (!wait_manager_) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
 
-        std::string targetValue = "";
+        std::string targetValueStr = "";
         std::string timeoutMsStr = "";
         if (!queryParams.empty()) {
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("value");
-            if (it != qmap.end()) targetValue = it->second;
+            if (it != qmap.end()) targetValueStr = it->second;
             it = qmap.find("timeoutMs");
             if (it != qmap.end()) timeoutMsStr = it->second;
         }
@@ -498,8 +500,16 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (h2agent::model::string2uint64andSign(timeoutMsStr, t, negative) && !negative) timeoutMs = (unsigned int)t;
         }
 
-        std::string resultValue, previousValue;
-        bool met = wait_manager_->waitForGlobalVariable(matches.str(1), targetValue, timeoutMs, resultValue, previousValue);
+        // targetValue: null means "any change", otherwise match the provided value as json
+        nlohmann::json targetValue = nullptr;
+        if (!targetValueStr.empty()) {
+            // Try to parse as JSON, fall back to string
+            targetValue = nlohmann::json::parse(targetValueStr, nullptr, false);
+            if (targetValue.is_discarded()) targetValue = nlohmann::json(targetValueStr);
+        }
+
+        nlohmann::json resultValue, previousValue;
+        bool met = wait_manager_->waitForVault(matches.str(1), targetValue, timeoutMs, resultValue, previousValue);
 
         nlohmann::json result;
         result["result"] = met;
@@ -714,8 +724,8 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
 
         statusCode = (success ? (clientDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/):ert::http2comm::ResponseCode::BAD_REQUEST /*400*/);
     }
-    else if (pathSuffix == "global-variable") {
-        bool globalVariableDeleted = false;
+    else if (pathSuffix == "vault") {
+        bool vaultDeleted = false;
         std::string name = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
@@ -727,11 +737,11 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         }
         if (statusCode != ert::http2comm::ResponseCode::BAD_REQUEST) { // 400
             if (name.empty()) {
-                statusCode = (getGlobalVariable()->clear() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // 204
+                statusCode = (getVault()->clear() ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // 204
             }
             else {
                 bool exists;
-                getGlobalVariable()->remove(name, exists);
+                getVault()->remove(name, exists);
                 statusCode = (exists ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // 200 or 204
             }
         }

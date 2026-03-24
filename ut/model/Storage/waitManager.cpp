@@ -1,5 +1,5 @@
 #include <WaitManager.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -11,27 +11,27 @@ class WaitManager_test : public ::testing::Test
 {
 public:
     h2agent::model::WaitManager wm_{};
-    h2agent::model::GlobalVariable global_var_{};
+    h2agent::model::Vault vault_{};
 
     WaitManager_test() {
-        wm_.setGlobalVariable(&global_var_);
-        global_var_.setWaitManager(&wm_);
+        wm_.setVault(&vault_);
+        vault_.setWaitManager(&wm_);
     }
 };
 
-TEST_F(WaitManager_test, GlobalVariableAnyChange)
+TEST_F(WaitManager_test, VaultAnyChange)
 {
-    global_var_.load("key1", "initial");
+    vault_.load("key1", "initial");
 
-    std::string resultValue, previousValue;
+    nlohmann::json resultValue, previousValue;
     bool met = false;
 
     std::thread waiter([&] {
-        met = wm_.waitForGlobalVariable("key1", "" /* any change */, 5000, resultValue, previousValue);
+        met = wm_.waitForVault("key1", nullptr /* any change */, 5000, resultValue, previousValue);
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    global_var_.load("key1", "changed");
+    vault_.load("key1", "changed");
 
     waiter.join();
     EXPECT_TRUE(met);
@@ -39,41 +39,41 @@ TEST_F(WaitManager_test, GlobalVariableAnyChange)
     EXPECT_EQ(resultValue, "changed");
 }
 
-TEST_F(WaitManager_test, GlobalVariableSpecificValue)
+TEST_F(WaitManager_test, VaultSpecificValue)
 {
-    global_var_.load("key1", "v1");
+    vault_.load("key1", "v1");
 
-    std::string resultValue, previousValue;
+    nlohmann::json resultValue, previousValue;
     bool met = false;
 
     std::thread waiter([&] {
-        met = wm_.waitForGlobalVariable("key1", "target", 5000, resultValue, previousValue);
+        met = wm_.waitForVault("key1", "target", 5000, resultValue, previousValue);
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    global_var_.load("key1", "target");
+    vault_.load("key1", "target");
 
     waiter.join();
     EXPECT_TRUE(met);
     EXPECT_EQ(resultValue, "target");
 }
 
-TEST_F(WaitManager_test, GlobalVariableAlreadySatisfied)
+TEST_F(WaitManager_test, VaultAlreadySatisfied)
 {
-    global_var_.load("key1", "target");
+    vault_.load("key1", "target");
 
-    std::string resultValue, previousValue;
-    bool met = wm_.waitForGlobalVariable("key1", "target", 100, resultValue, previousValue);
+    nlohmann::json resultValue, previousValue;
+    bool met = wm_.waitForVault("key1", "target", 100, resultValue, previousValue);
     EXPECT_TRUE(met);
     EXPECT_EQ(resultValue, "target");
 }
 
-TEST_F(WaitManager_test, GlobalVariableTimeout)
+TEST_F(WaitManager_test, VaultTimeout)
 {
-    global_var_.load("key1", "initial");
+    vault_.load("key1", "initial");
 
-    std::string resultValue, previousValue;
-    bool met = wm_.waitForGlobalVariable("key1", "" /* any change */, 50, resultValue, previousValue);
+    nlohmann::json resultValue, previousValue;
+    bool met = wm_.waitForVault("key1", nullptr /* any change */, 50, resultValue, previousValue);
     EXPECT_FALSE(met);
     EXPECT_EQ(previousValue, "initial");
 }
@@ -83,19 +83,19 @@ TEST_F(WaitManager_test, MaxWaitersEnforced)
     std::vector<std::thread> threads;
     for (size_t i = 0; i < h2agent::model::WaitManager::MAX_WAITERS; i++) {
         threads.emplace_back([this] {
-            std::string rv, pv;
-            wm_.waitForGlobalVariable("key1", "never", 2000, rv, pv);
+            nlohmann::json rv, pv;
+            wm_.waitForVault("key1", "never", 2000, rv, pv);
         });
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // This one should be rejected (429)
-    std::string rv, pv;
-    bool met = wm_.waitForGlobalVariable("key1", "never", 100, rv, pv);
+    nlohmann::json rv, pv;
+    bool met = wm_.waitForVault("key1", "never", 100, rv, pv);
     EXPECT_FALSE(met);
 
     // Unblock all waiters by satisfying condition
-    global_var_.load("key1", "never");
+    vault_.load("key1", "never");
     for (auto& t : threads) t.join();
 }

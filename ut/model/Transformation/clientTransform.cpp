@@ -2,7 +2,7 @@
 #include <AdminClientProvision.hpp>
 #include <AdminClientProvisionData.hpp>
 #include <Configuration.hpp>
-#include <GlobalVariable.hpp>
+#include <Vault.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <MockClientData.hpp>
@@ -62,13 +62,13 @@ public:
 
         common_resources_.AdminDataPtr = &adata_;
         common_resources_.ConfigurationPtr = new h2agent::model::Configuration();
-        common_resources_.GlobalVariablePtr = new h2agent::model::GlobalVariable();
+        common_resources_.VaultPtr = new h2agent::model::Vault();
         common_resources_.FileManagerPtr = new h2agent::model::FileManager(nullptr);
         common_resources_.SocketManagerPtr = new h2agent::model::SocketManager(nullptr);
         common_resources_.MockClientDataPtr = new h2agent::model::MockClientData();
         common_resources_.MockServerDataPtr = new h2agent::model::MockServerData();
 
-        common_resources_.GlobalVariablePtr->load("myGlobalVar", "globalValue");
+        common_resources_.VaultPtr->load("myVaultEntry", "vaultValue");
     }
 
     std::shared_ptr<h2agent::model::AdminClientProvision> provisionAndTransform() {
@@ -83,7 +83,7 @@ public:
 
     ~ClientTransform_test() {
         delete(common_resources_.ConfigurationPtr);
-        delete(common_resources_.GlobalVariablePtr);
+        delete(common_resources_.VaultPtr);
         delete(common_resources_.FileManagerPtr);
         delete(common_resources_.SocketManagerPtr);
         delete(common_resources_.MockClientDataPtr);
@@ -240,13 +240,13 @@ TEST_F(ClientTransform_test, TargetVariable)
     EXPECT_EQ(request_uri_, "hello");
 }
 
-TEST_F(ClientTransform_test, TargetGlobalVariable)
+TEST_F(ClientTransform_test, TargetVault)
 {
     client_provision_json_ = R"({
         "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
         "transform": [
-            {"source": "value.newValue", "target": "globalVar.testGVar"},
-            {"source": "globalVar.testGVar", "target": "request.uri"}
+            {"source": "value.newValue", "target": "vault.testGVar"},
+            {"source": "vault.testGVar", "target": "request.uri"}
         ]
     })"_json;
     auto provision = provisionAndTransform();
@@ -292,15 +292,15 @@ TEST_F(ClientTransform_test, SourceValue)
     EXPECT_EQ(request_uri_, "/api/v1/new");
 }
 
-TEST_F(ClientTransform_test, SourceGlobalVariable)
+TEST_F(ClientTransform_test, SourceVault)
 {
     client_provision_json_ = R"({
         "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "globalVar.myGlobalVar", "target": "request.uri"}]
+        "transform": [{"source": "vault.myVaultEntry", "target": "request.uri"}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
-    EXPECT_EQ(request_uri_, "globalValue");
+    EXPECT_EQ(request_uri_, "vaultValue");
 }
 
 TEST_F(ClientTransform_test, SourceEraser)
@@ -308,13 +308,13 @@ TEST_F(ClientTransform_test, SourceEraser)
     client_provision_json_ = R"({
         "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
         "transform": [
-            {"source": "eraser", "target": "globalVar.myGlobalVar"},
-            {"source": "globalVar.myGlobalVar", "target": "request.uri"}
+            {"source": "eraser", "target": "vault.myVaultEntry"},
+            {"source": "vault.myVaultEntry", "target": "request.uri"}
         ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
-    EXPECT_EQ(request_uri_, "/test"); // globalVar erased, second transform fails silently, uri unchanged
+    EXPECT_EQ(request_uri_, "/test"); // vault erased, second transform fails silently, uri unchanged
 }
 
 TEST_F(ClientTransform_test, SourceInState)
@@ -425,8 +425,8 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseBody)
     client_provision_json_ = R"({
         "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
         "onResponseTransform": [
-            {"source": "eraser", "target": "globalVar.respBody"},
-            {"source": "response.body", "target": "globalVar.respBody"}
+            {"source": "eraser", "target": "vault.respBody"},
+            {"source": "response.body", "target": "vault.respBody"}
         ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
@@ -441,8 +441,8 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseBody)
     nghttp2::asio_http2::header_map reqHeaders;
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
 
-    std::string stored;
-    EXPECT_TRUE(common_resources_.GlobalVariablePtr->tryGet("respBody", stored));
+    nlohmann::json stored;
+    EXPECT_TRUE(common_resources_.VaultPtr->tryGet("respBody", stored));
 }
 
 TEST_F(ClientTransform_test, TransformResponseSourceResponseStatusCode)
@@ -470,8 +470,8 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeader)
     client_provision_json_ = R"({
         "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
         "onResponseTransform": [
-            {"source": "eraser", "target": "globalVar.location"},
-            {"source": "response.header.location", "target": "globalVar.location"}
+            {"source": "eraser", "target": "vault.location"},
+            {"source": "response.header.location", "target": "vault.location"}
         ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
@@ -486,7 +486,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeader)
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
-    // globalVar.location should now contain "/api/v1/redirected"
+    // vault.location should now contain "/api/v1/redirected"
 }
 
 TEST_F(ClientTransform_test, TransformResponseBreakOnError)
@@ -777,7 +777,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeaders)
     client_provision_json_ = R"({
         "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
         "onResponseTransform": [
-            {"source": "response.headers", "target": "globalVar.resp_hdrs"}
+            {"source": "response.headers", "target": "vault.resp_hdrs"}
         ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
@@ -794,11 +794,10 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeaders)
     nghttp2::asio_http2::header_map reqHeaders;
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
 
-    // Verify globalVar contains the headers array
+    // Verify vault contains the headers array
     bool exists = false;
-    std::string val = common_resources_.GlobalVariablePtr->get("resp_hdrs", exists);
+    nlohmann::json hdrs = common_resources_.VaultPtr->get("resp_hdrs", exists);
     ASSERT_TRUE(exists);
-    nlohmann::json hdrs = nlohmann::json::parse(val);
     EXPECT_TRUE(hdrs.is_array());
     bool found_ct = false, found_xr = false;
     for (const auto &h : hdrs) {

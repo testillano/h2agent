@@ -9,7 +9,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 - [Overview](#overview)
 - [General operations](#general-operations)
   - [Schemas](#schemas)
-  - [Global variables](#global-variables)
+  - [Vault](#vaults)
     - [Blocking wait](#blocking-wait)
   - [Files](#files)
   - [Logging](#logging)
@@ -21,6 +21,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 - [Server provisions](#server-provisions)
   - [State machine (inState/outState)](#state-machine-instateoutstate)
   - [Server provision fields](#server-provision-fields)
+  - [Variable types: `var` vs `vault`](#variable-types-var-vs-vault)
   - [Transformation pipeline](#transformation-pipeline)
   - [Multiple provisions](#multiple-provisions)
   - [Unused provisions](#unused-provisions)
@@ -54,7 +55,7 @@ The API is organized in three groups:
 **General** mock operations:
 
 * Schemas: define validation schemas used in further provisions to check the incoming and outgoing traffic.
-* Global variables: shared variables between different provision contexts and flows. Extra feature to solve some situations by other means, and also used for built-in response condition mechanism: [Dynamic response delays](../../README.md#dynamic-response-delays).
+* Vault: shared variables between different provision contexts and flows. Extra feature to solve some situations by other means, and also used for built-in response condition mechanism: [Dynamic response delays](../../README.md#dynamic-response-delays).
 * Logging: dynamic logger configuration (update and check).
 * General configuration (server).
 
@@ -122,17 +123,17 @@ Load of a set of schemas through an array object is allowed. So, instead of laun
 
 A schema set fails with the first failed item, giving a 'pluralized' version of the single load failed response message.
 
-### Global variables
+### Vault
 
-Global variables (`POST /admin/v1/global-variable`) can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this *REST API* operation. This operation is mainly focused on the use of global variables as constants for the whole execution (although they could be updated or reset from provisions).
+Vault (`POST /admin/v1/vault`) can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this *REST API* operation. This operation is mainly focused on the use of vaults as constants for the whole execution (although they could be updated or reset from provisions).
 
-Global variables are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
+Vault are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
-When querying (`GET /admin/v1/global-variable`), without the `name` query parameter, the whole list of global variables is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
+When querying (`GET /admin/v1/vault`), without the `name` query parameter, the whole list of vaults is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
 
 #### Blocking wait
 
-The endpoint `GET /admin/v1/global-variable/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
+The endpoint `GET /admin/v1/vault/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
 
 - **Any change** (no `value` parameter): returns when the variable differs from its value at the time the request was received.
 - **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied.
@@ -380,7 +381,7 @@ Those values are also defined in `nghttp2_error_code` enum type within `https://
 
 Any value lesser than 100 will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
-Error codes are registered as global variables with key `'__core.stream-error-traffic-server.<recvseq>.<method>.<uri>'` and value `'<error code>'`.
+Error codes are registered as vaults with key `'__core.stream-error-traffic-server.<recvseq>.<method>.<uri>'` and value `'<error code>'`.
 
 #### responseBody
 
@@ -393,6 +394,49 @@ Optional response delay simulation in milliseconds.
 #### responseSchemaId
 
 We could optionally validate built responses against a `json` schema. When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+### Variable types: `var` vs `vault`
+
+There are two distinct variable systems available in transformations. Despite the similar naming, they differ not only in scope but also in storage type and behavior:
+
+| Aspect | `var` (local) | `vault` (global) |
+|--------|---------------|----------------------|
+| **Scope** | Per-provision `outState` chain. Destroyed when the chain ends. | Process-level. Persists until explicitly erased or deleted via REST API. |
+| **Storage type** | `string` only (`Map<string, string>`) | Any `json` type: string, number, boolean, object, array (`Map<string, json>`) |
+| **Key naming** | May contain dots (e.g. `var.captures.1`) | Dots forbidden in key names (reserved as separator for json pointer path) |
+| **Path navigation** | Not supported | Supported: `vault.KEY./path/to/field` (json pointer after the dot) |
+| **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v1/vault` |
+| **CLI loading** | Not supported | `--vault file.json` |
+| **Blocking wait** | Not supported | `GET /admin/v1/vault/<key>/wait` |
+
+#### RegexCapture behavior difference
+
+When a `RegexCapture` filter is applied, the way capture groups are stored depends on the target variable type:
+
+**`var` (local)** — creates separate flat keys with dotted suffixes:
+
+```
+target: "var.uri_parts"
+→ var.uri_parts   = "/app/v1/foo/bar/1"   (full match)
+→ var.uri_parts.1 = "foo"                  (group 1)
+→ var.uri_parts.2 = "1"                    (group 2)
+
+Access: source "var.uri_parts.1" → "foo"   (key lookup in flat string map)
+```
+
+**`vault` (global)** — stores a single JSON object with numbered keys:
+
+```
+target: "vault.uri_parts"
+→ vault.uri_parts = {"0": "/app/v1/foo/bar/1", "1": "foo", "2": "1"}
+
+Access: source "vault.uri_parts./1" → "foo"   (json pointer path navigation)
+```
+
+Note the `/` prefix in the path: `vault.uri_parts./1` uses a json pointer (`/1`), while `var.uri_parts.1` is a plain key lookup (`uri_parts.1`). This distinction is consistent with how `request.body./field` and `response.body./field` work throughout h2agent.
+
+If the vault already existed (regardless of its previous type — string, number, or object), the `RegexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `vault.MY_OBJ./captures` will only replace the `/captures` field, preserving the rest of the object.
+
 ### Transformation pipeline
 
 Sorted list of transformation items to modify incoming information and build the dynamic response to be sent.
@@ -415,9 +459,9 @@ Let's start describing the available sources of data: regardless the native or n
 
 *Variables substitution:*
 
-Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by scoped provision variables and global variables. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
+Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by scoped provision variables and vaults. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
-> **Important**: the `@{name}` pattern uses the bare variable name, without the `var.`/`globalVar.` prefix. Those prefixes are only used in source/target type declarations (e.g. `"target": "globalVar.myVar"`), not inside substitution patterns. For example, a variable stored via `"target": "globalVar.mySeq"` is referenced as `@{mySeq}`, not `@{globalVar.mySeq}`.
+> **Important**: the `@{name}` pattern uses the bare variable name, without the `var.`/`vault.` prefix. Those prefixes are only used in source/target type declarations (e.g. `"target": "vault.myVar"`), not inside substitution patterns. For example, a variable stored via `"target": "vault.mySeq"` is referenced as `@{mySeq}`, not `@{vault.mySeq}`.
 
 
 
@@ -458,7 +502,7 @@ The **source** of information is classified after parsing the following possible
 
   As the transformation steps modify this data container, its value as a source is likewise updated.
 
-- response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations.
+- response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations. Consider using vaults with `json` values (`vault.<key>`) as a cleaner alternative for shared templates, since they decouple the template data from the response being built.
 
   As the transformation steps modify this data container, its value as a source is likewise updated.
 
@@ -469,8 +513,8 @@ The **source** of information is classified after parsing the following possible
 - response.headers: all response headers as a JSON array (same format as `request.headers`). Only available in client provision `onResponseTransform`.
 
 - eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
-  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When the eraser applies to response node root, it just removes response body.
-  - global variable: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Global variables are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
+  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When the eraser applies to response node root, it just removes response body. **Note:** since vaults now support `json` object values, the recommended approach for shared templates is to store them as vaults (via REST API or `--vault` file) and reference them with `vault.<key>.<path>` in transform sources. This avoids polluting the response body with auxiliary data and the need to erase temporary nodes.
+  - vault: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Vault are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
   - event: we could purge storage events, something that could be necessary to control memory growth in load testing.
   - with other kind of targets, eraser acts like setting an empty string.
 
@@ -488,7 +532,7 @@ The **source** of information is classified after parsing the following possible
 
 - var.`<id>`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Cannot refer json objects. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
 
-- globalVar.`<id>`: general purpose global variable (readable from anywhere, process-level scope). Cannot refer json objects. This source variable identifier **admits variables substitution**. Global variables are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed).
+- vault.`<key>`[.`/<path>`]: general purpose vault (readable from anywhere, process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. When a `/<path>` is provided (json pointer format, after the dot separator), the source navigates into the stored `json` value (e.g. `vault.TPL./request/headers/auth` extracts the `auth` field). Without path, the whole value is used. For string values, the behavior is backward compatible with the former string-only storage. This source variable identifier **admits variables substitution** (on the key part). Vault are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed). **Note:** key names cannot contain dots (dots are reserved as separator between key and path).
 
 - value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
@@ -655,7 +699,15 @@ The **target** of information is classified after parsing the following possible
 
 - var.`<id>` *[string (or number as string)]*: general purpose variable (writable at transformation chain, scoped to the `outState` chain). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Variables set here are automatically available in subsequent provisions linked via `outState`. Cannot store json objects. This target variable identifier **admits variables substitution**.
 
-- globalVar.`<id>` *[string (or number as string)]*: general purpose global variable (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Cannot refer json objects. This target variable identifier **admits variables substitution**. <u>Target value is appended to the current existing value</u>. This allows to use global variables as memory buckets. So, you must use `eraser` to reset its value guaranteeing it starts from scratch.
+- vault.`<key>`[.`/<path>`] *[any json type]*: general purpose vault (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. This target variable identifier **admits variables substitution** (on the key part).
+
+  When a `/<path>` is provided (json pointer format, after the dot separator), only the specified field within the stored `json` object is modified, preserving the rest of the document (e.g. `vault.TPL./status` sets only the `status` field). Without path, the entire variable value is replaced.
+
+  When the source is a `json` object (e.g. from `request.body`), it is stored natively. When the source is a string, it is stored as a `json` string value (backward compatible).
+
+  **RegexCapture behavior**: when a `RegexCapture` filter is used with a `vault` target, the capture groups are stored as a single `json` object with numbered keys: `{"0": "full match", "1": "group1", "2": "group2", ...}`. This differs from local variables (`var.`), where separate variables are created (`var.name`, `var.name.1`, `var.name.2`). With vaults, the captures are accessed via path navigation: `vault.name./1`, `vault.name./2`, etc. If the variable already existed (string or object), it is **fully replaced** by the capture object (unless a path is specified in the target, in which case only that subtree is replaced).
+
+  **Note:** key names cannot contain dots (dots are reserved as separator between key and path). To reset a vault, use `eraser` source.
 
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
@@ -915,7 +967,7 @@ Filters give you the chance to make complex transformations:
 
 
 
-- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and global variables are searched, giving <u>priority to local ones</u>), which is:
+- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>), which is:
 
   - **False** condition for cases:
     - <u>Undefined</u> variable.
@@ -1649,22 +1701,22 @@ And finally, note that we could also solve the previous exercise just providing 
 
 #### Partial chain execution
 
-A common pattern is to define a full lifecycle chain (e.g., `initial` → `established` → `updated` → `terminated`) but execute it in stages. This is achieved by combining a global variable with a conditional `break` in the `onResponseTransform` of an intermediate step.
+A common pattern is to define a full lifecycle chain (e.g., `initial` → `established` → `updated` → `terminated`) but execute it in stages. This is achieved by combining a vault with a conditional `break` in the `onResponseTransform` of an intermediate step.
 
 For example, consider a 3-step session flow (create → update → delete). To execute only the establishment phase:
 
-1. Set a global variable to control the chain depth:
+1. Set a vault to control the chain depth:
 
    ```bash
    curl --http2-prior-knowledge -d '{"STOP_AFTER": "establishment"}' \
-     http://localhost:8074/admin/v1/global-variable
+     http://localhost:8074/admin/v1/vault
    ```
 
 2. In the `onResponseTransform` of the establishment provision, add a conditional outState override:
 
    ```json
    {
-     "source": "globalVar.STOP_AFTER",
+     "source": "vault.STOP_AFTER",
      "target": "var.mustStop",
      "filter": { "RegexCapture": "establishment" }
    },
@@ -1682,14 +1734,14 @@ For example, consider a 3-step session flow (create → update → delete). To e
    ```bash
    # First, clear the stop condition:
    curl --http2-prior-knowledge -d '{"STOP_AFTER": ""}' \
-     http://localhost:8074/admin/v1/global-variable
+     http://localhost:8074/admin/v1/vault
 
    # Then trigger from the intermediate state:
    curl --http2-prior-knowledge \
      "http://localhost:8074/admin/v1/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
    ```
 
-> **Note**: when triggering from an intermediate state, scoped variables (`var.*`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `globalVar` instead.
+> **Note**: when triggering from an intermediate state, scoped variables (`var.*`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `vault` instead.
 
 This pattern is useful for benchmarking scenarios where you want to measure each phase independently, or when you need to pre-populate sessions before running update/delete workloads.
 

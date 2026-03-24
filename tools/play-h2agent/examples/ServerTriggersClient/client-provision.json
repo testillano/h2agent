@@ -7,7 +7,7 @@
   "requestHeaders": {"content-type":"application/json"},
   "transform": [
     {
-      "source": "globalVar.notificationBody",
+      "source": "vault.notificationBody",
       "target": "request.body.json.jsonstring"
     }
   ]

@@ -46,7 +46,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 * Interfaces
 
   * Administrative interface (REST API): update, create and delete items:
-    * Global variables.
+    * Vault.
     * File manager configuration.
     * UDP events.
     * Schemas (Rx/Tx).
@@ -63,7 +63,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Administrative & traffic interfaces (addresses, ports, security certificates).
     * Congestion control parameters (workers, maximum workers and maximum queue size).
     * Schema configuration json documents to be referred (traffic validation).
-    * Global variables json document.
+    * Vault json document.
     * File manager configuration.
     * Traffic server configuration (classification and provision).
     * Metrics interface: histogram buckets for server and client and for histogram types.
@@ -86,16 +86,16 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
   * User-defined machine state (FSM).
   * Internal events system (data extraction from past events).
-  * Global variables.
+  * Vault.
   * File system operations.
   * UDP writing operations.
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
-    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, global variables, constant values, input state (working state), events, files (read).
+    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints and schema id.
-    * Targets: dynamic variables, global variables, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+    * Targets: dynamic variables, vaults, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
-  * Pseudo-notification mechanism (response delayed by global variable condition).
+  * Pseudo-notification mechanism (response delayed by vault condition).
 
 * Training:
 
@@ -142,7 +142,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 - [Training](#training)
 - [Management interface](#management-interface)
 - [Dynamic response delays](#dynamic-response-delays)
-- [Reserved Global Variables](#reserved-global-variables)
+- [Reserved Vault Entrys](#reserved-vaults)
 - [How it is delivered](#how-it-is-delivered)
 - [How it integrates in a service](#how-it-integrates-in-a-service)
 - [Troubleshooting](#troubleshooting)
@@ -642,7 +642,7 @@ $ benchmark/start.sh --list
 Available test profiles:
 
   [server]
-    default                      Representative mix: globalVar, RegexReplace, timestamp, variable chaining and math.
+    default                      Representative mix: vault, RegexReplace, timestamp, variable chaining and math.
     ipv4-with-regexreplace       IPv4 construction from phone number using RegexReplace filter.
     ipv4-with-split              IPv4 construction from phone number using Split filter.
     legacy                       Original benchmark provision: large JSON response body with file I/O.
@@ -655,7 +655,7 @@ $ benchmark/start.sh -y
 
 
 Test profile: default [server]
-Description:  Representative mix: JSON response with globalVar, RegexReplace URI extraction, timestamp, variable chaining and math expression. No file I/O.
+Description:  Representative mix: JSON response with vault, RegexReplace URI extraction, timestamp, variable chaining and math expression. No file I/O.
 Method:       POST
 URI:          /app/v1/load-test/id-21
 Body:         {"id":"1a8b8863","name":"Ada Lovelace","age":198}
@@ -819,8 +819,8 @@ Options:
 [--schema <path file>]
   Path file for optional startup schema configuration.
 
-[--global-variable <path file>]
-  Path file for optional startup global variable(s) configuration.
+[--vault <path file>]
+  Path file for optional startup vault(s) configuration.
 
 [--traffic-server-matching <path file>]
   Path file for optional startup traffic server matching configuration.
@@ -1577,7 +1577,7 @@ SSL/TLS disabled: both key & certificate must be provided
 Traffic secured: no
 Admin secured: no
 Schema configuration file: <not provided>
-Global variables configuration file: <not provided>
+Vault configuration file: <not provided>
 Traffic server process request body: true
 Traffic server pre reserve request body: true
 Data storage: enabled
@@ -1696,8 +1696,8 @@ The API is organized in the following groups:
 | Group | Endpoints | Description |
 |-------|-----------|-------------|
 | **schema** | `POST` `GET` `DELETE` `/admin/v1/schema` | Validation schemas for traffic checking |
-| **global-variable** | `POST` `GET` `DELETE` `/admin/v1/global-variable` | Shared variables between provisions |
-| | `GET` `/admin/v1/global-variable/<key>/wait` | Block until variable changes (long-poll) |
+| **vault** | `POST` `GET` `DELETE` `/admin/v1/vault` | Shared variables between provisions |
+| | `GET` `/admin/v1/vault/<key>/wait` | Block until variable changes (long-poll) |
 | **files** | `GET` `/admin/v1/files` | Processed files status |
 | **logging** | `GET` `PUT` `/admin/v1/logging` | Dynamic log level configuration |
 | **configuration** | `GET` `/admin/v1/configuration` | General process configuration |
@@ -1711,7 +1711,7 @@ The API is organized in the following groups:
 
 ## Server-triggered client flows with serverEvent source
 
-When a server provision triggers a client provision (via `clientProvision.<id>` target), the client provision can read data directly from the originating server event using the `serverEvent` source. This avoids copying fields to intermediate `globalVar` variables and is the recommended approach when the client request must be built from server request data.
+When a server provision triggers a client provision (via `clientProvision.<id>` target), the client provision can read data directly from the originating server event using the `serverEvent` source. This avoids copying fields to intermediate `vault` variables and is the recommended approach when the client request must be built from server request data.
 
 **Source syntax:** `serverEvent.<method>.<uri>.<event-number>.<json-path>`
 
@@ -1747,7 +1747,7 @@ When a server provision triggers a client provision (via `clientProvision.<id>` 
 }
 ```
 
-The client provision reads the last received body at `POST /api/v1/webhook/notify` and uses it as the outgoing request body — no `globalVar` needed. A full runnable example is available at `tools/play-h2agent/examples/ServerTriggersClientViaServerEvent`.
+The client provision reads the last received body at `POST /api/v1/webhook/notify` and uses it as the outgoing request body — no `vault` needed. A full runnable example is available at `tools/play-h2agent/examples/ServerTriggersClientViaServerEvent`.
 
 > **Note:** `serverEvent` requires server-data storage to be enabled (default). If `--discard-data` is set, the source will fail and the transformation is skipped.
 
@@ -1755,7 +1755,7 @@ Similarly, server provisions can access client event history using the `clientEv
 
 ## Dynamic response delays
 
-The provisioning model allows configuration of the response delay, in milliseconds, for a received request. This delay may be a fixed or a random value, but is always a single, static delay overall. However, an additional mechanism -the dynamic delay- can be employed as a pseudo-notification procedure to suppress (or block) answers under specific conditions. This feature is activated via a global variable with the naming format: `__core.response-delay-ms.<recvseq>`.
+The provisioning model allows configuration of the response delay, in milliseconds, for a received request. This delay may be a fixed or a random value, but is always a single, static delay overall. However, an additional mechanism -the dynamic delay- can be employed as a pseudo-notification procedure to suppress (or block) answers under specific conditions. This feature is activated via a vault with the naming format: `__core.response-delay-ms.<recvseq>`.
 
 This variable holds a millisecond value that postpones the answer for a specific reception identifier. The dynamic delay is ignored (and the answer is immediate) if the variable does not exist, holds an invalid (non-numeric) value, or a zeroed value. This procedure operates independently of the provisioned response delay, which is executed first (if configured).
 
@@ -1778,16 +1778,16 @@ The simplest way to use this feature is to configure the server provisioning to 
     },
     {
       "source": "value.1",
-      "target": "globalVar.__core.response-delay-ms.@{recvseq}"
+      "target": "vault.__core.response-delay-ms.@{recvseq}"
     }
   ]
 }
 ```
 
-In that use case, when a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond. You could confirm that just checking global variables hold by the h2agent process:
+In that use case, when a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond. You could confirm that just checking vaults hold by the h2agent process:
 
 ```bash
-$ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/global-variable | jq '.'
+$ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/vault | jq '.'
 {
   "__core.response-delay-ms.1": "1"
 }
@@ -1798,23 +1798,23 @@ The procedure is as follows: the answer is first delayed by 20 ms (as configured
 The server provisioning model can modify the variable upon subsequent receptions (it may need to correlate information from those requests with an auxiliary storage where the original server sequence is kept). However, these updates are typically managed externally through the administrative interface, for example:
 
 ```bash
-$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/global-variable -H'content-type:application/json' -d'{"__core.response-delay-ms.1":"0"}'
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/vault -H'content-type:application/json' -d'{"__core.response-delay-ms.1":"0"}'
 - or better: -
-$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/global-variable?name=__core.response-delay-ms.1"
+$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/vault?name=__core.response-delay-ms.1"
 ```
 
 How the server sequence is determined is a separate issue. For example, the provisioning configuration could write UDP datagrams (containing the server sequence), which might trigger other external operations that ultimately lead to those administrative operations.
 
-## Blocking Wait on Global Variables
+## Blocking Wait on Vault Entrys
 
-The endpoint `GET /admin/v1/global-variable/<key>/wait` blocks until a variable changes, eliminating polling loops in test orchestration:
+The endpoint `GET /admin/v1/vault/<key>/wait` blocks until a variable changes, eliminating polling loops in test orchestration:
 
 ```bash
 # Wait until SIGNAL equals "done" (30s timeout by default):
-curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/global-variable/SIGNAL/wait?value=done&timeoutMs=30000"
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/vault/SIGNAL/wait?value=done&timeoutMs=30000"
 
 # Wait for any change on MY_FLAG:
-curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/global-variable/MY_FLAG/wait?timeoutMs=5000"
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/vault/MY_FLAG/wait?timeoutMs=5000"
 ```
 
 Response (200 when met, 408 on timeout, 429 if too many concurrent waiters):
@@ -1851,7 +1851,7 @@ Concurrent waits    Probability of exceeding
 With the default 33 admin threads, fewer than 0.5% of instants would hit the
 limit. Adjust `--admin-server-worker-threads` if your workload requires more.
 
-## Reserved Global Variables
+## Reserved Vault Entrys
 
 The following variables are used internally by the server engine (`__core`) to manage critical functions such as dynamic response latency and stream error handling. These variables **must not be manipulated or overwritten** by user configurations for different purposes as expected, to avoid interference.
 
@@ -1937,116 +1937,9 @@ As we commented [above](#How-it-is-delivered), the `h2agent` helm chart packages
 
 ```bash
 $ source ./tools/helpers.bash
-
-===== h2agent operation helpers =====
-Shortcut helpers (sourced variables and functions)
-to ease agent operation over management interface:
-   https://github.com/testillano/h2agent#management-interface
-
-=== Common variables & functions ===
-SERVER_ADDR=localhost
-TRAFFIC_PORT=8000
-ADMIN_PORT=8074
-METRICS_PORT=8080
-CURL="curl -i --http2-prior-knowledge"
-traffic_url(): http://localhost:8000
-admin_url():   http://localhost:8074/admin/v1
-metrics_url(): http://localhost:8080/metrics
-
-=== General ===
-Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration
-                                            (http://localhost:8074/admin/v1/schema).
-Usage: global_variable [-h|--help] [--clean] [name|file]; Cleans/gets/updates current agent global variable configuration
-                                                          (http://localhost:8074/admin/v1/global-variable).
-Usage: files [-h|--help]; Gets the files processed.
-Usage: files_configuration [-h|--help]; Manages files configuration (gets current status by default).
-                            [--enable-read-cache]  ; Enables cache for read operations.
-                            [--disable-read-cache] ; Disables cache for read operations.
-Usage: udp_sockets [-h|--help]; Gets the sockets for UDP processed.
-Usage: configuration [-h|--help]; Gets agent general static configuration.
-
-=== Traffic server ===
-Usage: server_configuration [-h|--help]; Manages agent server configuration (gets current status by default).
-       [--traffic-server-ignore-request-body]  ; Ignores request body on server receptions.
-       [--traffic-server-receive-request-body] ; Processes request body on server receptions.
-       [--traffic-server-dynamic-request-body-allocation] ; Does dynamic request body memory allocation on server receptions.
-       [--traffic-server-initial-request-body-allocation] ; Pre reserves request body memory on server receptions.
-Usage: server_data_configuration [-h|--help]; Manages agent server data configuration (gets current status by default).
-                                 [--discard-all]     ; Discards all the events processed.
-                                 [--discard-history] ; Keeps only the last event processed for a key.
-                                 [--keep-all]        ; Keeps all the events processed.
-                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached.
-                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached.
-
-Usage: server_matching [-h|--help] [file]; Gets/updates current server matching configuration
-                                           (http://localhost:8074/admin/v1/server-matching).
-Usage: server_provision [-h|--help] [--clean] [file]; Cleans/gets/updates current server provision configuration
-                                                      (http://localhost:8074/admin/v1/server-provision).
-Usage: server_provision_unused [-h|--help]; Get current server provision configuration still not used
-                                                      (http://localhost:8074/admin/v1/server-provision/unused).
-Usage: server_data [-h|--help]; Inspects server data events (http://localhost:8074/admin/v1/server-data).
-                   [method] [uri] [[-]event number] [event path] ; Restricts shown data with given positional filters.
-                                                                   Event number may be negative to access by reverse
-                                                                   chronological order.
-                   [--summary] [max keys]          ; Gets current server data summary to guide further queries.
-                                                     Displayed keys (method/uri) could be limited (10 by default, -1: no limit).
-                   [--clean] [query filters]       ; Removes server data events. Admits additional query filters to narrow the
-                                                     selection.
-                   [--surf]                        ; Interactive sorted (regardless method/uri) server data navigation.
-                   [--dump]                        ; Dumps all sequences detected for server data under 'server-data-sequences'
-                                                     directory.
-=== Traffic client ===
-Usage: client_endpoint [-h|--help] [--clean] [file]; Cleans/gets/updates current client endpoint configuration
-                                                     (http://localhost:8074/admin/v1/client-endpoint).
-Usage: client_provision [-h|--help] [--clean]; Cleans/gets/updates/triggers current client provision configuration
-                                               (http://localhost:8074/admin/v1/client-provision).
-                                       [file]; Configure client provision by mean json specification.
-                        [id] [id query param]; Triggers client provision identifier and optionally provide dynamics
-                                               configuration (omit with empty value):
-                                               [inState, sequence (sync), sequenceBegin, sequenceEnd, cps, repeat (true|false)]
-Usage: client_provision_unused [-h|--help]; Get current client provision configuration still not used
-                                            (http://localhost:8074/admin/v1/client-provision/unused).
-Usage: client_data [-h|--help]; Inspects client data events (http://localhost:8074/admin/v1/client-data).
-                   [client endpoint id] [method] [uri] [[-]event number] [event path] ; Restricts shown data with given
-                                                                                        positional filters.
-                                                                                        Event number may be negative to
-                                                                                        access by reverse chronological order.
-                   [--summary] [max keys]          ; Gets current client data summary to guide further queries.
-                                                     Displayed keys (client endpoint id/method/uri) could be limited
-                                                     (10 by default, -1: no limit).
-                   [--clean] [query filters]       ; Removes client data events. Admits additional query filters to narrow
-                                                     the selection.
-                   [--surf]                        ; Interactive sorted (regardless endpoint/method/uri) client data navigation.
-                   [--dump]                        ; Dumps all sequences detected for client data under 'client-data-sequences'
-                                                     directory.
-=== Schemas ===
-Usage: schema_schema [-h|--help]; Gets the schema configuration schema
-                                  (http://localhost:8074/admin/v1/schema/schema).
-Usage: global_variable_schema [-h|--help]; Gets the agent global variable configuration schema
-                                           (http://localhost:8074/admin/v1/global-variable/schema).
-Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema
-                                           (http://localhost:8074/admin/v1/server-matching/schema).
-Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema
-                                            (http://localhost:8074/admin/v1/server-provision/schema).
-Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema
-                                           (http://localhost:8074/admin/v1/client-endpoint/schema).
-Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema
-                                            (http://localhost:8074/admin/v1/client-provision/schema).
-=== Auxiliary ===
-Usage: pretty [-h|--help]; Beautifies json content for last operation response.
-              [jq expression, '.' by default]; jq filter over previous content.
-              Example filter: schema && pretty '.[] | select(.id=="myRequestsSchema")'
-Usage: raw [-h|--help]; Outputs raw json content for last operation response.
-           [jq expression, '.' by default]; jq filter over previous content.
-           Example filter: schema && raw '.[] | select(.id=="myRequestsSchema")'
-Usage: trace [-h|--help] [level: Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency]; Gets/sets h2agent
-                                                                                                     tracing level.
-Usage: metrics [-h|--help]; Prometheus metrics.
-Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration.
-Usage: server_example [-h|--help]; Basic server configuration examples. Try: source <(server_example)
-Usage: client_example [-h|--help]; Basic client configuration examples. Try: source <(client_example)
-Usage: help; This help. Overview: help | grep ^Usage
 ```
+
+This will show one-line help for every helper function.
 
 ### OAM
 

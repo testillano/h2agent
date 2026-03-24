@@ -55,7 +55,7 @@ namespace h2agent
 namespace model
 {
 class Configuration;
-class GlobalVariable;
+class Vault;
 class FileManager;
 class SocketManager;
 class AdminData;

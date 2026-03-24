@@ -44,7 +44,7 @@ select_option() {
 
 cleanup() {
   schema --clean
-  global_variable --clean
+  vault --clean
   server_provision --clean
   server_data --clean
   client_provision --clean
@@ -100,7 +100,7 @@ configure_example() {
   press_enter
   cleanup >/dev/null
 
-  for operation in client-endpoint server-matching server-provision client-provision global-variable schema
+  for operation in client-endpoint server-matching server-provision client-provision vault schema
   do
     local f="$1/${operation}.json"
     [ -f "${f}" ] && admin_operation ${operation} ${f}

@@ -15,6 +15,6 @@ Flow:
   3. POST /cart {"price":7}  -> inState=has-items, accumulates var.total=42, outState=has-items
      Response: {"step":"added","running":42}
 
-Without scoped variables, this would require globalVar with seq-based naming
+Without scoped variables, this would require vault with seq-based naming
 and manual eraser cleanup. With scoped var, no cleanup is needed — variables
 are automatically destroyed when the chain ends (e.g., purge).

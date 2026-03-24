@@ -36,7 +36,7 @@ H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.enviro
 ADMIN_URI_PREFIX = '/admin/v1/'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'configuration'
-ADMIN_GLOBAL_VARIABLE_URI = ADMIN_URI_PREFIX + 'global-variable'
+ADMIN_VAULT_URI = ADMIN_URI_PREFIX + 'vault'
 ADMIN_FILES_URI = ADMIN_URI_PREFIX + 'files'
 ADMIN_SOCKETS_URI = ADMIN_URI_PREFIX + 'udp-sockets'
 ADMIN_LOGGING_URI = ADMIN_URI_PREFIX + 'logging'
@@ -366,7 +366,7 @@ def files():
 def admin_cleanup(h2ac_admin):
   def cleanup(matchingFile = None, matchingContent = { "algorithm": "FullMatching" }):
     response = h2ac_admin.delete(ADMIN_SCHEMA_URI)
-    response = h2ac_admin.delete(ADMIN_GLOBAL_VARIABLE_URI)
+    response = h2ac_admin.delete(ADMIN_VAULT_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_PROVISION_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI)
     response = h2ac_admin.delete(ADMIN_CLIENT_ENDPOINT_URI)
@@ -454,25 +454,25 @@ def admin_schema(h2ac_admin, files):
 
   yield send
 
-# GLOBAL VARIABLES
-VALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"true", "response":"global-variable operation; valid schema and global variables received" }
-INVALID_GLOBAL_VARIABLES__RESPONSE_BODY = { "result":"false", "response":"global-variable operation; invalid schema" }
+# VAULT
+VALID_VAULT__RESPONSE_BODY = { "result":"true", "response":"vault operation; valid schema and vault data received" }
+INVALID_VAULT__RESPONSE_BODY = { "result":"false", "response":"vault operation; invalid schema" }
 @pytest.fixture(scope='session')
-def admin_global_variable(h2ac_admin, files):
+def admin_vault(h2ac_admin, files):
   """
   content: provide string or dictionary. The string will be interpreted as resources file path.
-  responseBodyRef: response body reference, valid global variables assumed by default.
+  responseBodyRef: response body reference, valid vault data assumed by default.
   responseStatusRef: response status code reference, 201 by default.
   kwargs: format arguments for file content. Dictionary must be already formatted.
   """
-  def send(content, responseBodyRef = VALID_GLOBAL_VARIABLES__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
+  def send(content, responseBodyRef = VALID_VAULT__RESPONSE_BODY, responseStatusRef = 201, **kwargs):
 
     request = content # assume content as dictionary
     if isinstance(content, str):
       request = files(content, callerDistance = 3)
       if kwargs: request = request.format(**kwargs)
 
-    response = h2ac_admin.post(ADMIN_GLOBAL_VARIABLE_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_GLOBAL_VARIABLE_URI, request)
+    response = h2ac_admin.post(ADMIN_VAULT_URI, request) if isinstance(content, str) else h2ac_admin.postDict(ADMIN_VAULT_URI, request)
     h2ac_admin.assert_response__status_body_headers(response, responseStatusRef, responseBodyRef)
 
   yield send
@@ -667,7 +667,7 @@ SCHEMA_EXAMPLE_REQUEST_INVALID='''
 }
 '''
 
-GLOBAL_VARIABLE_1_2_3='''
+VAULT_1_2_3='''
 {
   "var1": "value1",
   "var2": "value2",
@@ -731,7 +731,7 @@ SOCKET_MANAGER_PROVISION='''
 }
 '''
 
-GLOBAL_VARIABLE_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
+VAULT_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
 {{
   "requestMethod":"POST",
   "requestUri":"/app/v1/foo/bar",
@@ -746,14 +746,14 @@ GLOBAL_VARIABLE_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
   "transform": [
     {{
       "source": "value.{gvarcreated}value",
-      "target": "globalVar.{gvarcreated}"
+      "target": "vault.{gvarcreated}"
     }},
     {{
       "source": "eraser",
-      "target": "globalVar.{gvarremoved}"
+      "target": "vault.{gvarremoved}"
     }},
     {{
-      "source": "globalVar.{gvaranswered}",
+      "source": "vault.{gvaranswered}",
       "target": "response.body.json.string./gvaranswered"
     }}
   ]

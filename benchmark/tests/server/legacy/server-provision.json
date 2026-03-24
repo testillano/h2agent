@@ -15,8 +15,8 @@
       "eyeColor": "blue",
       "name": "Joseph Norton",
       "gender": "male",
-      "company": "<to be replaced by global variable>",
-      "email": "<to be replaced by global variable>",
+      "company": "<to be replaced by vault entry>",
+      "email": "<to be replaced by vault entry>",
       "phone": "+1 (830) 543-3984",
       "address": "346 Hanson Place, Interlochen, American Samoa, 7538",
       "about": "Esse labore tempor nisi non nisi eiusmod mollit ad ipsum dolore tempor commodo id. Veniam nisi fugiat adipisicing anim exercitation do amet nostrud. In incididunt ea tempor est deserunt irure consectetur qui magna in commodo ullamco ullamco. Incididunt deserunt do duis in laboris quis velit.\r\n",
@@ -58,7 +58,7 @@
         "target": "response.body.json.string./uriPath"
       },
       {
-        "source": "globalVar.COMPANY NAME",
+        "source": "vault.COMPANY NAME",
         "target": "response.body.json.string./company"
       },
       {
@@ -66,7 +66,7 @@
         "target": "var.name"
       },
       {
-        "source": "globalVar.EMAIL.@{name}",
+        "source": "vault.EMAIL.@{name}",
         "target": "response.body.json.string./email"
       },
       {
