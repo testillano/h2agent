@@ -438,6 +438,19 @@ target: "vault.uri_parts"
 Access: source "vault.uri_parts./1" → "foo"   (json pointer path navigation)
 ```
 
+#### Type conversion when copying between `var` and `vault`
+
+Since `var` stores strings and `vault` stores native JSON, copying between them involves implicit conversion:
+
+| Source → Target | Conversion |
+|---|---|
+| `vault` (JSON object) → `var` | Serialized via `.dump()` (e.g. `{"a":1}` becomes the string `{"a":1}`) |
+| `vault` (string) → `var` | Direct string copy (no conversion) |
+| `var` → `vault` | Stored as JSON string value |
+| `vault` → `vault` | Native JSON copy (no serialization) |
+
+When a JSON object is stored in a `var` and later used as source for a `response.body.json.object` target, it will be stored as a JSON string value (not parsed back). To deserialize it, use `response.body.json.jsonstring` as target instead, which parses the string back into a JSON object. For structured data that needs to be passed between transforms without serialization overhead, prefer `vault` targets.
+
 Note the `/` prefix in the path: `vault.uri_parts./1` uses a json pointer (`/1`), while `var.uri_parts.1` is a plain key lookup (`uri_parts.1`). This distinction is consistent with how `request.body./field` and `response.body./field` work throughout h2agent.
 
 If the vault already existed (regardless of its previous type — string, number, or object), the `RegexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `vault.MY_OBJ./captures` will only replace the `/captures` field, preserving the rest of the object.
