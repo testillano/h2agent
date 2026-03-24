@@ -47,6 +47,32 @@ namespace h2agent
 namespace model
 {
 
+namespace {
+
+std::string validPrefixes(const std::vector<std::string> &prefixes) {
+    std::string result;
+    for (size_t i = 0; i < prefixes.size(); ++i) {
+        if (i) result += ", ";
+        result += prefixes[i];
+    }
+    return result;
+}
+
+const std::vector<std::string> VALID_SOURCE_PREFIXES = {
+    "request", "response", "eraser", "math", "random", "randomset",
+    "timestamp", "strftime", "recvseq", "sendseq", "seq",
+    "var", "vault", "value", "serverEvent", "clientEvent",
+    "inState", "txtFile", "binFile", "command"
+};
+
+const std::vector<std::string> VALID_TARGET_PREFIXES = {
+    "response", "request", "var", "vault", "outState",
+    "txtFile", "binFile", "udpSocket", "serverEvent", "clientEvent",
+    "clientProvision", "break"
+};
+
+} // anonymous namespace
+
 void Transformation::collectVariablePatterns(const std::string &str, std::map<std::string, std::string> &patterns) {
 
     static std::regex re("@\\{[^\\{\\}]*\\}", std::regex::optimize); // @{[^{}]*} with curly braces escaped
@@ -386,16 +412,11 @@ bool Transformation::load(const nlohmann::json &j) {
         source_ = matches.str(1);
         source_type_ = SourceType::Command;
     }
-    // PROTECTED BY SCHEMA:
-    //else { // some things could reach this (strange characters within value.* for example):
-    //    ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: %s", sourceSpec.c_str()), ERT_FILE_LOCATION);
-    //    return false;
-    //}
-    //}
-    //catch (std::regex_error &e) {
-    //    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-    //    return false;
-    //}
+    else {
+        std::string hint = validPrefixes(VALID_SOURCE_PREFIXES);
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify source type for: '%s'. Valid prefixes: %s", sourceSpec.c_str(), hint.c_str()), ERT_FILE_LOCATION);
+        return false;
+    }
 
     // TARGET (enum TargetType { ResponseBodyString = 0, ..., ResponseHeader_t, ResponseStatusCode_t, ..., RequestHeader, RequestDelayMs, RequestTimeoutMs, ClientEventToPurge };)
     target_ = ""; // empty by default (-), as many cases are only work modes and no parameters(+) are included in their transformation configuration
@@ -687,16 +708,11 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         target_type_ = TargetType::ClientProvision_t;
     }
-    // PROTECTED BY SCHEMA:
-    //else { // very strange to reach this:
-    //    ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: %s", targetSpec.c_str()), ERT_FILE_LOCATION);
-    //    return false;
-    //}
-    //}
-    //catch (std::regex_error &e) {
-    //    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-    //    return false;
-    //}
+    else {
+        std::string hint = validPrefixes(VALID_TARGET_PREFIXES);
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot identify target type for: '%s'. Valid prefixes: %s", targetSpec.c_str(), hint.c_str()), ERT_FILE_LOCATION);
+        return false;
+    }
 
     //LOGDEBUG(ert::tracing::Logger::debug(asString(), ERT_FILE_LOCATION));
 

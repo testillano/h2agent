@@ -2604,3 +2604,79 @@ TEST_F(Transform_test, SourceRequestHeadersDuplicateKeys)
     }
     EXPECT_EQ(cookie_count, 2);
 }
+
+// --- Vault with path navigation ---
+
+TEST_F(Transform_test, TargetVaultWithPath)
+{
+    // Store a value at a specific path within a vault entry
+    const nlohmann::json item1 = R"({ "source": "value.alice", "target": "vault.user./name" })"_json;
+    const nlohmann::json item2 = R"({ "source": "value.30", "target": "vault.user./age" })"_json;
+    const nlohmann::json item3 = R"({ "source": "vault.user", "target": "response.body.json.object./result" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["result"]["name"], "alice");
+    EXPECT_EQ(body["result"]["age"], "30");
+}
+
+TEST_F(Transform_test, SourceVaultWithPath)
+{
+    // Pre-load a JSON object, then read a subfield via path
+    common_resources_.VaultPtr->load("config", nlohmann::json({{"host","localhost"},{"port",8080}}));
+
+    const nlohmann::json item = R"({ "source": "vault.config./host", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "localhost");
+}
+
+TEST_F(Transform_test, SourceVaultWithPathNumeric)
+{
+    // Read a numeric subfield — should come as json dump
+    common_resources_.VaultPtr->load("config", nlohmann::json({{"port",8080}}));
+
+    const nlohmann::json item = R"({ "source": "vault.config./port", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "8080");
+}
+
+TEST_F(Transform_test, SourceVaultWithPathMissing)
+{
+    // Path does not exist — transform should be skipped
+    common_resources_.VaultPtr->load("config", nlohmann::json({{"host","localhost"}}));
+
+    const nlohmann::json item = R"({ "source": "vault.config./missing", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, TargetVaultJsonObject)
+{
+    // Store a JSON object from request body into vault, then read a subfield
+    const nlohmann::json item1 = R"({ "source": "request.body", "target": "vault.captured" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.captured./foo", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "1");
+}
