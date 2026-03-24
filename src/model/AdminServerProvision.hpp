@@ -154,6 +154,19 @@ class AdminServerProvision
                         std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
                         bool &breakCondition) const;
 
+    void executeOnFilterFail(
+            const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+            const std::string &requestUri, const std::string &requestUriPath,
+            const std::map<std::string, std::string> &requestQueryParametersMap,
+            const DataPart &requestBodyDataPart, const nghttp2::asio_http2::header_map &requestHeaders,
+            std::uint64_t generalUniqueServerSequence, TypeConverter &sourceVault,
+            std::map<std::string, std::string> &variables,
+            bool usesResponseBodyAsTransformationJsonTarget,
+            unsigned int &responseStatusCode, nlohmann::json &responseBodyJson, std::string &responseBody,
+            nghttp2::asio_http2::header_map &responseHeaders, unsigned int &responseDelayMs,
+            std::string &outState, std::string &outStateMethod, std::string &outStateUri,
+            std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers, bool &breakCondition) const;
+
 
 public:
 

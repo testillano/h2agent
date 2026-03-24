@@ -162,6 +162,19 @@ class AdminClientProvision
                         std::string &outState,
                         bool &breakCondition) const;
 
+    void executeOnFilterFail(
+            const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+            TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
+            const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
+            std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
+            const nlohmann::json &requestBodyJson,
+            const ert::http2comm::Http2Client::response *receivedResponse,
+            std::string &requestMethod, std::string &requestUri_out,
+            nlohmann::json &requestBodyJson_out, std::string &requestBody,
+            nghttp2::asio_http2::header_map &requestHeaders_out,
+            unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
+            std::string &outState, bool &breakCondition) const;
+
 
 public:
 

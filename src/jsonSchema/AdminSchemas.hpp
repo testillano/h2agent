@@ -249,7 +249,7 @@ const nlohmann::json server_provision = R"(
       "items" : {
         "type" : "object",
         "minProperties": 2,
-        "maxProperties": 3,
+        "maxProperties": 4,
         "properties": {
           "source": {
             "type": "string",
@@ -258,6 +258,15 @@ const nlohmann::json server_provision = R"(
           "target": {
             "type": "string",
             "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|vault|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^clientProvision\\..+|^break$"
+          },
+          "onFilterFail": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "minProperties": 2,
+              "required": ["source", "target"]
+            }
           }
         },
         "additionalProperties" : {
@@ -468,7 +477,7 @@ const nlohmann::json client_provision = R"(
       "items" : {
         "type" : "object",
         "minProperties": 2,
-        "maxProperties": 3,
+        "maxProperties": 4,
         "properties": {
           "source": {
             "type": "string",
@@ -477,6 +486,15 @@ const nlohmann::json client_provision = R"(
           "target": {
             "type": "string",
             "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs|uri|method)$|^(var|vault|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
+          },
+          "onFilterFail": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "minProperties": 2,
+              "required": ["source", "target"]
+            }
           }
         },
         "additionalProperties" : {
@@ -491,7 +509,7 @@ const nlohmann::json client_provision = R"(
       "items" : {
         "type" : "object",
         "minProperties": 2,
-        "maxProperties": 3,
+        "maxProperties": 4,
         "properties": {
           "source": {
             "type": "string",
@@ -500,6 +518,15 @@ const nlohmann::json client_provision = R"(
           "target": {
             "type": "string",
             "pattern": "^(var|vault|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
+          },
+          "onFilterFail": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "minProperties": 2,
+              "required": ["source", "target"]
+            }
           }
         },
         "additionalProperties" : {

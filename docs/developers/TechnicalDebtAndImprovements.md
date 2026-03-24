@@ -23,18 +23,18 @@ The current regex-based addressing is the main pain point. `Transformation.cpp` 
 - Extracting those to free functions or a helper class would require passing many class member references as parameters.
 - Risk of regression is high for a purely maintainability benefit. Adding a new source/target means touching both files — annoying but not catastrophic, and well covered by tests.
 
+### 2.1 TransformContext struct
+`processSources()`, `processFilters()`, `processTargets()` and `executeOnFilterFail()` share 15+ parameters passed individually. A `TransformContext` struct holding references to all of them would improve readability. Zero performance cost — compiler optimizes it the same way. Natural fit if the provision duplication refactor (section 2) is ever tackled.
+
 ## 3. Functional Gaps
 
-### 3.1 Conditional Transforms
-Only `ConditionVar` exists as a filter. There is no if/else — if the condition fails, the transform is skipped but there is no alternative branch. A `"condition"` field with `"then"/"else"` arrays of transforms would be powerful.
-
-### 3.2 Iteration Over Arrays
+### 3.1 Iteration Over Arrays
 No way to iterate a JSON array and apply transforms to each element. Useful for generating dynamic responses from collections.
 
 ### 3.3 Provision Composition / Include
 No DRY mechanism. If 20 provisions share the same 5 transforms, they are copied 20 times. A `"$ref"` or `"include"` would solve this.
 
-### 3.4 Intermediate Variable Scope
+### 3.3 Intermediate Variable Scope
 Only `var` (local to one execution) and `vault` (global forever). No "session-scoped" or "request-chain-scoped" variable that survives triggers but is cleaned up at the end of the flow.
 
 ## 4. API and Operations
@@ -47,12 +47,6 @@ Cannot request "only events with status 500" without downloading everything.
 
 ### 4.3 WebSocket for Admin
 The long-poll vault/wait mechanism works, but a WebSocket channel for real-time events (new traffic, vault changes, errors) would be more natural and efficient.
-
-### 4.4 No Health/Readiness Endpoints
-Useful for Kubernetes deployments, although h2agent is primarily for local testing.
-
-### 4.5 Provision Validate / Dry-Run
-No way to validate a provision without loading it. A `POST /admin/v1/server-provision/validate` endpoint that only validates without applying would help catch errors early.
 
 ## 5. Testing
 
@@ -77,18 +71,17 @@ No tests with malformed JSON provisions, invalid paths, unicode edge cases, etc.
 - Dynamic log level change via admin API.
 
 ### Minor optimization
-`nlohmann::json` is passed by value in some `load()` paths. For large objects, ensuring `std::move` semantics everywhere could help (already used in `loadAtPath` but not in all paths).
+~~`nlohmann::json` is passed by value in some `load()` paths. For large objects, ensuring `std::move` semantics everywhere could help (already used in `loadAtPath` but not in all paths).~~
+
+**DONE** (v4.7.0): Added move overload `Vault::load(string, json&&)`. Callers use `std::move` on local temporals (`captureObj`, `val`). Const refs (`obj` from `getObject()`) remain as copies.
 
 ## Prioritization (impact / effort)
 
 | Improvement | Impact | Effort |
 |---|---|---|
 | Include/ref in provisions | High | Low |
-| Conditional transforms | High | Medium |
 | Pagination on admin endpoints | Medium | Low |
-| Provision validate/dry-run | Medium | Low |
 | CT systematic cleanup | Medium | Low |
 | Concurrency CTs | Medium | Medium |
 | Provision duplication refactor | High | High |
 | WebSocket admin channel | Medium | High |
-| Health/readiness endpoints | Low | Low |

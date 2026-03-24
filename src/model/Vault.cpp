@@ -55,6 +55,11 @@ void Vault::load(const std::string &variable, const nlohmann::json &value) {
     if (wait_manager_) wait_manager_->notify();
 }
 
+void Vault::load(const std::string &variable, nlohmann::json &&value) {
+    add(variable, std::move(value));
+    if (wait_manager_) wait_manager_->notify();
+}
+
 void Vault::loadAtPath(const std::string &variable, const std::string &path, const nlohmann::json &value) {
     nlohmann::json current;
     tryGet(variable, current);

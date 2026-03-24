@@ -2217,6 +2217,96 @@ TEST_F(Transform_test, FilterConditionVar)
     EXPECT_EQ(response_body_, "hi");
 }
 
+TEST_F(Transform_test, OnFilterFail)
+{
+    // ConditionVar with onFilterFail: if myVault exists -> "found", else -> "missing"
+    const nlohmann::json item1 = R"(
+    {
+      "source": "value.found",
+      "target": "response.body.string",
+      "filter": { "ConditionVar": "myVault" },
+      "onFilterFail": [
+        { "source": "value.missing", "target": "response.body.string" }
+      ]
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    // myVault exists (pre-loaded in fixture), so "found"
+    EXPECT_EQ(response_body_, "found");
+}
+
+TEST_F(Transform_test, OnFilterFailTriggered)
+{
+    // ConditionVar on non-existent var: filter fails, onFilterFail executes
+    const nlohmann::json item1 = R"(
+    {
+      "source": "value.found",
+      "target": "response.body.string",
+      "filter": { "ConditionVar": "nonExistent" },
+      "onFilterFail": [
+        { "source": "value.fallback", "target": "response.body.string" }
+      ]
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(response_body_, "fallback");
+}
+
+TEST_F(Transform_test, OnFilterFailWithEqualTo)
+{
+    // EqualTo filter with onFilterFail
+    const nlohmann::json item1 = R"(
+    {
+      "source": "value.hello",
+      "target": "response.body.string",
+      "filter": { "EqualTo": "world" },
+      "onFilterFail": [
+        { "source": "value.not_equal", "target": "response.body.string" }
+      ]
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    // "hello" != "world", so fallback
+    EXPECT_EQ(response_body_, "not_equal");
+}
+
+TEST_F(Transform_test, OnFilterFailNested)
+{
+    // Nested onFilterFail: if/else-if/else — tests deep recursion
+    const nlohmann::json item1 = R"(
+    {
+      "source": "value.hello",
+      "target": "response.body.string",
+      "filter": { "EqualTo": "a" },
+      "onFilterFail": [
+        {
+          "source": "value.hello",
+          "target": "response.body.string",
+          "filter": { "EqualTo": "b" },
+          "onFilterFail": [
+            { "source": "value.default", "target": "response.body.string" }
+          ]
+        }
+      ]
+    }
+    )"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    // "hello" != "a" -> fallback: "hello" != "b" -> fallback: "default"
+    EXPECT_EQ(response_body_, "default");
+}
+
 TEST_F(Transform_test, FilterJsonConstraintSucceed)
 {
     // Build test provision:

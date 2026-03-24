@@ -1117,7 +1117,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                         captureObj[std::to_string(i)] = matches.str(i);
                     }
                     if (gvarPath.empty()) {
-                        vault_->load(target, captureObj);
+                        vault_->load(target, std::move(captureObj));
                     } else {
                         vault_->loadAtPath(target, gvarPath, captureObj);
                     }
@@ -1138,7 +1138,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                     if (!success) return false;
                     nlohmann::json val(targetS);
                     if (gvarPath.empty()) {
-                        vault_->load(target, val);
+                        vault_->load(target, std::move(val));
                     } else {
                         vault_->loadAtPath(target, gvarPath, val);
                     }
@@ -1328,6 +1328,32 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
     return true;
 }
 
+void AdminServerProvision::executeOnFilterFail(
+        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+        const std::string &requestUri, const std::string &requestUriPath,
+        const std::map<std::string, std::string> &requestQueryParametersMap,
+        const DataPart &requestBodyDataPart, const nghttp2::asio_http2::header_map &requestHeaders,
+        std::uint64_t generalUniqueServerSequence, TypeConverter &sourceVault,
+        std::map<std::string, std::string> &variables,
+        bool usesResponseBodyAsTransformationJsonTarget,
+        unsigned int &responseStatusCode, nlohmann::json &responseBodyJson, std::string &responseBody,
+        nghttp2::asio_http2::header_map &responseHeaders, unsigned int &responseDelayMs,
+        std::string &outState, std::string &outStateMethod, std::string &outStateUri,
+        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers, bool &breakCondition) const {
+
+    for (const auto &fallback : fallbacks) {
+        std::string fbSource{};
+        std::smatch fbMatches{};
+        bool fbEraser = false;
+        if (!processSources(fallback, sourceVault, variables, requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, fbEraser, generalUniqueServerSequence, usesResponseBodyAsTransformationJsonTarget, responseBodyJson)) continue;
+        if (fallback->hasFilter() && (fbEraser || !processFilters(fallback, sourceVault, variables, fbMatches, fbSource))) {
+            executeOnFilterFail(fallback->getOnFilterFail(), requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, sourceVault, variables, usesResponseBodyAsTransformationJsonTarget, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, breakCondition);
+            continue;
+        }
+        processTargets(fallback, sourceVault, variables, fbMatches, fbEraser, fallback->hasFilter(), responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, breakCondition);
+    }
+}
+
 void AdminServerProvision::transform( const std::string &requestUri,
                                       const std::string &requestUriPath,
                                       const std::map<std::string, std::string> &requestQueryParametersMap,
@@ -1439,6 +1465,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
             if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
                 LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
                 if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+
+                // onFilterFail:
+                executeOnFilterFail(transformation->getOnFilterFail(), requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart, requestHeaders, generalUniqueServerSequence, sourceVault, variables, usesResponseBodyAsTransformationJsonTarget, responseStatusCode, responseBodyJson, responseBody, responseHeaders, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, breakCondition);
+
                 continue;
             }
         }

@@ -311,3 +311,16 @@ def test_023_requestHeadersJsonConstraintFail(admin_server_provision, h2ac_traff
   # Traffic without the mandatory header
   response = h2ac_traffic.request('GET', "/app/v1/foo/bar/2")
   assert response["status"] == 400
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_024_onFilterFail(admin_server_provision, h2ac_traffic):
+
+  # Provision
+  admin_server_provision("filter_test.OnFilterFail.provision.json")
+
+  # Traffic
+  response = h2ac_traffic.get("/app/v1/foo/bar/1")
+  responseBodyRef = { "foo":"bar-1", "condition-true": "true-branch", "condition-false": "false-branch" }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

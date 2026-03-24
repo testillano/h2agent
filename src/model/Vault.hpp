@@ -79,6 +79,7 @@ public:
      * @param value json value to store
      */
     void load(const std::string &variable, const nlohmann::json &value);
+    void load(const std::string &variable, nlohmann::json &&value);
 
     /**
      * Loads a value at a specific path within an existing json variable.

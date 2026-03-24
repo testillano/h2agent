@@ -115,6 +115,32 @@ void AdminClientProvision::saveDynamics() {
     json_["dynamics"]["repeat"] = repeat_;
 }
 
+void AdminClientProvision::executeOnFilterFail(
+        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+        TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
+        const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
+        std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
+        const nlohmann::json &requestBodyJson,
+        const ert::http2comm::Http2Client::response *receivedResponse,
+        std::string &requestMethod, std::string &requestUri_out,
+        nlohmann::json &requestBodyJson_out, std::string &requestBody,
+        nghttp2::asio_http2::header_map &requestHeaders_out,
+        unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
+        std::string &outState, bool &breakCondition) const {
+
+    for (const auto &fallback : fallbacks) {
+        bool fbEraser = false;
+        if (!processSources(fallback, sourceVault, variables, requestUri, requestHeaders, fbEraser, sendSeq, usesRequestBodyAsTransformationJsonTarget, requestBodyJson, receivedResponse)) continue;
+        std::smatch fbMatches{};
+        std::string fbSource{};
+        if (fallback->hasFilter() && (fbEraser || !processFilters(fallback, sourceVault, variables, fbMatches, fbSource))) {
+            executeOnFilterFail(fallback->getOnFilterFail(), sourceVault, variables, requestUri, requestHeaders, sendSeq, usesRequestBodyAsTransformationJsonTarget, requestBodyJson, receivedResponse, requestMethod, requestUri_out, requestBodyJson_out, requestBody, requestHeaders_out, requestDelayMs, requestTimeoutMs, outState, breakCondition);
+            continue;
+        }
+        processTargets(fallback, sourceVault, variables, fbMatches, fbEraser, fallback->hasFilter(), requestMethod, requestUri_out, requestBodyJson_out, requestBody, requestHeaders_out, requestDelayMs, requestTimeoutMs, outState, breakCondition);
+    }
+}
+
 void AdminClientProvision::transform( std::string &requestMethod,
                                       std::string &requestUri,
                                       std::string &requestBody,
@@ -189,6 +215,10 @@ void AdminClientProvision::transform( std::string &requestMethod,
             if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
                 LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
                 if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+
+                // onFilterFail:
+                executeOnFilterFail(transformation->getOnFilterFail(), sourceVault, variables, requestUri, requestHeaders, 0, usesRequestBodyAsTransformationJsonTarget, requestBodyJson, nullptr, requestMethod, requestUri, requestBodyJson, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, outState, breakCondition);
+
                 continue;
             }
         }
@@ -266,11 +296,19 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
             if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
                 LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
                 if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+
+                // onFilterFail:
+                {
+                    nlohmann::json dummyJson2;
+                    std::string dummyString2, dummyMethod2, dummyUri2;
+                    nghttp2::asio_http2::header_map dummyHeaders2;
+                    unsigned int dummyDelayMs2 = 0, dummyTimeoutMs2 = 0;
+                    executeOnFilterFail(transformation->getOnFilterFail(), sourceVault, variables, requestUri, requestHeaders, sendSeq, false, dummyRequestBodyJson, &receivedResponse, dummyMethod2, dummyUri2, dummyJson2, dummyString2, dummyHeaders2, dummyDelayMs2, dummyTimeoutMs2, outState, breakCondition);
+                }
+
                 continue;
             }
         }
-
-        // TARGETS (response phase: only var/vault/outState/file/socket/break/clientEvent targets apply)
         // We reuse processTargets with dummy request body params
         nlohmann::json dummyJson;
         std::string dummyString;
@@ -964,7 +1002,7 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
                         captureObj[std::to_string(i)] = matches.str(i);
                     }
                     if (gvarPath.empty()) {
-                        vault_->load(target, captureObj);
+                        vault_->load(target, std::move(captureObj));
                     } else {
                         vault_->loadAtPath(target, gvarPath, captureObj);
                     }
@@ -984,7 +1022,7 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
                     if (!success) return false;
                     nlohmann::json val(targetS);
                     if (gvarPath.empty()) {
-                        vault_->load(target, val);
+                        vault_->load(target, std::move(val));
                     } else {
                         vault_->loadAtPath(target, gvarPath, val);
                     }

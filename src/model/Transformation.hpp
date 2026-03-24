@@ -146,6 +146,8 @@ private:
     std::map<std::string, std::string> target_patterns_;
     std::map<std::string, std::string> target2_patterns_;
 
+    std::vector<std::shared_ptr<Transformation>> on_filter_fail_;
+
 public:
 
     // getters:
@@ -231,6 +233,10 @@ public:
     /** Filler string for Split */
     const std::string &getFilterFiller() const {
         return filter_filler_;
+    }
+    /** Gets onFilterFail transforms */
+    const std::vector<std::shared_ptr<Transformation>> &getOnFilterFail() const {
+        return on_filter_fail_;
     }
 
     /** Source patterns */

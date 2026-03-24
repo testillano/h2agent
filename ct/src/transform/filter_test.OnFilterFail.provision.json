@@ -1,0 +1,38 @@
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "text/html",
+    "x-version": "1.0.0"
+  },
+  "transform": [
+    {
+      "source": "value.",
+      "target": "var.falseVar"
+    },
+    {
+      "source": "value.xxx",
+      "target": "var.trueVar"
+    },
+    {
+      "source": "value.true-branch",
+      "target": "response.body.json.string./condition-true",
+      "filter": { "ConditionVar": "trueVar" },
+      "onFilterFail": [
+        { "source": "value.false-branch", "target": "response.body.json.string./condition-true" }
+      ]
+    },
+    {
+      "source": "value.true-branch",
+      "target": "response.body.json.string./condition-false",
+      "filter": { "ConditionVar": "falseVar" },
+      "onFilterFail": [
+        { "source": "value.false-branch", "target": "response.body.json.string./condition-false" }
+      ]
+    }
+  ]
+}

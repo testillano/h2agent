@@ -722,6 +722,16 @@ bool Transformation::load(const nlohmann::json &j) {
     collectVariablePatterns(target_, target_patterns_);
     collectVariablePatterns(target2_, target2_patterns_);
 
+    // onFilterFail:
+    auto off_it = j.find("onFilterFail");
+    if (off_it != j.end() && off_it->is_array()) {
+        for (const auto &item : *off_it) {
+            auto t = std::make_shared<Transformation>();
+            if (!t->load(item)) return false;
+            on_filter_fail_.push_back(std::move(t));
+        }
+    }
+
     return true;
 }
 

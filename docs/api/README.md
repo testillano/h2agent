@@ -982,7 +982,58 @@ Filters give you the chance to make complex transformations:
     - Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
       Also, variable name in `ConditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>.
 
-  Transfer procedure consists in <u>source copy over target</u> only when condition is **true**. To assign another value for **false** condition, you must use the 	inverted variable in another transformation item (no ternary syntax collapsed in single item is available):
+  Transfer procedure consists in <u>source copy over target</u> only when condition is **true**. For the **false** branch, you can use `onFilterFail` to provide alternative transforms that execute when the filter condition is not met:
+
+  ```json
+  {
+    "source": "value.value when id is true",
+    "target": "response.body.string",
+    "filter": { "ConditionVar" : "id" },
+    "onFilterFail": [
+      {
+        "source": "value.value when id is false",
+        "target": "response.body.string"
+      }
+    ]
+  }
+  ```
+
+  The `onFilterFail` field is an optional array of **full transforms** — not just alternative values. Each fallback item goes through the complete `source → filter → target` pipeline, so you can do anything a regular transform does: write response headers, store files, send UDP datagrams, update vault entries, trigger breaks, etc. It works with any filter type (`ConditionVar`, `EqualTo`, `DifferentFrom`, etc.).
+
+  Nesting is fully recursive — each fallback transform can have its own `onFilterFail`, enabling chained if/else-if/else decision trees:
+
+  ```json
+  {
+    "source": "vault.level",
+    "target": "response.body.json.string./category",
+    "filter": { "EqualTo": "critical" },
+    "onFilterFail": [
+      {
+        "source": "vault.level",
+        "target": "response.body.json.string./category",
+        "filter": { "EqualTo": "warning" },
+        "onFilterFail": [
+          {
+            "source": "value.info",
+            "target": "response.body.json.string./category"
+          },
+          {
+            "source": "value.level-unknown",
+            "target": "udpSocket./tmp/alerts.sock"
+          }
+        ]
+      },
+      {
+        "source": "value.warning-detected",
+        "target": "response.header.x-alert"
+      }
+    ]
+  }
+  ```
+
+  In this example: if `vault.level` is `"critical"`, the category is set directly. If not, it checks for `"warning"` — and if that matches, it also sets a response header. If neither matches, it falls through to the default `"info"` category and sends a UDP notification.
+
+  The legacy approach using inverted `ConditionVar` in separate items still works:
 
   ```json
   {
