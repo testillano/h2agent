@@ -505,7 +505,6 @@ const nlohmann::json client_provision = R"(
     },
     "onResponseTransform" : {
       "type" : "array",
-      "minItems": 1,
       "items" : {
         "type" : "object",
         "minProperties": 2,
