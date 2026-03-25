@@ -416,12 +416,12 @@ void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &se
 
 
     // Update data map (mark response as incompleted) is costly: sequential search for receptionId, and we don't have here normalized URI to narrow the search
-    // So, we will create a vault entry with key "__core.stream-error-traffic-server.<recvseq>.<method>.<uri>" and value "<error code>"
+    // So, we will create a vault entry with key "__core:stream-error-traffic-server:<recvseq>-<method>-<uri>" and value "<error code>"
     // These variables are useful to inspect errors and discard server data (response sections), or at least interpret them as "intention to send".
     // We also have error logs for this kind of events.
     if (vault_ptr_) {
-        static const std::string varPrefix = "__core.stream-error-traffic-server.";
-        std::string var = varPrefix + std::to_string(receptionId) + "." + req.method() + "." + req.uri().path;
+        static const std::string varPrefix = "__core:stream-error-traffic-server:";
+        std::string var = varPrefix + std::to_string(receptionId) + ":" + req.method() + ":" + req.uri().path;
         std::string val = std::to_string(errorCode);
 
         vault_ptr_->load(var, nlohmann::json(val)); // shall not exists: server sequence (reception id) is unique
@@ -435,7 +435,7 @@ std::chrono::milliseconds MyTrafficHttp2Server::responseDelayMs(const std::uint6
     long long ms_count{};
 
     if (vault_ptr_) {
-        static const std::string varPrefix = "__core.response-delay-ms.";
+        static const std::string varPrefix = "__core:response-delay-ms:";
         std::string var = varPrefix + std::to_string(receptionId);
         nlohmann::json val = vault_ptr_->get(var, exists);
         if (exists) {

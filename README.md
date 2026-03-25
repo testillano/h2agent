@@ -1755,7 +1755,7 @@ Similarly, server provisions can access client event history using the `clientEv
 
 ## Dynamic response delays
 
-The provisioning model allows configuration of the response delay, in milliseconds, for a received request. This delay may be a fixed or a random value, but is always a single, static delay overall. However, an additional mechanism -the dynamic delay- can be employed as a pseudo-notification procedure to suppress (or block) answers under specific conditions. This feature is activated via a vault with the naming format: `__core.response-delay-ms.<recvseq>`.
+The provisioning model allows configuration of the response delay, in milliseconds, for a received request. This delay may be a fixed or a random value, but is always a single, static delay overall. However, an additional mechanism -the dynamic delay- can be employed as a pseudo-notification procedure to suppress (or block) answers under specific conditions. This feature is activated via a vault with the naming format: `__core:response-delay-ms:<recvseq>`.
 
 This variable holds a millisecond value that postpones the answer for a specific reception identifier. The dynamic delay is ignored (and the answer is immediate) if the variable does not exist, holds an invalid (non-numeric) value, or a zeroed value. This procedure operates independently of the provisioned response delay, which is executed first (if configured).
 
@@ -1778,7 +1778,7 @@ The simplest way to use this feature is to configure the server provisioning to 
     },
     {
       "source": "value.1",
-      "target": "vault.__core.response-delay-ms.@{recvseq}"
+      "target": "vault.__core:response-delay-ms:@{recvseq}"
     }
   ]
 }
@@ -1789,7 +1789,7 @@ In that use case, when a GET request is received by the server, its own dynamic 
 ```bash
 $ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/vault | jq '.'
 {
-  "__core.response-delay-ms.1": "1"
+  "__core:response-delay-ms:1": "1"
 }
 ```
 
@@ -1798,9 +1798,9 @@ The procedure is as follows: the answer is first delayed by 20 ms (as configured
 The server provisioning model can modify the variable upon subsequent receptions (it may need to correlate information from those requests with an auxiliary storage where the original server sequence is kept). However, these updates are typically managed externally through the administrative interface, for example:
 
 ```bash
-$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/vault -H'content-type:application/json' -d'{"__core.response-delay-ms.1":"0"}'
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/vault -H'content-type:application/json' -d'{"__core:response-delay-ms:1":"0"}'
 - or better: -
-$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/vault?name=__core.response-delay-ms.1"
+$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/vault?name=__core:response-delay-ms:1"
 ```
 
 How the server sequence is determined is a separate issue. For example, the provisioning configuration could write UDP datagrams (containing the server sequence), which might trigger other external operations that ultimately lead to those administrative operations.
@@ -1855,13 +1855,29 @@ limit. Adjust `--admin-server-worker-threads` if your workload requires more.
 
 The following variables are used internally by the server engine (`__core`) to manage critical functions such as dynamic response latency and stream error handling. These variables **must not be manipulated or overwritten** by user configurations for different purposes as expected, to avoid interference.
 
+### Naming convention
+
+Reserved vault entry names follow this structure:
+
+```
+__<prefix>:<reserved-function>:<additional information>
+```
+
+| Element | Separator | Description |
+| :--- | :--- | :--- |
+| Reserved prefix | `__` (leading double underscore) | Marks the variable as internal/reserved (e.g. `__core`). |
+| Hierarchical levels | `:` (colon) | Separates prefix, function and additional information. |
+| Words within a level | `-` (hyphen) | Separates words inside a single level (kebab-case), although for additional information it could be free |
+
+This convention avoids dots (`.`), which are reserved as separator between vault key and json-pointer path in the provision syntax (`vault.<key>.<path>`). Using colons ensures reserved entries can be read and written through both the REST admin API and provision transformations without restrictions.
+
 ---
 
 ### 1. Dynamic Response Delay
 
 | Variable | Description |
 | :--- | :--- |
-| `__core.response-delay-ms.<recvseq>` | Stores a dynamic delay value (in milliseconds) that **postpones the response** to a request. It functions as a pseudo-notification mechanism. If the value is zero, non-numeric, or the variable is removed, the dynamic delay is ignored. <u>This is an "input" variable</u> as it is used to feed a procedure. |
+| `__core:response-delay-ms:<recvseq>` | Stores a dynamic delay value (in milliseconds) that **postpones the response** to a request. It functions as a pseudo-notification mechanism. If the value is zero, non-numeric, or the variable is removed, the dynamic delay is ignored. <u>This is an "input" variable</u> as it is used to feed a procedure. |
 
 #### Components
 
@@ -1877,7 +1893,7 @@ The following variables are used internally by the server engine (`__core`) to m
 
 | Variable | Description |
 | :--- | :--- |
-| `__core.stream-error-traffic-server.<recvseq>.<method>.<uri>` | Stores an [error code](https://datatracker.ietf.org/doc/html/rfc7540#section-7) indicating a stream or connection error detected from traffic server. Used to notify external failure conditions that must be reflected in the response. <u>This is an "output" variable</u> as it is dumped automatically on errors. |
+| `__core:stream-error-traffic-server:<recvseq>-<method>-<uri>` | Stores an [error code](https://datatracker.ietf.org/doc/html/rfc7540#section-7) indicating a stream or connection error detected from traffic server. Used to notify external failure conditions that must be reflected in the response. <u>This is an "output" variable</u> as it is dumped automatically on errors. |
 
 #### Components
 

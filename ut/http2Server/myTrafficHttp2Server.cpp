@@ -161,21 +161,21 @@ TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsNoVariable) {
 
 // Test responseDelayMs with valid variable
 TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsWithVariable) {
-    vault_->add("__core.response-delay-ms.12345", "500");
+    vault_->add("__core:response-delay-ms:12345", "500");
     auto delay = server_->responseDelayMs(12345);
     EXPECT_EQ(delay.count(), 500);
 }
 
 // Test responseDelayMs with invalid (non-numeric) variable
 TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsInvalidVariable) {
-    vault_->add("__core.response-delay-ms.12345", "not_a_number");
+    vault_->add("__core:response-delay-ms:12345", "not_a_number");
     auto delay = server_->responseDelayMs(12345);
     EXPECT_EQ(delay.count(), 0);
 }
 
 // Test responseDelayMs with out-of-range variable
 TEST_F(MyTrafficHttp2ServerUnitTest, ResponseDelayMsOutOfRange) {
-    vault_->add("__core.response-delay-ms.12345", "99999999999999999999999999999");
+    vault_->add("__core:response-delay-ms:12345", "99999999999999999999999999999");
     auto delay = server_->responseDelayMs(12345);
     EXPECT_EQ(delay.count(), 0);
 }

@@ -32,7 +32,7 @@ cat << EOF > ${json}
     },
     {
       "source": "value.${milliseconds}",
-      "target": "vault.__core.response-delay-ms.@{recvseq}"
+      "target": "vault.__core:response-delay-ms:@{recvseq}"
     }
   ]
 }

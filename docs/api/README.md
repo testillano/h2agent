@@ -233,6 +233,17 @@ Also, `std::regex_replace` and `std::regex_match` algorithms use default format 
 
 ### Algorithm selection
 
+The fundamental distinction is between **deterministic lookup** and **sequential search**:
+
+- `FullMatching` / `FullMatchingRegexReplace`: the incoming URI (optionally transformed via `rgx`/`fmt`) becomes a map key. One URI → one key → one provision. Order does not matter. O(1) lookup.
+- `RegexMatching`: each provision's `requestUri` is treated as a regex pattern. The incoming URI is tested against them sequentially. First match wins. O(n) search.
+
+When to use each:
+
+- Use `FullMatching` when all URIs are fixed and predictable (e.g. `/api/v1/users`, `/api/v1/orders`).
+- Use `FullMatchingRegexReplace` when URIs have variable parts but a single `rgx`/`fmt` transformation can normalize them all into predictable keys (e.g. stripping timestamps, trimming IDs). The key insight is that one global transformation must be enough to classify all traffic.
+- Use `RegexMatching` when URIs are too heterogeneous for a single transformation to normalize — a mix of different path structures where each provision needs its own pattern (e.g. `/api/v1/config/...`, `/api/v2/users/.../profile`, `/health`, `/metrics`). In this case, sequential regex matching against individual provision patterns is the only viable approach.
+
 There are three classification algorithms. Two of them classify the traffic by single identification of the provision key (`method`, `uri` and `inState`): `FullMatching` matches directly, and `FullMatchingRegexReplace` matches directly after transformation. The other one, `RegexMatching` is not matching by identification but for regular expression.
 
 In summary:
@@ -386,7 +397,7 @@ Those values are also defined in `nghttp2_error_code` enum type within `https://
 
 Any value lesser than 100 will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
-Error codes are registered as vaults with key `'__core.stream-error-traffic-server.<recvseq>.<method>.<uri>'` and value `'<error code>'`.
+Error codes are registered as vaults with key `'__core:stream-error-traffic-server:<recvseq>-<method>-<uri>'` and value `'<error code>'`.
 
 #### responseBody
 
