@@ -45,7 +45,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
 * Interfaces
 
-  * Administrative interface (REST API): update, create and delete items:
+  * Administrative interface (REST API with JSON): update, create and delete items:
     * Vault.
     * File manager configuration.
     * UDP events.
@@ -55,6 +55,9 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Client endpoints configuration.
     * Events data (server and clients) summary and inspection.
     * Events data configuration (global storage, history).
+  * [Gherkin (BDD)](tools/gherkin-h2agent): Given/When/Then driver for the REST API.
+    * Write mock scenarios in plain English.
+    * Dump mode: generate JSON provisions from `.feature` files without a running instance.
   * Prometheus metrics (HTTP/1):
     * Counters by method and result.
     * Gauges and Histograms (response delays, message size for Rx/Tx).
