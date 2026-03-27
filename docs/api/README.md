@@ -738,6 +738,21 @@ The **target** of information is classified after parsing the following possible
 
   **Note:** key names cannot contain dots (dots are reserved as separator between key and path). To reset a vault, use `eraser` source.
 
+- vault.`<key>`.json.object[.`/<path>`] *[json object]*: stores the source as a native `json` object in the vault. Unlike the plain `vault.<key>` target (which attempts object extraction with string fallback), this target **requires** the source to be a valid `json` object — the transform is skipped if it is not. Useful when you want strict typing. The optional `/<path>` works the same as for `vault.<key>`.
+
+- vault.`<key>`.json.jsonstring[.`/<path>`] *[json string → json object]*: parses a JSON-encoded string from the source and stores the resulting native `json` object in the vault. This is the vault equivalent of `response.body.json.jsonstring`: it takes a string like `"{\"a\":1,\"b\":2}"` and stores `{"a":1,"b":2}` as a navigable object. The transform is skipped if the string is not valid `json`. The optional `/<path>` stores the parsed object at a sub-path within the vault entry.
+
+  Example use case — extracting fields from an embedded JSON string:
+
+  ```json
+  [
+    {"source": "serverEvent.requestMethod=POST&requestUri=/api/v1/accounts&eventNumber=-1&eventPath=/requestBody/balanceDetails",
+     "target": "vault.balance.json.jsonstring"},
+    {"source": "vault.balance./currentDebt",
+     "target": "response.body.json.unsigned./debt"}
+  ]
+  ```
+
 - outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
 - outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.

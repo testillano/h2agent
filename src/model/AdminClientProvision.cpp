@@ -1030,6 +1030,39 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             break;
         }
+        case Transformation::TargetType::TGVarJson_Object:
+        {
+            std::string gvarPath = transformation->getTarget2();
+            if (!gvarPath.empty()) replaceVariables(gvarPath, transformation->getTarget2Patterns(), variables, vault_);
+
+            bool objSuccess = false;
+            const nlohmann::json &obj = sourceVault.getObject(objSuccess);
+            if (!objSuccess) return false;
+
+            if (gvarPath.empty()) {
+                vault_->load(target, obj);
+            } else {
+                vault_->loadAtPath(target, gvarPath, obj);
+            }
+            break;
+        }
+        case Transformation::TargetType::TGVarJson_JsonString:
+        {
+            std::string gvarPath = transformation->getTarget2();
+            if (!gvarPath.empty()) replaceVariables(gvarPath, transformation->getTarget2Patterns(), variables, vault_);
+
+            targetS = sourceVault.getString(success);
+            if (!success) return false;
+            if (!h2agent::model::parseJsonContent(targetS, obj))
+                return false;
+
+            if (gvarPath.empty()) {
+                vault_->load(target, obj);
+            } else {
+                vault_->loadAtPath(target, gvarPath, obj);
+            }
+            break;
+        }
         case Transformation::TargetType::OutState:
         {
             targetS = sourceVault.getString(success);

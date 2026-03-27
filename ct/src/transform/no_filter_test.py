@@ -2,7 +2,7 @@ import pytest
 import json
 import os
 import time
-from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI, ADMIN_CLIENT_ENDPOINT_URI, ADMIN_CLIENT_PROVISION_URI, ADMIN_CLIENT_DATA_URI
+from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI, ADMIN_CLIENT_ENDPOINT_URI, ADMIN_CLIENT_PROVISION_URI, ADMIN_CLIENT_DATA_URI, ADMIN_VAULT_URI
 from conftest import NESTED_NODE1_NODE2_REQUEST, NESTED_VAR1_VAR2_REQUEST, TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE
 
 # Loopback endpoint configuration
@@ -953,3 +953,21 @@ def test_058_sequenceSourceInClientProvision(admin_cleanup, admin_server_provisi
   server_events = response["body"]
   matched = [e for e in server_events if e["uri"] == "/app/v1/foo/bar/105"]
   assert len(matched) == 1, "Expected request at /app/v1/foo/bar/105, got: {}".format([e["uri"] for e in server_events])
+
+
+@pytest.mark.transform
+def test_059_vaultJsonJsonString(admin_server_provision, h2ac_admin, h2ac_traffic):
+
+  # Provision: extracts embedded JSON string from request body, parses it into vault, reads fields
+  admin_server_provision("no_filter_test.VaultJsonJsonString.provision.json")
+
+  # Traffic: send request with an embedded JSON string field
+  requestBody = {"embedded": "{\"volume\":100,\"time\":30}"}
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
+  responseBodyRef = {"foo": "bar-1", "volume": 100, "time": 30}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+  # Verify vault contains the parsed object
+  response = h2ac_admin.get(ADMIN_VAULT_URI + "?name=parsed")
+  assert response["status"] == 200
+  assert response["body"] == {"volume": 100, "time": 30}

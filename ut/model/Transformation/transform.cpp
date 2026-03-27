@@ -2770,3 +2770,114 @@ TEST_F(Transform_test, TargetVaultJsonObject)
     EXPECT_EQ(status_code_, 200);
     EXPECT_EQ(response_body_, "1");
 }
+
+TEST_F(Transform_test, TargetVaultJsonObjectTyped)
+{
+    // vault.key.json.object stores source as native JSON object
+    const nlohmann::json item1 = R"({ "source": "request.body", "target": "vault.obj.json.object" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.obj./foo", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "1");
+}
+
+TEST_F(Transform_test, TargetVaultJsonObjectTypedWithPath)
+{
+    // vault.key.json.object./path stores object at sub-path
+    const nlohmann::json item1 = R"({ "source": "request.body", "target": "vault.container.json.object./nested" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.container./nested/foo", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "1");
+}
+
+TEST_F(Transform_test, TargetVaultJsonObjectTypedFailsOnString)
+{
+    // vault.key.json.object should skip when source is a plain string (not an object)
+    const nlohmann::json item1 = R"({ "source": "value.just-a-string", "target": "vault.obj.json.object" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.obj", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    // Transform was skipped, vault.obj does not exist, response body unchanged
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, TargetVaultJsonJsonString)
+{
+    // vault.key.json.jsonstring parses a JSON-encoded string into a native object
+    const nlohmann::json item1 = R"({ "source": "value.{\"volume\":100,\"time\":30}", "target": "vault.parsed.json.jsonstring" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.parsed./volume", "target": "response.body.json.unsigned./vol" })"_json;
+    const nlohmann::json item3 = R"({ "source": "vault.parsed./time", "target": "response.body.json.unsigned./t" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["vol"], 100);
+    EXPECT_EQ(body["t"], 30);
+}
+
+TEST_F(Transform_test, TargetVaultJsonJsonStringWithPath)
+{
+    // vault.key.json.jsonstring./path parses and stores at sub-path
+    const nlohmann::json item1 = R"({ "source": "value.{\"a\":1}", "target": "vault.container.json.jsonstring./data" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.container./data/a", "target": "response.body.json.integer./result" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["result"], 1);
+}
+
+TEST_F(Transform_test, TargetVaultJsonJsonStringInvalidJson)
+{
+    // vault.key.json.jsonstring should skip when source is not valid JSON
+    const nlohmann::json item1 = R"({ "source": "value.not-valid-json", "target": "vault.parsed.json.jsonstring" })"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.parsed", "target": "response.body.string" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    // Transform was skipped, vault.parsed does not exist, response body unchanged
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, TargetVaultJsonJsonStringFromVar)
+{
+    // Typical flow: serverEvent → var (string) → vault.json.jsonstring → vault path navigation
+    const nlohmann::json item1 = R"({ "source": "value.{\"name\":\"alice\",\"age\":30}", "target": "var.rawJson" })"_json;
+    const nlohmann::json item2 = R"({ "source": "var.rawJson", "target": "vault.user.json.jsonstring" })"_json;
+    const nlohmann::json item3 = R"({ "source": "vault.user./name", "target": "response.body.json.string./userName" })"_json;
+    const nlohmann::json item4 = R"({ "source": "vault.user./age", "target": "response.body.json.unsigned./userAge" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+    server_provision_json_["transform"].push_back(item4);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["userName"], "alice");
+    EXPECT_EQ(body["userAge"], 30);
+}

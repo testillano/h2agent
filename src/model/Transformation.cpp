@@ -263,6 +263,8 @@ bool Transformation::load(const nlohmann::json &j) {
     static std::regex timestamp("^timestamp.(.*)", std::regex::optimize); // no need to validate s/ms/us/ns as it was done at schema
     static std::regex strftime("^strftime.(.*)", std::regex::optimize); // free format, errors captured
     static std::regex varId("^var.(.*)", std::regex::optimize);
+    static std::regex gvarJsonObject("^vault\\.([^.]+)\\.json\\.object(?:\\.(/.+))?$", std::regex::optimize);
+    static std::regex gvarJsonJsonString("^vault\\.([^.]+)\\.json\\.jsonstring(?:\\.(/.+))?$", std::regex::optimize);
     static std::regex gvarId("^vault\\.([^.]+)(?:\\.(/.+))?$", std::regex::optimize);
     static std::regex value("^value.([.\\s\\S]*)", std::regex::optimize); // added support for special characters: \n \t \r
     static std::regex serverEvent("^serverEvent.(.*)", std::regex::optimize);
@@ -643,6 +645,16 @@ bool Transformation::load(const nlohmann::json &j) {
     else if (std::regex_match(targetSpec, matches, varId)) { // variable id
         target_ = matches.str(1);
         target_type_ = TargetType::TVar;
+    }
+    else if (std::regex_match(targetSpec, matches, gvarJsonObject)) { // vault entry json object
+        target_ = matches.str(1); // key name
+        if (matches[2].matched) target2_ = matches.str(2); // optional json path
+        target_type_ = TargetType::TGVarJson_Object;
+    }
+    else if (std::regex_match(targetSpec, matches, gvarJsonJsonString)) { // vault entry json-parsed string
+        target_ = matches.str(1); // key name
+        if (matches[2].matched) target2_ = matches.str(2); // optional json path
+        target_type_ = TargetType::TGVarJson_JsonString;
     }
     else if (std::regex_match(targetSpec, matches, gvarId)) { // vault entry id
         target_ = matches.str(1); // key name

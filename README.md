@@ -96,7 +96,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Transformation algorithms: thousands of combinations
     * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints and schema id.
-    * Targets: dynamic variables, vaults, files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+    * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
   * Pseudo-notification mechanism (response delayed by vault condition).
 

@@ -1245,7 +1245,8 @@ components:
             Data target expression. Examples: response.body.string,
             response.body.json.object./path, response.header.<name>,
             response.statusCode, response.delayMs, var.<id>,
-            vault.<id>, outState, txtFile.<path>, binFile.<path>,
+            vault.<id>, vault.<id>.json.object, vault.<id>.json.jsonstring,
+            outState, txtFile.<path>, binFile.<path>,
             udpSocket.<path>, serverEvent.<params>, break
       additionalProperties:
         $ref: '#/components/schemas/TransformFilter'
@@ -1346,7 +1347,8 @@ components:
             Data target for request transformation. Examples:
             request.body.string, request.body.json.object./path,
             request.header.<name>, request.delayMs, request.timeoutMs,
-            var.<id>, vault.<id>, clientEvent.<params>, outState,
+            var.<id>, vault.<id>, vault.<id>.json.object,
+            vault.<id>.json.jsonstring, clientEvent.<params>, outState,
             txtFile.<path>, binFile.<path>, udpSocket.<path>
       additionalProperties:
         $ref: '#/components/schemas/TransformFilter'
@@ -1370,7 +1372,8 @@ components:
           pattern: '^(var|vault|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
           description: >
             Data target for response transformation. Examples:
-            var.<id>, vault.<id>, clientEvent.<params>, outState,
+            var.<id>, vault.<id>, vault.<id>.json.object,
+            vault.<id>.json.jsonstring, clientEvent.<params>, outState,
             txtFile.<path>, binFile.<path>, udpSocket.<path>, break
       additionalProperties:
         $ref: '#/components/schemas/TransformFilter'

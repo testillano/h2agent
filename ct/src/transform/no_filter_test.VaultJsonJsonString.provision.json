@@ -1,0 +1,29 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "request.body./embedded",
+      "target": "var.rawJson"
+    },
+    {
+      "source": "var.rawJson",
+      "target": "vault.parsed.json.jsonstring"
+    },
+    {
+      "source": "vault.parsed./volume",
+      "target": "response.body.json.unsigned./volume"
+    },
+    {
+      "source": "vault.parsed./time",
+      "target": "response.body.json.unsigned./time"
+    }
+  ]
+}
