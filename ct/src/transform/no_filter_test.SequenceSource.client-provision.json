@@ -7,7 +7,7 @@
   "requestBody": {"data": "test"},
   "expectedResponseStatusCode": 200,
   "transform": [
-    {"source": "seq", "filter": {"Sum": 100}, "target": "var.id"},
+    {"source": "var.sequence", "filter": {"Sum": 100}, "target": "var.id"},
     {"source": "value./app/v1/foo/bar/@{id}", "target": "request.uri"}
   ]
 }

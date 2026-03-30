@@ -59,10 +59,10 @@ public:
         has_filter_(false), filter_(""), filter_number_type_(0), filter_i_(0), filter_u_(0), filter_f_(0) {;}
 
     // Source type
-    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, RequestHeaders, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState, STxtFile, SBinFile, Command, Sendseq, Seq, ClientEvent, ResponseHeader, ResponseHeaders, ResponseStatusCode };
+    enum SourceType { RequestUri = 0, RequestUriPath, RequestUriParam, RequestBody, ResponseBody, RequestHeader, RequestHeaders, Eraser, Math, Random, RandomSet, Timestamp, Strftime, Recvseq, SVar, SGVar, Value, ServerEvent, InState, STxtFile, SBinFile, Command, Sendseq, ClientEvent, ResponseHeader, ResponseHeaders, ResponseStatusCode };
     const char* SourceTypeAsText(const SourceType & type) const
     {
-        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "RequestHeaders", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "ServerEvent", "InState", "STxtFile", "SBinFile", "Command", "Sendseq", "Seq", "ClientEvent", "ResponseHeader", "ResponseHeaders", "ResponseStatusCode" };
+        static const char* text [] = { "RequestUri", "RequestUriPath", "RequestUriParam", "RequestBody", "ResponseBody", "RequestHeader", "RequestHeaders", "Eraser", "Math", "Random", "RandomSet", "Timestamp", "Strftime", "Recvseq", "SVar", "SGVar", "Value", "ServerEvent", "InState", "STxtFile", "SBinFile", "Command", "Sendseq", "ClientEvent", "ResponseHeader", "ResponseHeaders", "ResponseStatusCode" };
         return text [type];
     }
 

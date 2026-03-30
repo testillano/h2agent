@@ -931,7 +931,7 @@ Filters give you the chance to make complex transformations:
 
   With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
-- Strptime: parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `Sum`) and later formatting back with `Strftime`.
+- Strptime (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `Sum`) and later formatting back with `Strftime`.
 
   | Parameter | Type | Required | Default | Description |
   |-----------|------|----------|---------|-------------|
@@ -948,7 +948,7 @@ Filters give you the chance to make complex transformations:
 
   Stores `1774987200` (epoch seconds for that UTC date) in `var.epoch`. With `"unit": "ms"`, it would store `1774987200000`.
 
-- Strftime: formats a numeric epoch timestamp into a date/time string. Uses `gmtime_r` + `strftime` (UTC). The source must be numeric (integer epoch in the specified unit).
+- Strftime (*str-f-time*: string **f**ormat time): formats a numeric epoch timestamp into a date/time string. Uses `gmtime_r` + `strftime` (UTC). The source must be numeric (integer epoch in the specified unit).
 
   | Parameter | Type | Required | Default | Description |
   |-----------|------|----------|---------|-------------|
@@ -1689,13 +1689,38 @@ Most items are described in the [transformation pipeline](#transformation-pipeli
 New **sources**:
 
 - `sendseq`: sequence id number increased for every mock sending over specific client endpoint (starts on *1* when the *h2agent* is started).
-- `seq`: sequence id number provided by client provision trigger procedure (we will explain later in [triggering](#triggering)). This value is accessible for every provision processing and is used to create dynamically things like the final request *URI* sent (containing for example, a session identifier) and probably some parts of the request body content. Note that `seq` is the **only** way to access the current sequence value inside a transform — the `dynamics.sequence` field exposed by the REST API is a read-only external snapshot and is **not** available as a transform variable.
+
+**Reserved variable `sequence`**: the current iteration number within a triggered range. This is the **fundamental variable for building dynamic client requests** — without it, every request in a range would be identical.
+
+When a provision is triggered with a range (`sequenceBegin`/`sequenceEnd`), `sequence` holds the current counter value on each execution. It is automatically injected as a scoped variable before each transform execution, so it is accessible both as:
+
+- `var.sequence` — as a source (e.g. for arithmetic with `Sum` filter)
+- `@{sequence}` — inline substitution within `value.*` sources, `Append`/`Prepend` filters, and any field that admits variables substitution
+
+Common use cases:
+
+- **Dynamic URI** — build a unique path per request:
+  ```json
+  {"source": "var.sequence", "target": "request.uri", "filter": {"Prepend": "/api/v1/sessions/"}}
+  ```
+
+- **Dynamic body field** — inject the counter into the request body:
+  ```json
+  {"source": "value.@{sequence}", "target": "request.body.json.integer./counter"}
+  ```
+
+- **Unique vault keys** — isolate concurrent flows:
+  ```json
+  {"source": "var.sequence", "target": "vault.flow_@{sequence}_status"}
+  ```
+
+The value starts at `sequenceBegin` and increments by 1 on each tick. When paused (`cps=0`) and resumed (only `cps` provided), `sequence` continues from where it left off. Providing a new range resets it to the new `sequenceBegin`. For synchronous single-shot triggers (`?sequence=N`), the value is set to `N`.
 
 New **targets**:
 
 - `request.delayMs` *[unsigned integer]*: simulated delay before sending the request: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 - `request.timeoutMs` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
-- `request.uri` *[string]*: overrides the request URI to be sent. This is useful in combination with `seq` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
+- `request.uri` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
 - `request.method` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
 - `break`: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
@@ -1753,7 +1778,7 @@ Optionally, the `sequence` query parameter can be provided to set a specific seq
 
 * `sequence`: specific `sequence` value for the request.
 
-This is useful when the provision uses `seq` in its transformations to build dynamic content (e.g., a unique URI or body field). Successive calls with different `sequence` values allow sending varied requests synchronously:
+This is useful when the provision uses `sequence` in its transformations to build dynamic content (e.g., a unique URI or body field). Successive calls with different `sequence` values allow sending varied requests synchronously:
 
 ```bash
 # Send three requests with sequence values 10, 20 and 30:

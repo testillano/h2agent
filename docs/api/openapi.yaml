@@ -1364,12 +1364,12 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri|body(\..+)?|header\..+|headers)$|^response\.headers$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri|body(\..+)?|header\..+|headers)$|^response\.headers$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source for request transformation. Examples: request.uri,
             request.body, request.headers, response.headers, eraser,
             math.<expr>, random.<min>.<max>, randomset.<values>,
-            timestamp.<unit>, strftime.<fmt>, sendseq, seq, var.<id>,
+            timestamp.<unit>, strftime.<fmt>, sendseq, var.<id>,
             vault.<id>, clientEvent.<params>, value.<val>, inState,
             txtFile.<path>, binFile.<path>, command.<cmd>
         target:
@@ -1393,7 +1393,7 @@ components:
       properties:
         source:
           type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|header\..+|headers|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^seq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
+          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|header\..+|headers|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
           description: >
             Data source for response transformation. Includes all
             request transform sources plus: response.body, response.body./path,

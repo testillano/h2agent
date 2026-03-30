@@ -521,7 +521,7 @@ const nlohmann::json client_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri|body(\\..+)?|header\\..+|headers)$|^response\\.headers$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|vault|clientEvent|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(uri|body(\\..+)?|header\\..+|headers)$|^response\\.headers$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|vault|clientEvent|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",
@@ -552,7 +552,7 @@ const nlohmann::json client_provision = R"(
         "properties": {
           "source": {
             "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+|headers)$|^response\\.(body(\\..+)?|header\\..+|headers|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^seq$|^(var|vault|clientEvent|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
+            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+|headers)$|^response\\.(body(\\..+)?|header\\..+|headers|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|vault|clientEvent|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
           },
           "target": {
             "type": "string",

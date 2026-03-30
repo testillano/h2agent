@@ -60,7 +60,7 @@ std::string validPrefixes(const std::vector<std::string> &prefixes) {
 
 const std::vector<std::string> VALID_SOURCE_PREFIXES = {
     "request", "response", "eraser", "math", "random", "randomset",
-    "timestamp", "strftime", "recvseq", "sendseq", "seq",
+    "timestamp", "strftime", "recvseq", "sendseq",
     "var", "vault", "value", "serverEvent", "clientEvent",
     "inState", "txtFile", "binFile", "command"
 };
@@ -365,9 +365,6 @@ bool Transformation::load(const nlohmann::json &j) {
     }
     else if (sourceSpec == "sendseq") {
         source_type_ = SourceType::Sendseq;
-    }
-    else if (sourceSpec == "seq") {
-        source_type_ = SourceType::Seq;
     }
     else if (std::regex_match(sourceSpec, matches, varId)) { // variable id
         source_ = matches.str(1);
@@ -768,7 +765,7 @@ std::string Transformation::asString() const {
 
     // SOURCE
     ss << "SourceType: " << SourceTypeAsText(source_type_);
-    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::Recvseq && source_type_ != SourceType::Sendseq && source_type_ != SourceType::Seq && source_type_ != SourceType::InState && source_type_ != SourceType::ResponseStatusCode) {
+    if (source_type_ != SourceType::RequestUri && source_type_ != SourceType::RequestUriPath && source_type_ != SourceType::Eraser && source_type_ != SourceType::Recvseq && source_type_ != SourceType::Sendseq && source_type_ != SourceType::InState && source_type_ != SourceType::ResponseStatusCode) {
         ss << " | source_: " << source_;
 
         if (source_type_ == SourceType::RequestBody || source_type_ == SourceType::ResponseBody) {

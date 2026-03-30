@@ -1,0 +1,13 @@
+{
+  "id": "hitFooBar",
+  "endpoint": "target",
+  "requestMethod": "GET",
+  "requestUri": "/foo/bar/0",
+  "transform": [
+    {
+      "source": "var.sequence",
+      "target": "request.uri",
+      "filter": { "Prepend": "/foo/bar/" }
+    }
+  ]
+}

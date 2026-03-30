@@ -1,0 +1,6 @@
+{
+  "id": "target",
+  "host": "localhost",
+  "port": 9500,
+  "secure": false
+}

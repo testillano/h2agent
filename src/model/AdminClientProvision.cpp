@@ -475,11 +475,6 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         sourceVault.setUnsigned(sendSeq);
         break;
     }
-    case Transformation::SourceType::Seq:
-    {
-        sourceVault.setInteger(seq_);
-        break;
-    }
     case Transformation::SourceType::SVar:
     {
         std::string varname = transformation->getSource();
@@ -1242,8 +1237,14 @@ bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, co
     }
 
     // Range assignment:
-    seq_begin_ = i_sequenceBegin;
-    seq_end_ = i_sequenceEnd;
+    bool rangeProvided = !sequenceBegin.empty() || !sequenceEnd.empty();
+    if (i_sequenceBegin != seq_begin_ || i_sequenceEnd != seq_end_) {
+        seq_begin_ = i_sequenceBegin;
+        seq_end_ = i_sequenceEnd;
+    }
+    if (rangeProvided) {
+        seq_ = seq_begin_ - 1; // reset iterator: new range means fresh start
+    }
 
 
     // Rate:
@@ -1276,7 +1277,9 @@ void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std:
     stopTicking();
     io_context_ = ioContext;
     tick_callback_ = std::move(tickCallback);
-    seq_ = seq_begin_ - 1; // pre-decrement: first seq_++ in scheduleTick will restore seq_begin_
+    if (seq_ < seq_begin_ - 1 || seq_ > seq_end_) {
+        seq_ = seq_begin_ - 1; // outside range: reset (exhausted or never started)
+    }
     saveDynamics();
     timer_ = new boost::asio::steady_timer(*io_context_);
     scheduleTick();

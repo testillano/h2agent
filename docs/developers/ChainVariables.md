@@ -11,7 +11,7 @@ The keyword remains `var.*` — no API change.
 
 Before this change, `var.*` was provision-scoped: created and destroyed within a single provision execution. To pass data across `outState` links, the only option was `vault.*`, which has two problems:
 
-1. **Namespace pollution**: concurrent flows share the global namespace, requiring `seq`-based naming (`vault.flow_@{seq}_myData`) to avoid collisions.
+1. **Namespace pollution**: concurrent flows share the global namespace, requiring `sequence`-based naming (`vault.flow_@{sequence}_myData`) to avoid collisions.
 2. **Manual cleanup**: vault are never freed automatically, requiring explicit `eraser` transformations at the end of every chain to prevent memory growth.
 
 ## Design decision: promote `var` vs new `chainVar` keyword
@@ -93,7 +93,7 @@ In server mode, `serverEvent` already covers most cross-link data needs (since e
 
 In both modes, concurrent flows to the same `DataKey` share the same chain variables. This is the same limitation that already exists for the state: if two clients send requests to `(GET, /foo)` concurrently, they share the state progression. The chain variables inherit this design constraint.
 
-For concurrent isolation, users should use `vault.*` with `seq`-based naming (the existing pattern).
+For concurrent isolation, users should use `vault.*` with `sequence`-based naming (the existing pattern).
 
 ## Performance impact
 

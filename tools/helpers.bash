@@ -545,11 +545,18 @@ client_provision_trigger() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: client_provision_trigger [-h|--help] <id> [sequenceBegin] [sequenceEnd] [cps] [repeat] [--in-state <state>]"
-    echo "                               Triggers a client provision. Omitted params keep server-side defaults."
+    echo "                               Triggers a client provision. Omitted params keep server-side values."
+    echo
+    echo "  Sequence iterator behavior:"
+    echo "    - Providing sequenceBegin and/or sequenceEnd resets the iterator (fresh start)."
+    echo "    - Providing only cps (no range) resumes from where it left off."
+    echo "    - cps=0 (or omitted) pauses without losing position."
+    echo "    - Providing range without cps prepares the range without starting (cps defaults to 0)."
     echo
     echo "  Examples:"
     echo "    client_provision_trigger myFlow                               # Sync trigger (sequence=0, inState=initial)"
     echo "    client_provision_trigger myFlow --in-state established        # Sync trigger with custom inState"
+    echo "    client_provision_trigger myFlow 0 99999                       # Prepare range (paused, cps=0)"
     echo "    client_provision_trigger myFlow 0 99999 5000                  # Async trigger at 5000 cps"
     echo "    client_provision_trigger myFlow 0 99999 5000 true             # Async trigger with repeat"
     echo "    client_provision_trigger myFlow 0 99999 5000 --in-state step2 # Async trigger with custom inState"
@@ -585,12 +592,14 @@ client_provision_cps() {
   if [ "$1" = "-h" -o "$1" = "--help" -o $# -lt 2 ]
   then
     echo "Usage: client_provision_cps <id> <cps> [--ramp-up-time <seconds>] [--repeat true|false] [--in-state <state>]"
-    echo "       Changes CPS (rate) for a provision. With --ramp-up-time, ramps linearly from current cps to target over the given seconds."
-    echo "       Supports both ramp-up (increase) and ramp-down (decrease). Default ramp-up-time: 0 (instant)."
+    echo "       Changes CPS (rate) for a running provision without resetting the sequence iterator."
+    echo "       With --ramp-up-time, ramps linearly from current cps to target over the given seconds."
+    echo "       Supports both ramp-up (increase) and ramp-down (decrease). cps=0 pauses."
+    echo "       Default: ramp-up-time=0 (instant), in-state=initial."
     return 0
   fi
   local id=$1 cps=$2; shift 2
-  local inState="initial" repeat= rampUp=0
+  local inState= repeat= rampUp=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --in-state) inState=$2; shift ;;
@@ -599,8 +608,12 @@ client_provision_cps() {
     esac
     shift
   done
-  local base_q="inState=${inState}"
-  [ -n "$repeat" ] && base_q+="&repeat=${repeat}"
+  local base_q=
+  [ -n "$inState" ] && base_q="inState=${inState}"
+  [ -n "$repeat" ] && { [ -n "$base_q" ] && base_q+="&"; base_q+="repeat=${repeat}"; }
+
+  # Build URL with cps: base_q may be empty
+  _cps_url() { local c=$1; local q="${base_q:+${base_q}&}cps=${c}"; echo "$(admin_url)/client-provision/${id}?${q}"; }
 
   if [ "$(echo "${rampUp} > 0" | bc)" = "1" ]; then
     # Read current cps from provision dynamics
@@ -620,7 +633,7 @@ client_provision_cps() {
       [ ${elapsed_ns} -ge ${ramp_ns} ] && break
       local cps_now=$(echo "${from_cps} + (${cps} - ${from_cps}) * ${elapsed_ns} / ${ramp_ns}" | bc)
       if [ "${cps_now}" != "${prev_cps}" ]; then
-        do_curl -XGET "$(admin_url)/client-provision/${id}?${base_q}&cps=${cps_now}" >/dev/null
+        do_curl -XGET "$(_cps_url ${cps_now})" >/dev/null
         prev_cps=${cps_now}
         local elapsed_s=$(echo "scale=1; ${elapsed_ns} / 1000000000" | bc)
         echo -ne "\r  ${direction}: ${cps_now} -> ${cps} cps (${elapsed_s}s/${rampUp}s)"
@@ -629,10 +642,10 @@ client_provision_cps() {
       local sleep_ns=$((target_ns - ($(date +%s%N) - start_ns)))
       [ ${sleep_ns} -gt 0 ] && sleep $(echo "scale=6; ${sleep_ns} / 1000000000" | bc)
     done
-    do_curl -XGET "$(admin_url)/client-provision/${id}?${base_q}&cps=${cps}" >/dev/null
+    do_curl -XGET "$(_cps_url ${cps})" >/dev/null
     echo -e "\r  ${direction}: ${cps}/${cps} cps (${rampUp}s/${rampUp}s) - done    "
   else
-    do_curl -XGET "$(admin_url)/client-provision/${id}?${base_q}&cps=${cps}"
+    do_curl -XGET "$(_cps_url ${cps})"
   fi
 }
 

@@ -487,7 +487,6 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
     }
     // Not applicable in server context:
     case Transformation::SourceType::Sendseq:
-    case Transformation::SourceType::Seq:
     case Transformation::SourceType::ResponseHeader:
     case Transformation::SourceType::ResponseStatusCode:
         return false;
