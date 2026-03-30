@@ -80,10 +80,10 @@ public:
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId, Split, BaseConvert };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId, Split, BaseConvert, FStrptime, FStrftime };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId", "Split", "BaseConvert" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId", "Split", "BaseConvert", "Strptime", "Strftime" };
         return text [type];
     }
 
@@ -124,10 +124,10 @@ private:
 
     bool has_filter_{};
     FilterType filter_type_{};
-    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar, EqualTo, DifferentFrom, SchemaId
+    std::string filter_{}; // RegexReplace(fmt), RegexCapture(literal, although not actually needed, but useful to access & print on traces), Append, Prepend, ConditionVar, EqualTo, DifferentFrom, SchemaId, Strptime(fmt), Strftime(fmt)
     nlohmann::json filter_object_{}; // JsonConstraint
     std::regex filter_rgx_{}; // RegexCapture, RegexReplace
-    int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float)
+    int filter_number_type_{}; // Sum, Multiply (0: integer, 1: unsigned, 2: float); Strptime, Strftime (0: s, 1: ms, 2: us, 3: ns)
     std::int64_t filter_i_{}; // Sum, Multiply
     std::uint64_t filter_u_{}; // Sum, Multiply
     double filter_f_{}; // Sum, Multiply

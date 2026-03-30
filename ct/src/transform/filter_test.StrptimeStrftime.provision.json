@@ -1,0 +1,28 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "request.body./date",
+      "target": "var.epoch",
+      "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    },
+    {
+      "source": "var.epoch",
+      "target": "var.epoch",
+      "filter": { "Sum": 86400 }
+    },
+    {
+      "source": "var.epoch",
+      "target": "response.body.json.string./nextDay",
+      "filter": { "Strftime": { "fmt": "%Y-%m-%d" } }
+    }
+  ]
+}

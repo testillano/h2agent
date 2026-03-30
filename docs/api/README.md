@@ -931,6 +931,65 @@ Filters give you the chance to make complex transformations:
 
   With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
+- Strptime: parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `Sum`) and later formatting back with `Strftime`.
+
+  | Parameter | Type | Required | Default | Description |
+  |-----------|------|----------|---------|-------------|
+  | `fmt` | string | yes | — | Format string (POSIX strptime specifiers: `%Y`, `%m`, `%d`, `%H`, `%M`, `%S`, etc.) |
+  | `unit` | string | no | `"s"` | Output unit: `s` (seconds), `ms` (milliseconds), `us` (microseconds), `ns` (nanoseconds) |
+
+  ```json
+  {
+    "source": "value.2026-03-30T16:00:00",
+    "target": "var.epoch",
+    "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+  }
+  ```
+
+  Stores `1774987200` (epoch seconds for that UTC date) in `var.epoch`. With `"unit": "ms"`, it would store `1774987200000`.
+
+- Strftime: formats a numeric epoch timestamp into a date/time string. Uses `gmtime_r` + `strftime` (UTC). The source must be numeric (integer epoch in the specified unit).
+
+  | Parameter | Type | Required | Default | Description |
+  |-----------|------|----------|---------|-------------|
+  | `fmt` | string | yes | — | Format string (POSIX strftime specifiers: `%Y`, `%m`, `%d`, `%H`, `%M`, `%S`, etc.) |
+  | `unit` | string | no | `"s"` | Input unit: `s` (seconds), `ms` (milliseconds), `us` (microseconds), `ns` (nanoseconds) |
+
+  ```json
+  {
+    "source": "var.epoch",
+    "target": "response.body.json.string./date",
+    "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+  }
+  ```
+
+  With `var.epoch = 1774987200`, stores `"2026-03-30T16:00:00"` in the response body.
+
+  **Combined example — current time + 1 hour, formatted:**
+
+  ```json
+  [
+    {"source": "timestamp.s", "target": "var.epoch"},
+    {"source": "var.epoch", "target": "var.epoch", "filter": {"Sum": 3600}},
+    {"source": "var.epoch", "target": "response.body.json.string./expiresAt",
+     "filter": {"Strftime": {"fmt": "%Y-%m-%dT%H:%M:%SZ"}}}
+  ]
+  ```
+
+  **Round-trip example — parse, shift, reformat:**
+
+  ```json
+  [
+    {"source": "request.body./startDate", "target": "var.epoch",
+     "filter": {"Strptime": {"fmt": "%d/%m/%Y %H:%M"}}},
+    {"source": "var.epoch", "target": "var.epoch", "filter": {"Sum": 86400}},
+    {"source": "var.epoch", "target": "response.body.json.string./nextDay",
+     "filter": {"Strftime": {"fmt": "%Y-%m-%d"}}}
+  ]
+  ```
+
+  Parses `"30/03/2026 16:00"` from the request, adds 24 hours, and responds with `"2026-03-31"`.
+
 - Append: this appends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json

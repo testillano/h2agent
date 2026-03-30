@@ -121,6 +121,8 @@ bool Transformation::load(const nlohmann::json &j) {
         //   SchemaId            value -> [filter_]
         //   Split               size -> [filter_i_], count -> [filter_u_], sep -> [filter_], filler -> [filter_filler_], numeric -> [filter_number_type_]
         //   BaseConvert          in -> [filter_i_], out -> [filter_u_], capital -> [filter_number_type_]
+        //   Strptime            fmt -> [filter_], unit -> [filter_number_type_] (0:s,1:ms,2:us,3:ns)
+        //   Strftime            fmt -> [filter_], unit -> [filter_number_type_] (0:s,1:ms,2:us,3:ns)
 
         auto f_it = it->find("RegexCapture");
 
@@ -216,6 +218,18 @@ bool Transformation::load(const nlohmann::json &j) {
                 auto capital_it = f_it->find("capital");
                 filter_number_type_ = (capital_it != f_it->end() && capital_it->get<bool>()) ? 1 : 0;
                 filter_type_ = FilterType::BaseConvert;
+            }
+            else if ((f_it = it->find("Strptime")) != it->end()) {
+                filter_ = f_it->find("fmt")->get<std::string>();
+                std::string unit = (f_it->find("unit") != f_it->end()) ? f_it->find("unit")->get<std::string>() : "s";
+                filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
+                filter_type_ = FilterType::FStrptime;
+            }
+            else if ((f_it = it->find("Strftime")) != it->end()) {
+                filter_ = f_it->find("fmt")->get<std::string>();
+                std::string unit = (f_it->find("unit") != f_it->end()) ? f_it->find("unit")->get<std::string>() : "s";
+                filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
+                filter_type_ = FilterType::FStrftime;
             }
         }
         catch (std::regex_error &e) {
@@ -837,7 +851,7 @@ std::string Transformation::asString() const {
     // FILTER
     if (has_filter_) {
         ss << " | FilterType: " << FilterTypeAsText(filter_type_);
-        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split && filter_type_ != FilterType::BaseConvert) {
+        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split && filter_type_ != FilterType::BaseConvert && filter_type_ != FilterType::FStrptime && filter_type_ != FilterType::FStrftime) {
             /*<< " | filter_rgx_: ?"*/
             ss << " | filter_ " << filter_;
 
@@ -853,6 +867,10 @@ std::string Transformation::asString() const {
         }
         else if (filter_type_ == FilterType::BaseConvert) {
             ss << " | in: " << filter_i_ << " | out: " << filter_u_ << " | capital: " << (filter_number_type_ ? "true" : "false");
+        }
+        else if (filter_type_ == FilterType::FStrptime || filter_type_ == FilterType::FStrftime) {
+            static const char* units[] = {"s", "ms", "us", "ns"};
+            ss << " | fmt: '" << filter_ << "' | unit: " << units[filter_number_type_];
         }
         else {
             ss << " | filter_number_type_: " << filter_number_type_ << " (0: integer, 1: unsigned, 2: float)"

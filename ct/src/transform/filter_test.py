@@ -324,3 +324,17 @@ def test_024_onFilterFail(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.get("/app/v1/foo/bar/1")
   responseBodyRef = { "foo":"bar-1", "condition-true": "true-branch", "condition-false": "false-branch" }
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_025_strptimeStrftimeRoundTrip(admin_server_provision, h2ac_traffic):
+
+  # Provision: parse date → add 24h → format back
+  admin_server_provision("filter_test.StrptimeStrftime.provision.json")
+
+  # Traffic
+  requestBody = {"date": "2026-03-30T16:00:00"}
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
+  responseBodyRef = {"foo": "bar-1", "nextDay": "2026-03-31"}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

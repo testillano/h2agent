@@ -2881,3 +2881,131 @@ TEST_F(Transform_test, TargetVaultJsonJsonStringFromVar)
     EXPECT_EQ(body["userName"], "alice");
     EXPECT_EQ(body["userAge"], 30);
 }
+
+TEST_F(Transform_test, FilterStrptimeBasic)
+{
+    // Parse a date string into epoch seconds
+    const nlohmann::json item1 = R"({
+        "source": "value.2026-03-30T16:00:00",
+        "target": "response.body.json.integer./epoch",
+        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    // 2026-03-30T16:00:00 UTC = 1774886400
+    EXPECT_EQ(body["epoch"], 1774886400);
+}
+
+TEST_F(Transform_test, FilterStrptimeMilliseconds)
+{
+    const nlohmann::json item1 = R"({
+        "source": "value.2026-03-30T16:00:00",
+        "target": "response.body.json.integer./epoch_ms",
+        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S", "unit": "ms" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["epoch_ms"], 1774886400000);
+}
+
+TEST_F(Transform_test, FilterStrptimeInvalidFormat)
+{
+    // Invalid date string should skip the transform
+    const nlohmann::json item1 = R"({
+        "source": "value.not-a-date",
+        "target": "response.body.json.integer./epoch",
+        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, FilterStrftimeBasic)
+{
+    // Format epoch seconds into a date string
+    const nlohmann::json item1 = R"({
+        "source": "value.1774886400",
+        "target": "response.body.json.string./date",
+        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["date"], "2026-03-30T16:00:00");
+}
+
+TEST_F(Transform_test, FilterStrftimeFromMilliseconds)
+{
+    const nlohmann::json item1 = R"({
+        "source": "value.1774886400000",
+        "target": "response.body.json.string./date",
+        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S", "unit": "ms" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["date"], "2026-03-30T16:00:00");
+}
+
+TEST_F(Transform_test, FilterStrptimeStrftimeRoundTrip)
+{
+    // Parse → Sum 1 hour → Format back
+    const nlohmann::json item1 = R"({
+        "source": "value.2026-03-30T16:00:00",
+        "target": "var.epoch",
+        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    })"_json;
+    const nlohmann::json item2 = R"({
+        "source": "var.epoch",
+        "target": "var.epoch",
+        "filter": { "Sum": 3600 }
+    })"_json;
+    const nlohmann::json item3 = R"({
+        "source": "var.epoch",
+        "target": "response.body.json.string./future",
+        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["future"], "2026-03-30T17:00:00");
+}
+
+TEST_F(Transform_test, FilterStrftimeNonNumericSource)
+{
+    // Strftime with a non-numeric source should skip
+    const nlohmann::json item1 = R"({
+        "source": "value.not-a-number",
+        "target": "response.body.json.string./date",
+        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}

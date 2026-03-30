@@ -509,8 +509,8 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     std::uint64_t targetU = 0;
     double targetF = 0;
 
-    // all the filters except Sum/Multiply, require a string target
-    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply) {
+    // all the filters except Sum/Multiply/Strftime, require a string target
+    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime) {
         source = sourceVault.getString(success);
         if (!success) return false;
     }
@@ -807,6 +807,47 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             targetS = source;
         }
         sourceVault.setString(targetS);
+        break;
+    }
+    case Transformation::FilterType::FStrptime:
+    {
+        // Parse date string → epoch number
+        struct tm tm{};
+        if (strptime(source.c_str(), transformation->getFilter().c_str(), &tm) == nullptr) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Strptime filter failed to parse '%s' with format '%s'", source.c_str(), transformation->getFilter().c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
+        std::int64_t epoch = static_cast<std::int64_t>(timegm(&tm));
+        switch (transformation->getFilterNumberType()) {
+        case 1: epoch *= 1000; break;       // ms
+        case 2: epoch *= 1000000; break;    // us
+        case 3: epoch *= 1000000000; break; // ns
+        }
+        sourceVault.setInteger(epoch);
+        break;
+    }
+    case Transformation::FilterType::FStrftime:
+    {
+        // Format epoch number → date string
+        std::int64_t epoch = sourceVault.getInteger(success);
+        if (!success) {
+            ert::tracing::Logger::error("Strftime filter requires a numeric source (epoch)", ERT_FILE_LOCATION);
+            return false;
+        }
+        switch (transformation->getFilterNumberType()) {
+        case 1: epoch /= 1000; break;       // ms
+        case 2: epoch /= 1000000; break;    // us
+        case 3: epoch /= 1000000000; break; // ns
+        }
+        time_t t = static_cast<time_t>(epoch);
+        struct tm tm{};
+        gmtime_r(&t, &tm);
+        char buf[256];
+        if (std::strftime(buf, sizeof(buf), transformation->getFilter().c_str(), &tm) == 0) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Strftime filter failed to format epoch %ld with format '%s'", (long)t, transformation->getFilter().c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
+        sourceVault.setString(std::string(buf));
         break;
     }
     }

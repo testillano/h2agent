@@ -1220,6 +1220,38 @@ components:
               type: boolean
               default: false
               description: Use uppercase letters for digits above 9
+        Strptime:
+          type: object
+          additionalProperties: false
+          required: [fmt]
+          description: >
+            Parses a date/time string into a numeric epoch timestamp (UTC).
+            Uses POSIX strptime + timegm.
+          properties:
+            fmt:
+              type: string
+              description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
+            unit:
+              type: string
+              enum: [s, ms, us, ns]
+              default: s
+              description: "Output unit for the epoch value"
+        Strftime:
+          type: object
+          additionalProperties: false
+          required: [fmt]
+          description: >
+            Formats a numeric epoch timestamp into a date/time string (UTC).
+            Source must be numeric. Uses gmtime_r + strftime.
+          properties:
+            fmt:
+              type: string
+              description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
+            unit:
+              type: string
+              enum: [s, ms, us, ns]
+              default: s
+              description: "Input unit of the epoch value"
 
     ServerTransformItem:
       type: object

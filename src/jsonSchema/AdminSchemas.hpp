@@ -145,7 +145,9 @@ const nlohmann::json server_provision = R"(
         {"required": ["JsonConstraint"]},
         {"required": ["SchemaId"]},
         {"required": ["Split"]},
-        {"required": ["BaseConvert"]}
+        {"required": ["BaseConvert"]},
+        {"required": ["Strptime"]},
+        {"required": ["Strftime"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -190,6 +192,24 @@ const nlohmann::json server_provision = R"(
             "in": { "type": "integer", "minimum": 2, "maximum": 36 },
             "out": { "type": "integer", "minimum": 2, "maximum": 36 },
             "capital": { "type": "boolean" }
+          }
+        },
+        "Strptime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "fmt" ],
+          "properties": {
+            "fmt": { "type": "string" },
+            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
+          }
+        },
+        "Strftime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "fmt" ],
+          "properties": {
+            "fmt": { "type": "string" },
+            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
           }
         }
       }
@@ -365,7 +385,9 @@ const nlohmann::json client_provision = R"(
         {"required": ["JsonConstraint"]},
         {"required": ["SchemaId"]},
         {"required": ["Split"]},
-        {"required": ["BaseConvert"]}
+        {"required": ["BaseConvert"]},
+        {"required": ["Strptime"]},
+        {"required": ["Strftime"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -410,6 +432,24 @@ const nlohmann::json client_provision = R"(
             "in": { "type": "integer", "minimum": 2, "maximum": 36 },
             "out": { "type": "integer", "minimum": 2, "maximum": 36 },
             "capital": { "type": "boolean" }
+          }
+        },
+        "Strptime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "fmt" ],
+          "properties": {
+            "fmt": { "type": "string" },
+            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
+          }
+        },
+        "Strftime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "fmt" ],
+          "properties": {
+            "fmt": { "type": "string" },
+            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
           }
         }
       }
