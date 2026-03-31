@@ -628,7 +628,7 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     std::uint64_t targetU = 0;
     double targetF = 0;
 
-    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime) {
+    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime && transformation->getFilterType() != Transformation::FilterType::RegexKey) {
         source = sourceVault.getString(success);
         if (!success) return false;
     }
@@ -840,6 +840,23 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
         }
         sourceVault.setString(std::string(buf));
         break;
+    }
+    case Transformation::FilterType::RegexKey:
+    {
+        bool objSuccess = false;
+        nlohmann::json obj = sourceVault.getObject(objSuccess); // copy: setObject below clears sourceVault
+        if (!objSuccess || !obj.is_object()) {
+            ert::tracing::Logger::error("RegexKey filter requires a JSON object source", ERT_FILE_LOCATION);
+            return false;
+        }
+        for (auto it = obj.begin(); it != obj.end(); ++it) {
+            if (std::regex_match(it.key(), transformation->getFilterRegex())) {
+                if (!sourceVault.setObject(it.value(), ""))
+                    return false;
+                return true;
+            }
+        }
+        return false;
     }
     }
 

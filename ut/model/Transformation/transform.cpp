@@ -3009,3 +3009,103 @@ TEST_F(Transform_test, FilterStrftimeNonNumericSource)
     EXPECT_EQ(status_code_, 200);
     EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
 }
+
+TEST_F(Transform_test, FilterRegexKeyBasic)
+{
+    // Source is a JSON object with dynamic keys; RegexKey finds the matching one
+    common_resources_.VaultPtr->load("data", nlohmann::json({
+        {"user-1234-abc", nlohmann::json({{"name", "alice"}, {"age", 30}})},
+        {"user-5678-def", nlohmann::json({{"name", "bob"}, {"age", 25}})}
+    }));
+
+    const nlohmann::json item1 = R"({
+        "source": "vault.data",
+        "target": "vault.found",
+        "filter": { "RegexKey": "user-5678-.*" }
+    })"_json;
+    const nlohmann::json item2 = R"({
+        "source": "vault.found./name",
+        "target": "response.body.json.string./result"
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["result"], "bob");
+}
+
+TEST_F(Transform_test, FilterRegexKeyFromRequestBody)
+{
+    // RegexKey on request body subpath
+    const nlohmann::json item1 = R"({
+        "source": "request.body./node1",
+        "target": "vault.match",
+        "filter": { "RegexKey": "node.*" }
+    })"_json;
+    const nlohmann::json item2 = R"({
+        "source": "vault.match",
+        "target": "response.body.string"
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "value-of-node1-node2");
+}
+
+TEST_F(Transform_test, FilterRegexKeyNoMatch)
+{
+    common_resources_.VaultPtr->load("data", nlohmann::json({{"keyA", 1}, {"keyB", 2}}));
+
+    const nlohmann::json item1 = R"({
+        "source": "vault.data",
+        "target": "response.body.json.integer./val",
+        "filter": { "RegexKey": "noMatch.*" }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, FilterRegexKeyNotAnObject)
+{
+    // Source is a string, not an object — filter should be skipped
+    const nlohmann::json item1 = R"({
+        "source": "value.just-a-string",
+        "target": "vault.result",
+        "filter": { "RegexKey": ".*" }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+}
+
+TEST_F(Transform_test, FilterRegexKeyStringValue)
+{
+    // Matched key has a string value (not object)
+    common_resources_.VaultPtr->load("cfg", nlohmann::json({{"host-prod", "10.0.0.1"}, {"host-dev", "127.0.0.1"}}));
+
+    const nlohmann::json item1 = R"({
+        "source": "vault.cfg",
+        "target": "response.body.json.string./addr",
+        "filter": { "RegexKey": "host-prod" }
+    })"_json;
+    server_provision_json_["transform"].push_back(item1);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["addr"], "10.0.0.1");
+}

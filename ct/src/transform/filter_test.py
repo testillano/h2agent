@@ -338,3 +338,17 @@ def test_025_strptimeStrftimeRoundTrip(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
   responseBodyRef = {"foo": "bar-1", "nextDay": "2026-03-31"}
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_026_regexKey(admin_server_provision, h2ac_traffic):
+
+  # Provision: find cart item by regex key, extract price
+  admin_server_provision("filter_test.RegexKey.provision.json")
+
+  # Traffic: keys contain dynamic order IDs with timestamps
+  requestBody = {"cart": {"order-1774945487-express": {"price": 25, "item": "book"}, "order-1774945487-standard": {"price": 10, "item": "pen"}}}
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
+  responseBodyRef = {"foo": "bar-1", "price": 25}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

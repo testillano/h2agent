@@ -1252,6 +1252,11 @@ components:
               enum: [s, ms, us, ns]
               default: s
               description: "Input unit of the epoch value"
+        RegexKey:
+          type: string
+          description: >
+            Regex pattern matched against JSON object keys. Returns the value
+            of the first matching key. Source must be a JSON object.
 
     ServerTransformItem:
       type: object

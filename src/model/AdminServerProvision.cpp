@@ -509,7 +509,7 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     double targetF = 0;
 
     // all the filters except Sum/Multiply/Strftime, require a string target
-    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime) {
+    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime && transformation->getFilterType() != Transformation::FilterType::RegexKey) {
         source = sourceVault.getString(success);
         if (!success) return false;
     }
@@ -848,6 +848,24 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         }
         sourceVault.setString(std::string(buf));
         break;
+    }
+    case Transformation::FilterType::RegexKey:
+    {
+        bool objSuccess = false;
+        nlohmann::json obj = sourceVault.getObject(objSuccess); // copy: setObject below clears sourceVault
+        if (!objSuccess || !obj.is_object()) {
+            ert::tracing::Logger::error("RegexKey filter requires a JSON object source", ERT_FILE_LOCATION);
+            return false;
+        }
+        for (auto it = obj.begin(); it != obj.end(); ++it) {
+            if (std::regex_match(it.key(), transformation->getFilterRegex())) {
+                if (!sourceVault.setObject(it.value(), ""))
+                    return false;
+                return true;
+            }
+        }
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("RegexKey filter: no key matched '%s'", transformation->getFilter().c_str()), ERT_FILE_LOCATION));
+        return false;
     }
     }
     //}

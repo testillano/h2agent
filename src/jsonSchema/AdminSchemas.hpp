@@ -147,7 +147,8 @@ const nlohmann::json server_provision = R"(
         {"required": ["Split"]},
         {"required": ["BaseConvert"]},
         {"required": ["Strptime"]},
-        {"required": ["Strftime"]}
+        {"required": ["Strftime"]},
+        {"required": ["RegexKey"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -211,7 +212,8 @@ const nlohmann::json server_provision = R"(
             "fmt": { "type": "string" },
             "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
           }
-        }
+        },
+        "RegexKey": { "type": "string" }
       }
     }
   },
@@ -387,7 +389,8 @@ const nlohmann::json client_provision = R"(
         {"required": ["Split"]},
         {"required": ["BaseConvert"]},
         {"required": ["Strptime"]},
-        {"required": ["Strftime"]}
+        {"required": ["Strftime"]},
+        {"required": ["RegexKey"]}
       ],
       "properties": {
         "RegexCapture": { "type": "string" },
@@ -451,7 +454,8 @@ const nlohmann::json client_provision = R"(
             "fmt": { "type": "string" },
             "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
           }
-        }
+        },
+        "RegexKey": { "type": "string" }
       }
     }
   },

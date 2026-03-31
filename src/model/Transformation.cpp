@@ -231,6 +231,11 @@ bool Transformation::load(const nlohmann::json &j) {
                 filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
                 filter_type_ = FilterType::FStrftime;
             }
+            else if ((f_it = it->find("RegexKey")) != it->end()) {
+                filter_ = *f_it;
+                filter_rgx_.assign(filter_, std::regex::optimize);
+                filter_type_ = FilterType::RegexKey;
+            }
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);

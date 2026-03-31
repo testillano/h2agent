@@ -990,6 +990,36 @@ Filters give you the chance to make complex transformations:
 
   Parses `"30/03/2026 16:00"` from the request, adds 24 hours, and responds with `"2026-03-31"`.
 
+- RegexKey: searches the keys of a JSON object source and returns the value of the first key that matches the provided regex. The source must be a JSON object — the filter is skipped if it is not. If no key matches, the transform is skipped.
+
+  This is useful when JSON keys contain dynamic parts (timestamps, unique IDs, etc.) that cannot be addressed with static json pointers.
+
+  ```json
+  {
+    "source": "request.body./accounts",
+    "target": "vault.matchedAccount",
+    "filter": { "RegexKey": "acct-[0-9]{10}-checking" }
+  }
+  ```
+
+  Given a source object like `{"acct-1774945487-checking": {"balance": 1500, "currency": "EUR"}, "acct-1774945487-savings": {"balance": 30000, "currency": "EUR"}}`, the filter matches the key `acct-1774945487-checking` by regex and stores its value in `vault.matchedAccount`. You can then navigate it with json pointers:
+
+  ```json
+  {"source": "vault.matchedAccount./balance", "target": "response.body.json.integer./balance"}
+  ```
+
+  Another example — extracting from a response where order IDs contain timestamps:
+
+  ```json
+  [
+    {"source": "response.body./orders",
+     "target": "vault.order",
+     "filter": {"RegexKey": "order-2026[0-9]{4}-.*-express"}},
+    {"source": "vault.order./status",
+     "target": "var.orderStatus"}
+  ]
+  ```
+
 - Append: this appends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json

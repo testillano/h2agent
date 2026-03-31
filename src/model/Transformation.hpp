@@ -80,10 +80,10 @@ public:
     }
 
     // Filter type
-    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId, Split, BaseConvert, FStrptime, FStrftime };
+    enum FilterType { RegexCapture = 0, RegexReplace, Append, Prepend, Sum, Multiply, ConditionVar, EqualTo, DifferentFrom, JsonConstraint, SchemaId, Split, BaseConvert, FStrptime, FStrftime, RegexKey };
     const char* FilterTypeAsText(const FilterType & type) const
     {
-        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId", "Split", "BaseConvert", "Strptime", "Strftime" };
+        static const char* text [] = { "RegexCapture", "RegexReplace", "Append", "Prepend", "Sum", "Multiply", "ConditionVar", "EqualTo", "DifferentFrom", "JsonConstraint", "SchemaId", "Split", "BaseConvert", "Strptime", "Strftime", "RegexKey" };
         return text [type];
     }
 

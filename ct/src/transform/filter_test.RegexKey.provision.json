@@ -1,0 +1,22 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {
+    "foo": "bar-1"
+  },
+  "responseHeaders": {
+    "content-type": "application/json"
+  },
+  "transform": [
+    {
+      "source": "request.body./cart",
+      "target": "vault.item",
+      "filter": { "RegexKey": "order-[0-9]*-express" }
+    },
+    {
+      "source": "vault.item./price",
+      "target": "response.body.json.integer./price"
+    }
+  ]
+}
