@@ -990,7 +990,7 @@ Filters give you the chance to make complex transformations:
 
   Parses `"30/03/2026 16:00"` from the request, adds 24 hours, and responds with `"2026-03-31"`.
 
-- RegexKey: searches the keys of a JSON object source and returns the value of the first key that matches the provided regex. The source must be a JSON object — the filter is skipped if it is not. If no key matches, the transform is skipped.
+- RegexKey: searches the keys of a JSON object source and returns the value of the first key that matches the provided regex. The source must be a JSON object — the filter is skipped if it is not. If no key matches, the transform is skipped. This filter **does not admit variables substitution** (`@{name}` patterns are treated as literal regex text) because the regular expression is precompiled at provision time.
 
   This is useful when JSON keys contain dynamic parts (timestamps, unique IDs, etc.) that cannot be addressed with static json pointers.
 
