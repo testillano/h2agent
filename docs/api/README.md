@@ -998,7 +998,7 @@ Filters give you the chance to make complex transformations:
   {
     "source": "request.body./accounts",
     "target": "vault.matchedAccount",
-    "filter": { "RegexKey": "acct-[0-9]{10}-checking" }
+    "filter": { "RegexKey": "acct-([0-9]{10})-checking" }
   }
   ```
 
@@ -1008,15 +1008,29 @@ Filters give you the chance to make complex transformations:
   {"source": "vault.matchedAccount./balance", "target": "response.body.json.integer./balance"}
   ```
 
+  **Capture groups**: when the regex contains capture groups, the matched key and its groups are stored in variables following the same `.N` convention as `RegexCapture`:
+
+  ```
+  → vault.matchedAccount = {"balance": 1500, "currency": "EUR"}   (the value)
+  → var.matchedAccount.0 = "acct-1774945487-checking"              (matched key)
+  → var.matchedAccount.1 = "1774945487"                            (group 1)
+  ```
+
+  This works regardless of whether the target is `vault` or `var`. When the target is a `var`, the value is stored as serialized JSON in the bare target variable, and the key capture groups go to `.0`, `.1`, etc.
+
   Another example — extracting from a response where order IDs contain timestamps:
 
   ```json
   [
     {"source": "response.body./orders",
      "target": "vault.order",
-     "filter": {"RegexKey": "order-2026[0-9]{4}-.*-express"}},
+     "filter": {"RegexKey": "order-(2026[0-9]{4})-.*-(express)"}},
     {"source": "vault.order./status",
-     "target": "var.orderStatus"}
+     "target": "var.orderStatus"},
+    {"source": "var.order.1",
+     "target": "response.body.json.string./orderDate"},
+    {"source": "var.order.2",
+     "target": "response.body.json.string./shippingType"}
   ]
   ```
 

@@ -850,7 +850,8 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
             return false;
         }
         for (auto it = obj.begin(); it != obj.end(); ++it) {
-            if (std::regex_match(it.key(), transformation->getFilterRegex())) {
+            source = it.key(); // copy key to source (lives in transform() scope for matches lifetime)
+            if (std::regex_match(source, matches, transformation->getFilterRegex())) {
                 if (!sourceVault.setObject(it.value(), ""))
                     return false;
                 return true;
@@ -1024,6 +1025,16 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
                     }
                 }
             }
+            else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexKey) {
+                // Store the value in the target variable
+                targetS = sourceVault.getString(success);
+                if (!success) return false;
+                variables[target] = targetS;
+                // Store matched key (.0) and capture groups (.1, .2, ...) in variables
+                for(size_t i=0; i < matches.size(); i++) {
+                    variables[target + "." + std::to_string(i)] = matches.str(i);
+                }
+            }
             else {
                 targetS = sourceVault.getString(success);
                 if (!success) return false;
@@ -1057,6 +1068,31 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
                     } else {
                         vault_->loadAtPath(target, gvarPath, captureObj);
                     }
+                }
+            }
+            else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexKey) {
+                // Store value in vault (as today)
+                bool objSuccess = false;
+                const nlohmann::json &obj = sourceVault.getObject(objSuccess);
+                if (objSuccess) {
+                    if (gvarPath.empty()) {
+                        vault_->load(target, obj);
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, obj);
+                    }
+                } else {
+                    targetS = sourceVault.getString(success);
+                    if (!success) return false;
+                    nlohmann::json val(targetS);
+                    if (gvarPath.empty()) {
+                        vault_->load(target, std::move(val));
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, val);
+                    }
+                }
+                // Store matched key (.0) and capture groups (.1, .2, ...) in variables
+                for(size_t i=0; i < matches.size(); i++) {
+                    variables[target + "." + std::to_string(i)] = matches.str(i);
                 }
             }
             else {

@@ -3109,3 +3109,69 @@ TEST_F(Transform_test, FilterRegexKeyStringValue)
     nlohmann::json body = nlohmann::json::parse(response_body_);
     EXPECT_EQ(body["addr"], "10.0.0.1");
 }
+
+TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVault)
+{
+    // RegexKey with capture groups: value goes to vault, key+groups go to variables
+    common_resources_.VaultPtr->load("data", nlohmann::json({
+        {"imsi-5550110000000:rule1", nlohmann::json({{"qos", 15}})},
+        {"imsi-5550220000000:rule2", nlohmann::json({{"qos", 9}})}
+    }));
+
+    const nlohmann::json item1 = R"delim({
+        "source": "vault.data",
+        "target": "vault.matched",
+        "filter": { "RegexKey": "imsi-([0-9]+):(rule1)" }
+    })delim"_json;
+    const nlohmann::json item2 = R"({ "source": "vault.matched./qos", "target": "response.body.json.integer./qos" })"_json;
+    const nlohmann::json item3 = R"({ "source": "var.matched.0", "target": "response.body.json.string./key" })"_json;
+    const nlohmann::json item4 = R"({ "source": "var.matched.1", "target": "response.body.json.string./imsi" })"_json;
+    const nlohmann::json item5 = R"({ "source": "var.matched.2", "target": "response.body.json.string./rule" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+    server_provision_json_["transform"].push_back(item4);
+    server_provision_json_["transform"].push_back(item5);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["qos"], 15);
+    EXPECT_EQ(body["key"], "imsi-5550110000000:rule1");
+    EXPECT_EQ(body["imsi"], "5550110000000");
+    EXPECT_EQ(body["rule"], "rule1");
+}
+
+TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVar)
+{
+    // RegexKey with var target: value as string in target, key+groups in .0/.1/.2
+    common_resources_.VaultPtr->load("cfg", nlohmann::json({
+        {"host-prod-eu", "10.0.0.1"},
+        {"host-dev-us", "127.0.0.1"}
+    }));
+
+    const nlohmann::json item1 = R"delim({
+        "source": "vault.cfg",
+        "target": "var.result",
+        "filter": { "RegexKey": "host-(prod)-(eu)" }
+    })delim"_json;
+    const nlohmann::json item2 = R"({ "source": "var.result", "target": "response.body.json.string./value" })"_json;
+    const nlohmann::json item3 = R"({ "source": "var.result.0", "target": "response.body.json.string./key" })"_json;
+    const nlohmann::json item4 = R"({ "source": "var.result.1", "target": "response.body.json.string./env" })"_json;
+    const nlohmann::json item5 = R"({ "source": "var.result.2", "target": "response.body.json.string./region" })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+    server_provision_json_["transform"].push_back(item4);
+    server_provision_json_["transform"].push_back(item5);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["value"], "10.0.0.1");
+    EXPECT_EQ(body["key"], "host-prod-eu");
+    EXPECT_EQ(body["env"], "prod");
+    EXPECT_EQ(body["region"], "eu");
+}

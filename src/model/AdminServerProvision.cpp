@@ -858,9 +858,18 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             return false;
         }
         for (auto it = obj.begin(); it != obj.end(); ++it) {
-            if (std::regex_match(it.key(), transformation->getFilterRegex())) {
+            source = it.key(); // copy key to source (lives in transform() scope for matches lifetime)
+            if (std::regex_match(source, matches, transformation->getFilterRegex())) {
                 if (!sourceVault.setObject(it.value(), ""))
                     return false;
+                LOGDEBUG(
+                    std::stringstream ss;
+                    ss << "RegexKey filter: matched key '" << source << "'";
+                    for(size_t i=1; i < matches.size(); i++) {
+                        ss << " | group[" << i << "] = " << matches.str(i);
+                    }
+                    ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+                );
                 return true;
             }
         }
@@ -1117,7 +1126,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexCapture) {
                 std::string varname;
                 if (matches.size() >=1) { // this protection shouldn't be needed as it would be continued above on RegexCapture matching...
-                    variables[target] = matches.str(0); // variable "as is" stores the entire match
+                    variables[target] = matches.str(0); // variable "as is" stores the entire match (backward compatible)
                     for(size_t i=1; i < matches.size(); i++) {
                         varname = target;
                         varname += ".";
@@ -1129,6 +1138,22 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                             ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
                         );
                     }
+                }
+            }
+            else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexKey) {
+                // Store the value in the target variable
+                targetS = sourceVault.getString(success);
+                if (!success) return false;
+                variables[target] = targetS;
+                // Store matched key (.0) and capture groups (.1, .2, ...) in variables
+                for(size_t i=0; i < matches.size(); i++) {
+                    std::string varname = target + "." + std::to_string(i);
+                    variables[varname] = matches.str(i);
+                    LOGDEBUG(
+                        std::stringstream ss;
+                        ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
+                        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+                    );
                 }
             }
             else {
@@ -1179,6 +1204,37 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
                     } else {
                         vault_->loadAtPath(target, gvarPath, captureObj);
                     }
+                }
+            }
+            else if (hasFilter && transformation->getFilterType() == Transformation::FilterType::RegexKey) {
+                // Store value in vault (as today)
+                bool objSuccess = false;
+                const nlohmann::json &obj = sourceVault.getObject(objSuccess);
+                if (objSuccess) {
+                    if (gvarPath.empty()) {
+                        vault_->load(target, obj);
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, obj);
+                    }
+                } else {
+                    targetS = sourceVault.getString(success);
+                    if (!success) return false;
+                    nlohmann::json val(targetS);
+                    if (gvarPath.empty()) {
+                        vault_->load(target, std::move(val));
+                    } else {
+                        vault_->loadAtPath(target, gvarPath, val);
+                    }
+                }
+                // Store matched key (.0) and capture groups (.1, .2, ...) in variables
+                for(size_t i=0; i < matches.size(); i++) {
+                    std::string varname = target + "." + std::to_string(i);
+                    variables[varname] = matches.str(i);
+                    LOGDEBUG(
+                        std::stringstream ss;
+                        ss << "Variable '" << varname << "' takes value '" << matches.str(i) << "'";
+                        ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+                    );
                 }
             }
             else {
