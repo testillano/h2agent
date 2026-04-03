@@ -64,18 +64,24 @@ void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::labels_t familyLabels = {{"source", (source.empty() ? name_ : source)}};
+        std::string src = source.empty() ? name_ : source;
+
+        // Family labels are constant labels shared by all metrics in the family.
+        // Use for invariant dimensions (e.g. {{"deployment", "canary"}} or {{"region", "eu-west-1"}}).
+        // Variable dimensions like 'source' go as instance labels in Add() calls,
+        // allowing multiple client endpoints to coexist in the same family.
+        ert::metrics::labels_t familyLabels = {};
 
         ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_traffic_client_provisioned_requests_counter", "Requests provisioned counter in h2agent_traffic_client", familyLabels);
-        provisioned_requests_successful_counter_ = &(cf.Add({{"result", "successful"}}));
-        provisioned_requests_failed_counter_ = &(cf.Add({{"result", "failed"}}));
+        provisioned_requests_successful_counter_ = &(cf.Add({{"source", src}, {"result", "successful"}}));
+        provisioned_requests_failed_counter_ = &(cf.Add({{"source", src}, {"result", "failed"}}));
 
         ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily("h2agent_traffic_client_purged_contexts_counter", "Contexts purged counter in h2agent_traffic_client", familyLabels);
-        purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
-        purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
+        purged_contexts_successful_counter_ = &(cf2.Add({{"source", src}, {"result", "successful"}}));
+        purged_contexts_failed_counter_ = &(cf2.Add({{"source", src}, {"result", "failed"}}));
 
         ert::metrics::counter_family_t& cf3 = metrics->addCounterFamily("h2agent_traffic_client_unexpected_response_status_code_counter", "Unexpected response status code counter in h2agent_traffic_client", familyLabels);
-        unexpected_response_status_code_counter_ = &(cf3.Add({}));
+        unexpected_response_status_code_counter_ = &(cf3.Add({{"source", src}}));
     }
 }
 

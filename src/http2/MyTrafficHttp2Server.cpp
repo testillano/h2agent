@@ -73,17 +73,23 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const
     metrics_ = metrics;
 
     if (metrics_) {
-        ert::metrics::labels_t familyLabels = {{"source", (source.empty() ? name_:source)}}; // same way that http2comm library
+        std::string src = source.empty() ? name_ : source;
+
+        // Family labels are constant labels shared by all metrics in the family.
+        // Use for invariant dimensions (e.g. {{"deployment", "canary"}} or {{"region", "eu-west-1"}}).
+        // Variable dimensions like 'source' go as instance labels in Add() calls,
+        // allowing multiple server endpoints to coexist in the same family.
+        ert::metrics::labels_t familyLabels = {};
 
         ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_traffic_server_provisioned_requests_counter", "Requests provisioned counter in h2agent_traffic_server", familyLabels);
 
-        provisioned_requests_successful_counter_ = &(cf.Add({{"result", "successful"}}));
-        provisioned_requests_failed_counter_ = &(cf.Add({{"result", "failed"}}));
+        provisioned_requests_successful_counter_ = &(cf.Add({{"source", src}, {"result", "successful"}}));
+        provisioned_requests_failed_counter_ = &(cf.Add({{"source", src}, {"result", "failed"}}));
 
         ert::metrics::counter_family_t& cf2 = metrics->addCounterFamily("h2agent_traffic_server_purged_contexts_counter", "Contexts purged counter in h2agent_traffic_server", familyLabels);
 
-        purged_contexts_successful_counter_ = &(cf2.Add({{"result", "successful"}}));
-        purged_contexts_failed_counter_ = &(cf2.Add({{"result", "failed"}}));
+        purged_contexts_successful_counter_ = &(cf2.Add({{"source", src}, {"result", "successful"}}));
+        purged_contexts_failed_counter_ = &(cf2.Add({{"source", src}, {"result", "failed"}}));
     }
 }
 
