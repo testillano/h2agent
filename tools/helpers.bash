@@ -503,6 +503,8 @@ client_provision() {
     local single_shot=false
     local waiting_dot=false
     [ -z "$period" ] && single_shot=true && period=0
+    local start_epoch=$(date +%s)
+    local initial_seqs=
     while true; do
       local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
       local output=
@@ -515,12 +517,35 @@ client_provision() {
         "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) cps=\(.cps) repeat=\(.repeat) ETA=\($eta)s"
       ')
       if [ -n "$output" ]; then
+        # Capture initial sequences on first active iteration
+        if [ -z "$initial_seqs" ]; then
+          initial_seqs=$(echo "$json" | jq -r '
+            [.[] | select(.dynamics and .dynamics.cps > 0 and .dynamics.sequenceEnd >= .dynamics.sequence) |
+            {id: .id, seq: .dynamics.sequence, begin: .dynamics.sequenceBegin, end: .dynamics.sequenceEnd, cps: .dynamics.cps}] | @json
+          ')
+          start_epoch=$(date +%s)
+        fi
         ${waiting_dot} && echo && waiting_dot=false
         echo "$output"
         ${single_shot} && break
         [ "$period" -gt 0 ] 2>/dev/null && sleep "$period"
       elif ! ${wait}; then
-        echo "No active dynamics."
+        # Print summary if we tracked any dynamics
+        if [ -n "$initial_seqs" ]; then
+          local elapsed=$(( $(date +%s) - start_epoch ))
+          [ $elapsed -lt 1 ] && elapsed=1
+          local total_sent=$(echo "$initial_seqs" | jq -r "
+            [.[] | .end - .seq + 1] | add // 0
+          ")
+          local initial_eta=$(echo "$initial_seqs" | jq -r '
+            [.[] | select(.cps > 0) | ((.end - .begin + 1) / .cps)] | max | floor
+          ')
+          local avg_cps=$(( total_sent / elapsed ))
+          echo
+          echo "Expected duration: ${initial_eta}s | Elapsed: ${elapsed}s | Avg CPS: ${avg_cps}"
+        else
+          echo "No active dynamics."
+        fi
         break
       else
         ${waiting_dot} || echo -n "No active dynamics."
