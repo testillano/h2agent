@@ -1434,6 +1434,10 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
     if (it != j.end() && it->is_string()) {
         out_state_ = *it;
         if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
+        if (out_state_ == DEFAULT_ADMIN_PROVISION_STATE) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid outState reserved value: %s", DEFAULT_ADMIN_PROVISION_STATE), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     it = j.find("requestSchemaId");

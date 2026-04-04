@@ -1680,6 +1680,19 @@ When *scenario1* is triggered, its current state is searched assuming "initial" 
 
 The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning.
 
+#### Chain cycle prevention
+
+Client provision chains progress automatically: when a provision completes, the `outState` is used to find the next provision with matching `inState`. This creates a risk of infinite loops if the chain forms a cycle. The following safeguards are in place:
+
+**Reserved values**:
+
+- `outState` = `"initial"` is **rejected** at provision time. Since `"initial"` is the default entry point for chains, allowing it as an output state would trivially create cycles. A chain that needs to "restart" should use a different design (e.g. dynamics with `repeat`).
+- `inState` = `"road-closed"` is **rejected** at provision time. This value is reserved as the default `outState` (chain terminator) and no provision should be reachable through it.
+
+**Self-loop detection**: at runtime, state progression requires `outState` to differ from `inState`. If they are equal, the chain stops. This prevents a single provision from re-triggering itself.
+
+**Multi-step cycles are not detected**: cycles involving two or more provisions (e.g. A→B→C→A where none of the individual `outState` values equal their own `inState`) will result in an infinite chain — unbounded event accumulation in `client-data` (memory growth) and endless traffic to the target server. This is a deliberate simplification: detecting arbitrary graph cycles at runtime would add complexity for a scenario that is unlikely in practice and typically indicates a design error. Note that chains can start at any `inState` (not just `"initial"`), so cycles can form between any set of states. Be mindful of your `outState` transitions to avoid circular paths.
+
 <u>Special **purge** state</u>: the keyword '*purge*' clears all events accumulated during the chain — including events from previous steps with different endpoints, methods or URIs. This is where chain-aware purge is most valuable: client chains are identified by provision `id` + `inState`, and each step typically targets a different method+URI, so without it only the last step's events would be removed. Incomplete chains retain their full event history for forensics. The data-key-level caveat described in the server purge section applies here as well.
 
 ### Client provision fields

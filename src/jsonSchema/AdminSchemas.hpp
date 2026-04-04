@@ -486,7 +486,8 @@ const nlohmann::json client_provision = R"(
     },
     "outState":{
       "type": "string",
-      "pattern": "^[^#]*$"
+      "pattern": "^[^#]*$",
+      "not": { "enum": ["initial"] }
     },
     "endpoint":{
       "type": "string",
