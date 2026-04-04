@@ -142,6 +142,12 @@ def step_provision_response_schema(context, schema_id):
     context.provision["responseSchemaId"] = schema_id
 
 
+@step(f'with transform from {Q} to {Q} and filter {Q}')
+def step_provision_transform_string_filter(context, source, target, filt):
+    item = {"source": source, "target": target, "filter": filt}
+    context.provision.setdefault("transform", []).append(item)
+
+
 @step(f'with transform from {Q} to {Q} and filter')
 def step_provision_transform_filter(context, source, target):
     item = {"source": source, "target": target, "filter": _parse_json(context.text)}
@@ -310,6 +316,12 @@ def step_provision_timeout(context, ms):
     context.provision["timeoutMs"] = int(ms)
 
 
+@step(f'with on-response transform from {Q} to {Q} and filter {Q}')
+def step_provision_on_response_transform_string_filter(context, source, target, filt):
+    item = {"source": source, "target": target, "filter": filt}
+    context.provision.setdefault("onResponseTransform", []).append(item)
+
+
 @step(f'with on-response transform from {Q} to {Q} and filter')
 def step_provision_on_response_transform_filter(context, source, target):
     item = {"source": source, "target": target, "filter": _parse_json(context.text)}
@@ -359,6 +371,13 @@ def step_trigger_client_provision_range(context, prov_id, begin, end, cps):
                   params={"sequenceBegin": int(begin), "sequenceEnd": int(end),
                           "cps": int(cps)},
                   expected_codes=None)
+
+
+@when(f'client provision {Q} cps is set to {D}')
+def step_trigger_client_provision_cps_only(context, prov_id, cps):
+    _dump_or_exec(context, f"trigger-{prov_id}", "GET",
+                  f"client-provision/{prov_id}",
+                  params={"cps": int(cps)}, expected_codes=None)
 
 
 @when(f'client provision {Q} is triggered')
@@ -536,6 +555,16 @@ def step_vault_check(context, key, expected):
     r = context.h2.get(context.h2.admin_url("vault"), params={"name": key})
     assert r.status_code == 200, f"vault get failed: {r.status_code}"
     assert r.text.strip() == expected, f"Vault '{key}': expected '{expected}', got '{r.text.strip()}'"
+
+
+@then(f'vault {Q} should be')
+def step_vault_check_json(context, key):
+    if context.dump:
+        return
+    r = context.h2.get(context.h2.admin_url("vault"), params={"name": key})
+    assert r.status_code == 200, f"vault get failed: {r.status_code}"
+    assert r.json() == _parse_json(context.text), \
+        f"Vault '{key}': expected {context.text.strip()}, got {r.text.strip()}"
 
 
 @when('vault is cleared')
