@@ -628,7 +628,7 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     std::uint64_t targetU = 0;
     double targetF = 0;
 
-    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime && transformation->getFilterType() != Transformation::FilterType::RegexKey) {
+    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime && transformation->getFilterType() != Transformation::FilterType::RegexKey && transformation->getFilterType() != Transformation::FilterType::Size) {
         source = sourceVault.getString(success);
         if (!success) return false;
     }
@@ -858,6 +858,20 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
             }
         }
         return false;
+    }
+    case Transformation::FilterType::Size:
+    {
+        bool objSuccess = false;
+        nlohmann::json obj = sourceVault.getObject(objSuccess);
+        if (objSuccess && (obj.is_object() || obj.is_array())) {
+            targetS = std::to_string(obj.size());
+        }
+        else {
+            source = sourceVault.getString(objSuccess);
+            targetS = objSuccess ? std::to_string(source.size()) : "0";
+        }
+        sourceVault.setString(targetS);
+        break;
     }
     }
 

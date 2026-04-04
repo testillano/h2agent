@@ -130,9 +130,12 @@ const nlohmann::json server_provision = R"(
 
   "definitions": {
     "filter": {
-      "type": "object",
-      "additionalProperties": false,
       "oneOf": [
+        { "type": "string", "enum": ["Size"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "oneOf": [
         {"required": ["RegexCapture"]},
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
@@ -215,6 +218,8 @@ const nlohmann::json server_provision = R"(
         },
         "RegexKey": { "type": "string" }
       }
+        }
+      ]
     }
   },
   "type": "object",
@@ -372,9 +377,12 @@ const nlohmann::json client_provision = R"(
 
   "definitions": {
     "filter": {
-      "type": "object",
-      "additionalProperties": false,
       "oneOf": [
+        { "type": "string", "enum": ["Size"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "oneOf": [
         {"required": ["RegexCapture"]},
         {"required": ["RegexReplace"]},
         {"required": ["Append"]},
@@ -457,6 +465,8 @@ const nlohmann::json client_provision = R"(
         },
         "RegexKey": { "type": "string" }
       }
+        }
+      ]
     }
   },
   "type": "object",

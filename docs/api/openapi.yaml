@@ -1112,12 +1112,18 @@ components:
           required: [filter]
 
     TransformFilter:
-      type: object
-      additionalProperties: false
-      description: >
-        Optional filter applied over source before storing in target.
-        Exactly one filter type must be specified.
-      properties:
+      oneOf:
+        - type: string
+          enum: [Size]
+          description: >
+            Parameterless filter. Size returns the number of elements
+            (object keys, array items) or string length.
+        - type: object
+          additionalProperties: false
+          description: >
+            Optional filter applied over source before storing in target.
+            Exactly one filter type must be specified.
+          properties:
         RegexCapture:
           type: string
           description: Regex with optional capture groups applied to source

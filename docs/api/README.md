@@ -1034,6 +1034,21 @@ Filters give you the chance to make complex transformations:
   ]
   ```
 
+- Size: returns the number of elements in the source value as a numeric string. For JSON objects it returns the number of keys, for JSON arrays the number of elements, and for strings the number of characters. This is a parameterless filter specified as a plain string (`"filter": "Size"`), not an object.
+
+  ```json
+  {"source": "response.body./items", "target": "var.itemCount", "filter": "Size"}
+  ```
+
+  If `response.body./items` is `["a", "b", "c"]`, then `var.itemCount` will be `"3"`. The result is always a string, usable in math expressions:
+
+  ```json
+  [
+    {"source": "response.body./items", "target": "var.itemCount", "filter": "Size"},
+    {"source": "math.@{itemCount} == 3", "target": "var.itemCountOK"}
+  ]
+  ```
+
 - Append: this appends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json

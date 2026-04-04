@@ -123,6 +123,13 @@ bool Transformation::load(const nlohmann::json &j) {
         //   BaseConvert          in -> [filter_i_], out -> [filter_u_], capital -> [filter_number_type_]
         //   Strptime            fmt -> [filter_], unit -> [filter_number_type_] (0:s,1:ms,2:us,3:ns)
         //   Strftime            fmt -> [filter_], unit -> [filter_number_type_] (0:s,1:ms,2:us,3:ns)
+        //   Size                (parameterless, string filter)
+
+        // Parameterless string filters:
+        if (it->is_string() && it->get<std::string>() == "Size") {
+            filter_type_ = FilterType::Size;
+        }
+        else {
 
         auto f_it = it->find("RegexCapture");
 
@@ -241,6 +248,7 @@ bool Transformation::load(const nlohmann::json &j) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
             return false;
         }
+        } // else (object filters)
     }
 
     // Interpret source/target:
@@ -853,7 +861,7 @@ std::string Transformation::asString() const {
     // FILTER
     if (has_filter_) {
         ss << " | FilterType: " << FilterTypeAsText(filter_type_);
-        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split && filter_type_ != FilterType::BaseConvert && filter_type_ != FilterType::FStrptime && filter_type_ != FilterType::FStrftime) {
+        if (filter_type_ != FilterType::Sum && filter_type_ != FilterType::Multiply && filter_type_ != FilterType::Split && filter_type_ != FilterType::BaseConvert && filter_type_ != FilterType::FStrptime && filter_type_ != FilterType::FStrftime && filter_type_ != FilterType::Size) {
             /*<< " | filter_rgx_: ?"*/
             ss << " | filter_ " << filter_;
 

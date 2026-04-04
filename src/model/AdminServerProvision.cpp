@@ -508,8 +508,8 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     std::uint64_t targetU = 0;
     double targetF = 0;
 
-    // all the filters except Sum/Multiply/Strftime, require a string target
-    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime && transformation->getFilterType() != Transformation::FilterType::RegexKey) {
+    // all the filters except Sum/Multiply/Strftime/RegexKey/Size, require a string target
+    if (transformation->getFilterType() != Transformation::FilterType::Sum && transformation->getFilterType() != Transformation::FilterType::Multiply && transformation->getFilterType() != Transformation::FilterType::FStrftime && transformation->getFilterType() != Transformation::FilterType::RegexKey && transformation->getFilterType() != Transformation::FilterType::Size) {
         source = sourceVault.getString(success);
         if (!success) return false;
     }
@@ -875,6 +875,20 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
         }
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("RegexKey filter: no key matched '%s'", transformation->getFilter().c_str()), ERT_FILE_LOCATION));
         return false;
+    }
+    case Transformation::FilterType::Size:
+    {
+        bool objSuccess = false;
+        nlohmann::json obj = sourceVault.getObject(objSuccess);
+        if (objSuccess && (obj.is_object() || obj.is_array())) {
+            targetS = std::to_string(obj.size());
+        }
+        else {
+            source = sourceVault.getString(objSuccess);
+            targetS = objSuccess ? std::to_string(source.size()) : "0";
+        }
+        sourceVault.setString(targetS);
+        break;
     }
     }
     //}

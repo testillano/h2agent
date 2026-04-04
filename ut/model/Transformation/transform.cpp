@@ -3175,3 +3175,65 @@ TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVar)
     EXPECT_EQ(body["env"], "prod");
     EXPECT_EQ(body["region"], "eu");
 }
+
+TEST_F(Transform_test, FilterSizeJsonArray)
+{
+    const nlohmann::json item = R"({
+        "source": "request.body./node1/node2",
+        "target": "response.body.json.string./count",
+        "filter": "Size"
+    })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    // node1.node2 is "value-of-node1-node2" (string, 20 chars)
+    // Use a body with an array instead:
+    nlohmann::json body;
+    body["items"] = nlohmann::json::array({1, 2, 3, 4, 5});
+    const nlohmann::json item2 = R"({
+        "source": "request.body./items",
+        "target": "response.body.json.string./count",
+        "filter": "Size"
+    })"_json;
+    server_provision_json_["transform"].clear();
+    server_provision_json_["transform"].push_back(item2);
+
+    provisionAndTransform(body.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json resp = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(resp["count"], "5");
+}
+
+TEST_F(Transform_test, FilterSizeJsonObject)
+{
+    nlohmann::json body;
+    body["data"] = nlohmann::json({{"a", 1}, {"b", 2}, {"c", 3}});
+    const nlohmann::json item = R"({
+        "source": "request.body./data",
+        "target": "response.body.json.string./count",
+        "filter": "Size"
+    })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    provisionAndTransform(body.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json resp = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(resp["count"], "3");
+}
+
+TEST_F(Transform_test, FilterSizeString)
+{
+    const nlohmann::json item = R"({
+        "source": "value.hello",
+        "target": "response.body.json.string./count",
+        "filter": "Size"
+    })"_json;
+    server_provision_json_["transform"].push_back(item);
+
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json resp = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(resp["count"], "5");
+}
