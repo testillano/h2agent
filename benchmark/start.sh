@@ -382,7 +382,6 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   CLIENT_PROMETHEUS_PORT=$((H2AGENT__PROMETHEUS_PORT + 1))
   CLIENT_PROMETHEUS_URL="http://${H2AGENT__BIND_ADDRESS}:${CLIENT_PROMETHEUS_PORT}/metrics"
   NPROC=$(nproc)
-  CLIENT_WORKERS=$(( NPROC / 2 > 2 ? NPROC / 2 : 2 ))
 
   # Server mock setup (fixture) — on the MAIN h2agent
   h2a_admin_curl DELETE admin/v1/server-provision
@@ -402,12 +401,11 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   read_value "Number of iterations" H2CLIENT__ITERATIONS
 
   # Start dedicated client h2agent (no traffic server, just client + admin + prometheus)
-  echo -e "\nStarting client h2agent (admin=${CLIENT_ADMIN_PORT}, prometheus=${CLIENT_PROMETHEUS_PORT}, workers=${CLIENT_WORKERS})..."
+  echo -e "\nStarting client h2agent (admin=${CLIENT_ADMIN_PORT}, prometheus=${CLIENT_PROMETHEUS_PORT})..."
   docker run --rm -d --network=host --name ${CLIENT_DCK_NAME} -u $(id -u) \
     ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} \
     --admin-port ${CLIENT_ADMIN_PORT} \
     --traffic-server-port 0 \
-    --traffic-client-worker-threads ${CLIENT_WORKERS} \
     --prometheus-port ${CLIENT_PROMETHEUS_PORT} \
     --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3" \
     --log-level Warning \
@@ -420,7 +418,7 @@ elif [ "${BENCH_MODE}" = "client" ]; then
     sleep 0.1
   done
   CLIENT_H2AGENT_PID=$(docker inspect -f '{{.State.Pid}}' ${CLIENT_DCK_NAME} 2>/dev/null)
-  echo "Client h2agent ready (container=${CLIENT_DCK_NAME}, PID=${CLIENT_H2AGENT_PID}, workers=${CLIENT_WORKERS})"
+  echo "Client h2agent ready (container=${CLIENT_DCK_NAME}, PID=${CLIENT_H2AGENT_PID})"
 
   # Helper: admin curl targeting the CLIENT h2agent
   client_admin_curl() {

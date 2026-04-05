@@ -80,6 +80,7 @@ namespace
 h2agent::http2::MyAdminHttp2Server* myAdminHttp2Server = nullptr;
 h2agent::http2::MyTrafficHttp2Server* myTrafficHttp2Server = nullptr; // incoming traffic
 boost::asio::io_context *myTimersIoContext = nullptr;
+boost::asio::io_context *myClientWorkerIoContext = nullptr;
 h2agent::model::Configuration* myConfiguration = nullptr;
 h2agent::model::Vault* myVault = nullptr;
 h2agent::model::FileManager* myFileManager = nullptr;
@@ -178,6 +179,10 @@ void stopAgent()
                        "Stopping h2agent timers service at %s", currentDateTime().c_str()), ERT_FILE_LOCATION));
         myTimersIoContext->stop();
     }
+    if (myClientWorkerIoContext)
+    {
+        myClientWorkerIoContext->stop();
+    }
     if (myAdminHttp2Server)
     {
         LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString(
@@ -222,6 +227,9 @@ void stopAgent()
 
     delete(myTimersIoContext);
     myTimersIoContext = nullptr;
+
+    delete(myClientWorkerIoContext);
+    myClientWorkerIoContext = nullptr;
 }
 
 void myExit(int rc)
@@ -422,12 +430,24 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  By default connections are performed when adding client endpoints.\n"
        << "  This option configures remote addresses to be connected on demand.\n\n"
 
+       << "[--traffic-client-connections <connections>]\n"
+       << "  Number of HTTP/2 connections per client endpoint; defaults to 1.\n"
+       << "  With 3 endpoints and 2 connections, 6 total connections are created.\n"
+       << "  A single HTTP/2 connection already multiplexes thousands of concurrent\n"
+       << "  streams, so increasing this is rarely needed. Only useful when a single\n"
+       << "  connection saturates its I/O thread (very high throughput with large\n"
+       << "  bodies). Note: this does NOT parallelize transforms — use\n"
+       << "  --traffic-client-worker-threads for CPU parallelism.\n\n"
+
        << "[--traffic-client-worker-threads <threads>]\n"
-       << "  Number of traffic client worker threads per endpoint; defaults to 1.\n"
-       << "  Each worker creates its own HTTP/2 connection to the endpoint.\n"
-       << "  Requests are dispatched round-robin (sequence % threads) across\n"
-       << "  workers, parallelizing response processing (transforms, JsonConstraint,\n"
-       << "  etc.) while a single timer drives the configured provision rate (cps).\n\n"
+       << "  Worker pool for client request preparation; defaults to 'nproc' ("
+       << std::thread::hardware_concurrency() << " in this system).\n"
+       << "  Decouples the CPS timer from transform execution: the timer thread\n"
+       << "  only increments the sequence and enqueues work, while worker threads\n"
+       << "  execute transforms (JSON build, regex, math, vault) and dispatch\n"
+       << "  asyncSend. Chain continuations (next step after response) are also\n"
+       << "  posted here, freeing HTTP/2 I/O threads.\n"
+       << "  This is the main knob for scaling client-mode throughput.\n\n"
 
        << "[-V|--version]\n"
        << "  Program version.\n\n"
@@ -449,9 +469,11 @@ void usage(int rc, const std::string &errorMessage = "")
        << "    congestion control (503 responses when queue exceeds S).\n\n"
 
        << "  Traffic client (load generator):\n"
-       << "    " << progname << " --traffic-server-port 0 --traffic-client-worker-threads <N>\n"
-       << "    Disable server with port 0. Each worker opens its own connection,\n"
-       << "    multiplying effective throughput.\n\n"
+       << "    " << progname << " --traffic-server-port 0\n"
+       << "    Disable server with port 0. Worker threads default to nproc,\n"
+       << "    parallelizing transforms across all cores. Add\n"
+       << "    '--traffic-client-connections <N>' only if a single HTTP/2\n"
+       << "    connection per endpoint becomes an I/O bottleneck.\n\n"
 
        << "  Benchmark:\n"
        << "    " << progname << " --verbose --prometheus-response-delay-seconds-histogram-boundaries\n"
@@ -805,15 +827,27 @@ int main(int argc, char* argv[])
         myConfiguration->setLazyClientConnection(true);
     }
 
+    if (readCmdLine(argv, argv + argc, "--traffic-client-connections", value))
+    {
+        int traffic_client_connections = toNumber(value);
+        if (traffic_client_connections < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-client-connections' value. Must be greater than 0.");
+        }
+        myConfiguration->setTrafficClientConnections(traffic_client_connections);
+    }
+
+    int traffic_client_worker_threads_pool = std::thread::hardware_concurrency();
+    if (traffic_client_worker_threads_pool < 1) traffic_client_worker_threads_pool = 1;
     if (readCmdLine(argv, argv + argc, "--traffic-client-worker-threads", value))
     {
-        int traffic_client_worker_threads = toNumber(value);
-        if (traffic_client_worker_threads < 1)
+        traffic_client_worker_threads_pool = toNumber(value);
+        if (traffic_client_worker_threads_pool < 1)
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-client-worker-threads' value. Must be greater than 0.");
         }
-        myConfiguration->setTrafficClientWorkerThreads(traffic_client_worker_threads);
     }
+
     // Logger verbosity
     ert::tracing::Logger::verbose(verbose);
 
@@ -938,7 +972,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     std::cout << "Long-term files close delay (usecs): " << myConfiguration->getLongTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
-    std::cout << "Traffic client worker threads: " << myConfiguration->getTrafficClientWorkerThreads() << '\n';
+    std::cout << "Traffic client connections: " << myConfiguration->getTrafficClientConnections() << '\n';
+    std::cout << "Traffic client worker threads: " << traffic_client_worker_threads_pool << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -973,6 +1008,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myAdminHttp2Server->setFileManager(myFileManager);
     myAdminHttp2Server->setSocketManager(mySocketManager);
     myAdminHttp2Server->setTimersIoContext(myTimersIoContext);
+    myAdminHttp2Server->setClientWorkerIoContext(myClientWorkerIoContext);
     myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name); // for client connection class
 
     // Timers thread:
@@ -980,6 +1016,16 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         boost::asio::io_context::work work(*myTimersIoContext);
         myTimersIoContext->run();
     });
+
+    // Client worker pool (transforms + asyncSend):
+    myClientWorkerIoContext = new boost::asio::io_context();
+    auto clientWorkerPoolWork = std::make_unique<boost::asio::io_context::work>(*myClientWorkerIoContext);
+    std::vector<std::thread> clientWorkerPoolThreads;
+    for (int i = 0; i < traffic_client_worker_threads_pool; i++) {
+        clientWorkerPoolThreads.emplace_back([&] {
+            myClientWorkerIoContext->run();
+        });
+    }
 
     // Mock data (may be not used):
     myMockServerData = new h2agent::model::MockServerData();
@@ -1175,6 +1221,10 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     // Join timers thread
     tt.join();
+
+    // Join client worker pool threads
+    clientWorkerPoolWork.reset(); // release work guard so threads can exit
+    for (auto& t : clientWorkerPoolThreads) t.join();
 
     // Join synchronous nghttp2 serve() threads
     t1.join();

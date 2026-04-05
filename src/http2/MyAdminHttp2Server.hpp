@@ -83,6 +83,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
     boost::asio::io_context *timers_io_context_{};
+    boost::asio::io_context *client_worker_io_context_{};
 
     // Client data storage:
     bool client_data_{};
@@ -181,6 +182,9 @@ public:
 
     void setTimersIoContext(boost::asio::io_context *p) {
         timers_io_context_ = p;
+    }
+    void setClientWorkerIoContext(boost::asio::io_context *p) {
+        client_worker_io_context_ = p;
     }
 
     /**

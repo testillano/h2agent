@@ -1894,7 +1894,7 @@ So, together with provision information configured, we store dynamic load config
 }
 ```
 
-> **Note**: `dynamics` fields are a read-only external snapshot accessible via the REST API only (e.g., to poll for completion). They are **not** available as transform variables. To use the current sequence value inside a transform, use the `seq` source instead.
+> **Note**: `dynamics` fields are a read-only external snapshot accessible via the REST API only (e.g., to poll for completion). They are **not** available as transform variables. To use the current sequence value inside a transform, use the `seq` source instead. Dynamics are refreshed every 500ms during active ticking and on-demand when queried via the admin API, so values may lag slightly under high CPS.
 
 *Configuration rules:*
 

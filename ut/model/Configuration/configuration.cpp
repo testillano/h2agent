@@ -11,7 +11,7 @@ const nlohmann::json DefaultConfiguration = R"(
   "longTermFilesCloseDelayUsecs": 1000000,
   "queueDispatcherMaxSize": -1,
   "shortTermFilesCloseDelayUsecs": 0,
-  "trafficClientWorkerThreads": 1,
+  "trafficClientConnections": 1,
   "trafficServerMaxWorkerThreads": 1,
   "trafficServerWorkerThreads": 1
 }

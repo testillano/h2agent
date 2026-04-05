@@ -1089,7 +1089,14 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 if (nextProvision) {
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
-                    sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys);
+                    if (client_worker_io_context_) {
+                        boost::asio::post(*client_worker_io_context_, [this, nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys]() {
+                            sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys);
+                        });
+                    }
+                    else {
+                        sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys);
+                    }
                 }
             }
         },
@@ -1201,7 +1208,14 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     // Timer-based triggering (cps > 0) or single request
     if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
         provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
-            sendClientRequest(provision, inState, clientEndpoint);
+            if (client_worker_io_context_) {
+                boost::asio::post(*client_worker_io_context_, [this, provision, inState, clientEndpoint]() {
+                    sendClientRequest(provision, inState, clientEndpoint);
+                });
+            }
+            else {
+                sendClientRequest(provision, inState, clientEndpoint);
+            }
         });
     }
     else if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() == 0) {

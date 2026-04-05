@@ -911,12 +911,23 @@ Options:
   By default connections are performed when adding client endpoints.
   This option configures remote addresses to be connected on demand.
 
+[--traffic-client-connections <connections>]
+  Number of HTTP/2 connections per client endpoint; defaults to 1.
+  Each connection is independent. A single HTTP/2 connection already
+  multiplexes thousands of concurrent streams, so increasing this is
+  rarely needed. Only useful when a single connection saturates its
+  I/O thread (very high throughput with large bodies).
+  Note: this does NOT parallelize transforms — use
+  --traffic-client-worker-threads for CPU parallelism.
+
 [--traffic-client-worker-threads <threads>]
-  Number of traffic client worker threads per endpoint; defaults to 1.
-  Each worker creates its own HTTP/2 connection to the endpoint.
-  Requests are dispatched round-robin (sequence % threads) across
-  workers, parallelizing response processing (transforms, JsonConstraint,
-  etc.) while a single timer drives the configured provision rate (cps).
+  Worker pool for client request preparation; defaults to 'nproc'.
+  Decouples the CPS timer from transform execution: the timer thread
+  only increments the sequence and enqueues work, while worker threads
+  execute transforms (JSON build, regex, math, vault) and dispatch
+  asyncSend. Chain continuations (next step after response) are also
+  posted here, freeing HTTP/2 I/O threads.
+  This is the main knob for scaling client-mode throughput.
 
 [-V|--version]
   Program version.
@@ -938,9 +949,11 @@ Typical use cases:
     congestion control (503 responses when queue exceeds S).
 
   Traffic client (load generator):
-    h2agent --traffic-server-port 0 --traffic-client-worker-threads <N>
-    Disable server with port 0. Each worker opens its own connection,
-    multiplying effective throughput.
+    h2agent --traffic-server-port 0
+    Disable server with port 0. Preparation threads default to 'nproc',
+    parallelizing transforms across all cores. Add
+    '--traffic-client-connections <N>' only if a single HTTP/2
+    connection per endpoint becomes an I/O bottleneck.
 
   Benchmark:
     h2agent --verbose --prometheus-response-delay-seconds-histogram-boundaries

@@ -93,7 +93,7 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
                     registeredClientEndpoint->getSecure() != clientEndpoint->getSecure()) {
 
                 registeredClientEndpoint->load(j);
-                if (!cr.ConfigurationPtr->getLazyClientConnection()) registeredClientEndpoint->connect(true /* from scratch */, cr.ConfigurationPtr->getTrafficClientWorkerThreads());
+                if (!cr.ConfigurationPtr->getLazyClientConnection()) registeredClientEndpoint->connect(true /* from scratch */, cr.ConfigurationPtr->getTrafficClientConnections());
                 return Accepted;
             }
 
@@ -104,7 +104,7 @@ AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nl
         }
         else {
             add(key, clientEndpoint);
-            if (!cr.ConfigurationPtr->getLazyClientConnection()) clientEndpoint->connect(false, cr.ConfigurationPtr->getTrafficClientWorkerThreads());
+            if (!cr.ConfigurationPtr->getLazyClientConnection()) clientEndpoint->connect(false, cr.ConfigurationPtr->getTrafficClientConnections());
         }
 
         return Success;

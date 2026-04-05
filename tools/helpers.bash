@@ -505,6 +505,7 @@ client_provision() {
     [ -z "$period" ] && single_shot=true && period=0
     local start_epoch=$(date +%s)
     local initial_seqs=
+    local prev_output=
     while true; do
       local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
       local output=
@@ -526,7 +527,10 @@ client_provision() {
           start_epoch=$(date +%s)
         fi
         ${waiting_dot} && echo && waiting_dot=false
-        echo "$output"
+        if [ "$output" != "$prev_output" ]; then
+          echo "$output"
+          prev_output=$output
+        fi
         ${single_shot} && break
         [ "$period" -gt 0 ] 2>/dev/null && sleep "$period"
       elif ! ${wait}; then

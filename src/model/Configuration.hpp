@@ -56,7 +56,7 @@ class Configuration
     unsigned int traffic_server_worker_threads_{};
     unsigned int traffic_server_max_worker_threads_{};
     int queue_dispatcher_max_size_{};
-    unsigned int traffic_client_worker_threads_{};
+    unsigned int traffic_client_connections_{};
     bool disable_metrics_{};
 
 public:
@@ -70,7 +70,7 @@ public:
         traffic_server_worker_threads_ = 1;
         traffic_server_max_worker_threads_ = 1;
         queue_dispatcher_max_size_ = -1;
-        traffic_client_worker_threads_ = 1;
+        traffic_client_connections_ = 1;
         disable_metrics_ = false;
     }
 
@@ -170,19 +170,19 @@ public:
     /**
      * Set traffic client worker threads
      *
-     * @param threads Number of client worker threads
+     * @param connections Number of HTTP/2 connections per client endpoint
      */
-    void setTrafficClientWorkerThreads(unsigned int threads) {
-        traffic_client_worker_threads_ = threads;
+    void setTrafficClientConnections(unsigned int connections) {
+        traffic_client_connections_ = connections;
     }
 
     /**
-     * Get traffic client worker threads
+     * Get traffic client connections per endpoint
      *
-     * @return Number of client worker threads
+     * @return Number of HTTP/2 connections per client endpoint
      */
-    unsigned int getTrafficClientWorkerThreads() const {
-        return traffic_client_worker_threads_;
+    unsigned int getTrafficClientConnections() const {
+        return traffic_client_connections_;
     }
 
     void setDisableMetrics(bool disable) {

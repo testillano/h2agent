@@ -74,7 +74,7 @@ class AdminClientProvision
 {
     bool employed_{};
 
-    nlohmann::json json_{}; // provision reference
+    mutable nlohmann::json json_{}; // provision reference (mutable for lazy dynamics update)
 
     admin_client_provision_key_t key_{}; // calculated in every load()
 
@@ -124,9 +124,10 @@ class AdminClientProvision
     boost::asio::steady_timer *timer_{};
     boost::asio::io_context *io_context_{};
     std::function<void()> tick_callback_{};
+    std::chrono::steady_clock::time_point last_dynamics_save_{};
     void scheduleTick(bool first = true);
 
-    void saveDynamics();
+    void saveDynamics() const;
 
     // Three processing stages: get sources, apply filters and store targets:
     // When receivedResponse is not nullptr, response.* sources are available (post-response phase)
@@ -351,6 +352,7 @@ public:
      * @return Json object
      */
     const nlohmann::json &getJson() const {
+        saveDynamics(); // refresh before returning
         return json_;
     }
 

@@ -57,7 +57,7 @@ nlohmann::json Configuration::getJson() const {
     result["trafficServerWorkerThreads"] = traffic_server_worker_threads_;
     result["trafficServerMaxWorkerThreads"] = traffic_server_max_worker_threads_;
     result["queueDispatcherMaxSize"] = queue_dispatcher_max_size_;
-    result["trafficClientWorkerThreads"] = traffic_client_worker_threads_;
+    result["trafficClientConnections"] = traffic_client_connections_;
     result["disableMetrics"] = disable_metrics_;
 
     return result;

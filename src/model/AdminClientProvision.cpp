@@ -107,7 +107,7 @@ std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getResponseSc
     return response_schema_;
 }
 
-void AdminClientProvision::saveDynamics() {
+void AdminClientProvision::saveDynamics() const {
     json_["dynamics"]["sequence"] = seq_;
     json_["dynamics"]["sequenceBegin"] = seq_begin_;
     json_["dynamics"]["sequenceEnd"] = seq_end_;
@@ -1348,6 +1348,7 @@ void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std:
         seq_ = seq_begin_ - 1; // outside range: reset (exhausted or never started)
     }
     saveDynamics();
+    last_dynamics_save_ = std::chrono::steady_clock::now();
     timer_ = new boost::asio::steady_timer(*io_context_);
     scheduleTick();
 }
@@ -1377,17 +1378,22 @@ void AdminClientProvision::scheduleTick(bool first) {
         if (ec) return; // cancelled
 
         seq_++;
-        saveDynamics();
 
         if (seq_ > seq_end_) {
             if (repeat_) {
                 seq_ = seq_begin_;
-                saveDynamics();
             }
             else {
+                saveDynamics(); // final update before stopping
                 stopTicking();
                 return;
             }
+        }
+
+        auto now = std::chrono::steady_clock::now();
+        if (now - last_dynamics_save_ >= std::chrono::milliseconds(500)) {
+            saveDynamics();
+            last_dynamics_save_ = now;
         }
 
         scheduleTick(false); // schedule next BEFORE callback to avoid drift
