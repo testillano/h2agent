@@ -85,6 +85,11 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     boost::asio::io_context *timers_io_context_{};
     boost::asio::io_context *client_worker_io_context_{};
 
+    // Dispatch latency measurement:
+    mutable std::atomic<uint64_t> dispatch_latency_sum_us_{0};
+    mutable std::atomic<uint64_t> dispatch_latency_count_{0};
+    mutable std::atomic<uint64_t> dispatch_latency_max_us_{0};
+
     // Client data storage:
     bool client_data_{};
     bool client_data_key_history_{};
@@ -185,6 +190,25 @@ public:
     }
     void setClientWorkerIoContext(boost::asio::io_context *p) {
         client_worker_io_context_ = p;
+    }
+
+    void recordDispatchLatency(std::chrono::steady_clock::time_point t0) const {
+        auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - t0).count();
+        dispatch_latency_sum_us_ += us;
+        dispatch_latency_count_++;
+        uint64_t prev = dispatch_latency_max_us_.load();
+        while (prev < (uint64_t)us && !dispatch_latency_max_us_.compare_exchange_weak(prev, us));
+    }
+
+    std::string dispatchLatencyAsJsonString() const {
+        uint64_t count = dispatch_latency_count_.load();
+        uint64_t sum = dispatch_latency_sum_us_.load();
+        uint64_t max = dispatch_latency_max_us_.load();
+        double avg = count > 0 ? (double)sum / count : 0;
+        return "{\"avgUs\":" + std::to_string(avg) +
+               ",\"maxUs\":" + std::to_string(max) +
+               ",\"count\":" + std::to_string(count) + "}";
     }
 
     /**

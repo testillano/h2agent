@@ -2018,6 +2018,33 @@ The triggers are executed asynchronously after the server response is fully buil
 
 ## Client data
 
+### Client dispatch latency
+
+`GET /admin/v1/client/dispatch-latency`
+
+Returns accumulated statistics about the worker pool dispatch latency — the time between posting work to the client worker pool (`boost::asio::post()`) and the worker thread starting to execute the lambda. This measures queue wait time plus thread wakeup overhead.
+
+Both the CPS timer tick (initial request creation) and chain continuations (next step after response) are measured.
+
+```json
+{
+  "avgUs": 42.5,
+  "maxUs": 312,
+  "count": 750000
+}
+```
+
+Interpretation:
+
+| avgUs | Status | Action |
+|------:|--------|--------|
+| < 50 | Pool idle — workers waiting for work | Ideal. No action needed |
+| 100–500 | Pool busy but healthy — no significant queuing | Normal under load |
+| 1,000–5,000 | Pool at capacity — work queues up | Consider increasing `--traffic-client-worker-threads` |
+| > 10,000 | Pool saturated — workers cannot keep up | Add more threads or reduce per-request transform cost |
+
+Statistics accumulate for the lifetime of the process and are not reset between test runs. To get per-run values, query before and after the test and compute the delta.
+
 ### Client storage configuration
 
 Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v1/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure clears all events accumulated during the chain, removing everything registered across all steps (different endpoints, methods and URIs) that participated in the completed flow.

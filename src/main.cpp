@@ -1008,7 +1008,6 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myAdminHttp2Server->setFileManager(myFileManager);
     myAdminHttp2Server->setSocketManager(mySocketManager);
     myAdminHttp2Server->setTimersIoContext(myTimersIoContext);
-    myAdminHttp2Server->setClientWorkerIoContext(myClientWorkerIoContext);
     myAdminHttp2Server->setMetricsData(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name); // for client connection class
 
     // Timers thread:
@@ -1017,7 +1016,9 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         myTimersIoContext->run();
     });
 
-    // Client worker pool (transforms + asyncSend):
+    // Client worker pool (transforms + asyncSend).
+    // IMPORTANT: must be created BEFORE setClientWorkerIoContext() — passing a nullptr
+    // silently disables the pool and all work falls back to the timer thread.
     myClientWorkerIoContext = new boost::asio::io_context();
     auto clientWorkerPoolWork = std::make_unique<boost::asio::io_context::work>(*myClientWorkerIoContext);
     std::vector<std::thread> clientWorkerPoolThreads;
@@ -1026,6 +1027,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
             myClientWorkerIoContext->run();
         });
     }
+    myAdminHttp2Server->setClientWorkerIoContext(myClientWorkerIoContext); // after pool creation!
 
     // Mock data (may be not used):
     myMockServerData = new h2agent::model::MockServerData();

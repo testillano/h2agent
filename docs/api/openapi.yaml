@@ -886,6 +886,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataStorageConfiguration'
 
+  /admin/v1/client/dispatch-latency:
+    get:
+      tags: [client]
+      summary: Retrieve worker pool dispatch latency statistics
+      description: >
+        Returns accumulated statistics about the time between posting work
+        to the client worker pool and the worker starting execution. This
+        measures queue wait time + thread wakeup overhead. Useful to detect
+        pool saturation.
+
+
+        Interpretation:
+
+        - avgUs < 50: pool idle, workers waiting for work. Ideal.
+
+        - avgUs 100-500: pool busy but healthy. No significant queuing.
+
+        - avgUs 1000-5000: pool at capacity. Work queues up. Consider adding workers.
+
+        - avgUs > 10000: pool saturated. Workers cannot keep up. Add threads or reduce per-request cost.
+      responses:
+        '200':
+          description: Dispatch latency statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avgUs:
+                    type: number
+                    description: Average dispatch latency in microseconds
+                  maxUs:
+                    type: integer
+                    description: Maximum dispatch latency in microseconds
+                  count:
+                    type: integer
+                    description: Total number of dispatches measured
+
   /admin/v1/client-data:
     get:
       tags: [client-data]

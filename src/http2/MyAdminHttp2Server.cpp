@@ -639,6 +639,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = clientDataConfigurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
+    else if (pathSuffix == "client/dispatch-latency") {
+        responseBody = dispatchLatencyAsJsonString();
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
     else if (pathSuffix == "files/configuration") {
         responseBody = getFileManager()->configurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
@@ -1090,7 +1094,9 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
                     if (client_worker_io_context_) {
-                        boost::asio::post(*client_worker_io_context_, [this, nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys]() {
+                        auto t0 = std::chrono::steady_clock::now();
+                        boost::asio::post(*client_worker_io_context_, [this, t0, nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys]() {
+                            recordDispatchLatency(t0);
                             sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys);
                         });
                     }
@@ -1209,7 +1215,9 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
         provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
             if (client_worker_io_context_) {
-                boost::asio::post(*client_worker_io_context_, [this, provision, inState, clientEndpoint]() {
+                auto t0 = std::chrono::steady_clock::now();
+                boost::asio::post(*client_worker_io_context_, [this, t0, provision, inState, clientEndpoint]() {
+                    recordDispatchLatency(t0);
                     sendClientRequest(provision, inState, clientEndpoint);
                 });
             }
