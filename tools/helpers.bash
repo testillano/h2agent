@@ -17,6 +17,10 @@ SERVER_ADDR=${SERVER_ADDR:-localhost}
 
 BEAUTIFY_JSON=yes
 
+# Per-session temp file (allows parallel helper invocations)
+_H2A_CURL_OUT="/tmp/curl.out.$$"
+trap 'rm -f ${_H2A_CURL_OUT} ${_H2A_CURL_OUT}.sorted' EXIT
+
 #############
 # FUNCTIONS #
 #############
@@ -40,13 +44,13 @@ do_curl() {
   echo
   echo [${CURL} "$@"]
   echo
-  ${CURL} "$@" | tee /tmp/curl.out
+  ${CURL} "$@" | tee ${_H2A_CURL_OUT}
   [ $? -ne 0 ] && return 1
 
   [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
 
   # Last empty line or no line feed (no body answered):
-  [ -z $(tail -c 1 /tmp/curl.out) ] && return 0
+  [ -z $(tail -c 1 ${_H2A_CURL_OUT}) ] && return 0
 
   [ -n "${BEAUTIFY_JSON}" ] && echo -e "\n\nPRETTY BODY PRINTOUT (disable on curl operation unsetting 'BEAUTIFY_JSON'):" && pretty
   echo -e "\n\n(type 'pretty' or 'raw' to isolate body printout)\n"
@@ -310,13 +314,13 @@ server_data() {
   then
     if [ -n "${requestUri}" ]
     then
-      pretty | jq '.method as $method | .uri as $uri | .provisionUri as $provisionUri | .events | map({events: [.], method: $method, uri: $uri, provisionUri: $provisionUri})' > /tmp/curl.out.sorted
+      pretty | jq '.method as $method | .uri as $uri | .provisionUri as $provisionUri | .events | map({events: [.], method: $method, uri: $uri, provisionUri: $provisionUri})' > ${_H2A_CURL_OUT}.sorted
     else
-      pretty | jq 'map(. as $parent | .events |= sort_by(.recvseq) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri, provisionUri: $parent.provisionUri}) | sort_by(.events[].recvseq)' > /tmp/curl.out.sorted
+      pretty | jq 'map(. as $parent | .events |= sort_by(.recvseq) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri, provisionUri: $parent.provisionUri}) | sort_by(.events[].recvseq)' > ${_H2A_CURL_OUT}.sorted
     fi
 
     local indx=0
-    [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
+    [ ! -s ${_H2A_CURL_OUT}.sorted ] && echo && cat ${_H2A_CURL_OUT} && return 0
     echo
     echo "Show also corresponding (p)rovisions or just show server [d]ata:"
     read -r opt
@@ -325,17 +329,17 @@ server_data() {
     while true
     do
       echo -e "\nMessage $((indx+1)):\n"
-      jq ".[$indx]" /tmp/curl.out.sorted
+      jq ".[$indx]" ${_H2A_CURL_OUT}.sorted
 
       # Corresponding provision:
       if [ "${opt}" = "p" ]
       then
-        local requestUri=$(jq -r ".[$indx].provisionUri" /tmp/curl.out.sorted | sed 's/\\/\\\\/g')
+        local requestUri=$(jq -r ".[$indx].provisionUri" ${_H2A_CURL_OUT}.sorted | sed 's/\\/\\\\/g')
         if [ "${requestUri}" != "null" ]
         then
           echo -e "\nCorresponding provision processed:\n"
-          local inState=$(jq -r ".[$indx].events[0].previousState" /tmp/curl.out.sorted)
-          local requestMethod=$(jq -r ".[$indx].method" /tmp/curl.out.sorted)
+          local inState=$(jq -r ".[$indx].events[0].previousState" ${_H2A_CURL_OUT}.sorted)
+          local requestMethod=$(jq -r ".[$indx].method" ${_H2A_CURL_OUT}.sorted)
           if [ "${inState}" == "initial" ]
           then
             local cond="(.inState == \"initial\" or .inState == null) and .requestMethod == \""${requestMethod}"\" and .requestUri == \""${requestUri}"\""
@@ -783,17 +787,17 @@ client_data() {
   then
     if [ -n "${requestUri}" ]
     then
-      pretty | jq '.method as $method | .uri as $uri | .events | map({events: [.], method: $method, uri: $uri})' > /tmp/curl.out.sorted
+      pretty | jq '.method as $method | .uri as $uri | .events | map({events: [.], method: $method, uri: $uri})' > ${_H2A_CURL_OUT}.sorted
     else
-      pretty | jq 'map(. as $parent | .events |= sort_by(.sendseq) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].sendseq)' > /tmp/curl.out.sorted
+      pretty | jq 'map(. as $parent | .events |= sort_by(.sendseq) | .events[] | {events: [.], method: $parent.method, uri: $parent.uri}) | sort_by(.events[].sendseq)' > ${_H2A_CURL_OUT}.sorted
     fi
 
     local indx=0
-    [ ! -s /tmp/curl.out.sorted ] && echo && cat /tmp/curl.out && return 0
+    [ ! -s ${_H2A_CURL_OUT}.sorted ] && echo && cat ${_H2A_CURL_OUT} && return 0
     while true
     do
       echo -e "\nMessage $((indx+1)):\n"
-      jq ".[$indx]" /tmp/curl.out.sorted
+      jq ".[$indx]" ${_H2A_CURL_OUT}.sorted
       indx=$((indx+1))
       [ $indx -eq $indx_max ] && echo -e "\n\nThat's all ! ($indx_max events)\n" && return 0
       echo -e "\n\nPress ENTER to print next sequence ..."
@@ -885,7 +889,7 @@ pretty() {
     echo "              Example filter: schema && pretty '.[] | select(.id==\"myRequestsSchema\")'"
     return 0
   fi
-  tail -n -1 /tmp/curl.out | jq "${jq_expr}"
+  tail -n -1 ${_H2A_CURL_OUT} | jq "${jq_expr}"
 }
 
 raw() {
@@ -897,7 +901,7 @@ raw() {
     echo "           Example filter: schema && raw '.[] | select(.id==\"myRequestsSchema\")'"
     return 0
   fi
-  tail -n -1 /tmp/curl.out | jq -c "${jq_expr}"
+  tail -n -1 ${_H2A_CURL_OUT} | jq -c "${jq_expr}"
 }
 
 trace() {
@@ -1588,6 +1592,6 @@ if ! type curl &>/dev/null; then echo "Missing required dependency (curl) !" ; r
 if ! type jq &>/dev/null; then echo "Missing required dependency (jq) !" ; return 1 ; fi
 
 # Initialize temporary and show help
-touch /tmp/curl.out
+touch ${_H2A_CURL_OUT}
 help
 
