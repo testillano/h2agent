@@ -946,12 +946,14 @@ traffic_summary() {
     echo "       (no args)          Save a counters snapshot (auto timestamp)."
     echo "       --save <label>     Save a snapshot with a label."
     echo "       --show             List saved snapshots with labels."
+    echo "       --now              Snapshot + delta from zeroed (*) to current."
+    echo "       <ref> --now        Snapshot + delta from <ref> to current."
     echo "       <ref1> <ref2>      Delta between two refs (timestamp or label)."
-    echo "       <ref1> <ref2> --json  Delta output in JSON format."
+    echo "       --json             JSON output (combinable with delta or --now)."
     echo "       --clean            Remove all saved snapshots."
     echo
     echo "       References can be unix timestamps or labels (order does not matter)."
-    echo "       Reserved label 'zeroed': virtual zero-baseline snapshot."
+    echo "       (*) Reserved label 'zeroed': virtual zero-baseline snapshot."
     echo
     echo "       Snapshots: ${snap_dir}/counters.<unix_ts>"
     echo "       Labels:    ${snap_dir}/labels (label=timestamp mapping)"
@@ -963,6 +965,9 @@ traffic_summary() {
     echo "                 traffic_summary before after   # delta by label"
     echo "                 traffic_summary zeroed after   # absolute values"
     echo "                 traffic_summary before after --json  # JSON output"
+    echo "                 traffic_summary --now          # shortcut: zeroed -> current"
+    echo "                 traffic_summary before --now   # shortcut: before -> current"
+    echo "                 traffic_summary --now --json   # JSON output"
     return 0
   fi
 
@@ -1035,6 +1040,30 @@ traffic_summary() {
     done
     unset -f _resolve_ref _label_for_ts _fmt_ref
     return 0
+  fi
+
+  # Shortcut: snapshot + delta to current
+  # --now              → zeroed → current
+  # <ref> --now        → ref → current
+  # --now --json       → zeroed → current (JSON)
+  # <ref> --now --json → ref → current (JSON)
+  local now_mode=false now_ref="zeroed" now_json=""
+  local now_args=()
+  for a in "$@"; do
+    case "$a" in
+      --now) now_mode=true ;;
+      --json) now_json="--json" ;;
+      *) now_args+=("$a") ;;
+    esac
+  done
+  if $now_mode; then
+    [ ${#now_args[@]} -gt 0 ] && now_ref="${now_args[0]}"
+    # Save ephemeral snapshot (no label, just timestamp)
+    traffic_summary
+    local latest=$(ls -1t "${snap_dir}"/counters.* 2>/dev/null | head -1)
+    local latest_ts=${latest##*.}
+    traffic_summary "${now_ref}" "${latest_ts}" ${now_json}
+    return $?
   fi
 
   # Save snapshot (with optional label)
