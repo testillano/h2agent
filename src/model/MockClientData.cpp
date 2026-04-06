@@ -47,12 +47,10 @@ namespace model
 
 void MockClientData::loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled) {
 
-    bool maiden{};
-    auto events = std::static_pointer_cast<MockClientEventsHistory>(getEvents(dataKey, maiden));
-
-    events->loadEvent(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, sendSeq, sequence, requestDelayMs, timeoutMs, historyEnabled);
-
-    if (maiden) add(dataKey.getKey(), events); // push the key in the map:
+    modifyOrInsert(dataKey.getKey(), [&](std::shared_ptr<MockEventsHistory> &entry) {
+        if (!entry) entry = std::make_shared<MockClientEventsHistory>(dataKey);
+        std::static_pointer_cast<MockClientEventsHistory>(entry)->loadEvent(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, sendSeq, sequence, requestDelayMs, timeoutMs, historyEnabled);
+    });
 }
 
 bool MockClientData::removeEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq) {

@@ -108,11 +108,12 @@ std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getResponseSc
 }
 
 void AdminClientProvision::saveDynamics() const {
-    json_["dynamics"]["sequence"] = seq_;
-    json_["dynamics"]["sequenceBegin"] = seq_begin_;
-    json_["dynamics"]["sequenceEnd"] = seq_end_;
-    json_["dynamics"]["cps"] = cps_;
-    json_["dynamics"]["repeat"] = repeat_;
+    std::lock_guard<std::mutex> guard(json_mutex_);
+    json_["dynamics"]["sequence"] = seq_.load();
+    json_["dynamics"]["sequenceBegin"] = seq_begin_.load();
+    json_["dynamics"]["sequenceEnd"] = seq_end_.load();
+    json_["dynamics"]["cps"] = cps_.load();
+    json_["dynamics"]["repeat"] = repeat_.load();
 }
 
 void AdminClientProvision::executeOnFilterFail(
@@ -149,7 +150,8 @@ void AdminClientProvision::transform( std::string &requestMethod,
                                       unsigned int &requestDelayMs,
                                       unsigned int &requestTimeoutMs,
                                       std::string &error,
-                                      std::map<std::string, std::string> &variables
+                                      std::map<std::string, std::string> &variables,
+                                      std::int64_t seq
                                     )
 {
     // Default values without transformations:
@@ -185,7 +187,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     }
 
     // Scoped variables: update reserved read-only variable
-    variables["sequence"] = std::to_string(seq_);
+    variables["sequence"] = std::to_string(seq >= 0 ? seq : seq_.load());
 
     // Type converter:
     TypeConverter sourceVault{};
@@ -255,7 +257,8 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         const ert::http2comm::Http2Client::response &receivedResponse,
         std::uint64_t sendSeq,
         std::string &outState,
-        std::map<std::string, std::string> &variables
+        std::map<std::string, std::string> &variables,
+        std::int64_t seq
                                             )
 {
     bool validationOk = true;
@@ -263,7 +266,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
     if (!on_response_transformations_.empty()) {
 
     // Scoped variables: update reserved read-only variable
-    variables["sequence"] = std::to_string(seq_);
+    variables["sequence"] = std::to_string(seq >= 0 ? seq : seq_.load());
 
     // Type converter:
     TypeConverter sourceVault{};
@@ -1305,12 +1308,12 @@ bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, co
 
     // Range assignment:
     bool rangeProvided = !sequenceBegin.empty() || !sequenceEnd.empty();
-    if (i_sequenceBegin != seq_begin_ || i_sequenceEnd != seq_end_) {
+    if (i_sequenceBegin != seq_begin_.load() || i_sequenceEnd != seq_end_.load()) {
         seq_begin_ = i_sequenceBegin;
         seq_end_ = i_sequenceEnd;
     }
     if (rangeProvided) {
-        seq_ = seq_begin_ - 1; // reset iterator: new range means fresh start
+        seq_ = seq_begin_.load() - 1; // reset iterator: new range means fresh start
     }
 
 
@@ -1344,8 +1347,8 @@ void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std:
     stopTicking();
     io_context_ = ioContext;
     tick_callback_ = std::move(tickCallback);
-    if (seq_ < seq_begin_ - 1 || seq_ > seq_end_) {
-        seq_ = seq_begin_ - 1; // outside range: reset (exhausted or never started)
+    if (seq_.load() < seq_begin_.load() - 1 || seq_.load() > seq_end_.load()) {
+        seq_ = seq_begin_.load() - 1; // outside range: reset (exhausted or never started)
     }
     saveDynamics();
     last_dynamics_save_ = std::chrono::steady_clock::now();
@@ -1379,9 +1382,9 @@ void AdminClientProvision::scheduleTick(bool first) {
 
         seq_++;
 
-        if (seq_ > seq_end_) {
+        if (seq_.load() > seq_end_.load()) {
             if (repeat_) {
-                seq_ = seq_begin_;
+                seq_ = seq_begin_.load();
             }
             else {
                 saveDynamics(); // final update before stopping

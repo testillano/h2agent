@@ -105,7 +105,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody);
 
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
-    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint, std::shared_ptr<std::map<std::string, std::string>> chainVariables = nullptr, std::shared_ptr<std::vector<std::pair<model::DataKey, std::uint64_t>>> purgeKeys = nullptr) const;
+    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint, std::int64_t seq = -1, std::shared_ptr<std::map<std::string, std::string>> chainVariables = nullptr, std::shared_ptr<std::vector<std::pair<model::DataKey, std::uint64_t>>> purgeKeys = nullptr) const;
 
 public:
     MyAdminHttp2Server(const std::string &name, size_t workerThreads);

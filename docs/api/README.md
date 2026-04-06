@@ -141,6 +141,18 @@ The endpoint `GET /admin/v1/vault/<key>/wait` blocks until a variable changes, r
 
 Parameters: `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32).
 
+#### Thread safety with worker pool
+
+Individual vault operations (`load`, `loadAtPath`, `tryGet`) are thread-safe. However, **read-modify-write patterns at the provision level are not atomic**. For example, a common pattern to count errors:
+
+```json
+{"source": "math.@{MY_COUNTER} + 1", "target": "vault.MY_COUNTER"}
+```
+
+The variable read (`@{MY_COUNTER}`) and the write (`vault.MY_COUNTER`) are separate operations. When multiple worker threads execute this concurrently, increments can be lost. This only affects shared (global) vault keys accessed from multiple subscribers simultaneously.
+
+Per-subscriber vault keys (e.g., `vault.flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-subscriber values after the test completes instead of incrementing a shared counter during execution.
+
 ### Files
 
 The files operation (`GET /admin/v1/files`) retrieves the whole list of files processed and their current status. For example:

@@ -61,11 +61,10 @@ void Vault::load(const std::string &variable, nlohmann::json &&value) {
 }
 
 void Vault::loadAtPath(const std::string &variable, const std::string &path, const nlohmann::json &value) {
-    nlohmann::json current;
-    tryGet(variable, current);
-    if (!current.is_object()) current = nlohmann::json::object();
-    current[nlohmann::json::json_pointer(path)] = value;
-    add(variable, std::move(current));
+    modifyOrInsert(variable, [&](nlohmann::json &current) {
+        if (!current.is_object()) current = nlohmann::json::object();
+        current[nlohmann::json::json_pointer(path)] = value;
+    });
     if (wait_manager_) wait_manager_->notify();
 }
 

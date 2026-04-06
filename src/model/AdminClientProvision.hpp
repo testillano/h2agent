@@ -39,6 +39,8 @@ SOFTWARE.
 #include <string>
 #include <vector>
 #include <chrono>
+#include <atomic>
+#include <mutex>
 
 #include <nlohmann/json.hpp>
 
@@ -75,6 +77,7 @@ class AdminClientProvision
     bool employed_{};
 
     mutable nlohmann::json json_{}; // provision reference (mutable for lazy dynamics update)
+    mutable std::mutex json_mutex_{}; // protects json_ (timer thread + admin API thread)
 
     admin_client_provision_key_t key_{}; // calculated in every load()
 
@@ -113,12 +116,12 @@ class AdminClientProvision
     std::vector<std::shared_ptr<Transformation>> transformations_{};
     std::vector<std::shared_ptr<Transformation>> on_response_transformations_{};
 
-    // Dynamic load parameters:
-    std::int64_t seq_{};
-    std::int64_t seq_begin_{};
-    std::int64_t seq_end_{};
-    unsigned int cps_{};
-    bool repeat_{};
+    // Dynamic load parameters (accessed from timer thread + admin API thread):
+    std::atomic<std::int64_t> seq_{};
+    std::atomic<std::int64_t> seq_begin_{};
+    std::atomic<std::int64_t> seq_end_{};
+    std::atomic<unsigned int> cps_{};
+    std::atomic<bool> repeat_{};
 
     // Timer-based triggering:
     boost::asio::steady_timer *timer_{};
@@ -205,7 +208,8 @@ public:
                     unsigned int &requestDelayMs,
                     unsigned int &requestTimeoutMs,
                     std::string &error,
-                    std::map<std::string, std::string> &variables
+                    std::map<std::string, std::string> &variables,
+                    std::int64_t seq = -1
                   );
 
     /**
@@ -224,7 +228,8 @@ public:
                             const ert::http2comm::Http2Client::response &receivedResponse,
                             std::uint64_t sendSeq,
                             std::string &outState,
-                            std::map<std::string, std::string> &variables
+                            std::map<std::string, std::string> &variables,
+                            std::int64_t seq = -1
                           );
 
     /**
@@ -351,9 +356,10 @@ public:
      *
      * @return Json object
      */
-    const nlohmann::json &getJson() const {
-        saveDynamics(); // refresh before returning
-        return json_;
+    nlohmann::json getJson() const {
+        saveDynamics(); // refresh before returning (lock inside)
+        std::lock_guard<std::mutex> guard(json_mutex_);
+        return json_; // return copy while holding lock
     }
 
     /**
@@ -469,7 +475,7 @@ public:
      *
      * @return Provision sequence
      */
-    const std::int64_t & getSeq() const {
+    std::int64_t getSeq() const {
         return seq_;
     }
 

@@ -225,6 +225,19 @@ public:
     }
 
     /**
+     * Atomically reads, modifies and writes back a value under a single write lock.
+     * If the key doesn't exist, a default-constructed Value is passed to the modifier.
+     *
+     * @param key key to modify
+     * @param modifier function that receives a reference to the value and modifies it in place
+     */
+    template<typename Modifier>
+    void modifyOrInsert(const Key& key, Modifier&& modifier) {
+        write_guard_t guard(mutex_);
+        modifier(map_[key]); // operator[] inserts default if missing
+    }
+
+    /**
      * Adds another map of same kind to the map
      *
      * @param map map to add

@@ -986,7 +986,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     }
 }
 
-void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::shared_ptr<std::map<std::string, std::string>> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
+void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<std::map<std::string, std::string>> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
 
     provision->employ();
     std::string requestMethod{};
@@ -1008,7 +1008,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         purgeKeys = std::make_shared<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>>();
     }
 
-    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables);
+    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables, seq);
     LOGDEBUG(
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
@@ -1022,7 +1022,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
 
     clientEndpoint->connect();
     std::uint64_t sendSeq = clientEndpoint->incrementSendSeq();
-    std::int64_t provisionSeq = provision->getSeq();
+    std::int64_t provisionSeq = (seq >= 0) ? seq : provision->getSeq();
     size_t numWorkers = clientEndpoint->getNumWorkers();
     size_t workerIndex = (numWorkers > 1) ? (static_cast<size_t>(sendSeq) % numWorkers) : 0;
     auto client = clientEndpoint->getClient(workerIndex);
@@ -1038,7 +1038,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             auto provision = provisionData.find(inState, clientProvisionId);
             bool responseValidationOk = true;
             if (provision) {
-                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables);
+                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq);
             }
 
             // Provisioned request counter
@@ -1095,13 +1095,13 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
                     if (client_worker_io_context_) {
                         auto t0 = std::chrono::steady_clock::now();
-                        boost::asio::post(*client_worker_io_context_, [this, t0, nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys]() {
+                        boost::asio::post(*client_worker_io_context_, [this, t0, nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys]() {
                             recordDispatchLatency(t0);
-                            sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys);
+                            sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
                         });
                     }
                     else {
-                        sendClientRequest(nextProvision, finalOutState, clientEndpoint, chainVariables, purgeKeys);
+                        sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
                     }
                 }
             }
@@ -1214,15 +1214,16 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     // Timer-based triggering (cps > 0) or single request
     if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
         provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
+            auto tickSeq = provision->getSeq(); // capture BEFORE post (timer thread)
             if (client_worker_io_context_) {
                 auto t0 = std::chrono::steady_clock::now();
-                boost::asio::post(*client_worker_io_context_, [this, t0, provision, inState, clientEndpoint]() {
+                boost::asio::post(*client_worker_io_context_, [this, t0, provision, inState, clientEndpoint, tickSeq]() {
                     recordDispatchLatency(t0);
-                    sendClientRequest(provision, inState, clientEndpoint);
+                    sendClientRequest(provision, inState, clientEndpoint, tickSeq);
                 });
             }
             else {
-                sendClientRequest(provision, inState, clientEndpoint);
+                sendClientRequest(provision, inState, clientEndpoint, tickSeq);
             }
         });
     }
