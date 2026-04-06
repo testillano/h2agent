@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <sstream>
 #include <errno.h>
+#include <malloc.h>
 
 #include <nlohmann/json.hpp>
 
@@ -663,6 +664,11 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     }
     else if (pathSuffix == "health") {
         responseBody = "{\"status\":\"healthy\"}";
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
+    else if (pathSuffix == "malloc-trim") {
+        int result = malloc_trim(0);
+        responseBody = result ? "{\"result\":\"memory released\"}" : "{\"result\":\"nothing to release\"}";
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else {

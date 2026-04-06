@@ -42,8 +42,8 @@ usage() {
          docker procedure:
 
          --builder-image: image_tag, base_os, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
-         --project:       make_procs, build_type, base_tag (h2agent_builder)
-         --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type
+         --project:       make_procs, build_type, base_tag (h2agent_builder), SANITIZER (asan|tsan|none)
+         --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type, SANITIZER (asan|tsan|none)
          --ct-image:      image_tag, base_tag (alpine)
          --auto:          any of the variables above
 
@@ -56,7 +56,39 @@ usage() {
          base_os=alpine $0 --auto
          image_tag=test1 $0 --builder-image
          build_type=Debug $0 --auto
+         SANITIZER=asan build_type=Debug $0 --auto
+         SANITIZER=tsan build_type=Debug $0 --auto
          DBUILD_XTRA_OPTS=--no-cache $0 --auto
+
+         Sanitizer usage:
+
+         SANITIZER=asan enables AddressSanitizer (memory errors, leaks).
+         SANITIZER=tsan enables ThreadSanitizer (data races).
+         Both work best with build_type=Debug for accurate stack traces.
+
+         Running with ASAN:
+
+           docker run --network=host \\
+             -e LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 \\
+             -e ASAN_OPTIONS="detect_leaks=1" \\
+             ghcr.io/testillano/h2agent:latest /opt/h2agent [args...]
+
+           # LD_PRELOAD is required so ASAN runtime is loaded first.
+           # Do NOT combine with jemalloc (incompatible).
+           # Run a short test, then stop the process (Ctrl+C or SIGTERM).
+           # ASAN prints leak report to stderr on exit.
+           # Optionally redirect to file:
+           #   ASAN_OPTIONS="detect_leaks=1:log_path=/tmp/asan"
+
+         Running with TSAN:
+
+           docker run --network=host \\
+             ghcr.io/testillano/h2agent:latest /opt/h2agent [args...]
+
+           # Data race reports are printed to stderr during execution.
+           # Optionally redirect to file:
+           #   -e TSAN_OPTIONS="log_path=/tmp/tsan"
+           # Reports are written to /tmp/tsan.<pid> as races are detected.
 
 EOF
 }
@@ -125,10 +157,25 @@ build_project() {
 
   envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type} -e STATIC_LINKING=${STATIC_LINKING}"
 
+  # Sanitizer support (asan, tsan):
+  local cmake_extra=""
+  case "${SANITIZER:-none}" in
+    asan) cmake_extra="-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
+          envs+=" -e CXXFLAGS=-fsanitize=address"
+          envs+=" -e CFLAGS=-fno-omit-frame-pointer"
+          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=asan works best with build_type=Debug" ;;
+    tsan) cmake_extra="-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread"
+          envs+=" -e CXXFLAGS=-fsanitize=thread"
+          envs+=" -e CFLAGS=-fno-omit-frame-pointer"
+          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=tsan works best with build_type=Debug" ;;
+    none|"") ;;
+    *) echo "ERROR: unknown SANITIZER '${SANITIZER}' (use: asan, tsan, none)" && return 1 ;;
+  esac
+
   set -x
   rm -f CMakeCache.txt
   # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" || return 1
+  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" "${cmake_extra}" || return 1
   # shellcheck disable=SC2086
   docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" "" doc || return 1
   set +x
@@ -155,6 +202,22 @@ build_project_image() {
   bargs+=" --build-arg make_procs=${make_procs}"
   bargs+=" --build-arg build_type=${build_type}"
   bargs+=" --build-arg os_type=${os_type}"
+
+  # Sanitizer support:
+  case "${SANITIZER:-none}" in
+    asan) bargs+=" --build-arg sanitizer_flags=-fsanitize=address"
+          bargs+=" --build-arg sanitizer_extra=-fno-omit-frame-pointer"
+          bargs+=" --build-arg sanitizer_link=-fsanitize=address"
+          bargs+=" --build-arg sanitizer=asan"
+          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=asan works best with build_type=Debug" ;;
+    tsan) bargs+=" --build-arg sanitizer_flags=-fsanitize=thread"
+          bargs+=" --build-arg sanitizer_extra=-fno-omit-frame-pointer"
+          bargs+=" --build-arg sanitizer_link=-fsanitize=thread"
+          bargs+=" --build-arg sanitizer=tsan"
+          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=tsan works best with build_type=Debug" ;;
+    none|"") ;;
+    *) echo "ERROR: unknown SANITIZER '${SANITIZER}' (use: asan, tsan, none)" && return 1 ;;
+  esac
 
   set -x
   rm -f CMakeCache.txt
