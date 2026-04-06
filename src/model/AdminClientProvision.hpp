@@ -262,6 +262,11 @@ public:
     void startTicking(boost::asio::io_context *ioContext, std::function<void()> tickCallback);
 
     /**
+     * Check if timer is active
+     */
+    bool isTicking() const { return timer_ != nullptr; }
+
+    /**
      * Stops timer-based triggering
      */
     void stopTicking();

@@ -1213,19 +1213,23 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
 
     // Timer-based triggering (cps > 0) or single request
     if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
-        provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
-            auto tickSeq = provision->getSeq(); // capture BEFORE post (timer thread)
-            if (client_worker_io_context_) {
-                auto t0 = std::chrono::steady_clock::now();
-                boost::asio::post(*client_worker_io_context_, [this, t0, provision, inState, clientEndpoint, tickSeq]() {
-                    recordDispatchLatency(t0);
+        if (!provision->isTicking()) {
+            provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
+                auto tickSeq = provision->getSeq(); // capture BEFORE post (timer thread)
+                if (client_worker_io_context_) {
+                    auto t0 = std::chrono::steady_clock::now();
+                    boost::asio::post(*client_worker_io_context_, [this, t0, provision, inState, clientEndpoint, tickSeq]() {
+                        recordDispatchLatency(t0);
+                        sendClientRequest(provision, inState, clientEndpoint, tickSeq);
+                    });
+                }
+                else {
                     sendClientRequest(provision, inState, clientEndpoint, tickSeq);
-                });
-            }
-            else {
-                sendClientRequest(provision, inState, clientEndpoint, tickSeq);
-            }
-        });
+                }
+            });
+        }
+        // else: already ticking — cps_ was updated atomically by updateTriggering,
+        // the timer will pick up the new rate on the next scheduleTick cycle.
     }
     else if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() == 0) {
         provision->stopTicking(); // cps=0 stops the timer
