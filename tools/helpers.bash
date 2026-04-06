@@ -720,21 +720,26 @@ dispatch_latency() {
     echo "idle"
   }
   if [ "$1" = "--watch" ]; then
-    local prev_sum=0 prev_count=0
+    local prev_sum=0 prev_count=0 prev_discarded=0
     while true; do
       local json=$(curl -s --http2-prior-knowledge "$url" 2>/dev/null)
       [ -z "$json" ] && echo "No data" && sleep 1 && continue
       local sum=$(echo "$json" | jq -r '.avgUs * .count | floor')
       local count=$(echo "$json" | jq -r '.count')
+      local pending=$(echo "$json" | jq -r '.pending // 0')
+      local discarded=$(echo "$json" | jq -r '.discarded // 0')
       local d_sum=$((sum - prev_sum))
       local d_count=$((count - prev_count))
+      local d_discarded=$((discarded - prev_discarded))
       if [ "$d_count" -gt 0 ] 2>/dev/null; then
         local d_avg=$((d_sum / d_count))
-        echo "avg=${d_avg}us dispatches=${d_count}/s [$(_dl_status $d_avg)]"
+        local disc_info=""
+        [ "$d_discarded" -gt 0 ] && disc_info=" discarded=${d_discarded}/s"
+        echo "avg=${d_avg}us dispatches=${d_count}/s pending=${pending}${disc_info} [$(_dl_status $d_avg)]"
       else
-        echo "(no dispatches)"
+        echo "(no dispatches) pending=${pending}"
       fi
-      prev_sum=$sum prev_count=$count
+      prev_sum=$sum prev_count=$count prev_discarded=$discarded
       sleep 1
     done
   else
@@ -743,7 +748,9 @@ dispatch_latency() {
     local avg=$(echo "$json" | jq -r '.avgUs | floor')
     local max=$(echo "$json" | jq -r '.maxUs')
     local count=$(echo "$json" | jq -r '.count')
-    echo "Dispatch latency: avg=${avg}us max=${max}us count=${count} [$(_dl_status $avg)]"
+    local pending=$(echo "$json" | jq -r '.pending // 0')
+    local discarded=$(echo "$json" | jq -r '.discarded // 0')
+    echo "Dispatch latency: avg=${avg}us max=${max}us count=${count} pending=${pending} discarded=${discarded} [$(_dl_status $avg)]"
   fi
   unset -f _dl_status
 }

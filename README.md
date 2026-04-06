@@ -22,12 +22,17 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
   * Server (unique)
   * Client (multiple clients may be provisioned)
+    * Worker pool for parallel request preparation (transforms).
+    * CPS-driven dynamics with ramp-up support.
+    * Multi-step chain execution (state machine).
+    * Pool congestion control (tick discard on saturation).
+    * Dispatch latency diagnostics.
 
 * Testing
 
   * Functional/Component tests:
   * System tests (KPI, High Load, Robustness).
-  * Congestion Control.
+  * Congestion Control (server queue dispatcher and client pool).
   * Validations:
     * Optionally tied to provision with machine states.
     * Sequence validation can be decoupled (order by user preference).
@@ -46,7 +51,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 * Interfaces
 
   * Administrative interface (REST API with JSON): update, create and delete items:
-    * Vault.
+    * Vault (with blocking wait / long-poll support).
     * File manager configuration.
     * UDP events.
     * Schemas (Rx/Tx).
@@ -55,6 +60,9 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Client endpoints configuration.
     * Events data (server and clients) summary and inspection.
     * Events data configuration (global storage, history).
+    * Health check endpoint.
+    * Memory management (malloc-trim).
+    * Client dispatch latency diagnostics (pool saturation monitoring).
   * [Gherkin (BDD)](tools/gherkin-h2agent): Given/When/Then driver for the REST API.
     * Write mock scenarios in plain English.
     * Dump mode: generate JSON provisions from `.feature` files without a running instance.
@@ -64,7 +72,8 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Log system (POSIX Levels).
   * Command line:
     * Administrative & traffic interfaces (addresses, ports, security certificates).
-    * Congestion control parameters (workers, maximum workers and maximum queue size).
+    * Server congestion control parameters (workers, maximum workers and maximum queue size).
+    * Client worker pool (preparation threads, connections per endpoint, pool max pending).
     * Schema configuration json documents to be referred (traffic validation).
     * Vault json document.
     * File manager configuration.
@@ -95,10 +104,16 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
     * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
-    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search.
+    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search, size.
     * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
   * Multipart support.
   * Pseudo-notification mechanism (response delayed by vault condition).
+
+* Performance & Memory:
+
+  * jemalloc with aggressive decay (auto-enabled, prevents glibc fragmentation).
+  * Sanitizer support (ASAN/TSAN) for leak detection and race condition analysis.
+  * Benchmarking framework with prometheus-based reporting.
 
 * Training:
 
@@ -928,6 +943,14 @@ Options:
   asyncSend. Chain continuations (next step after response) are also
   posted here, freeing HTTP/2 I/O threads.
   This is the main knob for scaling client-mode throughput.
+
+[--traffic-client-pool-max-pending <size>]
+  Maximum pending dispatches in the worker pool; defaults to 0 (unlimited).
+  When the pool queue exceeds this limit, new ticks are discarded to
+  prevent unbounded backlog and cascading timeouts. Chain continuations
+  are never discarded. Monitor via GET /admin/v1/client/dispatch-latency
+  (pending and discarded counters) and the prometheus metric
+  h2agent_traffic_client_discarded_dispatches_counter.
 
 [-V|--version]
   Program version.

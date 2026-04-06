@@ -90,6 +90,12 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     mutable std::atomic<uint64_t> dispatch_latency_count_{0};
     mutable std::atomic<uint64_t> dispatch_latency_max_us_{0};
 
+    // Pool congestion control:
+    mutable std::atomic<uint64_t> pending_pool_dispatches_{0};
+    mutable std::atomic<uint64_t> discarded_dispatches_{0};
+    uint64_t max_pending_pool_dispatches_{0}; // 0 = unlimited
+    prometheus::Counter *discarded_dispatches_counter_{}; // prometheus metric
+
     // Client data storage:
     bool client_data_{};
     bool client_data_key_history_{};
@@ -163,6 +169,12 @@ public:
         common_resources_.ResponseDelaySecondsHistogramBucketBoundaries = responseDelaySecondsHistogramBucketBoundaries;
         common_resources_.MessageSizeBytesHistogramBucketBoundaries = messageSizeBytesHistogramBucketBoundaries;
         common_resources_.ApplicationName = applicationName;
+
+        if (metrics) {
+            ert::metrics::labels_t familyLabels = {};
+            ert::metrics::counter_family_t& cf = metrics->addCounterFamily("h2agent_traffic_client_discarded_dispatches_counter", "Ticks discarded due to pool congestion in h2agent_traffic_client", familyLabels);
+            discarded_dispatches_counter_ = &(cf.Add({{"source", applicationName}}));
+        }
     }
 
     model::AdminData *getAdminData() const {
@@ -191,6 +203,9 @@ public:
     void setClientWorkerIoContext(boost::asio::io_context *p) {
         client_worker_io_context_ = p;
     }
+    void setMaxPendingPoolDispatches(uint64_t max) {
+        max_pending_pool_dispatches_ = max;
+    }
 
     void recordDispatchLatency(std::chrono::steady_clock::time_point t0) const {
         auto us = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -201,14 +216,34 @@ public:
         while (prev < (uint64_t)us && !dispatch_latency_max_us_.compare_exchange_weak(prev, us));
     }
 
+    bool postToPool(std::function<void()> work) const {
+        if (max_pending_pool_dispatches_ > 0 && pending_pool_dispatches_.load() >= max_pending_pool_dispatches_) {
+            discarded_dispatches_++;
+            if (discarded_dispatches_counter_) discarded_dispatches_counter_->Increment();
+            return false;
+        }
+        pending_pool_dispatches_++;
+        auto t0 = std::chrono::steady_clock::now();
+        boost::asio::post(*client_worker_io_context_, [this, t0, work = std::move(work)]() {
+            pending_pool_dispatches_--;
+            recordDispatchLatency(t0);
+            work();
+        });
+        return true;
+    }
+
     std::string dispatchLatencyAsJsonString() const {
         uint64_t count = dispatch_latency_count_.load();
         uint64_t sum = dispatch_latency_sum_us_.load();
         uint64_t max = dispatch_latency_max_us_.load();
+        uint64_t pending = pending_pool_dispatches_.load();
+        uint64_t discarded = discarded_dispatches_.load();
         double avg = count > 0 ? (double)sum / count : 0;
         return "{\"avgUs\":" + std::to_string(avg) +
                ",\"maxUs\":" + std::to_string(max) +
-               ",\"count\":" + std::to_string(count) + "}";
+               ",\"count\":" + std::to_string(count) +
+               ",\"pending\":" + std::to_string(pending) +
+               ",\"discarded\":" + std::to_string(discarded) + "}";
     }
 
     /**

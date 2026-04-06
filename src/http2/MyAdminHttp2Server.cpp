@@ -1100,8 +1100,12 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
                     if (client_worker_io_context_) {
+                        // Chain continuations are never discarded (would orphan the subscriber).
+                        // Only initial ticks are subject to congestion control.
+                        pending_pool_dispatches_++;
                         auto t0 = std::chrono::steady_clock::now();
                         boost::asio::post(*client_worker_io_context_, [this, t0, nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys]() {
+                            pending_pool_dispatches_--;
                             recordDispatchLatency(t0);
                             sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
                         });
@@ -1223,9 +1227,7 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
             provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
                 auto tickSeq = provision->getSeq(); // capture BEFORE post (timer thread)
                 if (client_worker_io_context_) {
-                    auto t0 = std::chrono::steady_clock::now();
-                    boost::asio::post(*client_worker_io_context_, [this, t0, provision, inState, clientEndpoint, tickSeq]() {
-                        recordDispatchLatency(t0);
+                    postToPool([this, provision, inState, clientEndpoint, tickSeq]() {
                         sendClientRequest(provision, inState, clientEndpoint, tickSeq);
                     });
                 }

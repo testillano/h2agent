@@ -57,7 +57,9 @@ launch_proxy /tmp/nghttpx-admin.conf &
 # Skip if ASAN/TSAN is active (incompatible with jemalloc).
 if [ -z "${LD_PRELOAD}" ] && [ -f /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 ]; then
   export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
-  export MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:1000,muzzy_decay_ms:1000}"
+  #export MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:-1,muzzy_decay_ms:-1}" # disabled decay
+  export MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:5000,muzzy_decay_ms:10000}" # softer decay
+  #export MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:1000,muzzy_decay_ms:1000}" # aggresive decay
 fi
 
 # H2Agent

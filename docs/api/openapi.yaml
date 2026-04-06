@@ -923,6 +923,12 @@ paths:
                   count:
                     type: integer
                     description: Total number of dispatches measured
+                  pending:
+                    type: integer
+                    description: Current number of dispatches waiting in the pool queue
+                  discarded:
+                    type: integer
+                    description: Total ticks discarded due to pool congestion (--traffic-client-pool-max-pending)
 
   /admin/v1/client-data:
     get:

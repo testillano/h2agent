@@ -451,6 +451,13 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  posted here, freeing HTTP/2 I/O threads.\n"
        << "  This is the main knob for scaling client-mode throughput.\n\n"
 
+       << "[--traffic-client-pool-max-pending <size>]\n"
+       << "  Maximum pending dispatches in the worker pool; defaults to 0 (unlimited).\n"
+       << "  When the pool queue exceeds this limit, new ticks are discarded to\n"
+       << "  prevent unbounded backlog and cascading timeouts. Chain continuations\n"
+       << "  are never discarded. Monitor via GET /admin/v1/client/dispatch-latency\n"
+       << "  (pending and discarded counters).\n\n"
+
        << "[-V|--version]\n"
        << "  Program version.\n\n"
 
@@ -850,6 +857,12 @@ int main(int argc, char* argv[])
         }
     }
 
+    uint64_t traffic_client_pool_max_pending = 0;
+    if (readCmdLine(argv, argv + argc, "--traffic-client-pool-max-pending", value))
+    {
+        traffic_client_pool_max_pending = toNumber(value);
+    }
+
     // Logger verbosity
     ert::tracing::Logger::verbose(verbose);
 
@@ -1033,6 +1046,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
             });
         }
         myAdminHttp2Server->setClientWorkerIoContext(myClientWorkerIoContext); // after pool creation!
+        myAdminHttp2Server->setMaxPendingPoolDispatches(traffic_client_pool_max_pending);
     }
 
     // Mock data (may be not used):
