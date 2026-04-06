@@ -442,6 +442,8 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--traffic-client-worker-threads <threads>]\n"
        << "  Worker pool for client request preparation; defaults to 'nproc' ("
        << std::thread::hardware_concurrency() << " in this system).\n"
+       << "  Value of 0 disables the pool: transforms run on the timer thread\n"
+       << "  (single-threaded, useful for comparison testing or debugging).\n"
        << "  Decouples the CPS timer from transform execution: the timer thread\n"
        << "  only increments the sequence and enqueues work, while worker threads\n"
        << "  execute transforms (JSON build, regex, math, vault) and dispatch\n"
@@ -842,9 +844,9 @@ int main(int argc, char* argv[])
     if (readCmdLine(argv, argv + argc, "--traffic-client-worker-threads", value))
     {
         traffic_client_worker_threads_pool = toNumber(value);
-        if (traffic_client_worker_threads_pool < 1)
+        if (traffic_client_worker_threads_pool < 0)
         {
-            usage(EXIT_FAILURE, "Invalid '--traffic-client-worker-threads' value. Must be greater than 0.");
+            usage(EXIT_FAILURE, "Invalid '--traffic-client-worker-threads' value. Must be 0 (disabled) or greater.");
         }
     }
 
@@ -973,7 +975,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
     std::cout << "Traffic client connections: " << myConfiguration->getTrafficClientConnections() << '\n';
-    std::cout << "Traffic client worker threads: " << traffic_client_worker_threads_pool << '\n';
+    std::cout << "Traffic client worker threads: " << traffic_client_worker_threads_pool << (traffic_client_worker_threads_pool == 0 ? " (disabled)" : "") << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -1019,15 +1021,19 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // Client worker pool (transforms + asyncSend).
     // IMPORTANT: must be created BEFORE setClientWorkerIoContext() — passing a nullptr
     // silently disables the pool and all work falls back to the timer thread.
-    myClientWorkerIoContext = new boost::asio::io_context();
-    auto clientWorkerPoolWork = std::make_unique<boost::asio::io_context::work>(*myClientWorkerIoContext);
+    // Value of 0 disables the pool (useful for A/B testing or single-threaded debugging).
+    std::unique_ptr<boost::asio::io_context::work> clientWorkerPoolWork;
     std::vector<std::thread> clientWorkerPoolThreads;
-    for (int i = 0; i < traffic_client_worker_threads_pool; i++) {
-        clientWorkerPoolThreads.emplace_back([&] {
-            myClientWorkerIoContext->run();
-        });
+    if (traffic_client_worker_threads_pool > 0) {
+        myClientWorkerIoContext = new boost::asio::io_context();
+        clientWorkerPoolWork = std::make_unique<boost::asio::io_context::work>(*myClientWorkerIoContext);
+        for (int i = 0; i < traffic_client_worker_threads_pool; i++) {
+            clientWorkerPoolThreads.emplace_back([&] {
+                myClientWorkerIoContext->run();
+            });
+        }
+        myAdminHttp2Server->setClientWorkerIoContext(myClientWorkerIoContext); // after pool creation!
     }
-    myAdminHttp2Server->setClientWorkerIoContext(myClientWorkerIoContext); // after pool creation!
 
     // Mock data (may be not used):
     myMockServerData = new h2agent::model::MockServerData();
