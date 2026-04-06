@@ -693,6 +693,61 @@ client_provision_unused() {
   do_curl $(admin_url)/client-provision/unused && return 0
 }
 
+dispatch_latency() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]; then
+    echo "Usage: dispatch_latency [-h|--help] [--json] [--watch]"
+    echo "       Shows worker pool dispatch latency (queue wait + thread wakeup)."
+    echo
+    echo "       --watch        Refresh every second showing last-second avg and dispatch count."
+    echo "       --json         Raw JSON output (single shot)."
+    echo
+    echo "       avgUs < 50     : pool idle (ideal)"
+    echo "       avgUs 100-500  : busy but healthy"
+    echo "       avgUs 1000-5000: at capacity (add --traffic-client-worker-threads)"
+    echo "       avgUs > 10000  : saturated"
+    return 0
+  fi
+  local url="$(admin_url)/client/dispatch-latency"
+  if [ "$1" = "--json" ]; then
+    curl -s --http2-prior-knowledge "$url" 2>/dev/null
+    return
+  fi
+  _dl_status() {
+    local avg=$1
+    [ "$avg" -gt 10000 ] 2>/dev/null && echo "SATURATED" && return
+    [ "$avg" -gt 1000 ] 2>/dev/null && echo "at capacity" && return
+    [ "$avg" -gt 50 ] 2>/dev/null && echo "busy" && return
+    echo "idle"
+  }
+  if [ "$1" = "--watch" ]; then
+    local prev_sum=0 prev_count=0
+    while true; do
+      local json=$(curl -s --http2-prior-knowledge "$url" 2>/dev/null)
+      [ -z "$json" ] && echo "No data" && sleep 1 && continue
+      local sum=$(echo "$json" | jq -r '.avgUs * .count | floor')
+      local count=$(echo "$json" | jq -r '.count')
+      local d_sum=$((sum - prev_sum))
+      local d_count=$((count - prev_count))
+      if [ "$d_count" -gt 0 ] 2>/dev/null; then
+        local d_avg=$((d_sum / d_count))
+        echo "avg=${d_avg}us dispatches=${d_count}/s [$(_dl_status $d_avg)]"
+      else
+        echo "(no dispatches)"
+      fi
+      prev_sum=$sum prev_count=$count
+      sleep 1
+    done
+  else
+    local json=$(curl -s --http2-prior-knowledge "$url" 2>/dev/null)
+    [ -z "$json" ] && echo "No data (is h2agent running?)" && return 1
+    local avg=$(echo "$json" | jq -r '.avgUs | floor')
+    local max=$(echo "$json" | jq -r '.maxUs')
+    local count=$(echo "$json" | jq -r '.count')
+    echo "Dispatch latency: avg=${avg}us max=${max}us count=${count} [$(_dl_status $avg)]"
+  fi
+  unset -f _dl_status
+}
+
 client_data() {
   local clean=
   local surf=
