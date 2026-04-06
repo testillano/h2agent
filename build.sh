@@ -68,13 +68,18 @@ usage() {
 
          Running with ASAN:
 
+           # Via run.sh (recommended):
+           H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 \\
+             ASAN_OPTIONS="detect_leaks=1" ./run.sh [args...]
+
+           # Via docker run (manual):
            docker run --network=host \\
              -e LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 \\
              -e ASAN_OPTIONS="detect_leaks=1" \\
              ghcr.io/testillano/h2agent:latest /opt/h2agent [args...]
 
            # LD_PRELOAD is required so ASAN runtime is loaded first.
-           # Do NOT combine with jemalloc (incompatible).
+           # This also disables jemalloc (incompatible with ASAN).
            # Run a short test, then stop the process (Ctrl+C or SIGTERM).
            # ASAN prints leak report to stderr on exit.
            # Optionally redirect to file:
@@ -82,12 +87,18 @@ usage() {
 
          Running with TSAN:
 
+           # Via run.sh (recommended):
+           H2AGENT_LD_PRELOAD="" ./run.sh [args...]
+
+           # Via docker run (manual):
            docker run --network=host \\
+             -e LD_PRELOAD="" \\
              ghcr.io/testillano/h2agent:latest /opt/h2agent [args...]
 
+           # Empty LD_PRELOAD disables jemalloc (incompatible with TSAN).
            # Data race reports are printed to stderr during execution.
            # Optionally redirect to file:
-           #   -e TSAN_OPTIONS="log_path=/tmp/tsan"
+           #   TSAN_OPTIONS="log_path=/tmp/tsan"
            # Reports are written to /tmp/tsan.<pid> as races are detected.
 
 EOF

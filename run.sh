@@ -13,9 +13,8 @@ Remember prepend variables:
                                 -p 8000:8000 -p 8001:8001 -p 8074:8074), debugging
                                 (--cap-add=SYS_PTRACE), etc.
                                 Defaults to '--network=host'.
-   H2AGENT_LD_PRELOAD:          LD_PRELOAD library path for alternative allocators.
-                                Defaults to jemalloc if available.
-                                Set to empty string to use glibc malloc.
+   H2AGENT_LD_PRELOAD:          Override LD_PRELOAD (jemalloc is auto-enabled
+                                in starter.sh). Set to empty string to disable.
    H2AGENT_TRAFFIC_PROXY_PORT:  Traffic proxy port provided by nghttpx allowing
                                 http1.0, http1.1, http2 and http2 without http1
                                 upgrade.
@@ -70,19 +69,17 @@ fi
 
 docker_args+=" ${H2AGENT_DCK_EXTRA_ARGS}"
 
-# Use jemalloc by default for better performance and lower variance
-# The libc malloc default allocator does not trim memory but endpoint has been implemented
-#  to do it: admin/v1/malloc-trim
-if [ -z "${H2AGENT_LD_PRELOAD+x}" ]; then
-  H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+# jemalloc and MALLOC_CONF are configured automatically in the container's
+# starter.sh (deps/starter.sh). Override via environment if needed:
+#   H2AGENT_LD_PRELOAD=""  → disable jemalloc (use glibc malloc)
+#   H2AGENT_LD_PRELOAD=/path/to/lib  → custom allocator
+if [ -n "${H2AGENT_LD_PRELOAD+x}" ]; then
+  if [ -n "${H2AGENT_LD_PRELOAD}" ]; then
+    docker_args+=" -e LD_PRELOAD=${H2AGENT_LD_PRELOAD}"
+  else
+    docker_args+=" -e LD_PRELOAD="
+  fi
 fi
-if [ -n "${H2AGENT_LD_PRELOAD}" ]; then
-  docker_args+=" -e LD_PRELOAD=${H2AGENT_LD_PRELOAD}"
-fi
-
-# Jemalloc additional options (aggressive memory trim):
-echo $H2AGENT_LD_PRELOAD | grep -qw libjemalloc
-[ $? -eq 0 ] && docker_args+=" -e MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:1000"
 
 # Recommended for 'benchmark/start.sh' (comment to use only provided arguments):
 benchmark_args=(--verbose --traffic-server-worker-threads $(( $(nproc) / 2 > 2 ? $(nproc) / 2 : 2 )) --prometheus-response-delay-seconds-histogram-boundaries "100e-6,200e-6,300e-6,400e-6,1e-3,5e-3,10e-3,20e-3") # worker threads: half of available cores (min 2), leaving room for io threads and OS
