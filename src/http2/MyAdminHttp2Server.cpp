@@ -1048,8 +1048,13 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             }
 
             // Provisioned request counter
-            if (response.statusCode != 0) client->incrementProvisionedRequestsSuccessful();
+            if (response.statusCode > 0) client->incrementProvisionedRequestsSuccessful();
             else client->incrementProvisionedRequestsFailed();
+
+            // Break chain on transport errors (timeout, connection error, etc.)
+            if (response.statusCode <= 0) {
+                return;
+            }
 
             // Response validation counters
             if (!responseValidationOk) {
