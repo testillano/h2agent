@@ -510,6 +510,7 @@ client_provision() {
     local start_epoch=$(date +%s)
     local initial_seqs=
     local prev_output=
+    local empty_retries=0
     while true; do
       local json=$(curl -s --http2-prior-knowledge $(admin_url)/client-provision 2>/dev/null)
       local output=
@@ -522,6 +523,7 @@ client_provision() {
         "\($id): seq=\(.sequence)/\(.sequenceEnd) remaining=\($remaining) cps=\(.cps) repeat=\(.repeat) ETA=\($eta)s"
       ')
       if [ -n "$output" ]; then
+        empty_retries=0
         # Capture initial sequences on first active iteration
         if [ -z "$initial_seqs" ]; then
           initial_seqs=$(echo "$json" | jq -r '
@@ -537,6 +539,10 @@ client_provision() {
         fi
         ${single_shot} && break
         [ "$period" -gt 0 ] 2>/dev/null && sleep "$period"
+      elif [ -n "$initial_seqs" ] && [ $empty_retries -lt 5 ]; then
+        # Had active dynamics before — likely transient (admin busy or mid-update), retry
+        empty_retries=$((empty_retries + 1))
+        sleep 1
       elif ! ${wait}; then
         # Print summary if we tracked any dynamics
         if [ -n "$initial_seqs" ]; then
@@ -651,7 +657,7 @@ client_provision_cps() {
   if [ "$(echo "${rampUp} > 0" | bc)" = "1" ]; then
     # Read current cps from provision dynamics
     do_curl -XGET "$(admin_url)/client-provision" >/dev/null 2>&1
-    local from_cps=$(pretty "[.[] | select(.id==\"${id}\")] | .[0].dynamics.cps // 0" 2>/dev/null || echo 0)
+    local from_cps=$(pretty "[.[] | select(.id==\"${id}\" and .inState==\"initial\")] | .[0].dynamics.cps // 0" 2>/dev/null || echo 0)
     [ -z "${from_cps}" ] && from_cps=0
 
     local step_ns=100000000 # 0.1s fixed
