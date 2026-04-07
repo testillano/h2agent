@@ -69,8 +69,8 @@ usage() {
          Running with ASAN:
 
            # Via run.sh (recommended):
-           H2AGENT_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 \\
-             ASAN_OPTIONS="detect_leaks=1" ./run.sh [args...]
+           H2A_DOCKER_OPTS="-e LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 -e ASAN_OPTIONS=detect_leaks=1" \\
+             ./run.sh [args...]
 
            # Via docker run (manual):
            docker run --network=host \\
@@ -88,7 +88,7 @@ usage() {
          Running with TSAN:
 
            # Via run.sh (recommended):
-           H2AGENT_LD_PRELOAD="" ./run.sh [args...]
+           H2A_DOCKER_OPTS="-e LD_PRELOAD=" ./run.sh [args...]
 
            # Via docker run (manual):
            docker run --network=host \\

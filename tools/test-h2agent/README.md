@@ -7,7 +7,7 @@ Check [README.md](../../README.md#Prepare-the-environment).
 It is required to enable the`nghttpx` proxy for both traffic and administrative interfaces, so you could run the agent in this way:
 
 ```bash
-$ H2AGENT_TRAFFIC_PROXY_PORT=8001 H2AGENT_ADMIN_PROXY_PORT=8075 ./run.sh
+$ H2A_DOCKER_OPTS="-e H2AGENT_TRAFFIC_PROXY_PORT=8001 -e H2AGENT_ADMIN_PROXY_PORT=8075" ./run.sh
 ```
 
 ## Install requirements

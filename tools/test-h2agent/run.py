@@ -80,7 +80,7 @@ class HelpDialog(QDialog):
             <h2>H2Agent Mock Tester - Help</h2>
             <p>Welcome to the H2Agent Mock Tester application. This tool allows you to send administrative, traffic, and metrics requests to h2agent mock server.</p>
             <p>The mock server should be started with proxy enabled, for example:</p>
-            <p><code>H2AGENT_TRAFFIC_PROXY_PORT=8001 H2AGENT_ADMIN_PROXY_PORT=8075 ./run.sh</code></p>
+            <p><code>H2A_DOCKER_OPTS="-e H2AGENT_TRAFFIC_PROXY_PORT=8001 -e H2AGENT_ADMIN_PROXY_PORT=8075" ./run.sh</code></p>
 
             <h3>Administrative Interface Tab:</h3>
             <ul>
