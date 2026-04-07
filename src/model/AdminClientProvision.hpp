@@ -126,7 +126,7 @@ class AdminClientProvision
     // Timer-based triggering:
     boost::asio::steady_timer *timer_{};
     boost::asio::io_context *io_context_{};
-    std::function<void()> tick_callback_{};
+    std::function<bool()> tick_callback_{}; // returns false if congested (seq not advanced)
     std::chrono::steady_clock::time_point last_dynamics_save_{};
     void scheduleTick(bool first = true);
 
@@ -259,7 +259,7 @@ public:
      * @param ioContext Timer io_context
      * @param tickCallback Callback invoked on each tick (should call sendClientRequest)
      */
-    void startTicking(boost::asio::io_context *ioContext, std::function<void()> tickCallback);
+    void startTicking(boost::asio::io_context *ioContext, std::function<bool()> tickCallback);
 
     /**
      * Check if timer is active

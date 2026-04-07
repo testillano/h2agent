@@ -1229,15 +1229,16 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     // Timer-based triggering (cps > 0) or single request
     if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
         if (!provision->isTicking()) {
-            provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() {
+            provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() -> bool {
                 auto tickSeq = provision->getSeq(); // capture BEFORE post (timer thread)
                 if (client_worker_io_context_) {
-                    postToPool([this, provision, inState, clientEndpoint, tickSeq]() {
+                    return postToPool([this, provision, inState, clientEndpoint, tickSeq]() {
                         sendClientRequest(provision, inState, clientEndpoint, tickSeq);
                     });
                 }
                 else {
                     sendClientRequest(provision, inState, clientEndpoint, tickSeq);
+                    return true;
                 }
             });
         }

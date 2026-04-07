@@ -1343,7 +1343,7 @@ bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, co
     return true;
 }
 
-void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std::function<void()> tickCallback) {
+void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std::function<bool()> tickCallback) {
     stopTicking();
     io_context_ = ioContext;
     tick_callback_ = std::move(tickCallback);
@@ -1380,6 +1380,12 @@ void AdminClientProvision::scheduleTick(bool first) {
     timer_->async_wait([this](const boost::system::error_code &ec) {
         if (ec) return; // cancelled
 
+        // Try to dispatch. If congested, don't advance seq (retry next tick).
+        scheduleTick(false); // schedule next BEFORE callback to avoid drift
+        if (tick_callback_ && !tick_callback_()) {
+            return; // congested: seq not advanced, will retry
+        }
+
         seq_++;
 
         if (seq_.load() > seq_end_.load()) {
@@ -1398,9 +1404,6 @@ void AdminClientProvision::scheduleTick(bool first) {
             saveDynamics();
             last_dynamics_save_ = now;
         }
-
-        scheduleTick(false); // schedule next BEFORE callback to avoid drift
-        if (tick_callback_) tick_callback_();
     });
 }
 
