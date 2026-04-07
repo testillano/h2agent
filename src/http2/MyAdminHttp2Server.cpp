@@ -1104,20 +1104,10 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 if (nextProvision) {
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
-                    if (client_worker_io_context_) {
-                        // Chain continuations are never discarded (would orphan the subscriber).
-                        // Only initial ticks are subject to congestion control.
-                        pending_pool_dispatches_++;
-                        auto t0 = std::chrono::steady_clock::now();
-                        boost::asio::post(*client_worker_io_context_, [this, t0, nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys]() {
-                            pending_pool_dispatches_--;
-                            recordDispatchLatency(t0);
-                            sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
-                        });
-                    }
-                    else {
-                        sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
-                    }
+                    // Chain continuations run inline on the IO thread (no pool hop).
+                    // The chain is sequential per subscriber — posting to the pool
+                    // would only add dispatch latency without parallelism benefit.
+                    sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
                 }
             }
         },
