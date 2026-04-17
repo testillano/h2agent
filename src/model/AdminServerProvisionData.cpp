@@ -102,9 +102,8 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
             ordered_keys_.push_back(key);
         }
 
-        add(key, provision);
-
-        // Set common resources:
+        // Set common resources BEFORE adding to map, so traffic threads
+        // never see a provision with null resource pointers:
         provision->setAdminData(cr.AdminDataPtr);
         provision->setConfiguration(cr.ConfigurationPtr);
         provision->setVault(cr.VaultPtr);
@@ -112,6 +111,8 @@ AdminServerProvisionData::LoadResult AdminServerProvisionData::loadSingle(const 
         provision->setSocketManager(cr.SocketManagerPtr);
         provision->setMockServerData(cr.MockServerDataPtr);
         provision->setMockClientData(cr.MockClientDataPtr);
+
+        add(key, provision);
 
         return Success;
     }
@@ -139,7 +140,7 @@ bool AdminServerProvisionData::clear()
 {
     write_guard_t guard(rw_mutex_);
     ordered_keys_.clear();
-    return Map::clear_unsafe();
+    return Map::clear();
 }
 
 std::shared_ptr<AdminServerProvision> AdminServerProvisionData::find(const std::string &inState, const std::string &method, const std::string &uri) const {
