@@ -48,12 +48,9 @@ namespace model
 {
 
 AdminServerMatchingData::AdminServerMatchingData() {
-    algorithm_ = FullMatching;
-    //rgx_.clear();
-    fmt_.clear();
-    uri_path_query_parameters_filter_ = Sort;
-    uri_path_query_parameters_separator_ = Ampersand;
-    json_["algorithm"] = "FullMatching";
+    auto cfg = std::make_shared<Config>();
+    cfg->json["algorithm"] = "FullMatching";
+    std::atomic_store(&config_, std::shared_ptr<const Config>(std::move(cfg)));
 
     server_matching_schema_.setJson(h2agent::adminSchemas::server_matching); // won't fail
 }
@@ -65,10 +62,9 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
         return BadSchema;
     }
 
-    write_guard_t guard(rw_mutex_);
-
-    // Store whole document (useful for GET operation)
-    json_ = j;
+    // Build new immutable config on the side (no lock held)
+    auto cfg = std::make_shared<Config>();
+    cfg->json = j;
 
     // Mandatory
     auto algorithm_it = j.find("algorithm");
@@ -80,7 +76,7 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
     if (rgx_it != j.end() && rgx_it->is_string()) {
         hasRgx = true;
         try {
-            rgx_.assign(rgx_it->get<std::string>(), std::regex::optimize);
+            cfg->rgx.assign(rgx_it->get<std::string>(), std::regex::optimize);
         }
         catch (std::regex_error &e) {
             ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
@@ -91,7 +87,7 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
     auto fmt_it = j.find("fmt");
     if (fmt_it != j.end() && fmt_it->is_string()) {
         hasFmt = true;
-        fmt_ = *fmt_it;
+        cfg->fmt = *fmt_it;
     }
 
     auto uriPathQueryParameters_it = j.find("uriPathQueryParameters");
@@ -99,23 +95,23 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
         auto filter_it = (*uriPathQueryParameters_it).find("filter"); // mandatory
         if (filter_it->is_string()) {
             if (*filter_it == "Sort") {
-                uri_path_query_parameters_filter_ = Sort;
+                cfg->uri_path_query_parameters_filter = Sort;
             }
             else if (*filter_it == "PassBy") {
-                uri_path_query_parameters_filter_ = PassBy;
+                cfg->uri_path_query_parameters_filter = PassBy;
             }
             else if (*filter_it == "Ignore") {
-                uri_path_query_parameters_filter_ = Ignore;
+                cfg->uri_path_query_parameters_filter = Ignore;
             }
         }
 
         auto separator_it = (*uriPathQueryParameters_it).find("separator"); // optional
         if (separator_it != (*uriPathQueryParameters_it).end() && separator_it->is_string()) {
             if (*separator_it == "Ampersand") {
-                uri_path_query_parameters_separator_ = Ampersand;
+                cfg->uri_path_query_parameters_separator = Ampersand;
             }
             else if (*separator_it == "Semicolon") {
-                uri_path_query_parameters_separator_ = Semicolon;
+                cfg->uri_path_query_parameters_separator = Semicolon;
             }
         }
     }
@@ -126,23 +122,25 @@ AdminServerMatchingData::LoadResult AdminServerMatchingData::load(const nlohmann
             ert::tracing::Logger::error("FullMatching does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
             return BadContent;
         }
-        algorithm_ = FullMatching;
+        cfg->algorithm = FullMatching;
     }
     else if (*algorithm_it == "FullMatchingRegexReplace") {
         if (!hasRgx || !hasFmt) {
             ert::tracing::Logger::error("FullMatchingRegexReplace requires rgx and fmt fields", ERT_FILE_LOCATION);
             return BadContent;
         }
-        algorithm_ = FullMatchingRegexReplace;
+        cfg->algorithm = FullMatchingRegexReplace;
     }
     else if (*algorithm_it == "RegexMatching") {
         if (hasRgx || hasFmt) {
             ert::tracing::Logger::error("RegexMatching does not allow rgx and/or fmt fields", ERT_FILE_LOCATION);
             return BadContent;
         }
-        algorithm_ = RegexMatching;
+        cfg->algorithm = RegexMatching;
     }
 
+    // Atomic swap — traffic threads holding the old shared_ptr are safe
+    std::atomic_store(&config_, std::shared_ptr<const Config>(std::move(cfg)));
 
     return Success;
 }

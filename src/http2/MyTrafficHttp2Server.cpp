@@ -210,6 +210,9 @@ ss << "TRAFFIC REQUEST RECEIVED"
    ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
 );
 
+// Matching configuration snapshot (held for the duration of this request):
+    auto matchingConfig = getAdminData()->getServerMatchingData().getConfig();
+
     // Normalized URI: original URI with query parameters normalized (ordered) / Classification URI: may ignore, sort or pass by query parameters
     std::string normalizedUri = uriPath;
     std::string classificationUri = uriPath;
@@ -217,7 +220,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
     // Query parameters transformation:
     std::map<std::string, std::string> qmap; // query parameters map
     if (!uriQuery.empty()) {
-        char separator = ((getAdminData()->getServerMatchingData().getUriPathQueryParametersSeparator() == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
+        char separator = ((matchingConfig->uri_path_query_parameters_separator == h2agent::model::AdminServerMatchingData::Ampersand) ? '&':';');
         std::string uriQueryNormalized;
         std::string *ptr_uriQueryNormalized = &uriQueryNormalized;
         qmap = h2agent::model::extractQueryParameters(uriQuery, ptr_uriQueryNormalized, separator); // needed even for 'Ignore' QParam filter type
@@ -225,8 +228,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
         normalizedUri += "?";
         normalizedUri += uriQueryNormalized;
 
-        h2agent::model::AdminServerMatchingData::UriPathQueryParametersFilterType uriPathQueryParametersFilterType = getAdminData()->getServerMatchingData().getUriPathQueryParametersFilter();
-        switch (uriPathQueryParametersFilterType) {
+        switch (matchingConfig->uri_path_query_parameters_filter) {
         case h2agent::model::AdminServerMatchingData::PassBy:
             classificationUri += "?";
             classificationUri += uriQuery;
@@ -246,9 +248,8 @@ ss << "TRAFFIC REQUEST RECEIVED"
         ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
 
-// Admin provision & matching configuration:
+// Admin provision:
     const h2agent::model::AdminServerProvisionData & provisionData = getAdminData()->getServerProvisionData();
-    const h2agent::model::AdminServerMatchingData & matchingData = getAdminData()->getServerMatchingData();
 
 // Find mock context:
     std::string inState{};
@@ -258,7 +259,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
     /*bool requestFound = */getMockServerData()->findLastRegisteredRequestState(normalizedKey, inState, chainVariables); // if not found, inState will be 'initial'
 
 // Matching algorithm:
-    h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingData.getAlgorithm();
+    h2agent::model::AdminServerMatchingData::AlgorithmType algorithmType = matchingConfig->algorithm;
     std::shared_ptr<h2agent::model::AdminServerProvision> provision(nullptr);
 
     LOGDEBUG(
@@ -280,7 +281,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
     case h2agent::model::AdminServerMatchingData::FullMatchingRegexReplace:
         // In this case, our classification URI is pending to be transformed:
-        classificationUri = std::regex_replace (classificationUri, matchingData.getRgx(), matchingData.getFmt());
+        classificationUri = std::regex_replace(classificationUri, matchingConfig->rgx, matchingConfig->fmt);
         LOGDEBUG(
             std::string msg = ert::tracing::Logger::asString("Classification Uri (after regex-replace transformation): %s", classificationUri.c_str());
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);

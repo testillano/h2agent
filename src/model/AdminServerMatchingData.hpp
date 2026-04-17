@@ -35,11 +35,9 @@ SOFTWARE.
 
 #pragma once
 
+#include <atomic>
+#include <memory>
 #include <regex>
-#include <mutex>
-#include <shared_mutex>
-
-#include <common.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -68,42 +66,30 @@ public:
     // Load result
     enum LoadResult { Success = 0, BadSchema, BadContent };
 
-    // getters
-    AlgorithmType getAlgorithm() const {
-        read_guard_t guard(rw_mutex_);
-        return algorithm_;
-    }
-
-    const std::regex& getRgx() const {
-        read_guard_t guard(rw_mutex_);
-        return rgx_;
-    }
-
-    const std::string& getFmt() const {
-        read_guard_t guard(rw_mutex_);
-        return fmt_;
-    }
-
-    UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const {
-        read_guard_t guard(rw_mutex_);
-        return uri_path_query_parameters_filter_;
-    }
-
-    UriPathQueryParametersSeparatorType getUriPathQueryParametersSeparator() const {
-        read_guard_t guard(rw_mutex_);
-        return uri_path_query_parameters_separator_;
-    }
+    // Immutable configuration snapshot (thread-safe by design)
+    struct Config {
+        AlgorithmType algorithm{FullMatching};
+        std::regex rgx{};
+        std::string fmt{};
+        UriPathQueryParametersFilterType uri_path_query_parameters_filter{Sort};
+        UriPathQueryParametersSeparatorType uri_path_query_parameters_separator{Ampersand};
+        nlohmann::json json{};
+    };
 
     /**
-     * Json for class information
-     *
-     * @return Json object
+     * Returns an immutable configuration snapshot.
+     * Callers hold the shared_ptr for the duration of use,
+     * so concurrent load() calls cannot invalidate it.
      */
-    const nlohmann::json &getJson() const {
-        read_guard_t guard(rw_mutex_);
-
-        return json_;
+    std::shared_ptr<const Config> getConfig() const {
+        return std::atomic_load(&config_);
     }
+
+    // Convenience getters (safe for scalar/by-value access)
+    AlgorithmType getAlgorithm() const { return getConfig()->algorithm; }
+    UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const { return getConfig()->uri_path_query_parameters_filter; }
+    UriPathQueryParametersSeparatorType getUriPathQueryParametersSeparator() const { return getConfig()->uri_path_query_parameters_separator; }
+    nlohmann::json getJson() const { return getConfig()->json; }
 
     /**
      * Loads server matching operation data
@@ -123,16 +109,7 @@ public:
 
 private:
     h2agent::jsonschema::JsonSchema server_matching_schema_{};
-
-    mutable mutex_t rw_mutex_{};
-
-    nlohmann::json json_{};
-
-    AlgorithmType algorithm_{};
-    std::regex rgx_{};
-    std::string fmt_{};
-    UriPathQueryParametersFilterType uri_path_query_parameters_filter_{};
-    UriPathQueryParametersSeparatorType uri_path_query_parameters_separator_{};
+    std::shared_ptr<const Config> config_;
 };
 
 }

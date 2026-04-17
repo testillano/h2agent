@@ -381,10 +381,9 @@ TEST_F(Configure_test, LoadMatching)
     EXPECT_EQ(Configure_test::adata_.loadServerMatching(MatchingConfiguration_FullMatchingRegexReplace__Success), h2agent::model::AdminServerMatchingData::Success);
     h2agent::model::AdminServerMatchingData::AlgorithmType algorithm = Configure_test::adata_.getServerMatchingData().getAlgorithm(); // FullMatchingRegexReplace
     EXPECT_EQ(algorithm,  h2agent::model::AdminServerMatchingData::FullMatchingRegexReplace);
-    std::string fmt = Configure_test::adata_.getServerMatchingData().getFmt(); // $1
-    EXPECT_EQ(fmt, "$1");
-    std::regex rgx = Configure_test::adata_.getServerMatchingData().getRgx(); // ([0-9]{3})-([a-z]{2})-foo-bar
-    std::string result = std::regex_replace ("123-ab-foo-bar", rgx, fmt);
+    auto config = Configure_test::adata_.getServerMatchingData().getConfig();
+    EXPECT_EQ(config->fmt, "$1");
+    std::string result = std::regex_replace ("123-ab-foo-bar", config->rgx, config->fmt);
     EXPECT_EQ(result, "123");
 
     //EXPECT_EQ(Configure_test::adata_.getServerMatchingData().getRgx(), re);
