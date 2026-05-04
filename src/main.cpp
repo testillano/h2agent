@@ -1052,7 +1052,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     // Timers thread:
     std::thread tt([&] {
-        boost::asio::io_context::work work(*myTimersIoContext);
+        boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work(
+            boost::asio::make_work_guard(*myTimersIoContext));
         myTimersIoContext->run();
     });
 
@@ -1060,11 +1061,12 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // IMPORTANT: must be created BEFORE setClientWorkerIoContext() — passing a nullptr
     // silently disables the pool and all work falls back to the timer thread.
     // Value of 0 disables the pool (useful for A/B testing or single-threaded debugging).
-    std::unique_ptr<boost::asio::io_context::work> clientWorkerPoolWork;
+    std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> clientWorkerPoolWork;
     std::vector<std::thread> clientWorkerPoolThreads;
     if (traffic_client_worker_threads_pool > 0) {
         myClientWorkerIoContext = new boost::asio::io_context();
-        clientWorkerPoolWork = std::make_unique<boost::asio::io_context::work>(*myClientWorkerIoContext);
+        clientWorkerPoolWork = std::make_unique<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+            boost::asio::make_work_guard(*myClientWorkerIoContext));
         for (int i = 0; i < traffic_client_worker_threads_pool; i++) {
             clientWorkerPoolThreads.emplace_back([&] {
                 myClientWorkerIoContext->run();

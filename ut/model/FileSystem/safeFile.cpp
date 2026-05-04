@@ -35,7 +35,8 @@ public:
         file_manager_ =  new h2agent::model::FileManager(); // no metrics by default
         timers_io_context_ =  new boost::asio::io_context();
         timers_thread_ = new std::thread([&] {
-            boost::asio::io_context::work work(*timers_io_context_);
+            boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work(
+                boost::asio::make_work_guard(*timers_io_context_));
             timers_io_context_->run();
         });
     }
