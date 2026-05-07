@@ -72,7 +72,7 @@ endif()
 ## We will point to a lighter repository to speed up the process:
 #FetchContent_Declare(nlohmann_json
 #  GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent
-#  GIT_TAG v3.10.5)
+#  GIT_TAG v3.12.0)
 #message(STATUS  "Fetching nlohmann_json ... this may take a while")
 #FetchContent_GetProperties(nlohmann_json)
 #
@@ -84,7 +84,7 @@ endif()
 ## pboettch json-schema-validator header-only library:
 #FetchContent_Declare(pboettch_jsonschemavalidator
 #  GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
-#  GIT_TAG 2.1.0)
+#  GIT_TAG 2.4.0)
 #message(STATUS  "Fetching pboettch_jsonschemavalidator ... this may take a while")
 #FetchContent_GetProperties(pboettch_jsonschemavalidator)
 #

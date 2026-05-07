@@ -8,8 +8,8 @@ WORKDIR /code/build
 
 ARG make_procs=4
 ARG build_type=Release
-ARG nlohmann_json_ver=v3.10.5
-ARG pboettch_jsonschemavalidator_ver=2.1.0
+ARG nlohmann_json_ver=v3.12.0
+ARG pboettch_jsonschemavalidator_ver=2.4.0
 ARG google_test_ver=v1.11.0
 ARG arashpartow_exprtk_ver=0.0.3
 ARG ert_multipart_ver=v1.0.3
@@ -19,22 +19,24 @@ RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add zlib-static && r
 
 # nlohmann json
 RUN set -x && \
-    wget https://github.com/nlohmann/json/releases/download/${nlohmann_json_ver}/json.hpp && \
-    mkdir /usr/local/include/nlohmann && mv json.hpp /usr/local/include/nlohmann && \
+    wget https://github.com/nlohmann/json/archive/refs/tags/${nlohmann_json_ver}.tar.gz && \
+    tar xvf ${nlohmann_json_ver}.tar.gz && cd json-*/ && mkdir build && cd build && \
+    cmake -DJSON_BuildTests=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .. && make -j${make_procs} install && \
+    cd ../.. && rm -rf * && \
     set +x
 
 # pboettch json-schema-validator
 RUN set -x && \
     wget https://github.com/pboettch/json-schema-validator/archive/${pboettch_jsonschemavalidator_ver}.tar.gz && \
     tar xvf ${pboettch_jsonschemavalidator_ver}.tar.gz && cd json-schema-validator*/ && mkdir build && cd build && \
-    cmake -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON .. && make -j${make_procs} && make install && \
+    cmake -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .. && make -j${make_procs} && make install && \
     cd ../.. && rm -rf * && \
     set +x
 
 # google test framework
 RUN set -x && \
     wget https://github.com/google/googletest/archive/refs/tags/release-$(echo ${google_test_ver} | cut -c2-).tar.gz && \
-    tar xvf release-$(echo ${google_test_ver} | cut -c2-).tar.gz && cd googletest-release*/ && cmake . && make -j${make_procs} install && \
+    tar xvf release-$(echo ${google_test_ver} | cut -c2-).tar.gz && cd googletest-release*/ && cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 . && make -j${make_procs} install && \
     cd .. && rm -rf * && \
     set +x
 
@@ -47,6 +49,6 @@ RUN set -x && \
 # ert_multipart
 RUN set -x && \
     wget https://github.com/testillano/multipart/archive/${ert_multipart_ver}.tar.gz && tar xvf ${ert_multipart_ver}.tar.gz && cd multipart-*/ && \
-    cmake -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON . && make -j${make_procs} && make install && \
+    cmake -DERT_MULTIPART_BuildExamples=OFF -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 . && make -j${make_procs} && make install && \
     cd .. && rm -rf * && \
     set +x

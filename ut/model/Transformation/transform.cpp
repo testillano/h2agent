@@ -596,7 +596,7 @@ TEST_F(Transform_test, ResponseNotValidated)
 
     // Run transformation:
     // Remove mandatory 'bar':
-    auto path = nlohmann::json_pointer<nlohmann::json> {"/responseBody"};
+    auto path = nlohmann::json::json_pointer{"/responseBody"};
     // Get a reference to the 'responseBody':
     auto& rb = server_provision_json_[path];
     // Erase from the 'responseBody' node by key name: "bar" (response schema requires it !)

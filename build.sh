@@ -14,8 +14,8 @@ scratch_img__dflt=${base_os__dflt}
 scratch_img_tag__dflt=latest
 make_procs__dflt=$(grep processor /proc/cpuinfo -c)
 build_type__dflt=Release
-nlohmann_json_ver__dflt=v3.10.5
-pboettch_jsonschemavalidator_ver__dflt=2.1.0
+nlohmann_json_ver__dflt=v3.12.0
+pboettch_jsonschemavalidator_ver__dflt=2.4.0
 google_test_ver__dflt=v1.11.0
 # arash partow version is quite frozen
 registry=ghcr.io/testillano
@@ -56,6 +56,7 @@ usage() {
          base_os=alpine $0 --auto
          image_tag=test1 $0 --builder-image
          build_type=Debug $0 --auto
+         build_type=RelWithDebInfo $0 --auto
          SANITIZER=asan build_type=Debug $0 --auto
          SANITIZER=tsan build_type=Debug $0 --auto
          DBUILD_XTRA_OPTS=--no-cache $0 --auto
