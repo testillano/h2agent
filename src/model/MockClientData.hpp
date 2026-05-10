@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <vector>
 #include <cstdint>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -109,6 +110,18 @@ public:
      * @return Mock event or nullptr if not found
      */
     std::shared_ptr<MockEvent> getEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq);
+
+    /**
+     * Gets chronologically ordered sequence of events (direction + method + uri + timestamps)
+     *
+     * @param fromTimestampUs Minimum timestamp filter (0 = no filter)
+     * @param toTimestampUs Maximum timestamp filter (0 = no filter)
+     * @param requestMethod Filter by exact method (empty = no filter)
+     * @param uriRegex Filter by URI regex (nullptr = no filter)
+     *
+     * @return JSON array sorted by timestamp, interleaving send/recv
+     */
+    std::string getSequence(std::uint64_t fromTimestampUs, std::uint64_t toTimestampUs, const std::string &requestMethod, const std::regex *uriRegex) const;
 };
 
 }

@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -345,3 +346,42 @@ TEST_F(MockClientData_test, DefaultStateInitial)
     EXPECT_EQ(latestState, "initial");
 }
 
+
+// Sequence tests
+
+TEST_F(MockClientData_test, SequenceEmpty)
+{
+    h2agent::model::MockClientData emptyData;
+    std::string result = emptyData.getSequence(0, 0, "", nullptr);
+    EXPECT_EQ(result, "[]");
+}
+
+TEST_F(MockClientData_test, SequenceInterleaved)
+{
+    // data_ has 2 events (2 keys), each with send+recv = 4 entries
+    std::string result = data_.getSequence(0, 0, "", nullptr);
+    auto json = nlohmann::json::parse(result);
+    EXPECT_EQ(json.size(), 4); // 2 events x (send + recv)
+    // Verify directions exist:
+    bool hasSend = false, hasRecv = false;
+    for (const auto &e : json) {
+        if (e["direction"] == "send") hasSend = true;
+        if (e["direction"] == "recv") hasRecv = true;
+    }
+    EXPECT_TRUE(hasSend);
+    EXPECT_TRUE(hasRecv);
+}
+
+TEST_F(MockClientData_test, SequenceFilterByMethod)
+{
+    std::string result = data_.getSequence(0, 0, "POST", nullptr);
+    EXPECT_EQ(result, "[]"); // all events are DELETE
+}
+
+TEST_F(MockClientData_test, SequenceFilterByUriRegex)
+{
+    std::regex rgx("111");
+    std::string result = data_.getSequence(0, 0, "", &rgx);
+    auto json = nlohmann::json::parse(result);
+    EXPECT_EQ(json.size(), 2); // only key1: send + recv
+}

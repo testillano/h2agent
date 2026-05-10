@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <vector>
 #include <cstdint>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -118,6 +119,18 @@ public:
     std::shared_ptr<MockServerEvent> getLastLoadedEvent() const {
         return last_loaded_event_;
     }
+
+    /**
+     * Gets chronologically ordered sequence of events (method + uri + timestamps)
+     *
+     * @param fromTimestampUs Minimum reception timestamp filter (0 = no filter)
+     * @param toTimestampUs Maximum reception timestamp filter (0 = no filter)
+     * @param requestMethod Filter by exact method (empty = no filter)
+     * @param uriRegex Filter by URI regex (nullptr = no filter)
+     *
+     * @return JSON array sorted by receptionTimestampUs
+     */
+    std::string getSequence(std::uint64_t fromTimestampUs, std::uint64_t toTimestampUs, const std::string &requestMethod, const std::regex *uriRegex) const;
 };
 
 }

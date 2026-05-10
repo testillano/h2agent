@@ -38,6 +38,7 @@ SOFTWARE.
 #include <sstream>
 #include <errno.h>
 #include <malloc.h>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -439,6 +440,36 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getMockServerData()->summary(maxKeys);
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
+    else if (pathSuffix == "server-data/sequence") {
+        std::uint64_t fromTimestampUs = 0, toTimestampUs = 0;
+        std::string requestMethod = "";
+        std::string uriRegexStr = "";
+        if (!queryParams.empty()) {
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("fromTimestampUs");
+            if (it != qmap.end()) fromTimestampUs = std::stoull(it->second);
+            it = qmap.find("toTimestampUs");
+            if (it != qmap.end()) toTimestampUs = std::stoull(it->second);
+            it = qmap.find("requestMethod");
+            if (it != qmap.end()) requestMethod = it->second;
+            it = qmap.find("uriRegex");
+            if (it != qmap.end()) uriRegexStr = it->second;
+        }
+
+        try {
+            std::regex uriRegex;
+            const std::regex *uriRegexPtr = nullptr;
+            if (!uriRegexStr.empty()) {
+                uriRegex = std::regex(uriRegexStr);
+                uriRegexPtr = &uriRegex;
+            }
+            responseBody = getMockServerData()->getSequence(fromTimestampUs, toTimestampUs, requestMethod, uriRegexPtr);
+            statusCode = (responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT : ert::http2comm::ResponseCode::OK;
+        }
+        catch (const std::regex_error&) {
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST;
+        }
+    }
     else if (pathSuffix == "client-data/summary") {
         std::string maxKeys = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
@@ -449,6 +480,36 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
 
         responseBody = getMockClientData()->summary(maxKeys);
         statusCode = ert::http2comm::ResponseCode::OK; // 200
+    }
+    else if (pathSuffix == "client-data/sequence") {
+        std::uint64_t fromTimestampUs = 0, toTimestampUs = 0;
+        std::string requestMethod = "";
+        std::string uriRegexStr = "";
+        if (!queryParams.empty()) {
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("fromTimestampUs");
+            if (it != qmap.end()) fromTimestampUs = std::stoull(it->second);
+            it = qmap.find("toTimestampUs");
+            if (it != qmap.end()) toTimestampUs = std::stoull(it->second);
+            it = qmap.find("requestMethod");
+            if (it != qmap.end()) requestMethod = it->second;
+            it = qmap.find("uriRegex");
+            if (it != qmap.end()) uriRegexStr = it->second;
+        }
+
+        try {
+            std::regex uriRegex;
+            const std::regex *uriRegexPtr = nullptr;
+            if (!uriRegexStr.empty()) {
+                uriRegex = std::regex(uriRegexStr);
+                uriRegexPtr = &uriRegex;
+            }
+            responseBody = getMockClientData()->getSequence(fromTimestampUs, toTimestampUs, requestMethod, uriRegexPtr);
+            statusCode = (responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT : ert::http2comm::ResponseCode::OK;
+        }
+        catch (const std::regex_error&) {
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST;
+        }
     }
     else if (pathSuffix == "vault") {
         std::string name = "";

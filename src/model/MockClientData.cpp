@@ -34,10 +34,12 @@ SOFTWARE.
 */
 
 #include <string>
+#include <algorithm>
 
 #include <ert/tracing/Logger.hpp>
 
 #include <MockClientData.hpp>
+#include <MockClientEvent.hpp>
 
 
 namespace h2agent
@@ -77,6 +79,62 @@ std::shared_ptr<MockEvent> MockClientData::getEventBySendSeq(const DataKey &data
     if (!exists) return nullptr;
 
     return events->getEventBySendSeq(sendSeq);
+}
+
+std::string MockClientData::getSequence(std::uint64_t fromTimestampUs, std::uint64_t toTimestampUs, const std::string &requestMethod, const std::regex *uriRegex) const {
+
+    struct Entry {
+        std::uint64_t timestampUs;
+        std::string direction;
+        std::string method;
+        std::string uri;
+        std::string clientProvisionId;
+    };
+    std::vector<Entry> entries;
+
+    forEach([&](const mock_events_key_t&, const std::shared_ptr<MockEventsHistory> &history) {
+        const auto &key = history->getKey();
+        const std::string &method = key.getMethod();
+        const std::string &uri = key.getUri();
+
+        if (!requestMethod.empty() && method != requestMethod) return;
+        if (uriRegex && !std::regex_search(uri, *uriRegex)) return;
+
+        read_guard_t guard(history->getMutex());
+        for (const auto &ev : history->getEvents()) {
+            auto clientEv = std::static_pointer_cast<MockClientEvent>(ev);
+            const auto &json = clientEv->getJson();
+            std::uint64_t sendTs = json["sendingTimestampUs"].get<std::uint64_t>();
+            std::uint64_t recvTs = json.contains("receptionTimestampUs") ? json["receptionTimestampUs"].get<std::uint64_t>() : 0;
+            std::string provId = json.contains("clientProvisionId") ? json["clientProvisionId"].get<std::string>() : "";
+
+            // Send entry:
+            if ((!fromTimestampUs || sendTs >= fromTimestampUs) && (!toTimestampUs || sendTs <= toTimestampUs)) {
+                entries.push_back({sendTs, "send", method, uri, provId});
+            }
+            // Recv entry:
+            if (recvTs && (!fromTimestampUs || recvTs >= fromTimestampUs) && (!toTimestampUs || recvTs <= toTimestampUs)) {
+                entries.push_back({recvTs, "recv", method, uri, provId});
+            }
+        }
+    });
+
+    std::sort(entries.begin(), entries.end(), [](const Entry &a, const Entry &b) {
+        return a.timestampUs < b.timestampUs;
+    });
+
+    nlohmann::json result = nlohmann::json::array();
+    for (const auto &e : entries) {
+        nlohmann::json obj;
+        obj["direction"] = e.direction;
+        obj["method"] = e.method;
+        obj["uri"] = e.uri;
+        obj["timestampUs"] = e.timestampUs;
+        if (!e.clientProvisionId.empty()) obj["clientProvisionId"] = e.clientProvisionId;
+        result.push_back(std::move(obj));
+    }
+
+    return result.dump();
 }
 
 }

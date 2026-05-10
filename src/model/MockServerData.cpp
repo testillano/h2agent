@@ -34,6 +34,7 @@ SOFTWARE.
 */
 
 #include <string>
+#include <algorithm>
 
 #include <ert/tracing/Logger.hpp>
 
@@ -81,6 +82,58 @@ std::shared_ptr<MockEvent> MockServerData::getEventByRecvSeq(const DataKey &data
     if (!exists) return nullptr;
 
     return events->getEventByRecvSeq(recvSeq);
+}
+
+std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint64_t toTimestampUs, const std::string &requestMethod, const std::regex *uriRegex) const {
+
+    struct Entry {
+        std::uint64_t timestampUs;
+        std::string direction;
+        std::string method;
+        std::string uri;
+    };
+    std::vector<Entry> entries;
+
+    forEach([&](const mock_events_key_t&, const std::shared_ptr<MockEventsHistory> &history) {
+        const auto &key = history->getKey();
+        const std::string &method = key.getMethod();
+        const std::string &uri = key.getUri();
+
+        if (!requestMethod.empty() && method != requestMethod) return;
+        if (uriRegex && !std::regex_search(uri, *uriRegex)) return;
+
+        read_guard_t guard(history->getMutex());
+        for (const auto &ev : history->getEvents()) {
+            auto serverEv = std::static_pointer_cast<MockServerEvent>(ev);
+            std::uint64_t recTs = serverEv->getJson()["receptionTimestampUs"].get<std::uint64_t>();
+            std::uint64_t sendTs = serverEv->getSendingTimestampUs();
+
+            // Recv entry:
+            if ((!fromTimestampUs || recTs >= fromTimestampUs) && (!toTimestampUs || recTs <= toTimestampUs)) {
+                entries.push_back({recTs, "recv", method, uri});
+            }
+            // Send entry:
+            if (sendTs && (!fromTimestampUs || sendTs >= fromTimestampUs) && (!toTimestampUs || sendTs <= toTimestampUs)) {
+                entries.push_back({sendTs, "send", method, uri});
+            }
+        }
+    });
+
+    std::sort(entries.begin(), entries.end(), [](const Entry &a, const Entry &b) {
+        return a.timestampUs < b.timestampUs;
+    });
+
+    nlohmann::json result = nlohmann::json::array();
+    for (const auto &e : entries) {
+        nlohmann::json obj;
+        obj["direction"] = e.direction;
+        obj["method"] = e.method;
+        obj["uri"] = e.uri;
+        obj["timestampUs"] = e.timestampUs;
+        result.push_back(std::move(obj));
+    }
+
+    return result.dump();
 }
 
 }

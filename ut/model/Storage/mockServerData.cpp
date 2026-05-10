@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <regex>
 
 #include <nlohmann/json.hpp>
 
@@ -341,3 +342,39 @@ TEST_F(MockServerData_test, DefaultStateInitial)
     EXPECT_EQ(latestState, "initial");
 }
 
+
+// Sequence tests
+
+TEST_F(MockServerData_test, SequenceEmpty)
+{
+    h2agent::model::MockServerData emptyData;
+    std::string result = emptyData.getSequence(0, 0, "", nullptr);
+    EXPECT_EQ(result, "[]");
+}
+
+TEST_F(MockServerData_test, SequenceChronologicalOrder)
+{
+    // data_ has events loaded in constructor with same timestamp
+    // sendingTimestampUs not set in UT, so only recv entries
+    std::string result = data_.getSequence(0, 0, "", nullptr);
+    EXPECT_NE(result, "[]");
+    auto json = nlohmann::json::parse(result);
+    EXPECT_EQ(json.size(), 4); // 4 events, only recv (no sendingTimestampUs set)
+    for (const auto &e : json) {
+        EXPECT_EQ(e["direction"], "recv");
+    }
+}
+
+TEST_F(MockServerData_test, SequenceFilterByMethod)
+{
+    std::string result = data_.getSequence(0, 0, "POST", nullptr);
+    EXPECT_EQ(result, "[]"); // all events are DELETE
+}
+
+TEST_F(MockServerData_test, SequenceFilterByUriRegex)
+{
+    std::regex rgx("111");
+    std::string result = data_.getSequence(0, 0, "", &rgx);
+    auto json = nlohmann::json::parse(result);
+    EXPECT_EQ(json.size(), 2); // only key1 events match
+}

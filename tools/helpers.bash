@@ -230,6 +230,8 @@ server_data() {
     echo "                                                                   Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current server data summary to guide further queries."
     echo "                                                     Displayed keys (method/uri) could be limited (10 by default, -1: no limit)."
+    echo "                   [--sequence] [options]          ; Gets chronological event sequence (recv/send with timestamps)."
+    echo "                                                     Options: --method <M> --uri-regex <R> --from <us> --to <us>"
     echo "                   [--clean] [query filters]       ; Removes server data events."
     echo "                   [--surf] [query filters]        ; Interactive sorted (regardless method/uri) server data navigation."
     echo "                   [--dump] [query filters]        ; Dumps all sequences detected for server data under 'server-data-sequences' directory."
@@ -241,6 +243,22 @@ server_data() {
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=
     do_curl "$(admin_url)/server-data/summary${queryParams}"
+    return 0
+  elif [ "$1" = "--sequence" ]
+  then
+    shift
+    local queryParams=""
+    local sep="?"
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --method) queryParams+="${sep}requestMethod=$2"; sep="&"; shift 2 ;;
+        --uri-regex) queryParams+="${sep}uriRegex=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$2'))")"; sep="&"; shift 2 ;;
+        --from) queryParams+="${sep}fromTimestampUs=$2"; sep="&"; shift 2 ;;
+        --to) queryParams+="${sep}toTimestampUs=$2"; sep="&"; shift 2 ;;
+        *) echo "Unknown option: $1"; return 1 ;;
+      esac
+    done
+    do_curl "$(admin_url)/server-data/sequence${queryParams}"
     return 0
   elif [ "$1" = "--clean" ]
   then
@@ -767,6 +785,8 @@ client_data() {
     echo "                                                                                        Event number may be negative to access by reverse chronological order."
     echo "                   [--summary] [max keys]          ; Gets current client data summary to guide further queries."
     echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (10 by default, -1: no limit)."
+    echo "                   [--sequence] [options]          ; Gets chronological event sequence (send/recv with timestamps)."
+    echo "                                                     Options: --method <M> --uri-regex <R> --from <us> --to <us>"
     echo "                   [--clean] [query filters]       ; Removes client data events."
     echo "                   [--surf] [query filters]        ; Interactive sorted (regardless endpoint/method/uri) client data navigation."
     echo "                   [--dump] [query filters]        ; Dumps all sequences detected for client data under 'client-data-sequences' directory."
@@ -779,6 +799,22 @@ client_data() {
     [ -n "${maxKeys}" ] && queryParams="?maxKeys=${maxKeys}"
     [ "${maxKeys}" = "-1" ] && queryParams=
     do_curl "$(admin_url)/client-data/summary${queryParams}"
+    return 0
+  elif [ "$1" = "--sequence" ]
+  then
+    shift
+    local queryParams=""
+    local sep="?"
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --method) queryParams+="${sep}requestMethod=$2"; sep="&"; shift 2 ;;
+        --uri-regex) queryParams+="${sep}uriRegex=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$2'))")"; sep="&"; shift 2 ;;
+        --from) queryParams+="${sep}fromTimestampUs=$2"; sep="&"; shift 2 ;;
+        --to) queryParams+="${sep}toTimestampUs=$2"; sep="&"; shift 2 ;;
+        *) echo "Unknown option: $1"; return 1 ;;
+      esac
+    done
+    do_curl "$(admin_url)/client-data/sequence${queryParams}"
     return 0
   elif [ "$1" = "--clean" ]
   then
@@ -1548,6 +1584,7 @@ snapshot() {
   server_provision && pretty > ${dir}/server/provision.json
   server_provision_unused && pretty > ${dir}/server/provision-unused.json
   server_data --summary -1 && pretty > ${dir}/server/data-summary.json
+  server_data --sequence && pretty > ${dir}/server/data-sequence.json
   echo | server_data && pretty > ${dir}/server/data.json
   pushd ${dir}/server ; server_data --dump ; [ -d server-data-sequences ] && mv server-data-sequences data-sequences ; popd
 
@@ -1557,6 +1594,7 @@ snapshot() {
   client_provision && pretty > ${dir}/client/provision.json
   client_provision_unused && pretty > ${dir}/client/provision-unused.json
   client_data --summary -1 && pretty > ${dir}/client/data-summary.json
+  client_data --sequence && pretty > ${dir}/client/data-sequence.json
   echo | client_data && pretty > ${dir}/client/data.json
   pushd ${dir}/client ; client_data --dump ; [ -d client-data-sequences ] && mv client-data-sequences data-sequences ; popd
 

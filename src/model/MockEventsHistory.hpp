@@ -121,6 +121,22 @@ public:
         return data_key_;
     }
 
+    /** Events vector (for iteration under external lock)
+    *
+    * @return Events vector reference
+    */
+    const std::vector<std::shared_ptr<MockEvent>> &getEvents() const {
+        return events_;
+    }
+
+    /** Mutex for external locking
+    *
+    * @return Mutex reference
+    */
+    mutex_t &getMutex() const {
+        return rw_mutex_;
+    }
+
     /** Number of events
     *
     * @return Events list size
