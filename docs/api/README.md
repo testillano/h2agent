@@ -1607,7 +1607,8 @@ When provided *method* and *uri*, server data will be filtered with that key. If
 The information collected for a server event item is:
 
 * `virtualOrigin`: special field for virtual entries coming from provisions which established an *out-state* for a foreign method/uri. This entry is necessary to simulate complexes states but you should ignore from the post-verification point of view. The rest of *json* fields will be kept with the original event information, just in case the history is disabled, to allow tracking the maximum information possible. This node holds a `json` nested object containing the `method` and `uri` for the real event which generated this virtual register.
-* `receptionTimestampUs`: event reception *timestamp*.
+* `receptionTimestampUs`: event reception *timestamp* (request in).
+* `sendingTimestampUs`: event sending *timestamp* (response out). Set after the response is fully sent, including any configured or dynamic delays. Useful for measuring actual server processing time (`sendingTimestampUs - receptionTimestampUs`).
 * `state`: working/current state for the event (provision `outState` or target state modified by transformation filters).
 * `requestHeaders`: object containing the list of request headers.
 * `requestBody`: object containing the request body.

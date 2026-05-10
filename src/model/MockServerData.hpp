@@ -61,6 +61,8 @@ namespace model
  */
 class MockServerData : public MockData
 {
+    std::shared_ptr<MockServerEvent> last_loaded_event_{};
+
 public:
     MockServerData() {};
     ~MockServerData() = default;
@@ -107,6 +109,15 @@ public:
      * @return Mock event or nullptr if not found
      */
     std::shared_ptr<MockEvent> getEventByRecvSeq(const DataKey &dataKey, std::uint64_t recvSeq);
+
+    /**
+     * Gets the last loaded event (from the most recent loadEvent call)
+     *
+     * @return Last loaded server event
+     */
+    std::shared_ptr<MockServerEvent> getLastLoadedEvent() const {
+        return last_loaded_event_;
+    }
 };
 
 }

@@ -358,6 +358,12 @@ ss << "TRAFFIC REQUEST RECEIVED"
                 normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
                 getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
 
+                // Register for sendingTimestampUs capture in streamClose:
+                {
+                    std::lock_guard<std::mutex> guard(pending_events_mutex_);
+                    pending_events_[receptionId] = getMockServerData()->getLastLoadedEvent();
+                }
+
                 // Store chain variables for next outState link:
                 getMockServerData()->storeChainVariables(normalizedKey, chainVariables);
 
@@ -392,6 +398,12 @@ ss << "TRAFFIC REQUEST RECEIVED"
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
             getMockServerData()->loadEvent(normalizedKey, ""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+
+            // Register for sendingTimestampUs capture in streamClose:
+            {
+                std::lock_guard<std::mutex> guard(pending_events_mutex_);
+                pending_events_[receptionId] = getMockServerData()->getLastLoadedEvent();
+            }
         }
         // metrics
         if(metrics_) {
@@ -410,6 +422,26 @@ ss << "TRAFFIC REQUEST RECEIVED"
     }
     ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
     );
+}
+
+void MyTrafficHttp2Server::streamClose(const std::uint64_t &receptionId) {
+
+    if (server_data_ && mock_server_events_data_) {
+        std::shared_ptr<model::MockServerEvent> event;
+        {
+            std::lock_guard<std::mutex> guard(pending_events_mutex_);
+            auto it = pending_events_.find(receptionId);
+            if (it != pending_events_.end()) {
+                event = it->second;
+                pending_events_.erase(it);
+            }
+        }
+        if (event) {
+            auto sendingTimestampUs = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::system_clock::now().time_since_epoch());
+            event->setSendingTimestampUs(sendingTimestampUs);
+        }
+    }
 }
 
 void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req) {

@@ -79,3 +79,26 @@ TEST_F(MockServerEvent_test, GetJson)
     EXPECT_EQ(data_.getJson(), eventJson);
 }
 
+
+TEST_F(MockServerEvent_test, SetSendingTimestampUs)
+{
+    EXPECT_EQ(data_.getSendingTimestampUs(), 0);
+
+    std::chrono::microseconds ts(1715000000100);
+    data_.setSendingTimestampUs(ts);
+    EXPECT_EQ(data_.getSendingTimestampUs(), 1715000000100);
+}
+
+TEST_F(MockServerEvent_test, GetJsonWithSendingTimestamp)
+{
+    std::chrono::microseconds ts(1715000000100);
+    data_.setSendingTimestampUs(ts);
+
+    EXPECT_EQ(data_.getJson()["sendingTimestampUs"], 1715000000100);
+}
+
+TEST_F(MockServerEvent_test, GetJsonWithoutSendingTimestamp)
+{
+    // Before setSendingTimestampUs is called, field should not be present
+    EXPECT_FALSE(data_.getJson().contains("sendingTimestampUs"));
+}

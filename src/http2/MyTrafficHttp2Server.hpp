@@ -42,6 +42,8 @@ SOFTWARE.
 #include <atomic>
 #include <functional>
 #include <chrono>
+#include <unordered_map>
+#include <mutex>
 
 #include <boost/asio.hpp>
 
@@ -56,6 +58,7 @@ namespace h2agent
 namespace model
 {
 class MockServerData;
+class MockServerEvent;
 class MockClientData;
 //class Configuration;
 class Vault;
@@ -92,6 +95,10 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     model::Vault* vault_ptr_{};
 
     std::function<void(const std::string& /*clientProvisionId*/, const std::string& /*inState*/)> client_provision_trigger_{};
+
+    // Map receptionId -> event for O(1) sendingTimestampUs capture in streamClose:
+    std::unordered_map<std::uint64_t, std::shared_ptr<model::MockServerEvent>> pending_events_{};
+    std::mutex pending_events_mutex_{};
 
 public:
     MyTrafficHttp2Server(const std::string &name, size_t workerThreads, size_t maxWorkerThreads, boost::asio::io_context *timersIoContext, int maxQueueDispatcherSize);
@@ -130,6 +137,7 @@ public:
                  std::string& responseBody, unsigned int &responseDelayMs);
 
     void streamError(uint32_t errorCode, const std::string &serverName, const std::uint64_t &receptionId, const nghttp2::asio_http2::server::request &req);
+    void streamClose(const std::uint64_t &receptionId);
     std::chrono::milliseconds responseDelayMs(const std::uint64_t &receptionId);
 
     void setAdminData(model::AdminData *p) {

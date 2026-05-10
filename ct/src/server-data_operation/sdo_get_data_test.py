@@ -31,6 +31,7 @@ def test_001_i_want_to_get_internal_data_on_admin_interface(h2ac_admin, h2ac_tra
   # In this test we request all the server-data, so we must access the first array element with [0]:
   del response["body"][0]["events"][0]["recvseq"]
   del response["body"][0]["events"][0]["receptionTimestampUs"]
+  del response["body"][0]["events"][0]["sendingTimestampUs"]
   del responseBodyRef[0]["events"][0]["recvseq"]
   del responseBodyRef[0]["events"][0]["receptionTimestampUs"]
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
@@ -52,6 +53,7 @@ def test_002_i_want_to_get_speficic_internal_data_on_admin_interface(h2ac_admin,
   # hyper does not add headers on traffic as curl does, so we don't have to remove 'headers' key.
   del response["body"]["events"][0]["recvseq"] # depends on the server sequence since the h2agent was started
   del response["body"]["events"][0]["receptionTimestampUs"] # completely unpredictable
+  del response["body"]["events"][0]["sendingTimestampUs"] # completely unpredictable
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 
@@ -70,6 +72,7 @@ def test_003_i_want_to_get_speficic_internal_data_on_admin_interface_using_event
   # hyper does not add headers on traffic as curl does, so we don't have to remove 'headers' key.
   del response["body"]["recvseq"] # depends on the server sequence since the h2agent was started
   del response["body"]["receptionTimestampUs"] # completely unpredictable
+  del response["body"]["sendingTimestampUs"] # completely unpredictable
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
 

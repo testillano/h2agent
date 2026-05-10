@@ -53,6 +53,7 @@ class MockServerEvent : public MockEvent
     unsigned int response_delay_ms_{};
     std::string virtual_origin_coming_from_method_{};
     std::string virtual_origin_coming_from_uri_{};
+    std::uint64_t sending_timestamp_us_{};
 
 public:
 
@@ -96,6 +97,24 @@ public:
      */
     const nlohmann::json &getRequestBody() const {
         return request_body_;
+    }
+
+    /**
+     * Sets the sending timestamp (response out)
+     *
+     * @param sendingTimestampUs Microseconds sending timestamp
+     */
+    void setSendingTimestampUs(const std::chrono::microseconds &sendingTimestampUs) {
+        sending_timestamp_us_ = sendingTimestampUs.count();
+        json_["sendingTimestampUs"] = sending_timestamp_us_;
+    }
+
+    /** Sending timestamp (response out)
+     *
+     * @return Sending timestamp in microseconds (0 if not yet sent)
+     */
+    std::uint64_t getSendingTimestampUs() const {
+        return sending_timestamp_us_;
     }
 };
 

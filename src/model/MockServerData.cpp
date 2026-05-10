@@ -53,6 +53,8 @@ void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previo
     events->loadEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
 
     if (maiden) add(dataKey.getKey(), events); // push the key in the map:
+
+    last_loaded_event_ = std::static_pointer_cast<MockServerEvent>(events->getEvent(1, true /* reverse: last */));
 }
 
 bool MockServerData::removeEventByRecvSeq(const DataKey &dataKey, std::uint64_t recvSeq) {
