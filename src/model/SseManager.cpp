@@ -57,7 +57,12 @@ void SseManager::removeConnection(uint64_t id) {
 }
 
 void SseManager::notify(const std::string &key, const nlohmann::json &value) {
-    // Format SSE event
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (connections_.empty()) return;
+    }
+
+    // Format SSE event only if there are active connections
     nlohmann::json data;
     data["key"] = key;
     data["value"] = value;
