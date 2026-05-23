@@ -40,6 +40,7 @@ SOFTWARE.
 #include <Vault.hpp>
 #include <AdminSchemas.hpp>
 #include <WaitManager.hpp>
+#include <SseManager.hpp>
 
 namespace h2agent
 {
@@ -53,11 +54,17 @@ Vault::Vault() {
 void Vault::load(const std::string &variable, const nlohmann::json &value) {
     add(variable, value);
     if (wait_manager_) wait_manager_->notify();
+    if (sse_manager_) sse_manager_->notify(variable, value);
 }
 
 void Vault::load(const std::string &variable, nlohmann::json &&value) {
     add(variable, std::move(value));
     if (wait_manager_) wait_manager_->notify();
+    if (sse_manager_) {
+        nlohmann::json v;
+        tryGet(variable, v);
+        sse_manager_->notify(variable, v);
+    }
 }
 
 void Vault::loadAtPath(const std::string &variable, const std::string &path, const nlohmann::json &value) {
@@ -66,6 +73,11 @@ void Vault::loadAtPath(const std::string &variable, const std::string &path, con
         current[nlohmann::json::json_pointer(path)] = value;
     });
     if (wait_manager_) wait_manager_->notify();
+    if (sse_manager_) {
+        nlohmann::json v;
+        tryGet(variable, v);
+        sse_manager_->notify(variable, v);
+    }
 }
 
 bool Vault::loadJson(const nlohmann::json &j) {
@@ -88,6 +100,7 @@ bool Vault::loadJson(const nlohmann::json &j) {
     // object iteration provides directly.
     for (auto it = j.begin(); it != j.end(); ++it) {
         add(it.key(), it.value());
+        if (sse_manager_) sse_manager_->notify(it.key(), it.value());
     }
     if (wait_manager_) wait_manager_->notify();
 

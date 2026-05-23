@@ -56,6 +56,7 @@ SOFTWARE.
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 #include <WaitManager.hpp>
+#include <SseManager.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -88,6 +89,7 @@ h2agent::model::SocketManager* mySocketManager = nullptr;
 h2agent::model::MockServerData* myMockServerData = nullptr;
 h2agent::model::MockClientData* myMockClientData = nullptr;
 h2agent::model::WaitManager* myWaitManager = nullptr;
+h2agent::model::SseManager* mySseManager = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
@@ -203,6 +205,9 @@ void stopAgent()
     if (myWaitManager) myWaitManager->shutdown();
     delete(myWaitManager);
     myWaitManager = nullptr;
+
+    delete(mySseManager);
+    mySseManager = nullptr;
 
     delete(myMetrics);
     myMetrics = nullptr;
@@ -1084,6 +1089,11 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myWaitManager = new h2agent::model::WaitManager();
     myWaitManager->setVault(myVault);
     myVault->setWaitManager(myWaitManager);
+
+    // SSE (Server-Sent Events) manager for vault event streaming:
+    mySseManager = new h2agent::model::SseManager();
+    myVault->setSseManager(mySseManager);
+    myAdminHttp2Server->setSseManager(mySseManager);
 
     // Always set mock data on admin server (needed even when traffic server is disabled, e.g. client-only mode):
     myAdminHttp2Server->setMockServerData(myMockServerData);

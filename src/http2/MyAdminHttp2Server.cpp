@@ -36,15 +36,20 @@ SOFTWARE.
 #include <boost/optional.hpp>
 
 #include <sstream>
+#include <cstring>
 #include <errno.h>
 #include <malloc.h>
 #include <regex>
+#include <unordered_set>
+
+#include <nghttp2/nghttp2.h>
 
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
 #include <ert/http2comm/Http2Headers.hpp>
+#include <ert/http2comm/AsioCompat.hpp>
 
 #include <MyAdminHttp2Server.hpp>
 #include <MyTrafficHttp2Server.hpp>
@@ -56,6 +61,7 @@ SOFTWARE.
 #include <Configuration.hpp>
 #include <Vault.hpp>
 #include <WaitManager.hpp>
+#include <SseManager.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <functions.hpp>
@@ -1313,6 +1319,71 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
     result["needsStorage"] = admin_data_->getClientProvisionData().needsStorage();
 
     return result.dump();
+}
+
+void MyAdminHttp2Server::registerHandlers() {
+    if (!sse_manager_) return;
+
+    std::string apiPath = getApiPath(); // e.g. "/admin/v1"
+
+    server_.handle(apiPath + "/vault/events", [this](const nghttp2::asio_http2::server::request &req,
+                                                      const nghttp2::asio_http2::server::response &res) {
+        LOGDEBUG(ert::tracing::Logger::debug("SSE handler invoked", ERT_FILE_LOCATION));
+        // Parse key= query parameters from URI
+        std::unordered_set<std::string> keys;
+        std::string query = req.uri().raw_query;
+        if (!query.empty()) {
+            std::istringstream iss(query);
+            std::string param;
+            while (std::getline(iss, param, '&')) {
+                if (param.rfind("key=", 0) == 0) {
+                    keys.insert(param.substr(4));
+                }
+            }
+        }
+
+        // Shared buffer between generator and notify callback
+        auto buffer = std::make_shared<std::string>();
+        auto buffer_mutex = std::make_shared<std::mutex>();
+
+        // Send SSE headers
+        nghttp2::asio_http2::header_map headers;
+        headers.emplace("content-type", nghttp2::asio_http2::header_value{"text/event-stream", false});
+        headers.emplace("cache-control", nghttp2::asio_http2::header_value{"no-cache", false});
+        res.write_head(200, std::move(headers));
+
+        // Generator callback: called by nghttp2 when ready to send data
+        res.end([buffer, buffer_mutex](uint8_t *buf, size_t len, uint32_t *data_flags) -> ssize_t {
+            std::lock_guard<std::mutex> lock(*buffer_mutex);
+            if (buffer->empty()) {
+                return NGHTTP2_ERR_DEFERRED; // no data, pause stream
+            }
+            size_t n = std::min(len, buffer->size());
+            std::memcpy(buf, buffer->data(), n);
+            buffer->erase(0, n);
+            return static_cast<ssize_t>(n);
+        });
+
+        // Register SSE connection: on notify, buffer data and resume stream
+        auto sse_manager = sse_manager_;
+        uint64_t connId = sse_manager_->addConnection(std::move(keys),
+            [buffer, buffer_mutex, &res](const std::string &data) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("SSE notify callback: buffering %zu bytes", data.size()), ERT_FILE_LOCATION));
+                {
+                    std::lock_guard<std::mutex> lock(*buffer_mutex);
+                    buffer->append(data);
+                }
+                // resume() must run on the nghttp2 event loop thread
+                boost::asio::post(ert::http2comm::asio_compat::io_context(res), [&res] {
+                    res.resume();
+                });
+            });
+
+        // On stream close, remove the connection
+        res.on_close([sse_manager, connId](uint32_t) {
+            sse_manager->removeConnection(connId);
+        });
+    });
 }
 
 }

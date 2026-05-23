@@ -47,6 +47,7 @@ namespace model
 {
 
 class WaitManager;
+class SseManager;
 
 /**
  * Converts a json value to its string representation for variable substitution.
@@ -65,12 +66,14 @@ class Vault : public Map<std::string, nlohmann::json>
 {
     h2agent::jsonschema::JsonSchema vault_schema_{};
     WaitManager *wait_manager_{};
+    SseManager *sse_manager_{};
 
 public:
     Vault();
     ~Vault() = default;
 
     void setWaitManager(WaitManager *p) { wait_manager_ = p; }
+    void setSseManager(SseManager *p) { sse_manager_ = p; }
 
     /**
      * Loads variable with a json value.

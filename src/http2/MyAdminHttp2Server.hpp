@@ -65,6 +65,7 @@ class AdminClientProvision;
 class AdminClientEndpoint;
 class DataKey;
 class WaitManager;
+class SseManager;
 }
 
 namespace http2
@@ -79,6 +80,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     model::AdminData *admin_data_{};
     model::common_resources_t common_resources_{}; // general configuration, vault, file manager and mock server events data
     model::WaitManager *wait_manager_{};
+    model::SseManager *sse_manager_{};
 
     h2agent::http2::MyTrafficHttp2Server *http2_server_{}; // used to set server-data configuration (discard contexts and/or history)
 
@@ -196,6 +198,13 @@ public:
     }
 
     void setWaitManager(model::WaitManager *p) { wait_manager_ = p; }
+    void setSseManager(model::SseManager *p) { sse_manager_ = p; }
+
+    /**
+     * Registers the SSE handler for /admin/v1/vault/events on the nghttp2 server.
+     * Called automatically via registerHandlers() (after generic handler registration).
+     */
+    void registerHandlers() override;
 
     void setTimersIoContext(boost::asio::io_context *p) {
         timers_io_context_ = p;

@@ -51,7 +51,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 * Interfaces
 
   * Administrative interface (REST API with JSON): update, create and delete items:
-    * Vault (with blocking wait / long-poll support).
+    * Vault (with blocking wait / long-poll and SSE streaming support).
     * File manager configuration.
     * UDP events.
     * Schemas (Rx/Tx).
@@ -1737,6 +1737,7 @@ The API is organized in the following groups:
 | **schema** | `POST` `GET` `DELETE` `/admin/v1/schema` | Validation schemas for traffic checking |
 | **vault** | `POST` `GET` `DELETE` `/admin/v1/vault` | Shared variables between provisions |
 | | `GET` `/admin/v1/vault/<key>/wait` | Block until variable changes (long-poll) |
+| | `GET` `/admin/v1/vault/events[?key=...]` | SSE stream of vault mutations (real-time push) |
 | **files** | `GET` `/admin/v1/files` | Processed files status |
 | **logging** | `GET` `PUT` `/admin/v1/logging` | Dynamic log level configuration |
 | **configuration** | `GET` `/admin/v1/configuration` | General process configuration |
@@ -1889,6 +1890,42 @@ Concurrent waits    Probability of exceeding
 
 With the default 33 admin threads, fewer than 0.5% of instants would hit the
 limit. Adjust `--admin-server-worker-threads` if your workload requires more.
+
+## Server-Sent Events (SSE) on Vault Mutations
+
+For scenarios requiring real-time notification of multiple vault changes (e.g., barrier synchronization in parallel test suites), the SSE endpoint pushes events as they happen — no polling, no repeated requests:
+
+```bash
+# Subscribe to events for specific keys:
+curl --http2-prior-knowledge -N -s "http://localhost:8074/admin/v1/vault/events?key=barrier_1&key=barrier_2"
+
+# Subscribe to ALL vault mutations (useful for debugging):
+curl --http2-prior-knowledge -N -s "http://localhost:8074/admin/v1/vault/events"
+```
+
+The connection stays open and events arrive as SSE text:
+
+```
+event: vault-set
+data: {"key":"barrier_1","value":"done"}
+
+event: vault-set
+data: {"key":"barrier_2","value":"ready"}
+
+```
+
+### When to use SSE vs Blocking Wait
+
+| | Blocking Wait | SSE |
+|---|---|---|
+| Use case | Wait for one specific key/value | Stream multiple key changes |
+| Connection | One request per key, blocks | Single persistent connection |
+| Overhead | One thread per waiter | One stream, no thread blocked |
+| Best for | Sequential test orchestration | Parallel suites, barrier patterns |
+
+### Example
+
+See `tools/sse-vault-events.sh` for a runnable demo.
 
 ## Reserved Vault Entrys
 
