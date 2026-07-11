@@ -374,8 +374,8 @@ if [ "${BENCH_MODE}" = "server" ]; then
 ###############################################
 elif [ "${BENCH_MODE}" = "client" ]; then
 
-  H2AGENT_DCK_IMG=${H2AGENT_DCK_IMG:-ghcr.io/testillano/h2agent}
-  H2AGENT_DCK_TAG=${H2AGENT_DCK_TAG:-latest}
+  H2A_DOCKER_IMAGE_BN=${H2A_DOCKER_IMAGE_BN:-ghcr.io/testillano/h2agent}
+  H2A_DOCKER_IMAGE_TAG=${H2A_DOCKER_IMAGE_TAG:-latest}
   CLIENT_DCK_NAME="h2agent-bench-client"
 
   CLIENT_ADMIN_PORT=$((H2AGENT__ADMIN_PORT + 1))
@@ -403,7 +403,7 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   # Start dedicated client h2agent (no traffic server, just client + admin + prometheus)
   echo -e "\nStarting client h2agent (admin=${CLIENT_ADMIN_PORT}, prometheus=${CLIENT_PROMETHEUS_PORT})..."
   docker run --rm -d --network=host --name ${CLIENT_DCK_NAME} -u $(id -u) \
-    ${H2AGENT_DCK_IMG}:${H2AGENT_DCK_TAG} \
+    ${H2A_DOCKER_IMAGE_BN}:${H2A_DOCKER_IMAGE_TAG} \
     --admin-port ${CLIENT_ADMIN_PORT} \
     --traffic-server-port 0 \
     --prometheus-port ${CLIENT_PROMETHEUS_PORT} \
