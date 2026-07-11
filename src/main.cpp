@@ -741,16 +741,16 @@ int main(int argc, char* argv[])
         myConfiguration->setQueueDispatcherMaxSize(queue_dispatcher_max_size);
     }
 
+#ifdef H2COMM_MAX_CONCURRENT_STREAMS
     if (readCmdLine(argv, argv + argc, "--traffic-server-max-concurrent-streams", value))
     {
-#ifdef H2COMM_MAX_CONCURRENT_STREAMS
         traffic_server_max_concurrent_streams = static_cast<uint32_t>(toNumber(value));
         if (traffic_server_max_concurrent_streams < 1)
         {
             usage(EXIT_FAILURE, "Invalid '--traffic-server-max-concurrent-streams' value. Must be greater than 0.");
         }
-#endif
     }
+#endif
 
     if (readCmdLine(argv, argv + argc, "--admin-server-worker-threads", value))
     {
