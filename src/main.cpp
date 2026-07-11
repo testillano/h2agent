@@ -333,6 +333,11 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  context processing when the queue size reaches the value provided; defaults to -1,\n"
        << "  which means that congestion control is disabled.\n\n"
 
+       << "[--traffic-server-max-concurrent-streams <streams>]\n"
+       << "  Maximum number of concurrent HTTP/2 streams per connection announced in\n"
+       << "  the SETTINGS frame; defaults to 256. Clients will open new connections\n"
+       << "  when this limit is reached, distributing load across connections.\n\n"
+
        << "[-k|--traffic-server-key <path file>]\n"
        << "  Path file for traffic server key to enable SSL/TLS; insecured by default.\n\n"
 
@@ -605,6 +610,7 @@ int main(int argc, char* argv[])
     int traffic_server_max_worker_threads = 1;
     int admin_server_worker_threads = ADMIN_SERVER_WORKER_THREADS_DEFAULT;
     int queue_dispatcher_max_size = -1; // no congestion control
+    uint32_t traffic_server_max_concurrent_streams = 256;
     std::string traffic_server_key_file = "";
     std::string traffic_server_key_password = "";
     std::string traffic_server_crt_file = "";
@@ -729,6 +735,15 @@ int main(int argc, char* argv[])
         queue_dispatcher_max_size = toNumber(value);
         if (traffic_server_worker_threads < 0) queue_dispatcher_max_size = -1;
         myConfiguration->setQueueDispatcherMaxSize(queue_dispatcher_max_size);
+    }
+
+    if (readCmdLine(argv, argv + argc, "--traffic-server-max-concurrent-streams", value))
+    {
+        traffic_server_max_concurrent_streams = static_cast<uint32_t>(toNumber(value));
+        if (traffic_server_max_concurrent_streams < 1)
+        {
+            usage(EXIT_FAILURE, "Invalid '--traffic-server-max-concurrent-streams' value. Must be greater than 0.");
+        }
     }
 
     if (readCmdLine(argv, argv + argc, "--admin-server-worker-threads", value))
@@ -957,6 +972,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
         std::cout << "Traffic server worker threads: " << traffic_server_worker_threads << '\n';
         std::cout << "Traffic server I/O threads: " << traffic_server_io_threads << '\n';
+        std::cout << "Traffic server max concurrent streams: " << traffic_server_max_concurrent_streams << '\n';
         if (traffic_server_worker_threads > 1) { // queue dispatcher is used
             std::cout << "Traffic server maximum worker threads: " << traffic_server_max_worker_threads << '\n';
             bool congestionControl = (queue_dispatcher_max_size >= 0);
@@ -1107,6 +1123,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         myTrafficHttp2Server->enableMyMetrics(myMetrics, application_name/*source label*/);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
+        myTrafficHttp2Server->setMaxConcurrentStreams(traffic_server_max_concurrent_streams);
 
         myTrafficHttp2Server->setMockServerData(myMockServerData);
         // myAdminHttp2Server->setMockServerData already called above (unconditionally)
