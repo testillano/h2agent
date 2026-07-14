@@ -466,17 +466,23 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  connections = I/O threads.\n\n"
 
        << "[--traffic-client-worker-threads <threads>]\n"
-       << "  Worker pool for client request preparation; defaults to nproc/2 ("
-       << std::max(1u, std::thread::hardware_concurrency() / 2) << " in this system).\n"
+       << "  Worker pool for client request preparation; defaults to auto-calculated\n"
+       << "  based on connections and available cores:\n"
+       << "    connections <= nproc: nproc - connections - 1 ("
+       << std::max(0, (int)std::thread::hardware_concurrency() - 1 - 1) << " with 1 conn in this system)\n"
+       << "    connections >  nproc: nproc - 2 ("
+       << std::max(1, (int)std::thread::hardware_concurrency() - 2) << " in this system)\n"
        << "  Value of 0 disables the pool: transforms run on the timer thread\n"
        << "  (single-threaded, lower throughput but minimal memory overhead).\n"
        << "  The pool decouples the CPS timer from transform execution: the timer\n"
        << "  only increments the sequence and enqueues work, while worker threads\n"
        << "  execute transforms (JSON build, regex, math, vault) and dispatch\n"
        << "  asyncSend. Chain continuations run inline on I/O threads (not pooled).\n\n"
-       << "  Sizing rule: workers = nproc - connections - 1 (leave room for I/O\n"
-       << "  threads, timer, and OS). Too many workers causes CPU contention and\n"
-       << "  instability.\n\n"
+       << "  Sizing rule:\n"
+       << "    connections <= nproc: workers = nproc - connections - 1\n"
+       << "    connections >  nproc: workers = nproc/2 or higher\n\n"
+       << "  These rules are now applied as the default. Override with\n"
+       << "  --traffic-client-worker-threads if needed.\n\n"
 
        << "[--traffic-client-pool-max-pending <size>]\n"
        << "  Maximum pending dispatches in the worker pool; defaults to 0 (unlimited).\n"
@@ -506,9 +512,9 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Traffic client (load generator):\n"
        << "    " << progname << " --traffic-server-port 0 --traffic-client-connections 4\n"
        << "    Disable server with port 0. Connections scale I/O throughput.\n"
-       << "    Worker pool defaults to nproc, parallelizing initial request\n"
-       << "    transforms. Use --traffic-client-pool-max-pending to control\n"
-       << "    memory growth during long runs.\n\n"
+       << "    Worker pool auto-sizes based on connections and cores.\n"
+       << "    Use --traffic-client-pool-max-pending to control memory growth\n"
+       << "    during long runs.\n\n"
 
        << "  Tuning example (8-core machine, 3-step chain at 5000 subs/s):\n\n"
        << "    " << progname << " --traffic-server-port 0 \\\n"
@@ -906,8 +912,18 @@ int main(int argc, char* argv[])
         myConfiguration->setTrafficClientConnections(traffic_client_connections);
     }
 
-    int traffic_client_worker_threads_pool = std::max(1, (int)std::thread::hardware_concurrency() / 2);
-    if (traffic_client_worker_threads_pool < 1) traffic_client_worker_threads_pool = 1;
+    // Smart default for worker threads: depends on connections vs available cores.
+    // When connections > nproc, I/O threads are mostly idle (waiting for remote responses),
+    // so workers can use most of the CPU. Reserve 2 cores for timer + admin + OS.
+    // When connections <= nproc, leave room for I/O threads + timer + OS.
+    int nproc = (int)std::thread::hardware_concurrency();
+    int client_connections = myConfiguration->getTrafficClientConnections();
+    int traffic_client_worker_threads_pool;
+    if (client_connections > nproc) {
+        traffic_client_worker_threads_pool = std::max(1, nproc - 2);
+    } else {
+        traffic_client_worker_threads_pool = std::max(0, nproc - client_connections - 1);
+    }
     if (readCmdLine(argv, argv + argc, "--traffic-client-worker-threads", value))
     {
         traffic_client_worker_threads_pool = toNumber(value);
