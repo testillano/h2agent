@@ -1357,21 +1357,31 @@ void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std:
 }
 
 void AdminClientProvision::stopTicking() {
-    if (timer_) {
+    if (timer_ && io_context_) {
+        auto *t = timer_;
+        timer_ = nullptr;
+        tick_callback_ = nullptr;
+        boost::asio::post(*io_context_, [t]() {
+            t->cancel();
+            delete t;
+        });
+    }
+    else if (timer_) {
         timer_->cancel();
         delete timer_;
         timer_ = nullptr;
+        tick_callback_ = nullptr;
     }
-    tick_callback_ = nullptr;
 }
 
 void AdminClientProvision::scheduleTick(bool first) {
-    if (!timer_ || cps_ == 0) {
+    auto currentCps = cps_.load();
+    if (!timer_ || currentCps == 0) {
         stopTicking();
         return;
     }
 
-    auto period = std::chrono::microseconds(1000000 / cps_);
+    auto period = std::chrono::microseconds(1000000 / currentCps);
     if (first)
         timer_->expires_after(period);               // first tick: relative to now
     else
