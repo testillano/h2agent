@@ -337,14 +337,6 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--traffic-server-max-concurrent-streams <streams>]\n"
        << "  Maximum number of concurrent HTTP/2 streams per connection advertised in\n"
        << "  the SETTINGS frame sent to the client; defaults to 256.\n\n"
-       << "  IMPORTANT: This value is advisory only. The underlying nghttp2 library does\n"
-       << "  not enforce this limit server-side. Clients are expected to honor the\n"
-       << "  SETTINGS_MAX_CONCURRENT_STREAMS value (RFC 9113, Section 5.1.2), but if a\n"
-       << "  client opens more streams than advertised, h2agent will accept and process\n"
-       << "  them all without sending RST_STREAM/REFUSED_STREAM.\n\n"
-       << "  This means h2agent cannot simulate strict servers that reject excess streams.\n"
-       << "  Use this parameter to control the value announced to clients, not to limit\n"
-       << "  actual concurrency on the server.\n\n"
 #endif
 
        << "[-k|--traffic-server-key <path file>]\n"
