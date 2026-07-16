@@ -925,6 +925,29 @@ Filters give you the chance to make complex transformations:
 
   The `filler` parameter controls left-padding when the source is shorter than `size × count`. For example, with source `"42"` and defaults, the padded input becomes `"00000042"`, producing `0.0.0.42`. With `"filler": ""`, no padding is applied and the result depends on the actual source length.
 
+  Note: the `Split` approach produces octets in the range 0-99 (2 digits). For realistic
+  IPv4 addresses with full 0-255 octets, use math expressions to decompose a 32-bit
+  integer into its four bytes:
+
+  ```json
+  [
+    {"source": "var.sequence", "filter": {"Sum": 167772161}, "target": "var.ipnum"},
+    {"source": "math.floor(@{ipnum} / 16777216)", "target": "var.o1"},
+    {"source": "math.floor((@{ipnum} % 16777216) / 65536)", "target": "var.o2"},
+    {"source": "math.floor((@{ipnum} % 65536) / 256)", "target": "var.o3"},
+    {"source": "math.floor(@{ipnum} % 256)", "target": "var.o4"},
+    {"source": "value.@{o1}.@{o2}.@{o3}.@{o4}", "target": "request.body.json.string./ipv4Address"}
+  ]
+  ```
+
+  This converts `ipnum` into a dotted-quad by dividing by powers of 256 (2^24, 2^16, 2^8).
+  Offset `167772161` = 10.0.0.1 in decimal (10*256^3 + 1), chosen so that IPs start in the
+  10.0.0.0/8 private range (RFC 1918). This offset is arbitrary and can be changed to any
+  value that produces a valid starting IP. For example:
+  - `167772161` -> starts at 10.0.0.1 (class A private)
+  - `3232235521` -> starts at 192.168.0.1 (class C private)
+  - `1` -> starts at 0.0.0.1 (if range validity is irrelevant for the test)
+
 - BaseConvert: converts the source string between numeric bases (2–36). Parameters `in` and `out` are required. On conversion error, the source is returned unchanged.
 
   | Parameter | Type | Required | Default | Description |
