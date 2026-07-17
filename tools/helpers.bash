@@ -1047,31 +1047,46 @@ traffic_summary() {
     echo "Usage: traffic_summary [-h|--help] [--show] [--clean] [--json] [<ref1> <ref2>]"
     echo "       Traffic counter summary from prometheus metrics."
     echo
-    echo "       (no args)          Save a counters snapshot (auto timestamp)."
-    echo "       --save <label>     Save a snapshot with a label."
-    echo "       --show             List saved snapshots with labels."
-    echo "       --now              Snapshot + delta from zeroed (*) to current."
-    echo "       <ref> --now        Snapshot + delta from <ref> to current."
+    echo "       (no args)          Save a counters snapshot labelled with timestamp."
+    echo "       --save <label>     Save a snapshot with a label given by user."
+    echo "       --delta            Save snapshot + delta from previous last to it."
+    echo
+    echo "       --now              Volatile snapshot (live fetch) + delta from zeroed to it."
+    echo "       <ref> --now        Volatile snapshot (live fetch) + delta from <ref> to it."
+    echo "       --last             Delta from zeroed to last saved snapshot (no fetch)."
     echo "       <ref1> <ref2>      Delta between two refs (timestamp or label)."
-    echo "       --json             JSON output (combinable with delta or --now)."
+    echo
+    echo "       --show             List saved snapshots and their labels."
     echo "       --clean            Remove all saved snapshots."
+    echo "       --json             JSON output (combinable with --now/--last/--delta)."
     echo
     echo "       References can be unix timestamps or labels (order does not matter)."
-    echo "       (*) Reserved label 'zeroed': virtual zero-baseline snapshot."
+    echo "       'last' is also usable as a ref (e.g. 'traffic_summary before last')."
+    echo "       Reserved labels: 'zeroed' (virtual zero-baseline), 'last' (latest snapshot)."
     echo
     echo "       Snapshots: ${snap_dir}/counters.<unix_ts>"
     echo "       Labels:    ${snap_dir}/labels (label=timestamp mapping)"
     echo
-    echo "       Workflow: traffic_summary --save before  # labeled baseline"
-    echo "                 # ... run your test ..."
-    echo "                 traffic_summary --save after   # labeled post-test"
-    echo "                 traffic_summary --show         # list snapshots"
-    echo "                 traffic_summary before after   # delta by label"
-    echo "                 traffic_summary zeroed after   # absolute values"
-    echo "                 traffic_summary before after --json  # JSON output"
-    echo "                 traffic_summary --now          # shortcut: zeroed -> current"
-    echo "                 traffic_summary before --now   # shortcut: before -> current"
-    echo "                 traffic_summary --now --json   # JSON output"
+    echo "       Use case 1: mark before/after a test"
+    echo "         traffic_summary --save before"
+    echo "         # ... run your test ..."
+    echo "         traffic_summary --save after"
+    echo "         traffic_summary before after"
+    echo
+    echo "       Use case 2: check accumulated since start (no prior mark)"
+    echo "         # ... run your load ..."
+    echo "         traffic_summary --now             # zeroed -> now"
+    echo "         traffic_summary before --now      # before -> now"
+    echo
+    echo "       Use case 3: periodic monitoring (incremental deltas)"
+    echo "         while true; do traffic_summary --delta; sleep 60; done"
+    echo
+    echo "       Use case 4: periodic snapshots with custom labels"
+    echo "         m=1; while true; do traffic_summary --save \${m}; m=\$((m+1)); sleep 60; done"
+    echo "         # then in another terminal:"
+    echo "         traffic_summary --show            # list all"
+    echo "         traffic_summary 1 5               # delta between minute 1 and 5"
+    echo "         traffic_summary --last            # zeroed -> latest"
     return 0
   fi
 
@@ -1146,8 +1161,43 @@ traffic_summary() {
     return 0
   fi
 
-  # Shortcut: snapshot + delta to current
-  # --now              → zeroed → current
+  # Shortcut: --last → delta from ref (default zeroed) to last snapshot
+  if [[ " $* " == *" --last "* ]] || [ "$1" = "--last" ]; then
+    local json_flag="" last_ref="zeroed"
+    for a in "$@"; do
+      case "$a" in
+        --last) ;;
+        --json) json_flag="--json" ;;
+        *) last_ref="$a" ;;
+      esac
+    done
+    local resolved=$(_resolve_ref "last")
+    if [ -z "$resolved" ]; then
+      echo "No snapshots saved yet."
+      unset -f _resolve_ref _label_for_ts _fmt_ref
+      return 0
+    fi
+    traffic_summary "${last_ref}" last ${json_flag}
+    return $?
+  fi
+
+  # Shortcut: --delta → save snapshot + delta from previous last to new snapshot
+  if [ "$1" = "--delta" ]; then
+    local json_flag=""
+    [ "$2" = "--json" ] && json_flag="--json"
+    # Remember previous last
+    local prev_resolved=$(_resolve_ref "last")
+    local prev_ref="zeroed"
+    if [ -n "$prev_resolved" ]; then
+      prev_ref="${prev_resolved##* }" # timestamp of previous last
+    fi
+    # Save new snapshot (updates last)
+    traffic_summary > /dev/null
+    traffic_summary "${prev_ref}" last ${json_flag}
+    return $?
+  fi
+
+  # Shortcut: --now → ephemeral snapshot (not persisted), delta from ref to it
   # <ref> --now        → ref → current
   # --now --json       → zeroed → current (JSON)
   # <ref> --now --json → ref → current (JSON)
@@ -1162,12 +1212,32 @@ traffic_summary() {
   done
   if $now_mode; then
     [ ${#now_args[@]} -gt 0 ] && now_ref="${now_args[0]}"
-    # Save ephemeral snapshot (no label, just timestamp)
-    traffic_summary
-    local latest=$(ls -1t "${snap_dir}"/counters.* 2>/dev/null | head -1)
-    local latest_ts=${latest##*.}
-    traffic_summary "${now_ref}" "${latest_ts}" ${now_json}
-    return $?
+    # Ephemeral snapshot: fetch metrics, write to temp file, compute delta, discard
+    local m=$(curl -s $(metrics_url))
+    if [ -z "$m" ]; then
+      echo "No metrics available (is h2agent running?)"
+      unset -f _resolve_ref _label_for_ts _fmt_ref
+      return 1
+    fi
+    local tmp_snap=$(mktemp)
+    echo "$m" | grep -E '_counter\{|_gauge\{|_bucket\{|_sum\{|_count\{' > "$tmp_snap"
+    local ts_now=$(date +%s)
+    # Resolve the reference
+    local resolved=$(_resolve_ref "${now_ref}")
+    if [ -z "$resolved" ]; then
+      echo "Reference '${now_ref}' not found."
+      rm -f "$tmp_snap"
+      unset -f _resolve_ref _label_for_ts _fmt_ref
+      return 1
+    fi
+    local f1=${resolved% *} ts1=${resolved##* }
+    # Temporarily place the ephemeral file where delta logic can find it
+    local eph_name="${snap_dir}/counters.${ts_now}"
+    mv "$tmp_snap" "$eph_name"
+    traffic_summary "${now_ref}" "${ts_now}" ${now_json}
+    local rc=$?
+    rm -f "$eph_name"
+    return $rc
   fi
 
   # Save snapshot (with optional label)
@@ -1181,8 +1251,8 @@ traffic_summary() {
         unset -f _resolve_ref _label_for_ts _fmt_ref
         return 1
       fi
-      if [ "$label" = "zeroed" ]; then
-        echo "Error: 'zeroed' is a reserved label."
+      if [ "$label" = "zeroed" ] || [ "$label" = "last" ]; then
+        echo "Error: '${label}' is a reserved label."
         unset -f _resolve_ref _label_for_ts _fmt_ref
         return 1
       fi
@@ -1195,6 +1265,9 @@ traffic_summary() {
     fi
     local ts=$(date +%s)
     echo "$m" | grep -E '_counter\{|_gauge\{|_bucket\{|_sum\{|_count\{' > "${snap_dir}/counters.${ts}"
+    # Always update 'last' label to point to the latest snapshot
+    sed -i "/^last=/d" "${snap_dir}/labels"
+    echo "last=${ts}" >> "${snap_dir}/labels"
     if [ -n "$label" ]; then
       # Remove old mapping for this label if exists
       sed -i "/^${label}=/d" "${snap_dir}/labels"
@@ -1228,8 +1301,9 @@ traffic_summary() {
   [ -z "$resolved2" ] && echo "Reference '${args[1]}' not found." && unset -f _resolve_ref _label_for_ts _fmt_ref && return 1
   local f2=${resolved2% *} ts2=${resolved2##* }
 
-  # Silent swap: counters always grow, so ensure older snapshot is first
+  # Swap if needed: counters always grow, so ensure older snapshot is first
   if [ "$ts1" -gt "$ts2" ] 2>/dev/null; then
+    echo -e "${C_YLW}Warning: reordering references (older first).${C_RST}" >&2
     local tmp_f=$f1 tmp_ts=$ts1
     f1=$f2; ts1=$ts2; f2=$tmp_f; ts2=$tmp_ts
   fi
