@@ -1,0 +1,14 @@
+# Stress test: increase CPS in steps while injecting server delay at peak.
+# Takes snapshots before and after for comparison via traffic_summary.
+#
+# Usage:
+#   tools/events-schedule.sh tools/events-schedule-examples/stress-test.driver
+
+Timeline(s)   cps:myFlow   vault:RESPONSE_DELAY_MS   snapshot
+0             0            0              baseline
+5             500          0              -
+60            1000         0              -
+120           2000         0              peak-no-delay
+180           2000         100            peak-with-delay
+240           2000         500            peak-high-delay
+300           0            0              final

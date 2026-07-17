@@ -89,3 +89,5 @@
 * training.sh: helper to run training docker image.
 * url.sh: helper to encode/decode URLs.
 * valgrind.sh: helper to launch the application using valgrind.
+* events-schedule.sh: timeline-driven event scheduler using h2agent helpers as built-in actions. Supports rate control, delay injection, vault operations, and snapshots via driver file labels.
+* events-schedule-examples: example driver files for the event scheduler.

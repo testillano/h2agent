@@ -1,0 +1,15 @@
+# Delay sweep: keep constant CPS while sweeping server response delay.
+# Useful to find the delay threshold where errors start appearing.
+#
+# Usage:
+#   tools/events-schedule.sh tools/events-schedule-examples/delay-sweep.driver
+
+Timeline(s)   vault:RESPONSE_DELAY_MS   snapshot
+0             0              start
+30            50             -
+60            100            -
+90            200            -
+120           500            -
+150           1000           -
+180           2000           -
+210           0              end

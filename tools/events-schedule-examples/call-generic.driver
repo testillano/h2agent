@@ -1,0 +1,12 @@
+# Generic call: example using standard shell commands.
+# Demonstrates values with spaces (parsed by column position, not tokenization).
+#
+# Usage:
+#   tools/events-schedule.sh tools/events-schedule-examples/call-generic.driver
+#   tools/events-schedule.sh tools/events-schedule-examples/call-generic.driver --dry-run
+
+Timeline(s)   call:echo   call:date
+0             test started   +%H:%M:%S
+5             phase 1        -
+10            phase 2        -
+15            test ended     +%H:%M:%S
