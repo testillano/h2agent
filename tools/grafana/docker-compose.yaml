@@ -7,7 +7,7 @@ volumes:
 services:
   prometheus:
     network_mode: host
-    image: prom/prometheus:latest
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:latest}
     container_name: prometheus
     user: "root"
     volumes:
@@ -22,7 +22,7 @@ services:
 
   node-exporter:
     network_mode: host
-    image: prom/node-exporter:latest
+    image: ${NODE_EXPORTER_IMAGE:-prom/node-exporter:latest}
     container_name: node-exporter
     volumes:
       - /proc:/host/proc:ro
@@ -37,7 +37,7 @@ services:
 
   grafana:
     network_mode: host
-    image: grafana/grafana
+    image: ${GRAFANA_IMAGE:-grafana/grafana:latest}
     container_name: grafana
     env_file:
       - ./grafana/env.config

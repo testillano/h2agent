@@ -141,11 +141,11 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
 
        Example driver file:
 
-         Timeline(s)   cps:smf-session   vault:RESPONSE_DELAY_MS   snapshot
-         0             100               0              before
-         300           500#30            0              -
-         600           1000              200            -
-         900           0                 0              after
+         Timeline(s)   cps:my_session    vault:RESPONSE_DELAY_MS   snapshot
+         0             100               0                         before
+         300           500#30            0                         -
+         600           1000              200                       -
+         900           0                 0                         after
 
        Example invocations:
 

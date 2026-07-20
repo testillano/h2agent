@@ -1,6 +1,24 @@
 # Grafana playground
 
-## Monitoring front-end
+## Prometheus-only mode
+
+When you already have a Grafana instance running elsewhere (e.g., a corporate monitoring stack, a shared lab), you only need Prometheus to scrape and store h2agent metrics. Use:
+
+```bash
+./prometheus-only.sh [ports...]
+```
+
+This launches a standalone Prometheus container scraping the specified h2agent metrics port(s). Prometheus will be available at `http://<hostname>:9090`.
+
+```bash
+./prometheus-only.sh <prometheus-port>   # the port configured at h2agent startup
+```
+
+Then add `http://<hostname>:9090` as a Prometheus datasource in your remote Grafana, and import the `h2a` dashboard from `grafana/provisioning/dashboards/h2a.json`.
+
+---
+
+## Full stack (Prometheus + Grafana)
 
 Here you will find a `docker-compose` automation to start grafana and prometheus (also node-exporter metrics are included) on host network:
 

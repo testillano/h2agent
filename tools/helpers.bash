@@ -490,7 +490,7 @@ client_provision() {
     echo "                                       [file]; Configure client provision by mean json specification."
     echo "                                   [id] [inState]; Filter provisions by id and optionally by inState."
     echo "                          [--dynamics] [period] [--wait]; Shows active dynamics with remaining sequences and ETA."
-    echo "                                                 No period: single shot. Period <= 0: fastest. Period > 0: refresh interval."
+    echo "                                                 No period: single shot. Period <= 0: fastest. Otherwise: refresh interval (decimals allowed, e.g. 0.5)."
     echo "                                                 --wait: blocking mode, keeps polling when no activity (waits for new triggers)."
     echo
     echo "  Examples:"
@@ -502,6 +502,7 @@ client_provision() {
     echo "    client_provision --dynamics                           # Single shot dynamics"
     echo "    client_provision --dynamics 0                         # Fastest continuous"
     echo "    client_provision --dynamics 2                         # Refresh every 2s"
+    echo "    client_provision --dynamics 0.5                       # Refresh every 500ms"
     echo "    client_provision --dynamics --wait                    # Fastest continuous, blocking"
     echo "    client_provision --dynamics 2 --wait                  # Refresh 2s, blocking"
     return 0
@@ -556,7 +557,7 @@ client_provision() {
           prev_output=$output
         fi
         ${single_shot} && break
-        [ "$period" -gt 0 ] 2>/dev/null && sleep "$period"
+        [ -n "$period" ] && [ "$period" != "0" ] && sleep "$period"
       elif [ -n "$initial_seqs" ] && [ $empty_retries -lt 5 ]; then
         # Had active dynamics before — likely transient (admin busy or mid-update), retry
         empty_retries=$((empty_retries + 1))
