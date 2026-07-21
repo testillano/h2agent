@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s # default
+  evaluation_interval: 15s # default
+  # scrape_timeout: 10s # global default
+
+  external_labels:
+    monitor: 'h2agent'
+
+scrape_configs:
+  - job_name: 'h2agent-exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["localhost:8080", "localhost:8081"]
+
+  # Override default for Prometheus:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Override default for Cadvisor:
+  - job_name: 'cadvisor'
+    scrape_interval: 5s
+    dns_sd_configs:
+      - names:
+          - 'tasks.cadvisor'
+        type: 'A'
+        port: 8080
