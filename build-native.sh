@@ -17,10 +17,10 @@ boost_ver=1.84.0 # safer to have this version (https://github.com/nghttp2/nghttp
 ert_nghttp2_ver=v1.2.9 # to download nghttp2 patches (this must be aligned with previous: nghttp2 & nghttp2-asio & boost)
 ert_logger_ver=v1.1.1
 ert_queuedispatcher_ver=v1.0.4
-jupp0r_prometheuscpp_ver=v0.13.0
-civetweb_civetweb_ver=v1.14
-ert_metrics_ver=v1.1.1
-ert_http2comm_ver=v2.2.15
+jupp0r_prometheuscpp_ver=v1.3.0
+civetweb_civetweb_ver=v1.16
+ert_metrics_ver=v1.2.0
+ert_http2comm_ver=v2.3.0
 nlohmann_json_ver=$(grep ^nlohmann_json_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
 pboettch_jsonschemavalidator_ver=$(grep ^pboettch_jsonschemavalidator_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)
 google_test_ver=$(grep ^google_test_ver__dflt= ${project_root_dir}/build.sh | cut -d= -f2)

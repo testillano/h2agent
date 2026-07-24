@@ -1083,6 +1083,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
             std::cerr << currentDateTime() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             myExit(EXIT_FAILURE);
         }
+        myMetrics->enableProcessMetrics(application_name);
     }
 
     // FileManager/SafeFile metrics

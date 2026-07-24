@@ -639,6 +639,22 @@ Also, reports are generated as markdown files under the profile's `reports/` sub
 * Data storage is disabled in the script by default to prevent memory from growing and improve server response times (remember that storage shall be kept when provisions require data persistence).
 * In general, even with high traffic rates, you could get sneaky snapshots just enabling and then quickly disabling data storage, for example using [function helpers](#Helper-functions): `server_data_configuration --keep-all && server_data_configuration --discard-all`
 
+#### Handling 503 rejections in client mode
+
+When using h2agent as a traffic client against a server under congestion, 503 responses indicate the server cannot sustain the requested rate.
+
+**Breaking the chain on rejection** (detecting the problem):
+
+* **`expectedResponseStatusCode`**: set the expected value (e.g., `201`). If the actual response differs, the chain breaks immediately. Simple and deterministic.
+* **`onResponseTransform` with filters**: read `response.statusCode` as source, apply conditional logic via filters. On mismatch, use `onFilterFail` to set an error `outState`, write diagnostic vaults, or trigger alternative flows. More flexible than the binary kill-switch above.
+* **Omit `expectedResponseStatusCode`**: the chain continues regardless of status code. Useful when you want to collect all events for post-hoc analysis without interrupting the flow.
+
+**Managing load under congestion** (mitigating the problem):
+
+* **External rate controller**: monitor the `h2agent_traffic_client_observed_responses_received_counter{status_code="503"}` metric and adjust the trigger rate dynamically (e.g., a PID loop that reduces CPS when rejection rate exceeds a threshold, or compensates effective load by increasing rate to offset rejections).
+* **Tiered rate ramp**: start at low rate and increase stepwise, measuring sustainable throughput at each plateau. Stop when 503 rate exceeds acceptable threshold -- this measures Engineering Capacity (EC).
+* **Long ramp-up**: increase rate gradually over time to let the server warm up and stabilize, reducing transient rejections during rate transitions.
+
 
 
 So you may start the process, again, natively or using docker:
