@@ -6,25 +6,16 @@ registry=ghcr.io/testillano
 echo
 project_root_dir="$(dirname "$(readlink -f "$0")")/.."
 
-# Base OS:
-echo "Base image (alpine/ubuntu) [ubuntu]:"
-read os_type
-[ -z "${os_type}" ] && os_type=ubuntu
+# Build target:
+bargs="--build-arg base_tag=latest"
 
-# Build debug target:
-bargs="--build-arg os_type=${os_type}"
-bargs+=" --build-arg base_tag=latest"
-
-# OpenAI Questions & Answers; only supported for ubuntu base:
+# OpenAI Questions & Answers:
 qa=false
-if [ "${os_type}" = "ubuntu" ]
-then
-  echo "Do you want to install 'OpenAI/Groq Q&A helper' dependencies (y/n) ? [n]:"
-  echo " (warning: image size would be increased from 250MB to more than 8GB !)"
-  read opt
-  [ -z "${opt}" ] && opt=n
-  [ "${opt}" = "y" ] && qa=true
-fi
+echo "Do you want to install 'OpenAI/Groq Q&A helper' dependencies (y/n) ? [n]:"
+echo " (warning: image size would be increased from 250MB to more than 8GB !)"
+read opt
+[ -z "${opt}" ] && opt=n
+[ "${opt}" = "y" ] && qa=true
 bargs+=" --build-arg enable_qa=${qa}"
 
 cd ${project_root_dir}

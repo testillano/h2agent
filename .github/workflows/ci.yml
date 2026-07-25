@@ -76,15 +76,13 @@ jobs:
       name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
     -
-      name: Build local builder image
+      name: Build local builder image (deps stage)
       id: docker_build1
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent_builder:local
-        file: Dockerfile.build
-        build-args: |
-          base_os=ubuntu
-          base_tag=latest
+        file: Dockerfile
+        target: deps
         context: .
         platforms: linux/amd64
         no-cache: true
@@ -93,15 +91,13 @@ jobs:
       name: Image digest
       run: echo ${{ steps.docker_build1.outputs.digest }}
     -
-      name: Build local project image
+      name: Build local project image (full: deps + build + runtime)
       id: docker_build2
       uses: docker/build-push-action@v2
       with:
         tags: ghcr.io/testillano/h2agent:local
         file: Dockerfile
-        build-args: |
-          base_os=ubuntu
-          base_tag=local
+        target: runtime
         context: .
         platforms: linux/amd64
         push: true
@@ -129,7 +125,6 @@ jobs:
         tags: ghcr.io/testillano/h2agent_training:local
         file: Dockerfile.training
         build-args: |
-          os_type=ubuntu
           base_tag=local
         context: .
         platforms: linux/amd64
@@ -167,13 +162,12 @@ jobs:
         file: Dockerfile.coverage.ut
         build-args: |
           base_tag=local
-          os_type=ubuntu
         context: .
         platforms: linux/amd64
         push: true
     -
       name: Image digest
-      run: echo ${{ steps.docker_build5.outputs.digest }}
+      run: echo ${{ steps.docker_build6.outputs.digest }}
 
   unit_tests_and_coverage:
     needs: build_coverage

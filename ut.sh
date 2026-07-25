@@ -6,7 +6,12 @@
 # $ ./ut.sh --gtest_filter=Transform_test.ProvisionWithResponseBodyAsString # to filter and run 1 specific test
 # $ ./ut.sh --gtest_filter=Transform_test.* # to filter and run 1 specific suite
 
-H2AGENT_TAG=${H2AGENT_TAG:-latest}
+H2AGENT_UT_IMAGE=${H2AGENT_UT_IMAGE:-ghcr.io/testillano/h2agent_ut:latest}
 
-# Run './build.sh --auto' to have docker image available:
-docker run --rm -it -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:${H2AGENT_TAG} -- $@
+# Build unit-test image if not available:
+if ! docker image inspect ${H2AGENT_UT_IMAGE} &>/dev/null; then
+  echo "Building unit-test image..."
+  docker build --target unit-test -t ${H2AGENT_UT_IMAGE} .
+fi
+
+docker run --rm -it ${H2AGENT_UT_IMAGE} $@

@@ -1,24 +1,64 @@
 #!/bin/bash
+# =============================================================================
+# h2agent build script (flat multi-stage model)
+# =============================================================================
+# All dependency versions are declared in Dockerfile as ARGs.
+# This script reads them as defaults and exposes them as --build-arg overrides.
+#
+# Commands:
+#   --builder:       Build deps stage only (builder image with all libraries)
+#   --image:         Full build: deps + compile + runtime image (default target)
+#   --ct-image:      Build component test image
+#   (no args):       builds everything (--image + --ct-image).
+#
+# Environment variables (override defaults):
+#   All ARG names from Dockerfile can be set as env vars, e.g.:
+#     boost_ver=1.85.0 ./build.sh --image
+#     SANITIZER=asan build_type=Debug ./build.sh --image
+#
+# Other variables:
+#   DBUILD_XTRA_OPTS: extra docker build options (e.g., --no-cache)
+#   STATIC_LINKING:   TRUE/FALSE (default: FALSE)
+# =============================================================================
+
+set -e
 
 #############
 # VARIABLES #
 #############
+SCR="$(readlink -f "$0")"
+SCR_DIR="$(dirname "${SCR}")"
+cd "${SCR_DIR}"
 
-STATIC_LINKING=${STATIC_LINKING:-FALSE} # https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged:
+DOCKERFILE_BUILD=Dockerfile
+registry=ghcr.io/testillano
+
+STATIC_LINKING=${STATIC_LINKING:-FALSE}
+
+# Parse version defaults from Dockerfile (single source of truth)
+parse_arg() {
+  grep "^ARG ${1}=" "${DOCKERFILE_BUILD}" | head -1 | cut -d= -f2
+}
+
+# Defaults from Dockerfile
+make_procs__dflt=$(grep processor /proc/cpuinfo -c)
+build_type__dflt=$(parse_arg build_type)
+boost_ver__dflt=$(parse_arg boost_ver)
+nghttp2_ver__dflt=$(parse_arg nghttp2_ver)
+nghttp2_asio_ver__dflt=$(parse_arg nghttp2_asio_ver)
+ert_logger_ver__dflt=$(parse_arg ert_logger_ver)
+ert_queuedispatcher_ver__dflt=$(parse_arg ert_queuedispatcher_ver)
+jupp0r_prometheuscpp_ver__dflt=$(parse_arg jupp0r_prometheuscpp_ver)
+civetweb_civetweb_ver__dflt=$(parse_arg civetweb_civetweb_ver)
+ert_metrics_ver__dflt=$(parse_arg ert_metrics_ver)
+ert_http2comm_ver__dflt=$(parse_arg ert_http2comm_ver)
+nlohmann_json_ver__dflt=$(parse_arg nlohmann_json_ver)
+pboettch_jsonschemavalidator_ver__dflt=$(parse_arg pboettch_jsonschemavalidator_ver)
+google_test_ver__dflt=$(parse_arg google_test_ver)
+arashpartow_exprtk_ver__dflt=$(parse_arg arashpartow_exprtk_ver)
+ert_multipart_ver__dflt=$(parse_arg ert_multipart_ver)
 
 image_tag__dflt=latest
-base_os__dflt=ubuntu
-base_tag__dflt=latest
-os_type__dflt=ubuntu
-scratch_img__dflt=${base_os__dflt}
-scratch_img_tag__dflt=latest
-make_procs__dflt=$(grep processor /proc/cpuinfo -c)
-build_type__dflt=Release
-nlohmann_json_ver__dflt=v3.12.0
-pboettch_jsonschemavalidator_ver__dflt=2.4.0
-google_test_ver__dflt=v1.11.0
-# arash partow version is quite frozen
-registry=ghcr.io/testillano
 
 #############
 # FUNCTIONS #
@@ -26,254 +66,176 @@ registry=ghcr.io/testillano
 usage() {
   cat << EOF
 
-  Usage: $0 [--builder-image|--project|--project-image|--auto]
+  Usage: $0 [--builder|--image|--ct-image]
 
-         --builder-image: builds base image from './Dockerfile.build'.
-         --project:       builds the project process using builder image.
-         --project-image: builds project image from './Dockerfile'.
-         --ct-image:      builds component test image from './ct/Dockerfile'.
-         --auto:          builds everything using defaults. For headless mode with no default values,
-                          you may prepend or export asked/environment variables for the corresponding
-                          docker procedure:
+         (no args):   builds everything (--image + --ct-image).
+         --builder:   builds deps stage (builder image with all libraries).
+         --image:     full build: deps + compile + runtime image.
+         --ct-image:  builds component test image.
 
-         Environment variables:
+         Environment variables (override any version):
 
-         For headless mode you may prepend or export asked/environment variables for the corresponding
-         docker procedure:
+           image_tag, make_procs, build_type, boost_ver, nghttp2_ver,
+           nghttp2_asio_ver, ert_logger_ver, ert_queuedispatcher_ver,
+           jupp0r_prometheuscpp_ver, civetweb_civetweb_ver, ert_metrics_ver,
+           ert_http2comm_ver, nlohmann_json_ver, pboettch_jsonschemavalidator_ver,
+           google_test_ver, arashpartow_exprtk_ver, ert_multipart_ver
 
-         --builder-image: image_tag, base_os, base_tag (http2comm), make_procs, nlohmann_json_ver, pboettch_jsonschemavalidator_ver, google_test_ver
-         --project:       make_procs, build_type, base_tag (h2agent_builder), SANITIZER (asan|tsan|none)
-         --project-image: image_tag, base_tag (h2agent_builder), scratch_img, scratch_img_tag, make_procs, build_type, SANITIZER (asan|tsan|none)
-         --ct-image:      image_tag, base_tag (alpine)
-         --auto:          any of the variables above
+         Other variables:
 
-         Other prepend variables:
-
-         DBUILD_XTRA_OPTS: extra options to docker build.
+           DBUILD_XTRA_OPTS: extra docker build options (e.g., --no-cache)
+           STATIC_LINKING:   TRUE or FALSE (default: FALSE)
+           SANITIZER:        asan, tsan, or empty (default: none)
 
          Examples:
 
-         base_os=alpine $0 --auto
-         image_tag=test1 $0 --builder-image
-         build_type=Debug $0 --auto
-         build_type=RelWithDebInfo $0 --auto
-         SANITIZER=asan build_type=Debug $0 --auto
-         SANITIZER=tsan build_type=Debug $0 --auto
-         DBUILD_XTRA_OPTS=--no-cache $0 --auto
-
-         Sanitizer usage:
-
-         SANITIZER=asan enables AddressSanitizer (memory errors, leaks).
-         SANITIZER=tsan enables ThreadSanitizer (data races).
-         Both work best with build_type=Debug for accurate stack traces.
-
-         Running with ASAN:
-
-           # Via run.sh (recommended):
-           H2A_DOCKER_OPTS="-e LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 -e ASAN_OPTIONS=detect_leaks=1" \\
-             ./run.sh [args...]
-
-           # Via docker run (manual):
-           docker run --network=host \\
-             -e LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8 \\
-             -e ASAN_OPTIONS="detect_leaks=1" \\
-             ghcr.io/testillano/h2agent:latest /opt/h2agent [args...]
-
-           # LD_PRELOAD is required so ASAN runtime is loaded first.
-           # This also disables jemalloc (incompatible with ASAN).
-           # Run a short test, then stop the process (Ctrl+C or SIGTERM).
-           # ASAN prints leak report to stderr on exit.
-           # Optionally redirect to file:
-           #   ASAN_OPTIONS="detect_leaks=1:log_path=/tmp/asan"
-
-         Running with TSAN:
-
-           # Via run.sh (recommended):
-           H2A_DOCKER_OPTS="-e LD_PRELOAD=" ./run.sh [args...]
-
-           # Via docker run (manual):
-           docker run --network=host \\
-             -e LD_PRELOAD="" \\
-             ghcr.io/testillano/h2agent:latest /opt/h2agent [args...]
-
-           # Empty LD_PRELOAD disables jemalloc (incompatible with TSAN).
-           # Data race reports are printed to stderr during execution.
-           # Optionally redirect to file:
-           #   TSAN_OPTIONS="log_path=/tmp/tsan"
-           # Reports are written to /tmp/tsan.<pid> as races are detected.
+           $0
+           boost_ver=1.85.0 $0 --image
+           SANITIZER=asan build_type=Debug $0 --image
+           DBUILD_XTRA_OPTS=--no-cache $0
 
 EOF
 }
 
-# $1: variable by reference
-_read() {
-  local -n varname=$1
-
-  local default=$(eval echo \$$1__dflt)
-  local s_default="<null>"
-  [ -n "${default}" ] && s_default="${default}"
-  echo "Input '$1' value [${s_default}]:"
-
-  if [ -n "${varname}" ]
-  then
-    echo "${varname}"
-  else
-    read -r varname
-    [ -z "${varname}" ] && varname=${default}
+# Resolve variable: use env value if set, otherwise use __dflt
+resolve() {
+  local var=$1
+  local val="${!var}"
+  if [ -z "${val}" ]; then
+    val="$(eval echo \$${var}__dflt)"
   fi
+  echo "${val}"
 }
 
-build_builder_image() {
+build_builder() {
   echo
-  echo "=== Build h2agent_builder image ==="
+  echo "=== Build h2agent_builder (deps stage) ==="
   echo
-  _read image_tag
-  _read base_os
-  _read base_tag
-  _read make_procs
-  _read build_type
-  _read nlohmann_json_ver
-  _read pboettch_jsonschemavalidator_ver
-  _read google_test_ver
 
-  bargs="--build-arg base_os=${base_os}"
-  bargs+=" --build-arg base_tag=${base_tag}"
-  bargs+=" --build-arg make_procs=${make_procs}"
-  bargs+=" --build-arg build_type=${build_type}"
-  bargs+=" --build-arg nlohmann_json_ver=${nlohmann_json_ver}"
-  bargs+=" --build-arg pboettch_jsonschemavalidator_ver=${pboettch_jsonschemavalidator_ver}"
-  bargs+=" --build-arg google_test_ver=${google_test_ver}"
+  local tag=$(resolve image_tag)
+  local bargs=""
+  bargs+=" --build-arg make_procs=$(resolve make_procs)"
+  bargs+=" --build-arg build_type=$(resolve build_type)"
+  bargs+=" --build-arg boost_ver=$(resolve boost_ver)"
+  bargs+=" --build-arg nghttp2_ver=$(resolve nghttp2_ver)"
+  bargs+=" --build-arg nghttp2_asio_ver=$(resolve nghttp2_asio_ver)"
+  bargs+=" --build-arg ert_logger_ver=$(resolve ert_logger_ver)"
+  bargs+=" --build-arg ert_queuedispatcher_ver=$(resolve ert_queuedispatcher_ver)"
+  bargs+=" --build-arg jupp0r_prometheuscpp_ver=$(resolve jupp0r_prometheuscpp_ver)"
+  bargs+=" --build-arg civetweb_civetweb_ver=$(resolve civetweb_civetweb_ver)"
+  bargs+=" --build-arg ert_metrics_ver=$(resolve ert_metrics_ver)"
+  bargs+=" --build-arg ert_http2comm_ver=$(resolve ert_http2comm_ver)"
+  bargs+=" --build-arg nlohmann_json_ver=$(resolve nlohmann_json_ver)"
+  bargs+=" --build-arg pboettch_jsonschemavalidator_ver=$(resolve pboettch_jsonschemavalidator_ver)"
+  bargs+=" --build-arg google_test_ver=$(resolve google_test_ver)"
+  bargs+=" --build-arg arashpartow_exprtk_ver=$(resolve arashpartow_exprtk_ver)"
+  bargs+=" --build-arg ert_multipart_ver=$(resolve ert_multipart_ver)"
 
   set -x
-  rm -f CMakeCache.txt
   # shellcheck disable=SC2086
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f Dockerfile.build -t ${registry}/h2agent_builder:"${image_tag}" . || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} \
+    --target deps \
+    -f ${DOCKERFILE_BUILD} \
+    -t ${registry}/h2agent_builder:"${tag}" . || return 1
   set +x
 }
 
-build_project() {
+build_image() {
   echo
-  echo "=== Format source code ==="
+  echo "=== Build h2agent image (full: deps + compile + runtime) ==="
   echo
-  sources="$(find src -name "*.hpp" -o -name "*.cpp")"
-  sources+=" $(find ut -name "*.hpp" -o -name "*.cpp")"
-  sources+=" $(find tools -name "*.hpp" -o -name "*.cpp")"
-  docker run -i --rm -v $PWD:/data --user $(id -u):$(id -g) frankwolf/astyle ${sources}
 
-  echo
-  echo "=== Build h2agent project ==="
-  echo
-  _read base_tag
-  _read make_procs
-  _read build_type
+  local tag=$(resolve image_tag)
+  local bt=$(resolve build_type)
+  local bargs=""
+  bargs+=" --build-arg make_procs=$(resolve make_procs)"
+  bargs+=" --build-arg build_type=${bt}"
+  bargs+=" --build-arg boost_ver=$(resolve boost_ver)"
+  bargs+=" --build-arg nghttp2_ver=$(resolve nghttp2_ver)"
+  bargs+=" --build-arg nghttp2_asio_ver=$(resolve nghttp2_asio_ver)"
+  bargs+=" --build-arg ert_logger_ver=$(resolve ert_logger_ver)"
+  bargs+=" --build-arg ert_queuedispatcher_ver=$(resolve ert_queuedispatcher_ver)"
+  bargs+=" --build-arg jupp0r_prometheuscpp_ver=$(resolve jupp0r_prometheuscpp_ver)"
+  bargs+=" --build-arg civetweb_civetweb_ver=$(resolve civetweb_civetweb_ver)"
+  bargs+=" --build-arg ert_metrics_ver=$(resolve ert_metrics_ver)"
+  bargs+=" --build-arg ert_http2comm_ver=$(resolve ert_http2comm_ver)"
+  bargs+=" --build-arg nlohmann_json_ver=$(resolve nlohmann_json_ver)"
+  bargs+=" --build-arg pboettch_jsonschemavalidator_ver=$(resolve pboettch_jsonschemavalidator_ver)"
+  bargs+=" --build-arg google_test_ver=$(resolve google_test_ver)"
+  bargs+=" --build-arg arashpartow_exprtk_ver=$(resolve arashpartow_exprtk_ver)"
+  bargs+=" --build-arg ert_multipart_ver=$(resolve ert_multipart_ver)"
+  bargs+=" --build-arg STATIC_LINKING=${STATIC_LINKING}"
 
-  envs="-e MAKE_PROCS=${make_procs} -e BUILD_TYPE=${build_type} -e STATIC_LINKING=${STATIC_LINKING}"
-
-  # Sanitizer support (asan, tsan):
-  local cmake_extra=""
-  case "${SANITIZER:-none}" in
-    asan) cmake_extra="-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
-          envs+=" -e CXXFLAGS=-fsanitize=address"
-          envs+=" -e CFLAGS=-fno-omit-frame-pointer"
-          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=asan works best with build_type=Debug" ;;
-    tsan) cmake_extra="-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread"
-          envs+=" -e CXXFLAGS=-fsanitize=thread"
-          envs+=" -e CFLAGS=-fno-omit-frame-pointer"
-          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=tsan works best with build_type=Debug" ;;
-    none|"") ;;
-    *) echo "ERROR: unknown SANITIZER '${SANITIZER}' (use: asan, tsan, none)" && return 1 ;;
-  esac
-
-  set -x
-  rm -f CMakeCache.txt
-  # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" "${cmake_extra}" || return 1
-  # shellcheck disable=SC2086
-  docker run --rm -it -u "$(id -u):$(id -g)" ${envs} -v "${PWD}":/code -w /code ${registry}/h2agent_builder:"${base_tag}" "" doc || return 1
-  set +x
-}
-
-build_project_image() {
-  echo
-  echo "=== Build h2agent image ==="
-  echo
-  _read image_tag
-  _read base_os
-  _read base_tag
-  #_read scratch_img
-  scratch_img=${base_os}
-  _read scratch_img_tag
-  _read make_procs
-  _read build_type
-  _read os_type
-
-  bargs="--build-arg base_os=${base_os}"
-  bargs+=" --build-arg base_tag=${base_tag}"
-  bargs+=" --build-arg scratch_img=${scratch_img}"
-  bargs+=" --build-arg scratch_img_tag=${scratch_img_tag}"
-  bargs+=" --build-arg make_procs=${make_procs}"
-  bargs+=" --build-arg build_type=${build_type}"
-  bargs+=" --build-arg os_type=${os_type}"
-
-  # Sanitizer support:
+  # Sanitizer support
   case "${SANITIZER:-none}" in
     asan) bargs+=" --build-arg sanitizer_flags=-fsanitize=address"
           bargs+=" --build-arg sanitizer_extra=-fno-omit-frame-pointer"
           bargs+=" --build-arg sanitizer_link=-fsanitize=address"
           bargs+=" --build-arg sanitizer=asan"
-          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=asan works best with build_type=Debug" ;;
+          [ "${bt}" = "Release" ] && echo "WARNING: SANITIZER=asan works best with build_type=Debug" ;;
     tsan) bargs+=" --build-arg sanitizer_flags=-fsanitize=thread"
           bargs+=" --build-arg sanitizer_extra=-fno-omit-frame-pointer"
           bargs+=" --build-arg sanitizer_link=-fsanitize=thread"
           bargs+=" --build-arg sanitizer=tsan"
-          [ "${build_type}" = "Release" ] && echo "WARNING: SANITIZER=tsan works best with build_type=Debug" ;;
+          [ "${bt}" = "Release" ] && echo "WARNING: SANITIZER=tsan works best with build_type=Debug" ;;
     none|"") ;;
     *) echo "ERROR: unknown SANITIZER '${SANITIZER}' (use: asan, tsan, none)" && return 1 ;;
   esac
 
   set -x
-  rm -f CMakeCache.txt
+  # Build the full image using Dockerfile --target runtime (fully autonomous)
   # shellcheck disable=SC2086
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -t ${registry}/h2agent:"${image_tag}" . || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} \
+    --target runtime \
+    -f ${DOCKERFILE_BUILD} \
+    -t ${registry}/h2agent:"${tag}" . || return 1
   set +x
+
+  # Also tag the builder for convenience (reuses Docker cache from above)
+  echo
+  echo "Tagging builder image from cache..."
+  # shellcheck disable=SC2086
+  docker build --rm ${bargs} \
+    --target deps \
+    -f ${DOCKERFILE_BUILD} \
+    -t ${registry}/h2agent_builder:"${tag}" . 2>/dev/null || true
+  # shellcheck disable=SC2086
+  docker build --rm ${bargs} \
+    --target unit-test \
+    -f ${DOCKERFILE_BUILD} \
+    -t ${registry}/h2agent_ut:"${tag}" . 2>/dev/null || true
 }
 
 build_ct_image() {
   echo
   echo "=== Build component test image ==="
   echo
-  _read image_tag
-  _read base_tag
 
-  bargs="--build-arg base_tag=${base_tag}"
+  local tag=$(resolve image_tag)
+  local bargs="--build-arg base_tag=${tag}"
 
   set -x
   # shellcheck disable=SC2086
-  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} -f ct/Dockerfile -t ${registry}/ct-h2agent:"${image_tag}" ct || return 1
+  docker build --rm ${DBUILD_XTRA_OPTS} ${bargs} \
+    -f ct/Dockerfile \
+    -t ${registry}/ct-h2agent:"${tag}" ct || return 1
   set +x
 }
 
-build_auto() {
-  # export defaults to automate, but allow possible environment values:
-  # shellcheck disable=SC1090
-  source <(grep -E '^[0a-z_]+__dflt' "${SCR}" | sed 's/^/export /' | sed 's/__dflt//' | sed -e 's/\([0a-z_]*\)=\(.*\)/\1=\${\1:-\2}/')
-  build_builder_image && build_project && build_project_image && build_ct_image
+build_all() {
+  build_image && build_ct_image
 }
 
 #############
 # EXECUTION #
 #############
-SCR="$(readlink -f "$0")"
-cd "$(dirname "${SCR}")"
-
-case "$1" in
-  --builder-image) build_builder_image ;;
-  --project) build_project ;;
-  --project-image) build_project_image ;;
+case "${1:-}" in
+  --builder) build_builder ;;
+  --image) build_image ;;
   --ct-image) build_ct_image ;;
-  --auto) build_auto ;;
+  -h|--help) usage ;;
+  "") build_all ;;
   *) usage && exit 1 ;;
 esac
 
 exit $?
-

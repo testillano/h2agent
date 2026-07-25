@@ -5,7 +5,7 @@ echo
 project_root_dir="$(dirname "$(readlink -f "$0")")/.."
 
 execs=( $(ls ${project_root_dir}/build/*/bin/h2agent 2>/dev/null) )
-[ $? -ne 0 ] && echo -e "Warning: you should build the project before using valgrind suite (i.e.: build_type=Debug ./build.sh --auto)\n"
+[ $? -ne 0 ] && echo -e "Warning: you should build the project before using valgrind suite (i.e.: build_type=Debug ./build.sh)\n"
 
 
 MEMCHECK="valgrind --show-leak-kinds=definite --leak-check=full --show-reachable=no --errors-for-leak-kinds=definite,possible --track-origins=yes --log-file=memcheck.out" # memory
@@ -32,10 +32,10 @@ Callgrind help
 --------------
 
 Native kcachegrind (GUI for callgrind output) could not show function names for
- debug-linked executable built within docker builder image. Docker builder image
- uses musl over alpine, and probably your system uses glibc. So, you may build
- the project natively, or install kcachegrind within the docker container (you
- would need X11).
+ debug-linked executable built within docker builder image if glibc versions
+ differ between the container and your host. So, you may build the project
+ natively, or install kcachegrind within the docker container (you would need
+ X11).
 
 Callgrind control:
   Start instrumentation:          callgrind_control -i on

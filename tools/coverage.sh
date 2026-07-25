@@ -19,12 +19,7 @@ case ${MODE} in
 esac
 
 # Base OS
-echo "Base image (alpine/ubuntu) [ubuntu]:"
-read -r os_type
-[ -z "${os_type}" ] && os_type=ubuntu
-
-bargs="--build-arg os_type=${os_type}"
-bargs+=" --build-arg base_tag=latest"
+bargs="--build-arg base_tag=latest"
 bargs+=" --build-arg make_procs=$(grep processor /proc/cpuinfo -c)"
 
 mkdir -p coverage/ut coverage/ct coverage/combined

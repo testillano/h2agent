@@ -141,9 +141,8 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 - [Scope](#scope)
 - [How can you use it ?](#how-can-you-use-it-)
 - [Static linking](#static-linking)
-- [Project image](#project-image)
-- [Build project with docker](#build-project-with-docker)
-- [Build project natively](#build-project-natively)
+- [Build with Docker](#build-with-docker)
+- [Build natively](#build-natively)
 - [Testing](#testing)
 - [Execution of main agent](#execution-of-main-agent)
 - [Execution of matching helper utility](#execution-of-matching-helper-utility)
@@ -213,10 +212,10 @@ Check the [releases](https://github.com/testillano/h2agent/releases) to get late
 The easiest way to build the project is using [containers](https://en.wikipedia.org/wiki/LXC) technology (this project uses `docker`): **to generate all the artifacts**, just type the following:
 
 ```bash
-$ ./build.sh --auto
+$ ./build.sh
 ```
 
-The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then the <u>project image</u> (`--project-image`) and finally <u>project executables</u> (`--project`). Then you will have everything available to run binaries with different modes:
+This builds the <u>runtime image</u> and the <u>component test image</u>. Then you will have everything available to run binaries with different modes:
 
 * Run <u>h2agent project image</u> with docker (`./run.sh` script at root directory can also be used):
 
@@ -308,7 +307,7 @@ The option `--auto` builds the <u>builder image</u> (`--builder-image`) , then t
 It is also possible to build the project natively (not using containers) installing all the dependencies on the local host:
 
 ```bash
-$ ./build-native.sh # you may prepend non-empty DEBUG variable value in order to troubleshoot build procedure
+$ ./build-native.sh # installs all deps from source and compiles the project
 ```
 
 So, you could run `h2agent` (or any other binary available under `build/<build type>/bin`) directly:
@@ -336,7 +335,7 @@ So, you could run `h2agent` (or any other binary available under `build/<build t
 Both build helpers (`build.sh` and `build-native.sh` scripts) allow to force project static link, although this is [not recommended](https://stackoverflow.com/questions/57476533/why-is-statically-linking-glibc-discouraged):
 
 ```bash
-$ STATIC_LINKING=TRUE ./build.sh --auto
+$ STATIC_LINKING=TRUE ./build.sh --image
 - or -
 $ STATIC_LINKING=TRUE ./build-native.sh
 ```
@@ -345,131 +344,87 @@ So, you could run binaries regardless if needed libraries are available or not (
 
 
 
+## Build with Docker
 
-Next sections will describe in detail, how to build [project image](#Project-image) and project executables ([using docker](#Build-project-with-docker) or [natively](#Build-project-natively)).
+The project uses a single multi-stage `Dockerfile` with all dependencies built from source. No external builder images are required -- the build is fully self-contained from `ubuntu:24.04`.
 
-## Project image
+### Docker targets
 
-This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
+| Target | Produces | Description |
+|--------|----------|-------------|
+| `deps` | `h2agent_builder` | Toolchain + all libraries installed. Useful for debugging. |
+| `build` | (intermediate) | deps + compiled project. Not published. |
+| `unit-test` | `h2agent_ut` | Minimal image with only the unit-test binary. |
+| `runtime` | `h2agent` | Production image: only binaries + runtime deps. |
+
+### Quick build
+
+```bash
+$ ./build.sh --image   # builds runtime image (ghcr.io/testillano/h2agent:latest)
+$ ./build.sh --builder # builds only deps stage (ghcr.io/testillano/h2agent_builder:latest)
+```
+
+Or directly with Docker:
+
+```bash
+$ docker build --target runtime -t h2agent .           # production image
+$ docker build --target deps -t h2agent_builder .      # builder image
+$ docker build --target unit-test -t h2agent_ut .      # unit test image
+```
+
+### Pulling pre-built images
+
+Images are available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
 
 ```bash
 $ docker pull ghcr.io/testillano/h2agent:<tag>
 ```
 
-You could also build it using the script `./build.sh` located at project root:
+### Overriding dependency versions
 
+All dependency versions are declared as `ARG` at the top of the `Dockerfile`. Override any version at build time:
 
 ```bash
-$ ./build.sh --project-image
+$ docker build --build-arg boost_ver=1.85.0 --target runtime -t h2agent .
+- or -
+$ boost_ver=1.85.0 ./build.sh --image
 ```
 
-This image is built with `./Dockerfile`.
-Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
-If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
-
-## Build project with docker
-
-### Builder image
-
-This image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
+### Sanitizer support
 
 ```bash
-$ docker pull ghcr.io/testillano/h2agent_builder:<tag>
+$ SANITIZER=asan build_type=Debug ./build.sh --image   # AddressSanitizer
+$ SANITIZER=tsan build_type=Debug ./build.sh --image   # ThreadSanitizer
 ```
 
-You could also build it using the script `./build.sh` located at project root:
+## Build natively
 
+All dependencies are installed from source on the local host. The `build-native.sh` script reads versions from the `Dockerfile` (single source of truth):
 
 ```bash
-$ ./build.sh --builder-image
+$ ./build-native.sh                          # build everything
+$ ./build-native.sh --skip boost nghttp2     # skip already-installed deps
+$ ./build-native.sh --only project           # rebuild only h2agent
+$ ./build-native.sh -h                       # show all options
 ```
 
-This image is built with `./Dockerfile.build`.
-Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
-If you want to work with alpine-based images, you may build everything from scratch, including all docker base images which are project dependencies.
-
-### Usage
-
-Builder image is used to build the project. To run compilation over this image, again, just run with `docker`:
+Environment variables:
 
 ```bash
-$ envs="-e MAKE_PROCS=$(grep processor /proc/cpuinfo -c) -e BUILD_TYPE=Release"
-$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-          ghcr.io/testillano/h2agent_builder:<tag>
+$ BUILD_TYPE=Debug ./build-native.sh         # debug build
+$ PREFIX=/opt/local ./build-native.sh        # custom install prefix
+$ boost_ver=1.85.0 ./build-native.sh         # override a version
 ```
 
-You could generate documentation passing extra arguments to the [entry point](https://github.com/testillano/nghttp2/blob/master/deps/build.sh) behind:
+Once dependencies are installed, incremental builds are simply:
 
 ```bash
-$ docker run --rm -it -u $(id -u):$(id -g) ${envs} -v ${PWD}:/code -w /code \
-          ghcr.io/testillano/h2agent_builder::<tag> "" doc
-```
-
-You could also build the library using the script `./build.sh` located at project root:
-
-
-```bash
-$ ./build.sh --project
-```
-
-## Build project natively
-
-It may be hard to collect every dependency, so there is a native build **automation script**:
-
-```bash
-$ ./build-native.sh
-```
-
-Note 1: this script is tested on `ubuntu bionic`, then some requirements could be not fulfilled in other distributions.
-
-Note 2: once dependencies have been installed, you may just type `cmake . && make` to have incremental native builds.
-
-Note 3: if not stated otherwise, this document assumes that binaries (used on examples) are natively built.
-
-
-
-Anyway, we will describe the common steps for a `cmake-based` building project like this. Firstly you may install `cmake`:
-
-```bash
-$ sudo apt-get install cmake
-```
-
-And then generate the makefiles from project root directory:
-
-```bash
-$ cmake .
-```
-
-You could specify type of build, 'Debug' or 'Release', for example:
-
-```bash
-$ cmake -DCMAKE_BUILD_TYPE=Debug .
-$ cmake -DCMAKE_BUILD_TYPE=Release .
-```
-
-You could also change the compilers used:
-
-```bash
-$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++     -DCMAKE_C_COMPILER=/usr/bin/gcc
-```
-
-or
-
-```bash
-$ cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
+$ cmake . && make -j$(nproc)
 ```
 
 ### Requirements
 
-Check the requirements described at building `dockerfile` (`./Dockerfile.build`) as well as all the ascendant docker images which are inherited:
-
-```
-h2agent builder (./Dockerfile.build)
-   |
-http2comm (https://github.com/testillano/http2comm)
-   |
-nghttp2 (https://github.com/testillano/nghttp2)
-```
+All dependencies and their versions are documented in the `Dockerfile` itself (the `ARG` declarations at the top and the `RUN` steps that install them). The `build-native.sh` script automates the full installation.
 
 ### Build
 
@@ -523,22 +478,19 @@ $ cat install_manifest.txt | sudo xargs rm
 ### Unit test
 
 Check the badge above to know the current coverage level.
-You can execute it after project building, for example for `Release` target:
+You can execute it after project building:
 
 ```bash
-$ build/Release/bin/unit-test # native executable
-- or -
-$ docker run -it --rm -v ${PWD}/build/Release/bin/unit-test:/ut --entrypoint "/ut" ghcr.io/testillano/h2agent:latest # docker
+$ ./ut.sh                        # runs unit-test inside docker (builds image if needed)
+$ ./ut.sh --gtest_list_tests     # list available tests
+$ ./ut.sh --gtest_filter=Transform_test.ProvisionWithResponseBodyAsString  # run 1 test
+$ ./ut.sh --gtest_filter=Transform_test.*  # run 1 suite
 ```
 
-To shortcut docker run execution, `./ut.sh` script at root directory can also be used.
-You may provide extra arguments to Google test executable, for example:
+For native builds, the binary is at `build/Release/bin/unit-test`:
 
 ```bash
-$ ./ut.sh --gtest_list_tests # to list the available tests
-$ ./ut.sh --gtest_filter=Transform_test.ProvisionWithResponseBodyAsString # to filter and run 1 specific test
-$ ./ut.sh --gtest_filter=Transform_test.* # to filter and run 1 specific suite
-etc.
+$ build/Release/bin/unit-test
 ```
 
 #### Coverage
@@ -559,8 +511,6 @@ Reports are generated in:
 - `coverage/combined/` - Combined coverage
 
 The script builds Docker images from `Dockerfile.coverage.ut` and `Dockerfile.coverage.ct`, using `lcov` for instrumentation. A `firefox` instance is launched to display the report.
-
-Both `ubuntu` and `alpine` base images are supported.
 
 ### Component test
 
@@ -1679,7 +1629,7 @@ $ sudo apt-get install dos2unix
 Then you may build project images and start the `h2agent` with its docker image:
 
 ```bash
-$ ./build.sh --auto # builds project images
+$ ./build.sh # builds runtime + ct images
 $ ./run.sh --verbose # starts agent with docker by mean helper script
 ```
 
@@ -1697,8 +1647,6 @@ The training image is already available at `github container registry` and `dock
 ```bash
 $ docker pull ghcr.io/testillano/h2agent_training:<tag>
 ```
-
-Both `ubuntu` and `alpine` base images are supported, but the official image uploaded is the one based in `ubuntu`.
 
 You may also find useful run the training image by mean the helper script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run training resources. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symbolic links, main project executables.
 

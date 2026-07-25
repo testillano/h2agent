@@ -9,21 +9,14 @@ COPY demo /home/h2agent/demo
 COPY kata /home/h2agent/kata
 WORKDIR /home/h2agent/
 
-ARG os_type=ubuntu
 ARG enable_qa=false
 
-# Update packages
-RUN if [ "${os_type}" = "alpine" ] ; then apk update ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get update ; fi
-
 # Installation
-RUN if [ "${os_type}" = "alpine" ] ; then apk add dos2unix ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get install -y dos2unix netcat-openbsd ; fi
+RUN apt-get update && apt-get install -y dos2unix netcat-openbsd && apt-get clean
 
 ## Installation for questions & answers (langchain & OpenAI)
-RUN if [ "${enable_qa}" = "true" -a "${os_type}" = "ubuntu" ] ; then apt-get install -y python3 python3-pip python3.12-venv ; fi
-RUN if [ "${enable_qa}" = "true" -a "${os_type}" = "ubuntu" ] ; then python3 -m venv /opt/venv ; /bin/bash -c "source /opt/venv/bin/activate && pip3 install -r tools/questions-and-answers/requirements.txt" ; fi
-
-# Cleanup
-RUN if [ "${os_type}" = "alpine" ] ; then rm -rf /var/cache/apk/* ; elif [ "${os_type}" = "ubuntu" ] ; then apt-get clean ; fi
+RUN if [ "${enable_qa}" = "true" ] ; then apt-get update && apt-get install -y python3 python3-pip python3.12-venv && apt-get clean ; fi
+RUN if [ "${enable_qa}" = "true" ] ; then python3 -m venv /opt/venv ; /bin/bash -c "source /opt/venv/bin/activate && pip3 install -r tools/questions-and-answers/requirements.txt" ; fi
 
 RUN ln -s /opt/h2agent
 RUN ln -s /opt/h2client

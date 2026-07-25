@@ -4,8 +4,7 @@ from collections import defaultdict
 import glob
 
 # https://stackoverflow.com/questions/72032032/importerror-cannot-import-name-iterable-from-collections-in-python
-# https://github.com/testillano/h2agent/issues/xxxx Hyper import failing since alpine 3.16 (latest on May 22) because of python 3.10 packaged
-# THIS IS BACKWARD COMPATIBLE (works on previous alpine 3.15)
+# Hyper import needs these aliases for python 3.10+ compatibility
 
 import collections.abc
 #hyper needs the four following aliases to be done manually.

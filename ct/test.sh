@@ -78,7 +78,8 @@ do_test() {
   local test_pod=$1
   shift
   # shellcheck disable=SC2068
-  kubectl exec -it "${test_pod}" -c test -n "${NAMESPACE}" -- sh -c "source /venv/bin/activate && pytest $@"
+  # Note: ubuntu's /bin/sh is dash, which does not support 'source' (use '.' or bash -c):
+  kubectl exec -it "${test_pod}" -c test -n "${NAMESPACE}" -- bash -c "source /venv/bin/activate && pytest $@"
 }
 
 #############
