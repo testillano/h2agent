@@ -91,7 +91,7 @@ jobs:
       name: Image digest
       run: echo ${{ steps.docker_build1.outputs.digest }}
     -
-      name: Build local project image (full: deps + build + runtime)
+      name: Build local project image (deps + build + runtime)
       id: docker_build2
       uses: docker/build-push-action@v2
       with:
