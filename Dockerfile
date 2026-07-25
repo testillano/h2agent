@@ -33,18 +33,18 @@ ARG build_type=Release
 ARG boost_ver=1.84.0
 ARG nghttp2_ver=1.64.0
 ARG nghttp2_asio_ver=main
-ARG ert_nghttp2_ver=v1.2.9
+ARG ert_nghttp2_ver=v1.3.0
 ARG ert_logger_ver=v1.1.1
-ARG ert_queuedispatcher_ver=v1.0.4
+ARG ert_queuedispatcher_ver=v1.1.0
 ARG jupp0r_prometheuscpp_ver=v1.3.0
 ARG civetweb_civetweb_ver=v1.16
-ARG ert_metrics_ver=v1.2.0
-ARG ert_http2comm_ver=v2.3.0
+ARG ert_metrics_ver=v1.3.0
+ARG ert_http2comm_ver=v2.4.1
 ARG nlohmann_json_ver=v3.12.0
 ARG pboettch_jsonschemavalidator_ver=2.4.0
 ARG google_test_ver=v1.11.0
 ARG arashpartow_exprtk_ver=0.0.3
-ARG ert_multipart_ver=v1.0.3
+ARG ert_multipart_ver=v1.1.0
 
 # ---------------------------------------------------------------------------
 # System packages (union of nghttp2 + http2comm + h2agent requirements)
