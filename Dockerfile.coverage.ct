@@ -4,7 +4,10 @@ LABEL maintainer="testillano"
 
 LABEL testillano.h2agent.description="Docker image for h2agent CT coverage"
 
-RUN apt-get update && apt-get install -y lcov bc curl jq nghttp2-client netcat-openbsd socat && apt-get clean
+# nghttp2-proxy provides nghttpx (reverse proxy for HTTP/1.x access), used by
+# starter.sh when H2AGENT_*_PROXY_PORT is set. Lost in the build refactor when
+# the all-in-one "nghttp2" package was split to "nghttp2-client".
+RUN apt-get update && apt-get install -y lcov bc curl jq nghttp2-client nghttp2-proxy netcat-openbsd socat && apt-get clean
 
 COPY . /code
 WORKDIR /code

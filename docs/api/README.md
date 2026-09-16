@@ -1714,6 +1714,8 @@ Example:
 
 When *scenario1* is triggered, its current state is searched assuming "initial" when nothing is found in client data storage. So it will be processed and next stage is triggered automatically for the new combination `id` + `outState` when the response is received (timeout is a kind of response but normally user stops the scenario in this case). System test is possible because those stages are replicated by mean different instances of the same scenario evolving separately: this is driven by an internal sequence identifier which is used to calculate real request *method* and *uri*, the ones stored in the data base.
 
+Each stage (chain link) may target a **different client endpoint** through its own [`endpoint`](#endpoint) field, so a single scenario can mix remote servers across its states (see the fallback rules and example there).
+
 The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning.
 
 #### Chain cycle prevention
@@ -1732,6 +1734,45 @@ Client provision chains progress automatically: when a provision completes, the 
 <u>Special **purge** state</u>: the keyword '*purge*' clears all events accumulated during the chain — including events from previous steps with different endpoints, methods or URIs. This is where chain-aware purge is most valuable: client chains are identified by provision `id` + `inState`, and each step typically targets a different method+URI, so without it only the last step's events would be removed. Incomplete chains retain their full event history for forensics. The data-key-level caveat described in the server purge section applies here as well.
 
 ### Client provision fields
+
+#### endpoint
+
+Optional client endpoint identifier (previously registered through `POST /admin/v1/client-endpoint`) that indicates where this provision sends its request. It is not mandatory in the schema.
+
+**Per-state endpoint in a chain**: each link of a chain (each provision sharing the same `id` but with a different `inState`) may declare its own `endpoint`. This means a single chained scenario can mix client endpoints across its states — for example, alternate requests towards two different remote servers within the same automatic flow. The endpoint is re-resolved on every state progression, so the link's own `endpoint` is honored when the chain advances (not only on the first, triggered link).
+
+**Fallback behavior**: because `endpoint` is optional, three cases apply on progression to the next link:
+
+- The next link declares **no** `endpoint`: it inherits the endpoint of the previous link (silent, legitimate — useful for homogeneous chains where the endpoint is stated once).
+- The next link declares a **valid** `endpoint`: it is re-resolved and the request is routed there.
+- The next link declares an `endpoint` that is **not registered or disabled** (`permit=false`): it inherits the previous link's endpoint and a warning is logged (non-breaking, to preserve existing configurations).
+
+The triggered (`initial`) link, however, always requires a valid endpoint: the trigger resolves it up front and aborts the send if it is missing or disabled.
+
+Example of a heterogeneous chain (states routed to different endpoints):
+
+```json
+[
+  {
+    "id": "multiEndpoint",
+    "endpoint": "serverA",
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/step-a",
+    "outState": "second"
+  },
+  {
+    "id": "multiEndpoint",
+    "inState": "second",
+    "endpoint": "serverB",
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/step-b"
+  }
+]
+```
+
+Triggering `multiEndpoint` sends the first request to `serverA` and, upon its response, the second request to `serverB`.
+
+> Note on data storage: the `clientEndpointId` recorded in `client-data` events is taken from each link's own provision, so it always reflects the link's declared endpoint. The endpoint resolution described above governs the *physical* destination of the request, aligning it with that declared identifier.
 
 #### requestMethod & requestUri
 

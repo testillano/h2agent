@@ -1059,7 +1059,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     }
 }
 
-void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, const std::string &inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<std::map<std::string, std::string>> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
+void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, std::string inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<std::map<std::string, std::string>> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
 
     provision->employ();
     std::string requestMethod{};
@@ -1171,10 +1171,47 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 if (nextProvision) {
                     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
                     nextProvision->setSeq(provisionSeq); // propagate sequence through chain
-                    // Chain continuations run inline on the IO thread (no pool hop).
-                    // The chain is sequential per subscriber — posting to the pool
-                    // would only add dispatch latency without parallelism benefit.
-                    sendClientRequest(nextProvision, finalOutState, clientEndpoint, provisionSeq, chainVariables, purgeKeys);
+
+                    // Honor the next link's own client-endpoint (routing is driven by
+                    // the 'clientEndpoint' argument, not by the stored clientEndpointId).
+                    // The 'endpoint' field is optional per schema, so three cases apply:
+                    //   - link declares no endpoint      -> inherit current (legitimate, silent).
+                    //   - link declares a valid endpoint -> re-resolve and route there.
+                    //   - link declares an unknown one   -> inherit current + warn (suspicious config).
+                    auto nextEndpoint = clientEndpoint;
+                    const std::string &nextId = nextProvision->getClientEndpointId();
+                    if (!nextId.empty()) {
+                        auto resolved = getAdminData()->getClientEndpointData().find(nextId);
+                        if (resolved && resolved->getPermit()) {
+                            nextEndpoint = resolved;
+                        } else {
+                            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Chain link outState '%s' references client endpoint '%s' not found/disabled; inheriting previous endpoint", finalOutState.c_str(), nextId.c_str()), ERT_FILE_LOCATION));
+                        }
+                    }
+
+                    // Chain continuation ownership note:
+                    // This callback runs on the connection's own io_context
+                    // thread, and it holds the last-but-one reference to the
+                    // client endpoint (the admin container may drop its own
+                    // reference concurrently, e.g. on DELETE /client-endpoint).
+                    // Running the next step INLINE here means that, when this
+                    // lambda finally returns and its captured shared_ptr is
+                    // released, the endpoint (hence its Http2Connection) could be
+                    // destroyed from within its OWN io_context thread -- an
+                    // unsafe teardown (join-from-self / session shutdown races).
+                    // Posting the continuation to the worker pool moves both the
+                    // execution and the final shared_ptr release off the io
+                    // thread, so any endpoint destruction happens on a worker
+                    // thread instead. Falls back to inline only when no pool is
+                    // configured (single-threaded client mode).
+                    if (client_worker_io_context_) {
+                        postToPool([this, nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys]() {
+                            sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
+                        });
+                    }
+                    else {
+                        sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
+                    }
                 }
             }
         },

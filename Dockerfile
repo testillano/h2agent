@@ -38,8 +38,8 @@ ARG ert_logger_ver=v1.1.1
 ARG ert_queuedispatcher_ver=v1.1.0
 ARG jupp0r_prometheuscpp_ver=v1.3.0
 ARG civetweb_civetweb_ver=v1.16
-ARG ert_metrics_ver=v1.3.0
-ARG ert_http2comm_ver=v2.4.1
+ARG ert_metrics_ver=v1.3.1
+ARG ert_http2comm_ver=v2.4.2
 ARG nlohmann_json_ver=v3.12.0
 ARG pboettch_jsonschemavalidator_ver=2.4.0
 ARG google_test_ver=v1.11.0
@@ -278,8 +278,12 @@ ARG build_type=Release
 ARG sanitizer=""
 
 # Runtime dependencies
+# nghttp2-client: h2load / nghttp CLI (probes, benchmarking)
+# nghttp2-proxy:  nghttpx reverse proxy (HTTP/1.x access, activated by starter.sh
+#                 when H2AGENT_*_PROXY_PORT is set). Was provided by the "nghttp2"
+#                 all-in-one package before the multi-stage refactor.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    vim curl jq nghttp2-client netcat-openbsd socat libjemalloc2 \
+    vim curl jq nghttp2-client nghttp2-proxy netcat-openbsd socat libjemalloc2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Sanitizer runtime libraries (only when needed)
