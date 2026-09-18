@@ -16,13 +16,29 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Source helpers (auto-detect location)
-if [ -f "${SCRIPT_DIR}/helpers.bash" ]; then
-  source "${SCRIPT_DIR}/helpers.bash" &>/dev/null
-elif [ -f "/opt/utils/helpers.bash" ]; then
-  source "/opt/utils/helpers.bash" &>/dev/null
-else
-  echo "ERROR: cannot find helpers.bash (tried ${SCRIPT_DIR}/helpers.bash and /opt/utils/helpers.bash)"
+# Helper functions this scheduler needs. They are normally provided by the caller
+# (e.g. sourcing tools/helpers.bash, or a '<role>_env' wrapper). We DECLARE the
+# dependency and assert it -- we do NOT force a particular way of loading it.
+# Only if the functions are missing do we try to source helpers.bash from the
+# known locations (standalone use, e.g. inside the container). This lets a caller
+# that already sourced the helpers use the scheduler with no extra setup.
+_ES_REQUIRED_FNS="client_provision_cps client_provision_trigger admin_url do_curl traffic_summary trace"
+_es_have_fns() { local f; for f in $_ES_REQUIRED_FNS; do command -v "$f" >/dev/null 2>&1 || return 1; done; return 0; }
+
+if ! _es_have_fns; then
+  # not already available -> try the known helper locations
+  if [ -f "${SCRIPT_DIR}/helpers.bash" ]; then
+    source "${SCRIPT_DIR}/helpers.bash" &>/dev/null
+  elif [ -f "/opt/utils/helpers.bash" ]; then
+    source "/opt/utils/helpers.bash" &>/dev/null
+  fi
+fi
+
+# assert: whether provided by the caller or just sourced, the functions must exist
+if ! _es_have_fns; then
+  echo "ERROR: required h2agent helper functions not available." >&2
+  echo "       Source the helpers first (e.g. tools/helpers.bash, or a '<role>_env' wrapper)." >&2
+  echo "       Missing at least one of: ${_ES_REQUIRED_FNS}" >&2
   exit 1
 fi
 
