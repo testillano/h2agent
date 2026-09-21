@@ -158,6 +158,35 @@ TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionWithHeaders) {
 }
 
 // ============================================================================
+// Tests for server-provision / server-matching rejection when the traffic
+// server is disabled (process started as a pure client, --traffic-server-port 0).
+// The mode is fixed at startup and cannot change at runtime, so provisioning
+// server behaviour must be rejected with 404 (consistent with the existing
+// server-data/configuration guard), not silently accepted.
+// ============================================================================
+
+TEST_F(MyAdminHttp2ServerUnitTest, ServerMatchingRejectedWhenServerDisabled) {
+    admin_server_->setHttp2Server(nullptr);  // no traffic server (client-only process)
+    nlohmann::json config = R"({"algorithm":"FullMatching"})"_json;
+    std::string log;
+    int result = admin_server_->serverMatching(config, log);
+
+    EXPECT_EQ(result, 404);
+    EXPECT_EQ(log, "server-matching operation; server is disabled (process started without a traffic server)");
+}
+
+TEST_F(MyAdminHttp2ServerUnitTest, ServerProvisionRejectedWhenServerDisabled) {
+    admin_server_->setHttp2Server(nullptr);  // no traffic server (client-only process)
+    nlohmann::json config = R"({"requestMethod": "GET", "requestUri": "/foo/bar", "responseCode": 200})"_json;
+    std::string log;
+    std::string warning;
+    int result = admin_server_->serverProvision(config, log, warning);
+
+    EXPECT_EQ(result, 404);
+    EXPECT_EQ(log, "server-provision operation; server is disabled (process started without a traffic server)");
+}
+
+// ============================================================================
 // Tests for vault()
 // ============================================================================
 

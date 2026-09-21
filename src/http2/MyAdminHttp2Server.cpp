@@ -205,6 +205,15 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
 {
     log = "server-matching operation; ";
 
+    // Reject when the process has no traffic server (started as a pure client,
+    // e.g. --traffic-server-port 0). The mode is fixed at startup and cannot
+    // change at runtime, so configuring server behaviour makes no sense.
+    // Consistent with the server-data/configuration guard (see receivePUT).
+    if (!getHttp2Server()) {
+        log += "server is disabled (process started without a traffic server)";
+        return ert::http2comm::ResponseCode::NOT_FOUND; // 404
+    }
+
     h2agent::model::AdminServerMatchingData::LoadResult loadResult = getAdminData()->loadServerMatching(configurationObject);
     int result = ((loadResult == h2agent::model::AdminServerMatchingData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400
 
@@ -232,6 +241,15 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
 int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "server-provision operation; ";
+
+    // Reject when the process has no traffic server (started as a pure client,
+    // e.g. --traffic-server-port 0). The mode is fixed at startup and cannot
+    // change at runtime, so configuring server behaviour makes no sense.
+    // Consistent with the server-data/configuration guard (see receivePUT).
+    if (!getHttp2Server()) {
+        log += "server is disabled (process started without a traffic server)";
+        return ert::http2comm::ResponseCode::NOT_FOUND; // 404
+    }
 
     h2agent::model::AdminServerProvisionData::LoadResult loadResult = getAdminData()->loadServerProvision(configurationObject, common_resources_);
     int result = ((loadResult == h2agent::model::AdminServerProvisionData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400

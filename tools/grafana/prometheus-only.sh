@@ -9,7 +9,13 @@ set -euo pipefail
 PROM_IMAGE=${PROMETHEUS_IMAGE:-prom/prometheus:latest}
 PROM_PORT=${PROMETHEUS_PORT:-9090}
 PROM_NAME=${PROMETHEUS_NAME:-prom-standalone}
-PROM_YAML=/tmp/prometheus-only.yaml
+# Per-user/per-process temp config: a fixed /tmp/prometheus-only.yaml is shared
+# across users on a multi-user host -> the first writer owns it and others hit
+# "permission denied". Use a unique name (mktemp, honouring $TMPDIR) so each user
+# gets their own. It is bind-mounted (by path) into the detached container, so we
+# do NOT delete it on exit (a restart would need the path); it is a tiny per-user
+# temp that the OS/tmp cleanup reclaims. Uniqueness is what fixes the collision.
+PROM_YAML=$(mktemp "${TMPDIR:-/tmp}/prometheus-only.XXXXXX.yaml")
 
 #############
 # FUNCTIONS #

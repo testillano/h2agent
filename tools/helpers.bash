@@ -1618,18 +1618,23 @@ snapshot() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
     echo "Usage: snapshot [-h|--help]; Creates a snapshot directory with process data & configuration."
-    echo "                [target dir]; Directory where information is stored ('/tmp/snapshots/last' by default)."
+    echo "                [target dir]; Directory where information is stored (per-user '${TMPDIR:-/tmp}/snapshots-<user>/last' by default)."
     return 0
   fi
 
-  local dir=${1:-"/tmp/snapshots/$(date +'%y%m%d.%H%M%S')"}
+  # Default snapshot base is per-user: a fixed /tmp/snapshots is shared across
+  # users on a multi-user host and collides (permission denied) on the dir and the
+  # 'last' symlink. Honour $TMPDIR and suffix the user. An explicit [target dir]
+  # ($1) overrides this entirely.
+  local base="${SNAPSHOTS_DIR:-${TMPDIR:-/tmp}/snapshots-$(id -un)}"
+  local dir=${1:-"${base}/$(date +'%y%m%d.%H%M%S')"}
   mkdir -p ${dir} || return 1
 
   if [ -n "$1" ]
   then
     [ -n "$(ls -A ${dir})" ] && echo "Target directory '${dir}' is not empty !" && return 1
   else
-    local last=/tmp/snapshots/last
+    local last="${base}/last"
     rm -f ${last} && ln -s $(basename ${dir}) ${last}
   fi
 

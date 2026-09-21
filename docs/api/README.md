@@ -225,6 +225,8 @@ The `h2agent` starts with memory pre reservation enabled by default, but you cou
 
 The server matching configuration (`POST /admin/v1/server-matching`) defines how incoming traffic is classified towards provisions.
 
+> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), `POST /admin/v1/server-matching` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), for the same reason as server provisions above.
+
 ### URI path query parameters
 
 Optional object used to specify the transformation used for traffic classification, of query parameters received in the *URI* path. It contains two fields, a mandatory _filter_ and an optional _separator_:
@@ -320,6 +322,8 @@ Note: in case of large provisions, this algorithm could be not recommended (sequ
 ## Server provisions
 
 Server provisions (`POST /admin/v1/server-provision`) define the response behavior for incoming requests. This section covers the conceptual aspects of provisioning.
+
+> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), it is a pure client and its mode cannot change at runtime. In that case `POST /admin/v1/server-provision` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), consistent with `PUT /admin/v1/server-data/configuration`. Use client provisions instead.
 
 ### State machine (inState/outState)
 
