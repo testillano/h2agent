@@ -3114,7 +3114,7 @@
     }
   ],
   "preload": false,
-  "refresh": "",
+  "refresh": "10s",
   "schemaVersion": 42,
   "tags": [],
   "templating": {
