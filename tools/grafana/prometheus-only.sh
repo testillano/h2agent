@@ -93,6 +93,12 @@ scrape_configs:
       - targets: ['localhost:${PROM_PORT}']
 EOF
 
+# mktemp creates the file mode 0600 (owner-only), but the prom/prometheus image
+# runs as 'nobody' (uid 65534) and bind-mounts this config read-only, so it cannot
+# read an owner-only file -> "open .../prometheus.yml: permission denied". Make it
+# world-readable so the container user can read it (config is non-sensitive).
+chmod a+r "${PROM_YAML}"
+
 echo "Scraping targets: ${TARGETS}"
 echo "Listen port: ${PROM_PORT}"
 echo
