@@ -456,6 +456,21 @@ target: "var.uri_parts"
 Access: source "var.uri_parts.1" → "foo"   (key lookup in flat string map)
 ```
 
+> **Gotcha — dotted capture variables in a vault key name.** A capture-group
+> variable like `var.uri_parts.1` is a perfectly valid variable, and `@{uri_parts.1}`
+> substitutes fine in a **value** or a `var` target. BUT it does NOT work when placed
+> in the **name of a vault key**, e.g. `target: "vault.RCVD_@{uri_parts.1}"`. The vault
+> target syntax is `vault.<key>[./<json-pointer>]`, and the key/path split is parsed on
+> the FIRST dot at provision-load time -- before variable substitution -- so the dot
+> inside `@{uri_parts.1}` is misread as the key/path separator and the substitution
+> does not happen as intended. Workaround: copy the group to a dot-free variable first
+> and use that in the key:
+>
+> ```
+> {"source": "var.uri_parts.1", "target": "var.group1"},
+> {"source": "value.0",         "target": "vault.RCVD_@{group1}"}
+> ```
+
 **`vault` (global)** — stores a single JSON object with numbered keys:
 
 ```
