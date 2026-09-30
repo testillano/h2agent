@@ -57,8 +57,24 @@ namespace model
  * This is useful to post-verify the internal data (content and schema validation) on testing system.
  * Also, the last request for an specific key, is used to know the state which is used to get the
  * corresponding provision information.
+ *
+ * The event store is accessed on the TRAFFIC hot path: every request writes its
+ * event (loadEvent -> per-key get + add / modifyOrInsert) and transformations
+ * read past events (getEvent -> per-key get). Under high concurrency with MANY
+ * DISTINCT keys (e.g. millions of subscribers, each with its own URI, plus FSM
+ * state updates on that URI) a single global mutex would serialize all of them.
+ * It is therefore backed by an N-way SHARDED Map (see Map.hpp): per-key access
+ * locks only its shard, so independent keys do not contend. Whole-map ops
+ * (summary/getJson/asJsonString/getSequence) lock all shards, but those are
+ * administrative/report paths (GET on the admin server_data/client_data
+ * endpoints), not the hot path.
+ *
+ * NOTE: this disperses contention on the MAP's mutex only. The per-entry
+ * MockEventsHistory has its own mutex; deep history on the SAME key still
+ * serializes there (orthogonal to Map sharding), but that is the natural
+ * per-subscriber ordering and does not block other keys.
  */
-class MockData : public Map<mock_events_key_t, std::shared_ptr<MockEventsHistory>>
+class MockData : public Map<mock_events_key_t, std::shared_ptr<MockEventsHistory>, MOCK_DATA_MUTEX_SHARDS>
 {
 protected:
     // Get the events list for data key provided, and pass by reference a boolean to know if the list must be inaugurated

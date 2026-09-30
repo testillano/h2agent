@@ -70,7 +70,7 @@ inline std::string jsonToString(const nlohmann::json &j) {
  * Whole-map operations (getJson/asJsonString/clear) lock all shards, but those
  * are administrative paths (GET/DELETE /admin/v1/vault), not the hot path.
  */
-class Vault : public Map<std::string, nlohmann::json, 16 /* shards */>
+class Vault : public Map<std::string, nlohmann::json, VAULT_MUTEX_SHARDS>
 {
     h2agent::jsonschema::JsonSchema vault_schema_{};
     WaitManager *wait_manager_{};

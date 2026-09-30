@@ -202,3 +202,63 @@ TEST(Map, ConcurrentSameKeyIncrementsAreAtomic) {
     EXPECT_EQ(m.get("shared", exists), kThreads * kPerThread);  // no lost updates
     EXPECT_TRUE(exists);
 }
+
+// Concurrency: models the MockData traffic pattern under sharding -- MANY
+// distinct keys (subscribers, each its own URI) written and read concurrently,
+// PLUS repeated writes to a few "same" keys (FSM state updates on one URI).
+// Readers hammer per-key tryGet (transformations reading past events) and the
+// whole-map getJson (admin) at the same time. Asserts no crash/deadlock and
+// that same-key FSM updates are not lost.
+TEST(Map, ConcurrentMockDataPattern_MixedReadWrite) {
+    StrIntMap<16> m;
+    constexpr int kWriters = 8;
+    constexpr int kPerThread = 4000;
+    constexpr int kFsmKeys = 4;  // few URIs receiving repeated FSM updates
+
+    // Pre-seed the FSM keys so readers hit existing entries.
+    for (int f = 0; f < kFsmKeys; ++f) m.add("fsm_" + std::to_string(f), 0);
+
+    std::atomic<bool> stop{false};
+    // Reader: per-key reads + whole-map snapshot concurrently with writers.
+    std::thread reader([&]() {
+        int out = 0;
+        while (!stop.load()) {
+            m.tryGet("fsm_0", out);
+            nlohmann::json j = m.getJson();
+            (void)j;
+        }
+    });
+
+    std::vector<std::thread> writers;
+    for (int t = 0; t < kWriters; ++t) {
+        writers.emplace_back([&, t]() {
+            for (int i = 0; i < kPerThread; ++i) {
+                // Distinct per-subscriber key (millions-of-URIs case).
+                std::string uniq = "sub_" + std::to_string(t) + "_" + std::to_string(i);
+                m.modifyOrInsert(uniq, [](int &v) { v += 1; });
+                // FSM update on a shared URI (same-key repeated write).
+                std::string fsm = "fsm_" + std::to_string(i % kFsmKeys);
+                m.modifyOrInsert(fsm, [](int &v) { v += 1; });
+            }
+        });
+    }
+    for (auto &w : writers) w.join();
+    stop.store(true);
+    reader.join();
+
+    // Distinct subscriber keys: one write each -> value 1.
+    bool exists = false;
+    EXPECT_EQ(m.get("sub_2_100", exists), 1);
+    EXPECT_TRUE(exists);
+
+    // FSM keys: total increments across all writers must be exact (no lost updates).
+    long long fsmTotal = 0;
+    for (int f = 0; f < kFsmKeys; ++f) {
+        fsmTotal += m.get("fsm_" + std::to_string(f), exists);
+        EXPECT_TRUE(exists);
+    }
+    EXPECT_EQ(fsmTotal, static_cast<long long>(kWriters) * kPerThread);
+
+    // Total keys = distinct subscriber keys + the FSM keys.
+    EXPECT_EQ(m.size(), static_cast<std::size_t>(kWriters * kPerThread + kFsmKeys));
+}
