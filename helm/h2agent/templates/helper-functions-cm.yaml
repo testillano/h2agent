@@ -14,11 +14,11 @@ data:
     # VARIABLES FROM HELM #
     #######################
     PNAME="{{ .Values.name }}"
-    TRAFFIC_PORT="{{ .Values.service.traffic_port }}"
-    TRAFFIC_SERVER_API="{{ .Values.h2agent_cl.traffic_server_api_name }}/{{ .Values.h2agent_cl.traffic_server_api_version }}"
-    ADMIN_PORT="{{ .Values.service.admin_port }}"
-    METRICS_PORT="{{ .Values.service.prometheus_port }}"
-    CURL=${CURL:-"curl -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
+    H2AHLP_TRAFFIC_PORT="{{ .Values.service.traffic_port }}"
+    H2AHLP_TRAFFIC_SERVER_API="{{ .Values.h2agent_cl.traffic_server_api_name }}/{{ .Values.h2agent_cl.traffic_server_api_version }}"
+    H2AHLP_ADMIN_PORT="{{ .Values.service.admin_port }}"
+    H2AHLP_METRICS_PORT="{{ .Values.service.prometheus_port }}"
+    H2AHLP_CURL=${H2AHLP_CURL:-"curl -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
 
     #############
     # EXECUTION #

@@ -3,19 +3,29 @@
 #############
 # VARIABLES #
 #############
+# Namespaced (H2AHLP_*) and EXPORTED so a child process that runs (not sources)
+# a script inheriting the exported functions also gets the variables those
+# functions rely on. The per-helper prefix also avoids clashing with the
+# h2diagent helper (whose curl is plain, not --http2-prior-knowledge) or any
+# unrelated shell variable. Override via the namespaced name, e.g.
+# H2AHLP_ADMIN_PORT=8075 source helpers.bash
 PNAME=${PNAME:-h2agent}
 
-TRAFFIC_PORT=${TRAFFIC_PORT:-8000} # maybe proxy on 8001 ...
-[ "${TRAFFIC_SERVER_API}" = "/" ] && TRAFFIC_SERVER_API=
-ADMIN_PORT=${ADMIN_PORT:-8074} # maybe proxy on 8075 ...
-ADMIN_SERVER_API="admin/v1"
-METRICS_PORT=${METRICS_PORT:-8080}
+H2AHLP_TRAFFIC_PORT=${H2AHLP_TRAFFIC_PORT:-8000} # maybe proxy on 8001 ...
+[ "${H2AHLP_TRAFFIC_SERVER_API}" = "/" ] && H2AHLP_TRAFFIC_SERVER_API=
+H2AHLP_ADMIN_PORT=${H2AHLP_ADMIN_PORT:-8074} # maybe proxy on 8075 ...
+H2AHLP_ADMIN_SERVER_API="admin/v1"
+H2AHLP_METRICS_PORT=${H2AHLP_METRICS_PORT:-8080}
 
-SCHEME=${SCHEME:-http}
-CURL=${CURL:-"curl -s -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
-SERVER_ADDR=${SERVER_ADDR:-localhost}
+H2AHLP_SCHEME=${H2AHLP_SCHEME:-http}
+H2AHLP_CURL=${H2AHLP_CURL:-"curl -s -i --http2-prior-knowledge"} # may be just --http2, --http1.0, --http1.1, or nothing
+H2AHLP_SERVER_ADDR=${H2AHLP_SERVER_ADDR:-localhost}
 
-BEAUTIFY_JSON=yes
+H2AHLP_BEAUTIFY_JSON=yes
+
+export PNAME H2AHLP_TRAFFIC_PORT H2AHLP_TRAFFIC_SERVER_API H2AHLP_ADMIN_PORT \
+       H2AHLP_ADMIN_SERVER_API H2AHLP_METRICS_PORT H2AHLP_SCHEME H2AHLP_CURL \
+       H2AHLP_SERVER_ADDR H2AHLP_BEAUTIFY_JSON
 
 # Per-session temp file (allows parallel helper invocations)
 _H2A_CURL_OUT="/tmp/curl.out.$$"
@@ -29,22 +39,22 @@ trap 'rm -f ${_H2A_CURL_OUT} ${_H2A_CURL_OUT}.sorted' EXIT
 # INTERNAL
 
 traffic_url() {
-  echo "${SCHEME}://${SERVER_ADDR}:${TRAFFIC_PORT}"
+  echo "${H2AHLP_SCHEME}://${H2AHLP_SERVER_ADDR}:${H2AHLP_TRAFFIC_PORT}"
 }
 
 admin_url() {
-  echo -n "${SCHEME}://${SERVER_ADDR}:${ADMIN_PORT}/${ADMIN_SERVER_API}"
+  echo -n "${H2AHLP_SCHEME}://${H2AHLP_SERVER_ADDR}:${H2AHLP_ADMIN_PORT}/${H2AHLP_ADMIN_SERVER_API}"
 }
 
 metrics_url() {
-  echo "${SCHEME}://${SERVER_ADDR}:${METRICS_PORT}/metrics"
+  echo "${H2AHLP_SCHEME}://${H2AHLP_SERVER_ADDR}:${H2AHLP_METRICS_PORT}/metrics"
 }
 
 do_curl() {
   echo
-  echo [${CURL} "$@"]
+  echo [${H2AHLP_CURL} "$@"]
   echo
-  ${CURL} "$@" | tee ${_H2A_CURL_OUT}
+  ${H2AHLP_CURL} "$@" | tee ${_H2A_CURL_OUT}
   [ $? -ne 0 ] && return 1
 
   [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
@@ -52,7 +62,7 @@ do_curl() {
   # Last empty line or no line feed (no body answered):
   [ -z $(tail -c 1 ${_H2A_CURL_OUT}) ] && return 0
 
-  [ -n "${BEAUTIFY_JSON}" ] && echo -e "\n\nPRETTY BODY PRINTOUT (disable on curl operation unsetting 'BEAUTIFY_JSON'):" && pretty
+  [ -n "${H2AHLP_BEAUTIFY_JSON}" ] && echo -e "\n\nPRETTY BODY PRINTOUT (disable on curl operation unsetting 'H2AHLP_BEAUTIFY_JSON'):" && pretty
   echo -e "\n\n(type 'pretty' or 'raw' to isolate body printout)\n"
 }
 
@@ -976,7 +986,7 @@ wait_vault() {
   local q="timeoutMs=${timeoutMs}"
   [ -n "${value}" ] && q+="&value=${value}"
 
-  ${CURL} --max-time ${maxTime} "$(admin_url)/vault/${key}/wait?${q}"
+  ${H2AHLP_CURL} --max-time ${maxTime} "$(admin_url)/vault/${key}/wait?${q}"
   local rc=$?
   echo
   return ${rc}
@@ -1697,7 +1707,7 @@ server_example() {
   [ -z "${foo_server_matching}" ] && foo_server_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
 
   local traffic_server_api_path=
-  [ -n "${TRAFFIC_SERVER_API}" ] && traffic_server_api_path="/${TRAFFIC_SERVER_API}"
+  [ -n "${H2AHLP_TRAFFIC_SERVER_API}" ] && traffic_server_api_path="/${H2AHLP_TRAFFIC_SERVER_API}"
 
   cat << EOF
 
@@ -1749,8 +1759,8 @@ server_example() {
 
   # Test it !
   server_data --clean
-  \${CURL} -d'{"foo":1, "bar":2}' -H'Content-Type: application/json' $(traffic_url)${traffic_server_api_path}/my/dummy/path ; echo # must respond 201
-  \${CURL} -d'{"foo":"hi", "bar":2}' -H'Content-Type: application/json' $(traffic_url)${traffic_server_api_path}/my/dummy/path ; echo # must respond 400 (foo value is not numeric)
+  \${H2AHLP_CURL} -d'{"foo":1, "bar":2}' -H'Content-Type: application/json' $(traffic_url)${traffic_server_api_path}/my/dummy/path ; echo # must respond 201
+  \${H2AHLP_CURL} -d'{"foo":"hi", "bar":2}' -H'Content-Type: application/json' $(traffic_url)${traffic_server_api_path}/my/dummy/path ; echo # must respond 400 (foo value is not numeric)
 
 EOF
 }
@@ -1773,12 +1783,12 @@ help() {
   echo "Usage: help; This help summary."
   echo
   echo "=== Internal Functions And Variables ==="
-  echo -n "traffic_url: $(traffic_url) (TRAFFIC_PORT=${TRAFFIC_PORT}"
-  [ -n "${TRAFFIC_SERVER_API}" ] && echo -n "; TRAFFIC_SERVER_API=${TRAFFIC_SERVER_API}"
+  echo -n "traffic_url: $(traffic_url) (H2AHLP_TRAFFIC_PORT=${H2AHLP_TRAFFIC_PORT}"
+  [ -n "${H2AHLP_TRAFFIC_SERVER_API}" ] && echo -n "; H2AHLP_TRAFFIC_SERVER_API=${H2AHLP_TRAFFIC_SERVER_API}"
   echo ")"
-  echo "admin_url:   $(admin_url) (ADMIN_PORT=${ADMIN_PORT})"
-  echo "metrics_url: $(metrics_url) (METRICS_PORT=${METRICS_PORT})"
-  echo "do_curl:     CURL=\"${CURL}\"; SCHEME=${SCHEME}; SERVER_ADDR=${SERVER_ADDR}"
+  echo "admin_url:   $(admin_url) (H2AHLP_ADMIN_PORT=${H2AHLP_ADMIN_PORT})"
+  echo "metrics_url: $(metrics_url) (H2AHLP_METRICS_PORT=${H2AHLP_METRICS_PORT})"
+  echo "do_curl:     H2AHLP_CURL=\"${H2AHLP_CURL}\"; H2AHLP_SCHEME=${H2AHLP_SCHEME}; H2AHLP_SERVER_ADDR=${H2AHLP_SERVER_ADDR}"
   export -f traffic_url admin_url metrics_url do_curl
   echo
   echo "=== General Resources' Functions ==="
