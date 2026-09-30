@@ -42,6 +42,8 @@ SOFTWARE.
 // As insertion and deletion are equally fast for both containers, we focus on search
 //  (O(log2(n)) for map as binary tree, O(1) constant as average (O(n) in worst case)
 //  for unordered map as hash table), so for our case, unordered_map seems to be the best choice.
+#include <array>
+#include <functional>
 #include <unordered_map>
 
 #include <common.hpp>
@@ -54,31 +56,69 @@ namespace h2agent
 namespace model
 {
 
-template<typename Key, typename Value>
+/**
+ * Thread-safe associative map with OPT-IN mutex sharding.
+ *
+ * @tparam Key    key type
+ * @tparam Value  value type
+ * @tparam Shards number of independent lock shards (default 1).
+ *
+ * With \c Shards == 1 (the default) this is byte-for-byte the historical
+ * single-\c shared_mutex map: every existing user (event stores, etc.) keeps
+ * exactly the old behaviour with zero extra overhead.
+ *
+ * With \c Shards > 1 the keyspace is partitioned across N independent
+ * (\c mutex, \c unordered_map) shards, routed by \c std::hash(key) % Shards:
+ * - PER-KEY operations (get/tryGet/exists/add/remove/modifyOrInsert) lock ONLY
+ *   the shard owning the key, so writes to independent keys from different
+ *   threads do not serialize against each other. This is the hot-traffic win
+ *   (e.g. a provision touching many vault keys under high concurrency).
+ * - WHOLE-MAP operations (size/empty/forEach/getJson/clear/copy) must observe
+ *   every shard, so they lock ALL shards in a FIXED ascending order (which is
+ *   deadlock-free). These are administrative/report paths (e.g.
+ *   GET /admin/v1/vault), NOT the traffic hot path, so global locking there is
+ *   acceptable by design.
+ *
+ * Per-key atomicity of \c modifyOrInsert (read-modify-write under one lock) is
+ * preserved in both modes.
+ */
+template<typename Key, typename Value, std::size_t Shards = 1>
 class Map {
+
+    static_assert(Shards >= 1, "Map requires at least one shard");
 
     typedef typename std::unordered_map<Key, Value> map_t;
     using IterationCallback = std::function<void(const Key&, const Value&)>;
 
-    mutable mutex_t mutex_{};
-    map_t map_{};
+    struct Shard {
+        mutable mutex_t mutex_{};
+        map_t map_{};
+    };
 
-protected:
-    bool clear_unsafe() noexcept {
-        bool result = (map_.size() != 0); // same !
-        map_.clear();
-        return result;
+    std::array<Shard, Shards> shards_{};
+
+    // Route a key to its shard. For Shards==1 this is a no-op (index 0), so the
+    // hash is not even computed on the single-shard hot path.
+    Shard& shardFor(const Key& key) {
+        if constexpr (Shards == 1) return shards_[0];
+        else return shards_[std::hash<Key>{}(key) % Shards];
+    }
+    const Shard& shardFor(const Key& key) const {
+        if constexpr (Shards == 1) return shards_[0];
+        else return shards_[std::hash<Key>{}(key) % Shards];
     }
 
 public:
 
     Map() {};
 
-    /** copy constructor */
-    Map(const Map& other) : map_{}
-    {
-        read_guard_t guard(other.mutex_);
-        this->map_ = other.map_;
+    /** copy constructor: snapshot every shard of 'other' under read locks
+     * (fixed ascending order), then copy into our matching shards. */
+    Map(const Map& other) {
+        for (std::size_t i = 0; i < Shards; ++i) {
+            read_guard_t guard(other.shards_[i].mutex_);
+            shards_[i].map_ = other.shards_[i].map_;
+        }
     }
 
     ~Map() = default;
@@ -87,8 +127,9 @@ public:
 
     bool exists(const Key& key) const
     {
-        read_guard_t guard(mutex_);
-        return (map_.find(key) != map_.end());
+        const Shard& s = shardFor(key);
+        read_guard_t guard(s.mutex_);
+        return (s.map_.find(key) != s.map_.end());
     }
 
     /**
@@ -100,9 +141,10 @@ public:
      */
     Value get(const Key& key, bool &exists) const
     {
-        read_guard_t guard(mutex_);
-        auto it = map_.find(key);
-        exists = (it != map_.end());
+        const Shard& s = shardFor(key);
+        read_guard_t guard(s.mutex_);
+        auto it = s.map_.find(key);
+        exists = (it != s.map_.end());
         return (exists ? it->second : Value{}); // return copy
     }
 
@@ -110,162 +152,172 @@ public:
      * Getter which avoid copy of empty value and is more readable than get()
      */
     bool tryGet(const Key& key, Value& out_value) const {
-        read_guard_t guard(mutex_);
-        auto it = map_.find(key);
-        if (it != map_.end()) {
+        const Shard& s = shardFor(key);
+        read_guard_t guard(s.mutex_);
+        auto it = s.map_.find(key);
+        if (it != s.map_.end()) {
             out_value = it->second;
             return true;
         }
         return false;
     }
 
-    //// Lvalue
-    //bool insert_if_not_exists(const Key& key, const Value& value) {
-    //    write_guard_t guard(mutex_);
-    //    // try_emplace is the atomic equivalent to insert_if_not_exists
-    //    return map_.try_emplace(key, value).second;
-    //}
-
-    //// Rvalue (max performance)
-    //bool insert_if_not_exists(const Key& key, Value&& value) {
-    //    write_guard_t guard(mutex_);
-    //    return map_.try_emplace(key, std::move(value)).second;
-    //}
-
-    //template <typename... Args>
-    //bool emplace(const Key& key, Args&&... args) {
-    //    write_guard_t guard(mutex_);
-    //    return map_.try_emplace(key, std::forward<Args>(args)...).second;
-    //}
-
-    /** map size */
+    /** map size (sum across shards; each shard read-locked in turn) */
     size_t size() const
     {
-        read_guard_t guard(mutex_);
-        return map_.size();
+        size_t total = 0;
+        for (const auto& s : shards_) {
+            read_guard_t guard(s.mutex_);
+            total += s.map_.size();
+        }
+        return total;
     }
 
     bool empty() const
     {
-        read_guard_t guard(mutex_);
-        return (map_.size() == 0);
+        for (const auto& s : shards_) {
+            read_guard_t guard(s.mutex_);
+            if (!s.map_.empty()) return false;
+        }
+        return true;
     }
 
     /**
      * @brief Iterates safely over all elements in the map.
      * * This method provides **read access** to the map's elements in a **thread-safe** manner
-     * by applying a user-defined callback function to each key-value pair. The entire
-     * iteration is performed atomically and under a read lock.
+     * by applying a user-defined callback function to each key-value pair. With sharding, ALL
+     * shards are read-locked in fixed ascending order for the full iteration (a consistent
+     * snapshot). Admin/report path -- keep callbacks short.
      *
-     * @attention This method acquires a \c std::shared_lock (read lock) for its full duration.
-     * To ensure high concurrency, avoid placing long-running operations (such as file I/O or
-     * thread sleeping) inside the callback function.
-     *
-     * @tparam Key The type of the map's key (e.g., std::string).
-     * @tparam Value The type of the map's value (e.g., std::shared_ptr<T>).
-     *
-     * @param callback A function (lambda or functor) that is applied to every key-value pair.
-     * The signature must be compatible with:
-     * \code
-     * void(const Key&, const Value&)
-     * \endcode
+     * @param callback A function applied to every key-value pair, signature void(const Key&, const Value&).
      *
      * @note This function uses the callback pattern to prevent the exposure of unsafe iterators
      * (\c dangling iterators) to external threads.
      */
     void forEach(const IterationCallback& callback) const {
-        read_guard_t guard(mutex_);
-        for (const auto& pair : map_) {
-            callback(pair.first, pair.second);
+        // Lock all shards (ascending order) for a consistent whole-map view.
+        std::array<read_guard_t, Shards> guards = lockAllShared();
+        for (const auto& s : shards_) {
+            for (const auto& pair : s.map_) {
+                callback(pair.first, pair.second);
+            }
         }
     }
 
     /**
      * @brief Safely converts the internal map content into a JSON object.
-     * * This method provides a thread-safe way to serialize the data stored in the
-     * map by acquiring a read lock for the entire duration of the conversion.
-     * * @details The method acquires a \c std::shared_lock on the map's mutex. While
-     * the lock is held, the internal \c std::unordered_map is copied and cast
-     * into a \c nlohmann::json object. This ensures that the map cannot be
-     * modified (added to or removed from) by writer threads during serialization.
-     * * @tparam Key The type of the map's key.
-     * @tparam Value The type of the map's value.
-     * * @note This implementation relies on \c nlohmann::json's built-in support
-     * for converting \c std::unordered_map. If \c Value is a complex type (e.g.,
-     * a smart pointer or a custom struct), ensure the appropriate \c to_json()
-     * function is implemented for automatic serialization.
      *
-     * @return nlohmann::json A new, thread-safe copy of the map's content
-     * as a JSON object.
+     * Locks ALL shards (read, fixed ascending order) for the duration so the
+     * serialized object is a consistent snapshot across the whole keyspace.
+     * Administrative path (e.g. GET /admin/v1/vault), not the traffic hot path.
+     *
+     * @return nlohmann::json A new copy of the map's content as a JSON object.
      */
     nlohmann::json getJson() const {
-        read_guard_t guard(mutex_);
-        nlohmann::json j(map_);
-        return j;  // return copy
+        std::array<read_guard_t, Shards> guards = lockAllShared();
+        if constexpr (Shards == 1) {
+            return nlohmann::json(shards_[0].map_);  // return copy
+        } else {
+            nlohmann::json j = nlohmann::json::object();
+            for (const auto& s : shards_) {
+                for (const auto& pair : s.map_) {
+                    j[pair.first] = pair.second;
+                }
+            }
+            return j;
+        }
     }
 
     // setters
 
     /**
-     * Adds a new value to the map
-     * Lvalue variant
-     *
-     * @param key key to add
-     * @param value stored
+     * Adds a new value to the map (Lvalue variant). Locks only the key's shard.
      */
     void add(const Key& key, const Value &value) {
-        write_guard_t guard(mutex_);
-        map_.insert_or_assign(key, value);
+        Shard& s = shardFor(key);
+        write_guard_t guard(s.mutex_);
+        s.map_.insert_or_assign(key, value);
     }
 
     // Rvalue variant (std::move)
     void add(const Key& key, Value&& value) {
-        write_guard_t guard(mutex_);
-        map_.insert_or_assign(key, std::move(value));
+        Shard& s = shardFor(key);
+        write_guard_t guard(s.mutex_);
+        s.map_.insert_or_assign(key, std::move(value));
     }
 
     /**
-     * Atomically reads, modifies and writes back a value under a single write lock.
-     * If the key doesn't exist, a default-constructed Value is passed to the modifier.
+     * Atomically reads, modifies and writes back a value under a single shard
+     * write lock. If the key doesn't exist, a default-constructed Value is
+     * passed to the modifier.
      *
      * @param key key to modify
      * @param modifier function that receives a reference to the value and modifies it in place
      */
     template<typename Modifier>
     void modifyOrInsert(const Key& key, Modifier&& modifier) {
-        write_guard_t guard(mutex_);
-        modifier(map_[key]); // operator[] inserts default if missing
+        Shard& s = shardFor(key);
+        write_guard_t guard(s.mutex_);
+        modifier(s.map_[key]); // operator[] inserts default if missing
     }
 
     /**
-     * Adds another map of same kind to the map
+     * Adds another map of same kind to the map. Each entry is routed to its own
+     * shard and locked individually.
      *
-     * @param map map to add
+     * @param m map to add
      */
     void add(const map_t& m)
     {
-        write_guard_t guard(mutex_);
-        for (const auto& kv : m)
-            map_.insert_or_assign(kv.first, kv.second);
+        for (const auto& kv : m) {
+            Shard& s = shardFor(kv.first);
+            write_guard_t guard(s.mutex_);
+            s.map_.insert_or_assign(kv.first, kv.second);
+        }
     }
 
     /**
-     * Removes key
+     * Removes key (locks only the key's shard)
      *
      * @param key key to remove
      */
     void remove(const Key& key, bool &exists)
     {
-        write_guard_t guard(mutex_);
-        exists = (map_.erase(key) > 0);
+        Shard& s = shardFor(key);
+        write_guard_t guard(s.mutex_);
+        exists = (s.map_.erase(key) > 0);
     }
 
-    /** Clear map */
-    // return if something was deleted
+    /** Clear map (locks ALL shards for write, fixed ascending order).
+     *  @return true if something was deleted */
     bool clear()
     {
-        write_guard_t guard(mutex_);
-        return clear_unsafe(); // don't call Map::size() to avoid mutex deadlocks (this one uses map_.size())
+        std::array<write_guard_t, Shards> guards = lockAllExclusive();
+        bool result = false;
+        for (auto& s : shards_) {
+            if (!s.map_.empty()) result = true;
+            s.map_.clear();
+        }
+        return result;
+    }
+
+private:
+    // Acquire a read lock on every shard in fixed ascending order (deadlock-free).
+    std::array<read_guard_t, Shards> lockAllShared() const {
+        return lockAllSharedImpl(std::make_index_sequence<Shards>{});
+    }
+    template<std::size_t... I>
+    std::array<read_guard_t, Shards> lockAllSharedImpl(std::index_sequence<I...>) const {
+        return { read_guard_t(shards_[I].mutex_)... };
+    }
+
+    // Acquire a write lock on every shard in fixed ascending order (deadlock-free).
+    std::array<write_guard_t, Shards> lockAllExclusive() {
+        return lockAllExclusiveImpl(std::make_index_sequence<Shards>{});
+    }
+    template<std::size_t... I>
+    std::array<write_guard_t, Shards> lockAllExclusiveImpl(std::index_sequence<I...>) {
+        return { write_guard_t(shards_[I].mutex_)... };
     }
 };
 

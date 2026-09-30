@@ -153,6 +153,16 @@ The variable read (`@{MY_COUNTER}`) and the write (`vault.MY_COUNTER`) are separ
 
 Per-subscriber vault keys (e.g., `vault.flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-subscriber values after the test completes instead of incrementing a shared counter during execution.
 
+#### Vault concurrency and sharding
+
+The vault is written on the traffic hot path: every `vault.X` transformation target (from both the client and server roles) takes a write lock on the vault. To keep this scalable when a provision touches **many** vault keys under **high concurrency**, the vault is backed by an **N-way sharded map** (16 shards): each key is routed to a shard by hashing, and a per-key write locks **only that shard**. Writes to independent keys from different threads therefore do not serialize against each other.
+
+Notes:
+
+- The gain applies to **distinct keys** (the common per-subscriber case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `math.@{K}+1 -> vault.K` atomic).
+- Whole-vault admin operations (`GET /admin/v1/vault`, `DELETE /admin/v1/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
+- This is transparent to provisions and to the REST API; no configuration is needed. It is an internal property of the vault store (`src/model/Map.hpp`, opt-in via the `Shards` template parameter; only the vault uses `> 1`). A native benchmark is provided at `benchmark/native/vault_sharding/`.
+
 ### Files
 
 The files operation (`GET /admin/v1/files`) retrieves the whole list of files processed and their current status. For example:

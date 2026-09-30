@@ -1,4 +1,5 @@
 add_subdirectory(Keys)
+add_subdirectory(Map)
 add_subdirectory(Functions)
 add_subdirectory(DataPart)
 add_subdirectory(AdminData)

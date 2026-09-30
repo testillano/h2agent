@@ -61,8 +61,16 @@ inline std::string jsonToString(const nlohmann::json &j) {
 
 /**
  * This class stores the vault list.
+ *
+ * The vault is written on the TRAFFIC hot path (every 'vault.X' transformation
+ * target, from both the client and server roles). Under high concurrency a
+ * provision that touches many vault keys would otherwise serialize on a single
+ * global mutex. It is therefore backed by an N-way SHARDED Map (see Map.hpp):
+ * per-key writes lock only their shard, so independent keys do not contend.
+ * Whole-map operations (getJson/asJsonString/clear) lock all shards, but those
+ * are administrative paths (GET/DELETE /admin/v1/vault), not the hot path.
  */
-class Vault : public Map<std::string, nlohmann::json>
+class Vault : public Map<std::string, nlohmann::json, 16 /* shards */>
 {
     h2agent::jsonschema::JsonSchema vault_schema_{};
     WaitManager *wait_manager_{};
