@@ -57,7 +57,7 @@ admin_operation() {
   local operation=$1
   local dataFile=$2
   title "${operation}" ${COLOR_green}
-  ${CURL} -d @${dataFile} -H "content-type: application/json" $(admin_url)/${operation} &>/dev/null
+  ${H2AHLP_CURL} -d @${dataFile} -H "content-type: application/json" $(admin_url)/${operation} &>/dev/null
   curl -s -XGET --http2-prior-knowledge $(admin_url)/${operation} | jq '.'
   echo
 }
@@ -81,9 +81,9 @@ send_request() {
   done
 
   title "Result" ${COLOR_magenta}
-  echo "[${CURL} -X ${method} ${body_opt} ${hdrs_opt} $(traffic_url)${uri}]"
+  echo "[${H2AHLP_CURL} -X ${method} ${body_opt} ${hdrs_opt} $(traffic_url)${uri}]"
   echo
-  ${CURL} -X ${method} ${body_opt} ${hdrs_opt} $(traffic_url)${uri}
+  ${H2AHLP_CURL} -X ${method} ${body_opt} ${hdrs_opt} $(traffic_url)${uri}
   rm -f ${body}
   echo
 }
