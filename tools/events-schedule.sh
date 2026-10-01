@@ -253,7 +253,13 @@ _extract_col() {
 
 # Process timeline
 last_printed_time=0
-while IFS= read -r line; do
+# Read the driver on a DEDICATED file descriptor, NOT stdin: actions executed per row
+# (client_provision_cps/trigger/vault -> do_curl -> curl, and traffic_summary) read from
+# stdin and would otherwise consume the rest of the driver, making the loop exit after the
+# first row (premature EOF). We let bash auto-allocate a free fd (>=10) into ${drvfd}
+# instead of hardcoding one, so there is no risk of clashing with an fd the caller already
+# uses (requires bash >= 4.1; the project already relies on modern bash).
+while IFS= read -r -u "${drvfd}" line; do
   # Extract timeline (first column)
   timeline=$(_extract_col "$line" 0)
   # Skip non-numeric lines
@@ -306,7 +312,7 @@ while IFS= read -r line; do
     fi
   done
 
-done < "${driver_file}"
+done {drvfd}< "${driver_file}"
 
 echo
 echo "Done !"
