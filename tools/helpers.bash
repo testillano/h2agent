@@ -12,7 +12,7 @@
 PNAME=${PNAME:-h2agent}
 
 H2AHLP_TRAFFIC_PORT=${H2AHLP_TRAFFIC_PORT:-8000} # maybe proxy on 8001 ...
-[ "${H2AHLP_TRAFFIC_SERVER_API}" = "/" ] && H2AHLP_TRAFFIC_SERVER_API=
+[ "${H2AHLP_TRAFFIC_SERVER_API:-}" = "/" ] && H2AHLP_TRAFFIC_SERVER_API=
 H2AHLP_ADMIN_PORT=${H2AHLP_ADMIN_PORT:-8074} # maybe proxy on 8075 ...
 H2AHLP_ADMIN_SERVER_API="admin/v1"
 H2AHLP_METRICS_PORT=${H2AHLP_METRICS_PORT:-8080}
@@ -57,7 +57,7 @@ do_curl() {
   ${H2AHLP_CURL} "$@" | tee ${_H2A_CURL_OUT}
   [ $? -ne 0 ] && return 1
 
-  [ -n "${PLAIN}" ] && echo && return 0 # special for trace()
+  [ -n "${PLAIN:-}" ] && echo && return 0 # special for trace()
 
   # Last empty line or no line feed (no body answered):
   [ -z $(tail -c 1 ${_H2A_CURL_OUT}) ] && return 0
@@ -1723,7 +1723,7 @@ server_example() {
   [ -z "${foo_server_matching}" ] && foo_server_matching="{\"algorithm\":\"FullMatching\"}" # fallback to basic example
 
   local traffic_server_api_path=
-  [ -n "${H2AHLP_TRAFFIC_SERVER_API}" ] && traffic_server_api_path="/${H2AHLP_TRAFFIC_SERVER_API}"
+  [ -n "${H2AHLP_TRAFFIC_SERVER_API:-}" ] && traffic_server_api_path="/${H2AHLP_TRAFFIC_SERVER_API}"
 
   cat << EOF
 
@@ -1800,7 +1800,7 @@ help() {
   echo
   echo "=== Internal Functions And Variables ==="
   echo -n "traffic_url: $(traffic_url) (H2AHLP_TRAFFIC_PORT=${H2AHLP_TRAFFIC_PORT}"
-  [ -n "${H2AHLP_TRAFFIC_SERVER_API}" ] && echo -n "; H2AHLP_TRAFFIC_SERVER_API=${H2AHLP_TRAFFIC_SERVER_API}"
+  [ -n "${H2AHLP_TRAFFIC_SERVER_API:-}" ] && echo -n "; H2AHLP_TRAFFIC_SERVER_API=${H2AHLP_TRAFFIC_SERVER_API}"
   echo ")"
   echo "admin_url:   $(admin_url) (H2AHLP_ADMIN_PORT=${H2AHLP_ADMIN_PORT})"
   echo "metrics_url: $(metrics_url) (H2AHLP_METRICS_PORT=${H2AHLP_METRICS_PORT})"
