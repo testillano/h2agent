@@ -1,15 +1,14 @@
-# Delay sweep: keep constant CPS while sweeping server response delay.
-# Useful to find the delay threshold where errors start appearing.
+# Delay sweep (no CPS column): sweep server response delay at a fixed external load.
 #
 # Usage:
-#   tools/events-schedule.sh tools/events-schedule-examples/delay-sweep.driver
+#   tools/events-schedule.sh tools/events-schedule-examples/delay.driver
 
-Timeline(s)   vault:RESPONSE_DELAY_MS   snapshot
-0             0              start
-30            50             -
-60            100            -
-90            200            -
-120           500            -
-150           1000           -
-180           2000           -
-210           0              end
+Timeline(s)   vault:RESPONSE_DELAY_MS   mark-metrics
+0             0                         start
+30            50                        -
+60            100                       -
+90            200                       -
+120           500                       -
+150           1000                      -
+180           2000                      -
+210           0                         end

@@ -1,18 +1,10 @@
 #!/bin/bash
-# tools/events-schedule.sh -- h2agent native event scheduler
+# tools/events-schedule.sh -- h2agent native event scheduler.
 #
-# Usage:
-#   tools/events-schedule.sh my-traffic.driver
-#   tools/events-schedule.sh my-traffic.driver --from 1234
-#   tools/events-schedule.sh my-traffic.driver --dry-run
-#
-# Driver labels encode actions directly:
-#   cps:<provision-id>  -> client_provision_cps <id> <value> (supports <rate>#<rampup>)
-#   trigger:<id>        -> client_provision_trigger <id>
-#   vault:<key>         -> set vault variable <key> to <value>
-#   trace               -> change logging level
-#   snapshot            -> traffic_summary --save <value>
-#   call:<func>         -> call <func> with <value> as arguments
+# Drives a timeline-based driver file (positional columns) that fires scheduled
+# actions against h2agent helpers. Run with -h/--help for the full driver format,
+# cell/argument semantics, label patterns and examples (the --help text is the
+# single source of truth; this header intentionally stays minimal to avoid drift).
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -54,38 +46,50 @@ _es_execute_action() {
 
   case "${action}" in
     cps)
-      local rate=${value%%#*}
-      local rampup_arg=""
-      echo "${value}" | grep -q '#' && rampup_arg="--ramp-up-time ${value#*#}"
+      # SHORTCUT for client_provision_cps. Positional cell: <rate> [rampup_seconds].
+      #   "100"     -> client_provision_cps <id> 100
+      #   "100 60"  -> client_provision_cps <id> 100 --ramp-up-time 60
+      # For the full power of client_provision_cps (--repeat, --in-state, ...) use
+      # 'call:client_provision_cps' with the native arguments instead.
+      eval "set -- ${value}"
+      local _rate=$1 _rampup=$2 _cps_args=()
+      [ -n "${_rate}" ] && _cps_args+=("${_rate}")
+      [ -n "${_rampup}" ] && _cps_args+=(--ramp-up-time "${_rampup}")
       if [ "${mode}" = "dry" ]; then
-        echo "client_provision_cps ${target} ${rate} ${rampup_arg}"
+        echo "client_provision_cps ${target} ${_cps_args[*]}"
       else
-        client_provision_cps ${target} ${rate} ${rampup_arg}
+        client_provision_cps "${target}" "${_cps_args[@]}"
       fi
       ;;
     trigger)
+      eval "set -- ${value}"
       if [ "${mode}" = "dry" ]; then
-        echo "client_provision_trigger ${target} ${value}"
+        echo "client_provision_trigger ${target} $*"
       else
-        client_provision_trigger ${target} ${value} >/dev/null 2>&1
+        client_provision_trigger "${target}" "$@" >/dev/null 2>&1
       fi
       ;;
     vault)
+      # atomic value (a single vault payload string)
       if [ "${mode}" = "dry" ]; then
         echo "vault ${target}=${value}"
       else
-        do_curl -XPOST -d'{"'${target}'":"'${value}'"}' \
+        do_curl -XPOST -d'{"'"${target}"'":"'"${value}"'"}' \
           -H 'content-type:application/json' "$(admin_url)/vault" >/dev/null 2>&1
       fi
       ;;
     trace)
+      # atomic value (a single log level)
       if [ "${mode}" = "dry" ]; then
         echo "trace ${value}"
       else
-        trace ${value} >/dev/null 2>&1
+        trace "${value}" >/dev/null 2>&1
       fi
       ;;
-    snapshot)
+    mark-metrics)
+      # SHORTCUT for 'traffic_summary --save <label>'. The cell is the snapshot label.
+      # For the full power of traffic_summary (--now, --delta, --json, <ref1> <ref2>, ...)
+      # use 'call:traffic_summary' with native arguments.
       if [ "${mode}" = "dry" ]; then
         echo "traffic_summary --save ${value}"
       else
@@ -94,11 +98,13 @@ _es_execute_action() {
       ;;
     *)
       if [ "${action}" = "call" ]; then
+        # call:<func> -- arbitrary args to <func>, shell-tokenized from the cell.
+        eval "set -- ${value}"
         if [ "${mode}" = "dry" ]; then
-          echo "${target} ${value}"
+          echo "${target} $*"
         else
           if type "${target}" &>/dev/null; then
-            ${target} ${value}
+            "${target}" "$@"
           else
             echo "  WARNING: '${target}' not found in shell"
           fi
@@ -120,23 +126,50 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
        Execute a timeline-driven event schedule using h2agent helpers (auto-loaded).
        Extensible via 'call:<func>' labels for any available shell function.
 
-       driver:   TSV file with a Timeline header and labeled columns.
-                 Labels encode actions directly.
+       driver:   Text file with a 'Timeline(s)' header row and labeled columns.
 
-                 Supported label patterns:
+                 TIMELINE
+                 The first column is 'Timeline(s)': wall-clock seconds from the start
+                 of the run at which that row's actions fire. Rows are processed in order;
+                 the scheduler waits until each row's time before executing it.
 
-                 cps:<id>        Update CPS for a client provision id.
-                                 Values: <rate> or <rate>#<rampup_seconds>
-                 trigger:<id>    Trigger a client provision (value ignored).
-                 vault:<key>     Set vault entry <key> to <value>.
-                                 E.g. vault:RESPONSE_DELAY_MS can drive response
-                                 delays when the server provision reads that variable.
-                 trace           Set logging level to <value>.
-                 snapshot        Save a traffic_summary snapshot named <value>.
-                 call:<func>     Call <func> with <value> as arguments.
+                 COLUMNS / LABELS (positional)
+                 Columns are positional, aligned to the header. Each header LABEL marks
+                 the START column of its field; a data CELL spans from its own column's
+                 start to the next column's start (end-of-line for the last column).
+                 Labels encode the action to run (see 'label patterns' below) and must
+                 NOT contain spaces -- a space in the header starts a new column.
+
+                 CELL VALUE (how a cell becomes the action's arguments)
+                 A cell is first TRIMMED of surrounding spaces (so its content may sit
+                 anywhere within the column width -- left, centered or right -- it does
+                 not matter). The trimmed cell is then tokenized with shell word-splitting
+                 (eval "set -- <cell>") and passed to the action, so it behaves exactly
+                 like typing those arguments on a shell command line:
+                   100                   -> 1 arg : 100
+                   -l Debug --verbose    -> 3 args: -l, Debug, --verbose (MULTI-ARG)
+                   "a b c"               -> 1 arg : "a b c"   (quoted = atomic, spaces kept)
+                   "  a b"               -> 1 arg : "  a b"   (leading spaces kept)
+                   "a b" "x y z"         -> 2 args: "a b", "x y z"
+                 Quote a token to keep it atomic; leave tokens unquoted to split them.
+                 SKIP: an EMPTY cell, or a single '-' (anywhere in the column -- it is
+                 trimmed), performs NO action for that timeline point. Because '-' is the
+                 skip marker it cannot be passed as a literal argument (wrap the target if
+                 you ever need a literal '-').
+                 SECURITY: cells are eval'd, so the driver is TRUSTED input -- shell
+                 expansions in a cell (e.g. $(cmd), `cmd`, $VAR, ;, &&) ARE executed. Do
+                 not run drivers from untrusted sources.
+
+                 COLUMNS ARE CALLERS
+                 Every column calls a function with its cell as the arguments. 'call:'
+                 is the generic form; the rest are shortcuts over a specific helper (use
+                 'call:<helper>' instead when you need the helper's full argument set).
+
+                 Generic caller:
+                 call:<func>     Call <func> with the cell as arguments.
                                  Tip: for complex or multi-purpose functions, write thin
                                  wrappers that hardcode the fixed parameters and expose
-                                 only the variable part as <value>. This also solves the
+                                 only the variable part in the cell. This also solves the
                                  case of needing multiple columns that call the same
                                  underlying function: create one wrapper per variant
                                  (e.g. call:deploy_fe and call:deploy_be both calling
@@ -147,7 +180,39 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
                                  Timing uses wall clock: delayed events are not lost but
                                  execute back-to-back upon return (compressed, not skipped).
 
-                 Use '-' as value to skip an action for a given timeline point.
+                 PREAMBLE (self-contained wrappers)
+                 Lines starting with '#@' are sourced (one bash statement each) BEFORE the
+                 timeline runs, so a driver can define its own wrapper functions and stay
+                 self-contained -- no external files needed. Typically you define thin
+                 wrappers here and invoke them from 'call:<wrapper>' columns. Shell
+                 redirections/pipes belong INSIDE the wrapper (a cell cannot carry a '>'
+                 or '|', since cells become arguments, not a command line). ROOT_DIR (and
+                 any env the caller exported) is available to the wrappers.
+                   #@ gong() { printf '\\a>>> %s <<<\\n' "$1"; }                    # audible/visual marker
+                   #@ freeze() { kubectl -n "$1" scale deploy/"$2" --replicas=0; }  # kill a dep mid-run
+
+                 ...then in the table:
+                   Timeline(s)  cps:myFlow  call:gong      call:freeze
+                   0            100         run-started    -
+                   120          100         halfway        myNS myDeployment
+                   300          0           end            -
+
+                 Note: '#@' lines are also eval'd/sourced, so (like cells) the driver is
+                 TRUSTED input. The preamble is skipped in --dry-run.
+
+                 Shortcut callers:
+                 cps:<id>        -> client_provision_cps. Positional cell:
+                                 "<rate> [rampup_seconds]", e.g. "100" or "100 60".
+                                 Full power: call:client_provision_cps (--repeat,
+                                 --in-state, ...).
+                 trigger:<id>    -> client_provision_trigger (cell may add args).
+                 vault:<key>     -> set vault entry <key> to the cell (atomic string).
+                                 E.g. vault:RESPONSE_DELAY_MS can drive response
+                                 delays when the server provision reads that variable.
+                 trace           -> set logging level to the cell (atomic).
+                 mark-metrics    -> traffic_summary --save <label> (cell = label).
+                                 Full power: call:traffic_summary (--now, --delta,
+                                 --json, <ref1> <ref2>, ...).
 
        --from:   Timeline value (seconds) to start from. Events before this
                  point are skipped. Timing is adjusted so the first effective
@@ -157,11 +222,11 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
 
        Example driver file:
 
-         Timeline(s)   cps:my_session    vault:RESPONSE_DELAY_MS   snapshot
-         0             100               0                         before
-         300           500#30            0                         -
-         600           1000              200                       -
-         900           0                 0                         after
+         Timeline(s)   cps:my_session   vault:RESPONSE_DELAY_MS   mark-metrics
+         0             100              0                         before
+         300           500 60           0                         -
+         600           1000             200                       -
+         900           0                0                         after
 
        Example invocations:
 
@@ -200,6 +265,15 @@ done
 # Validations
 [ -z "${driver_file}" ] && usage && exit 1
 [ ! -f "${driver_file}" ] && echo "ERROR: cannot find driver '${driver_file}'" && exit 1
+
+# Preamble: source the driver's '#@' setup lines (one bash statement per line) BEFORE the
+# timeline runs. Use them to define thin wrapper functions the driver's 'call:' columns
+# invoke, keeping the driver self-contained. Each '#@' line is sourced as-is (shell code),
+# so -- like the eval'd cells -- the driver is TRUSTED input. Not run in --dry-run.
+if [ "${dry_run}" != true ]; then
+  _es_preamble="$(sed -n 's/^#@[[:space:]]\?//p' "${driver_file}")"
+  [ -n "${_es_preamble}" ] && source /dev/stdin <<< "${_es_preamble}"
+fi
 
 start_time=$(date +%s.%3N)
 start_time_sec=${start_time%%.*}

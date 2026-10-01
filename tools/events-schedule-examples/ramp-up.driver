@@ -4,6 +4,6 @@
 #   tools/events-schedule.sh tools/events-schedule-examples/ramp-up.driver
 
 Timeline(s)   cps:myFlow
-0             100#60
+0             100 60
 120           100
 180           0

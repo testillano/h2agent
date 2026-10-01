@@ -27,8 +27,12 @@ export PNAME H2AHLP_TRAFFIC_PORT H2AHLP_TRAFFIC_SERVER_API H2AHLP_ADMIN_PORT \
        H2AHLP_ADMIN_SERVER_API H2AHLP_METRICS_PORT H2AHLP_SCHEME H2AHLP_CURL \
        H2AHLP_SERVER_ADDR H2AHLP_BEAUTIFY_JSON
 
-# Per-session temp file (allows parallel helper invocations)
+# Per-session temp file (allows parallel helper invocations). Exported so child
+# processes that inherit the exported helper functions (e.g. tools/events-schedule.sh
+# running do_curl) see it too; otherwise 'tee ${_H2A_CURL_OUT}' / 'tail -c 1
+# ${_H2A_CURL_OUT}' would run with no file argument and read from stdin, hanging on a TTY.
 _H2A_CURL_OUT="/tmp/curl.out.$$"
+export _H2A_CURL_OUT
 trap 'rm -f ${_H2A_CURL_OUT} ${_H2A_CURL_OUT}.sorted' EXIT
 
 #############
