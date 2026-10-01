@@ -69,6 +69,22 @@ do_curl() {
 # -----------------------------------------------------------------------------
 # GENERAL RESOURCES
 
+health() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: health [-h|--help]; Checks the agent health ($(admin_url)/health)."
+    echo "              [--quiet]; No output, just the exit status (0=healthy, 1=unreachable/unhealthy)."
+    echo "              Returns 0 when the admin interface answers healthy, 1 otherwise (handy as a readiness probe)."
+    return 0
+  fi
+  if [ "$1" = "--quiet" ]
+  then
+    ${H2AHLP_CURL} -o /dev/null "$(admin_url)/health" >/dev/null 2>&1
+    return $?
+  fi
+  do_curl "$(admin_url)/health"
+}
+
 schema() {
   [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema [-h|--help] [--clean] [file]; Cleans/gets/updates current schema configuration ($(admin_url)/schema)." && return 0
   [ -z "$1" ] && do_curl $(admin_url)/schema && return 0
@@ -1792,7 +1808,7 @@ help() {
   export -f traffic_url admin_url metrics_url do_curl
   echo
   echo "=== General Resources' Functions ==="
-  for f in schema vault files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in health schema vault files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Server Functions === "
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
@@ -1812,9 +1828,19 @@ help() {
 # EXECUTION #
 #############
 
-# Check dependencies:
-if ! type curl &>/dev/null; then echo "Missing required dependency (curl) !" ; return 1 ; fi
-if ! type jq &>/dev/null; then echo "Missing required dependency (jq) !" ; return 1 ; fi
+# Check dependencies: warn only, do NOT 'return'. The functions are already
+# defined above, so a 'return' here would NOT prevent their use (it only aborts
+# the sourcing shell -- breaking scripts that source this as a library) while
+# giving no real protection: a function needing a missing tool fails on use
+# anyway. So we just warn (to stderr) and keep the library sourceable.
+# We check the non-trivial tools actually used by the functions above:
+#   curl (all admin/traffic calls), jq (pretty/raw/parsing), python3 (URI
+#   urlencode in server_data/client_data), bc (ramp maths in client_provision_cps).
+# Ubiquitous coreutils (awk/sed/grep/sort/date/...) are assumed present.
+for _dep in curl jq python3 bc; do
+  type "${_dep}" &>/dev/null || echo "WARNING: missing dependency '${_dep}' -- some helper functions will fail until it is installed." >&2
+done
+unset _dep
 
 # Initialize temporary and show help
 touch ${_H2A_CURL_OUT}
