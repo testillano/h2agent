@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Only if the functions are missing do we try to source helpers.bash from the
 # known locations (standalone use, e.g. inside the container). This lets a caller
 # that already sourced the helpers use the scheduler with no extra setup.
-_ES_REQUIRED_FNS="client_provision_cps client_provision_trigger admin_url do_curl traffic_summary trace"
+_ES_REQUIRED_FNS="client_provision_cps client_provision_trigger admin_url do_curl metrics_summary trace"
 _es_have_fns() { local f; for f in $_ES_REQUIRED_FNS; do command -v "$f" >/dev/null 2>&1 || return 1; done; return 0; }
 
 if ! _es_have_fns; then
@@ -86,14 +86,14 @@ _es_execute_action() {
         trace "${value}" >/dev/null 2>&1
       fi
       ;;
-    mark-metrics)
-      # SHORTCUT for 'traffic_summary --save <label>'. The cell is the snapshot label.
-      # For the full power of traffic_summary (--now, --delta, --json, <ref1> <ref2>, ...)
-      # use 'call:traffic_summary' with native arguments.
+    metrics-snapshot)
+      # SHORTCUT for 'metrics_summary --save <label>'. The cell is the snapshot label.
+      # For the full power of metrics_summary (--now, --delta, --json, <ref1> <ref2>, ...)
+      # use 'call:metrics_summary' with native arguments.
       if [ "${mode}" = "dry" ]; then
-        echo "traffic_summary --save ${value}"
+        echo "metrics_summary --save ${value}"
       else
-        traffic_summary --save "${value}" >/dev/null 2>&1
+        metrics_summary --save "${value}" >/dev/null 2>&1
       fi
       ;;
     *)
@@ -210,8 +210,8 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
                                  E.g. vault:RESPONSE_DELAY_MS can drive response
                                  delays when the server provision reads that variable.
                  trace           -> set logging level to the cell (atomic).
-                 mark-metrics    -> traffic_summary --save <label> (cell = label).
-                                 Full power: call:traffic_summary (--now, --delta,
+                 metrics-snapshot    -> metrics_summary --save <label> (cell = label).
+                                 Full power: call:metrics_summary (--now, --delta,
                                  --json, <ref1> <ref2>, ...).
 
        --from:   Timeline value (seconds) to start from. Events before this
@@ -222,7 +222,7 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
 
        Example driver file:
 
-         Timeline(s)   cps:my_session   vault:RESPONSE_DELAY_MS   mark-metrics
+         Timeline(s)   cps:my_session   vault:RESPONSE_DELAY_MS   metrics-snapshot
          0             100              0                         before
          300           500 60           0                         -
          600           1000             200                       -
@@ -328,7 +328,7 @@ _extract_col() {
 # Process timeline
 last_printed_time=0
 # Read the driver on a DEDICATED file descriptor, NOT stdin: actions executed per row
-# (client_provision_cps/trigger/vault -> do_curl -> curl, and traffic_summary) read from
+# (client_provision_cps/trigger/vault -> do_curl -> curl, and metrics_summary) read from
 # stdin and would otherwise consume the rest of the driver, making the loop exit after the
 # first row (premature EOF). We let bash auto-allocate a free fd (>=10) into ${drvfd}
 # instead of hardcoding one, so there is no risk of clashing with an fd the caller already

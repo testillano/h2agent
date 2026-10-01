@@ -1063,8 +1063,8 @@ metrics() {
   curl -s $(metrics_url)
 }
 
-traffic_summary() {
-  local snap_dir="/tmp/.h2agent_traffic_summaries"
+metrics_summary() {
+  local snap_dir="/tmp/.h2agent_metrics_summaries"
 
   # Colors (disabled if not a terminal)
   local C_RST="" C_BLD="" C_GRN="" C_RED="" C_CYN="" C_YLW=""
@@ -1075,7 +1075,7 @@ traffic_summary() {
 
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: traffic_summary [-h|--help] [--show] [--clean] [--json] [<ref1> <ref2>]"
+    echo "Usage: metrics_summary [-h|--help] [--show] [--clean] [--json] [<ref1> <ref2>]"
     echo "       Traffic counter summary from prometheus metrics."
     echo
     echo "       (no args)          Save a counters snapshot labelled with timestamp."
@@ -1092,32 +1092,32 @@ traffic_summary() {
     echo "       --json             JSON output (combinable with --now/--last/--delta)."
     echo
     echo "       References can be unix timestamps or labels (order does not matter)."
-    echo "       'last' is also usable as a ref (e.g. 'traffic_summary before last')."
+    echo "       'last' is also usable as a ref (e.g. 'metrics_summary before last')."
     echo "       Reserved labels: 'zeroed' (virtual zero-baseline), 'last' (latest snapshot)."
     echo
     echo "       Snapshots: ${snap_dir}/counters.<unix_ts>"
     echo "       Labels:    ${snap_dir}/labels (label=timestamp mapping)"
     echo
     echo "       Use case 1: mark before/after a test"
-    echo "         traffic_summary --save before"
+    echo "         metrics_summary --save before"
     echo "         # ... run your test ..."
-    echo "         traffic_summary --save after"
-    echo "         traffic_summary before after"
+    echo "         metrics_summary --save after"
+    echo "         metrics_summary before after"
     echo
     echo "       Use case 2: check accumulated since start (no prior mark)"
     echo "         # ... run your load ..."
-    echo "         traffic_summary --now             # zeroed -> now"
-    echo "         traffic_summary before --now      # before -> now"
+    echo "         metrics_summary --now             # zeroed -> now"
+    echo "         metrics_summary before --now      # before -> now"
     echo
     echo "       Use case 3: periodic monitoring (incremental deltas)"
-    echo "         while true; do traffic_summary --delta; sleep 60; done"
+    echo "         while true; do metrics_summary --delta; sleep 60; done"
     echo
     echo "       Use case 4: periodic snapshots with custom labels"
-    echo "         m=1; while true; do traffic_summary --save \${m}; m=\$((m+1)); sleep 60; done"
+    echo "         m=1; while true; do metrics_summary --save \${m}; m=\$((m+1)); sleep 60; done"
     echo "         # then in another terminal:"
-    echo "         traffic_summary --show            # list all"
-    echo "         traffic_summary 1 5               # delta between minute 1 and 5"
-    echo "         traffic_summary --last            # zeroed -> latest"
+    echo "         metrics_summary --show            # list all"
+    echo "         metrics_summary 1 5               # delta between minute 1 and 5"
+    echo "         metrics_summary --last            # zeroed -> latest"
     return 0
   fi
 
@@ -1208,7 +1208,7 @@ traffic_summary() {
       unset -f _resolve_ref _label_for_ts _fmt_ref
       return 0
     fi
-    traffic_summary "${last_ref}" last ${json_flag}
+    metrics_summary "${last_ref}" last ${json_flag}
     return $?
   fi
 
@@ -1223,8 +1223,8 @@ traffic_summary() {
       prev_ref="${prev_resolved##* }" # timestamp of previous last
     fi
     # Save new snapshot (updates last)
-    traffic_summary > /dev/null
-    traffic_summary "${prev_ref}" last ${json_flag}
+    metrics_summary > /dev/null
+    metrics_summary "${prev_ref}" last ${json_flag}
     return $?
   fi
 
@@ -1265,7 +1265,7 @@ traffic_summary() {
     # Temporarily place the ephemeral file where delta logic can find it
     local eph_name="${snap_dir}/counters.${ts_now}"
     mv "$tmp_snap" "$eph_name"
-    traffic_summary "${now_ref}" "${ts_now}" ${now_json}
+    metrics_summary "${now_ref}" "${ts_now}" ${now_json}
     local rc=$?
     rm -f "$eph_name"
     return $rc
@@ -1278,7 +1278,7 @@ traffic_summary() {
     if [ "$1" = "--save" ]; then
       label=$2
       if [ -z "$label" ]; then
-        echo "Usage: traffic_summary --save <label>"
+        echo "Usage: metrics_summary --save <label>"
         unset -f _resolve_ref _label_for_ts _fmt_ref
         return 1
       fi
@@ -1319,7 +1319,7 @@ traffic_summary() {
   done
 
   if [ ${#args[@]} -ne 2 ]; then
-    traffic_summary -h
+    metrics_summary -h
     unset -f _resolve_ref _label_for_ts _fmt_ref
     return 1
   fi
@@ -1407,7 +1407,7 @@ traffic_summary() {
   }
 
   # Per-label latency breakdown (source, method, status_code)
-  # Outputs pipe-separated: source|method|status_code|avg_s|gauge_s|count
+  # Outputs pipe-separated: source|method|status_code|avg_s|count (windowed histogram)
   _latency_by_label() {
     local prefix=$1
     awk -v prefix="$prefix" -v file1="$f1" '
@@ -1419,7 +1419,6 @@ traffic_summary() {
     {
       if (index($0, prefix "_sum{")) t = "sum"
       else if (index($0, prefix "_count{")) t = "count"
-      else if (index($0, prefix "_gauge{")) t = "gauge"
       else next
       match($0, /\{[^}]*\}/); lb = substr($0, RSTART+1, RLENGTH-2)
       if (FILENAME==file1) a1[t,lb]+=$NF; else { a2[t,lb]+=$NF; seen[lb]=1 }
@@ -1428,10 +1427,9 @@ traffic_summary() {
       for (lb in seen) {
         dc = (a2["count",lb]+0) - (a1["count",lb]+0)
         ds = (a2["sum",lb]+0) - (a1["sum",lb]+0)
-        g = a2["gauge",lb]+0
-        if (dc > 0 || g > 0) {
-          avg = (dc>0) ? ds/dc : 0
-          printf "%s|%s|%s|%.6f|%.6f|%d\n", xlab(lb,"source"), xlab(lb,"method"), xlab(lb,"status_code"), avg, g, dc
+        if (dc > 0) {
+          avg = ds/dc
+          printf "%s|%s|%s|%.6f|%d\n", xlab(lb,"source"), xlab(lb,"method"), xlab(lb,"status_code"), avg, dc
         }
       }
     }' "$f1" "$f2" | sort -t'|' -k1,1 -k2,2 -k3,3n
@@ -1497,8 +1495,8 @@ traffic_summary() {
       local jlat=""
       if grep -q "^${_lp}_gauge{" "$f2" 2>/dev/null; then
         local gs=$(_gauge_stats "^${_lp}_gauge\{")
-        local g_min=${gs%% *}; local g_rest=${gs#* }; local g_avg=${g_rest%% *}; local g_max=${g_rest#* }
-        jlat+="\"gauge_min\":${g_min},\"gauge_avg\":${g_avg},\"gauge_max\":${g_max},"
+        local g_max=${gs##* }
+        jlat+="\"gauge_max_instant\":${g_max},"
       fi
       if grep -q "^${_lp}_count{" "$f2" 2>/dev/null; then
         local d_sum=$(_tf "^${_lp}_sum\{")
@@ -1510,17 +1508,19 @@ traffic_summary() {
         local pcts=$(_hpct "$_lp" 50 90 99)
         local p50=${pcts%% *}; local pcts_rest=${pcts#* }; local p90=${pcts_rest%% *}; local p99=${pcts_rest#* }
         p99=${p99%% *}
-        [ "$p50" != "N/A" ] && jlat+="\"p50\":${p50},\"p90\":${p90},\"p99\":${p99},"
+        [ "$p50" != "N/A" ] && jlat+="\"p50\":${p50},"
+        [ "$p90" != "N/A" ] && jlat+="\"p90\":${p90},"
+        [ "$p99" != "N/A" ] && jlat+="\"p99\":${p99},"
       fi
       # Per-label breakdown
       local breakdown=$(_latency_by_label "$_lp")
       if [ -n "$breakdown" ]; then
         jlat+="\"by_label\":["
         local first_bl=true
-        while IFS='|' read -r src mth sc avg g cnt; do
+        while IFS='|' read -r src mth sc avg cnt; do
           $first_bl || jlat+=","
           jlat+="{\"source\":\"${src}\",\"method\":\"${mth}\",\"status_code\":\"${sc}\","
-          jlat+="\"avg\":${avg},\"gauge\":${g},\"count\":${cnt}}"
+          jlat+="\"avg\":${avg},\"count\":${cnt}}"
           first_bl=false
         done <<< "$breakdown"
         jlat+="],"
@@ -1539,7 +1539,8 @@ traffic_summary() {
   fi
 
   # --- Table output ---
-  echo -e "${C_BLD}=== Traffic Summary ===${C_RST}"
+  echo -e "${C_BLD}=== Metrics Summary ===${C_RST}"
+  echo -e "  ${C_YLW}(counters/histograms summarised over the window; gauge values are instantaneous)${C_RST}"
   echo -e "From: $(_fmt_ref "$ts1")"
   echo -e "To:   $(_fmt_ref "$ts2")"
   echo
@@ -1614,8 +1615,8 @@ traffic_summary() {
       echo -e "  ${C_BLD}Latency (s):${C_RST}"
       if $has_gauge; then
         local gs=$(_gauge_stats "^${_lp}_gauge\{")
-        local g_min=${gs%% *}; local g_rest=${gs#* }; local g_avg=${g_rest%% *}; local g_max=${g_rest#* }
-        printf "    %-12s min=%s  avg=%s  max=%s\n" "Gauge:" "$g_min" "$g_avg" "$g_max"
+        local g_max=${gs##* }
+        printf "    %-12s %s  %s(instantaneous; windowed avg/percentiles below)%s\n" "Gauge max:" "$g_max" "$C_YLW" "$C_RST"
       fi
       if $has_hist; then
         local d_sum=$(_tf "^${_lp}_sum\{")
@@ -1633,9 +1634,9 @@ traffic_summary() {
       local breakdown=$(_latency_by_label "$_lp")
       if [ -n "$breakdown" ]; then
         echo -e "    ${C_BLD}By label:${C_RST}"
-        printf "      ${C_BLD}%-28s %-6s %-6s %-12s %-12s %s${C_RST}\n" "SOURCE" "METHOD" "STATUS" "AVG(s)" "GAUGE(s)" "COUNT"
-        while IFS='|' read -r src mth sc avg g cnt; do
-          printf "      %-28s %-6s %-6s %-12s %-12s %s\n" "$src" "$mth" "$sc" "$avg" "$g" "$cnt"
+        printf "      ${C_BLD}%-28s %-6s %-6s %-12s %s${C_RST}\n" "SOURCE" "METHOD" "STATUS" "AVG(s)" "COUNT"
+        while IFS='|' read -r src mth sc avg cnt; do
+          printf "      %-28s %-6s %-6s %-12s %s\n" "$src" "$mth" "$sc" "$avg" "$cnt"
         done <<< "$breakdown"
       fi
     fi
@@ -1818,7 +1819,7 @@ help() {
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_cps client_provision_unused client_data traffic_summary; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_cps client_provision_unused client_data metrics_summary; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Operation Schemas' Functions === "
   for f in schema_schema vault_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done

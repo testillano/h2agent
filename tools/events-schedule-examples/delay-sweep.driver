@@ -4,7 +4,7 @@
 # Usage:
 #   tools/events-schedule.sh tools/events-schedule-examples/delay-sweep.driver
 
-Timeline(s)   cps:myFlow   vault:RESPONSE_DELAY_MS   mark-metrics
+Timeline(s)   cps:myFlow   vault:RESPONSE_DELAY_MS   metrics-snapshot
 0             1000         0                         start
 30            -            50                        -
 60            -            100                       -
