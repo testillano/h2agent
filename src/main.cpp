@@ -1166,6 +1166,14 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         myTrafficHttp2Server->setMockClientData(myMockClientData);
         // myAdminHttp2Server->setMockClientData already called above (unconditionally)
         myTrafficHttp2Server->setVault(myVault); // used by responseDelayMs()
+
+        // Associate the traffic server to the admin server BEFORE loading startup
+        // matching/provision configuration below. The serverMatching()/serverProvision()
+        // guards reject the operation (404) when getHttp2Server() is null (pure client
+        // mode). If this association happened after the startup load, that guard would
+        // silently discard the configuration provided through --traffic-server-matching
+        // and --traffic-server-provision.
+        myAdminHttp2Server->setHttp2Server(myTrafficHttp2Server);
     }
 
     // Schema configuration
@@ -1271,11 +1279,9 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         }
     }
 
-    // Set the traffic server reference (if used) to the admin server
-    myAdminHttp2Server->setHttp2Server(myTrafficHttp2Server);
-
     // Vault
-    // Now that myTrafficHttp2Server is referenced, I will have access to vault object:
+    // myTrafficHttp2Server is already referenced in the admin server (set within the
+    // traffic server creation block above), so the vault object is accessible here:
     if (vault_file != "") {
         success = h2agent::model::getFileContent(vault_file, fileContent);
         std::string log = "Vault configuration load failed and will be ignored";
