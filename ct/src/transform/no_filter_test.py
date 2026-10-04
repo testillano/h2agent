@@ -360,6 +360,31 @@ def test_025_serverEventUriEncodedToResponseBodyPath(admin_cleanup, admin_server
 
 
 @pytest.mark.transform
+def test_025b_serverEventUriStartsWithToResponseBodyPath(admin_cleanup, admin_server_provision, h2ac_traffic):
+
+  # Cleanup and set RegexMatching so a single POST provision can accept variable trailing identifiers:
+  admin_cleanup(matchingContent={ "algorithm":"RegexMatching" })
+
+  # Provisions: a POST that stores any /app/v1/resources/<id>, and a GET that echoes the body of the
+  # most recent POST whose URI STARTS WITH '/app/v1/resources/' (unknown trailing id):
+  admin_server_provision("no_filter_test.ServerEventUriStartsWith.provision.json", VALID_SERVER_PROVISIONS__RESPONSE_BODY)
+
+  # Traffic: two resources created with different server-generated trailing identifiers and different bodies:
+  firstBody = { "resource": "first" }
+  secondBody = { "resource": "second" }
+  response = h2ac_traffic.postDict("/app/v1/resources/abc", firstBody)
+  h2ac_traffic.assert_response__status_body_headers(response, 201, { "stored": True })
+  response = h2ac_traffic.postDict("/app/v1/resources/xyz", secondBody)
+  h2ac_traffic.assert_response__status_body_headers(response, 201, { "stored": True })
+
+  # The GET resolves the LAST resource by URI prefix (eventNumber=-1), regardless of the unknown trailing id.
+  # Expected: the body of the most recent POST ('/app/v1/resources/xyz'):
+  response = h2ac_traffic.get("/app/v1/last-resource")
+  responseBodyRef = { "foo": "bar", "lastResourceBody": secondBody }
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
 def test_026_serverEventPurge(admin_cleanup, admin_server_provision, h2ac_traffic, h2ac_admin):
 
   # Cleanup

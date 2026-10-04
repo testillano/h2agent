@@ -329,6 +329,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         // eventNumber:   index 2
         // eventPath:     index 3
         // recvseq:       index 4
+        // requestUriStartsWith: index 5
         std::string event_method = transformation->getSourceTokenized()[0];
         replaceVariables(event_method, transformation->getSourcePatterns(), variables, vault_);
         std::string event_uri = transformation->getSourceTokenized()[1];
@@ -339,12 +340,19 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, vault_);
         std::string event_recvseq = transformation->getSourceTokenized()[4];
         replaceVariables(event_recvseq, transformation->getSourcePatterns(), variables, vault_);
+        std::string event_uri_starts_with = transformation->getSourceTokenized()[5];
+        replaceVariables(event_uri_starts_with, transformation->getSourcePatterns(), variables, vault_);
 
         // Now, access the server data for the former selection values:
         nlohmann::json object;
         std::shared_ptr<MockEvent> mockServerRequest;
 
-        if (!event_recvseq.empty()) {
+        if (!event_uri_starts_with.empty()) {
+            // URI-prefix addressing: select the event at 'eventNumber' within all keys for 'method'
+            // whose URI starts with the literal prefix (merged and ordered by reception timestamp).
+            mockServerRequest = mock_server_events_data_->getEventByUriStartsWith(event_method, event_uri_starts_with, event_number);
+        }
+        else if (!event_recvseq.empty()) {
             try {
                 DataKey dkey(event_method, event_uri);
                 mockServerRequest = mock_server_events_data_->getEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
@@ -439,6 +447,7 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         // eventNumber:      index 3
         // eventPath:        index 4
         // sendseq:          index 5
+        // requestUriStartsWith: index 6
         std::string event_endpoint = transformation->getSourceTokenized()[0];
         replaceVariables(event_endpoint, transformation->getSourcePatterns(), variables, vault_);
         std::string event_method = transformation->getSourceTokenized()[1];
@@ -451,11 +460,18 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, vault_);
         std::string event_sendseq = transformation->getSourceTokenized()[5];
         replaceVariables(event_sendseq, transformation->getSourcePatterns(), variables, vault_);
+        std::string event_uri_starts_with = transformation->getSourceTokenized()[6];
+        replaceVariables(event_uri_starts_with, transformation->getSourcePatterns(), variables, vault_);
 
         DataKey dkey(event_endpoint, event_method, event_uri);
         std::shared_ptr<MockEvent> mockClientRequest;
 
-        if (!event_sendseq.empty()) {
+        if (!event_uri_starts_with.empty()) {
+            // URI-prefix addressing: select the event at 'eventNumber' within all keys for
+            // 'clientEndpointId'+'method' whose URI starts with the literal prefix (merged and ordered by sending timestamp).
+            mockClientRequest = mock_client_events_data_->getEventByUriStartsWith(event_endpoint, event_method, event_uri_starts_with, event_number);
+        }
+        else if (!event_sendseq.empty()) {
             try {
                 mockClientRequest = mock_client_events_data_->getEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
             }

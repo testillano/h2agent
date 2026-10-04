@@ -613,6 +613,7 @@ The **source** of information is classified after parsing the following possible
   - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory unless `recvseq` is provided.
   - *eventPath*: `json` document path within selection. Optional.
   - *recvseq*: receive sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is accessed.
+  - *requestUriStartsWith*: **literal URI prefix** used instead of the exact `requestUri`. Optional, and mutually exclusive with `requestUri` (when present, it takes precedence over `requestUri`/`recvseq`). Instead of addressing one key by its exact *URI*, it selects **all** stored keys for the given `requestMethod` whose *URI* starts with this prefix, merges their events into a single list ordered by reception timestamp, and lets `eventNumber` pick within that merged set (so `eventNumber=-1` means "the most recent event whose *URI* starts with this prefix, whatever its unknown trailing part is"). The match is a **plain string comparison**, not a regular expression: characters like `|`, `.`, `{` or `[` are compared verbatim (there is nothing to escape beyond the usual URL-encoding this addressing already requires). This is designed for the case where the unknown part of the *URI* is a **trailing suffix** (e.g. a server-generated identifier appended to a known path); an unknown part in the middle is not covered by prefix mode.
 
   > **Concurrency note**: `eventNumber` is a positional index into the events list. It is stable when each key (method + URI) is owned by a single flow (e.g. URIs containing unique identifiers like `/resources/{id}`). However, when multiple concurrent flows share the same key (e.g. a fixed URI like `/resources`), positions may shift unpredictably as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario. Use `recvseq` for reliable event access under concurrency.
 
@@ -643,6 +644,26 @@ The **source** of information is classified after parsing the following possible
   where `requestUri` would be a variable defined before with the value directly decoded: `/app/v1/stock/madrid?loc=123&id=2`.
 
   <u>Only in the case that request *URI* is simple enough</u> and does not break the whole server event query parameter list definition, we could just define this source in one line without need to encode or use auxiliary variables, being the most simplified and smart way to define event sources.
+
+  **Addressing by URI prefix (`requestUriStartsWith`)**: sometimes the mock does not know the full *URI* in advance because the system under test appends a value at request time (a generated identifier, a creation timestamp, a correlation token) to a known path. In that case the exact `requestUri` cannot be built. Prefix mode solves it: provide the stable leading part of the *URI* and let `eventNumber` select across every matching key.
+
+  For example, a client first creates a resource at a *URI* ending with a server-generated id, and later asks the mock to echo back the body of the most recently created resource. The mock cannot know the id beforehand, but it knows the path prefix `/app/v1/resources/`:
+
+  ```json
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/last-created",
+    "responseCode": 200,
+    "transform": [
+      {
+        "source": "serverEvent.requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody",
+        "target": "response.body.json.object"
+      }
+    ]
+  }
+  ```
+
+  This returns the request body of the latest `POST` whose *URI* starts with `/app/v1/resources/` (e.g. `/app/v1/resources/8a1f`, `/app/v1/resources/42`, ...), regardless of the unknown trailing id. Note that the comparison is literal (not a regular expression), so no metacharacter escaping is involved; and that prefix mode only addresses an unknown **trailing** part of the *URI*.
 
   <u>Server events history</u> should be kept enabled allowing to access events. So, imagine the following current server data map:
 
@@ -696,6 +717,7 @@ The **source** of information is classified after parsing the following possible
   - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory unless `sendseq` is provided.
   - *eventPath*: `json` document path within selection. Optional.
   - *sendseq*: send sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is accessed.
+  - *requestUriStartsWith*: **literal URI prefix** used instead of the exact `requestUri` (same semantics as described for `serverEvent`): it selects all client events for the given `clientEndpointId` and `requestMethod` whose *URI* starts with this prefix, merges them ordered by sending timestamp, and `eventNumber` picks within the merged set. Optional and mutually exclusive with `requestUri`. Plain string comparison, not a regular expression.
 
   The same concurrency considerations as `serverEvent` apply. Use `sendseq` for reliable event access under concurrency.
 

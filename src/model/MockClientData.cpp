@@ -81,6 +81,49 @@ std::shared_ptr<MockEvent> MockClientData::getEventBySendSeq(const DataKey &data
     return events->getEventBySendSeq(sendSeq);
 }
 
+std::shared_ptr<MockEvent> MockClientData::getEventByUriStartsWith(const std::string &clientEndpointId, const std::string &requestMethod, const std::string &uriPrefix, const std::string &eventNumber) const {
+
+    // Decode the requested position (1..N, or -1 for the latest):
+    std::uint64_t uNumber{};
+    bool reverse{};
+    if (!h2agent::model::string2uint64andSign(eventNumber, uNumber, reverse) || uNumber == 0) {
+        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Invalid event number '%s' for URI-prefix client event addressing", eventNumber.c_str()), ERT_FILE_LOCATION));
+        return nullptr;
+    }
+
+    // Collect all events whose key matches 'clientEndpointId'+'method' exactly and whose URI starts with
+    // 'uriPrefix' (literal), tagging each with its sending timestamp (always present for client events) to
+    // build a single chronologically ordered set across keys:
+    struct Entry {
+        std::uint64_t timestampUs;
+        std::shared_ptr<MockEvent> event;
+    };
+    std::vector<Entry> entries;
+
+    forEach([&](const mock_events_key_t&, const std::shared_ptr<MockEventsHistory> &history) {
+        const auto &key = history->getKey();
+        if (key.getClientEndpointId() != clientEndpointId) return;
+        if (key.getMethod() != requestMethod) return;
+        // Literal 'startsWith' (no regex): the prefix is compared verbatim against the normalized URI:
+        if (key.getUri().rfind(uriPrefix, 0) != 0) return;
+
+        read_guard_t guard(history->getMutex());
+        for (const auto &ev : history->getEvents()) {
+            std::uint64_t sendTs = std::static_pointer_cast<MockClientEvent>(ev)->getJson()["sendingTimestampUs"].get<std::uint64_t>();
+            entries.push_back({sendTs, ev});
+        }
+    });
+
+    if (entries.empty() || uNumber > entries.size()) return nullptr;
+
+    std::sort(entries.begin(), entries.end(), [](const Entry &a, const Entry &b) {
+        return a.timestampUs < b.timestampUs;
+    });
+
+    // 'reverse' selects from the tail (most recent); otherwise from the head:
+    return reverse ? entries[entries.size() - uNumber].event : entries[uNumber - 1].event;
+}
+
 std::string MockClientData::getSequence(std::uint64_t fromTimestampUs, std::uint64_t toTimestampUs, const std::string &requestMethod, const std::regex *uriRegex) const {
 
     struct Entry {

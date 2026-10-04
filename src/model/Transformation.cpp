@@ -274,7 +274,7 @@ bool Transformation::load(const nlohmann::json &j) {
     // + vault.<id>: general purpose vault entry.
     // - value.<value>: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type.
     // - inState: current processing state.
-    // + serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`).
+    // + serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`). Alternatively, `requestUriStartsWith` may replace `requestUri` to address events by a literal URI prefix (see docs); `eventNumber` then selects within the merged, timestamp-ordered set of all matching keys.
     // + txtFile.`<path>`: reads text content from file with the path provided.
     // + binFile.`<path>`: reads binary content from file with the path provided.
     // + command.`<command>`: executes command on process shell and captures the standard output.
@@ -398,7 +398,7 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "requestMethod", "requestUri", "eventNumber", "eventPath", "recvseq"
+        "requestMethod", "requestUri", "eventNumber", "eventPath", "recvseq", "requestUriStartsWith"
     }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
@@ -410,7 +410,7 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath", "sendseq"
+        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath", "sendseq", "requestUriStartsWith"
     }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");

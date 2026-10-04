@@ -1757,6 +1757,8 @@ The client provision reads the last received body at `POST /api/v1/webhook/notif
 
 Similarly, server provisions can access client event history using the `clientEvent` source. This is useful when the server acts as an intermediary: it triggers a client flow, and then uses the client response data to build its own response. The `clientEvent` source uses query-parameter addressing with `clientEndpointId`, `requestMethod`, `requestUri`, `eventNumber` and `eventPath` fields (see the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details).
 
+Both `serverEvent` and `clientEvent` also accept an optional `requestUriStartsWith` parameter: a **literal URI prefix** (not a regular expression) used instead of the exact `requestUri`. It selects every stored event whose URI starts with the prefix (merged and ordered by timestamp) and lets `eventNumber` pick within that set — so `eventNumber=-1` yields the most recent event whose URI starts with the prefix, regardless of an unknown trailing part (e.g. a server-generated identifier). See the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details.
+
 ## Dynamic response delays
 
 The provisioning model allows configuration of the response delay, in milliseconds, for a received request. This delay may be a fixed or a random value, but is always a single, static delay overall. However, an additional mechanism -the dynamic delay- can be employed as a pseudo-notification procedure to suppress (or block) answers under specific conditions. This feature is activated via a vault with the naming format: `__core:response-delay-ms:<recvseq>`.

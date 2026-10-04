@@ -385,3 +385,63 @@ TEST_F(MockClientData_test, SequenceFilterByUriRegex)
     auto json = nlohmann::json::parse(result);
     EXPECT_EQ(json.size(), 2); // only key1: send + recv
 }
+
+
+// URI-prefix addressing tests (getEventByUriStartsWith)
+
+TEST_F(MockClientData_test, UriStartsWithMatchesAllKeys)
+{
+    // Both keys (/the/uri/111 and /the/uri/222) share the prefix '/the/uri/' for endpoint+method.
+    // 2 events total in the merged set; '-1' selects the most recent one.
+    auto ptr = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/", "-1");
+    ASSERT_NE(ptr, nullptr);
+    EXPECT_TRUE(ptr->getJson().contains("sendingTimestampUs"));
+}
+
+TEST_F(MockClientData_test, UriStartsWithNarrowsToSingleKey)
+{
+    auto ptr1 = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/2", "1");
+    ASSERT_NE(ptr1, nullptr); // only key2 matches (1 event)
+
+    auto ptrOut = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/2", "2");
+    EXPECT_EQ(ptrOut, nullptr); // only 1 event matches the narrowed prefix
+}
+
+TEST_F(MockClientData_test, UriStartsWithLiteralNotRegex)
+{
+    auto ptrLiteral = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/1", "-1");
+    ASSERT_NE(ptrLiteral, nullptr);
+
+    auto ptrNoMatch = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the.uri", "-1");
+    EXPECT_EQ(ptrNoMatch, nullptr); // literal dot, not wildcard
+}
+
+TEST_F(MockClientData_test, UriStartsWithEndpointMismatch)
+{
+    auto ptr = data_.getEventByUriStartsWith("otherEndpoint", "DELETE", "/the/uri/", "-1");
+    EXPECT_EQ(ptr, nullptr); // endpoint filter excludes all
+}
+
+TEST_F(MockClientData_test, UriStartsWithMethodMismatch)
+{
+    auto ptr = data_.getEventByUriStartsWith("myClientEndpointId", "POST", "/the/uri/", "-1");
+    EXPECT_EQ(ptr, nullptr); // stored events are DELETE
+}
+
+TEST_F(MockClientData_test, UriStartsWithNoMatch)
+{
+    auto ptr = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/does/not/match", "-1");
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockClientData_test, UriStartsWithOutOfRange)
+{
+    auto ptr = data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/", "5"); // only 2 events
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockClientData_test, UriStartsWithInvalidNumber)
+{
+    EXPECT_EQ(data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/", "0"), nullptr);
+    EXPECT_EQ(data_.getEventByUriStartsWith("myClientEndpointId", "DELETE", "/the/uri/", "invalid"), nullptr);
+}

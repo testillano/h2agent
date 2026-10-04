@@ -517,9 +517,14 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, vault_);
         std::string event_recvseq = transformation->getSourceTokenized()[4];
         replaceVariables(event_recvseq, transformation->getSourcePatterns(), variables, vault_);
+        std::string event_uri_starts_with = transformation->getSourceTokenized()[5];
+        replaceVariables(event_uri_starts_with, transformation->getSourcePatterns(), variables, vault_);
 
         std::shared_ptr<MockEvent> mockServerRequest;
-        if (!event_recvseq.empty()) {
+        if (!event_uri_starts_with.empty()) {
+            mockServerRequest = mock_server_events_data_->getEventByUriStartsWith(event_method, event_uri_starts_with, event_number);
+        }
+        else if (!event_recvseq.empty()) {
             try {
                 DataKey dkey(event_method, event_uri);
                 mockServerRequest = mock_server_events_data_->getEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
@@ -551,10 +556,15 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
         replaceVariables(event_path, transformation->getSourcePatterns(), variables, vault_);
         std::string event_sendseq = transformation->getSourceTokenized()[5];
         replaceVariables(event_sendseq, transformation->getSourcePatterns(), variables, vault_);
+        std::string event_uri_starts_with = transformation->getSourceTokenized()[6];
+        replaceVariables(event_uri_starts_with, transformation->getSourcePatterns(), variables, vault_);
 
         DataKey dkey(event_endpoint, event_method, event_uri);
         std::shared_ptr<MockEvent> mockClientRequest;
-        if (!event_sendseq.empty()) {
+        if (!event_uri_starts_with.empty()) {
+            mockClientRequest = mock_client_events_data_->getEventByUriStartsWith(event_endpoint, event_method, event_uri_starts_with, event_number);
+        }
+        else if (!event_sendseq.empty()) {
             try {
                 mockClientRequest = mock_client_events_data_->getEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
             }

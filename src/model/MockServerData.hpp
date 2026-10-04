@@ -121,6 +121,28 @@ public:
     }
 
     /**
+     * Gets an event addressed by a URI prefix (literal 'startsWith') instead of an exact URI key.
+     *
+     * Unlike the exact-key lookup (getEvent, which requires the full method+uri key), this method
+     * selects ALL stored keys for the given method whose URI starts with the provided literal prefix,
+     * merges their events into a single list ordered by reception timestamp, and returns the one at
+     * the requested position. This is useful when part of the URI (always a trailing suffix) is unknown
+     * in advance (e.g. a server-minted identifier appended to a known path prefix).
+     *
+     * The prefix match is a LITERAL string comparison (no regular expression): metacharacters such as
+     * '|', '.', '{' or '[' carry no special meaning and are compared verbatim. The comparison is done
+     * against the normalized stored URI (same normalization applied to exact-key addressing).
+     *
+     * @param requestMethod Exact HTTP method to filter keys (e.g. 'POST'). Mandatory.
+     * @param uriPrefix Literal URI prefix to match (keys whose URI starts with it). Mandatory.
+     * @param eventNumber Position within the merged, timestamp-ordered set of matching events (1..N);
+     * '-1' selects the latest (most recent reception). Value '0' is not accepted (nullptr returned).
+     *
+     * @return Mock event or nullptr if no match is found or the position is out of range.
+     */
+    std::shared_ptr<MockEvent> getEventByUriStartsWith(const std::string &requestMethod, const std::string &uriPrefix, const std::string &eventNumber) const;
+
+    /**
      * Gets chronologically ordered sequence of events (method + uri + timestamps)
      *
      * @param fromTimestampUs Minimum reception timestamp filter (0 = no filter)

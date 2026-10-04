@@ -1,0 +1,30 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/resources/.*",
+    "responseCode": 201,
+    "responseBody": {
+      "stored": true
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    }
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/last-resource",
+    "responseCode": 200,
+    "responseBody": {
+      "foo": "bar"
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      {
+        "source": "serverEvent.requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody",
+        "target": "response.body.json.object./lastResourceBody"
+      }
+    ]
+  }
+]

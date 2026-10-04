@@ -378,3 +378,69 @@ TEST_F(MockServerData_test, SequenceFilterByUriRegex)
     auto json = nlohmann::json::parse(result);
     EXPECT_EQ(json.size(), 2); // only key1 events match
 }
+
+
+// URI-prefix addressing tests (getEventByUriStartsWith)
+
+TEST_F(MockServerData_test, UriStartsWithMatchesAllKeys)
+{
+    // Both keys (/the/uri/111 and /the/uri/222) share the prefix '/the/uri/' and are DELETE.
+    // 4 events total in the merged set; '-1' selects the most recent one, which must be a valid event.
+    auto ptr = data_.getEventByUriStartsWith("DELETE", "/the/uri/", "-1");
+    ASSERT_NE(ptr, nullptr);
+    EXPECT_TRUE(ptr->getJson().contains("receptionTimestampUs"));
+}
+
+TEST_F(MockServerData_test, UriStartsWithNarrowsToSingleKey)
+{
+    // Prefix '/the/uri/2' only matches key2 (/the/uri/222), which holds 2 events (real + virtual).
+    // Position 1 (from head) is reachable; position 3 is out of range for the narrowed set.
+    auto ptr1 = data_.getEventByUriStartsWith("DELETE", "/the/uri/2", "1");
+    ASSERT_NE(ptr1, nullptr);
+
+    auto ptrOut = data_.getEventByUriStartsWith("DELETE", "/the/uri/2", "3");
+    EXPECT_EQ(ptrOut, nullptr); // only 2 events match the narrowed prefix
+}
+
+TEST_F(MockServerData_test, UriStartsWithLiteralNotRegex)
+{
+    // The prefix is matched literally: a regex metacharacter does not alter the comparison.
+    // '/the/uri/1' matches /the/uri/111 (2 events). A verbatim '.' would NOT be treated as "any char".
+    auto ptrLiteral = data_.getEventByUriStartsWith("DELETE", "/the/uri/1", "-1");
+    ASSERT_NE(ptrLiteral, nullptr);
+
+    // '/the.uri' is not a prefix of any stored URI (literal dot, not wildcard) -> no match.
+    auto ptrNoMatch = data_.getEventByUriStartsWith("DELETE", "/the.uri", "-1");
+    EXPECT_EQ(ptrNoMatch, nullptr);
+}
+
+TEST_F(MockServerData_test, UriStartsWithMethodMismatch)
+{
+    auto ptr = data_.getEventByUriStartsWith("POST", "/the/uri/", "-1"); // stored events are DELETE
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockServerData_test, UriStartsWithNoMatch)
+{
+    auto ptr = data_.getEventByUriStartsWith("DELETE", "/does/not/match", "-1");
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockServerData_test, UriStartsWithOutOfRange)
+{
+    auto ptr = data_.getEventByUriStartsWith("DELETE", "/the/uri/", "5"); // only 4 events in the merged set
+    EXPECT_EQ(ptr, nullptr);
+}
+
+TEST_F(MockServerData_test, UriStartsWithInvalidNumber)
+{
+    EXPECT_EQ(data_.getEventByUriStartsWith("DELETE", "/the/uri/", "0"), nullptr);        // zero not accepted
+    EXPECT_EQ(data_.getEventByUriStartsWith("DELETE", "/the/uri/", "invalid"), nullptr);  // not a number
+}
+
+TEST_F(MockServerData_test, UriStartsWithEmptyPrefixMatchesMethod)
+{
+    // An empty prefix is a prefix of every URI, so it matches all events for the method.
+    auto ptr = data_.getEventByUriStartsWith("DELETE", "", "-1");
+    ASSERT_NE(ptr, nullptr);
+}
