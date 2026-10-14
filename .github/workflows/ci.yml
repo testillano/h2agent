@@ -210,8 +210,29 @@ jobs:
       uses: actions/upload-pages-artifact@v3
       with:
         path: /code/site
+
+  # Deploy the Pages artifact in a dedicated job on a clean runner (NOT inside the
+  # coverage container). actions/deploy-pages@v4 requires the 'github-pages'
+  # environment to be declared on the job; running it inside a custom container
+  # (via docker exec) is fragile and was leaving the deployment stuck in
+  # 'updating_pages' until timeout. This job only consumes the artifact already
+  # uploaded by 'unit_tests_and_coverage' in the same run.
+  deploy_pages:
+    needs: unit_tests_and_coverage
+    name: Deploy GitHub Pages
+    runs-on: ubuntu-latest
+    # Do not fail the whole pipeline (image push, helm publish) if Pages hiccups:
+    continue-on-error: true
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
     -
       name: Deploy to GitHub Pages
+      id: deployment
       uses: actions/deploy-pages@v4
 
 
