@@ -632,7 +632,7 @@ client_provision() {
 client_provision_trigger() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
-    echo "Usage: client_provision_trigger [-h|--help] <id> [sequenceBegin] [sequenceEnd] [cps] [repeat] [--in-state <state>]"
+    echo "Usage: client_provision_trigger [-h|--help] <id> [sequenceBegin] [sequenceEnd] [cps] [repeat] [--sequence <n>] [--in-state <state>]"
     echo "                               Triggers a client provision. Omitted params keep server-side values."
     echo
     echo "  Sequence iterator behavior:"
@@ -640,9 +640,12 @@ client_provision_trigger() {
     echo "    - Providing only cps (no range) resumes from where it left off."
     echo "    - cps=0 (or omitted) pauses without losing position."
     echo "    - Providing range without cps prepares the range without starting (cps defaults to 0)."
+    echo "    - --sequence <n>: synchronous single-shot with a specific sequence value. Mutually"
+    echo "      exclusive with sequenceBegin/sequenceEnd/cps/repeat (the asynchronous dynamics)."
     echo
     echo "  Examples:"
-    echo "    client_provision_trigger myFlow                               # Sync trigger (sequence=0, inState=initial)"
+    echo "    client_provision_trigger myFlow                               # Sync trigger (server-side sequence, inState=initial)"
+    echo "    client_provision_trigger myFlow --sequence 42                 # Sync trigger with specific sequence value 42"
     echo "    client_provision_trigger myFlow --in-state established        # Sync trigger with custom inState"
     echo "    client_provision_trigger myFlow 0 99999                       # Prepare range (paused, cps=0)"
     echo "    client_provision_trigger myFlow 0 99999 5000                  # Async trigger at 5000 cps"
@@ -654,10 +657,11 @@ client_provision_trigger() {
   [ -z "$1" ] && echo "Error: provision id required" && return 1
 
   local id=$1; shift
-  local seqBegin= seqEnd= cps= repeat= inState=
+  local seqBegin= seqEnd= cps= repeat= inState= sequence=
   while [ $# -gt 0 ]; do
     case "$1" in
       --in-state) inState=$2; shift ;;
+      --sequence) sequence=$2; shift ;;
       *) [ -z "${seqBegin}" ] && seqBegin=$1 && shift && continue
          [ -z "${seqEnd}" ] && seqEnd=$1 && shift && continue
          [ -z "${cps}" ] && cps=$1 && shift && continue
@@ -666,7 +670,18 @@ client_provision_trigger() {
     esac
     shift
   done
+
+  # 'sequence' (synchronous single-shot) is mutually exclusive with the asynchronous
+  # dynamics parameters, mirroring the admin API (which returns 400 if mixed). Fail
+  # early here with a clearer message instead of relying on the server rejection.
+  if [ -n "${sequence}" ] && { [ -n "${seqBegin}" ] || [ -n "${seqEnd}" ] || [ -n "${cps}" ] || [ -n "${repeat}" ]; }
+  then
+    echo "Error: --sequence (synchronous) cannot be combined with sequenceBegin/sequenceEnd/cps/repeat (asynchronous)"
+    return 1
+  fi
+
   local queryParams=
+  [ -n "${sequence}" ] && queryParams+="&sequence=${sequence}"
   [ -n "${seqBegin}" ] && queryParams+="&sequenceBegin=${seqBegin}"
   [ -n "${seqEnd}" ] && queryParams+="&sequenceEnd=${seqEnd}"
   [ -n "${cps}" ] && queryParams+="&cps=${cps}"
@@ -1825,7 +1840,7 @@ help() {
   for f in schema_schema vault_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Auxiliary Functions === "
-  for f in pretty raw trace metrics snapshot check_storage server_example client_example; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in pretty raw trace metrics metrics_summary snapshot check_storage server_example client_example; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
 }
 

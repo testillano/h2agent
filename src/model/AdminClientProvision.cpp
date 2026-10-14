@@ -109,11 +109,48 @@ std::shared_ptr<h2agent::model::AdminSchema> AdminClientProvision::getResponseSc
 
 void AdminClientProvision::saveDynamics() const {
     std::lock_guard<std::mutex> guard(json_mutex_);
-    json_["dynamics"]["sequence"] = seq_.load();
-    json_["dynamics"]["sequenceBegin"] = seq_begin_.load();
-    json_["dynamics"]["sequenceEnd"] = seq_end_.load();
-    json_["dynamics"]["cps"] = cps_.load();
+
+    std::int64_t seq = seq_.load();
+    std::int64_t begin = seq_begin_.load();
+    std::int64_t end = seq_end_.load();
+    std::uint64_t cps = cps_.load();
+
+    json_["dynamics"]["sequence"] = seq; // raw internal iterator (kept for backward compatibility)
+    json_["dynamics"]["sequenceBegin"] = begin;
+    json_["dynamics"]["sequenceEnd"] = end;
+    json_["dynamics"]["cps"] = cps;
     json_["dynamics"]["repeat"] = repeat_.load();
+
+    // Human-friendly observability (additive; does not alter the internal iterator).
+    //
+    // The internal iterator uses the classic "use-then-increment" idiom starting at
+    // 'begin - 1', so 'seq_ == begin - 1' is the sentinel for "armed but no element of
+    // the range emitted yet" (which shows up as a confusing negative value, e.g. -1 when
+    // begin is 0). The following fields expose that state without the user having to
+    // decode the raw sentinel:
+    //
+    //   state:        armed     -> prepared, waiting for the first tick (seq == begin - 1)
+    //                 running   -> ticker active (timer scheduled with cps > 0)
+    //                 paused    -> positioned within the range but no ticker (cps = 0)
+    //                 exhausted -> range consumed without repeat (seq > end)
+    //   nextSequence: the sequence value the NEXT request will carry (begin when armed,
+    //                 seq + 1 while progressing); null when exhausted (nothing pending).
+    const char *state;
+    nlohmann::json nextSequence;
+    if (seq < begin) { // sentinel 'begin - 1': armed, not yet started
+        state = "armed";
+        nextSequence = begin;
+    }
+    else if (seq > end) { // consumed the whole range (no repeat)
+        state = "exhausted";
+        nextSequence = nullptr;
+    }
+    else {
+        state = (isTicking() && cps > 0) ? "running" : "paused";
+        nextSequence = (seq + 1 > end) ? (repeat_.load() ? begin : end) : (seq + 1);
+    }
+    json_["dynamics"]["state"] = state;
+    json_["dynamics"]["nextSequence"] = nextSequence;
 }
 
 void AdminClientProvision::executeOnFilterFail(

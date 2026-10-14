@@ -807,3 +807,88 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeaders)
     EXPECT_TRUE(found_ct);
     EXPECT_TRUE(found_xr);
 }
+
+
+// ==================== DYNAMICS OBSERVABILITY (state / nextSequence) ====================
+//
+// The internal iterator keeps the "use-then-increment from begin-1" mechanism untouched.
+// These tests exercise the human-friendly fields exposed in getJson()["dynamics"]:
+//   - state: armed | running | paused | exhausted
+//   - nextSequence: sequence the next request will carry (null when exhausted)
+//
+// Note: 'running' requires an active ticker (timer_ != nullptr), which is wired by the
+// admin server, not by updateTriggering() alone. In this unit scope there is no timer, so
+// a configured cps>0 range reports 'paused' (positioned, not ticking). The 'running' path
+// is covered at component/manual level.
+
+TEST_F(ClientTransform_test, DynamicsArmedWithSequenceBeginZero)
+{
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision != nullptr);
+
+    // sequenceBegin=0 => internal iterator sits at begin-1 (-1): armed, not yet started.
+    ASSERT_TRUE(provision->updateTriggering("0", "10", "0", ""));
+
+    nlohmann::json dyn = provision->getJson()["dynamics"];
+    EXPECT_EQ(dyn["sequenceBegin"], 0);
+    EXPECT_EQ(dyn["sequenceEnd"], 10);
+    EXPECT_EQ(dyn["sequence"], -1);              // raw internal sentinel (begin-1) kept for compatibility
+    EXPECT_EQ(dyn["state"], "armed");            // friendly state: prepared, no element emitted yet
+    EXPECT_EQ(dyn["nextSequence"], 0);           // the first request will carry 'begin' (0)
+}
+
+TEST_F(ClientTransform_test, DynamicsArmedWithNonZeroBegin)
+{
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision != nullptr);
+
+    ASSERT_TRUE(provision->updateTriggering("100", "200", "0", ""));
+
+    nlohmann::json dyn = provision->getJson()["dynamics"];
+    EXPECT_EQ(dyn["sequence"], 99);              // begin-1, raw
+    EXPECT_EQ(dyn["state"], "armed");
+    EXPECT_EQ(dyn["nextSequence"], 100);         // next request carries begin
+}
+
+TEST_F(ClientTransform_test, DynamicsPausedWithinRange)
+{
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision != nullptr);
+
+    ASSERT_TRUE(provision->updateTriggering("0", "10", "0", ""));
+    provision->setSeq(5); // positioned inside the range, no ticker active in unit scope
+
+    nlohmann::json dyn = provision->getJson()["dynamics"];
+    EXPECT_EQ(dyn["sequence"], 5);
+    EXPECT_EQ(dyn["state"], "paused");           // within range but not ticking
+    EXPECT_EQ(dyn["nextSequence"], 6);           // next request carries seq+1
+}
+
+TEST_F(ClientTransform_test, DynamicsExhaustedBeyondEnd)
+{
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision != nullptr);
+
+    ASSERT_TRUE(provision->updateTriggering("0", "10", "0", ""));
+    provision->setSeq(11); // past the end, no repeat => range consumed
+
+    nlohmann::json dyn = provision->getJson()["dynamics"];
+    EXPECT_EQ(dyn["sequence"], 11);
+    EXPECT_EQ(dyn["state"], "exhausted");
+    EXPECT_TRUE(dyn["nextSequence"].is_null());  // nothing pending
+}
+
+TEST_F(ClientTransform_test, DynamicsNextSequenceWrapsWithRepeat)
+{
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision != nullptr);
+
+    // repeat=true: once the last element is reached, the next wraps back to begin.
+    ASSERT_TRUE(provision->updateTriggering("0", "10", "0", "true"));
+    provision->setSeq(10); // at the last element of the range
+
+    nlohmann::json dyn = provision->getJson()["dynamics"];
+    EXPECT_EQ(dyn["sequence"], 10);
+    EXPECT_EQ(dyn["state"], "paused");
+    EXPECT_EQ(dyn["nextSequence"], 0);           // wraps to begin because repeat is enabled
+}

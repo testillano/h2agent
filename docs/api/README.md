@@ -2018,11 +2018,22 @@ So, together with provision information configured, we store dynamic load config
   "cps": 1500,
   "sequence": 2994907,
   "sequenceBegin": 0,
-  "sequenceEnd": 10000000
+  "sequenceEnd": 10000000,
+  "state": "running",
+  "nextSequence": 2994908
 }
 ```
 
-> **Note**: `dynamics` fields are a read-only external snapshot accessible via the REST API only (e.g., to poll for completion). They are **not** available as transform variables. To use the current sequence value inside a transform, use the `seq` source instead. Dynamics are refreshed every 500ms during active ticking and on-demand when queried via the admin API, so values may lag slightly under high CPS.
+The `sequence` field is the **raw internal iterator**: it uses a "use-then-increment starting at `sequenceBegin - 1`" scheme, so right after arming a range it holds `sequenceBegin - 1` (which shows up as a confusing value, e.g. `-1` when `sequenceBegin` is `0`). To avoid having to decode that sentinel, two human-friendly read-only fields are provided:
+
+* `state`: lifecycle of the trigger range:
+  * `armed`: prepared, waiting for the first tick (no element of the range emitted yet; this is the state after setting `sequenceBegin` with `cps=0`).
+  * `running`: ticker active (asynchronous triggering with `cps > 0`).
+  * `paused`: positioned within the range but not ticking (e.g. `cps` set back to `0`).
+  * `exhausted`: the whole range was consumed without `repeat` (a new administrative operation is needed to trigger again).
+* `nextSequence`: the `sequence` value the **next** request will carry (`sequenceBegin` when `armed`, `sequence + 1` while progressing, wrapping to `sequenceBegin` when `repeat` is enabled); `null` when `exhausted` (nothing pending).
+
+> **Note**: `dynamics` fields are a read-only external snapshot accessible via the REST API only (e.g., to poll for completion or inspect the pause/armed state). They are **not** available as transform variables. To use the current sequence value inside a transform, use the `seq` source instead. Dynamics are refreshed every 500ms during active ticking and on-demand when queried via the admin API, so values may lag slightly under high CPS.
 
 *Configuration rules:*
 
