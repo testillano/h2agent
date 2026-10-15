@@ -74,3 +74,14 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
+
+# Optional startup gate: wait for a dependency's TCP listener to accept before
+# starting the h2agent. Used by client-role h2agents to avoid opening eager
+# remote-server connections before the dependency (e.g. an upstream HTTP/2 port)
+# is up (pod startup ordering). Disabled by default (no-op for server mocks).
+wait_for:
+  enabled: false
+  host: ""
+  port: 0
+  interval: 2   # seconds between TCP probes
+  retries: 150  # max probes before giving up

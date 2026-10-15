@@ -22,6 +22,30 @@ spec:
           configMap:
             name: {{ include "h2agent.name" . | lower | replace "_" "-" }}-helpers-config
       {{- end }}
+      {{- if .Values.wait_for.enabled }}
+      initContainers:
+        # Gate startup on a dependency's TCP listener being ready, so this
+        # h2agent (acting as a client) does not open its eager remote-server
+        # connections before the dependency accepts them. Without this, a pod
+        # startup-ordering race can leave the eager connection born dead
+        # (connection refused) and a later request to it counted "unsent".
+        # Reuses the h2agent image itself (no external image); nc -z TCP probe.
+        - name: wait-for-{{ .Values.wait_for.host }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              h={{ .Values.wait_for.host | quote }}; p={{ .Values.wait_for.port }}
+              echo "init: waiting for $h:$p to accept TCP ..."
+              i=0
+              until nc -z -w 2 "$h" "$p" 2>/dev/null; do
+                i=$((i+1))
+                [ $i -ge {{ .Values.wait_for.retries | default 150 }} ] && { echo "init: timeout waiting for $h:$p"; exit 1; }
+                sleep {{ .Values.wait_for.interval | default 2 }}
+              done
+              echo "init: $h:$p is accepting; proceeding"
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
