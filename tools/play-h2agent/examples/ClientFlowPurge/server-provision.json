@@ -1,0 +1,16 @@
+[
+  {
+    "requestMethod":"POST",
+    "requestUri":"/api/v1/order",
+    "responseCode":201,
+    "responseBody":{"orderId":"A-100"},
+    "responseHeaders":{"content-type":"application/json"}
+  },
+  {
+    "requestMethod":"GET",
+    "requestUri":"/api/v1/order/A-100",
+    "responseCode":200,
+    "responseBody":{"orderId":"A-100","status":"ready"},
+    "responseHeaders":{"content-type":"application/json"}
+  }
+]

@@ -1245,6 +1245,16 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         myTrafficHttp2Server->disablePurge(disable_purge);
     }
 
+    // Client data configuration:
+    // The --discard-data, --discard-data-key-history and --disable-purge options are
+    // documented (help & README) as affecting BOTH mock server-data and client-data
+    // procedures. The client-data counters live in the admin server (which is always
+    // created, including pure client mode with --traffic-server-port 0), so they are
+    // wired here unconditionally, mirroring the server-data configuration above.
+    myAdminHttp2Server->discardClientData(discard_data);
+    myAdminHttp2Server->discardClientDataKeyHistory(discard_data_key_history);
+    myAdminHttp2Server->disableClientPurge(disable_purge);
+
     // Client configuration
     if (traffic_client_endpoint_file != "") {
         success = h2agent::model::getFileContent(traffic_client_endpoint_file, fileContent);

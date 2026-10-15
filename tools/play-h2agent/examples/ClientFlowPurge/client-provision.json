@@ -1,0 +1,23 @@
+[
+  {
+    "id":"purgeFlow",
+    "endpoint":"myServer",
+    "expectedResponseStatusCode": 201,
+    "inState":"initial",
+    "outState":"check",
+    "requestMethod":"POST",
+    "requestUri":"/api/v1/order",
+    "requestBody":{"item":"book"},
+    "requestHeaders":{"content-type":"application/json"}
+  },
+  {
+    "id":"purgeFlow",
+    "endpoint":"myServer",
+    "expectedResponseStatusCode": 200,
+    "inState":"check",
+    "outState":"purge",
+    "requestMethod":"GET",
+    "requestUri":"/api/v1/order/A-100",
+    "requestHeaders":{"content-type":"application/json"}
+  }
+]

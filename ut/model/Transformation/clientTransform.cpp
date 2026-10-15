@@ -637,6 +637,50 @@ TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventToPurgeTarget)
     EXPECT_TRUE(provision->needsStorage());
 }
 
+// ==================== PURGE OUTSTATE (client provision chain) ====================
+//
+// In client mode the reserved 'purge' outState removes all events accumulated during
+// the chain once it terminates. These tests validate that a chain ending in 'purge'
+// loads and the terminal provision carries the 'purge' outState. The actual runtime
+// removal of the accumulated client-data is covered by the component test
+// ct/src/state_flow/sf_chain_purge_client_test.py.
+
+TEST_F(ClientTransform_test, LoadClientChainEndingInPurge)
+{
+    nlohmann::json step1 = R"({
+        "id":"purgeFlow","endpoint":"myServer","inState":"initial","outState":"check",
+        "requestMethod":"POST","requestUri":"/api/v1/order","expectedResponseStatusCode":201
+    })"_json;
+    nlohmann::json step2 = R"({
+        "id":"purgeFlow","endpoint":"myServer","inState":"check","outState":"purge",
+        "requestMethod":"GET","requestUri":"/api/v1/order/A-100","expectedResponseStatusCode":200
+    })"_json;
+
+    client_provision_json_ = nlohmann::json::array({step1, step2});
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+
+    auto p1 = adata_.getClientProvisionData().find("initial", "purgeFlow");
+    ASSERT_TRUE(p1 != nullptr);
+    EXPECT_EQ(p1->getOutState(), "check");
+
+    // Terminal step carries the reserved 'purge' outState:
+    auto p2 = adata_.getClientProvisionData().find("check", "purgeFlow");
+    ASSERT_TRUE(p2 != nullptr);
+    EXPECT_EQ(p2->getOutState(), "purge");
+}
+
+TEST_F(ClientTransform_test, PurgeOutStateIsAcceptedAsSingleProvision)
+{
+    client_provision_json_ = R"({
+        "id":"myFlow","endpoint":"myServer","inState":"initial","outState":"purge",
+        "requestMethod":"GET","requestUri":"/api/v1/last"
+    })"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    EXPECT_EQ(provision->getOutState(), "purge");
+}
+
 // ==================== EXPECTED RESPONSE STATUS CODE ====================
 
 TEST_F(ClientTransform_test, LoadProvisionWithExpectedResponseStatusCode)
