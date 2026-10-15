@@ -25,12 +25,16 @@ from conftest import ADMIN_SERVER_PROVISION_URI, ADMIN_SERVER_DATA_URI, ADMIN_CL
 #       The second link targets a DEAD endpoint (closed port). Routing is the
 #       discriminator via a transport error:
 #         - pre-fix : link 'second' is misrouted to the (live) loopback -> 200,
-#                     so a client-data event for the second URI EXISTS.
+#                     so a client-data event for the second URI exists with a
+#                     SUCCESSFUL (200) statusCode.
 #         - post-fix: link 'second' honors the dead endpoint -> connection
-#                     error (statusCode <= 0) -> chain breaks BEFORE loadEvent,
-#                     so NO client-data event for the second URI exists.
-#       (In sendClientRequest the transport-error branch returns before storing
-#       the event, so absence of the second event is the post-fix signature.)
+#                     error (statusCode <= 0). The chain still breaks, but the
+#                     failed step IS recorded, so a client-data event for the
+#                     second URI exists with an ERROR statusCode (<= 0), and the
+#                     live server-data never receives step-b.
+#       (The transport-error branch in sendClientRequest records the event with
+#       its error statusCode before breaking the chain; the discriminator is the
+#       recorded statusCode, reinforced by the physical server-data.)
 #
 #   (B) test_two_instances_* : the canonical test from the proposal. Requires a
 #       SECOND live h2agent instance exposed via H2AGENT_B_SERVICE_HOST /
@@ -148,13 +152,39 @@ def test_002_second_link_honors_its_own_dead_endpoint(h2ac_admin):
   step_a_events = [e for e in events if e["uri"] == STEP_A_URI]
   assert len(step_a_events) == 1, "first link (step-a) must have produced a client event"
 
-  # Post-fix discriminator: the second link honors epDead -> connection error ->
-  # chain breaks before storing the event, so NO client-data event for step-b.
-  # Pre-fix, step-b was misrouted to epLive and would produce a 200 event here.
-  step_b_events = [e for e in events if e["uri"] == STEP_B_URI]
-  assert len(step_b_events) == 0, (
-    "second link must be routed to its own (dead) endpoint; a step-b client "
-    "event means it was misrouted to the inherited live endpoint (pre-fix bug)"
+  # The second link targets the dead endpoint. Its transport error is delivered
+  # asynchronously (after a connect/reconnect attempt that may take a while), so
+  # poll with a generous timeout until the step-b event (recorded with an error
+  # statusCode) shows up, instead of relying on a fixed settle sleep.
+  # Note: client-data entries are grouped by key (clientEndpointId+method+uri);
+  # the per-event fields (responseStatusCode, ...) live under each entry's
+  # "events" list.
+  step_b_entries = []
+  deadline = time.time() + 15.0
+  while time.time() < deadline:
+    response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI)
+    if response["status"] == 200:
+      events = response["body"]
+      step_b_entries = [e for e in events if e["uri"] == STEP_B_URI]
+      if step_b_entries:
+        break
+    time.sleep(0.25)
+
+  # Post-fix discriminator: the second link honors epDead -> connection error.
+  # The transport-error path now RECORDS the failed step (so the flow is not
+  # silent), so a step-b client event DOES exist, but with an error statusCode
+  # (<= 0) because nothing was actually answered. Pre-fix, step-b was misrouted
+  # to the live epLive and would carry a successful statusCode (200).
+  assert len(step_b_entries) == 1, (
+    "second link must have produced a client event (transport error is recorded, "
+    "not silently dropped)"
+  )
+  step_b_events = step_b_entries[0]["events"]
+  assert len(step_b_events) == 1, "step-b key must hold exactly one event"
+  assert step_b_events[0]["responseStatusCode"] <= 0, (
+    "second link must be routed to its own (dead) endpoint, yielding a transport "
+    "error (statusCode <= 0); a successful (200) status means it was misrouted to "
+    "the inherited live endpoint (pre-fix bug)"
   )
 
   # Reinforce with the physical server-data: the dead-routed second request must

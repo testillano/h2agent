@@ -1136,8 +1136,20 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             if (response.statusCode > 0) client->incrementProvisionedRequestsSuccessful();
             else client->incrementProvisionedRequestsFailed();
 
-            // Break chain on transport errors (timeout, connection error, etc.)
+            // Break chain on transport errors (timeout, connection error, request
+            // unsent, etc.: statusCode <= 0). The chain cannot progress without a
+            // real answer, so it stops here -- but the failed step MUST still be
+            // recorded, otherwise the flow would end silently with no trace in
+            // client-data (the step would appear stuck as 'unsent' and the failure
+            // would be invisible). Store the event (with its error statusCode) first,
+            // then break.
             if (response.statusCode <= 0) {
+                if (client_data_) {
+                    h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
+                    h2agent::model::DataPart responseBodyDataPart(response.body);
+                    getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+                }
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Transport error (statusCode %d) sending client provision '%s': chain interrupted", response.statusCode, clientProvisionId.c_str()), ERT_FILE_LOCATION));
                 return;
             }
 
