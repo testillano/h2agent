@@ -1695,6 +1695,21 @@ snapshot() {
   udp_sockets && pretty > ${dir}/general/udp-sockets.json
   metrics > ${dir}/general/metrics.txt
 
+  # Identity metadata (pname + ports) for the snapshotting agent. This is an
+  # INDEPENDENT enrichment: it records who produced the snapshot so consumers can
+  # label it from the data itself rather than from the surrounding directory name.
+  # It is NOT required by tools/browse-snapshots.sh (the offline multi-snapshot
+  # browser), which keys the MOCK/actor column off the pod directory basename; the
+  # browser works with or without this file. Added so future tooling can prefer it.
+  cat > ${dir}/general/identity.json << EOF
+{
+  "pname": "${PNAME:-h2agent}",
+  "adminPort": "${H2AHLP_ADMIN_PORT:-}",
+  "trafficPort": "${H2AHLP_TRAFFIC_PORT:-}",
+  "metricsPort": "${H2AHLP_METRICS_PORT:-}"
+}
+EOF
+
   # Schemas
   schema_schema && pretty > ${dir}/schemas/schema.json
   vault_schema && pretty > ${dir}/schemas/vault.json
