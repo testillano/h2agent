@@ -257,6 +257,69 @@ paths:
         '204':
           description: No files processed
 
+  /admin/v1/files/configuration:
+    get:
+      tags: [files]
+      summary: Retrieve files read-cache configuration
+      responses:
+        '200':
+          description: Files configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilesConfiguration'
+    put:
+      tags: [files]
+      summary: Enable or disable the files read cache
+      parameters:
+        - name: readCache
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Enable (true) or disable (false) the read cache
+      responses:
+        '200':
+          description: Files configuration updated
+        '400':
+          description: Missing or invalid readCache value
+
+  /admin/v1/udp-sockets:
+    get:
+      tags: [data]
+      summary: Retrieve the list of managed UDP write sockets
+      responses:
+        '200':
+          description: UDP sockets list retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UdpSocketInfo'
+        '204':
+          description: No UDP sockets managed
+
+  /admin/v1/malloc-trim:
+    get:
+      tags: [general]
+      summary: Release free heap memory back to the system (malloc_trim)
+      description: >
+        Forces a glibc `malloc_trim(0)`, asking the allocator to return free
+        heap memory to the operating system. Operational/diagnostic endpoint.
+      responses:
+        '200':
+          description: Trim executed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    enum: [memory released, nothing to release]
+
   /admin/v1/logging:
     get:
       tags: [logging]
@@ -611,6 +674,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerDataSummary'
+
+  /admin/v1/server-data/sequence:
+    get:
+      tags: [data]
+      summary: Retrieve server event sequence (time-ordered)
+      description: >
+        Returns a flat, time-ordered list of stored server events, optionally
+        filtered by timestamp window, request method and/or a URI regex.
+      parameters:
+        - name: fromTimestampUs
+          in: query
+          schema: { type: integer, format: int64 }
+          description: Lower bound (microseconds epoch), inclusive
+        - name: toTimestampUs
+          in: query
+          schema: { type: integer, format: int64 }
+          description: Upper bound (microseconds epoch), inclusive
+        - name: requestMethod
+          in: query
+          schema: { type: string }
+          description: Filter by request method
+        - name: uriRegex
+          in: query
+          schema: { type: string }
+          description: Filter events whose URI matches this regex
+      responses:
+        '200':
+          description: Sequence retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSequence'
+        '204':
+          description: No matching events
+        '400':
+          description: Invalid uriRegex
 
   # ===== CLIENT MOCK =====
 
@@ -1029,6 +1128,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClientDataSummary'
 
+  /admin/v1/client-data/sequence:
+    get:
+      tags: [data]
+      summary: Retrieve client event sequence (time-ordered)
+      description: >
+        Returns a flat, time-ordered list of stored client events, optionally
+        filtered by timestamp window, request method and/or a URI regex.
+      parameters:
+        - name: fromTimestampUs
+          in: query
+          schema: { type: integer, format: int64 }
+          description: Lower bound (microseconds epoch), inclusive
+        - name: toTimestampUs
+          in: query
+          schema: { type: integer, format: int64 }
+          description: Upper bound (microseconds epoch), inclusive
+        - name: requestMethod
+          in: query
+          schema: { type: string }
+          description: Filter by request method
+        - name: uriRegex
+          in: query
+          schema: { type: string }
+          description: Filter events whose URI matches this regex
+      responses:
+        '200':
+          description: Sequence retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSequence'
+        '204':
+          description: No matching events
+        '400':
+          description: Invalid uriRegex
+
 
 components:
   schemas:
@@ -1054,12 +1189,10 @@ components:
 
     VaultMap:
       type: object
-      description: Key-value pairs where all values are strings
+      description: Key-value pairs (keys must not contain dots)
       additionalProperties: false
       patternProperties:
-        ^.*$:
-          anyOf:
-            - type: string
+        ^[^.]+$: {}
 
     VaultWaitResponse:
       type: object
@@ -1080,15 +1213,53 @@ components:
     FileInfo:
       type: object
       properties:
-        bytes:
-          type: integer
-        closeDelayUsecs:
-          type: integer
         path:
           type: string
+        bytes:
+          type: integer
+          description: Present when the file exists
         state:
           type: string
           enum: [opened, closed, missing]
+        readCache:
+          type: string
+          enum: ['true']
+          description: Present only when this file was served from the read cache
+
+    FilesConfiguration:
+      type: object
+      properties:
+        readCache:
+          type: string
+          enum: [enabled, disabled]
+
+    UdpSocketInfo:
+      type: object
+      properties:
+        path:
+          type: string
+        socket:
+          type: integer
+          description: Underlying socket descriptor
+
+    EventSequence:
+      type: array
+      description: Time-ordered list of mock events
+      items:
+        type: object
+        properties:
+          direction:
+            type: string
+          method:
+            type: string
+          uri:
+            type: string
+          timestampUs:
+            type: integer
+            format: int64
+          clientProvisionId:
+            type: string
+            description: Present on client events triggered by a client provision
 
     LogLevel:
       type: string
@@ -1168,145 +1339,142 @@ components:
             Optional filter applied over source before storing in target.
             Exactly one filter type must be specified.
           properties:
-        RegexCapture:
-          type: string
-          description: Regex with optional capture groups applied to source
-        RegexReplace:
-          type: object
-          additionalProperties: false
-          required: [rgx, fmt]
-          properties:
-            rgx:
+            RegexCapture:
               type: string
-            fmt:
+              description: Regex with optional capture groups applied to source
+            RegexReplace:
+              type: object
+              additionalProperties: false
+              required: [rgx, fmt]
+              properties:
+                rgx:
+                  type: string
+                fmt:
+                  type: string
+            Append:
               type: string
-        Append:
-          type: string
-          description: String appended to source (admits variable substitution)
-        Prepend:
-          type: string
-          description: String prepended to source (admits variable substitution)
-        Sum:
-          type: number
-          description: Added to numeric source (negative/float allowed)
-        Multiply:
-          type: number
-          description: Multiplied with numeric source (negative/<1 allowed)
-        ConditionVar:
-          type: string
-          pattern: '^!?.*$'
-          description: >
-            Conditional transfer based on variable boolean interpretation.
-            Prefix with ! to invert condition.
-        EqualTo:
-          type: string
-          description: Conditional transfer if source equals value (admits variable substitution)
-        DifferentFrom:
-          type: string
-          description: Conditional transfer if source differs from value (admits variable substitution)
-        JsonConstraint:
-          oneOf:
-            - type: object
-              description: JSON object subset validation against source (every key/value must exist in source)
-            - type: array
+              description: String appended to source (admits variable substitution)
+            Prepend:
+              type: string
+              description: String prepended to source (admits variable substitution)
+            Sum:
+              type: number
+              description: Added to numeric source (negative/float allowed)
+            Multiply:
+              type: number
+              description: Multiplied with numeric source (negative/<1 allowed)
+            ConditionVar:
+              type: string
+              pattern: '^!?.*$'
               description: >
-                JSON array subset validation against source array. Every element in the
-                filter must exist somewhere in the source. Object elements use partial
-                matching (recursive constraint). Useful with request.headers source to
-                validate mandatory headers.
-              items: {}
-        SchemaId:
-          type: string
-          description: Registered schema identifier for JSON schema validation
-        Split:
-          type: object
-          additionalProperties: false
-          description: >
-            Splits source string into fixed-size groups joined by a separator.
-            Takes the last (size×count) characters, pads on the left with filler
-            if shorter, and optionally strips leading zeros per group.
-          properties:
-            size:
-              type: integer
-              minimum: 1
-              default: 2
-              description: Characters per group
-            count:
-              type: integer
-              minimum: 1
-              default: 4
-              description: Number of groups
-            sep:
+                Conditional transfer based on variable boolean interpretation.
+                Prefix with ! to invert condition.
+            EqualTo:
               type: string
-              default: '.'
-              description: Separator between groups
-            filler:
+              description: Conditional transfer if source equals value (admits variable substitution)
+            DifferentFrom:
               type: string
-              default: '0'
-              description: Left-padding string repeated to reach size×count length (empty to disable padding)
-            numeric:
-              type: boolean
-              default: false
-              description: Strip leading zeros in each group (stoull conversion)
-        BaseConvert:
-          type: object
-          additionalProperties: false
-          required: [in, out]
-          description: >
-            Converts source between numeric bases (2–36).
-            Falls back to source unchanged on conversion error.
-          properties:
-            in:
-              type: integer
-              minimum: 2
-              maximum: 36
-              description: Input base
-            out:
-              type: integer
-              minimum: 2
-              maximum: 36
-              description: Output base
-            capital:
-              type: boolean
-              default: false
-              description: Use uppercase letters for digits above 9
-        Strptime:
-          type: object
-          additionalProperties: false
-          required: [fmt]
-          description: >
-            Parses a date/time string into a numeric epoch timestamp (UTC).
-            Uses POSIX strptime + timegm.
-          properties:
-            fmt:
+              description: Conditional transfer if source differs from value (admits variable substitution)
+            JsonConstraint:
+              type: [object, array]
+              description: >
+                JSON subset validation against source. For an object, every key/value
+                must exist in the source. For an array, every element must exist
+                somewhere in the source array (object elements use partial, recursive
+                matching). Useful with request.headers source to validate mandatory
+                headers.
+            SchemaId:
               type: string
-              description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
-            unit:
+              description: Registered schema identifier for JSON schema validation
+            Split:
+              type: object
+              additionalProperties: false
+              description: >
+                Splits source string into fixed-size groups joined by a separator.
+                Takes the last (size×count) characters, pads on the left with filler
+                if shorter, and optionally strips leading zeros per group.
+              properties:
+                size:
+                  type: integer
+                  minimum: 1
+                  default: 2
+                  description: Characters per group
+                count:
+                  type: integer
+                  minimum: 1
+                  default: 4
+                  description: Number of groups
+                sep:
+                  type: string
+                  default: '.'
+                  description: Separator between groups
+                filler:
+                  type: string
+                  default: '0'
+                  description: Left-padding string repeated to reach size×count length (empty to disable padding)
+                numeric:
+                  type: boolean
+                  default: false
+                  description: Strip leading zeros in each group (stoull conversion)
+            BaseConvert:
+              type: object
+              additionalProperties: false
+              required: [in, out]
+              description: >
+                Converts source between numeric bases (2–36).
+                Falls back to source unchanged on conversion error.
+              properties:
+                in:
+                  type: integer
+                  minimum: 2
+                  maximum: 36
+                  description: Input base
+                out:
+                  type: integer
+                  minimum: 2
+                  maximum: 36
+                  description: Output base
+                capital:
+                  type: boolean
+                  default: false
+                  description: Use uppercase letters for digits above 9
+            Strptime:
+              type: object
+              additionalProperties: false
+              required: [fmt]
+              description: >
+                Parses a date/time string into a numeric epoch timestamp (UTC).
+                Uses POSIX strptime + timegm.
+              properties:
+                fmt:
+                  type: string
+                  description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
+                unit:
+                  type: string
+                  enum: [s, ms, us, ns]
+                  default: s
+                  description: "Output unit for the epoch value"
+            Strftime:
+              type: object
+              additionalProperties: false
+              required: [fmt]
+              description: >
+                Formats a numeric epoch timestamp into a date/time string (UTC).
+                Source must be numeric. Uses gmtime_r + strftime.
+              properties:
+                fmt:
+                  type: string
+                  description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
+                unit:
+                  type: string
+                  enum: [s, ms, us, ns]
+                  default: s
+                  description: "Input unit of the epoch value"
+            RegexKey:
               type: string
-              enum: [s, ms, us, ns]
-              default: s
-              description: "Output unit for the epoch value"
-        Strftime:
-          type: object
-          additionalProperties: false
-          required: [fmt]
-          description: >
-            Formats a numeric epoch timestamp into a date/time string (UTC).
-            Source must be numeric. Uses gmtime_r + strftime.
-          properties:
-            fmt:
-              type: string
-              description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
-            unit:
-              type: string
-              enum: [s, ms, us, ns]
-              default: s
-              description: "Input unit of the epoch value"
-        RegexKey:
-          type: string
-          description: >
-            Regex pattern matched against JSON object keys. Returns the value
-            of the first matching key. Source must be a JSON object.
+              description: >
+                Regex pattern matched against JSON object keys. Returns the value
+                of the first matching key. Source must be a JSON object.
 
     ServerTransformItem:
       type: object
@@ -1481,7 +1649,9 @@ components:
         outState:
           type: string
           pattern: '^[^#]*$'
-          description: "Output state (default: 'road-closed'). Use 'purge' to clean scenario history."
+          not:
+            enum: [initial]
+          description: "Output state (default: 'road-closed'). Cannot be 'initial'. Use 'purge' to clean scenario history."
         endpoint:
           type: string
           pattern: '^[^#]*$'
@@ -1515,6 +1685,13 @@ components:
         timeoutMs:
           type: integer
           description: Response timeout in milliseconds
+        expectedResponseStatusCode:
+          type: integer
+          minimum: 100
+          maximum: 599
+          description: >
+            Expected HTTP response status code. When set, a received status code
+            other than this is accounted as an unexpected response.
         responseSchemaId:
           type: string
           description: Schema id to validate received response body

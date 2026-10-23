@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
-"""Fetch JSON Schemas from a running h2agent and generate openapi.yaml schemas section.
+"""Schema drift detector for openapi.yaml.
 
-Usage: python3 generate_openapi_schemas.py [base_url]
+Fetches the JSON Schemas exposed by a RUNNING h2agent (its /admin/v1/*/schema
+endpoints), normalizes them to OpenAPI 3.1 components, and prints them as YAML so
+they can be diffed against the committed openapi.yaml 'components/schemas' section.
+
+This does NOT generate the full openapi.yaml: it only covers the auto-generatable
+schemas (6 provisionable schemas). Paths, operations and the manually-maintained
+schemas (ResultResponse, *Configuration, *Summary, FileInfo, ...) are maintained by
+hand. See MAINTENANCE.md for the drift-detection workflow.
+
+Usage: python3 check_schema_drift.py [base_url] > /tmp/generated.yaml
 Default base_url: http://localhost:8074
 """
 import json, subprocess, sys, yaml

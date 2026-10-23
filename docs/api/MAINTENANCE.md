@@ -6,18 +6,19 @@ How to maintain the REST API documentation for h2agent.
 
 | File | Description |
 |---|---|
-| `openapi.yaml` | OpenAPI 3.1 specification (25 paths, 42 operations, 18 schemas) |
+| `openapi.yaml` | OpenAPI 3.1 specification (28 paths, 45 operations, 19 schemas) |
 | `README.md` | User guide — conceptual docs for matching, FSM, transformations, triggering, data querying |
 | `index.html` | Redoc renderer (zero-build, CDN-based). Served via GitHub Pages at `/api/` |
 | `serve-api-docs.sh` | Local preview with `docker run nginx:alpine` |
-| `generate_openapi_schemas.py` | Schema drift detector (see below) |
+| `../../tools/check_schema_drift.py` | Schema drift detector (see below). Lives under `tools/`, not here. |
 
 ## Schemas in openapi.yaml
 
 ### Auto-generatable (from running server)
 
 These schemas match the JSON Schemas returned by h2agent's `/admin/v1/*/schema` endpoints.
-They can be regenerated with `generate_openapi_schemas.py` for drift detection.
+They can be checked for drift with `check_schema_drift.py` (it prints the server schemas; it
+does not rewrite `openapi.yaml`).
 
 | Schema | Source endpoint |
 |---|---|
@@ -55,7 +56,7 @@ When C++ schemas change, regenerate and compare:
 
 ```bash
 # Start h2agent, then:
-python3 docs/api/generate_openapi_schemas.py http://localhost:8074 > /tmp/generated.yaml
+python3 tools/check_schema_drift.py http://localhost:8074 > /tmp/generated.yaml
 
 # Compare (descriptions and extracted components will differ — focus on types, patterns, enums)
 diff <(python3 -c "
