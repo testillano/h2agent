@@ -55,6 +55,14 @@ SOFTWARE.
 #include <DataPart.hpp>
 
 
+namespace ert
+{
+namespace jsonflow
+{
+class Pipeline;
+}
+}
+
 namespace h2agent
 {
 namespace model
@@ -115,6 +123,8 @@ class AdminClientProvision
 
     std::vector<std::shared_ptr<Transformation>> transformations_{};
     std::vector<std::shared_ptr<Transformation>> on_response_transformations_{};
+    std::shared_ptr<ert::jsonflow::Pipeline> engine_pipeline_{};           // 'transform' (request build)
+    std::shared_ptr<ert::jsonflow::Pipeline> engine_response_pipeline_{};  // 'onResponseTransform'
 
     // Dynamic load parameters (accessed from timer thread + admin API thread):
     std::atomic<std::int64_t> seq_{};
@@ -132,52 +142,6 @@ class AdminClientProvision
 
     void saveDynamics() const;
 
-    // Three processing stages: get sources, apply filters and store targets:
-    // When receivedResponse is not nullptr, response.* sources are available (post-response phase)
-    bool processSources(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        std::map<std::string, std::string>& variables,
-                        const std::string &requestUri,
-                        const nghttp2::asio_http2::header_map &requestHeaders,
-                        bool &eraser,
-                        std::uint64_t sendSeq,
-                        bool usesRequestBodyAsTransformationJsonTarget, const nlohmann::json &requestBodyJson,
-                        const ert::http2comm::Http2Client::response *receivedResponse = nullptr) const;
-
-    bool processFilters(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        const std::map<std::string, std::string>& variables,
-                        std::smatch &matches,
-                        std::string &source) const;
-
-    bool processTargets(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        std::map<std::string, std::string>& variables,
-                        const std::smatch &matches,
-                        bool eraser,
-                        bool hasFilter,
-                        std::string &requestMethod,
-                        std::string &requestUri,
-                        nlohmann::json &requestBodyJson,
-                        std::string &requestBodyAsString,
-                        nghttp2::asio_http2::header_map &requestHeaders,
-                        unsigned int &requestDelayMs,
-                        unsigned int &requestTimeoutMs,
-                        std::string &outState,
-                        bool &breakCondition) const;
-
-    void executeOnFilterFail(
-        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
-        TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
-        const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
-        std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
-        const nlohmann::json &requestBodyJson,
-        const ert::http2comm::Http2Client::response *receivedResponse,
-        std::string &requestMethod, std::string &requestUri_out,
-        nlohmann::json &requestBodyJson_out, std::string &requestBody,
-        nghttp2::asio_http2::header_map &requestHeaders_out,
-        unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
-        std::string &outState, bool &breakCondition) const;
 
 
 public:

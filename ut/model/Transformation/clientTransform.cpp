@@ -936,3 +936,51 @@ TEST_F(ClientTransform_test, DynamicsNextSequenceWrapsWithRepeat)
     EXPECT_EQ(dyn["state"], "paused");
     EXPECT_EQ(dyn["nextSequence"], 0);           // wraps to begin because repeat is enabled
 }
+
+// Regression (CT filter_test test_023, client side): empty header arrays are
+// values (v1 RequestHeaders/ResponseHeaders never fail), so JsonConstraint runs.
+TEST_F(ClientTransform_test, SourceRequestHeadersEmptyJsonConstraintFails)
+{
+    client_provision_json_ = R"({
+        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
+        "transform": [
+            {"source": "request.headers", "target": "var.h", "filter": {"JsonConstraint": [{"name": "x-mandatory"}]}},
+            {"source": "var.h.fail", "target": "vault.requestHeadersFail", "filter": {"ConditionVar": "!h"}}
+        ]
+    })"_json;
+    variables_["h"] = "1";  // stale chain value must be overwritten
+    provisionAndTransform();
+
+    EXPECT_EQ(variables_["h"], "");
+    nlohmann::json stored;
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("requestHeadersFail", stored));
+    EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
+}
+
+TEST_F(ClientTransform_test, TransformResponseSourceResponseHeadersEmptyJsonConstraintFails)
+{
+    client_provision_json_ = R"({
+        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
+        "onResponseTransform": [
+            {"source": "response.headers", "target": "var.r", "filter": {"JsonConstraint": [{"name": "x-mandatory"}]}},
+            {"source": "var.r.fail", "target": "vault.responseHeadersFail", "filter": {"ConditionVar": "!r"}}
+        ]
+    })"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision);
+
+    ert::http2comm::Http2Client::response fakeResponse;
+    fakeResponse.statusCode = 200;
+    fakeResponse.body = R"({"result":"ok"})";  // no response headers at all
+
+    std::string outState = "initial";
+    nghttp2::asio_http2::header_map reqHeaders;
+    variables_["r"] = "1";
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
+
+    EXPECT_EQ(variables_["r"], "");
+    nlohmann::json stored;
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("responseHeadersFail", stored));
+    EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
+}

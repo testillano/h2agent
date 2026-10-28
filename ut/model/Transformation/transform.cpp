@@ -2695,6 +2695,51 @@ TEST_F(Transform_test, SourceRequestHeadersDuplicateKeys)
     EXPECT_EQ(cookie_count, 2);
 }
 
+// Regression (CT filter_test test_023): a request without regular headers yields
+// an EMPTY headers array, which must still be validated (v1 RequestHeaders never
+// fails), so the constraint fails and the fallback rules answer 400.
+static const nlohmann::json HeadersJsonConstraintTransform = R"([
+  {"source": "request.headers", "target": "var.validatedHeaders",
+   "filter": {"JsonConstraint": [{"name": "x-mandatory", "value": "required-value"}]}},
+  {"source": "value.400", "target": "response.statusCode", "filter": {"ConditionVar": "!validatedHeaders"}},
+  {"source": "var.validatedHeaders.fail", "target": "response.body.string", "filter": {"ConditionVar": "!validatedHeaders"}}
+])"_json;
+
+TEST_F(Transform_test, SourceRequestHeadersEmptyJsonConstraintFails)
+{
+    request_headers_.clear();
+    server_provision_json_["transform"] = HeadersJsonConstraintTransform;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 400);
+    EXPECT_EQ(variables_["validatedHeaders"], "");
+    EXPECT_NE(variables_["validatedHeaders.fail"].find("JsonConstraint FAILED"), std::string::npos);
+    EXPECT_NE(response_body_.find("JsonConstraint FAILED"), std::string::npos);
+}
+
+TEST_F(Transform_test, SourceRequestHeadersEmptyJsonConstraintFailsOverStaleChainVariable)
+{
+    // Exact CT scenario: the previous request on the same key left the chain
+    // variable validated ("1"); it must be overwritten, not kept.
+    request_headers_.clear();
+    variables_["validatedHeaders"] = "1";
+    server_provision_json_["transform"] = HeadersJsonConstraintTransform;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 400);
+    EXPECT_EQ(variables_["validatedHeaders"], "");
+}
+
+TEST_F(Transform_test, SourceRequestHeadersJsonConstraintSucceeds)
+{
+    request_headers_.emplace("x-mandatory", nghttp2::asio_http2::header_value{"required-value"});
+    server_provision_json_["transform"] = HeadersJsonConstraintTransform;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(variables_["validatedHeaders"], "1");
+}
+
 // --- Vault with path navigation ---
 
 TEST_F(Transform_test, TargetVaultWithPath)

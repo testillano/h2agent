@@ -51,6 +51,14 @@ SOFTWARE.
 #include <DataPart.hpp>
 
 
+namespace ert
+{
+namespace jsonflow
+{
+class Pipeline;
+}
+}
+
 namespace h2agent
 {
 namespace model
@@ -114,58 +122,7 @@ class AdminServerProvision
     void loadTransformation(const nlohmann::json &j);
 
     std::vector<std::shared_ptr<Transformation>> transformations_{};
-
-    // Three processing stages: get sources, apply filters and store targets:
-    bool processSources(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        std::map<std::string, std::string>& variables,
-                        const std::string &requestUri,
-                        const std::string &requestUriPath,
-                        const std::map<std::string, std::string> &requestQueryParametersMap,
-                        const DataPart &requestBodyDataPart,
-                        const nghttp2::asio_http2::header_map &requestHeaders,
-                        bool &eraser,
-                        std::uint64_t generalUniqueServerSequence,
-                        bool usesResponseBodyAsTransformationJsonTarget, const nlohmann::json &responseBodyJson) const; // these two last parameters are used to
-    // know if original response body provision
-    // or the one dynamically modified, must be
-    // used as source
-
-    bool processFilters(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        const std::map<std::string, std::string>& variables,
-                        std::smatch &matches,
-                        std::string &source) const;
-
-    bool processTargets(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        std::map<std::string, std::string>& variables,
-                        const std::smatch &matches,
-                        bool eraser,
-                        bool hasFilter,
-                        unsigned int &responseStatusCode,
-                        nlohmann::json &responseBodyJson, // to manipulate json
-                        std::string &responseBodyAsString, // to set native data (readable or not)
-                        nghttp2::asio_http2::header_map &responseHeaders,
-                        unsigned int &responseDelayMs,
-                        std::string &outState,
-                        std::string &outStateMethod,
-                        std::string &outStateUri,
-                        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                        bool &breakCondition) const;
-
-    void executeOnFilterFail(
-        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
-        const std::string &requestUri, const std::string &requestUriPath,
-        const std::map<std::string, std::string> &requestQueryParametersMap,
-        const DataPart &requestBodyDataPart, const nghttp2::asio_http2::header_map &requestHeaders,
-        std::uint64_t generalUniqueServerSequence, TypeConverter &sourceVault,
-        std::map<std::string, std::string> &variables,
-        bool usesResponseBodyAsTransformationJsonTarget,
-        unsigned int &responseStatusCode, nlohmann::json &responseBodyJson, std::string &responseBody,
-        nghttp2::asio_http2::header_map &responseHeaders, unsigned int &responseDelayMs,
-        std::string &outState, std::string &outStateMethod, std::string &outStateUri,
-        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers, bool &breakCondition) const;
+    std::shared_ptr<ert::jsonflow::Pipeline> engine_pipeline_{};  // v1 transform translated + parsed once at load
 
 
 public:

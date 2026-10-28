@@ -1,0 +1,7 @@
+{
+  "description": "Per-rule cost: 21 cheap rules (body paths, headers, vars with @{} substitution, vault, Sum/Append/Prepend/ConditionVar filters, typed json targets, header/status targets). No regex, math or file I/O, so the transformation engine dominates.",
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/many-rules/user",
+  "requestBody": {"id":"1a8b8863","name":"Ada Lovelace","age":198,"address":{"city":"London","zip":"NW1"},"tags":["a","b"]},
+  "requestHeaders": {"content-type": "application/json", "x-correlation": "corr-42"}
+}

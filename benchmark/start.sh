@@ -1,5 +1,6 @@
 #!/bin/bash
-# Prepend variables: H2AGENT__ADMIN_PORT, H2AGENT__TRAFFIC_PORT and H2AGENT__PROMETHEUS_PORT
+# Prepend variables: H2AGENT__ADMIN_PORT, H2AGENT__TRAFFIC_PORT, H2AGENT__PROMETHEUS_PORT and
+# H2AGENT_PID (server process to monitor; defaults to the first 'pgrep -x h2agent')
 
 #############
 # VARIABLES #
@@ -353,7 +354,8 @@ if [ "${BENCH_MODE}" = "server" ]; then
   }
 
   # Start monitor (target: h2agent server)
-  H2AGENT_PID=$(pgrep -x h2agent | head -1)
+  # H2AGENT_PID may be prepended (several h2agent processes on the host make pgrep ambiguous)
+  H2AGENT_PID=${H2AGENT_PID:-$(pgrep -x h2agent | head -1)}
   [ -n "$H2AGENT_PID" ] && monitor_start "$H2AGENT_PID" "$TMP_DIR" "$PROMETHEUS_URL" && echo -e "\nMonitoring h2agent server (PID ${H2AGENT_PID})..."
 
   # Run h2load

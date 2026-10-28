@@ -2,6 +2,8 @@ add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/functions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TypeConverter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Transformation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/EngineGrammarV1.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/EngineHost.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockEvent.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockEventsHistory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockData.cpp
@@ -36,6 +38,7 @@ PRIVATE
     ${CMAKE_SOURCE_DIR}/src/model
     ${CMAKE_SOURCE_DIR}/src/jsonSchema
     ${CMAKE_SOURCE_DIR}/src/http2
+    ${CMAKE_SOURCE_DIR}/src/engine
 
 INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}

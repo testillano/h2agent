@@ -1,0 +1,37 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/many-rules/user",
+    "responseCode": 200,
+    "responseBody": {
+      "status": "ok",
+      "user": {}
+    },
+    "responseHeaders": {
+      "content-type": "application/json"
+    },
+    "transform": [
+      { "source": "request.body./id", "target": "var.id" },
+      { "source": "request.body./name", "target": "response.body.json.string./user/name" },
+      { "source": "request.body./age", "target": "var.age" },
+      { "source": "var.age", "target": "response.body.json.integer./user/age" },
+      { "source": "var.age", "target": "var.agePlus", "filter": { "Sum": 1 } },
+      { "source": "var.agePlus", "target": "response.body.json.integer./user/agePlus" },
+      { "source": "request.body./address", "target": "response.body.json.object./user/address" },
+      { "source": "request.body./address/city", "target": "var.city", "filter": { "Append": "-UK" } },
+      { "source": "var.city", "target": "response.body.json.string./user/city" },
+      { "source": "request.header.x-correlation", "target": "response.header.x-correlation" },
+      { "source": "request.header.x-correlation", "target": "response.body.json.string./trace/correlation" },
+      { "source": "vault.company", "target": "response.body.json.string./company" },
+      { "source": "value.@{id}-@{city}", "target": "response.body.json.string./key" },
+      { "source": "value.ok", "target": "var.flag" },
+      { "source": "value.premium", "target": "response.body.json.string./tier", "filter": { "ConditionVar": "flag" } },
+      { "source": "request.body./tags", "target": "response.body.json.object./tags" },
+      { "source": "value.@{id}", "target": "var.idCopy", "filter": { "Prepend": "user-" } },
+      { "source": "var.idCopy", "target": "response.body.json.string./user/ref" },
+      { "source": "timestamp.ms", "target": "response.body.json.unsigned./ts" },
+      { "source": "inState", "target": "response.body.json.string./state" },
+      { "source": "value.201", "target": "response.statusCode" }
+    ]
+  }
+]
