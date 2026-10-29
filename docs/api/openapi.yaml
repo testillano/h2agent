@@ -616,6 +616,19 @@ paths:
           description: JSON pointer path within the selected event
           schema:
             type: string
+        - name: requestUriStartsWith
+          in: query
+          description: >
+            Literal URI prefix instead of requestUri (which is then ignored), as in the serverEvent source: selects among all events of requestMethod whose URI starts with it, merged in reception order. Requires requestMethod and eventNumber. Returns the single event (or eventPath node).
+          schema:
+            type: string
+        - name: recvseq
+          in: query
+          description: >
+            Receive sequence within the requestMethod+requestUri key (both required), as in the serverEvent source; eventNumber is ignored. Returns the single event (or eventPath node).
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
           description: Data retrieved
@@ -646,6 +659,13 @@ paths:
           in: query
           schema:
             type: integer
+        - name: recvseq
+          in: query
+          description: >
+            Receive sequence of the event to delete (requestMethod and requestUri required; eventNumber ignored). requestUriStartsWith is not accepted for deletion (400).
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
           description: Data deleted
@@ -1064,6 +1084,19 @@ paths:
           description: JSON pointer path within the selected event
           schema:
             type: string
+        - name: requestUriStartsWith
+          in: query
+          description: >
+            Literal URI prefix instead of requestUri (which is then ignored), as in the clientEvent source: selects among all events of clientEndpointId+requestMethod whose URI starts with it, merged in sending order. Requires clientEndpointId, requestMethod and eventNumber. Returns the single event (or eventPath node).
+          schema:
+            type: string
+        - name: sendseq
+          in: query
+          description: >
+            Send sequence within the clientEndpointId+requestMethod+requestUri key (all required), as in the clientEvent source; eventNumber is ignored. Returns the single event (or eventPath node).
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
           description: Data retrieved
@@ -1099,6 +1132,13 @@ paths:
           in: query
           schema:
             type: integer
+        - name: sendseq
+          in: query
+          description: >
+            Send sequence of the event to delete (clientEndpointId, requestMethod and requestUri required; eventNumber ignored). requestUriStartsWith is not accepted for deletion (400).
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
           description: Data deleted

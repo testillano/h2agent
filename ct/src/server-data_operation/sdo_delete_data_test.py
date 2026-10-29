@@ -64,3 +64,33 @@ def test_001_i_want_to_delete_partial_internal_data_after_storing_some_traffic_e
   response = h2ac_admin.get(ADMIN_SERVER_DATA_URI)
   response["status"] = 204
 
+
+@pytest.mark.admin
+def test_002_i_want_to_delete_an_event_addressed_by_recvseq(h2ac_admin, h2ac_traffic):
+
+  response = h2ac_traffic.get("/app/v1/foo/bar/3")
+  response = h2ac_traffic.get("/app/v1/foo/bar/3")
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/3&eventNumber=1")
+  first = response["body"]["recvseq"]
+
+  # Same addressing as the 'serverEvent' purge target (recvseq): eventNumber is ignored.
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/3&eventNumber=-1&recvseq=" + str(first))
+  assert response["status"] == 200
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/3&recvseq=" + str(first))
+  assert response["status"] == 204 # already removed
+
+  # The other event survives:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/3")
+  assert len(response["body"]["events"]) == 1
+  assert response["body"]["events"][0]["recvseq"] == first + 1
+
+
+@pytest.mark.admin
+def test_003_i_want_to_get_bad_request_when_deleting_by_uri_prefix(h2ac_admin):
+
+  # Prefix deletion is not supported: it would remove more than expected.
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUriStartsWith=/app/v1/foo/bar/&eventNumber=-1")
+  assert response["status"] == 400
+
+  response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&recvseq=1") # missing uri
+  assert response["status"] == 400

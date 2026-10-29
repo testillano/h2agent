@@ -97,6 +97,27 @@ def test_004_trigger_basic_client_provision_and_verify(h2ac_admin):
     assert len(hello_events) == 1
 
 
+@pytest.mark.admin
+def test_004b_query_client_data_by_uri_prefix_and_sendseq(h2ac_admin):
+    # Same addressing as the 'clientEvent' source: requestUriStartsWith (prefix) and sendseq.
+    response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "?clientEndpointId=loopback&requestMethod=GET&requestUriStartsWith=/app/v1/hel&eventNumber=-1&eventPath=/responseBody")
+    h2ac_admin.assert_response__status_body_headers(response, 200, {"greeting": "hello world"})
+
+    response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "?clientEndpointId=loopback&requestMethod=GET&requestUri=/app/v1/hello&eventNumber=-1")
+    sendseq = response["body"]["sendseq"]
+    response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "?clientEndpointId=loopback&requestMethod=GET&requestUri=/app/v1/hello&eventPath=/responseBody&sendseq=" + str(sendseq))
+    h2ac_admin.assert_response__status_body_headers(response, 200, {"greeting": "hello world"})
+
+    response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "?clientEndpointId=loopback&requestMethod=GET&requestUriStartsWith=/no/such&eventNumber=-1")
+    assert response["status"] == 204
+
+    # Incomplete addressing:
+    response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "?requestMethod=GET&requestUriStartsWith=/app/v1/hel&eventNumber=-1") # no endpoint
+    assert response["status"] == 400
+    response = h2ac_admin.delete(ADMIN_CLIENT_DATA_URI + "?clientEndpointId=loopback&requestMethod=GET&requestUriStartsWith=/app/v1/hel&eventNumber=-1")
+    assert response["status"] == 400 # prefix deletion is not supported
+
+
 # ==================== STATE PROGRESSION (CHAINED FLOW) ====================
 
 @pytest.mark.admin

@@ -89,3 +89,56 @@ def test_004_i_want_to_get_speficic_internal_data_on_admin_interface_using_event
   responseBodyRef = {'foo': 'bar-2'}
   h2ac_admin.assert_response__status_body_headers(response, 200, responseBodyRef)
 
+
+@pytest.mark.admin
+def test_005_i_want_to_get_internal_data_addressed_by_uri_prefix(h2ac_admin):
+
+  # Same addressing as the 'serverEvent' source (requestUriStartsWith): all keys for the method whose
+  # uri starts with the literal prefix, merged by reception order. Former tests received '/app/v1/foo/bar/1'
+  # first and '/app/v1/foo/bar/2' last.
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUriStartsWith=/app/v1/foo/bar/&eventNumber=-1&eventPath=/responseBody")
+  h2ac_admin.assert_response__status_body_headers(response, 200, {'foo': 'bar-2'})
+
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUriStartsWith=/app/v1/foo/bar/&eventNumber=1&eventPath=/responseBody")
+  h2ac_admin.assert_response__status_body_headers(response, 200, {'foo': 'bar-1'})
+
+  # Prefix takes precedence over requestUri (as in the transformation source):
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/does/not/matter&requestUriStartsWith=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/responseBody")
+  h2ac_admin.assert_response__status_body_headers(response, 200, {'foo': 'bar-1'})
+
+  # Nothing matching:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUriStartsWith=/no/such/prefix&eventNumber=-1")
+  assert response["status"] == 204
+
+
+@pytest.mark.admin
+def test_006_i_want_to_get_internal_data_addressed_by_recvseq(h2ac_admin):
+
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&eventNumber=-1")
+  recvseq = response["body"]["recvseq"]
+
+  # Same addressing as the 'serverEvent' source (recvseq): eventNumber is ignored.
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&eventNumber=1&recvseq=" + str(recvseq))
+  assert response["status"] == 200
+  assert response["body"]["recvseq"] == recvseq
+
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&eventPath=/responseBody&recvseq=" + str(recvseq))
+  h2ac_admin.assert_response__status_body_headers(response, 200, {'foo': 'bar-2'})
+
+  # Not found:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&recvseq=999999999")
+  assert response["status"] == 204
+
+
+@pytest.mark.admin
+def test_007_i_want_to_get_bad_request_for_incomplete_event_addressing(h2ac_admin):
+
+  for query in [
+    "?requestUriStartsWith=/app/v1/foo/bar/&eventNumber=-1",                     # missing method
+    "?requestMethod=GET&requestUriStartsWith=/app/v1/foo/bar/",                  # missing event number
+    "?requestMethod=GET&requestUriStartsWith=/app/v1/foo/bar/&eventNumber=0",    # zero is not a position
+    "?requestMethod=GET&recvseq=1",                                              # missing uri
+    "?requestMethod=GET&requestUri=/app/v1/foo/bar/2&recvseq=abc",               # not a sequence
+  ]:
+    response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + query)
+    assert response["status"] == 400, query

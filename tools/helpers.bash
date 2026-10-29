@@ -262,6 +262,11 @@ server_data() {
     echo "                                                     Displayed keys (method/uri) could be limited (10 by default, -1: no limit)."
     echo "                   [--sequence] [options]          ; Gets chronological event sequence (recv/send with timestamps)."
     echo "                                                     Options: --method <M> --uri-regex <R> --from <us> --to <us>"
+    echo "                   [--starts-with] <method> <uri prefix> <[-]event number> [event path]"
+    echo "                                                   ; Selects among all events whose uri starts with the literal prefix"
+    echo "                                                     (same addressing as 'serverEvent' requestUriStartsWith)."
+    echo "                   [--recvseq] <method> <uri> <recvseq> [event path]"
+    echo "                                                   ; Selects the event with that receive sequence (stable addressing)."
     echo "                   [--clean] [query filters]       ; Removes server data events."
     echo "                   [--surf] [query filters]        ; Interactive sorted (regardless method/uri) server data navigation."
     echo "                   [--dump] [query filters]        ; Dumps all sequences detected for server data under 'server-data-sequences' directory."
@@ -289,6 +294,20 @@ server_data() {
       esac
     done
     do_curl "$(admin_url)/server-data/sequence${queryParams}"
+    return 0
+  elif [ "$1" = "--starts-with" ]
+  then
+    [ $# -lt 4 ] && echo "Error: server_data --starts-with <method> <uri prefix> <[-]event number> [event path]" && return 1
+    local urlencode="--data-urlencode requestMethod=$2 --data-urlencode requestUriStartsWith=\"$3\" --data-urlencode eventNumber=$4"
+    [ -n "$5" ] && urlencode+=" --data-urlencode eventPath=$5"
+    eval do_curl -G ${urlencode} "$(admin_url)/server-data"
+    return 0
+  elif [ "$1" = "--recvseq" ]
+  then
+    [ $# -lt 4 ] && echo "Error: server_data --recvseq <method> <uri> <recvseq> [event path]" && return 1
+    local urlencode="--data-urlencode requestMethod=$2 --data-urlencode requestUri=\"$3\" --data-urlencode recvseq=$4"
+    [ -n "$5" ] && urlencode+=" --data-urlencode eventPath=$5"
+    eval do_curl -G ${urlencode} "$(admin_url)/server-data"
     return 0
   elif [ "$1" = "--clean" ]
   then
@@ -833,6 +852,11 @@ client_data() {
     echo "                                                     Displayed keys (client endpoint id/method/uri) could be limited (10 by default, -1: no limit)."
     echo "                   [--sequence] [options]          ; Gets chronological event sequence (send/recv with timestamps)."
     echo "                                                     Options: --method <M> --uri-regex <R> --from <us> --to <us>"
+    echo "                   [--starts-with] <client endpoint id> <method> <uri prefix> <[-]event number> [event path]"
+    echo "                                                   ; Selects among all events whose uri starts with the literal prefix"
+    echo "                                                     (same addressing as 'clientEvent' requestUriStartsWith)."
+    echo "                   [--sendseq] <client endpoint id> <method> <uri> <sendseq> [event path]"
+    echo "                                                   ; Selects the event with that send sequence (stable addressing)."
     echo "                   [--clean] [query filters]       ; Removes client data events."
     echo "                   [--surf] [query filters]        ; Interactive sorted (regardless endpoint/method/uri) client data navigation."
     echo "                   [--dump] [query filters]        ; Dumps all sequences detected for client data under 'client-data-sequences' directory."
@@ -861,6 +885,20 @@ client_data() {
       esac
     done
     do_curl "$(admin_url)/client-data/sequence${queryParams}"
+    return 0
+  elif [ "$1" = "--starts-with" ]
+  then
+    [ $# -lt 5 ] && echo "Error: client_data --starts-with <client endpoint id> <method> <uri prefix> <[-]event number> [event path]" && return 1
+    local urlencode="--data-urlencode clientEndpointId=$2 --data-urlencode requestMethod=$3 --data-urlencode requestUriStartsWith=\"$4\" --data-urlencode eventNumber=$5"
+    [ -n "$6" ] && urlencode+=" --data-urlencode eventPath=$6"
+    eval do_curl -G ${urlencode} "$(admin_url)/client-data"
+    return 0
+  elif [ "$1" = "--sendseq" ]
+  then
+    [ $# -lt 5 ] && echo "Error: client_data --sendseq <client endpoint id> <method> <uri> <sendseq> [event path]" && return 1
+    local urlencode="--data-urlencode clientEndpointId=$2 --data-urlencode requestMethod=$3 --data-urlencode requestUri=\"$4\" --data-urlencode sendseq=$5"
+    [ -n "$6" ] && urlencode+=" --data-urlencode eventPath=$6"
+    eval do_curl -G ${urlencode} "$(admin_url)/client-data"
     return 0
   elif [ "$1" = "--clean" ]
   then

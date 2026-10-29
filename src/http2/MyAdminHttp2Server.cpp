@@ -76,6 +76,36 @@ bool statusCodeOK(int statusCode) {
     return (statusCode >= ert::http2comm::ResponseCode::OK && statusCode < ert::http2comm::ResponseCode::MULTIPLE_CHOICES); // [200,300)
 }
 
+namespace {
+
+// Strict unsigned sequence (recvseq/sendseq): digits only, non-empty.
+bool parseSequence(const std::string &value, std::uint64_t &seq) {
+    if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos) return false;
+    try {
+        seq = std::stoull(value);
+    }
+    catch (const std::exception&) {
+        return false;
+    }
+    return true;
+}
+
+// Valid event position for prefix addressing: 1..N or -1..-N (zero not accepted).
+bool validEventNumber(const std::string &eventNumber) {
+    std::uint64_t number = 0;
+    bool negative = false;
+    return h2agent::model::string2uint64andSign(eventNumber, number, negative) && number != 0;
+}
+
+// Single addressed event as GET response (same shape as the eventNumber selection).
+void addressedEventResponse(const std::shared_ptr<h2agent::model::MockEvent> &event, const std::string &eventPath,
+                            std::string &responseBody, unsigned int &statusCode) {
+    responseBody = event ? event->getJson(eventPath).dump() : "[]";
+    statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT : ert::http2comm::ResponseCode::OK);
+}
+
+}
+
 MyAdminHttp2Server::MyAdminHttp2Server(const std::string &name, size_t workerThreads):
     ert::http2comm::Http2Server(name, workerThreads, workerThreads, nullptr) {
 
@@ -651,6 +681,8 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         std::string requestUri = "";
         std::string eventNumber = "";
         std::string eventPath = "";
+        std::string recvseq = "";
+        std::string requestUriStartsWith = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
@@ -661,19 +693,56 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) eventNumber = it->second;
             it = qmap.find("eventPath");
             if (it != qmap.end()) eventPath = it->second;
+            it = qmap.find("recvseq");
+            if (it != qmap.end()) recvseq = it->second;
+            it = qmap.find("requestUriStartsWith");
+            if (it != qmap.end()) requestUriStartsWith = it->second;
         }
 
-        bool validQuery = false;
-        try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
-            h2agent::model::EventLocationKey elkey(requestMethod, requestUri, eventNumber, eventPath);
-            responseBody = getMockServerData()->asJsonString(elkey, validQuery);
+        // Event addressing extensions, identical to the 'serverEvent' transformation source:
+        // 'requestUriStartsWith' (takes precedence) or 'recvseq' (eventNumber ignored).
+        if (!requestUriStartsWith.empty()) {
+            if (requestMethod.empty() || !validEventNumber(eventNumber)) {
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            }
+            else {
+                try {
+                    addressedEventResponse(getMockServerData()->getEventByUriStartsWith(requestMethod, requestUriStartsWith, eventNumber), eventPath, responseBody, statusCode);
+                }
+                catch (const std::exception& e) {
+                    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+                    statusCode = ert::http2comm::ResponseCode::OK; // corner case: same as the eventNumber selection
+                }
+            }
         }
-        catch (const std::exception& e)
-        {
-            //validQuery = false; // will be ert::http2comm::ResponseCode::OK (200) with empty result (corner case)
-            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+        else if (!recvseq.empty()) {
+            std::uint64_t seq = 0;
+            if (requestMethod.empty() || requestUri.empty() || !parseSequence(recvseq, seq)) {
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            }
+            else {
+                try {
+                    addressedEventResponse(getMockServerData()->getEventByRecvSeq(h2agent::model::DataKey(requestMethod, requestUri), seq), eventPath, responseBody, statusCode);
+                }
+                catch (const std::exception& e) {
+                    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+                    statusCode = ert::http2comm::ResponseCode::OK;
+                }
+            }
         }
-        statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
+        else {
+            bool validQuery = false;
+            try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
+                h2agent::model::EventLocationKey elkey(requestMethod, requestUri, eventNumber, eventPath);
+                responseBody = getMockServerData()->asJsonString(elkey, validQuery);
+            }
+            catch (const std::exception& e)
+            {
+                //validQuery = false; // will be ert::http2comm::ResponseCode::OK (200) with empty result (corner case)
+                ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+            }
+            statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
+        }
     }
     else if (pathSuffix == "client-data") {
         std::string clientEndpointId = "";
@@ -681,6 +750,8 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         std::string requestUri = "";
         std::string eventNumber = "";
         std::string eventPath = "";
+        std::string sendseq = "";
+        std::string requestUriStartsWith = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("clientEndpointId");
@@ -693,19 +764,56 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             if (it != qmap.end()) eventNumber = it->second;
             it = qmap.find("eventPath");
             if (it != qmap.end()) eventPath = it->second;
+            it = qmap.find("sendseq");
+            if (it != qmap.end()) sendseq = it->second;
+            it = qmap.find("requestUriStartsWith");
+            if (it != qmap.end()) requestUriStartsWith = it->second;
         }
 
-        bool validQuery = false;
-        try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
-            h2agent::model::EventLocationKey elkey(clientEndpointId, requestMethod, requestUri, eventNumber, eventPath);
-            responseBody = getMockClientData()->asJsonString(elkey, validQuery);
+        // Event addressing extensions, identical to the 'clientEvent' transformation source:
+        // 'requestUriStartsWith' (takes precedence) or 'sendseq' (eventNumber ignored).
+        if (!requestUriStartsWith.empty()) {
+            if (clientEndpointId.empty() || requestMethod.empty() || !validEventNumber(eventNumber)) {
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            }
+            else {
+                try {
+                    addressedEventResponse(getMockClientData()->getEventByUriStartsWith(clientEndpointId, requestMethod, requestUriStartsWith, eventNumber), eventPath, responseBody, statusCode);
+                }
+                catch (const std::exception& e) {
+                    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+                    statusCode = ert::http2comm::ResponseCode::OK;
+                }
+            }
         }
-        catch (const std::exception& e)
-        {
-            //validQuery = false; // will be ert::http2comm::ResponseCode::OK (200) with empty result (corner case)
-            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+        else if (!sendseq.empty()) {
+            std::uint64_t seq = 0;
+            if (clientEndpointId.empty() || requestMethod.empty() || requestUri.empty() || !parseSequence(sendseq, seq)) {
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            }
+            else {
+                try {
+                    addressedEventResponse(getMockClientData()->getEventBySendSeq(h2agent::model::DataKey(clientEndpointId, requestMethod, requestUri), seq), eventPath, responseBody, statusCode);
+                }
+                catch (const std::exception& e) {
+                    ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+                    statusCode = ert::http2comm::ResponseCode::OK;
+                }
+            }
         }
-        statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
+        else {
+            bool validQuery = false;
+            try { // dump could throw exception if something weird is done (binary data with non-binary content-type)
+                h2agent::model::EventLocationKey elkey(clientEndpointId, requestMethod, requestUri, eventNumber, eventPath);
+                responseBody = getMockClientData()->asJsonString(elkey, validQuery);
+            }
+            catch (const std::exception& e)
+            {
+                //validQuery = false; // will be ert::http2comm::ResponseCode::OK (200) with empty result (corner case)
+                ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+            }
+            statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
+        }
     }
     else if (pathSuffix == "configuration") {
         responseBody = getConfiguration()->asJsonString();
@@ -785,6 +893,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         std::string requestMethod = "";
         std::string requestUri = "";
         std::string eventNumber = "";
+        std::string recvseq = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("requestMethod");
@@ -793,6 +902,23 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) requestUri = it->second;
             it = qmap.find("eventNumber");
             if (it != qmap.end()) eventNumber = it->second;
+            it = qmap.find("recvseq");
+            if (it != qmap.end()) recvseq = it->second;
+            if (qmap.find("requestUriStartsWith") != qmap.end()) { // prefix deletion is not supported (avoid a wider than expected removal)
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+                return;
+            }
+        }
+
+        if (!recvseq.empty()) { // same as the 'serverEvent' purge target: eventNumber ignored
+            std::uint64_t seq = 0;
+            if (requestMethod.empty() || requestUri.empty() || !parseSequence(recvseq, seq)) {
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+                return;
+            }
+            serverDataDeleted = getMockServerData()->removeEventByRecvSeq(h2agent::model::DataKey(requestMethod, requestUri), seq);
+            statusCode = (serverDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/);
+            return;
         }
 
         h2agent::model::EventKey ekey(requestMethod, requestUri, eventNumber);
@@ -806,6 +932,7 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
         std::string requestMethod = "";
         std::string requestUri = "";
         std::string eventNumber = "";
+        std::string sendseq = "";
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
             auto it = qmap.find("clientEndpointId");
@@ -816,6 +943,23 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
             if (it != qmap.end()) requestUri = it->second;
             it = qmap.find("eventNumber");
             if (it != qmap.end()) eventNumber = it->second;
+            it = qmap.find("sendseq");
+            if (it != qmap.end()) sendseq = it->second;
+            if (qmap.find("requestUriStartsWith") != qmap.end()) { // prefix deletion is not supported (avoid a wider than expected removal)
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+                return;
+            }
+        }
+
+        if (!sendseq.empty()) { // same as the 'clientEvent' purge target: eventNumber ignored
+            std::uint64_t seq = 0;
+            if (clientEndpointId.empty() || requestMethod.empty() || requestUri.empty() || !parseSequence(sendseq, seq)) {
+                statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+                return;
+            }
+            clientDataDeleted = getMockClientData()->removeEventBySendSeq(h2agent::model::DataKey(clientEndpointId, requestMethod, requestUri), seq);
+            statusCode = (clientDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/);
+            return;
         }
 
         h2agent::model::EventKey ekey(clientEndpointId, requestMethod, requestUri, eventNumber);

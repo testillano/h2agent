@@ -1676,6 +1676,13 @@ Once internally decoded, the request *URI* will be matched against the `uri` <u>
 
 When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri*) together with their events arrays are returned.
 
+The query also accepts the two addressing extensions of the `serverEvent` transformation source, with the same semantics, so any `serverEvent` address can be tried here before being used in a provision (and vice versa):
+
+* *requestUriStartsWith*: **literal** URI prefix instead of the exact `requestUri` (which is ignored when both are present). Selects among all the events, for the given *method*, whose *URI* starts with the prefix, merged in reception order; *requestMethod* and *eventNumber* are mandatory (`eventNumber=-1` is the most recent one). For example: `/admin/v1/server-data?requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody`.
+* *recvseq*: receive sequence for stable addressing within the *method* + *uri* key (both mandatory); *eventNumber* is ignored. For example: `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`.
+
+Both return the single event object (or the *eventPath* node within it): 200 when found, 204 when not, 400 when the addressing is incomplete or invalid. They are also available in the helpers: `server_data --starts-with <method> <uri prefix> <[-]event number> [event path]` and `server_data --recvseq <method> <uri> <recvseq> [event path]`.
+
 #### Server event fields
 
 The information collected for a server event item is:
@@ -1727,6 +1734,8 @@ Example:
 `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
+
+The *recvseq* addressing is accepted too (same as the `serverEvent` purge target: *method* and *URI* mandatory, *eventNumber* ignored), for example `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`. Deletion by *requestUriStartsWith* is **not** supported (bad request), to avoid removing more events than expected.
 
 ## Client endpoints
 
@@ -2220,6 +2229,8 @@ This operation is useful for testing post verification stages (validate content 
 **Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). Use `./tools/url.sh` helper to encode:
 
 `/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
+
+As for server data, the query accepts the addressing extensions of the `clientEvent` transformation source with the same semantics: *requestUriStartsWith* (literal prefix instead of the exact `requestUri`; *clientEndpointId*, *requestMethod* and *eventNumber* mandatory) and *sendseq* (send sequence within the *clientEndpointId* + *method* + *uri* key; *eventNumber* ignored). Both return the single event object (or its *eventPath* node), with 200, 204 or 400 as for server data. Deletion accepts *sendseq* but not *requestUriStartsWith*. Helpers: `client_data --starts-with <client endpoint id> <method> <uri prefix> <[-]event number> [event path]` and `client_data --sendseq <client endpoint id> <method> <uri> <sendseq> [event path]`.
 
 #### Client event fields
 
