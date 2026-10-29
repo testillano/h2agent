@@ -446,7 +446,7 @@ struct MathProgram {
                 std::size_t slot = 0;
                 while (slot < program->names.size() && program->names[slot] != name) ++slot;
                 if (slot == program->names.size()) {
-                    std::string id = "jfv" + std::to_string(slot);
+                    std::string id = "mathvar_" + std::to_string(slot);
                     while (expr.find(id) != std::string::npos) id = "x" + id;  // never collide with user text
                     program->names.push_back(name);
                     program->identifiers.push_back(id);
