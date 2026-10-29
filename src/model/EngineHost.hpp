@@ -196,6 +196,10 @@ class ClientInputDocument : public h2agent::engine::Document {
     const std::string &request_body_string_;
     const nghttp2::asio_http2::header_map &headers_;
     const ert::http2comm::Http2Client::response *response_;
+    // Request header writes done so far by the pipeline (request phase). v1 emplaced them
+    // into the live header map, so later request.header(s) reads in the same pipeline saw them.
+    const std::vector<std::pair<std::string, std::string>> *pending_header_writes_{nullptr};
+    const nghttp2::asio_http2::header_map &requestHeaders(nghttp2::asio_http2::header_map &merged) const;
     mutable bool parsed_{false};
     mutable bool response_is_json_{false};
     mutable nlohmann::json response_json_{};
@@ -207,6 +211,10 @@ public:
         : uri_(uri), request_body_string_(requestBodyString), headers_(headers), response_(response) {}
     using h2agent::engine::Document::get;  // compiled pointers fall back to the text form
     std::optional<nlohmann::json> get(const std::string &pointer) const override;
+    /** Request phase: make header writes of the running pipeline visible to header reads (v1). */
+    void setPendingHeaderWrites(const std::vector<std::pair<std::string, std::string>> *writes) {
+        pending_header_writes_ = writes;
+    }
 };
 
 }  // namespace model

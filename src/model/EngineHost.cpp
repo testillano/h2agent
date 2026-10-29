@@ -412,21 +412,29 @@ std::optional<nlohmann::json> ServerInputDocument::get(const std::string &pointe
     return std::nullopt;
 }
 
+const nghttp2::asio_http2::header_map &ClientInputDocument::requestHeaders(nghttp2::asio_http2::header_map &merged) const {
+    if (!pending_header_writes_ || pending_header_writes_->empty()) return headers_;  // common case: no copy
+    merged = headers_;
+    for (const auto &w : *pending_header_writes_) merged.emplace(w.first, nghttp2::asio_http2::header_value{w.second});
+    return merged;
+}
+
 std::optional<nlohmann::json> ClientInputDocument::get(const std::string &pointer) const {
     std::string rest;
     const std::string head = splitPointer(pointer, rest);
+    nghttp2::asio_http2::header_map merged;
     if (head.empty()) {  // whole document (diagnostics only)
         nlohmann::json in = nlohmann::json::object();
         in["uri"] = uri_;
         in["requestBodyString"] = request_body_string_;
-        putHeaders(in, headers_);
+        putHeaders(in, requestHeaders(merged));
         if (auto r = get("/response")) in["response"] = std::move(*r);
         return in;
     }
     if (head == "uri" && rest.empty()) return nlohmann::json(uri_);
     if (head == "requestBodyString" && rest.empty()) return nlohmann::json(request_body_string_);
-    if (head == "headerMap") return headerValue(headers_, rest);
-    if (head == "headers" && rest.empty()) return headerList(headers_);
+    if (head == "headerMap") return headerValue(requestHeaders(merged), rest);
+    if (head == "headers" && rest.empty()) return headerList(requestHeaders(merged));
     if (head != "response" || !response_) return std::nullopt;
 
     // Response phase:

@@ -1309,6 +1309,14 @@ TEST(Engine_test, MathPrecompiledBoundVariables) {
     EXPECT_EQ(evalMath(engine, "2*3+1", {}), "7");
 }
 
+TEST(Engine_test, MathWholeResultBeyondIntIsInteger) {
+    // Deliberate difference with the former implementation, which tested
+    // 'result == (int)result' (overflow) and stored such values as floats.
+    Engine engine;
+    EXPECT_EQ(evalMath(engine, "3000000000", {}), "3000000000");
+    EXPECT_EQ(evalMath(engine, "@{x} * 2", {{"x", "3000000000"}}), "6000000000");
+}
+
 TEST(Engine_test, MathPrecompiledReusedAcrossEvaluations) {
     // Same pipeline, different values per event: bound variables must not leak.
     Engine engine;

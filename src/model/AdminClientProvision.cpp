@@ -214,6 +214,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     // Live request metadata (request.uri/method/delayMs/timeoutMs sources and
     // targets) written in place on the output parameters:
     std::vector<std::pair<std::string, std::string>> headerWrites;
+    input.setPendingHeaderWrites(&headerWrites);  // v1: header writes are visible to later header reads
     ctx.meta.uri = &requestUri;
     ctx.meta.method = &requestMethod;
     ctx.meta.delayMs = &requestDelayMs;

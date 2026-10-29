@@ -984,3 +984,44 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeadersEmptyJsonCons
     ASSERT_TRUE(common_resources_.VaultPtr->tryGet("responseHeadersFail", stored));
     EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
 }
+
+// v1 parity: request header writes are visible to later header reads in the same
+// pipeline (v1 emplaced them into the live header map).
+TEST_F(ClientTransform_test, RequestHeaderWrittenThenReadInSamePipeline)
+{
+    client_provision_json_ = R"({
+        "id": "myFlow", "endpoint": "myServer", "requestMethod": "POST", "requestUri": "/test",
+        "requestBody": {},
+        "transform": [
+            {"source": "value.abc", "target": "request.header.x-a"},
+            {"source": "request.header.x-a", "target": "request.body.json.string./h"},
+            {"source": "request.headers", "target": "request.body.json.object./all"}
+        ]
+    })"_json;
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision);
+    nlohmann::json body = nlohmann::json::parse(request_body_);
+    EXPECT_EQ(body["h"], "abc");
+    bool listed = false;
+    for (const auto &h : body["all"]) if (h["name"] == "x-a" && h["value"] == "abc") listed = true;
+    EXPECT_TRUE(listed);
+}
+
+TEST_F(ClientTransform_test, RequestHeaderRewriteKeepsFirstValueOnRead)
+{
+    // header_map is a multimap: a write adds a value and find() keeps returning the
+    // first one (the provisioned value), exactly as v1 did; both are finally sent.
+    client_provision_json_ = R"({
+        "id": "myFlow", "endpoint": "myServer", "requestMethod": "POST", "requestUri": "/test",
+        "requestBody": {}, "requestHeaders": {"x-a": "orig"},
+        "transform": [
+            {"source": "value.new", "target": "request.header.x-a"},
+            {"source": "request.header.x-a", "target": "request.body.json.string./h"}
+        ]
+    })"_json;
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision);
+    nlohmann::json body = nlohmann::json::parse(request_body_);
+    EXPECT_EQ(body["h"], "orig");
+    EXPECT_EQ(request_headers_.count("x-a"), 2u);
+}
