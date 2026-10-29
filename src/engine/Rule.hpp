@@ -44,8 +44,8 @@ SOFTWARE.
 
 #include "Ports.hpp"
 
-namespace ert {
-namespace jsonflow {
+namespace h2agent {
+namespace engine {
 
 /**
  * Classified source kind of a rule.
@@ -284,5 +284,5 @@ struct Rule {
     std::shared_ptr<MathProgram> math{};
 };
 
-}  // namespace jsonflow
-}  // namespace ert
+}  // namespace engine
+}  // namespace h2agent

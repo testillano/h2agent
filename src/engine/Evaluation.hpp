@@ -43,8 +43,8 @@ SOFTWARE.
 #include <utility>
 #include <vector>
 
-namespace ert {
-namespace jsonflow {
+namespace h2agent {
+namespace engine {
 
 /**
  * Transport metadata written (meta.* targets) and read (meta source) by the
@@ -163,5 +163,5 @@ struct TransformResult {
     std::vector<TraceEntry> executionTrace{};  // populated when tracing is enabled
 };
 
-}  // namespace jsonflow
-}  // namespace ert
+}  // namespace engine
+}  // namespace h2agent

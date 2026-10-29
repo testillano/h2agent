@@ -46,7 +46,7 @@ namespace model {
 
 /**
  * Host vocabulary layer between h2agent v1 provision grammar and the
- * transport-neutral transformation engine (src/engine, ert::jsonflow).
+ * transport-neutral transformation engine (src/engine, h2agent::engine).
  *
  * The alias map is HARDCODED here on purpose (proposal 8.7): the engine knows
  * only neutral names (input/output/meta/local/global/sequence); h2agent maps its

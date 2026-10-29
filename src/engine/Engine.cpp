@@ -49,8 +49,8 @@ SOFTWARE.
 #include "Engine.hpp"
 #include "Rule.hpp"
 
-namespace ert {
-namespace jsonflow {
+namespace h2agent {
+namespace engine {
 
 /**
  * Parsed pipeline: an ordered vector of classified rules. Built once by
@@ -1969,5 +1969,5 @@ TransformResult Engine::evaluate(const std::shared_ptr<Pipeline> &pipeline, Eval
     return result;
 }
 
-}  // namespace jsonflow
-}  // namespace ert
+}  // namespace engine
+}  // namespace h2agent

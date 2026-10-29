@@ -206,7 +206,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     // after evaluate() (header writes are applied at the end).
     ClientInputDocument input(requestUri, getRequestBodyAsString(), requestHeaders);
     V1BodyDocument outputView(usesRequestBodyAsTransformationJsonTarget ? requestBodyJson : getRequestBody());
-    ert::jsonflow::EvaluationContext ctx;
+    h2agent::engine::EvaluationContext ctx;
     ctx.input = &input;
     ctx.outputView = &outputView;
     ctx.output = usesRequestBodyAsTransformationJsonTarget ? &requestBodyJson : nullptr;
@@ -230,7 +230,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     EngineClock clock;
     EngineShell shell;
     EngineSchemaValidator schemas(admin_data_);
-    ert::jsonflow::Ports ports;
+    h2agent::engine::Ports ports;
     ports.store = &store;
     ports.events = &events;
     ports.files = &files;
@@ -239,7 +239,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     ports.shell = &shell;
     ports.schema = &schemas;  // no trigger port: clientProvision is not applicable in client provisions
 
-    if (engine_pipeline_) ert::jsonflow::Engine{}.evaluate(engine_pipeline_, ctx, ports);
+    if (engine_pipeline_) h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports);
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)
@@ -283,7 +283,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
 
         // Transformation pipeline evaluated by the isolated engine (response context).
         ClientInputDocument input(requestUri, getRequestBodyAsString(), requestHeaders, &receivedResponse);
-        ert::jsonflow::EvaluationContext ctx;
+        h2agent::engine::EvaluationContext ctx;
         ctx.input = &input;  // no output document: the response phase only writes store/outState/effects
         ctx.sequence = static_cast<std::int64_t>(sendSeq);
         ctx.inState = &getInState();
@@ -296,7 +296,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         EngineClock clock;
         EngineShell shell;
         EngineSchemaValidator schemas(admin_data_);
-        ert::jsonflow::Ports ports;
+        h2agent::engine::Ports ports;
         ports.store = &store;
         ports.events = &events;
         ports.files = &files;
@@ -305,7 +305,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         ports.shell = &shell;
         ports.schema = &schemas;  // no trigger port: clientProvision is not applicable in client provisions
 
-        if (engine_response_pipeline_) ert::jsonflow::Engine{}.evaluate(engine_response_pipeline_, ctx, ports);
+        if (engine_response_pipeline_) h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports);
 
     } // !on_response_transformations_.empty()
 
@@ -624,12 +624,12 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         auto tr = j.find("transform");
         auto otr = j.find("onResponseTransform");
         std::string error;
-        engine_pipeline_ = ert::jsonflow::Engine{}.parse(
+        engine_pipeline_ = h2agent::engine::Engine{}.parse(
                                EngineGrammarV1::translatePipeline(tr != j.end() ? *tr : nlohmann::json::array(),
                                        EngineGrammarV1::Mode::ClientRequest, usesJsonBodyTarget),
                                error);
         if (engine_pipeline_) {
-            engine_response_pipeline_ = ert::jsonflow::Engine{}.parse(
+            engine_response_pipeline_ = h2agent::engine::Engine{}.parse(
                                             EngineGrammarV1::translatePipeline(otr != j.end() ? *otr : nlohmann::json::array(),
                                                     EngineGrammarV1::Mode::ClientResponse),
                                             error);

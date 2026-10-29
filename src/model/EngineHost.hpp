@@ -67,7 +67,7 @@ class AdminData;
  */
 
 /** Local scope = per-chain variables map (strings, v1 'var'); global = Vault. */
-class EngineStore : public ert::jsonflow::Store {
+class EngineStore : public h2agent::engine::Store {
     std::map<std::string, std::string> &variables_;
     Vault *vault_;
 
@@ -80,7 +80,7 @@ public:
 };
 
 /** serverEvent / clientEvent addressing over MockServerData / MockClientData. */
-class EngineEventSource : public ert::jsonflow::EventSource {
+class EngineEventSource : public h2agent::engine::EventSource {
     MockServerData *server_;
     MockClientData *client_;
 
@@ -91,7 +91,7 @@ public:
 };
 
 /** txtFile/binFile over FileManager (long/short-term close delays from Configuration). */
-class EngineFileAccess : public ert::jsonflow::FileAccess {
+class EngineFileAccess : public h2agent::engine::FileAccess {
     FileManager *files_;
     Configuration *configuration_;
 
@@ -103,7 +103,7 @@ public:
 };
 
 /** udpSocket over SocketManager. */
-class EngineSocketWriter : public ert::jsonflow::SocketWriter {
+class EngineSocketWriter : public h2agent::engine::SocketWriter {
     SocketManager *sockets_;
 
 public:
@@ -112,19 +112,19 @@ public:
 };
 
 /** Wall clock. */
-class EngineClock : public ert::jsonflow::Clock {
+class EngineClock : public h2agent::engine::Clock {
 public:
     std::int64_t nowEpoch(const std::string &unit) const override;
 };
 
 /** command source via popen (v1 parity). */
-class EngineShell : public ert::jsonflow::Shell {
+class EngineShell : public h2agent::engine::Shell {
 public:
     Result run(const std::string &command) override;
 };
 
 /** SchemaId filter over the AdminData schema registry. */
-class EngineSchemaValidator : public ert::jsonflow::SchemaValidator {
+class EngineSchemaValidator : public h2agent::engine::SchemaValidator {
     AdminData *admin_data_;
 
 public:
@@ -134,7 +134,7 @@ public:
 };
 
 /** clientProvision target: collects triggers executed by the caller after responding. */
-class EngineTrigger : public ert::jsonflow::Trigger {
+class EngineTrigger : public h2agent::engine::Trigger {
     std::vector<std::pair<std::string, std::string>> &triggers_;
 
 public:
@@ -149,14 +149,14 @@ public:
  * pointer = whole document; otherwise the pointed node, where a missing node or
  * an empty one (null/{}/[]) is absent. Used for request/response body reads.
  */
-class V1BodyDocument : public ert::jsonflow::Document {
+class V1BodyDocument : public h2agent::engine::Document {
     const nlohmann::json &body_;
 
 public:
     explicit V1BodyDocument(const nlohmann::json &body) : body_(body) {}
-    using ert::jsonflow::Document::get;
+    using h2agent::engine::Document::get;
     std::optional<nlohmann::json> get(const std::string &pointer) const override;
-    std::optional<nlohmann::json> get(const ert::jsonflow::CompiledPointer &pointer) const override;
+    std::optional<nlohmann::json> get(const h2agent::engine::CompiledPointer &pointer) const override;
 };
 
 /**
@@ -167,7 +167,7 @@ public:
  * (v1 returns the whole string whatever the path). /headers is always an array
  * (possibly empty: v1 RequestHeaders never fails).
  */
-class ServerInputDocument : public ert::jsonflow::Document {
+class ServerInputDocument : public h2agent::engine::Document {
     const std::string &uri_;
     const std::string &uri_path_;
     const std::map<std::string, std::string> &query_parameters_;
@@ -179,9 +179,9 @@ public:
                         const std::map<std::string, std::string> &queryParameters, const DataPart &body,
                         const nghttp2::asio_http2::header_map &headers)
         : uri_(uri), uri_path_(uriPath), query_parameters_(queryParameters), body_(body), headers_(headers) {}
-    using ert::jsonflow::Document::get;
+    using h2agent::engine::Document::get;
     std::optional<nlohmann::json> get(const std::string &pointer) const override;
-    std::optional<nlohmann::json> get(const ert::jsonflow::CompiledPointer &pointer) const override;
+    std::optional<nlohmann::json> get(const h2agent::engine::CompiledPointer &pointer) const override;
 };
 
 /**
@@ -191,7 +191,7 @@ public:
  * The response body is parsed once on first access (json with v1 body
  * semantics, or the raw string when not json, as v1 does).
  */
-class ClientInputDocument : public ert::jsonflow::Document {
+class ClientInputDocument : public h2agent::engine::Document {
     const std::string &uri_;
     const std::string &request_body_string_;
     const nghttp2::asio_http2::header_map &headers_;
@@ -205,7 +205,7 @@ public:
                         const nghttp2::asio_http2::header_map &headers,
                         const ert::http2comm::Http2Client::response *response = nullptr)
         : uri_(uri), request_body_string_(requestBodyString), headers_(headers), response_(response) {}
-    using ert::jsonflow::Document::get;  // compiled pointers fall back to the text form
+    using h2agent::engine::Document::get;  // compiled pointers fall back to the text form
     std::optional<nlohmann::json> get(const std::string &pointer) const override;
 };
 

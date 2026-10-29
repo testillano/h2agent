@@ -55,9 +55,9 @@ SOFTWARE.
 #include <DataPart.hpp>
 
 
-namespace ert
+namespace h2agent
 {
-namespace jsonflow
+namespace engine
 {
 class Pipeline;
 }
@@ -123,8 +123,8 @@ class AdminClientProvision
 
     std::vector<std::shared_ptr<Transformation>> transformations_{};
     std::vector<std::shared_ptr<Transformation>> on_response_transformations_{};
-    std::shared_ptr<ert::jsonflow::Pipeline> engine_pipeline_{};           // 'transform' (request build)
-    std::shared_ptr<ert::jsonflow::Pipeline> engine_response_pipeline_{};  // 'onResponseTransform'
+    std::shared_ptr<h2agent::engine::Pipeline> engine_pipeline_{};           // 'transform' (request build)
+    std::shared_ptr<h2agent::engine::Pipeline> engine_response_pipeline_{};  // 'onResponseTransform'
 
     // Dynamic load parameters (accessed from timer thread + admin API thread):
     std::atomic<std::int64_t> seq_{};

@@ -12,7 +12,7 @@
 
 using h2agent::model::EngineGrammarV1;
 using Mode = h2agent::model::EngineGrammarV1::Mode;
-namespace jf = ert::jsonflow;
+namespace eng = h2agent::engine;
 
 /////////////////
 // TRANSLATION //
@@ -147,16 +147,16 @@ TEST(EngineGrammarV1_test, ServerNotApplicableExpressions) {
 }
 
 TEST(EngineGrammarV1_test, NotApplicableIsSkippedByTheEngine) {
-    jf::Engine engine;
+    eng::Engine engine;
     std::string err;
     auto pipeline = engine.parse(
                         EngineGrammarV1::translatePipeline(R"([{"source":"sendseq","target":"response.body.string"}])"_json,
                                 Mode::Server),
                         err);
     ASSERT_NE(pipeline, nullptr) << err;
-    jf::StandaloneContext ctx;
+    eng::StandaloneContext ctx;
     ctx.outBody.raw = "untouched";
-    jf::Ports ports;
+    eng::Ports ports;
     auto r = engine.evaluate(pipeline, ctx, ports, true);
     EXPECT_EQ(ctx.outBody.raw, "untouched");
     EXPECT_FALSE(r.executionTrace[0].applied);
@@ -170,7 +170,7 @@ TEST(EngineGrammarV1_test, NotApplicableIsSkippedByTheEngine) {
 
 namespace {
 
-class MapStore : public jf::Store {
+class MapStore : public eng::Store {
 public:
     std::map<std::string, nlohmann::json> local{}, global{};
     std::optional<nlohmann::json> get(Scope s, const std::string &k, const std::string &ptr) const override {
@@ -200,8 +200,8 @@ public:
 
 struct Replay {
     MapStore store;
-    jf::StandaloneContext ctx;
-    jf::Ports ports;
+    eng::StandaloneContext ctx;
+    eng::Ports ports;
     Replay() {
         store.global["myVault"] = "myVault_value";
         ports.store = &store;
@@ -219,7 +219,7 @@ struct Replay {
     }
     // run one v1 item; returns the response body as h2agent would produce it
     std::string run(const nlohmann::json &v1Item) {
-        jf::Engine engine;
+        eng::Engine engine;
         std::string err;
         auto pipeline =
             engine.parse(EngineGrammarV1::translatePipeline(nlohmann::json::array({v1Item}), Mode::Server), err);

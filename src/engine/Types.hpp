@@ -39,8 +39,8 @@ SOFTWARE.
 #include <utility>
 #include <vector>
 
-namespace ert {
-namespace jsonflow {
+namespace h2agent {
+namespace engine {
 
 /**
  * Neutral read-only view over a message payload (HTTP body, Diameter message,
@@ -59,5 +59,5 @@ struct BodyView {
     std::string raw{};
 };
 
-}  // namespace jsonflow
-}  // namespace ert
+}  // namespace engine
+}  // namespace h2agent

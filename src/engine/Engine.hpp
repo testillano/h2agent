@@ -42,8 +42,8 @@ SOFTWARE.
 #include <string>
 #include <vector>
 
-namespace ert {
-namespace jsonflow {
+namespace h2agent {
+namespace engine {
 
 /** Opaque parsed pipeline (AST). Built once, evaluated many times. */
 class Pipeline;
@@ -99,5 +99,5 @@ public:
                              bool trace = false) const;
 };
 
-}  // namespace jsonflow
-}  // namespace ert
+}  // namespace engine
+}  // namespace h2agent

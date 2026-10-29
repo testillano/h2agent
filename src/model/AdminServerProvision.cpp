@@ -197,7 +197,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     ServerInputDocument input(requestUri, requestUriPath, requestQueryParametersMap, requestBodyDataPart,
                               requestHeaders);
     V1BodyDocument outputView(usesResponseBodyAsTransformationJsonTarget ? responseBodyJson : getResponseBody());
-    ert::jsonflow::EvaluationContext ctx;
+    h2agent::engine::EvaluationContext ctx;
     ctx.input = &input;
     ctx.outputView = &outputView;
     ctx.output = usesResponseBodyAsTransformationJsonTarget ? &responseBodyJson : nullptr;
@@ -221,7 +221,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     EngineShell shell;
     EngineSchemaValidator schemas(admin_data_);
     EngineTrigger trigger(clientProvisionTriggers);
-    ert::jsonflow::Ports ports;
+    h2agent::engine::Ports ports;
     ports.store = &store;
     ports.events = &events;
     ports.files = &files;
@@ -231,7 +231,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     ports.schema = &schemas;
     ports.trigger = &trigger;
 
-    if (engine_pipeline_) ert::jsonflow::Engine{}.evaluate(engine_pipeline_, ctx, ports);
+    if (engine_pipeline_) h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports);
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)
@@ -361,7 +361,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     // Engine pipeline (v1 grammar -> neutral engine grammar, parsed once):
     {
         std::string error;
-        engine_pipeline_ = ert::jsonflow::Engine{}.parse(
+        engine_pipeline_ = h2agent::engine::Engine{}.parse(
                                EngineGrammarV1::translatePipeline(transform_it != j.end() ? *transform_it : nlohmann::json::array(),
                                        EngineGrammarV1::Mode::Server),
                                error);

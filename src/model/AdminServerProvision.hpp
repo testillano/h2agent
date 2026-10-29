@@ -51,9 +51,9 @@ SOFTWARE.
 #include <DataPart.hpp>
 
 
-namespace ert
+namespace h2agent
 {
-namespace jsonflow
+namespace engine
 {
 class Pipeline;
 }
@@ -122,7 +122,7 @@ class AdminServerProvision
     void loadTransformation(const nlohmann::json &j);
 
     std::vector<std::shared_ptr<Transformation>> transformations_{};
-    std::shared_ptr<ert::jsonflow::Pipeline> engine_pipeline_{};  // v1 transform translated + parsed once at load
+    std::shared_ptr<h2agent::engine::Pipeline> engine_pipeline_{};  // v1 transform translated + parsed once at load
 
 
 public:

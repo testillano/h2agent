@@ -325,7 +325,7 @@ std::int64_t EngineClock::nowEpoch(const std::string &unit) const {
     return std::chrono::duration_cast<std::chrono::seconds>(now).count();
 }
 
-ert::jsonflow::Shell::Result EngineShell::run(const std::string &command) {
+h2agent::engine::Shell::Result EngineShell::run(const std::string &command) {
     Result result;
     result.returnCode = -1;  // v1: rare case where popen fails
     FILE *fp = popen(command.c_str(), "r");
@@ -358,11 +358,11 @@ std::optional<nlohmann::json> V1BodyDocument::get(const std::string &pointer) co
     return extract(body_, pointer);
 }
 
-std::optional<nlohmann::json> V1BodyDocument::get(const ert::jsonflow::CompiledPointer &pointer) const {
+std::optional<nlohmann::json> V1BodyDocument::get(const h2agent::engine::CompiledPointer &pointer) const {
     return extractCompiled(body_, pointer.text, pointer.full);
 }
 
-std::optional<nlohmann::json> ServerInputDocument::get(const ert::jsonflow::CompiledPointer &pointer) const {
+std::optional<nlohmann::json> ServerInputDocument::get(const h2agent::engine::CompiledPointer &pointer) const {
     // Same resolution as the text form, without parsing the pointer per event.
     const std::string &head = pointer.head;
     if (head == "body") {

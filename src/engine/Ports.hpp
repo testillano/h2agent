@@ -41,8 +41,8 @@ SOFTWARE.
 #include <string>
 #include <utility>
 
-namespace ert {
-namespace jsonflow {
+namespace h2agent {
+namespace engine {
 
 /**
  * Ports: interfaces the host (e.g. h2agent) implements so the engine core stays
@@ -270,5 +270,5 @@ struct Ports {
     SchemaValidator *schema{nullptr};
 };
 
-}  // namespace jsonflow
-}  // namespace ert
+}  // namespace engine
+}  // namespace h2agent
