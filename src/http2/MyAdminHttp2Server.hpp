@@ -197,8 +197,12 @@ public:
         return common_resources_.MockClientDataPtr;
     }
 
-    void setWaitManager(model::WaitManager *p) { wait_manager_ = p; }
-    void setSseManager(model::SseManager *p) { sse_manager_ = p; }
+    void setWaitManager(model::WaitManager *p) {
+        wait_manager_ = p;
+    }
+    void setSseManager(model::SseManager *p) {
+        sse_manager_ = p;
+    }
 
     /**
      * Registers the SSE handler for /admin/v1/vault/events on the nghttp2 server.
@@ -218,7 +222,7 @@ public:
 
     void recordDispatchLatency(std::chrono::steady_clock::time_point t0) const {
         auto us = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::steady_clock::now() - t0).count();
+                      std::chrono::steady_clock::now() - t0).count();
         dispatch_latency_sum_us_ += us;
         dispatch_latency_count_++;
         uint64_t prev = dispatch_latency_max_us_.load();

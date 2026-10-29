@@ -438,7 +438,7 @@ void MyTrafficHttp2Server::streamClose(const std::uint64_t &receptionId) {
         }
         if (event) {
             auto sendingTimestampUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::system_clock::now().time_since_epoch());
+                                          std::chrono::system_clock::now().time_since_epoch());
             event->setSendingTimestampUs(sendingTimestampUs);
         }
     }

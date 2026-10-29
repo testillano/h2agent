@@ -80,8 +80,12 @@ public:
     Vault();
     ~Vault() = default;
 
-    void setWaitManager(WaitManager *p) { wait_manager_ = p; }
-    void setSseManager(SseManager *p) { sse_manager_ = p; }
+    void setWaitManager(WaitManager *p) {
+        wait_manager_ = p;
+    }
+    void setSseManager(SseManager *p) {
+        sse_manager_ = p;
+    }
 
     /**
      * Loads variable with a json value.

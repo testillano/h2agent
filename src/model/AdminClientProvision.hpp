@@ -167,23 +167,25 @@ class AdminClientProvision
                         bool &breakCondition) const;
 
     void executeOnFilterFail(
-            const std::vector<std::shared_ptr<Transformation>> &fallbacks,
-            TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
-            const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
-            std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
-            const nlohmann::json &requestBodyJson,
-            const ert::http2comm::Http2Client::response *receivedResponse,
-            std::string &requestMethod, std::string &requestUri_out,
-            nlohmann::json &requestBodyJson_out, std::string &requestBody,
-            nghttp2::asio_http2::header_map &requestHeaders_out,
-            unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
-            std::string &outState, bool &breakCondition) const;
+        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+        TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
+        const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
+        std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
+        const nlohmann::json &requestBodyJson,
+        const ert::http2comm::Http2Client::response *receivedResponse,
+        std::string &requestMethod, std::string &requestUri_out,
+        nlohmann::json &requestBodyJson_out, std::string &requestBody,
+        nghttp2::asio_http2::header_map &requestHeaders_out,
+        unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
+        std::string &outState, bool &breakCondition) const;
 
 
 public:
 
     AdminClientProvision();
-    ~AdminClientProvision() { stopTicking(); }
+    ~AdminClientProvision() {
+        stopTicking();
+    }
 
     // transform logic
 
@@ -264,7 +266,9 @@ public:
     /**
      * Check if timer is active
      */
-    bool isTicking() const { return timer_ != nullptr; }
+    bool isTicking() const {
+        return timer_ != nullptr;
+    }
 
     /**
      * Stops timer-based triggering
@@ -518,12 +522,14 @@ public:
      * @return True if any transformation requires stored events
      */
     bool needsStorage() const {
-        for (const auto* vec : {&transformations_, &on_response_transformations_}) {
+        for (const auto* vec : {
+                    &transformations_, &on_response_transformations_
+                }) {
             for (const auto& t : *vec) {
                 auto st = t->getSourceType();
                 auto tt = t->getTargetType();
                 if (st == Transformation::ServerEvent || st == Transformation::ClientEvent ||
-                    tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
+                        tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
                     return true;
             }
         }

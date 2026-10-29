@@ -131,123 +131,123 @@ bool Transformation::load(const nlohmann::json &j) {
         }
         else {
 
-        auto f_it = it->find("RegexCapture");
+            auto f_it = it->find("RegexCapture");
 
-        try {
-            if (f_it != it->end()) {
-                filter_ = *f_it;
-                filter_rgx_.assign(filter_, std::regex::optimize);
-                filter_type_ = FilterType::RegexCapture;
-            }
-            else if ((f_it = it->find("RegexReplace")) != it->end()) {
-                filter_rgx_.assign(std::string(*(f_it->find("rgx"))), std::regex::optimize);
-                filter_ = *(f_it->find("fmt"));
-                filter_type_ = FilterType::RegexReplace;
-            }
-            else if ((f_it = it->find("Append")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::Append;
-                collectFilterPatterns = true;
-            }
-            else if ((f_it = it->find("Prepend")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::Prepend;
-                collectFilterPatterns = true;
-            }
-            else if ((f_it = it->find("Sum")) != it->end()) {
-                if (f_it->is_number_unsigned()) { // first unsigned, because positive would be integer
-                    filter_u_ = *f_it;
-                    filter_number_type_ = 1 ;
+            try {
+                if (f_it != it->end()) {
+                    filter_ = *f_it;
+                    filter_rgx_.assign(filter_, std::regex::optimize);
+                    filter_type_ = FilterType::RegexCapture;
                 }
-                else if (f_it->is_number_integer()) {
-                    filter_i_ = *f_it;
-                    filter_number_type_ = 0 ;
+                else if ((f_it = it->find("RegexReplace")) != it->end()) {
+                    filter_rgx_.assign(std::string(*(f_it->find("rgx"))), std::regex::optimize);
+                    filter_ = *(f_it->find("fmt"));
+                    filter_type_ = FilterType::RegexReplace;
                 }
-                else if (f_it->is_number_float()) {
-                    filter_f_ = *f_it;
-                    filter_number_type_ = 2 ;
+                else if ((f_it = it->find("Append")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_type_ = FilterType::Append;
+                    collectFilterPatterns = true;
                 }
-                filter_type_ = FilterType::Sum;
-            }
-            else if ((f_it = it->find("Multiply")) != it->end()) {
-                if (f_it->is_number_unsigned()) { // first unsigned, because positive would be integer
-                    filter_u_ = *f_it;
-                    filter_number_type_ = 1 ;
+                else if ((f_it = it->find("Prepend")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_type_ = FilterType::Prepend;
+                    collectFilterPatterns = true;
                 }
-                else if (f_it->is_number_integer()) {
-                    filter_i_ = *f_it;
-                    filter_number_type_ = 0 ;
+                else if ((f_it = it->find("Sum")) != it->end()) {
+                    if (f_it->is_number_unsigned()) { // first unsigned, because positive would be integer
+                        filter_u_ = *f_it;
+                        filter_number_type_ = 1 ;
+                    }
+                    else if (f_it->is_number_integer()) {
+                        filter_i_ = *f_it;
+                        filter_number_type_ = 0 ;
+                    }
+                    else if (f_it->is_number_float()) {
+                        filter_f_ = *f_it;
+                        filter_number_type_ = 2 ;
+                    }
+                    filter_type_ = FilterType::Sum;
                 }
-                else if (f_it->is_number_float()) {
-                    filter_f_ = *f_it;
-                    filter_number_type_ = 2 ;
+                else if ((f_it = it->find("Multiply")) != it->end()) {
+                    if (f_it->is_number_unsigned()) { // first unsigned, because positive would be integer
+                        filter_u_ = *f_it;
+                        filter_number_type_ = 1 ;
+                    }
+                    else if (f_it->is_number_integer()) {
+                        filter_i_ = *f_it;
+                        filter_number_type_ = 0 ;
+                    }
+                    else if (f_it->is_number_float()) {
+                        filter_f_ = *f_it;
+                        filter_number_type_ = 2 ;
+                    }
+                    filter_type_ = FilterType::Multiply;
                 }
-                filter_type_ = FilterType::Multiply;
+                else if ((f_it = it->find("ConditionVar")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_type_ = FilterType::ConditionVar;
+                }
+                else if ((f_it = it->find("EqualTo")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_type_ = FilterType::EqualTo;
+                    collectFilterPatterns = true;
+                }
+                else if ((f_it = it->find("DifferentFrom")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_type_ = FilterType::DifferentFrom;
+                    collectFilterPatterns = true;
+                }
+                else if ((f_it = it->find("JsonConstraint")) != it->end()) {
+                    filter_object_ = *f_it;
+                    filter_type_ = FilterType::JsonConstraint;
+                }
+                else if ((f_it = it->find("SchemaId")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_type_ = FilterType::SchemaId;
+                }
+                else if ((f_it = it->find("Split")) != it->end()) {
+                    auto size_it = f_it->find("size");
+                    auto count_it = f_it->find("count");
+                    auto sep_it = f_it->find("sep");
+                    auto filler_it = f_it->find("filler");
+                    auto numeric_it = f_it->find("numeric");
+                    filter_i_ = (size_it != f_it->end()) ? size_it->get<std::int64_t>() : 2;
+                    filter_u_ = (count_it != f_it->end()) ? count_it->get<std::uint64_t>() : 4;
+                    filter_ = (sep_it != f_it->end()) ? sep_it->get<std::string>() : ".";
+                    filter_filler_ = (filler_it != f_it->end()) ? filler_it->get<std::string>() : "0";
+                    filter_number_type_ = (numeric_it != f_it->end() && numeric_it->get<bool>()) ? 1 : 0;
+                    filter_type_ = FilterType::Split;
+                }
+                else if ((f_it = it->find("BaseConvert")) != it->end()) {
+                    filter_i_ = f_it->find("in")->get<std::int64_t>();
+                    filter_u_ = f_it->find("out")->get<std::uint64_t>();
+                    auto capital_it = f_it->find("capital");
+                    filter_number_type_ = (capital_it != f_it->end() && capital_it->get<bool>()) ? 1 : 0;
+                    filter_type_ = FilterType::BaseConvert;
+                }
+                else if ((f_it = it->find("Strptime")) != it->end()) {
+                    filter_ = f_it->find("fmt")->get<std::string>();
+                    std::string unit = (f_it->find("unit") != f_it->end()) ? f_it->find("unit")->get<std::string>() : "s";
+                    filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
+                    filter_type_ = FilterType::FStrptime;
+                }
+                else if ((f_it = it->find("Strftime")) != it->end()) {
+                    filter_ = f_it->find("fmt")->get<std::string>();
+                    std::string unit = (f_it->find("unit") != f_it->end()) ? f_it->find("unit")->get<std::string>() : "s";
+                    filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
+                    filter_type_ = FilterType::FStrftime;
+                }
+                else if ((f_it = it->find("RegexKey")) != it->end()) {
+                    filter_ = *f_it;
+                    filter_rgx_.assign(filter_, std::regex::optimize);
+                    filter_type_ = FilterType::RegexKey;
+                }
             }
-            else if ((f_it = it->find("ConditionVar")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::ConditionVar;
+            catch (std::regex_error &e) {
+                ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
+                return false;
             }
-            else if ((f_it = it->find("EqualTo")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::EqualTo;
-                collectFilterPatterns = true;
-            }
-            else if ((f_it = it->find("DifferentFrom")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::DifferentFrom;
-                collectFilterPatterns = true;
-            }
-            else if ((f_it = it->find("JsonConstraint")) != it->end()) {
-                filter_object_ = *f_it;
-                filter_type_ = FilterType::JsonConstraint;
-            }
-            else if ((f_it = it->find("SchemaId")) != it->end()) {
-                filter_ = *f_it;
-                filter_type_ = FilterType::SchemaId;
-            }
-            else if ((f_it = it->find("Split")) != it->end()) {
-                auto size_it = f_it->find("size");
-                auto count_it = f_it->find("count");
-                auto sep_it = f_it->find("sep");
-                auto filler_it = f_it->find("filler");
-                auto numeric_it = f_it->find("numeric");
-                filter_i_ = (size_it != f_it->end()) ? size_it->get<std::int64_t>() : 2;
-                filter_u_ = (count_it != f_it->end()) ? count_it->get<std::uint64_t>() : 4;
-                filter_ = (sep_it != f_it->end()) ? sep_it->get<std::string>() : ".";
-                filter_filler_ = (filler_it != f_it->end()) ? filler_it->get<std::string>() : "0";
-                filter_number_type_ = (numeric_it != f_it->end() && numeric_it->get<bool>()) ? 1 : 0;
-                filter_type_ = FilterType::Split;
-            }
-            else if ((f_it = it->find("BaseConvert")) != it->end()) {
-                filter_i_ = f_it->find("in")->get<std::int64_t>();
-                filter_u_ = f_it->find("out")->get<std::uint64_t>();
-                auto capital_it = f_it->find("capital");
-                filter_number_type_ = (capital_it != f_it->end() && capital_it->get<bool>()) ? 1 : 0;
-                filter_type_ = FilterType::BaseConvert;
-            }
-            else if ((f_it = it->find("Strptime")) != it->end()) {
-                filter_ = f_it->find("fmt")->get<std::string>();
-                std::string unit = (f_it->find("unit") != f_it->end()) ? f_it->find("unit")->get<std::string>() : "s";
-                filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
-                filter_type_ = FilterType::FStrptime;
-            }
-            else if ((f_it = it->find("Strftime")) != it->end()) {
-                filter_ = f_it->find("fmt")->get<std::string>();
-                std::string unit = (f_it->find("unit") != f_it->end()) ? f_it->find("unit")->get<std::string>() : "s";
-                filter_number_type_ = (unit == "ms") ? 1 : (unit == "us") ? 2 : (unit == "ns") ? 3 : 0;
-                filter_type_ = FilterType::FStrftime;
-            }
-            else if ((f_it = it->find("RegexKey")) != it->end()) {
-                filter_ = *f_it;
-                filter_rgx_.assign(filter_, std::regex::optimize);
-                filter_type_ = FilterType::RegexKey;
-            }
-        }
-        catch (std::regex_error &e) {
-            ert::tracing::Logger::error(e.what(), ERT_FILE_LOCATION);
-            return false;
-        }
         } // else (object filters)
     }
 
@@ -398,8 +398,8 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "requestMethod", "requestUri", "eventNumber", "eventPath", "recvseq", "requestUriStartsWith"
-    }) { // tokenized vector order
+                    "requestMethod", "requestUri", "eventNumber", "eventPath", "recvseq", "requestUriStartsWith"
+                }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
@@ -410,8 +410,8 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(source_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath", "sendseq", "requestUriStartsWith"
-    }) { // tokenized vector order
+                    "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "eventPath", "sendseq", "requestUriStartsWith"
+                }) { // tokenized vector order
             it = qmap.find(qp);
             source_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
@@ -714,8 +714,8 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "requestMethod", "requestUri", "eventNumber", "recvseq"
-    }) { // tokenized vector order
+                    "requestMethod", "requestUri", "eventNumber", "recvseq"
+                }) { // tokenized vector order
             it = qmap.find(qp);
             target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }
@@ -726,8 +726,8 @@ bool Transformation::load(const nlohmann::json &j) {
         std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(target_);
         std::map<std::string, std::string>::const_iterator it;
         for (auto const & qp: {
-        "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "sendseq"
-    }) { // tokenized vector order
+                    "clientEndpointId", "requestMethod", "requestUri", "eventNumber", "sendseq"
+                }) { // tokenized vector order
             it = qmap.find(qp);
             target_tokenized_.push_back((it != qmap.end()) ? it->second:"");
         }

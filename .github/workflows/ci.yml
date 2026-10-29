@@ -38,13 +38,13 @@ jobs:
       name: Check out the repo
       uses: actions/checkout@v4
     -
-      name: Run frankwolf format
-      run: |
-          sources=$(find . -name "*.hpp" -o -name "*.cpp")
-          #docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
-          #git diff --exit-code
-          # docker cannot write on host directory:
-          ! docker run -i --rm -v $PWD:/data frankwolf/astyle --dry-run ${sources} | grep ^Formatted
+      name: Install astyle
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq astyle && astyle --version
+    -
+      name: Check format (astyle)
+      # Fails (exit 1) listing the files to format; former frankwolf/astyle image is gone
+      # and its '! docker run ... | grep' check passed silently when the pull failed.
+      run: ./format.sh --check
 
   build_and_push_docker_images_as_local:
     needs: format_style

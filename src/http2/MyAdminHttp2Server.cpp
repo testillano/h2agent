@@ -597,7 +597,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (std::regex_match(pathSuffix, matches, vaultWait)) { // vault/<key>/wait
-        if (!wait_manager_) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
+        if (!wait_manager_) {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
+            return;
+        }
 
         std::string targetValueStr = "";
         std::string timeoutMsStr = "";
@@ -820,12 +823,18 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server/configuration") {
-        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
+        if (!getHttp2Server()) {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
+            return;
+        }
         responseBody = getHttp2Server()->configurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-data/configuration") {
-        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
+        if (!getHttp2Server()) {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
+            return;
+        }
         responseBody = getHttp2Server()->dataConfigurationAsJsonString();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
@@ -1026,7 +1035,10 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         //);
     }
     else if (pathSuffix == "server/configuration") {
-        if (!getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
+        if (!getHttp2Server()) {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
+            return;
+        }
         std::string receiveRequestBody;
         std::string preReserveRequestBody;
 
@@ -1087,7 +1099,10 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         }
 
         bool serverMode = (pathSuffix == "server-data/configuration"); // true: server mode, false: client mode
-        if (serverMode && !getHttp2Server()) { statusCode = ert::http2comm::ResponseCode::NOT_FOUND; return; }
+        if (serverMode && !getHttp2Server()) {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
+            return;
+        }
         const char *mode = (serverMode ? "server":"client");
 
         if (success) {
@@ -1120,8 +1135,8 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         // Warning when disabling storage but provisions need it
         if (success && b_discard) {
             bool provisionsNeedStorage = serverMode ?
-                getAdminData()->getServerProvisionData().needsStorage() :
-                getAdminData()->getClientProvisionData().needsStorage();
+                                         getAdminData()->getServerProvisionData().needsStorage() :
+                                         getAdminData()->getClientProvisionData().needsStorage();
             if (provisionsNeedStorage) {
                 std::string warning = "active provisions require storeEvents (serverEvent/clientEvent references found)";
                 LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
@@ -1265,133 +1280,133 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     std::string clientEndpointId = provision->getClientEndpointId();
 
     client->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
-        [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys](ert::http2comm::Http2Client::response response) {
+    [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys](ert::http2comm::Http2Client::response response) {
 
-            // Apply on-response transformations (may update outState)
-            std::string finalOutState = outState;
-            const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
-            auto provision = provisionData.find(inState, clientProvisionId);
-            bool responseValidationOk = true;
-            if (provision) {
-                responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq);
-            }
+        // Apply on-response transformations (may update outState)
+        std::string finalOutState = outState;
+        const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
+        auto provision = provisionData.find(inState, clientProvisionId);
+        bool responseValidationOk = true;
+        if (provision) {
+            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq);
+        }
 
-            // Provisioned request counter
-            if (response.statusCode > 0) client->incrementProvisionedRequestsSuccessful();
-            else client->incrementProvisionedRequestsFailed();
+        // Provisioned request counter
+        if (response.statusCode > 0) client->incrementProvisionedRequestsSuccessful();
+        else client->incrementProvisionedRequestsFailed();
 
-            // Break chain on transport errors (timeout, connection error, request
-            // unsent, etc.: statusCode <= 0). The chain cannot progress without a
-            // real answer, so it stops here -- but the failed step MUST still be
-            // recorded, otherwise the flow would end silently with no trace in
-            // client-data (the step would appear stuck as 'unsent' and the failure
-            // would be invisible). Store the event (with its error statusCode) first,
-            // then break.
-            if (response.statusCode <= 0) {
-                if (client_data_) {
-                    h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
-                    h2agent::model::DataPart responseBodyDataPart(response.body);
-                    getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
-                }
-                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Transport error (statusCode %d) sending client provision '%s': chain interrupted", response.statusCode, clientProvisionId.c_str()), ERT_FILE_LOCATION));
-                return;
-            }
-
-            // Response validation counters
-            if (!responseValidationOk) {
-                client->incrementUnexpectedResponseStatusCode();
-            }
-
-            // Store event
+        // Break chain on transport errors (timeout, connection error, request
+        // unsent, etc.: statusCode <= 0). The chain cannot progress without a
+        // real answer, so it stops here -- but the failed step MUST still be
+        // recorded, otherwise the flow would end silently with no trace in
+        // client-data (the step would appear stuck as 'unsent' and the failure
+        // would be invisible). Store the event (with its error statusCode) first,
+        // then break.
+        if (response.statusCode <= 0) {
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 h2agent::model::DataPart responseBodyDataPart(response.body);
                 getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+            }
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Transport error (statusCode %d) sending client provision '%s': chain interrupted", response.statusCode, clientProvisionId.c_str()), ERT_FILE_LOCATION));
+            return;
+        }
 
-                // Accumulate purge key for chain-aware purge:
-                if (purgeKeys) {
-                    purgeKeys->push_back({dataKey, sendSeq});
+        // Response validation counters
+        if (!responseValidationOk) {
+            client->incrementUnexpectedResponseStatusCode();
+        }
+
+        // Store event
+        if (client_data_) {
+            h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
+            h2agent::model::DataPart responseBodyDataPart(response.body);
+            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+
+            // Accumulate purge key for chain-aware purge:
+            if (purgeKeys) {
+                purgeKeys->push_back({dataKey, sendSeq});
+            }
+        }
+
+        // Chain break on validation failure
+        if (!responseValidationOk) {
+            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Response validation failed for provision '%s': chain interrupted", clientProvisionId.c_str()), ERT_FILE_LOCATION));
+            return;
+        }
+
+        // Purge
+        if (purge_execution_ && finalOutState == "purge") {
+            bool somethingDeleted = false;
+
+            // Purge all accumulated chain events (event-level by sendSeq):
+            if (purgeKeys) {
+                for (const auto& [dk, seq] : *purgeKeys) {
+                    somethingDeleted |= getMockClientData()->removeEventBySendSeq(dk, seq);
                 }
             }
 
-            // Chain break on validation failure
-            if (!responseValidationOk) {
-                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Response validation failed for provision '%s': chain interrupted", clientProvisionId.c_str()), ERT_FILE_LOCATION));
-                return;
-            }
+            // Always purge current event too:
+            h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
+            somethingDeleted |= getMockClientData()->removeEventBySendSeq(dataKey, sendSeq);
 
-            // Purge
-            if (purge_execution_ && finalOutState == "purge") {
-                bool somethingDeleted = false;
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Client chain purge (%d events): %s", (int)(purgeKeys ? purgeKeys->size() : 0) + 1, somethingDeleted ? "successful":"nothing to delete"), ERT_FILE_LOCATION));
+            if (somethingDeleted) client->incrementPurgedContextsSuccessful();
+            else client->incrementPurgedContextsFailed();
+        }
+        // State progression
+        else if (!finalOutState.empty() && finalOutState != inState) {
+            auto nextProvision = provisionData.find(finalOutState, clientProvisionId);
+            if (nextProvision) {
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
+                nextProvision->setSeq(provisionSeq); // propagate sequence through chain
 
-                // Purge all accumulated chain events (event-level by sendSeq):
-                if (purgeKeys) {
-                    for (const auto& [dk, seq] : *purgeKeys) {
-                        somethingDeleted |= getMockClientData()->removeEventBySendSeq(dk, seq);
+                // Honor the next link's own client-endpoint (routing is driven by
+                // the 'clientEndpoint' argument, not by the stored clientEndpointId).
+                // The 'endpoint' field is optional per schema, so three cases apply:
+                //   - link declares no endpoint      -> inherit current (legitimate, silent).
+                //   - link declares a valid endpoint -> re-resolve and route there.
+                //   - link declares an unknown one   -> inherit current + warn (suspicious config).
+                auto nextEndpoint = clientEndpoint;
+                const std::string &nextId = nextProvision->getClientEndpointId();
+                if (!nextId.empty()) {
+                    auto resolved = getAdminData()->getClientEndpointData().find(nextId);
+                    if (resolved && resolved->getPermit()) {
+                        nextEndpoint = resolved;
+                    } else {
+                        LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Chain link outState '%s' references client endpoint '%s' not found/disabled; inheriting previous endpoint", finalOutState.c_str(), nextId.c_str()), ERT_FILE_LOCATION));
                     }
                 }
 
-                // Always purge current event too:
-                h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
-                somethingDeleted |= getMockClientData()->removeEventBySendSeq(dataKey, sendSeq);
-
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Client chain purge (%d events): %s", (int)(purgeKeys ? purgeKeys->size() : 0) + 1, somethingDeleted ? "successful":"nothing to delete"), ERT_FILE_LOCATION));
-                if (somethingDeleted) client->incrementPurgedContextsSuccessful();
-                else client->incrementPurgedContextsFailed();
-            }
-            // State progression
-            else if (!finalOutState.empty() && finalOutState != inState) {
-                auto nextProvision = provisionData.find(finalOutState, clientProvisionId);
-                if (nextProvision) {
-                    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
-                    nextProvision->setSeq(provisionSeq); // propagate sequence through chain
-
-                    // Honor the next link's own client-endpoint (routing is driven by
-                    // the 'clientEndpoint' argument, not by the stored clientEndpointId).
-                    // The 'endpoint' field is optional per schema, so three cases apply:
-                    //   - link declares no endpoint      -> inherit current (legitimate, silent).
-                    //   - link declares a valid endpoint -> re-resolve and route there.
-                    //   - link declares an unknown one   -> inherit current + warn (suspicious config).
-                    auto nextEndpoint = clientEndpoint;
-                    const std::string &nextId = nextProvision->getClientEndpointId();
-                    if (!nextId.empty()) {
-                        auto resolved = getAdminData()->getClientEndpointData().find(nextId);
-                        if (resolved && resolved->getPermit()) {
-                            nextEndpoint = resolved;
-                        } else {
-                            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Chain link outState '%s' references client endpoint '%s' not found/disabled; inheriting previous endpoint", finalOutState.c_str(), nextId.c_str()), ERT_FILE_LOCATION));
-                        }
-                    }
-
-                    // Chain continuation ownership note:
-                    // This callback runs on the connection's own io_context
-                    // thread, and it holds the last-but-one reference to the
-                    // client endpoint (the admin container may drop its own
-                    // reference concurrently, e.g. on DELETE /client-endpoint).
-                    // Running the next step INLINE here means that, when this
-                    // lambda finally returns and its captured shared_ptr is
-                    // released, the endpoint (hence its Http2Connection) could be
-                    // destroyed from within its OWN io_context thread -- an
-                    // unsafe teardown (join-from-self / session shutdown races).
-                    // Posting the continuation to the worker pool moves both the
-                    // execution and the final shared_ptr release off the io
-                    // thread, so any endpoint destruction happens on a worker
-                    // thread instead. Falls back to inline only when no pool is
-                    // configured (single-threaded client mode).
-                    if (client_worker_io_context_) {
-                        postToPool([this, nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys]() {
-                            sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
-                        });
-                    }
-                    else {
+                // Chain continuation ownership note:
+                // This callback runs on the connection's own io_context
+                // thread, and it holds the last-but-one reference to the
+                // client endpoint (the admin container may drop its own
+                // reference concurrently, e.g. on DELETE /client-endpoint).
+                // Running the next step INLINE here means that, when this
+                // lambda finally returns and its captured shared_ptr is
+                // released, the endpoint (hence its Http2Connection) could be
+                // destroyed from within its OWN io_context thread -- an
+                // unsafe teardown (join-from-self / session shutdown races).
+                // Posting the continuation to the worker pool moves both the
+                // execution and the final shared_ptr release off the io
+                // thread, so any endpoint destruction happens on a worker
+                // thread instead. Falls back to inline only when no pool is
+                // configured (single-threaded client mode).
+                if (client_worker_io_context_) {
+                    postToPool([this, nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys]() {
                         sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
-                    }
+                    });
+                }
+                else {
+                    sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
                 }
             }
-        },
-        std::chrono::milliseconds(requestTimeoutMs == 0 ? 1000 : requestTimeoutMs), // 0 means unset: default to 1 second (aligned with Http2Client::asyncSend default)
-        std::chrono::milliseconds(requestDelayMs)
-    );
+        }
+    },
+    std::chrono::milliseconds(requestTimeoutMs == 0 ? 1000 : requestTimeoutMs), // 0 means unset: default to 1 second (aligned with Http2Client::asyncSend default)
+    std::chrono::milliseconds(requestDelayMs)
+                     );
 }
 
 void MyAdminHttp2Server::triggerClientProvision(const std::string &clientProvisionId, const std::string &inState) const {
@@ -1538,7 +1553,7 @@ void MyAdminHttp2Server::registerHandlers() {
     std::string apiPath = getApiPath(); // e.g. "/admin/v1"
 
     server_.handle(apiPath + "/vault/events", [this](const nghttp2::asio_http2::server::request &req,
-                                                      const nghttp2::asio_http2::server::response &res) {
+    const nghttp2::asio_http2::server::response &res) {
         LOGDEBUG(ert::tracing::Logger::debug("SSE handler invoked", ERT_FILE_LOCATION));
         // Parse key= query parameters from URI
         std::unordered_set<std::string> keys;
@@ -1578,17 +1593,17 @@ void MyAdminHttp2Server::registerHandlers() {
         // Register SSE connection: on notify, buffer data and resume stream
         auto sse_manager = sse_manager_;
         uint64_t connId = sse_manager_->addConnection(std::move(keys),
-            [buffer, buffer_mutex, &res](const std::string &data) {
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("SSE notify callback: buffering %zu bytes", data.size()), ERT_FILE_LOCATION));
-                {
-                    std::lock_guard<std::mutex> lock(*buffer_mutex);
-                    buffer->append(data);
-                }
-                // resume() must run on the nghttp2 event loop thread
-                boost::asio::post(ert::http2comm::asio_compat::io_context(res), [&res] {
-                    res.resume();
-                });
+        [buffer, buffer_mutex, &res](const std::string &data) {
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("SSE notify callback: buffering %zu bytes", data.size()), ERT_FILE_LOCATION));
+            {
+                std::lock_guard<std::mutex> lock(*buffer_mutex);
+                buffer->append(data);
+            }
+            // resume() must run on the nghttp2 event loop thread
+            boost::asio::post(ert::http2comm::asio_compat::io_context(res), [&res] {
+                res.resume();
             });
+        });
 
         // On stream close, remove the connection
         res.on_close([sse_manager, connId](uint32_t) {

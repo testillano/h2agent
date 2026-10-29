@@ -30,14 +30,16 @@ It would be also good to check the [demo](./README.md#demo) and [benchmark](./RE
 
 ### Source style format
 
-Please, execute `astyle` formatting (using [frankwolf image](https://hub.docker.com/r/frankwolf/astyle)):
+Please, execute `astyle` formatting (Artistic Style 3.1, default style, the same version used by CI):
 
 ```bash
-$ sources=$(find . -name "*.hpp" -o -name "*.cpp")
-$ docker run -i --rm -v $PWD:/data frankwolf/astyle ${sources}
+$ ./format.sh          # formats sources in place
+$ ./format.sh --check  # only lists files to format (exit 1 if any), as CI does
 ```
 
-*Note*: if your are using `./build.sh` script to build the source, <u>this formatting procedure is automatic</u>.
+The script uses a native `astyle` 3.1 when available, or runs it inside the `ubuntu:24.04` base image otherwise (files are written as the current user).
+
+*Note*: if your are using `./build.sh` script to build the image, <u>this formatting procedure is automatic</u>.
 
 ## Commit and push
 

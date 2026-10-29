@@ -37,7 +37,7 @@ protected:
     void SetUp() override {
         admin_server_ = std::make_unique<http2::MyAdminHttp2Server>("test_admin", 1);
         traffic_server_ = std::make_unique<http2::MyTrafficHttp2Server>(
-            "test_traffic", 1, 1, &io_context_, -1);
+                              "test_traffic", 1, 1, &io_context_, -1);
 
         configuration_ = std::make_unique<model::Configuration>();
         vault_ = std::make_unique<model::Vault>();

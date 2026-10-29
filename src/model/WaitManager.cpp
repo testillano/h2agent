@@ -45,8 +45,8 @@ namespace model
 {
 
 bool WaitManager::waitForVault(const std::string &key, const nlohmann::json &targetValue,
-                                        unsigned int timeoutMs,
-                                        nlohmann::json &resultValue, nlohmann::json &previousValue) {
+                               unsigned int timeoutMs,
+                               nlohmann::json &resultValue, nlohmann::json &previousValue) {
 
     timeoutMs = std::min(timeoutMs, MAX_TIMEOUT_MS);
 

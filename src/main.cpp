@@ -1066,7 +1066,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
     std::cout << "Traffic client connections: " << myConfiguration->getTrafficClientConnections() << '\n';
-    std::cout << "Traffic client worker threads: " << traffic_client_worker_threads_pool << (traffic_client_worker_threads_pool == 0 ? " (disabled)" : "") << '\n';
+    std::cout << "Traffic client worker threads: " << traffic_client_worker_threads_pool << (traffic_client_worker_threads_pool == 0 ? " (disabled)" : ""
+                                      ) << '\n';
 
     // Flush:
     std::cout << std::endl;
@@ -1078,7 +1079,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // Prometheus
     myMetrics = (disable_metrics ? nullptr:new ert::metrics::Metrics);
     if (myMetrics) {
-        std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
+    std::string bind_address_port_prometheus_exposer = bind_address_prometheus_exposer + std::string(":") + prometheus_port;
         if(!myMetrics->serve(bind_address_port_prometheus_exposer)) {
             std::cerr << currentDateTime() << ": Initialization error in prometheus interface (" << bind_address_port_prometheus_exposer << "). Exiting ..." << '\n';
             myExit(EXIT_FAILURE);
@@ -1118,9 +1119,9 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> clientWorkerPoolWork;
     std::vector<std::thread> clientWorkerPoolThreads;
     if (traffic_client_worker_threads_pool > 0) {
-        myClientWorkerIoContext = new boost::asio::io_context();
+    myClientWorkerIoContext = new boost::asio::io_context();
         clientWorkerPoolWork = std::make_unique<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
-            boost::asio::make_work_guard(*myClientWorkerIoContext));
+                                   boost::asio::make_work_guard(*myClientWorkerIoContext));
         for (int i = 0; i < traffic_client_worker_threads_pool; i++) {
             clientWorkerPoolThreads.emplace_back([&] {
                 myClientWorkerIoContext->run();
@@ -1151,7 +1152,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     // Traffic server
     if (traffic_server_enabled) {
-        myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server("h2agent_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
+    myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server("h2agent_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
         myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name/*source label*/);
         myTrafficHttp2Server->enableMyMetrics(myMetrics, application_name/*source label*/);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
@@ -1182,7 +1183,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     bool success = false;
 
     if (schema_file != "") {
-        success = h2agent::model::getFileContent(schema_file, fileContent);
+    success = h2agent::model::getFileContent(schema_file, fileContent);
         std::string log = "Schema configuration load failed and will be ignored";
         if (success)
             success = h2agent::model::parseJsonContent(fileContent, jsonObject);
@@ -1200,8 +1201,8 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // Traffic configuration
     if (traffic_server_enabled) {
 
-        // Matching configuration
-        if (traffic_server_matching_file != "") {
+    // Matching configuration
+    if (traffic_server_matching_file != "") {
             success = h2agent::model::getFileContent(traffic_server_matching_file, fileContent);
             std::string log = "Server matching configuration load failed and will be ignored";
             if (success)
@@ -1257,7 +1258,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     // Client configuration
     if (traffic_client_endpoint_file != "") {
-        success = h2agent::model::getFileContent(traffic_client_endpoint_file, fileContent);
+    success = h2agent::model::getFileContent(traffic_client_endpoint_file, fileContent);
         std::string log = "Client endpoint configuration load failed and will be ignored";
         if (success)
             success = h2agent::model::parseJsonContent(fileContent, jsonObject);
@@ -1273,7 +1274,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     }
 
     if (traffic_client_provision_file != "") {
-        success = h2agent::model::getFileContent(traffic_client_provision_file, fileContent);
+    success = h2agent::model::getFileContent(traffic_client_provision_file, fileContent);
         std::string log = "Client provision configuration load failed and will be ignored";
         if (success)
             success = h2agent::model::parseJsonContent(fileContent, jsonObject);
@@ -1293,7 +1294,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     // myTrafficHttp2Server is already referenced in the admin server (set within the
     // traffic server creation block above), so the vault object is accessible here:
     if (vault_file != "") {
-        success = h2agent::model::getFileContent(vault_file, fileContent);
+    success = h2agent::model::getFileContent(vault_file, fileContent);
         std::string log = "Vault configuration load failed and will be ignored";
         if (success)
             success = h2agent::model::parseJsonContent(fileContent, jsonObject);
@@ -1310,7 +1311,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
 
     // Associate data containers:
     if (traffic_server_enabled) {
-        myTrafficHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
+    myTrafficHttp2Server->setAdminData(myAdminHttp2Server->getAdminData()); // to retrieve mock behaviour configuration
         myTrafficHttp2Server->setClientProvisionTrigger([](const std::string &clientProvisionId, const std::string &inState) {
             myAdminHttp2Server->triggerClientProvision(clientProvisionId, inState);
         });
@@ -1323,18 +1324,18 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     }
 
     if (hasPEMpasswordPrompt) {
-        std::cout << "You MUST wait for both 'PEM pass phrase' prompts (10 seconds between them) ..." << '\n';
-        std::cout << "To avoid these prompts, you may provide '--server-key-password':" << '\n';
-    }
+    std::cout << "You MUST wait for both 'PEM pass phrase' prompts (10 seconds between them) ..." << '\n';
+    std::cout << "To avoid these prompts, you may provide '--server-key-password':" << '\n';
+}
 
-    int rc1 = EXIT_SUCCESS;
-    int rc2 = EXIT_SUCCESS;
-    std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", ADMIN_NGHTTP2_SERVER_THREADS);});
+int rc1 = EXIT_SUCCESS;
+int rc2 = EXIT_SUCCESS;
+std::thread t1([&] { rc1 = myAdminHttp2Server->serve(bind_address, admin_port, admin_secured ? traffic_server_key_file:"", admin_secured ? traffic_server_crt_file:"", ADMIN_NGHTTP2_SERVER_THREADS);});
 
     if (hasPEMpasswordPrompt) std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // This sleep is to separate prompts and allow cin to get both of them.
-    // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
+        // This is weird ! So, --server-key-password SHOULD BE PROVIDED for TLS/SSL
 
-    std::thread t2([&] {
+        std::thread t2([&] {
         if (myTrafficHttp2Server) {
             rc2 = myTrafficHttp2Server->serve(bind_address, traffic_server_port, traffic_server_key_file, traffic_server_crt_file, traffic_server_io_threads);
         }
@@ -1346,17 +1347,17 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     if (rc1 != EXIT_SUCCESS) myExit(rc1);
     if (rc2 != EXIT_SUCCESS) myExit(rc2);
 
-    // Join timers thread
-    tt.join();
+        // Join timers thread
+        tt.join();
 
-    // Join client worker pool threads
-    clientWorkerPoolWork.reset(); // release work guard so threads can exit
-    for (auto& t : clientWorkerPoolThreads) t.join();
+        // Join client worker pool threads
+        clientWorkerPoolWork.reset(); // release work guard so threads can exit
+for (auto& t : clientWorkerPoolThreads) t.join();
 
-    // Join synchronous nghttp2 serve() threads
-    t1.join();
-    t2.join();
+            // Join synchronous nghttp2 serve() threads
+            t1.join();
+            t2.join();
 
-    myExit(EXIT_SUCCESS);
-}
+            myExit(EXIT_SUCCESS);
+        }
 

@@ -185,11 +185,11 @@ void sweep(std::size_t rounds, std::size_t repeats, unsigned readPct, unsigned h
         }
     }
     std::cout << "\nInterpretation: MockData traffic is READ-HEAVY (transformations read past\n"
-                 "events). shared_mutex reads already run concurrently, so a high READ_PCT\n"
-                 "leaves little single-mutex contention for sharding to remove -- expect a\n"
-                 "SMALLER win than Vault (which is write-per-key). A high HOT_PCT pins load on\n"
-                 "one shard, further limiting the gain. Sharding MockData is only worth it if a\n"
-                 "realistic mix here shows a clear, consistent speedup.\n";
+              "events). shared_mutex reads already run concurrently, so a high READ_PCT\n"
+              "leaves little single-mutex contention for sharding to remove -- expect a\n"
+              "SMALLER win than Vault (which is write-per-key). A high HOT_PCT pins load on\n"
+              "one shard, further limiting the gain. Sharding MockData is only worth it if a\n"
+              "realistic mix here shows a clear, consistent speedup.\n";
 }
 
 }  // namespace

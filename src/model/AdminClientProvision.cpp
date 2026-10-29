@@ -154,17 +154,17 @@ void AdminClientProvision::saveDynamics() const {
 }
 
 void AdminClientProvision::executeOnFilterFail(
-        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
-        TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
-        const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
-        std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
-        const nlohmann::json &requestBodyJson,
-        const ert::http2comm::Http2Client::response *receivedResponse,
-        std::string &requestMethod, std::string &requestUri_out,
-        nlohmann::json &requestBodyJson_out, std::string &requestBody,
-        nghttp2::asio_http2::header_map &requestHeaders_out,
-        unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
-        std::string &outState, bool &breakCondition) const {
+    const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+    TypeConverter &sourceVault, std::map<std::string, std::string> &variables,
+    const std::string &requestUri, const nghttp2::asio_http2::header_map &requestHeaders,
+    std::uint64_t sendSeq, bool usesRequestBodyAsTransformationJsonTarget,
+    const nlohmann::json &requestBodyJson,
+    const ert::http2comm::Http2Client::response *receivedResponse,
+    std::string &requestMethod, std::string &requestUri_out,
+    nlohmann::json &requestBodyJson_out, std::string &requestBody,
+    nghttp2::asio_http2::header_map &requestHeaders_out,
+    unsigned int &requestDelayMs, unsigned int &requestTimeoutMs,
+    std::string &outState, bool &breakCondition) const {
 
     for (const auto &fallback : fallbacks) {
         bool fbEraser = false;
@@ -302,66 +302,66 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
 
     if (!on_response_transformations_.empty()) {
 
-    // Scoped variables: update reserved read-only variable
-    variables["sequence"] = std::to_string(seq >= 0 ? seq : seq_.load());
+        // Scoped variables: update reserved read-only variable
+        variables["sequence"] = std::to_string(seq >= 0 ? seq : seq_.load());
 
-    // Type converter:
-    TypeConverter sourceVault{};
+        // Type converter:
+        TypeConverter sourceVault{};
 
-    // Dummy request body json (not modified in response phase, but needed by processSources signature)
-    nlohmann::json dummyRequestBodyJson;
+        // Dummy request body json (not modified in response phase, but needed by processSources signature)
+        nlohmann::json dummyRequestBodyJson;
 
-    // Apply transformations sequentially
-    bool breakCondition = false;
-    for (const auto &transformation : on_response_transformations_) {
+        // Apply transformations sequentially
+        bool breakCondition = false;
+        for (const auto &transformation : on_response_transformations_) {
 
-        if (breakCondition) break;
+            if (breakCondition) break;
 
-        bool eraser = false;
+            bool eraser = false;
 
-        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing on-response transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Processing on-response transformation item: %s", transformation->asString().c_str()), ERT_FILE_LOCATION));
 
-        // SOURCES (with response context)
-        if (!processSources(transformation, sourceVault, variables, requestUri, requestHeaders, eraser, sendSeq, false, dummyRequestBodyJson, &receivedResponse)) {
-            LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
-            continue;
-        }
+            // SOURCES (with response context)
+            if (!processSources(transformation, sourceVault, variables, requestUri, requestHeaders, eraser, sendSeq, false, dummyRequestBodyJson, &receivedResponse)) {
+                LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on source", ERT_FILE_LOCATION));
+                continue;
+            }
 
-        std::smatch matches;
-        std::string source;
+            std::smatch matches;
+            std::string source;
 
-        // FILTERS
-        bool hasFilter = transformation->hasFilter();
-        if (hasFilter) {
-            if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
-                LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
-                if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
+            // FILTERS
+            bool hasFilter = transformation->hasFilter();
+            if (hasFilter) {
+                if (eraser || !processFilters(transformation, sourceVault, variables, matches, source)) {
+                    LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on filter", ERT_FILE_LOCATION));
+                    if (eraser) LOGWARNING(ert::tracing::Logger::warning("Filter is not allowed when using 'eraser' source type. Transformation will be ignored.", ERT_FILE_LOCATION));
 
-                // onFilterFail:
-                {
-                    nlohmann::json dummyJson2;
-                    std::string dummyString2, dummyMethod2, dummyUri2;
-                    nghttp2::asio_http2::header_map dummyHeaders2;
-                    unsigned int dummyDelayMs2 = 0, dummyTimeoutMs2 = 0;
-                    executeOnFilterFail(transformation->getOnFilterFail(), sourceVault, variables, requestUri, requestHeaders, sendSeq, false, dummyRequestBodyJson, &receivedResponse, dummyMethod2, dummyUri2, dummyJson2, dummyString2, dummyHeaders2, dummyDelayMs2, dummyTimeoutMs2, outState, breakCondition);
+                    // onFilterFail:
+                    {
+                        nlohmann::json dummyJson2;
+                        std::string dummyString2, dummyMethod2, dummyUri2;
+                        nghttp2::asio_http2::header_map dummyHeaders2;
+                        unsigned int dummyDelayMs2 = 0, dummyTimeoutMs2 = 0;
+                        executeOnFilterFail(transformation->getOnFilterFail(), sourceVault, variables, requestUri, requestHeaders, sendSeq, false, dummyRequestBodyJson, &receivedResponse, dummyMethod2, dummyUri2, dummyJson2, dummyString2, dummyHeaders2, dummyDelayMs2, dummyTimeoutMs2, outState, breakCondition);
+                    }
+
+                    continue;
                 }
-
+            }
+            // We reuse processTargets with dummy request body params
+            nlohmann::json dummyJson;
+            std::string dummyString;
+            std::string dummyMethod;
+            std::string dummyUri;
+            nghttp2::asio_http2::header_map dummyHeaders;
+            unsigned int dummyDelayMs = 0;
+            unsigned int dummyTimeoutMs = 0;
+            if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, dummyMethod, dummyUri, dummyJson, dummyString, dummyHeaders, dummyDelayMs, dummyTimeoutMs, outState, breakCondition)) {
+                LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
                 continue;
             }
         }
-        // We reuse processTargets with dummy request body params
-        nlohmann::json dummyJson;
-        std::string dummyString;
-        std::string dummyMethod;
-        std::string dummyUri;
-        nghttp2::asio_http2::header_map dummyHeaders;
-        unsigned int dummyDelayMs = 0;
-        unsigned int dummyTimeoutMs = 0;
-        if (!processTargets(transformation, sourceVault, variables, matches, eraser, hasFilter, dummyMethod, dummyUri, dummyJson, dummyString, dummyHeaders, dummyDelayMs, dummyTimeoutMs, outState, breakCondition)) {
-            LOGDEBUG(ert::tracing::Logger::debug("Transformation item skipped on target", ERT_FILE_LOCATION));
-            continue;
-        }
-    }
 
     } // !on_response_transformations_.empty()
 
@@ -566,7 +566,9 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
                 DataKey dkey(event_method, event_uri);
                 mockServerRequest = mock_server_events_data_->getEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
             }
-            catch (const std::exception&) { return false; }
+            catch (const std::exception&) {
+                return false;
+            }
         }
         else {
             EventKey ekey(event_method, event_uri, event_number);
@@ -605,7 +607,9 @@ bool AdminClientProvision::processSources(std::shared_ptr<Transformation> transf
             try {
                 mockClientRequest = mock_client_events_data_->getEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
             }
-            catch (const std::exception&) { return false; }
+            catch (const std::exception&) {
+                return false;
+            }
         }
         else {
             EventKey ekey(dkey, event_number);
@@ -718,18 +722,42 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::Sum:
     {
         switch (transformation->getFilterNumberType()) {
-        case 0: targetI = sourceVault.getInteger(success); if (success) targetI += transformation->getFilterI(); sourceVault.setInteger(targetI); break;
-        case 1: targetU = sourceVault.getUnsigned(success); if (success) targetU += transformation->getFilterU(); sourceVault.setUnsigned(targetU); break;
-        case 2: targetF = sourceVault.getFloat(success); if (success) targetF += transformation->getFilterF(); sourceVault.setFloat(targetF); break;
+        case 0:
+            targetI = sourceVault.getInteger(success);
+            if (success) targetI += transformation->getFilterI();
+            sourceVault.setInteger(targetI);
+            break;
+        case 1:
+            targetU = sourceVault.getUnsigned(success);
+            if (success) targetU += transformation->getFilterU();
+            sourceVault.setUnsigned(targetU);
+            break;
+        case 2:
+            targetF = sourceVault.getFloat(success);
+            if (success) targetF += transformation->getFilterF();
+            sourceVault.setFloat(targetF);
+            break;
         }
         break;
     }
     case Transformation::FilterType::Multiply:
     {
         switch (transformation->getFilterNumberType()) {
-        case 0: targetI = sourceVault.getInteger(success); if (success) targetI *= transformation->getFilterI(); sourceVault.setInteger(targetI); break;
-        case 1: targetU = sourceVault.getUnsigned(success); if (success) targetU *= transformation->getFilterU(); sourceVault.setUnsigned(targetU); break;
-        case 2: targetF = sourceVault.getFloat(success); if (success) targetF *= transformation->getFilterF(); sourceVault.setFloat(targetF); break;
+        case 0:
+            targetI = sourceVault.getInteger(success);
+            if (success) targetI *= transformation->getFilterI();
+            sourceVault.setInteger(targetI);
+            break;
+        case 1:
+            targetU = sourceVault.getUnsigned(success);
+            if (success) targetU *= transformation->getFilterU();
+            sourceVault.setUnsigned(targetU);
+            break;
+        case 2:
+            targetF = sourceVault.getFloat(success);
+            if (success) targetF *= transformation->getFilterF();
+            sourceVault.setFloat(targetF);
+            break;
         }
         break;
     }
@@ -835,7 +863,9 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
             }
             else {
                 targetS.clear();
-                if (val == 0) { targetS = "0"; }
+                if (val == 0) {
+                    targetS = "0";
+                }
                 else {
                     while (val > 0) {
                         int d = val % baseOut;
@@ -854,16 +884,22 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
     }
     case Transformation::FilterType::FStrptime:
     {
-        struct tm tm{};
+        struct tm tm {};
         if (strptime(source.c_str(), transformation->getFilter().c_str(), &tm) == nullptr) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Strptime filter failed to parse '%s' with format '%s'", source.c_str(), transformation->getFilter().c_str()), ERT_FILE_LOCATION);
             return false;
         }
         std::int64_t epoch = static_cast<std::int64_t>(timegm(&tm));
         switch (transformation->getFilterNumberType()) {
-        case 1: epoch *= 1000; break;
-        case 2: epoch *= 1000000; break;
-        case 3: epoch *= 1000000000; break;
+        case 1:
+            epoch *= 1000;
+            break;
+        case 2:
+            epoch *= 1000000;
+            break;
+        case 3:
+            epoch *= 1000000000;
+            break;
         }
         sourceVault.setInteger(epoch);
         break;
@@ -876,12 +912,18 @@ bool AdminClientProvision::processFilters(std::shared_ptr<Transformation> transf
             return false;
         }
         switch (transformation->getFilterNumberType()) {
-        case 1: epoch /= 1000; break;
-        case 2: epoch /= 1000000; break;
-        case 3: epoch /= 1000000000; break;
+        case 1:
+            epoch /= 1000;
+            break;
+        case 2:
+            epoch /= 1000000;
+            break;
+        case 3:
+            epoch /= 1000000000;
+            break;
         }
         time_t t = static_cast<time_t>(epoch);
-        struct tm tm{};
+        struct tm tm {};
         gmtime_r(&t, &tm);
         char buf[256];
         if (std::strftime(buf, sizeof(buf), transformation->getFilter().c_str(), &tm) == 0) {
@@ -1014,7 +1056,10 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         case Transformation::TargetType::RequestBodyJson_Object:
         {
             if (eraser) {
-                if (target.empty()) { requestBodyJson.erase(requestBodyJson.begin(), requestBodyJson.end()); return false; }
+                if (target.empty()) {
+                    requestBodyJson.erase(requestBodyJson.begin(), requestBodyJson.end());
+                    return false;
+                }
                 size_t lastSlashPos = target.find_last_of("/");
                 std::string parentPath = target.substr(0, lastSlashPos);
                 std::string childKey = (lastSlashPos + 1 < target.size()) ? target.substr(lastSlashPos + 1) : "";
@@ -1024,12 +1069,33 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
             }
             nlohmann::json::json_pointer j_ptr(target);
             switch (sourceVault.getNativeType()) {
-            case TypeConverter::NativeType::Object: obj = sourceVault.getObject(success); if (success) { if (target.empty()) requestBodyJson.merge_patch(obj); else requestBodyJson[j_ptr] = obj; } break;
-            case TypeConverter::NativeType::String: targetS = sourceVault.getString(success); if (success) requestBodyJson[j_ptr] = targetS; break;
-            case TypeConverter::NativeType::Integer: targetI = sourceVault.getInteger(success); if (success) requestBodyJson[j_ptr] = targetI; break;
-            case TypeConverter::NativeType::Unsigned: targetU = sourceVault.getUnsigned(success); if (success) requestBodyJson[j_ptr] = targetU; break;
-            case TypeConverter::NativeType::Float: targetF = sourceVault.getFloat(success); if (success) requestBodyJson[j_ptr] = targetF; break;
-            case TypeConverter::NativeType::Boolean: boolean = sourceVault.getBoolean(success); if (success) requestBodyJson[j_ptr] = boolean; break;
+            case TypeConverter::NativeType::Object:
+                obj = sourceVault.getObject(success);
+                if (success) {
+                    if (target.empty()) requestBodyJson.merge_patch(obj);
+                    else requestBodyJson[j_ptr] = obj;
+                }
+                break;
+            case TypeConverter::NativeType::String:
+                targetS = sourceVault.getString(success);
+                if (success) requestBodyJson[j_ptr] = targetS;
+                break;
+            case TypeConverter::NativeType::Integer:
+                targetI = sourceVault.getInteger(success);
+                if (success) requestBodyJson[j_ptr] = targetI;
+                break;
+            case TypeConverter::NativeType::Unsigned:
+                targetU = sourceVault.getUnsigned(success);
+                if (success) requestBodyJson[j_ptr] = targetU;
+                break;
+            case TypeConverter::NativeType::Float:
+                targetF = sourceVault.getFloat(success);
+                if (success) requestBodyJson[j_ptr] = targetF;
+                break;
+            case TypeConverter::NativeType::Boolean:
+                boolean = sourceVault.getBoolean(success);
+                if (success) requestBodyJson[j_ptr] = boolean;
+                break;
             }
             break;
         }
@@ -1039,7 +1105,8 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
             targetS = sourceVault.getString(success);
             if (!success) return false;
             if (!h2agent::model::parseJsonContent(targetS, obj)) return false;
-            if (target.empty()) requestBodyJson.merge_patch(obj); else requestBodyJson[j_ptr] = obj;
+            if (target.empty()) requestBodyJson.merge_patch(obj);
+            else requestBodyJson[j_ptr] = obj;
             break;
         }
         case Transformation::TargetType::RequestHeader_t:
@@ -1104,7 +1171,10 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
                 if (!success) return false;
                 if (hasFilter) {
                     if(transformation->getFilterType() == Transformation::FilterType::JsonConstraint || transformation->getFilterType() == Transformation::FilterType::SchemaId) {
-                        if (targetS != "1") { variables[target + ".fail"] = targetS; targetS = ""; }
+                        if (targetS != "1") {
+                            variables[target + ".fail"] = targetS;
+                            targetS = "";
+                        }
                     }
                 }
                 variables[target] = targetS;
@@ -1225,7 +1295,9 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         {
             targetS = sourceVault.getString(success);
             if (!success) return false;
-            if (eraser) { file_manager_->empty(target); }
+            if (eraser) {
+                file_manager_->empty(target);
+            }
             else {
                 bool longTerm = (transformation->getTargetPatterns().empty());
                 file_manager_->write(target, targetS, true, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));
@@ -1236,7 +1308,9 @@ bool AdminClientProvision::processTargets(std::shared_ptr<Transformation> transf
         {
             targetS = sourceVault.getString(success);
             if (!success) return false;
-            if (eraser) { file_manager_->empty(target); }
+            if (eraser) {
+                file_manager_->empty(target);
+            }
             else {
                 bool longTerm = (transformation->getTargetPatterns().empty());
                 file_manager_->write(target, targetS, false, (longTerm ? configuration_->getLongTermFilesCloseDelayUsecs():configuration_->getShortTermFilesCloseDelayUsecs()));

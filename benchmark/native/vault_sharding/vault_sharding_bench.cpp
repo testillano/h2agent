@@ -142,8 +142,8 @@ void sweep(std::size_t rounds, std::size_t repeats) {
         }
     }
     std::cout << "\nExpected shape: speedup ~1x at THREADS=1 or KEYS=1 (no contention to remove),\n"
-                 "growing with both THREADS and KEYS (more concurrent writers hitting more\n"
-                 "distinct keys = more contention on the single mutex that sharding disperses).\n";
+              "growing with both THREADS and KEYS (more concurrent writers hitting more\n"
+              "distinct keys = more contention on the single mutex that sharding disperses).\n";
 }
 
 }  // namespace
@@ -197,6 +197,6 @@ int main() {
     }
 
     std::cout << "\nNote: sharding reduces contention ~1/N for DISTINCT keys; a shared\n"
-                 "hot key still serializes on its single shard (by design).\n";
+              "hot key still serializes on its single shard (by design).\n";
     return 0;
 }

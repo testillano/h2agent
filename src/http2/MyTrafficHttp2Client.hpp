@@ -102,11 +102,21 @@ public:
     */
     void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "");
 
-    void incrementProvisionedRequestsSuccessful() { if (provisioned_requests_successful_counter_) provisioned_requests_successful_counter_->Increment(); }
-    void incrementProvisionedRequestsFailed()     { if (provisioned_requests_failed_counter_)     provisioned_requests_failed_counter_->Increment(); }
-    void incrementPurgedContextsSuccessful()      { if (purged_contexts_successful_counter_)      purged_contexts_successful_counter_->Increment(); }
-    void incrementPurgedContextsFailed()          { if (purged_contexts_failed_counter_)          purged_contexts_failed_counter_->Increment(); }
-    void incrementUnexpectedResponseStatusCode()    { if (unexpected_response_status_code_counter_)    unexpected_response_status_code_counter_->Increment(); }
+    void incrementProvisionedRequestsSuccessful() {
+        if (provisioned_requests_successful_counter_) provisioned_requests_successful_counter_->Increment();
+    }
+    void incrementProvisionedRequestsFailed()     {
+        if (provisioned_requests_failed_counter_)     provisioned_requests_failed_counter_->Increment();
+    }
+    void incrementPurgedContextsSuccessful()      {
+        if (purged_contexts_successful_counter_)      purged_contexts_successful_counter_->Increment();
+    }
+    void incrementPurgedContextsFailed()          {
+        if (purged_contexts_failed_counter_)          purged_contexts_failed_counter_->Increment();
+    }
+    void incrementUnexpectedResponseStatusCode()    {
+        if (unexpected_response_status_code_counter_)    unexpected_response_status_code_counter_->Increment();
+    }
 
     //void responseTimeout();
 

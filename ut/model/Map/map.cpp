@@ -62,11 +62,15 @@ TEST(Map, TryGet_MultiShard) {
 TEST(Map, ModifyOrInsert_MultiShard) {
     StrIntMap<8> m;
     // insert path (default-constructed then modified)
-    m.modifyOrInsert("c", [](int &v) { v += 1; });
+    m.modifyOrInsert("c", [](int &v) {
+        v += 1;
+    });
     bool exists = false;
     EXPECT_EQ(m.get("c", exists), 1);
     // modify path
-    m.modifyOrInsert("c", [](int &v) { v += 10; });
+    m.modifyOrInsert("c", [](int &v) {
+        v += 10;
+    });
     EXPECT_EQ(m.get("c", exists), 11);
 }
 
@@ -135,7 +139,9 @@ TEST(Map, DefaultIsSingleShard_BehaviourUnchanged) {
     m.add("x", 5);
     EXPECT_EQ(m.get("x", exists), 5);
     EXPECT_TRUE(exists);
-    m.modifyOrInsert("x", [](int &v) { v *= 2; });
+    m.modifyOrInsert("x", [](int &v) {
+        v *= 2;
+    });
     EXPECT_EQ(m.get("x", exists), 10);
     EXPECT_EQ(m.size(), 1u);
     EXPECT_EQ(m.getJson()["x"], 10);
@@ -166,7 +172,9 @@ TEST(Map, ConcurrentDistinctKeyWritesAndSnapshot) {
         writers.emplace_back([&, t]() {
             for (int i = 0; i < kPerThread; ++i) {
                 std::string k = "t" + std::to_string(t) + "_" + std::to_string(i);
-                m.modifyOrInsert(k, [](int &v) { v += 1; });
+                m.modifyOrInsert(k, [](int &v) {
+                    v += 1;
+                });
             }
         });
     }
@@ -192,7 +200,9 @@ TEST(Map, ConcurrentSameKeyIncrementsAreAtomic) {
     for (int t = 0; t < kThreads; ++t) {
         writers.emplace_back([&]() {
             for (int i = 0; i < kPerThread; ++i) {
-                m.modifyOrInsert("shared", [](int &v) { v += 1; });
+                m.modifyOrInsert("shared", [](int &v) {
+                    v += 1;
+                });
             }
         });
     }
@@ -235,10 +245,14 @@ TEST(Map, ConcurrentMockDataPattern_MixedReadWrite) {
             for (int i = 0; i < kPerThread; ++i) {
                 // Distinct per-subscriber key (millions-of-URIs case).
                 std::string uniq = "sub_" + std::to_string(t) + "_" + std::to_string(i);
-                m.modifyOrInsert(uniq, [](int &v) { v += 1; });
+                m.modifyOrInsert(uniq, [](int &v) {
+                    v += 1;
+                });
                 // FSM update on a shared URI (same-key repeated write).
                 std::string fsm = "fsm_" + std::to_string(i % kFsmKeys);
-                m.modifyOrInsert(fsm, [](int &v) { v += 1; });
+                m.modifyOrInsert(fsm, [](int &v) {
+                    v += 1;
+                });
             }
         });
     }

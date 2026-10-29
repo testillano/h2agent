@@ -24,7 +24,7 @@ protected:
 
     void SetUp() override {
         client_ = std::make_unique<http2::MyTrafficHttp2Client>(
-            "test_client", "127.0.0.1", "8080", false, &io_context_);
+                      "test_client", "127.0.0.1", "8080", false, &io_context_);
         admin_data_ = std::make_unique<model::AdminData>();
     }
 
@@ -44,7 +44,7 @@ TEST_F(MyTrafficHttp2ClientUnitTest, ConstructorInitializesCorrectly) {
 
 TEST_F(MyTrafficHttp2ClientUnitTest, ConstructorWithSecureConnection) {
     auto secure_client = std::make_unique<http2::MyTrafficHttp2Client>(
-        "secure_client", "localhost", "443", true, &io_context_);
+                             "secure_client", "localhost", "443", true, &io_context_);
     EXPECT_NE(secure_client->getMockClientData(), nullptr);
 }
 
@@ -94,7 +94,7 @@ TEST_F(MyTrafficHttp2ClientUnitTest, IncrementSequenceMultipleTimes) {
 
 TEST_F(MyTrafficHttp2ClientUnitTest, SequenceIsIndependentPerClient) {
     auto client2 = std::make_unique<http2::MyTrafficHttp2Client>(
-        "test_client2", "127.0.0.1", "8081", false, &io_context_);
+                       "test_client2", "127.0.0.1", "8081", false, &io_context_);
 
     client_->incrementSendSeq();
     client_->incrementSendSeq();

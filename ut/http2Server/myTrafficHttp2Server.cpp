@@ -28,7 +28,7 @@ protected:
 
     void SetUp() override {
         server_ = std::make_unique<http2::MyTrafficHttp2Server>(
-            "test_server", 1, 1, &io_context_, -1);
+                      "test_server", 1, 1, &io_context_, -1);
 
         admin_data_ = std::make_unique<model::AdminData>();
         mock_server_data_ = std::make_unique<model::MockServerData>();

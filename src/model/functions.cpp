@@ -294,9 +294,15 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
             for (size_t j = 0; j < received.size(); j++) {
                 if (expected[i].is_object() && received[j].is_object()) {
                     std::string dummy;
-                    if (h2agent::model::jsonConstraint(received[j], expected[i], dummy)) { found = true; break; }
+                    if (h2agent::model::jsonConstraint(received[j], expected[i], dummy)) {
+                        found = true;
+                        break;
+                    }
                 }
-                else if (received[j] == expected[i]) { found = true; break; }
+                else if (received[j] == expected[i]) {
+                    found = true;
+                    break;
+                }
             }
             if (!found) {
                 failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected element at index '%zu' not found in validated source array: %s", i, expected[i].dump().c_str());

@@ -3123,24 +3123,24 @@ TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVault)
         "target": "vault.matched",
         "filter": { "RegexKey": "imsi-([0-9]+):(rule1)" }
     })delim"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.matched./qos", "target": "response.body.json.integer./qos" })"_json;
-    const nlohmann::json item3 = R"({ "source": "var.matched.0", "target": "response.body.json.string./key" })"_json;
-    const nlohmann::json item4 = R"({ "source": "var.matched.1", "target": "response.body.json.string./imsi" })"_json;
-    const nlohmann::json item5 = R"({ "source": "var.matched.2", "target": "response.body.json.string./rule" })"_json;
-    server_provision_json_["transform"].push_back(item1);
-    server_provision_json_["transform"].push_back(item2);
-    server_provision_json_["transform"].push_back(item3);
-    server_provision_json_["transform"].push_back(item4);
-    server_provision_json_["transform"].push_back(item5);
+const nlohmann::json item2 = R"({ "source": "vault.matched./qos", "target": "response.body.json.integer./qos" })"_json;
+const nlohmann::json item3 = R"({ "source": "var.matched.0", "target": "response.body.json.string./key" })"_json;
+const nlohmann::json item4 = R"({ "source": "var.matched.1", "target": "response.body.json.string./imsi" })"_json;
+const nlohmann::json item5 = R"({ "source": "var.matched.2", "target": "response.body.json.string./rule" })"_json;
+server_provision_json_["transform"].push_back(item1);
+server_provision_json_["transform"].push_back(item2);
+server_provision_json_["transform"].push_back(item3);
+server_provision_json_["transform"].push_back(item4);
+server_provision_json_["transform"].push_back(item5);
 
-    provisionAndTransform(request_body_.dump());
+provisionAndTransform(request_body_.dump());
 
-    EXPECT_EQ(status_code_, 200);
-    nlohmann::json body = nlohmann::json::parse(response_body_);
-    EXPECT_EQ(body["qos"], 15);
-    EXPECT_EQ(body["key"], "imsi-5550110000000:rule1");
-    EXPECT_EQ(body["imsi"], "5550110000000");
-    EXPECT_EQ(body["rule"], "rule1");
+EXPECT_EQ(status_code_, 200);
+nlohmann::json body = nlohmann::json::parse(response_body_);
+EXPECT_EQ(body["qos"], 15);
+EXPECT_EQ(body["key"], "imsi-5550110000000:rule1");
+EXPECT_EQ(body["imsi"], "5550110000000");
+EXPECT_EQ(body["rule"], "rule1");
 }
 
 TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVar)

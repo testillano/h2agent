@@ -140,7 +140,16 @@ build_builder() {
   set +x
 }
 
+format_sources() {
+  echo
+  echo "=== Format source code ==="
+  echo
+  ./format.sh
+}
+
 build_image() {
+  format_sources || return 1
+
   echo
   echo "=== Build h2agent image (full: deps + compile + runtime) ==="
   echo

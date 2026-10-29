@@ -86,10 +86,18 @@ public:
     }
 
     // Convenience getters (safe for scalar/by-value access)
-    AlgorithmType getAlgorithm() const { return getConfig()->algorithm; }
-    UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const { return getConfig()->uri_path_query_parameters_filter; }
-    UriPathQueryParametersSeparatorType getUriPathQueryParametersSeparator() const { return getConfig()->uri_path_query_parameters_separator; }
-    nlohmann::json getJson() const { return getConfig()->json; }
+    AlgorithmType getAlgorithm() const {
+        return getConfig()->algorithm;
+    }
+    UriPathQueryParametersFilterType getUriPathQueryParametersFilter() const {
+        return getConfig()->uri_path_query_parameters_filter;
+    }
+    UriPathQueryParametersSeparatorType getUriPathQueryParametersSeparator() const {
+        return getConfig()->uri_path_query_parameters_separator;
+    }
+    nlohmann::json getJson() const {
+        return getConfig()->json;
+    }
 
     /**
      * Loads server matching operation data

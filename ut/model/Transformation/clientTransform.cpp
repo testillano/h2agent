@@ -108,10 +108,10 @@ TEST_F(ClientTransform_test, LoadBasicProvision)
 TEST_F(ClientTransform_test, LoadProvisionWithInState)
 {
     client_provision_json_ = R"({"id":"myFlow","inState":"step2","outState":"done"})"_json;
-    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
-    auto provision = adata_.getClientProvisionData().find("step2", "myFlow");
-    ASSERT_TRUE(provision != nullptr);
-    EXPECT_EQ(provision->getOutState(), "done");
+EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+auto provision = adata_.getClientProvisionData().find("step2", "myFlow");
+ASSERT_TRUE(provision != nullptr);
+EXPECT_EQ(provision->getOutState(), "done");
 }
 
 // ==================== TRANSFORM: NO TRANSFORMATIONS ====================

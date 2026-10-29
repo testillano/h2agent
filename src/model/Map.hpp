@@ -101,11 +101,11 @@ class Map {
     // hash is not even computed on the single-shard hot path.
     Shard& shardFor(const Key& key) {
         if constexpr (Shards == 1) return shards_[0];
-        else return shards_[std::hash<Key>{}(key) % Shards];
+        else return shards_[std::hash<Key> {}(key) % Shards];
     }
     const Shard& shardFor(const Key& key) const {
         if constexpr (Shards == 1) return shards_[0];
-        else return shards_[std::hash<Key>{}(key) % Shards];
+        else return shards_[std::hash<Key> {}(key) % Shards];
     }
 
 public:
@@ -304,7 +304,7 @@ public:
 private:
     // Acquire a read lock on every shard in fixed ascending order (deadlock-free).
     std::array<read_guard_t, Shards> lockAllShared() const {
-        return lockAllSharedImpl(std::make_index_sequence<Shards>{});
+        return lockAllSharedImpl(std::make_index_sequence<Shards> {});
     }
     template<std::size_t... I>
     std::array<read_guard_t, Shards> lockAllSharedImpl(std::index_sequence<I...>) const {
@@ -313,7 +313,7 @@ private:
 
     // Acquire a write lock on every shard in fixed ascending order (deadlock-free).
     std::array<write_guard_t, Shards> lockAllExclusive() {
-        return lockAllExclusiveImpl(std::make_index_sequence<Shards>{});
+        return lockAllExclusiveImpl(std::make_index_sequence<Shards> {});
     }
     template<std::size_t... I>
     std::array<write_guard_t, Shards> lockAllExclusiveImpl(std::index_sequence<I...>) {

@@ -72,7 +72,9 @@ public:
     WaitManager() = default;
     ~WaitManager() = default;
 
-    void setVault(Vault *p) { vault_ = p; }
+    void setVault(Vault *p) {
+        vault_ = p;
+    }
 
     /** Signals all waiters to abort and prevents new waits. */
     void shutdown();
@@ -91,8 +93,8 @@ public:
      *         Returns false if too many waiters (caller should use 429).
      */
     bool waitForVault(const std::string &key, const nlohmann::json &targetValue,
-                               unsigned int timeoutMs,
-                               nlohmann::json &resultValue, nlohmann::json &previousValue);
+                      unsigned int timeoutMs,
+                      nlohmann::json &resultValue, nlohmann::json &previousValue);
 
     /** Wakes all waiters (called after vault entry mutation). */
     void notify();

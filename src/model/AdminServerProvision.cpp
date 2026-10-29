@@ -357,7 +357,9 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
                 DataKey dkey(event_method, event_uri);
                 mockServerRequest = mock_server_events_data_->getEventByRecvSeq(dkey, (std::uint64_t)std::stoull(event_recvseq));
             }
-            catch (const std::exception&) { return false; }
+            catch (const std::exception&) {
+                return false;
+            }
         }
         else {
             EventKey ekey(event_method, event_uri, event_number);
@@ -475,7 +477,9 @@ bool AdminServerProvision::processSources(std::shared_ptr<Transformation> transf
             try {
                 mockClientRequest = mock_client_events_data_->getEventBySendSeq(dkey, (std::uint64_t)std::stoull(event_sendseq));
             }
-            catch (const std::exception&) { return false; }
+            catch (const std::exception&) {
+                return false;
+            }
         }
         else {
             EventKey ekey(dkey, event_number);
@@ -807,7 +811,9 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             }
             else {
                 targetS.clear();
-                if (val == 0) { targetS = "0"; }
+                if (val == 0) {
+                    targetS = "0";
+                }
                 else {
                     while (val > 0) {
                         int d = val % baseOut;
@@ -827,16 +833,22 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
     case Transformation::FilterType::FStrptime:
     {
         // Parse date string → epoch number
-        struct tm tm{};
+        struct tm tm {};
         if (strptime(source.c_str(), transformation->getFilter().c_str(), &tm) == nullptr) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Strptime filter failed to parse '%s' with format '%s'", source.c_str(), transformation->getFilter().c_str()), ERT_FILE_LOCATION);
             return false;
         }
         std::int64_t epoch = static_cast<std::int64_t>(timegm(&tm));
         switch (transformation->getFilterNumberType()) {
-        case 1: epoch *= 1000; break;       // ms
-        case 2: epoch *= 1000000; break;    // us
-        case 3: epoch *= 1000000000; break; // ns
+        case 1:
+            epoch *= 1000;
+            break;       // ms
+        case 2:
+            epoch *= 1000000;
+            break;    // us
+        case 3:
+            epoch *= 1000000000;
+            break; // ns
         }
         sourceVault.setInteger(epoch);
         break;
@@ -850,12 +862,18 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
             return false;
         }
         switch (transformation->getFilterNumberType()) {
-        case 1: epoch /= 1000; break;       // ms
-        case 2: epoch /= 1000000; break;    // us
-        case 3: epoch /= 1000000000; break; // ns
+        case 1:
+            epoch /= 1000;
+            break;       // ms
+        case 2:
+            epoch /= 1000000;
+            break;    // us
+        case 3:
+            epoch /= 1000000000;
+            break; // ns
         }
         time_t t = static_cast<time_t>(epoch);
-        struct tm tm{};
+        struct tm tm {};
         gmtime_r(&t, &tm);
         char buf[256];
         if (std::strftime(buf, sizeof(buf), transformation->getFilter().c_str(), &tm) == 0) {
@@ -881,10 +899,10 @@ bool AdminServerProvision::processFilters(std::shared_ptr<Transformation> transf
                 LOGDEBUG(
                     std::stringstream ss;
                     ss << "RegexKey filter: matched key '" << source << "'";
-                    for(size_t i=1; i < matches.size(); i++) {
-                        ss << " | group[" << i << "] = " << matches.str(i);
-                    }
-                    ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
+                for(size_t i=1; i < matches.size(); i++) {
+                ss << " | group[" << i << "] = " << matches.str(i);
+                }
+                ert::tracing::Logger::debug(ss.str(), ERT_FILE_LOCATION);
                 );
                 return true;
             }
@@ -1450,7 +1468,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             targetS = eraser ? "" : sourceVault.getString(success);
             if (targetS.empty()) {
                 LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString(
-                    "Client provision trigger skipped (empty source condition): id='%s'", clientProvisionId.c_str()), ERT_FILE_LOCATION));
+                        "Client provision trigger skipped (empty source condition): id='%s'", clientProvisionId.c_str()), ERT_FILE_LOCATION));
                 break;
             }
 
@@ -1458,7 +1476,7 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
             replaceVariables(inState, transformation->getTarget2Patterns(), variables, vault_);
             clientProvisionTriggers.emplace_back(clientProvisionId, inState);
             LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString(
-                "Scheduled client provision trigger: id='%s', inState='%s'", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION));
+                    "Scheduled client provision trigger: id='%s', inState='%s'", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION));
             break;
         }
         case Transformation::TargetType::Break:
@@ -1506,17 +1524,17 @@ bool AdminServerProvision::processTargets(std::shared_ptr<Transformation> transf
 }
 
 void AdminServerProvision::executeOnFilterFail(
-        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
-        const std::string &requestUri, const std::string &requestUriPath,
-        const std::map<std::string, std::string> &requestQueryParametersMap,
-        const DataPart &requestBodyDataPart, const nghttp2::asio_http2::header_map &requestHeaders,
-        std::uint64_t generalUniqueServerSequence, TypeConverter &sourceVault,
-        std::map<std::string, std::string> &variables,
-        bool usesResponseBodyAsTransformationJsonTarget,
-        unsigned int &responseStatusCode, nlohmann::json &responseBodyJson, std::string &responseBody,
-        nghttp2::asio_http2::header_map &responseHeaders, unsigned int &responseDelayMs,
-        std::string &outState, std::string &outStateMethod, std::string &outStateUri,
-        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers, bool &breakCondition) const {
+    const std::vector<std::shared_ptr<Transformation>> &fallbacks,
+    const std::string &requestUri, const std::string &requestUriPath,
+    const std::map<std::string, std::string> &requestQueryParametersMap,
+    const DataPart &requestBodyDataPart, const nghttp2::asio_http2::header_map &requestHeaders,
+    std::uint64_t generalUniqueServerSequence, TypeConverter &sourceVault,
+    std::map<std::string, std::string> &variables,
+    bool usesResponseBodyAsTransformationJsonTarget,
+    unsigned int &responseStatusCode, nlohmann::json &responseBodyJson, std::string &responseBody,
+    nghttp2::asio_http2::header_map &responseHeaders, unsigned int &responseDelayMs,
+    std::string &outState, std::string &outStateMethod, std::string &outStateUri,
+    std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers, bool &breakCondition) const {
 
     for (const auto &fallback : fallbacks) {
         std::string fbSource{};
