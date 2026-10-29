@@ -1,3 +1,6 @@
+// Unit tests for the v1 -> engine grammar translator (src/model/EngineGrammarV1):
+// server and client vocabularies, not-applicable sources/targets and v1 replays.
+
 #include <gtest/gtest.h>
 
 #include <map>

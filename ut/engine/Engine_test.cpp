@@ -1,15 +1,5 @@
-/*
- ______________________________________________________________________
-|                                                                      |
-|   jsonFlow - application-agnostic JSON transformation engine (C++)   |
-https://github.com/testillano/jsonFlow |   source -> filter -> target dataflow
-language                       | Version 0.0.z
-|______________________________________________________________________|
-
-Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-SPDX-License-Identifier: MIT
-Copyright (c) 2026 Eduardo Ramos Testillano
-*/
+// Unit tests for the transformation engine (src/engine): every source, filter and
+// target in isolation, with in-memory port doubles (no HTTP, no h2agent model).
 
 #include <gtest/gtest.h>
 
