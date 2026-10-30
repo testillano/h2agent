@@ -131,6 +131,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * UDP server.
   * UDP server to trigger active HTTP/2 client requests.
   * UDP client.
+  * Provisions grammar migrator (v1 -> v2).
 
 ---
 
@@ -152,6 +153,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   - [Execution of udp-server utility](#execution-of-udp-server-utility)
   - [Execution of udp-server-h2client utility](#execution-of-udp-server-h2client-utility)
   - [Execution of udp-client utility](#execution-of-udp-client-utility)
+- [Execution of h2agent-migrate utility](#execution-of-h2agent-migrate-utility)
 - [Working with unix sockets and docker containers](#working-with-unix-sockets-and-docker-containers)
 - [Execution with TLS support](#execution-with-tls-support)
 - [Metrics](#metrics)
@@ -244,6 +246,8 @@ This builds the <u>runtime image</u> and the <u>component test image</u>. Then y
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
   -or-
   $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
+  -or-
+  $ docker run --rm -it --network=host --entrypoint "/opt/h2agent-migrate" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`./run.sh` script at root directory can also be used with some prepends):
@@ -1447,6 +1451,87 @@ ___________________________________ _________ _______________ __________________
 2023-08-02 19:16:38.340656 GMT      2         2000            555001999
 ...
 
+```
+
+## Execution of h2agent-migrate utility
+
+This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"requestBody": "/a"}`, `"to": {"responseBody": "/n"}`, `"filter": [{"as": "integer"}]`). It is a syntax-only conversion: each v2 rule behaves exactly as its v1 origin. The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md).
+
+It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), so test suites can be migrated before upgrading.
+
+### Command line
+
+You may take a look to `h2agent-migrate` command line by just typing the build path, for example for `Release` target using native executable:
+
+<details>
+<summary>h2agent-migrate --help</summary>
+
+```bash
+$ build/Release/bin/h2agent-migrate --help
+Usage: h2agent-migrate [options]
+
+Options:
+
+-i|--in <file|->
+  Provisions file to convert (server or client; a single provision or an array).
+  Use '-' to read from standard input. Only 'transform' and 'onResponseTransform'
+  rules are rewritten; any other field is kept untouched and in order.
+
+[-o|--out <file|->]
+  Output file; defaults to standard output ('-'). It may be the input file.
+
+[-r|--reverse]
+  Convert v2 into v1 instead (diagnostics). Only the v2 subset with a v1
+  equivalent is accepted.
+
+-s|--scan <directory|file>
+  Report v1 leftovers: '/admin/v1' references, json files holding v1 provisions
+  and v1 rule literals embedded in scripts or tests ('.git', 'build' and
+  'node_modules' are skipped). Exit code is 1 when something is found.
+
+[-h|--help]
+  This help.
+
+Grammar v1 -> v2 is a syntax-only step: each v2 rule behaves exactly as its v1
+origin (mapping in docs/developers/GrammarV2.md).
+
+Exit codes: 0 success, 1 scan findings, 2 error.
+
+Examples:
+   h2agent-migrate --in server-provision.json --out server-provision.v2.json
+   h2agent-migrate --in client-provision.json --out client-provision.json
+   cat provision.json | h2agent-migrate --in -
+   h2agent-migrate --scan ./ct
+```
+
+</details>
+
+Execution example:
+
+```bash
+$ echo '{"requestMethod":"GET","transform":[{"source":"request.uri.path","target":"response.body.json.unsigned./id","filter":{"RegexReplace":{"rgx":"/id-([0-9]+)","fmt":"$1"}}}]}' | build/Release/bin/h2agent-migrate --in -
+{
+  "requestMethod": "GET",
+  "transform": [
+    {
+      "from": "requestUriPath",
+      "to": {
+        "responseBody": "/id"
+      },
+      "filter": [
+        {
+          "RegexReplace": {
+            "rgx": "/id-([0-9]+)",
+            "fmt": "$1"
+          }
+        },
+        {
+          "as": "unsigned"
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ## Working with unix sockets and docker containers

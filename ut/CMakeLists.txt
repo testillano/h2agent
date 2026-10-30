@@ -5,6 +5,7 @@ add_subdirectory(http2Server)
 add_subdirectory(http2Client)
 add_subdirectory(model)
 add_subdirectory(engine)
+add_subdirectory(tools)
 
 # To avoid setting absolute paths for libraries down at 'target_link_libraries':
 add_library(ert_logger STATIC IMPORTED)
@@ -43,6 +44,7 @@ ${CMAKE_EXE_LINKER_FLAGS}
         h2agent-http2
         h2agent-engine
         -Wl,--end-group
+        h2agent-migrate-lib
 
         ert_logger
         ert_http2comm

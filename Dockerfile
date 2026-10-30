@@ -298,6 +298,7 @@ COPY --from=build /code/build/${build_type}/bin/arashpartow-helper /opt/
 COPY --from=build /code/build/${build_type}/bin/udp-server /opt/
 COPY --from=build /code/build/${build_type}/bin/udp-server-h2client /opt/
 COPY --from=build /code/build/${build_type}/bin/udp-client /opt/
+COPY --from=build /code/build/${build_type}/bin/h2agent-migrate /opt/
 
 # Entrypoint (nghttpx proxy + jemalloc + h2agent)
 COPY --from=build /code/deps/starter.sh /var/starter.sh

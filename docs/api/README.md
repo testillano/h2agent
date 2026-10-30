@@ -52,7 +52,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 
 `h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. All operations are served over *URI* path `/admin/v2/`.
 
-The former `/admin/v1/` API is retired: any request to it is answered with `410 Gone` and a `cause` pointing to the same resource under `/admin/v2/` (provisions written for the v1 grammar must be migrated, see the migration tool).
+The former `/admin/v1/` API is retired: any request to it is answered with `410 Gone` and a `cause` pointing to the same resource under `/admin/v2/` (provisions written for the v1 grammar must be migrated with the [h2agent-migrate](../../README.md#execution-of-h2agent-migrate-utility) tool).
 
 The API is organized in three groups:
 
