@@ -66,7 +66,7 @@
         "target": "var.name"
       },
       {
-        "source": "vault.EMAIL.@{name}",
+        "source": "vault.EMAIL:@{name}",
         "target": "response.body.json.string./email"
       },
       {
