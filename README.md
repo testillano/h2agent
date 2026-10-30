@@ -914,7 +914,7 @@ Options:
   Maximum pending dispatches in the worker pool; defaults to 0 (unlimited).
   When the pool queue exceeds this limit, new ticks are discarded to
   prevent unbounded backlog and cascading timeouts. Chain continuations
-  are never discarded. Monitor via GET /admin/v1/client/dispatch-latency
+  are never discarded. Monitor via GET /admin/v2/client/dispatch-latency
   (pending and discarded counters) and the prometheus metric
   h2agent_traffic_client_discarded_dispatches_counter.
 
@@ -1686,7 +1686,7 @@ A kata is available at `./kata` directory. It is designed to guide through a set
 
 ## Management interface
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior over *URI* path `/admin/v1/`.
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior over *URI* path `/admin/v2/`.
 
 The full API reference is documented using the [OpenAPI 3.1 specification](./docs/api/openapi.yaml) and rendered interactively at:
 
@@ -1698,20 +1698,20 @@ The API is organized in the following groups:
 
 | Group | Endpoints | Description |
 |-------|-----------|-------------|
-| **schema** | `POST` `GET` `DELETE` `/admin/v1/schema` | Validation schemas for traffic checking |
-| **vault** | `POST` `GET` `DELETE` `/admin/v1/vault` | Shared variables between provisions |
-| | `GET` `/admin/v1/vault/<key>/wait` | Block until variable changes (long-poll) |
-| | `GET` `/admin/v1/vault/events[?key=...]` | SSE stream of vault mutations (real-time push) |
-| **files** | `GET` `/admin/v1/files` | Processed files status |
-| **logging** | `GET` `PUT` `/admin/v1/logging` | Dynamic log level configuration |
-| **configuration** | `GET` `/admin/v1/configuration` | General process configuration |
-| **server/configuration** | `GET` `PUT` `/admin/v1/server/configuration` | Server request body reception settings |
-| **server-matching** | `POST` `GET` `/admin/v1/server-matching` | Traffic classification algorithm (FullMatching, FullMatchingRegexReplace, RegexMatching) |
-| **server-provision** | `POST` `GET` `DELETE` `/admin/v1/server-provision` | Server mock response behavior and transformation pipeline |
-| **server-data** | `GET` `PUT` `DELETE` `/admin/v1/server-data` | Server events storage and inspection |
-| **client-endpoint** | `POST` `GET` `DELETE` `/admin/v1/client-endpoint` | Remote server connection definitions |
-| **client-provision** | `POST` `GET` `DELETE` `/admin/v1/client-provision` | Client mock request behavior, triggering and transformation pipeline |
-| **client-data** | `GET` `PUT` `DELETE` `/admin/v1/client-data` | Client events storage and inspection |
+| **schema** | `POST` `GET` `DELETE` `/admin/v2/schema` | Validation schemas for traffic checking |
+| **vault** | `POST` `GET` `DELETE` `/admin/v2/vault` | Shared variables between provisions |
+| | `GET` `/admin/v2/vault/<key>/wait` | Block until variable changes (long-poll) |
+| | `GET` `/admin/v2/vault/events[?key=...]` | SSE stream of vault mutations (real-time push) |
+| **files** | `GET` `/admin/v2/files` | Processed files status |
+| **logging** | `GET` `PUT` `/admin/v2/logging` | Dynamic log level configuration |
+| **configuration** | `GET` `/admin/v2/configuration` | General process configuration |
+| **server/configuration** | `GET` `PUT` `/admin/v2/server/configuration` | Server request body reception settings |
+| **server-matching** | `POST` `GET` `/admin/v2/server-matching` | Traffic classification algorithm (FullMatching, FullMatchingRegexReplace, RegexMatching) |
+| **server-provision** | `POST` `GET` `DELETE` `/admin/v2/server-provision` | Server mock response behavior and transformation pipeline |
+| **server-data** | `GET` `PUT` `DELETE` `/admin/v2/server-data` | Server events storage and inspection |
+| **client-endpoint** | `POST` `GET` `DELETE` `/admin/v2/client-endpoint` | Remote server connection definitions |
+| **client-provision** | `POST` `GET` `DELETE` `/admin/v2/client-provision` | Client mock request behavior, triggering and transformation pipeline |
+| **client-data** | `GET` `PUT` `DELETE` `/admin/v2/client-data` | Client events storage and inspection |
 
 ## Server-triggered client flows with serverEvent source
 
@@ -1793,7 +1793,7 @@ The simplest way to use this feature is to configure the server provisioning to 
 In that use case, when a GET request is received by the server, its own dynamic response delay is created with a value of 1 millisecond. You could confirm that just checking vaults hold by the h2agent process:
 
 ```bash
-$ curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/vault | jq '.'
+$ curl -s --http2-prior-knowledge http://localhost:8074/admin/v2/vault | jq '.'
 {
   "__core:response-delay-ms:1": "1"
 }
@@ -1804,23 +1804,23 @@ The procedure is as follows: the answer is first delayed by 20 ms (as configured
 The server provisioning model can modify the variable upon subsequent receptions (it may need to correlate information from those requests with an auxiliary storage where the original server sequence is kept). However, these updates are typically managed externally through the administrative interface, for example:
 
 ```bash
-$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v1/vault -H'content-type:application/json' -d'{"__core:response-delay-ms:1":"0"}'
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' -d'{"__core:response-delay-ms:1":"0"}'
 - or better: -
-$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v1/vault?name=__core:response-delay-ms:1"
+$ curl --http2-prior-knowledge -XDELETE "http://localhost:8074/admin/v2/vault?name=__core:response-delay-ms:1"
 ```
 
 How the server sequence is determined is a separate issue. For example, the provisioning configuration could write UDP datagrams (containing the server sequence), which might trigger other external operations that ultimately lead to those administrative operations.
 
 ## Blocking Wait on Vault Entrys
 
-The endpoint `GET /admin/v1/vault/<key>/wait` blocks until a variable changes, eliminating polling loops in test orchestration:
+The endpoint `GET /admin/v2/vault/<key>/wait` blocks until a variable changes, eliminating polling loops in test orchestration:
 
 ```bash
 # Wait until SIGNAL equals "done" (30s timeout by default):
-curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/vault/SIGNAL/wait?value=done&timeoutMs=30000"
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v2/vault/SIGNAL/wait?value=done&timeoutMs=30000"
 
 # Wait for any change on MY_FLAG:
-curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v1/vault/MY_FLAG/wait?timeoutMs=5000"
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v2/vault/MY_FLAG/wait?timeoutMs=5000"
 ```
 
 Response (200 when met, 408 on timeout, 429 if too many concurrent waiters):
@@ -1863,10 +1863,10 @@ For scenarios requiring real-time notification of multiple vault changes (e.g., 
 
 ```bash
 # Subscribe to events for specific keys:
-curl --http2-prior-knowledge -N -s "http://localhost:8074/admin/v1/vault/events?key=barrier_1&key=barrier_2"
+curl --http2-prior-knowledge -N -s "http://localhost:8074/admin/v2/vault/events?key=barrier_1&key=barrier_2"
 
 # Subscribe to ALL vault mutations (useful for debugging):
-curl --http2-prior-knowledge -N -s "http://localhost:8074/admin/v1/vault/events"
+curl --http2-prior-knowledge -N -s "http://localhost:8074/admin/v2/vault/events"
 ```
 
 The connection stays open and events arrive as SSE text:

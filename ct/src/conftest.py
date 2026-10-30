@@ -32,7 +32,7 @@ H2AGENT_ENDPOINT__admin = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ[
 H2AGENT_ENDPOINT__traffic = os.environ['H2AGENT_SERVICE_HOST'] + ':' + os.environ['H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC']
 
 # Api Path
-ADMIN_URI_PREFIX = '/admin/v1/'
+ADMIN_URI_PREFIX = '/admin/v2/'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'configuration'
 ADMIN_VAULT_URI = ADMIN_URI_PREFIX + 'vault'

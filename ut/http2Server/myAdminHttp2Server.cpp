@@ -485,5 +485,25 @@ TEST_F(MyAdminHttp2ServerUnitTest, ClientDataConfigurationTogglePurge) {
               "{\"needsStorage\":false,\"purgeExecution\":true,\"storeEvents\":true,\"storeEventsKeyHistory\":true}");
 }
 
+
+// ============================================================================
+// Tests for capabilities (diagnostics)
+// ============================================================================
+
+TEST_F(MyAdminHttp2ServerUnitTest, CapabilitiesReportVersions) {
+    admin_server_->setApiName("admin");
+    admin_server_->setApiVersion("v2");
+    admin_server_->setProgramVersion("v9.9.9-test");
+    nlohmann::json caps = nlohmann::json::parse(admin_server_->capabilitiesAsJsonString());
+    EXPECT_EQ(caps["apiVersion"], "v2");
+    EXPECT_EQ(caps["programVersion"], "v9.9.9-test");
+    EXPECT_EQ(caps["grammar"], "v1");
+}
+
+TEST_F(MyAdminHttp2ServerUnitTest, CapabilitiesUnknownProgramVersion) {
+    nlohmann::json caps = nlohmann::json::parse(admin_server_->capabilitiesAsJsonString());
+    EXPECT_EQ(caps["programVersion"], "unknown");
+}
+
 } // namespace test
 } // namespace h2agent

@@ -16,18 +16,18 @@ How to maintain the REST API documentation for h2agent.
 
 ### Auto-generatable (from running server)
 
-These schemas match the JSON Schemas returned by h2agent's `/admin/v1/*/schema` endpoints.
+These schemas match the JSON Schemas returned by h2agent's `/admin/v2/*/schema` endpoints.
 They can be checked for drift with `check_schema_drift.py` (it prints the server schemas; it
 does not rewrite `openapi.yaml`).
 
 | Schema | Source endpoint |
 |---|---|
-| `SchemaConfig` | `/admin/v1/schema/schema` |
-| `VaultMap` | `/admin/v1/vault/schema` |
-| `ServerMatching` | `/admin/v1/server-matching/schema` |
-| `ServerProvision` | `/admin/v1/server-provision/schema` |
-| `ClientEndpoint` | `/admin/v1/client-endpoint/schema` |
-| `ClientProvision` | `/admin/v1/client-provision/schema` |
+| `SchemaConfig` | `/admin/v2/schema/schema` |
+| `VaultMap` | `/admin/v2/vault/schema` |
+| `ServerMatching` | `/admin/v2/server-matching/schema` |
+| `ServerProvision` | `/admin/v2/server-provision/schema` |
+| `ClientEndpoint` | `/admin/v2/client-endpoint/schema` |
+| `ClientProvision` | `/admin/v2/client-provision/schema` |
 
 The server also provides `TransformFilter` (as `filter` definition) and transform item
 structures inline within provision schemas. In the OpenAPI spec these are extracted as
@@ -42,13 +42,13 @@ They were inferred from actual GET responses and must be maintained by hand.
 | Schema | Used by |
 |---|---|
 | `ResultResponse` | All POST/PUT/DELETE responses (`{result, response}`) |
-| `LogLevel` | `GET /admin/v1/logging` (plain text enum) |
-| `GeneralConfiguration` | `GET /admin/v1/configuration` |
-| `ServerConfiguration` | `GET /admin/v1/server/configuration` |
-| `DataStorageConfiguration` | `GET /admin/v1/server-data/configuration`, `GET /admin/v1/client-data/configuration` |
-| `ServerDataSummary` | `GET /admin/v1/server-data/summary` |
-| `ClientDataSummary` | `GET /admin/v1/client-data/summary` |
-| `FileInfo` | `GET /admin/v1/files` |
+| `LogLevel` | `GET /admin/v2/logging` (plain text enum) |
+| `GeneralConfiguration` | `GET /admin/v2/configuration` |
+| `ServerConfiguration` | `GET /admin/v2/server/configuration` |
+| `DataStorageConfiguration` | `GET /admin/v2/server-data/configuration`, `GET /admin/v2/client-data/configuration` |
+| `ServerDataSummary` | `GET /admin/v2/server-data/summary` |
+| `ClientDataSummary` | `GET /admin/v2/client-data/summary` |
+| `FileInfo` | `GET /admin/v2/files` |
 
 ## Schema drift detection
 

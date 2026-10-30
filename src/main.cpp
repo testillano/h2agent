@@ -94,7 +94,7 @@ h2agent::model::SseManager* mySseManager = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
-const char* AdminApiVersion = "v1";
+const char* AdminApiVersion = "v2";
 }
 
 /////////////////////////
@@ -503,7 +503,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Maximum pending dispatches in the worker pool; defaults to 0 (unlimited).\n"
        << "  When the pool queue exceeds this limit, new ticks are discarded to\n"
        << "  prevent unbounded memory growth. Lower values control memory better\n"
-       << "  but reduce effective CPS. Monitor via GET /admin/v1/client/dispatch-latency.\n\n"
+       << "  but reduce effective CPS. Monitor via GET /admin/v2/client/dispatch-latency.\n\n"
 
        << "[-V|--version]\n"
        << "  Program version.\n\n"
@@ -1115,6 +1115,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myAdminHttp2Server->enableMetrics(myMetrics, {}, {}, application_name/*source label*/);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
+    myAdminHttp2Server->setProgramVersion(h2agent::GIT_VERSION);
     myAdminHttp2Server->setConfiguration(myConfiguration);
     myAdminHttp2Server->setVault(myVault);
     myAdminHttp2Server->setFileManager(myFileManager);

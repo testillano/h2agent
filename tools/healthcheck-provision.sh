@@ -1,6 +1,6 @@
 #!/bin/bash
 # Useful to quickly provision h2agent with simple successful healthchek request: any GET uri is valid
-curl -i --http2-prior-knowledge -XPOST -d'{"requestMethod":"GET","responseCode":200}' -H content-type:application/json http://localhost:8074/admin/v1/server-provision
+curl -i --http2-prior-knowledge -XPOST -d'{"requestMethod":"GET","responseCode":200}' -H content-type:application/json http://localhost:8074/admin/v2/server-provision
 
 cat << EOF
 

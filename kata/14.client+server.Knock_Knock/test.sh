@@ -10,7 +10,7 @@ H2AGENT_CLIENT_ADMIN_ENDPOINT=localhost:8074
 
 h2a_curl() {
   curl -sf --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${3:+-d@$3} \
-    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/$2"
+    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/$2"
 }
 
 h2agent_server_configuration

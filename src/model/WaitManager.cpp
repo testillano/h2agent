@@ -44,6 +44,23 @@ namespace h2agent
 namespace model
 {
 
+namespace {
+
+// Expected value matching: scalars are compared by their text, so a barrier does
+// not depend on how the value was stored ('?value=60' matches 60, "60" and 60.0
+// written as text "60"); objects/arrays are compared as JSON.
+std::string scalarText(const nlohmann::json &v) {
+    return v.is_string() ? v.get<std::string>() : v.dump();
+}
+
+bool matchesTarget(const nlohmann::json &value, const nlohmann::json &target) {
+    if (value.is_structured() || target.is_structured()) return value == target;
+    if (value.is_null() || target.is_null()) return value == target;
+    return scalarText(value) == scalarText(target);
+}
+
+}
+
 bool WaitManager::waitForVault(const std::string &key, const nlohmann::json &targetValue,
                                unsigned int timeoutMs,
                                nlohmann::json &resultValue, nlohmann::json &previousValue) {
@@ -63,7 +80,7 @@ bool WaitManager::waitForVault(const std::string &key, const nlohmann::json &tar
     if (vault_) vault_->tryGet(key, previousValue);
 
     // Check if already satisfied
-    if (!targetValue.is_null() && previousValue == targetValue) {
+    if (!targetValue.is_null() && matchesTarget(previousValue, targetValue)) {
         resultValue = previousValue;
         return true;
     }
@@ -76,7 +93,7 @@ bool WaitManager::waitForVault(const std::string &key, const nlohmann::json &tar
         if (targetValue.is_null()) {
             return exists && resultValue != previousValue;
         }
-        return exists && resultValue == targetValue;
+        return exists && matchesTarget(resultValue, targetValue);
     });
     active_waiters_--;
 

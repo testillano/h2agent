@@ -7,13 +7,13 @@ You have a service that claims to handle requests at a certain rate. But does it
 When triggering a client provision, you can control the rate and total count:
 
 ```
-GET /admin/v1/client-provision/<id>?sequenceBegin=1&sequenceEnd=50&cps=10
+GET /admin/v2/client-provision/<id>?sequenceBegin=1&sequenceEnd=50&cps=10
 ```
 
 This fires the provision 50 times at 10 provisions per second (~5 seconds total). You can poll the progress at any time via the REST API:
 
 ```bash
-curl -s --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision | jq '.[0].dynamics'
+curl -s --http2-prior-knowledge http://localhost:8074/admin/v2/client-provision | jq '.[0].dynamics'
 ```
 
 Which returns:

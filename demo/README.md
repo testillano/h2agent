@@ -116,7 +116,7 @@ HTTP/2 204
 
 Dump the server data map, just executing the corresponding management interface operation:
 
-`curl --http2-prior-knowledge http://localhost:8074/admin/v1/server-data | jq '.'`
+`curl --http2-prior-knowledge http://localhost:8074/admin/v2/server-data | jq '.'`
 
 ```json
 [

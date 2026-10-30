@@ -10,20 +10,20 @@ H2AGENT_CLIENT_ADMIN_ENDPOINT=localhost:8074
 
 h2a_curl() {
   curl -sf --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${3:+-d@$3} \
-    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/$2"
+    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/$2"
 }
 
 h2agent_server_configuration
 
 # Cleanup client state
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-provision" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-provision" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-endpoint" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-endpoint" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-data" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-data" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/vault" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/vault" >/dev/null
 
 # Configure client
 h2a_curl POST client-endpoint client-endpoint.json >/dev/null

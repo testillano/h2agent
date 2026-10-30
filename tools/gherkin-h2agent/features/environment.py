@@ -24,7 +24,7 @@ class H2AgentClient:
         self.session = requests.Session()
 
     def admin_url(self, path):
-        return f"{self.admin}/admin/v1/{path.lstrip('/')}"
+        return f"{self.admin}/admin/v2/{path.lstrip('/')}"
 
     def traffic_url(self, path):
         return f"{self.traffic}/{path.lstrip('/')}"
@@ -72,7 +72,7 @@ class DumpRecorder:
             entry["path"] = path
             entry["type"] = "traffic"
         else:
-            entry["path"] = f"/admin/v1/{path}"
+            entry["path"] = f"/admin/v2/{path}"
         if params:
             entry["queryParams"] = params
         if body is not None:

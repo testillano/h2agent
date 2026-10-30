@@ -41,5 +41,5 @@ fi
 
 # Hints (usage: $0 <url> <server key> <server crt> <server password> <client key> <client crt> <client password> <cacert (*)>):
 # (*): in order to make client trust the server self-signed certificate, use --cacert with it because there is no CA
-${SCR_DIR}/hints.sh https://localhost:8074/admin/v1/server-matching ${SERVER_KEY_FILE} ${SERVER_CRT_FILE} ${PASSWORD} ${CLIENT_KEY_FILE} ${CLIENT_CRT_FILE} ${PASSWORD} ${SERVER_CRT_FILE}
+${SCR_DIR}/hints.sh https://localhost:8074/admin/v2/server-matching ${SERVER_KEY_FILE} ${SERVER_CRT_FILE} ${PASSWORD} ${CLIENT_KEY_FILE} ${CLIENT_CRT_FILE} ${PASSWORD} ${SERVER_CRT_FILE}
 

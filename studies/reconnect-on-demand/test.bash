@@ -25,7 +25,7 @@ PASS=0
 FAIL=0
 
 # Prerequisite check
-if ! ${CURL} http://${HOST}:${ADMIN_PORT}/admin/v1/configuration &>/dev/null; then
+if ! ${CURL} http://${HOST}:${ADMIN_PORT}/admin/v2/configuration &>/dev/null; then
   echo "h2agent not reachable at ${HOST}:${ADMIN_PORT}. Start it first."
   return 1
 fi
@@ -44,8 +44,8 @@ check() {
 cleanup() {
   echo "Cleaning up ..."
   docker stop ${TARGET_CONTAINER} &>/dev/null || true
-  ${CURL} -XDELETE http://${HOST}:${ADMIN_PORT}/admin/v1/client-provision &>/dev/null || true
-  ${CURL} -XDELETE http://${HOST}:${ADMIN_PORT}/admin/v1/client-endpoint &>/dev/null || true
+  ${CURL} -XDELETE http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision &>/dev/null || true
+  ${CURL} -XDELETE http://${HOST}:${ADMIN_PORT}/admin/v2/client-endpoint &>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -56,19 +56,19 @@ cleanup 2>/dev/null
 echo
 echo "1. Configure client endpoint to port ${TARGET_TRAFFIC_PORT} (nothing listening)"
 echo '{"id":"target","host":"'${HOST}'","port":'${TARGET_TRAFFIC_PORT}'}' | \
-  ${CURL} -XPOST -d@- -H 'content-type:application/json' http://${HOST}:${ADMIN_PORT}/admin/v1/client-endpoint >/dev/null
+  ${CURL} -XPOST -d@- -H 'content-type:application/json' http://${HOST}:${ADMIN_PORT}/admin/v2/client-endpoint >/dev/null
 
 echo '{"id":"reconnect-test","endpoint":"target","requestMethod":"GET","requestUri":"/ping","expectedResponseStatusCode":200}' | \
-  ${CURL} -XPOST -d@- -H 'content-type:application/json' http://${HOST}:${ADMIN_PORT}/admin/v1/client-provision >/dev/null
+  ${CURL} -XPOST -d@- -H 'content-type:application/json' http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision >/dev/null
 
 sleep 1
-status=$(${CURL} http://${HOST}:${ADMIN_PORT}/admin/v1/client-endpoint | python3 -c "import sys,json; print(json.load(sys.stdin)[0].get('status','?'))" 2>/dev/null)
+status=$(${CURL} http://${HOST}:${ADMIN_PORT}/admin/v2/client-endpoint | python3 -c "import sys,json; print(json.load(sys.stdin)[0].get('status','?'))" 2>/dev/null)
 check "Endpoint initially not open" "Closed" "${status}"
 
 # --- Step 1: trigger without server → unsent ---
 echo
 echo "2. Trigger without server (expect unsent)"
-${CURL} "http://${HOST}:${ADMIN_PORT}/admin/v1/client-provision/reconnect-test?sequence=1" >/dev/null
+${CURL} "http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision/reconnect-test?sequence=1" >/dev/null
 sleep 3
 
 unsent=$(curl -s http://${HOST}:${METRICS_PORT}/metrics | grep 'unsent_counter{source="h2agent_target"' | awk '{print $2}')
@@ -83,7 +83,7 @@ docker run -d --rm --name ${TARGET_CONTAINER} --network=host \
 sleep 3
 
 echo '{"requestMethod":"GET","requestUri":"/ping","responseCode":200,"responseBody":{"status":"ok"}}' | \
-  ${CURL} -XPOST -d@- -H 'content-type:application/json' http://${HOST}:${TARGET_ADMIN_PORT}/admin/v1/server-provision >/dev/null
+  ${CURL} -XPOST -d@- -H 'content-type:application/json' http://${HOST}:${TARGET_ADMIN_PORT}/admin/v2/server-provision >/dev/null
 
 target_ok=$(${CURL} http://${HOST}:${TARGET_TRAFFIC_PORT}/ping 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null)
 check "Target server responds" "ok" "${target_ok}"
@@ -91,12 +91,12 @@ check "Target server responds" "ok" "${target_ok}"
 # --- Step 3: trigger again → should reconnect and succeed ---
 echo
 echo "4. Trigger again (expect reconnect + 200)"
-${CURL} "http://${HOST}:${ADMIN_PORT}/admin/v1/client-provision/reconnect-test?sequence=2" >/dev/null
+${CURL} "http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision/reconnect-test?sequence=2" >/dev/null
 sleep 3
 
 sents=$(curl -s http://${HOST}:${METRICS_PORT}/metrics | grep 'sents_counter{source="h2agent_target"' | awk '{print $2}')
 received=$(curl -s http://${HOST}:${METRICS_PORT}/metrics | grep 'received_counter{source="h2agent_target".*status_code="200"' | awk '{print $2}')
-status=$(${CURL} http://${HOST}:${ADMIN_PORT}/admin/v1/client-endpoint | python3 -c "import sys,json; print(json.load(sys.stdin)[0].get('status','?'))" 2>/dev/null)
+status=$(${CURL} http://${HOST}:${ADMIN_PORT}/admin/v2/client-endpoint | python3 -c "import sys,json; print(json.load(sys.stdin)[0].get('status','?'))" 2>/dev/null)
 
 check "Sents counter = 1" "1" "${sents}"
 check "Received 200 counter = 1" "1" "${received}"

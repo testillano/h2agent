@@ -149,8 +149,8 @@ docker volume rm BookStoreVol || { echo "Stop containers using the volume !" ; r
 docker volume create BookStoreVol
 docker run --name book-store-container -t -d --network=host -v BookStoreVol:/tmp ghcr.io/testillano/h2agent:latest "${opts[@]}" "${histogram_latency_opts[@]}" "${histogram_size_opts[@]}"
 sleep 1
-curl -i --http2-prior-knowledge -XPOST -d@/tmp/matching.json -H content-type:application/json http://localhost:8074/admin/v1/server-matching
-curl -i --http2-prior-knowledge -XPOST -d@/tmp/provision.json -H content-type:application/json http://localhost:8074/admin/v1/server-provision
+curl -i --http2-prior-knowledge -XPOST -d@/tmp/matching.json -H content-type:application/json http://localhost:8074/admin/v2/server-matching
+curl -i --http2-prior-knowledge -XPOST -d@/tmp/provision.json -H content-type:application/json http://localhost:8074/admin/v2/server-provision
 
 # Customer:
 # 1. udp-server-h2client start:

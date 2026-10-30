@@ -145,16 +145,16 @@ export -f test_query
 # server-matching.json and server-provision.json must be located at current directory
 h2agent_server_configuration() {
   EXPECTED_STATUS_CODES="200 204"
-  test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || exit 1
-  test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
-  test_query "Vault cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/vault || exit 1
+  test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-data || exit 1
+  test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
+  test_query "Vault cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/vault || exit 1
 
   if [ -f "server-matching.json" ]
   then
     EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
     EXPECTED_STATUS_CODES=201
     CURL_OPTS="-d@server-matching.json -H \"content-type: application/json\""
-    test_query "Matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
+    test_query "Matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-matching || exit 1
   fi
 
   if [ -f "server-provision.json" ]
@@ -165,7 +165,7 @@ h2agent_server_configuration() {
     EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schema${s} and server provision${s} data received\" }"
     EXPECTED_STATUS_CODES=201
     CURL_OPTS="-d@server-provision.json -H \"content-type: application/json\""
-    test_query "Provision configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
+    test_query "Provision configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
   fi
 }
 export -f h2agent_server_configuration

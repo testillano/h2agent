@@ -297,19 +297,19 @@ if [ "${BENCH_MODE}" = "server" ]; then
 
   # Configure server
   echo '{"algorithm":"FullMatching"}' > ${TMP_DIR}/server-matching.json
-  h2a_admin_curl DELETE admin/v1/server-provision
-  h2a_admin_curl DELETE admin/v1/vault
-  h2a_admin_curl POST admin/v1/server-matching 201 ${TMP_DIR}/server-matching.json || exit 1
-  h2a_admin_curl POST admin/v1/server-provision 201 ${TMP_DIR}/server-provision.json || exit 1
-  h2a_admin_curl PUT "admin/v1/files/configuration?readCache=${H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION}" 200 || exit 1
+  h2a_admin_curl DELETE admin/v2/server-provision
+  h2a_admin_curl DELETE admin/v2/vault
+  h2a_admin_curl POST admin/v2/server-matching 201 ${TMP_DIR}/server-matching.json || exit 1
+  h2a_admin_curl POST admin/v2/server-provision 201 ${TMP_DIR}/server-provision.json || exit 1
+  h2a_admin_curl PUT "admin/v2/files/configuration?readCache=${H2AGENT__FILE_MANAGER_ENABLE_READ_CACHE_CONFIGURATION}" 200 || exit 1
 
   case ${H2AGENT__SERVER_TRAFFIC_IGNORE_REQUEST_BODY_CONFIGURATION} in
     false) RECEIVE_REQUEST_BODY=true ;; true) RECEIVE_REQUEST_BODY=false ;; esac
   case ${H2AGENT__SERVER_TRAFFIC_DYNAMIC_REQUEST_BODY_ALLOCATION_CONFIGURATION} in
     false) PRE_RESERVE_REQUEST_BODY=true ;; true) PRE_RESERVE_REQUEST_BODY=false ;; esac
-  h2a_admin_curl PUT "admin/v1/server/configuration?receiveRequestBody=${RECEIVE_REQUEST_BODY}&preReserveRequestBody=${PRE_RESERVE_REQUEST_BODY}" 200 || exit 1
+  h2a_admin_curl PUT "admin/v2/server/configuration?receiveRequestBody=${RECEIVE_REQUEST_BODY}&preReserveRequestBody=${PRE_RESERVE_REQUEST_BODY}" 200 || exit 1
   echo -e "\nServer configuration:"
-  h2a_admin_curl GET "admin/v1/server/configuration" || exit 1
+  h2a_admin_curl GET "admin/v2/server/configuration" || exit 1
   cat ${TMP_DIR}/curl.output
 
   case ${H2AGENT__DATA_STORAGE_CONFIGURATION} in
@@ -318,16 +318,16 @@ if [ "${BENCH_MODE}" = "server" ]; then
     keep-all) DISCARD_DATA=false; DISCARD_DATA_HISTORY=false ;; esac
   case ${H2AGENT__DATA_PURGE_CONFIGURATION} in
     enable-purge) DISABLE_PURGE=false ;; disable-purge) DISABLE_PURGE=true ;; esac
-  h2a_admin_curl PUT "admin/v1/server-data/configuration?discard=${DISCARD_DATA}&discardKeyHistory=${DISCARD_DATA_HISTORY}&disablePurge=${DISABLE_PURGE}" 200 || exit 1
+  h2a_admin_curl PUT "admin/v2/server-data/configuration?discard=${DISCARD_DATA}&discardKeyHistory=${DISCARD_DATA_HISTORY}&disablePurge=${DISABLE_PURGE}" 200 || exit 1
   echo -e "\nServer data configuration:"
-  h2a_admin_curl GET "admin/v1/server-data/configuration" || exit 1
+  h2a_admin_curl GET "admin/v2/server-data/configuration" || exit 1
   cat ${TMP_DIR}/curl.output
   echo -en "\n\nRemoving current server data information ... "
-  h2a_admin_curl DELETE "admin/v1/server-data"
+  h2a_admin_curl DELETE "admin/v2/server-data"
   echo "done !"
 
   # Vault
-  [ -f "${TEST_DIR}/vault.json" ] && h2a_admin_curl POST admin/v1/vault 201 "${TEST_DIR}/vault.json" || true
+  [ -f "${TEST_DIR}/vault.json" ] && h2a_admin_curl POST admin/v2/vault 201 "${TEST_DIR}/vault.json" || true
 
   # h2load parameters
   read_value "Number of h2load iterations" H2LOAD__ITERATIONS
@@ -386,15 +386,15 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   NPROC=$(nproc)
 
   # Server mock setup (fixture) — on the MAIN h2agent
-  h2a_admin_curl DELETE admin/v1/server-provision
-  h2a_admin_curl DELETE admin/v1/vault
+  h2a_admin_curl DELETE admin/v2/server-provision
+  h2a_admin_curl DELETE admin/v2/vault
   if [ -f "${TEST_DIR}/server-provision.json" ]; then
     echo '{"algorithm":"FullMatching"}' > ${TMP_DIR}/server-matching.json
-    h2a_admin_curl POST admin/v1/server-matching 201 ${TMP_DIR}/server-matching.json || exit 1
-    h2a_admin_curl POST admin/v1/server-provision 201 "${TEST_DIR}/server-provision.json" || exit 1
+    h2a_admin_curl POST admin/v2/server-matching 201 ${TMP_DIR}/server-matching.json || exit 1
+    h2a_admin_curl POST admin/v2/server-provision 201 "${TEST_DIR}/server-provision.json" || exit 1
     echo "Server mock configured (fixture) on port ${H2AGENT__ADMIN_PORT}"
   fi
-  [ -f "${TEST_DIR}/vault.json" ] && h2a_admin_curl POST admin/v1/vault 201 "${TEST_DIR}/vault.json" || true
+  [ -f "${TEST_DIR}/vault.json" ] && h2a_admin_curl POST admin/v2/vault 201 "${TEST_DIR}/vault.json" || true
 
   # Client parameters
   read_value "Client data storage configuration" H2CLIENT__DATA_STORAGE_CONFIGURATION "discard-all|discard-history|keep-all" || exit 1
@@ -416,7 +416,7 @@ elif [ "${BENCH_MODE}" = "client" ]; then
 
   # Wait for client h2agent to be ready
   for i in $(seq 1 30); do
-    curl -sf --http2-prior-knowledge "http://${H2AGENT__BIND_ADDRESS}:${CLIENT_ADMIN_PORT}/admin/v1/configuration" -o /dev/null 2>/dev/null && break
+    curl -sf --http2-prior-knowledge "http://${H2AGENT__BIND_ADDRESS}:${CLIENT_ADMIN_PORT}/admin/v2/configuration" -o /dev/null 2>/dev/null && break
     sleep 0.1
   done
   CLIENT_H2AGENT_PID=$(docker inspect -f '{{.State.Pid}}' ${CLIENT_DCK_NAME} 2>/dev/null)
@@ -441,21 +441,21 @@ elif [ "${BENCH_MODE}" = "client" ]; then
     keep-all) CLIENT_DISCARD_DATA=false; CLIENT_DISCARD_DATA_HISTORY=false ;; esac
   case ${H2CLIENT__DATA_PURGE_CONFIGURATION} in
     enable-purge) CLIENT_DISABLE_PURGE=false ;; disable-purge) CLIENT_DISABLE_PURGE=true ;; esac
-  client_admin_curl PUT "admin/v1/client-data/configuration?discard=${CLIENT_DISCARD_DATA}&discardKeyHistory=${CLIENT_DISCARD_DATA_HISTORY}&disablePurge=${CLIENT_DISABLE_PURGE}" 200 || exit 1
+  client_admin_curl PUT "admin/v2/client-data/configuration?discard=${CLIENT_DISCARD_DATA}&discardKeyHistory=${CLIENT_DISCARD_DATA_HISTORY}&disablePurge=${CLIENT_DISABLE_PURGE}" 200 || exit 1
   echo -e "\nClient data configuration:"
-  client_admin_curl GET "admin/v1/client-data/configuration" || exit 1
+  client_admin_curl GET "admin/v2/client-data/configuration" || exit 1
   cat ${TMP_DIR}/curl.output
 
   # Configure client endpoint (pointing to main h2agent's traffic port)
   if [ -f "${TEST_DIR}/client-endpoint.json" ]; then
-    client_admin_curl POST admin/v1/client-endpoint 201 "${TEST_DIR}/client-endpoint.json" || exit 1
+    client_admin_curl POST admin/v2/client-endpoint 201 "${TEST_DIR}/client-endpoint.json" || exit 1
   else
     echo "{\"id\":\"server\",\"host\":\"${H2AGENT__BIND_ADDRESS}\",\"port\":${H2AGENT__TRAFFIC_PORT}}" > ${TMP_DIR}/client-endpoint.json
-    client_admin_curl POST admin/v1/client-endpoint 201 ${TMP_DIR}/client-endpoint.json || exit 1
+    client_admin_curl POST admin/v2/client-endpoint 201 ${TMP_DIR}/client-endpoint.json || exit 1
   fi
 
   # Configure client provision
-  client_admin_curl POST admin/v1/client-provision 201 "${TEST_DIR}/client-provision.json" || exit 1
+  client_admin_curl POST admin/v2/client-provision 201 "${TEST_DIR}/client-provision.json" || exit 1
 
   PROVISION_ID=$(jq -r 'if type == "array" then .[0].id else .id end' "${TEST_DIR}/client-provision.json")
   echo -e "\nClient provision '${PROVISION_ID}' configured"
@@ -469,7 +469,7 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   echo
   echo "Triggering ${H2CLIENT__ITERATIONS} provisions at ${H2CLIENT__CPS} cps (~${EXPECTED_SECS}s expected)..."
   START_NS=$(date +%s%N)
-  client_admin_curl GET "admin/v1/client-provision/${PROVISION_ID}?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&cps=${H2CLIENT__CPS}" || exit 1
+  client_admin_curl GET "admin/v2/client-provision/${PROVISION_ID}?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&cps=${H2CLIENT__CPS}" || exit 1
   cat ${TMP_DIR}/curl.output
   echo
 

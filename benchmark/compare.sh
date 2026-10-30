@@ -77,7 +77,7 @@ start_server() {
     --log-level Warning > /dev/null || return 1
   local i
   for i in $(seq 1 50); do
-    curl -sf --http2-prior-knowledge "http://0.0.0.0:${ADMIN_PORT}/admin/v1/configuration" -o /dev/null && return 0
+    curl -sf --http2-prior-knowledge "http://0.0.0.0:${ADMIN_PORT}/admin/v2/configuration" -o /dev/null && return 0
     sleep 0.1
   done
   return 1

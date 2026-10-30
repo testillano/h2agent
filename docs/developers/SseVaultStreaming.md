@@ -32,7 +32,7 @@ Each event block is terminated by a blank line (`\n\n`). The client reads from t
 ### Endpoint
 
 ```
-GET /admin/v1/vault/events[?key=<k1>&key=<k2>...]
+GET /admin/v2/vault/events[?key=<k1>&key=<k2>...]
 ```
 
 - Response: `200 OK`, `Content-Type: text/event-stream`
@@ -57,7 +57,7 @@ GET /admin/v1/vault/events[?key=<k1>&key=<k2>...]
                                                └─────────────┘
 ```
 
-1. Client sends `GET /admin/v1/vault/events?key=X`
+1. Client sends `GET /admin/v2/vault/events?key=X`
 2. Handler sends `200` + SSE headers, keeps stream open via nghttp2 generator callback
 3. Generator returns `NGHTTP2_ERR_DEFERRED` (no data yet → pause stream)
 4. When Vault mutates key X → `SseManager::notify()` buffers the SSE event and calls `res.resume()`

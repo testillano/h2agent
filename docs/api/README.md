@@ -14,6 +14,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
   - [Files](#files)
   - [Logging](#logging)
   - [Health](#health)
+  - [Capabilities](#capabilities)
   - [Configuration](#configuration)
 - [Matching algorithms](#matching-algorithms)
   - [URI path query parameters](#uri-path-query-parameters)
@@ -49,7 +50,9 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 
 ## Overview
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. All operations are served over *URI* path `/admin/v1/`.
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. All operations are served over *URI* path `/admin/v2/`.
+
+The former `/admin/v1/` API is retired: any request to it is answered with `410 Gone` and a `cause` pointing to the same resource under `/admin/v2/` (provisions written for the v1 grammar must be migrated, see the migration tool).
 
 The API is organized in three groups:
 
@@ -76,7 +79,7 @@ The API is organized in three groups:
 
 ### Schemas
 
-Loads schema(s) (`POST /admin/v1/schema`) for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
+Loads schema(s) (`POST /admin/v2/schema`) for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
 
 If you have a `json` schema (from file `schema.json`) and want to build the `h2agent` schema configuration (into file `h2agent_schema.json`), you may perform automations like this *bash script* example:
 
@@ -126,18 +129,18 @@ A schema set fails with the first failed item, giving a 'pluralized' version of 
 
 ### Vault
 
-Vault (`POST /admin/v1/vault`) can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this *REST API* operation. This operation is mainly focused on the use of vaults as constants for the whole execution (although they could be updated or reset from provisions).
+Vault (`POST /admin/v2/vault`) can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this *REST API* operation. This operation is mainly focused on the use of vaults as constants for the whole execution (although they could be updated or reset from provisions).
 
 Vault are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
-When querying (`GET /admin/v1/vault`), without the `name` query parameter, the whole list of vaults is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
+When querying (`GET /admin/v2/vault`), without the `name` query parameter, the whole list of vaults is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
 
 #### Blocking wait
 
-The endpoint `GET /admin/v1/vault/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
+The endpoint `GET /admin/v2/vault/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
 
 - **Any change** (no `value` parameter): returns when the variable differs from its value at the time the request was received.
-- **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied.
+- **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied. Scalars are compared by their text, so the barrier does not depend on how the value was stored: `value=60` matches both `60` and `"60"`, and `value=true` matches `true` and `"true"` (text is case-sensitive). JSON objects and arrays (`value={"a":1}`, URL-encoded) are compared as JSON.
 
 Parameters: `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32).
 
@@ -160,12 +163,12 @@ The vault is written on the traffic hot path: every `vault.X` transformation tar
 Notes:
 
 - The gain applies to **distinct keys** (the common per-subscriber case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `math.@{K}+1 -> vault.K` atomic).
-- Whole-vault admin operations (`GET /admin/v1/vault`, `DELETE /admin/v1/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
+- Whole-vault admin operations (`GET /admin/v2/vault`, `DELETE /admin/v2/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
 - This is transparent to provisions and to the REST API; no configuration is needed. It is an internal property of the vault store (`src/model/Map.hpp`, opt-in via the `Shards` template parameter; only the vault uses `> 1`). A native benchmark is provided at `benchmark/native/vault_sharding/`.
 
 ### Files
 
-The files operation (`GET /admin/v1/files`) retrieves the whole list of files processed and their current status. For example:
+The files operation (`GET /admin/v2/files`) retrieves the whole list of files processed and their current status. For example:
 
 ```json
 [
@@ -188,17 +191,25 @@ An already managed file could be externally removed or corrupted. In that case, 
 
 ### Logging
 
-The logging level (`GET /admin/v1/logging`) retrieves the current level: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+The logging level (`GET /admin/v2/logging`) retrieves the current level: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
-To change it (`PUT /admin/v1/logging?level=<level>`), provide any of the valid log levels as query parameter. This can be also configured on start as described in the [command line](../../README.md#command-line) section.
+To change it (`PUT /admin/v2/logging?level=<level>`), provide any of the valid log levels as query parameter. This can be also configured on start as described in the [command line](../../README.md#command-line) section.
 
 ### Health
 
-`GET /admin/v1/health` returns `{"status":"healthy"}` with HTTP 200. This endpoint is intended for Kubernetes liveness and readiness probes. It is always available as long as the admin server is running.
+`GET /admin/v2/health` returns `{"status":"healthy"}` with HTTP 200. This endpoint is intended for Kubernetes liveness and readiness probes. It is always available as long as the admin server is running.
+
+### Capabilities
+
+`GET /admin/v2/capabilities` returns diagnostics about this binary: admin API version, program version and the provision transformation grammar it accepts. It is informative only (clients use the API version they were written for):
+
+```json
+{ "apiVersion": "v2", "programVersion": "v5.0.0", "grammar": "v1" }
+```
 
 ### Configuration
 
-The general process configuration (`GET /admin/v1/configuration`) returns:
+The general process configuration (`GET /admin/v2/configuration`) returns:
 
 ```json
 {
@@ -208,7 +219,7 @@ The general process configuration (`GET /admin/v1/configuration`) returns:
 }
 ```
 
-The server configuration (`GET /admin/v1/server/configuration`) returns:
+The server configuration (`GET /admin/v2/server/configuration`) returns:
 
 ```json
 {
@@ -217,7 +228,7 @@ The server configuration (`GET /admin/v1/server/configuration`) returns:
 }
 ```
 
-Request body reception can be disabled (`PUT /admin/v1/server/configuration`). This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions:
+Request body reception can be disabled (`PUT /admin/v2/server/configuration`). This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions:
 
 * `receiveRequestBody=true`: data received will be processed.
 * `receiveRequestBody=false`: data received will be ignored.
@@ -233,9 +244,9 @@ The `h2agent` starts with memory pre reservation enabled by default, but you cou
 
 ## Matching algorithms
 
-The server matching configuration (`POST /admin/v1/server-matching`) defines how incoming traffic is classified towards provisions.
+The server matching configuration (`POST /admin/v2/server-matching`) defines how incoming traffic is classified towards provisions.
 
-> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), `POST /admin/v1/server-matching` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), for the same reason as server provisions above.
+> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), `POST /admin/v2/server-matching` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), for the same reason as server provisions above.
 
 ### URI path query parameters
 
@@ -331,9 +342,9 @@ Note: in case of large provisions, this algorithm could be not recommended (sequ
 
 ## Server provisions
 
-Server provisions (`POST /admin/v1/server-provision`) define the response behavior for incoming requests. This section covers the conceptual aspects of provisioning.
+Server provisions (`POST /admin/v2/server-provision`) define the response behavior for incoming requests. This section covers the conceptual aspects of provisioning.
 
-> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), it is a pure client and its mode cannot change at runtime. In that case `POST /admin/v1/server-provision` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), consistent with `PUT /admin/v1/server-data/configuration`. Use client provisions instead.
+> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), it is a pure client and its mode cannot change at runtime. In that case `POST /admin/v2/server-provision` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), consistent with `PUT /admin/v2/server-data/configuration`. Use client provisions instead.
 
 ### State machine (inState/outState)
 
@@ -447,9 +458,9 @@ There are two distinct variable systems available in transformations. Despite th
 | **Storage type** | `string` only (`Map<string, string>`) | Any `json` type: string, number, boolean, object, array (`Map<string, json>`) |
 | **Key naming** | May contain dots (e.g. `var.captures.1`) | Dots forbidden in key names (reserved as separator for json pointer path) |
 | **Path navigation** | Not supported | Supported: `vault.KEY./path/to/field` (json pointer after the dot) |
-| **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v1/vault` |
+| **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v2/vault` |
 | **CLI loading** | Not supported | `--vault file.json` |
-| **Blocking wait** | Not supported | `GET /admin/v1/vault/<key>/wait` |
+| **Blocking wait** | Not supported | `GET /admin/v2/vault/<key>/wait` |
 
 #### RegexCapture behavior difference
 
@@ -882,7 +893,7 @@ The **target** of information is classified after parsing the following possible
   }
   ```
 
-  The triggered client provision must be previously configured (via `POST /admin/v1/client-provision`) along with its associated client endpoint (via `POST /admin/v1/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
+  The triggered client provision must be previously configured (via `POST /admin/v2/client-provision`) along with its associated client endpoint (via `POST /admin/v2/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
 
 - break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action. Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
@@ -1587,14 +1598,14 @@ A provision set fails with the first failed item, giving a 'pluralized' version 
 
 ### Unused provisions
 
-`GET /admin/v1/server-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+`GET /admin/v2/server-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
 The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
 
 ## Server data
 
 ### Storage configuration
 
-Both server and client data storage share the same configuration model (`PUT /admin/v1/server-data/configuration`).
+Both server and client data storage share the same configuration model (`PUT /admin/v2/server-data/configuration`).
 
 There are three valid combinations:
 
@@ -1615,7 +1626,7 @@ The `h2agent` starts with purge stage enabled by default, but you could also dis
 
 Be careful using this `PUT` operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
 
-`GET /admin/v1/server-data/configuration` retrieves the current configuration:
+`GET /admin/v2/server-data/configuration` retrieves the current configuration:
 
 ```json
 {
@@ -1640,7 +1651,7 @@ When a provision is loaded (`POST`) that references event-dependent transformati
 }
 ```
 
-Similarly, when storage is disabled via `PUT /admin/v1/server-data/configuration?discard=true` but loaded provisions require it, the response includes a warning body:
+Similarly, when storage is disabled via `PUT /admin/v2/server-data/configuration?discard=true` but loaded provisions require it, the response includes a warning body:
 
 ```json
 {
@@ -1656,11 +1667,11 @@ By default, the `h2agent` enables both kinds of storage types (general events an
 
 ### Querying server data
 
-`GET /admin/v1/server-data` retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent answered with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the received `uri` normalized</u> (having for example, a better predictable query parameters order during server data events search), not the `classification uri` (which could dispense with query parameters or variable parts depending on the matching algorithm), and could also be slightly different in some cases (specially when query parameters are involved) than original `uri` received on HTTP/2 interface.
+`GET /admin/v2/server-data` retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent answered with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the received `uri` normalized</u> (having for example, a better predictable query parameters order during server data events search), not the `classification uri` (which could dispense with query parameters or variable parts depending on the matching algorithm), and could also be slightly different in some cases (specially when query parameters are involved) than original `uri` received on HTTP/2 interface.
 
-<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
+<u>Without query parameters</u> (`GET /admin/v2/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
+`/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
 
 The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `method/uri` combination.
 
@@ -1670,7 +1681,7 @@ This operation is useful for testing post verification stages (validate content 
 
 **Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). Use `./tools/url.sh` helper to encode:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
+`/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
 
 Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
 
@@ -1678,8 +1689,8 @@ When provided *method* and *uri*, server data will be filtered with that key. If
 
 The query also accepts the two addressing extensions of the `serverEvent` transformation source, with the same semantics, so any `serverEvent` address can be tried here before being used in a provision (and vice versa):
 
-* *requestUriStartsWith*: **literal** URI prefix instead of the exact `requestUri` (which is ignored when both are present). Selects among all the events, for the given *method*, whose *URI* starts with the prefix, merged in reception order; *requestMethod* and *eventNumber* are mandatory (`eventNumber=-1` is the most recent one). For example: `/admin/v1/server-data?requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody`.
-* *recvseq*: receive sequence for stable addressing within the *method* + *uri* key (both mandatory); *eventNumber* is ignored. For example: `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`.
+* *requestUriStartsWith*: **literal** URI prefix instead of the exact `requestUri` (which is ignored when both are present). Selects among all the events, for the given *method*, whose *URI* starts with the prefix, merged in reception order; *requestMethod* and *eventNumber* are mandatory (`eventNumber=-1` is the most recent one). For example: `/admin/v2/server-data?requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody`.
+* *recvseq*: receive sequence for stable addressing within the *method* + *uri* key (both mandatory); *eventNumber* is ignored. For example: `/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`.
 
 Both return the single event object (or the *eventPath* node within it): 200 when found, 204 when not, 400 when the addressing is incomplete or invalid. They are also available in the helpers: `server_data --starts-with <method> <uri prefix> <[-]event number> [event path]` and `server_data --recvseq <method> <uri> <recvseq> [event path]`.
 
@@ -1702,7 +1713,7 @@ The information collected for a server event item is:
 
 ### Server data summary
 
-`GET /admin/v1/server-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
+`GET /admin/v2/server-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
 
 The summary response fields:
 
@@ -1729,17 +1740,17 @@ Example:
 
 ### Deleting server data
 
-`DELETE /admin/v1/server-data` deletes the server data given by query parameters defined in the same way as the *GET* operation. For example:
+`DELETE /admin/v2/server-data` deletes the server data given by query parameters defined in the same way as the *GET* operation. For example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
+`/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
 
-The *recvseq* addressing is accepted too (same as the `serverEvent` purge target: *method* and *URI* mandatory, *eventNumber* ignored), for example `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`. Deletion by *requestUriStartsWith* is **not** supported (bad request), to avoid removing more events than expected.
+The *recvseq* addressing is accepted too (same as the `serverEvent` purge target: *method* and *URI* mandatory, *eventNumber* ignored), for example `/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`. Deletion by *requestUriStartsWith* is **not** supported (bad request), to avoid removing more events than expected.
 
 ## Client endpoints
 
-Client endpoints (`POST /admin/v1/client-endpoint`) define remote server connection information where `h2agent` may connect during test execution.
+Client endpoints (`POST /admin/v2/client-endpoint`) define remote server connection information where `h2agent` may connect during test execution.
 
 By default, created endpoints will connect the defined remote server (except for lazy connection mode: `--remote-servers-lazy-connection`) but no reconnection procedure is implemented in case of fail. Instead, they will be reconnected on demand when a request is processed through such endpoint.
 
@@ -1760,7 +1771,7 @@ A client endpoint set fails with the first failed item, giving a 'pluralized' ve
 
 ## Client provisions
 
-Client provisions (`POST /admin/v1/client-provision`) are a fundamental part of the client mode configuration. Unlike server provisions, they are identified by the mandatory `id` identifier (in server mode, the primary identifier was the `method/uri` key) and the optional `inState` field (which defaults to "initial" when missing). In client mode, there are no classification algorithms because the provisions are actively triggered through the *REST API*.
+Client provisions (`POST /admin/v2/client-provision`) are a fundamental part of the client mode configuration. Unlike server provisions, they are identified by the mandatory `id` identifier (in server mode, the primary identifier was the `method/uri` key) and the optional `inState` field (which defaults to "initial" when missing). In client mode, there are no classification algorithms because the provisions are actively triggered through the *REST API*.
 
 ### Client state machine
 
@@ -1797,7 +1808,7 @@ Client provision chains progress automatically: when a provision completes, the 
 
 #### endpoint
 
-Optional client endpoint identifier (previously registered through `POST /admin/v1/client-endpoint`) that indicates where this provision sends its request. It is not mandatory in the schema.
+Optional client endpoint identifier (previously registered through `POST /admin/v2/client-endpoint`) that indicates where this provision sends its request. It is not mandatory in the schema.
 
 **Per-state endpoint in a chain**: each link of a chain (each provision sharing the same `id` but with a different `inState`) may declare its own `endpoint`. This means a single chained scenario can mix client endpoints across its states — for example, alternate requests towards two different remote servers within the same automatic flow. The endpoint is re-resolved on every state progression, so the link's own `endpoint` is honored when the chain advances (not only on the first, triggered link).
 
@@ -1968,12 +1979,12 @@ A provision set fails with the first failed item, giving a 'pluralized' version 
 
 ### Unused client provisions
 
-`GET /admin/v1/client-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+`GET /admin/v2/client-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
 The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
 
 ### Triggering
 
-To trigger a client provision (`GET /admin/v1/client-provision/<id>`), we will use the *GET* method, providing its identifier in the *URI*.
+To trigger a client provision (`GET /admin/v2/client-provision/<id>`), we will use the *GET* method, providing its identifier in the *URI*.
 
 Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state (via the `inState` query parameter), this is useful for debugging and also for [partial chain execution](#partial-chain-execution) scenarios.
 
@@ -1992,7 +2003,7 @@ This is useful when the provision uses `sequence` in its transformations to buil
 ```bash
 # Send three requests with sequence values 10, 20 and 30:
 for seq in 10 20 30; do
-  curl --http2-prior-knowledge "http://localhost:8074/admin/v1/client-provision/myFlow?sequence=${seq}"
+  curl --http2-prior-knowledge "http://localhost:8074/admin/v2/client-provision/myFlow?sequence=${seq}"
 done
 ```
 
@@ -2014,7 +2025,7 @@ Negative values are allowed for `sequenceBegin` and `sequenceEnd`, which is usef
 ```bash
 # Trigger 11 provision executions with sequence values from -5 to 5 at 100 cps:
 curl --http2-prior-knowledge \
-  "http://localhost:8074/admin/v1/client-provision/myFlow?sequenceBegin=-5&sequenceEnd=5&cps=100"
+  "http://localhost:8074/admin/v2/client-provision/myFlow?sequenceBegin=-5&sequenceEnd=5&cps=100"
 ```
 
 > **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `cps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
@@ -2094,7 +2105,7 @@ And finally, note that we could also solve the previous exercise just providing 
 
   ```bash
   for provision in script1 script2 script3; do # parallel test scripts, 5000 iterations at 200 provisions per second:
-    curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&cps=200
+    curl -i --http2-prior-knowledge http://localhost:8074/admin/v2/client-provision/${provision}?sequenceEnd=4999&cps=200
   done
   ```
 
@@ -2108,7 +2119,7 @@ For example, consider a 3-step session flow (create → update → delete). To e
 
    ```bash
    curl --http2-prior-knowledge -d '{"STOP_AFTER": "establishment"}' \
-     http://localhost:8074/admin/v1/vault
+     http://localhost:8074/admin/v2/vault
    ```
 
 2. In the `onResponseTransform` of the establishment provision, add a conditional outState override:
@@ -2133,11 +2144,11 @@ For example, consider a 3-step session flow (create → update → delete). To e
    ```bash
    # First, clear the stop condition:
    curl --http2-prior-knowledge -d '{"STOP_AFTER": ""}' \
-     http://localhost:8074/admin/v1/vault
+     http://localhost:8074/admin/v2/vault
 
    # Then trigger from the intermediate state:
    curl --http2-prior-knowledge \
-     "http://localhost:8074/admin/v1/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
+     "http://localhost:8074/admin/v2/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
    ```
 
 > **Note**: when triggering from an intermediate state, scoped variables (`var.*`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `vault` instead.
@@ -2168,7 +2179,7 @@ The triggers are executed asynchronously after the server response is fully buil
 
 ### Client dispatch latency
 
-`GET /admin/v1/client/dispatch-latency`
+`GET /admin/v2/client/dispatch-latency`
 
 Returns accumulated statistics about the worker pool dispatch latency — the time between posting work to the client worker pool (`boost::asio::post()`) and the worker thread starting to execute the lambda. This measures queue wait time plus thread wakeup overhead.
 
@@ -2195,11 +2206,11 @@ Statistics accumulate for the lifetime of the process and are not reset between 
 
 ### Client storage configuration
 
-Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v1/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure clears all events accumulated during the chain, removing everything registered across all steps (different endpoints, methods and URIs) that participated in the completed flow.
+Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v2/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure clears all events accumulated during the chain, removing everything registered across all steps (different endpoints, methods and URIs) that participated in the completed flow.
 
 The same agent could manage server and client connections, so you have specific configurations for internal data regarding server or client events, but normally, we shall use only one mode to better separate responsibilities within the testing ecosystem.
 
-`GET /admin/v1/client-data/configuration` retrieves the current configuration:
+`GET /admin/v2/client-data/configuration` retrieves the current configuration:
 
 ```json
 {
@@ -2214,11 +2225,11 @@ By default, the `h2agent` enables both kinds of storage types (general events an
 
 ### Querying client data
 
-`GET /admin/v1/client-data` retrieves the current client internal data (requests sent, their provision identifiers, states and other useful information like timing or global order). By default, the `h2agent` stores the whole history of events (for example requests sent for the same `clientEndpointId`, `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the final sent `uri` normalized</u> (having for example, a better predictable query parameters order during client data events search), not necessarily the `provisioned uri` within the provision template.
+`GET /admin/v2/client-data` retrieves the current client internal data (requests sent, their provision identifiers, states and other useful information like timing or global order). By default, the `h2agent` stores the whole history of events (for example requests sent for the same `clientEndpointId`, `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the final sent `uri` normalized</u> (having for example, a better predictable query parameters order during client data events search), not necessarily the `provisioned uri` within the provision template.
 
-<u>Without query parameters</u> (`GET /admin/v1/client-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *clientEndpointId*, *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
+<u>Without query parameters</u> (`GET /admin/v2/client-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *clientEndpointId*, *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
 
-`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/responseBody`
+`/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/responseBody`
 
 The `json` document response shall contain three main nodes: `clientEndpointId`, `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `clientEndpointId/method/uri` combination.
 
@@ -2228,7 +2239,7 @@ This operation is useful for testing post verification stages (validate content 
 
 **Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). Use `./tools/url.sh` helper to encode:
 
-`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
+`/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
 
 As for server data, the query accepts the addressing extensions of the `clientEvent` transformation source with the same semantics: *requestUriStartsWith* (literal prefix instead of the exact `requestUri`; *clientEndpointId*, *requestMethod* and *eventNumber* mandatory) and *sendseq* (send sequence within the *clientEndpointId* + *method* + *uri* key; *eventNumber* ignored). Both return the single event object (or its *eventPath* node), with 200, 204 or 400 as for server data. Deletion accepts *sendseq* but not *requestUriStartsWith*. Helpers: `client_data --starts-with <client endpoint id> <method> <uri prefix> <[-]event number> [event path]` and `client_data --sendseq <client endpoint id> <method> <uri> <sendseq> [event path]`.
 
@@ -2253,7 +2264,7 @@ The information collected for a client event item is:
 
 ### Client data summary
 
-`GET /admin/v1/client-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the client data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of sendings or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of client data summary operation is try to guide the user to narrow and prepare an efficient query.
+`GET /admin/v2/client-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the client data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of sendings or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of client data summary operation is try to guide the user to narrow and prepare an efficient query.
 
 The summary response fields:
 
@@ -2280,8 +2291,8 @@ Example:
 
 ### Deleting client data
 
-`DELETE /admin/v1/client-data` deletes the client data given by query parameters defined in the same way as the *GET* operation. For example:
+`DELETE /admin/v2/client-data` deletes the client data given by query parameters defined in the same way as the *GET* operation. For example:
 
-`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
+`/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *clientEndpointId*, *method* and *URI* are provided together and *eventNumber* restricts optionally them.

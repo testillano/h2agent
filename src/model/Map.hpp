@@ -76,7 +76,7 @@ namespace model
  * - WHOLE-MAP operations (size/empty/forEach/getJson/clear/copy) must observe
  *   every shard, so they lock ALL shards in a FIXED ascending order (which is
  *   deadlock-free). These are administrative/report paths (e.g.
- *   GET /admin/v1/vault), NOT the traffic hot path, so global locking there is
+ *   GET /admin/v2/vault), NOT the traffic hot path, so global locking there is
  *   acceptable by design.
  *
  * Per-key atomicity of \c modifyOrInsert (read-modify-write under one lock) is
@@ -209,7 +209,7 @@ public:
      *
      * Locks ALL shards (read, fixed ascending order) for the duration so the
      * serialized object is a consistent snapshot across the whole keyspace.
-     * Administrative path (e.g. GET /admin/v1/vault), not the traffic hot path.
+     * Administrative path (e.g. GET /admin/v2/vault), not the traffic hot path.
      *
      * @return nlohmann::json A new copy of the map's content as a JSON object.
      */

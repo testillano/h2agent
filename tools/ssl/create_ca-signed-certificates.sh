@@ -53,5 +53,5 @@ openssl verify -purpose sslclient -CAfile ${CA_CRT_FILE} ${CLIENT_CRT_FILE}
 #also see: https://gist.github.com/komuW/5b37ad11a320202c3408
 
 # Hints (usage: $0 <url> <server key> <server crt> <server password> <client key> <client crt> <client password> <cacert>):
-${SCR_DIR}/hints.sh https://localhost:8074/admin/v1/server-matching ${SERVER_KEY_FILE} ${SERVER_CRT_FILE} "<Server PEM Phrase>" ${CLIENT_KEY_FILE} ${CLIENT_CRT_FILE} "<Client PEM Phrase>" ${CA_CRT_FILE}
+${SCR_DIR}/hints.sh https://localhost:8074/admin/v2/server-matching ${SERVER_KEY_FILE} ${SERVER_CRT_FILE} "<Server PEM Phrase>" ${CLIENT_KEY_FILE} ${CLIENT_CRT_FILE} "<Client PEM Phrase>" ${CA_CRT_FILE}
 

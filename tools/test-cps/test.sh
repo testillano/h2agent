@@ -5,7 +5,7 @@
 # Prerequisites: h2agent running on port 8074 (admin)
 
 cd "$(dirname "$0")"
-ADMIN="http://localhost:8074/admin/v1"
+ADMIN="http://localhost:8074/admin/v2"
 CURL="curl -s --http2-prior-knowledge"
 
 echo "=== Loading client endpoint ==="

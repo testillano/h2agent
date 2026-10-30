@@ -3,7 +3,7 @@ info:
   title: h2agent Management API
   description: |
     REST API to manage h2agent mock behavior for HTTP/2 traffic testing.
-    All operations are served under the `/admin/v1/` base path on the
+    All operations are served under the `/admin/v2/` base path on the
     management port (default 8074).
   version: "1.0"
   license:
@@ -44,7 +44,7 @@ tags:
 paths:
   # ===== GENERAL =====
 
-  /admin/v1/schema:
+  /admin/v2/schema:
     post:
       tags: [schema]
       summary: Load validation schema(s)
@@ -98,7 +98,7 @@ paths:
         '204':
           description: No schemas to delete
 
-  /admin/v1/schema/schema:
+  /admin/v2/schema/schema:
     get:
       tags: [schema]
       summary: Retrieve the schema operation schema
@@ -110,7 +110,7 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/vault:
+  /admin/v2/vault:
     post:
       tags: [vault]
       summary: Load vaults
@@ -185,7 +185,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/vault/schema:
+  /admin/v2/vault/schema:
     get:
       tags: [vault]
       summary: Retrieve the vaults schema
@@ -197,7 +197,7 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/vault/{key}/wait:
+  /admin/v2/vault/{key}/wait:
     get:
       tags: [vault]
       summary: Block until a vault changes
@@ -216,7 +216,8 @@ paths:
           in: query
           description: >
             Target value to wait for. When omitted, any change from the
-            current value triggers return.
+            current value triggers return. Scalars are compared by their
+            text (60 matches "60"); JSON objects/arrays are compared as JSON.
           schema:
             type: string
         - name: timeoutMs
@@ -241,7 +242,7 @@ paths:
         '429':
           description: Too many concurrent waiters (max 32)
 
-  /admin/v1/files:
+  /admin/v2/files:
     get:
       tags: [files]
       summary: Retrieve processed files list
@@ -257,7 +258,7 @@ paths:
         '204':
           description: No files processed
 
-  /admin/v1/files/configuration:
+  /admin/v2/files/configuration:
     get:
       tags: [files]
       summary: Retrieve files read-cache configuration
@@ -285,7 +286,7 @@ paths:
         '400':
           description: Missing or invalid readCache value
 
-  /admin/v1/udp-sockets:
+  /admin/v2/udp-sockets:
     get:
       tags: [data]
       summary: Retrieve the list of managed UDP write sockets
@@ -301,7 +302,7 @@ paths:
         '204':
           description: No UDP sockets managed
 
-  /admin/v1/malloc-trim:
+  /admin/v2/malloc-trim:
     get:
       tags: [general]
       summary: Release free heap memory back to the system (malloc_trim)
@@ -320,7 +321,7 @@ paths:
                     type: string
                     enum: [memory released, nothing to release]
 
-  /admin/v1/logging:
+  /admin/v2/logging:
     get:
       tags: [logging]
       summary: Retrieve current logging level
@@ -346,7 +347,7 @@ paths:
         '400':
           description: Invalid log level
 
-  /admin/v1/health:
+  /admin/v2/health:
     get:
       tags: [health]
       summary: Health check for liveness and readiness probes
@@ -362,7 +363,7 @@ paths:
                     type: string
                     example: healthy
 
-  /admin/v1/configuration:
+  /admin/v2/configuration:
     get:
       tags: [configuration]
       summary: Retrieve general process configuration
@@ -374,7 +375,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/GeneralConfiguration'
 
-  /admin/v1/server/configuration:
+  /admin/v2/capabilities:
+    get:
+      tags: [configuration]
+      summary: Retrieve capabilities (diagnostics)
+      description: >
+        Admin API version, program version and provision transformation grammar
+        accepted by this binary. Diagnostics only: clients use the admin API
+        version they were written for. Retired versions (e.g. /admin/v1/...)
+        are answered with 410 Gone and a hint to the current one.
+      responses:
+        '200':
+          description: Capabilities retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiVersion: { type: string, example: v2 }
+                  programVersion: { type: string, example: v5.0.0 }
+                  grammar: { type: string, example: v1 }
+
+  /admin/v2/server/configuration:
     put:
       tags: [configuration]
       summary: Update server configuration
@@ -409,7 +431,7 @@ paths:
 
   # ===== SERVER MOCK =====
 
-  /admin/v1/server-matching:
+  /admin/v2/server-matching:
     post:
       tags: [server-matching]
       summary: Configure server matching algorithm
@@ -448,7 +470,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerMatching'
 
-  /admin/v1/server-matching/schema:
+  /admin/v2/server-matching/schema:
     get:
       tags: [server-matching]
       summary: Retrieve the server matching schema
@@ -460,7 +482,7 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/server-provision:
+  /admin/v2/server-provision:
     post:
       tags: [server-provision]
       summary: Configure server provision(s)
@@ -515,7 +537,7 @@ paths:
         '204':
           description: No provisions to delete
 
-  /admin/v1/server-provision/schema:
+  /admin/v2/server-provision/schema:
     get:
       tags: [server-provision]
       summary: Retrieve the server provision schema
@@ -527,7 +549,7 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/server-provision/unused:
+  /admin/v2/server-provision/unused:
     get:
       tags: [server-provision]
       summary: Retrieve unused server provisions
@@ -546,7 +568,7 @@ paths:
         '204':
           description: No unused provisions
 
-  /admin/v1/server-data/configuration:
+  /admin/v2/server-data/configuration:
     put:
       tags: [server-data]
       summary: Update server data storage configuration
@@ -585,7 +607,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataStorageConfiguration'
 
-  /admin/v1/server-data:
+  /admin/v2/server-data:
     get:
       tags: [server-data]
       summary: Retrieve server data events
@@ -674,7 +696,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/server-data/summary:
+  /admin/v2/server-data/summary:
     get:
       tags: [server-data]
       summary: Retrieve server data summary
@@ -695,7 +717,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerDataSummary'
 
-  /admin/v1/server-data/sequence:
+  /admin/v2/server-data/sequence:
     get:
       tags: [data]
       summary: Retrieve server event sequence (time-ordered)
@@ -733,7 +755,7 @@ paths:
 
   # ===== CLIENT MOCK =====
 
-  /admin/v1/client-endpoint:
+  /admin/v2/client-endpoint:
     post:
       tags: [client-endpoint]
       summary: Define client endpoint(s)
@@ -798,7 +820,7 @@ paths:
         '204':
           description: No endpoints to delete
 
-  /admin/v1/client-endpoint/schema:
+  /admin/v2/client-endpoint/schema:
     get:
       tags: [client-endpoint]
       summary: Retrieve the client endpoint schema
@@ -810,7 +832,7 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/client-provision:
+  /admin/v2/client-provision:
     post:
       tags: [client-provision]
       summary: Configure client provision(s)
@@ -867,7 +889,7 @@ paths:
         '204':
           description: No provisions to delete
 
-  /admin/v1/client-provision/schema:
+  /admin/v2/client-provision/schema:
     get:
       tags: [client-provision]
       summary: Retrieve the client provision schema
@@ -879,7 +901,7 @@ paths:
               schema:
                 type: object
 
-  /admin/v1/client-provision/unused:
+  /admin/v2/client-provision/unused:
     get:
       tags: [client-provision]
       summary: Retrieve unused client provisions
@@ -897,7 +919,7 @@ paths:
         '204':
           description: No unused provisions
 
-  /admin/v1/client-provision/{id}:
+  /admin/v2/client-provision/{id}:
     get:
       tags: [client-provision]
       summary: Trigger client provision
@@ -968,7 +990,7 @@ paths:
         '404':
           description: Provision not found
 
-  /admin/v1/client-data/configuration:
+  /admin/v2/client-data/configuration:
     put:
       tags: [client-data]
       summary: Update client data storage configuration
@@ -1005,7 +1027,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataStorageConfiguration'
 
-  /admin/v1/client/dispatch-latency:
+  /admin/v2/client/dispatch-latency:
     get:
       tags: [client]
       summary: Retrieve worker pool dispatch latency statistics
@@ -1049,7 +1071,7 @@ paths:
                     type: integer
                     description: Total ticks discarded due to pool congestion (--traffic-client-pool-max-pending)
 
-  /admin/v1/client-data:
+  /admin/v2/client-data:
     get:
       tags: [client-data]
       summary: Retrieve client data events
@@ -1147,7 +1169,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/client-data/summary:
+  /admin/v2/client-data/summary:
     get:
       tags: [client-data]
       summary: Retrieve client data summary
@@ -1168,7 +1190,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClientDataSummary'
 
-  /admin/v1/client-data/sequence:
+  /admin/v2/client-data/sequence:
     get:
       tags: [data]
       summary: Retrieve client event sequence (time-ordered)

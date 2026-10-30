@@ -68,6 +68,28 @@ TEST_F(WaitManager_test, VaultAlreadySatisfied)
     EXPECT_EQ(resultValue, "target");
 }
 
+TEST_F(WaitManager_test, VaultScalarsMatchByText)
+{
+    // Barrier must not depend on the stored type: 60 (number) matches "60" (string) and vice versa.
+    nlohmann::json resultValue, previousValue;
+    vault_.load("n", "60");
+    EXPECT_TRUE(wm_.waitForVault("n", 60, 100, resultValue, previousValue));
+    vault_.load("m", 60);
+    EXPECT_TRUE(wm_.waitForVault("m", "60", 100, resultValue, previousValue));
+    vault_.load("b", true);
+    EXPECT_TRUE(wm_.waitForVault("b", "true", 100, resultValue, previousValue));
+    vault_.load("s", "done");
+    EXPECT_FALSE(wm_.waitForVault("s", "Done", 50, resultValue, previousValue));  // text is case-sensitive
+}
+
+TEST_F(WaitManager_test, VaultStructuredValuesMatchAsJson)
+{
+    nlohmann::json resultValue, previousValue;
+    vault_.load("o", nlohmann::json{{"a", 1}});
+    EXPECT_TRUE(wm_.waitForVault("o", nlohmann::json{{"a", 1}}, 100, resultValue, previousValue));
+    EXPECT_FALSE(wm_.waitForVault("o", "{\"a\":1}", 50, resultValue, previousValue));  // a string is not the object
+}
+
 TEST_F(WaitManager_test, VaultTimeout)
 {
     vault_.load("key1", "initial");

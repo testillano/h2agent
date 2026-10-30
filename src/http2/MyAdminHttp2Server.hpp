@@ -78,6 +78,7 @@ class MyTrafficHttp2Server;
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     model::AdminData *admin_data_{};
+    std::string program_version_{};
     model::common_resources_t common_resources_{}; // general configuration, vault, file manager and mock server events data
     model::WaitManager *wait_manager_{};
     model::SseManager *sse_manager_{};
@@ -135,12 +136,33 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
+    /**
+     * Retired API versions (e.g. '/admin/v1') get '410 Gone' with a hint to the current version
+     * and the migration tool, instead of the generic '400 INVALID_API'. Other errors: base behavior.
+     */
+    void receiveError(const nghttp2::asio_http2::server::request& req,
+                      const std::string &requestBody,
+                      unsigned int& statusCode,
+                      nghttp2::asio_http2::header_map& headers,
+                      std::string& responseBody,
+                      const std::pair<int, const std::string>& error,
+                      const std::string &location = "",
+                      const std::vector<std::string>& allowedMethods = std::vector<std::string>()) override;
+
     //bool receiveDataLen(const nghttp2::asio_http2::server::request& req); // virtual: default implementation (true) is required (request bodies are present in many operations).
     //bool preReserveRequestBody(); //virtual: default implementation (true) is acceptable for us (really, it does not matter).
 
     void setConfiguration(model::Configuration *p) {
         common_resources_.ConfigurationPtr = p;
     }
+
+    /** Program version shown by 'GET capabilities' (diagnostics). */
+    void setProgramVersion(const std::string &version) {
+        program_version_ = version;
+    }
+
+    /** Diagnostics document for 'GET capabilities': admin API, program and grammar versions. */
+    std::string capabilitiesAsJsonString() const;
     model::Configuration *getConfiguration() const {
         return common_resources_.ConfigurationPtr;
     }
@@ -205,7 +227,7 @@ public:
     }
 
     /**
-     * Registers the SSE handler for /admin/v1/vault/events on the nghttp2 server.
+     * Registers the SSE handler for /admin/v2/vault/events on the nghttp2 server.
      * Called automatically via registerHandlers() (after generic handler registration).
      */
     void registerHandlers() override;

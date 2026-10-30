@@ -166,12 +166,53 @@ bool MyAdminHttp2Server::checkHeaders(const
 }
 
 
+void MyAdminHttp2Server::receiveError(const nghttp2::asio_http2::server::request& req,
+                                      const std::string &requestBody,
+                                      unsigned int& statusCode,
+                                      nghttp2::asio_http2::header_map& headers,
+                                      std::string& responseBody,
+                                      const std::pair<int, const std::string>& error,
+                                      const std::string &location,
+                                      const std::vector<std::string>& allowedMethods)
+{
+    // Retired admin API versions: explicit 410 with migration hint (no transition period, no aliases).
+    static const std::vector<std::string> retiredVersions = {"v1"};
+    if (error.first == ert::http2comm::WRONG_API_NAME_OR_VERSION.first &&
+            error.second == ert::http2comm::WRONG_API_NAME_OR_VERSION.second) {
+        const std::string &path = req.uri().path;
+        for (const auto &v : retiredVersions) {
+            const std::string retired = "/" + getApiName() + "/" + v;
+            if (path == retired || path.rfind(retired + "/", 0) == 0) {
+                const std::string current = getApiPath();
+                const std::pair<int, const std::string> gone(
+                    ert::http2comm::ResponseCode::GONE,
+                    "API '" + retired + "' is retired: use '" + current + path.substr(retired.size()) +
+                    "'. Migrate provisions with the h2agent-migrate tool (see docs/api/README.md).");
+                ert::http2comm::Http2Server::receiveError(req, requestBody, statusCode, headers, responseBody, gone, location, allowedMethods);
+                return;
+            }
+        }
+    }
+    ert::http2comm::Http2Server::receiveError(req, requestBody, statusCode, headers, responseBody, error, location, allowedMethods);
+}
+
+std::string MyAdminHttp2Server::capabilitiesAsJsonString() const
+{
+    // Diagnostics only: clients hardcode the admin API version (no negotiation).
+    // 'grammar' is the provision transformation grammar accepted by this binary.
+    nlohmann::json result;
+    result["apiVersion"] = getApiVersion();
+    result["programVersion"] = program_version_.empty() ? "unknown" : program_version_;
+    result["grammar"] = "v1";
+    return result.dump();
+}
+
 std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 {
     std::string result;
 
-    size_t apiPathSize = getApiPath().size(); // /admin/v1
-    size_t uriPathSize = uriPath.size(); // /admin/v1<suffix>
+    size_t apiPathSize = getApiPath().size(); // /admin/v2
+    size_t uriPathSize = uriPath.size(); // /admin/v2<suffix>
     //LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("apiPathSize %d uriPathSize %d", apiPathSize, uriPathSize),  ERT_FILE_LOCATION));
 
     // Special case
@@ -817,6 +858,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             }
             statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
         }
+    }
+    else if (pathSuffix == "capabilities") {
+        responseBody = capabilitiesAsJsonString();
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "configuration") {
         responseBody = getConfiguration()->asJsonString();
@@ -1550,7 +1595,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
 void MyAdminHttp2Server::registerHandlers() {
     if (!sse_manager_) return;
 
-    std::string apiPath = getApiPath(); // e.g. "/admin/v1"
+    std::string apiPath = getApiPath(); // e.g. "/admin/v2"
 
     server_.handle(apiPath + "/vault/events", [this](const nghttp2::asio_http2::server::request &req,
     const nghttp2::asio_http2::server::response &res) {

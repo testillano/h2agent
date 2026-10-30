@@ -30,12 +30,12 @@ Generates numbered JSON files representing each API call in order:
 
 ```
 output/
-├── 01.server-matching.json       ← POST /admin/v1/server-matching
-├── 02.server-provision.json      ← POST /admin/v1/server-provision
+├── 01.server-matching.json       ← POST /admin/v2/server-matching
+├── 02.server-provision.json      ← POST /admin/v2/server-provision
 ├── 03.traffic-POST.json          ← POST /api/v1/users (type: traffic)
-├── 04.client-endpoint.json       ← POST /admin/v1/client-endpoint
-├── 05.client-provision.json      ← POST /admin/v1/client-provision
-└── 06.trigger-fetchData.json     ← GET /admin/v1/client-provision/fetchData
+├── 04.client-endpoint.json       ← POST /admin/v2/client-endpoint
+├── 05.client-provision.json      ← POST /admin/v2/client-provision
+└── 06.trigger-fetchData.json     ← GET /admin/v2/client-provision/fetchData
 ```
 
 Each file is a JSON object with the following fields:
@@ -43,7 +43,7 @@ Each file is a JSON object with the following fields:
 | Field | Always | Description |
 |---|---|---|
 | `method` | yes | HTTP method (`POST`, `GET`, `PUT`, `DELETE`) |
-| `path` | yes | Full path (e.g. `/admin/v1/server-provision`) |
+| `path` | yes | Full path (e.g. `/admin/v2/server-provision`) |
 | `body` | no | JSON body for `POST`/`PUT` calls |
 | `queryParams` | no | Query parameters (e.g. `{"sequence": 5}`) |
 | `type` | no | `"traffic"` for traffic-port calls; absent for admin calls |
@@ -52,11 +52,11 @@ Admin calls can be replayed directly with curl:
 
 ```bash
 # From a dumped file:
-# {"method": "POST", "path": "/admin/v1/server-provision", "body": {...}}
+# {"method": "POST", "path": "/admin/v2/server-provision", "body": {...}}
 curl --http2-prior-knowledge -X POST \
   -H "content-type: application/json" \
   -d @02.server-provision.json \  # or extract the body field
-  http://localhost:8074/admin/v1/server-provision
+  http://localhost:8074/admin/v2/server-provision
 ```
 
 The output directory must not exist — behave will abort if it does.
