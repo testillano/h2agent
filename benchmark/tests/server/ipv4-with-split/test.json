@@ -1,5 +1,5 @@
 {
-  "description": "IPv4 construction from phone number using Split filter (numeric mode). Benchmarks the Split transform performance.",
+  "description": "IPv4 construction from phone number using split filter (numeric mode). Benchmarks the split transform performance.",
   "requestMethod": "POST",
   "requestUri": "/app/v1/benchmark/ipv4",
   "requestBody": {"phone": "555112233"},

@@ -117,6 +117,8 @@ enum class TargetType {
     // best-effort scalar fallback)
     OutputJsonJsonString,  // output.json.jsonstring[./path] (parse a JSON
     // string source and set the resulting node)
+    OutputJson,         // output.json[./path] (set the value as it is, keeping the
+    // type the source yields: grammar v2 json body target without cast)
     StoreLocal,               // local.<key> -> Store(Scope::Local)
     StoreGlobal,              // global.<key> -> Store(Scope::Global)
     StoreLocalJsonObject,     // local.<key>.json.object[./ptr] (require object source)

@@ -57,7 +57,6 @@ SOFTWARE.
 #include <MockClientData.hpp>
 #include <WaitManager.hpp>
 #include <SseManager.hpp>
-#include <EngineGrammarV1.hpp>
 #include <nlohmann/json.hpp>
 
 #include <ert/tracing/Logger.hpp>
@@ -100,21 +99,6 @@ const char* AdminApiVersion = "v2";
 /////////////////////////
 // Auxiliary functions //
 /////////////////////////
-
-// Dump the hardcoded v1 -> engine alias map (diagnostics, proposal 8.7): lets the
-// raw engine traces be mapped back to the provision vocabulary.
-void dumpEngineAliases() {
-    using Mode = h2agent::model::EngineGrammarV1::Mode;
-    const std::pair<Mode, const char *> modes[] = {
-        {Mode::Server, "server"}, {Mode::ClientRequest, "client request"}, {Mode::ClientResponse, "client response"}
-    };
-    for (const auto &m : modes) {
-        for (const auto &a : h2agent::model::EngineGrammarV1::aliases(m.first)) {
-            ert::tracing::Logger::debug(ert::tracing::Logger::asString("Engine alias (%s): %s -> %s", m.second,
-                                        a.first.c_str(), a.second.c_str()), ERT_FILE_LOCATION);
-        }
-    }
-}
 
 // Transform input in the form "<double>,<double>,..,<double>" to bucket boundaries vector
 // Cientific notation is allowed, for example boundary for 150us would be 150e-6
@@ -1081,7 +1065,6 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     std::cout << "Long-term files close delay (usecs): " << myConfiguration->getLongTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Short-term files close delay (usecs): " << myConfiguration->getShortTermFilesCloseDelayUsecs() << '\n';
     std::cout << "Remote servers lazy connection: " << (myConfiguration->getLazyClientConnection() ? "true":"false") << '\n';
-    LOGDEBUG(dumpEngineAliases());
     std::cout << "Traffic client connections: " << myConfiguration->getTrafficClientConnections() << '\n';
     std::cout << "Traffic client worker threads: " << traffic_client_worker_threads_pool << (traffic_client_worker_threads_pool == 0 ? " (disabled)" : ""
                                       ) << '\n';

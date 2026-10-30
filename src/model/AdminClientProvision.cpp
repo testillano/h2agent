@@ -50,9 +50,8 @@ SOFTWARE.
 
 #include <AdminClientProvision.hpp>
 #include <Engine.hpp>
-#include <EngineGrammarV1.hpp>
+#include <EngineGrammarV2.hpp>
 #include <EngineHost.hpp>
-#include <GrammarV2Bridge.hpp>
 #include <MockClientData.hpp>
 #include <MockServerData.hpp>
 #include <Configuration.hpp>
@@ -175,19 +174,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     requestTimeoutMs = getRequestTimeoutMilliseconds();
 
     // Find out if request body will need to be cloned (this is true if any transformation uses it as target):
-    bool usesRequestBodyAsTransformationJsonTarget = false;
-    for (const auto &t : transformations_) {
-        if (t->getTargetType() == Transformation::TargetType::RequestBodyJson_String ||
-                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Integer ||
-                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Unsigned ||
-                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Float ||
-                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Boolean ||
-                t->getTargetType() == Transformation::TargetType::RequestBodyJson_Object ||
-                t->getTargetType() == Transformation::TargetType::RequestBodyJson_JsonString) {
-            usesRequestBodyAsTransformationJsonTarget = true;
-            break;
-        }
-    }
+    const bool usesRequestBodyAsTransformationJsonTarget = uses_json_body_target_;
 
     nlohmann::json requestBodyJson;
     if (usesRequestBodyAsTransformationJsonTarget) {
@@ -278,7 +265,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
 {
     bool validationOk = true;
 
-    if (!on_response_transformations_.empty()) {
+    if (has_response_transform_) {
 
         // Scoped variables: update reserved read-only variable
         variables["sequence"] = std::to_string(seq >= 0 ? seq : seq_.load());
@@ -309,7 +296,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
 
         if (engine_response_pipeline_) h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports);
 
-    } // !on_response_transformations_.empty()
+    } // has_response_transform_
 
     // Expected response status code validation:
     if (expected_response_status_code_ != 0 && receivedResponse.statusCode != (int)expected_response_status_code_) {
@@ -585,67 +572,34 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         expected_response_status_code_ = *it;
     }
 
-    // Grammar v2 rules run through the v1 path until phase [0.7b] (see GrammarV2Bridge.hpp):
-    nlohmann::json jv1;
+    // Transformation pipelines (grammar v2 lowered to the engine representation, parsed once).
+    // requestBody source semantics depend on whether a json body target exists (v1 parity):
     {
+        using Mode = EngineGrammarV2::Mode;
+        const nlohmann::json rules = j.contains("transform") ? j["transform"] : nlohmann::json::array();
+        const nlohmann::json responseRules = j.contains("onResponseTransform") ? j["onResponseTransform"] : nlohmann::json::array();
+        const EngineGrammarV2::Summary summary = EngineGrammarV2::summarize(rules, Mode::ClientRequest);
+        const EngineGrammarV2::Summary responseSummary = EngineGrammarV2::summarize(responseRules, Mode::ClientResponse);
+        uses_json_body_target_ = summary.usesJsonBodyTarget;
+        needs_storage_ = summary.needsStorage || responseSummary.needsStorage;
+        has_response_transform_ = !responseRules.empty();
+        if (summary.endsWithStop) {
+            LOGWARNING(ert::tracing::Logger::warning("Stop as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
+        }
+        if (responseSummary.endsWithStop) {
+            LOGWARNING(ert::tracing::Logger::warning("Stop as last 'onResponseTransform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
+        }
+
         std::string error;
-        if (!provisionToV1(j, jv1, error)) {
-            ert::tracing::Logger::error(ert::tracing::Logger::asString("Transformation not supported yet: %s", error.c_str()), ERT_FILE_LOCATION);
+        const nlohmann::json lowered = EngineGrammarV2::lowerPipeline(rules, Mode::ClientRequest, uses_json_body_target_, error);
+        const nlohmann::json loweredResponse = lowered.is_null() ? lowered :
+                                               EngineGrammarV2::lowerPipeline(responseRules, Mode::ClientResponse, false, error);
+        if (lowered.is_null() || loweredResponse.is_null()) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Transformation not supported: %s", error.c_str()), ERT_FILE_LOCATION);
             return false;
         }
-    }
-
-    auto transform_it = jv1.find("transform");
-    if (transform_it != jv1.end()) {
-        LOGDEBUG(ert::tracing::Logger::debug("Load transformations ('transform' node)", ERT_FILE_LOCATION));
-        for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
-            loadTransformation(transformations_, it);
-        }
-        if (!transformations_.empty() && transformations_.back()->getTargetType() == Transformation::TargetType::Break) {
-            LOGWARNING(ert::tracing::Logger::warning("Break as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
-        }
-    }
-
-    transform_it = jv1.find("onResponseTransform");
-    if (transform_it != jv1.end()) {
-        LOGDEBUG(ert::tracing::Logger::debug("Load transformations ('onResponseTransform' node)", ERT_FILE_LOCATION));
-        for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
-            loadTransformation(on_response_transformations_, it);
-        }
-        if (!on_response_transformations_.empty() && on_response_transformations_.back()->getTargetType() == Transformation::TargetType::Break) {
-            LOGWARNING(ert::tracing::Logger::warning("Break as last 'onResponseTransform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
-        }
-    }
-
-    // Engine pipelines (v1 grammar -> neutral engine grammar, parsed once).
-    // v1 request.body source semantics depend on whether a json body target exists:
-    {
-        bool usesJsonBodyTarget = false;
-        for (const auto &t : transformations_) {
-            if (t->getTargetType() == Transformation::TargetType::RequestBodyJson_String ||
-                    t->getTargetType() == Transformation::TargetType::RequestBodyJson_Integer ||
-                    t->getTargetType() == Transformation::TargetType::RequestBodyJson_Unsigned ||
-                    t->getTargetType() == Transformation::TargetType::RequestBodyJson_Float ||
-                    t->getTargetType() == Transformation::TargetType::RequestBodyJson_Boolean ||
-                    t->getTargetType() == Transformation::TargetType::RequestBodyJson_Object ||
-                    t->getTargetType() == Transformation::TargetType::RequestBodyJson_JsonString) {
-                usesJsonBodyTarget = true;
-                break;
-            }
-        }
-        auto tr = jv1.find("transform");
-        auto otr = jv1.find("onResponseTransform");
-        std::string error;
-        engine_pipeline_ = h2agent::engine::Engine{}.parse(
-                               EngineGrammarV1::translatePipeline(tr != jv1.end() ? *tr : nlohmann::json::array(),
-                                       EngineGrammarV1::Mode::ClientRequest, usesJsonBodyTarget),
-                               error);
-        if (engine_pipeline_) {
-            engine_response_pipeline_ = h2agent::engine::Engine{}.parse(
-                                            EngineGrammarV1::translatePipeline(otr != jv1.end() ? *otr : nlohmann::json::array(),
-                                                    EngineGrammarV1::Mode::ClientResponse),
-                                            error);
-        }
+        engine_pipeline_ = h2agent::engine::Engine{}.parse(lowered, error);
+        if (engine_pipeline_) engine_response_pipeline_ = h2agent::engine::Engine{}.parse(loweredResponse, error);
         if (!engine_pipeline_ || !engine_response_pipeline_) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid transformation pipeline: %s", error.c_str()),
                                         ERT_FILE_LOCATION);
@@ -662,23 +616,6 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
     return true;
 }
 
-void AdminClientProvision::loadTransformation(std::vector<std::shared_ptr<Transformation>> &transformationsVector, const nlohmann::json &j) {
-
-    LOGDEBUG(
-        std::string msg = ert::tracing::Logger::asString("Loading transformation item: %s", j.dump().c_str()); // avoid newlines in traces (dump(n) pretty print)
-        ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
-    );
-
-    // Transformation object to fill:
-    auto transformation = std::make_shared<Transformation>();
-
-    if (transformation->load(j)) {
-        transformationsVector.push_back(transformation);
-    }
-    else {
-        ert::tracing::Logger::error("Discarded transform item due to incoherent data", ERT_FILE_LOCATION);
-    }
-}
 
 
 }

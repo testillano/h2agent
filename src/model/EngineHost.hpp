@@ -160,7 +160,7 @@ public:
 };
 
 /**
- * Lazy neutral input of a server reception (see EngineGrammarV1.hpp), resolved
+ * Lazy neutral input of a server reception (see EngineGrammarV2.hpp), resolved
  * over the native request structures (nothing is copied up front):
  *   /uri, /uriPath, /uriParams/<p>, /body[/<path>], /headerMap/<h>, /headers.
  * Body: decoded json with v1 body semantics, or the raw string when not json
@@ -185,7 +185,7 @@ public:
 };
 
 /**
- * Lazy neutral input of a client provision (see EngineGrammarV1.hpp):
+ * Lazy neutral input of a client provision (see EngineGrammarV2.hpp):
  *   /uri, /requestBodyString, /headerMap/<h>, /headers and, in the response
  *   phase (response != nullptr), /response/{body[/<path>],headerMap/<h>,headers,statusCode}.
  * The response body is parsed once on first access (json with v1 body

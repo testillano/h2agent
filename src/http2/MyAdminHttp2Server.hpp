@@ -67,6 +67,10 @@ class DataKey;
 class WaitManager;
 class SseManager;
 }
+namespace jsonschema
+{
+class JsonSchema;
+}
 
 namespace http2
 {
@@ -108,7 +112,11 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning = "") const;
 
     void receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
-    void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
+    void receivePOST(const std::string &pathSuffix, const std::string &queryParams, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
+
+    // Admin API json schemas (GET api-schema[/<resource>]):
+    static const std::vector<std::string> &apiSchemaResources();
+    const h2agent::jsonschema::JsonSchema *apiSchemaOf(const std::string &resource) const;
     void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody);

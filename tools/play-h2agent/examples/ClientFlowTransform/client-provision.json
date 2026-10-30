@@ -1,39 +1,35 @@
 [
   {
-    "id":"myFlow",
-    "endpoint":"myServer",
+    "id": "myFlow",
+    "endpoint": "myServer",
     "expectedResponseStatusCode": 200,
-    "inState":"initial",
-    "outState":"step2",
-    "requestMethod":"GET",
-    "requestUri":"/api/v1/hello",
-    "requestHeaders":{"content-type":"application/json"},
-    "transform":[
+    "inState": "initial",
+    "outState": "step2",
+    "requestMethod": "GET",
+    "requestUri": "/api/v1/hello",
+    "requestHeaders": {"content-type": "application/json"},
+    "transform": [
       {
-        "source":"value.req-001",
-        "target":"request.header.x-request-id"
+        "from": {"source": "literal", "value": "req-001"},
+        "to": {"target": "requestHeader", "name": "x-request-id"}
       }
     ],
-    "onResponseTransform":[
-      {
-        "source":"response.body",
-        "target":"vault.helloResponse"
-      }
-    ]
+    "onResponseTransform": [{"from": {"source": "responseBody"}, "to": {"target": "vault", "key": "helloResponse"}}]
   },
   {
-    "id":"myFlow",
-    "endpoint":"myServer",
+    "id": "myFlow",
+    "endpoint": "myServer",
     "expectedResponseStatusCode": 200,
-    "inState":"step2",
-    "outState":"road-closed",
-    "requestMethod":"POST",
-    "requestUri":"/api/v1/goodbye",
-    "requestHeaders":{"content-type":"application/json"},
-    "transform":[
+    "inState": "step2",
+    "outState": "road-closed",
+    "requestMethod": "POST",
+    "requestUri": "/api/v1/goodbye",
+    "requestHeaders": {"content-type": "application/json"},
+    "transform": [
       {
-        "source":"vault.helloResponse",
-        "target":"request.body.json.jsonstring"
+        "from": {"source": "vault", "key": "helloResponse"},
+        "filter": [{"op": "cast", "type": "json"}],
+        "to": {"target": "requestBody"}
       }
     ]
   }

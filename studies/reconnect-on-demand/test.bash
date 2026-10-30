@@ -68,7 +68,7 @@ check "Endpoint initially not open" "Closed" "${status}"
 # --- Step 1: trigger without server → unsent ---
 echo
 echo "2. Trigger without server (expect unsent)"
-${CURL} "http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision/reconnect-test?sequence=1" >/dev/null
+${CURL} -XPOST "http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision/reconnect-test/trigger?sequence=1" >/dev/null
 sleep 3
 
 unsent=$(curl -s http://${HOST}:${METRICS_PORT}/metrics | grep 'unsent_counter{source="h2agent_target"' | awk '{print $2}')
@@ -91,7 +91,7 @@ check "Target server responds" "ok" "${target_ok}"
 # --- Step 3: trigger again → should reconnect and succeed ---
 echo
 echo "4. Trigger again (expect reconnect + 200)"
-${CURL} "http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision/reconnect-test?sequence=2" >/dev/null
+${CURL} -XPOST "http://${HOST}:${ADMIN_PORT}/admin/v2/client-provision/reconnect-test/trigger?sequence=2" >/dev/null
 sleep 3
 
 sents=$(curl -s http://${HOST}:${METRICS_PORT}/metrics | grep 'sents_counter{source="h2agent_target"' | awk '{print $2}')

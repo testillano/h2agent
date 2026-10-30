@@ -3,13 +3,8 @@
     "requestMethod": "GET",
     "requestUri": "/app/v1/foo/bar/13",
     "responseCode": 200,
-    "responseBody": {
-      "foo": "bar-13"
-    },
-    "responseHeaders": {
-      "content-type": "text/html",
-      "x-version": "1.0.0"
-    }
+    "responseBody": {"foo": "bar-13"},
+    "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"}
   },
   {
     "requestMethod": "DELETE",
@@ -17,8 +12,8 @@
     "responseCode": 200,
     "transform": [
       {
-        "source": "value.13-deleted",
-        "target": "outState.GET"
+        "from": {"source": "literal", "value": "13-deleted"},
+        "to": {"target": "outState", "method": "GET"}
       }
     ]
   },

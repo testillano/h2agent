@@ -297,12 +297,12 @@ class MockClientApp(QWidget):
         self.admin_presets = [
             {"name": "-- Select an option --", "method": "GET", "uri": "", "headers": {}, "body": ""},
 
-            {"name": "Show Schema for schema configuration", "method": "GET", "uri": "/schema/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for vault entries configuration", "method": "GET", "uri": "/vault/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for server matching (traffic classification) configuration", "method": "GET", "uri": "/server-matching/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for server provision configuration", "method": "GET", "uri": "/server-provision/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for client endpoints configuration", "method": "GET", "uri": "/client-endpoint/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for client provision configuration", "method": "GET", "uri": "/client-provision/schema", "headers": {}, "body": ""},
+            {"name": "Show Schema for schema configuration", "method": "GET", "uri": "/api-schema/schema", "headers": {}, "body": ""},
+            {"name": "Show Schema for vault entries configuration", "method": "GET", "uri": "/api-schema/vault", "headers": {}, "body": ""},
+            {"name": "Show Schema for server matching (traffic classification) configuration", "method": "GET", "uri": "/api-schema/server-matching", "headers": {}, "body": ""},
+            {"name": "Show Schema for server provision configuration", "method": "GET", "uri": "/api-schema/server-provision", "headers": {}, "body": ""},
+            {"name": "Show Schema for client endpoints configuration", "method": "GET", "uri": "/api-schema/client-endpoint", "headers": {}, "body": ""},
+            {"name": "Show Schema for client provision configuration", "method": "GET", "uri": "/api-schema/client-provision", "headers": {}, "body": ""},
 
             {"name": "QUERY SCHEMAS", "method": "GET", "uri": "/schema", "headers": {}, "body": ""},
             {"name": "Update Schema example", "method": "POST", "uri": "/schema", "headers": json__header, "body": json.dumps(schema__body, indent=2)},
@@ -375,7 +375,7 @@ class MockClientApp(QWidget):
             #{"name": "Update Client Provisions example", "method": "POST", "uri": "/client-provision", "headers": json__header, "body": json.dumps(client_provision__body, indent=2)},
             #{"name": "Delete Client Provisions", "method": "DELETE", "uri": "/client-provision", "headers": {}, "body": ""},
             #{"name": "Query Client Provisions not used", "method": "GET", "uri": "/client-provision/unused", "headers": {}, "body": ""},
-            #{"name": "Launch Client Provision", "method": "PUT", "uri": "/client-provision/myClientProvision", "headers": {}, "body": ""},
+            #{"name": "Launch Client Provision", "method": "POST", "uri": "/client-provision/myClientProvision/trigger", "headers": {}, "body": ""},
 
         ]
         for preset in self.admin_presets:

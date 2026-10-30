@@ -1,7 +1,7 @@
 #!/bin/bash
 # Trigger and verify (sourced by run.sh, so helpers are available)
 echo "Triggering client provision 'authFlow' ..."
-do_curl $(admin_url)/client-provision/authFlow
+do_curl -XPOST $(admin_url)/client-provision/authFlow/trigger
 sleep 1
 echo
 echo "Client events:"

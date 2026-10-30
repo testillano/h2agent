@@ -4,36 +4,35 @@ Until now, our provision examples were quite simple: they didn't use transformat
 
 Some of the most versatile and powerful transformations are based in regular expressions. Their typical use is when we need to get information from the `URI` received to put in some place within the response.
 
-We have already used regular expressions when playing with matching algorithms, for example, the `RegexReplace` algorithm. Imagine that we receive a `URI` like `/ctrl/v2/id-555112233/ts-1615562841` and we want to build a greeting message extracting and rearranging parts of it. Look at this transformation list:
+We have already used regular expressions when playing with matching algorithms, for example, the `FullMatchingRegexReplace` algorithm. The same regex-replace is available as the `regexReplace` transformation filter. Imagine that we receive a `URI` like `/ctrl/v2/id-555112233/ts-1615562841` and we want to build a greeting message extracting and rearranging parts of it. Look at this transformation list:
 
 ```json
 [
   {
-    "source": "request.uri.path",
-    "filter": {
-      "RegexReplace": {
+    "from": {"source": "requestUriPath"},
+    "filter": [
+      {
+        "op": "regexReplace",
         "rgx": "(/ctrl/v2/id-)([0-9]{9})(/ts-)([0-9]{10})",
         "fmt": "User $2 registered at timestamp $4"
       }
-    },
-    "target": "response.body.json.string./message"
+    ],
+    "to": {"target": "responseBody", "path": "/message"}
   }
 ]
 ```
 
 There is no need to implement ad-hoc C++ functions within the agent for this kind of job: regular expressions are your friends. Also, all the regular expressions used by the `h2agent` are precompiled and optimized, so there is no handicap when using them.
 
-Another transformation algorithm which uses regular expressions is the `RegexCapture`. Here, the formatted output string does not exist. This algorithm just matches a string against a regular expression, and retrieves the matching sections which can be interpreted as boolean (empty match is false). But, the best way to use this algorithm is introducing capture groups and targeting an output variable which will store the information for every captured group match. For example:
+Another transformation filter which uses regular expressions is `regexCapture`. Here, the formatted output string does not exist. This algorithm just matches a string against a regular expression, and retrieves the matching sections which can be interpreted as boolean (empty match is false). But, the best way to use this algorithm is introducing capture groups and targeting an output variable which will store the information for every captured group match. For example:
 
 ```json
 {
-  "source": "request.uri.path",
-  "target": "var.uri_parts",
-  "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+  "from": {"source": "requestUriPath"},
+  "filter": [{"op": "regexCapture", "rgx": "/api/v2/id-([0-9]+)/category-([a-z]+)"}],
+  "to": {"target": "var", "name": "uri_parts"}
 }
 ```
-
-Note that some characters are escaped when they are outside a capture group (slashes).
 
 The way to store multiple values on the variable `uri_parts` is by mean virtual creation of additional variables through suffixing that variable with an ordinal for the captured group position, so, if we receive the `URI` `/api/v2/id-28/category-animal` we will have:
 
@@ -53,4 +52,4 @@ Complete the `server-provision.json` file, in order to receive an status code `2
 
 The `server-matching.json` file is already provided.
 
-Hint: the `ConditionVar` transformation filter is used to condition the transfer from the source to the target depending on the provided variable boolean value. Take a look to the official documentation [here](https://github.com/testillano/h2agent#post-adminv1server-provision).
+Hint: the `conditionVar` transformation filter is used to condition the transfer from the source to the target depending on the provided variable boolean value (and it can be negated). Take a look to the official documentation [here](https://github.com/testillano/h2agent/blob/master/docs/api/README.md#transformation-pipeline).

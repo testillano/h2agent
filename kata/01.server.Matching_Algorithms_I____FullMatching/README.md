@@ -1,6 +1,6 @@
 # Matching algorithms I: FullMatching
 
-**(It is recommended to read more about matching algorithms at project [documentation](https://github.com/testillano/h2agent#post-adminv1server-matching)**)
+**(It is recommended to read more about matching algorithms at project [documentation](https://github.com/testillano/h2agent/blob/master/docs/api/README.md#matching-algorithms)**)
 
 One of the most important `h2agent` features consists in the traffic classification needed to select the desired provision where the mock behavior is configured.
 

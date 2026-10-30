@@ -34,24 +34,24 @@ def test_003_provision_missing_required_fields(h2ac_admin):
 
 @pytest.mark.admin
 def test_004_provision_invalid_source(h2ac_admin):
-  """Provision with unknown source prefix should fail"""
+  """Provision with unknown source kind should fail"""
   response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, {
     "requestMethod": "GET",
     "requestUri": "/test",
     "responseCode": 200,
-    "transform": [{"source": "unknown.prefix", "target": "response.body.string"}]
+    "transform": [{"from": {"source": "unknownKind"}, "to": {"target": "responseBodyText"}}]
   })
   assert response["status"] == 400
 
 
 @pytest.mark.admin
 def test_005_provision_invalid_target(h2ac_admin):
-  """Provision with unknown target prefix should fail"""
+  """Provision with unknown target kind should fail"""
   response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, {
     "requestMethod": "GET",
     "requestUri": "/test",
     "responseCode": 200,
-    "transform": [{"source": "value.hello", "target": "unknown.prefix"}]
+    "transform": [{"from": {"source": "literal", "value": "hello"}, "to": {"target": "unknownKind"}}]
   })
   assert response["status"] == 400
 
@@ -65,7 +65,7 @@ def test_006_provision_unicode_value(h2ac_admin, h2ac_traffic, admin_server_prov
     "requestUri": "/app/v1/unicode-test",
     "responseCode": 200,
     "transform": [
-      {"source": "value.héllo wörld 日本語", "target": "response.body.string"}
+      {"from": {"source": "literal", "value": "héllo wörld 日本語"}, "to": {"target": "responseBodyText"}}
     ]
   }
   admin_server_provision(provision)

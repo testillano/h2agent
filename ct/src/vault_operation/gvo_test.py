@@ -91,16 +91,18 @@ def test_003_vault_json_object_storage_and_path_navigation(h2ac_admin, h2ac_traf
     "responseCode": 200,
     "transform": [
       {
-        "source": "vault.config./host",
-        "target": "response.body.json.string./host"
+        "from": {"source": "vault", "key": "config", "path": "/host"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/host"}
       },
       {
-        "source": "vault.config./port",
-        "target": "response.body.json.integer./port"
+        "from": {"source": "vault", "key": "config", "path": "/port"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/port"}
       },
       {
-        "source": "value.9090",
-        "target": "vault.config./port"
+        "from": {"source": "literal", "value": "9090"},
+        "to": {"target": "vault", "key": "config", "path": "/port"}
       }
     ]
   }

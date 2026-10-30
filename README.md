@@ -103,9 +103,9 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * UDP writing operations.
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
-    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
+    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, erase, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search, size.
-    * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, break conditions.
+    * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, stop conditions.
   * Multipart support.
   * Pseudo-notification mechanism (response delayed by vault condition).
 
@@ -600,7 +600,7 @@ When using h2agent as a traffic client against a server under congestion, 503 re
 **Breaking the chain on rejection** (detecting the problem):
 
 * **`expectedResponseStatusCode`**: set the expected value (e.g., `201`). If the actual response differs, the chain breaks immediately. Simple and deterministic.
-* **`onResponseTransform` with filters**: read `response.statusCode` as source, apply conditional logic via filters. On mismatch, use `onFilterFail` to set an error `outState`, write diagnostic vaults, or trigger alternative flows. More flexible than the binary kill-switch above.
+* **`onResponseTransform` with filters**: read `responseStatusCode` as source, apply conditional logic via filters. On mismatch, use `onFilterFail` to set an error `outState`, write diagnostic vaults, or trigger alternative flows. More flexible than the binary kill-switch above.
 * **Omit `expectedResponseStatusCode`**: the chain continues regardless of status code. Useful when you want to collect all events for post-hoc analysis without interrupting the flow.
 
 **Managing load under congestion** (mitigating the problem):
@@ -630,8 +630,8 @@ $ benchmark/start.sh --list
 Available test profiles:
 
   [server]
-    default                      Representative mix: vault, RegexReplace, timestamp, variable chaining and math.
-    ipv4-with-regexreplace       IPv4 construction from phone number using RegexReplace filter.
+    default                      Representative mix: vault, regexReplace, timestamp, variable chaining and math.
+    ipv4-with-regexreplace       IPv4 construction from phone number using regexReplace filter.
     ipv4-with-split              IPv4 construction from phone number using Split filter.
     legacy                       Original benchmark provision: large JSON response body with file I/O.
     light                        Minimal echo: server returns a static JSON body with no transforms.
@@ -643,7 +643,7 @@ $ benchmark/start.sh -y
 
 
 Test profile: default [server]
-Description:  Representative mix: JSON response with vault, RegexReplace URI extraction, timestamp, variable chaining and math expression. No file I/O.
+Description:  Representative mix: JSON response with vault, regexReplace URI extraction, timestamp, variable chaining and math expression. No file I/O.
 Method:       POST
 URI:          /app/v1/load-test/id-21
 Body:         {"id":"1a8b8863","name":"Ada Lovelace","age":198}
@@ -1455,7 +1455,7 @@ ___________________________________ _________ _______________ __________________
 
 ## Execution of h2agent-migrate utility
 
-This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"requestBody": "/a"}`, `"to": {"responseBody": "/n"}`, `"filter": [{"as": "integer"}]`). It is a syntax-only conversion: each v2 rule behaves exactly as its v1 origin. The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md).
+This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"source": "requestBody", "path": "/a"}`, `"filter": [{"op": "cast", "type": "integer"}]`, `"to": {"target": "responseBody", "path": "/n"}`). It is a syntax-only conversion: each v2 rule behaves exactly as its v1 origin. The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md).
 
 It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), so test suites can be migrated before upgrading.
 
@@ -1514,21 +1514,24 @@ $ echo '{"requestMethod":"GET","transform":[{"source":"request.uri.path","target
   "requestMethod": "GET",
   "transform": [
     {
-      "from": "requestUriPath",
-      "to": {
-        "responseBody": "/id"
+      "from": {
+        "source": "requestUriPath"
       },
       "filter": [
         {
-          "RegexReplace": {
-            "rgx": "/id-([0-9]+)",
-            "fmt": "$1"
-          }
+          "op": "regexReplace",
+          "rgx": "/id-([0-9]+)",
+          "fmt": "$1"
         },
         {
-          "as": "unsigned"
+          "op": "cast",
+          "type": "unsigned"
         }
-      ]
+      ],
+      "to": {
+        "target": "responseBody",
+        "path": "/id"
+      }
     }
   ]
 }
@@ -1783,6 +1786,7 @@ The API is organized in the following groups:
 
 | Group | Endpoints | Description |
 |-------|-----------|-------------|
+| **api-schema** | `GET` `/admin/v2/api-schema[/<resource>]` | Json schemas of the admin resources (provision grammar included) |
 | **schema** | `POST` `GET` `DELETE` `/admin/v2/schema` | Validation schemas for traffic checking |
 | **vault** | `POST` `GET` `DELETE` `/admin/v2/vault` | Shared variables between provisions |
 | | `GET` `/admin/v2/vault/<key>/wait` | Block until variable changes (long-poll) |
@@ -1795,14 +1799,14 @@ The API is organized in the following groups:
 | **server-provision** | `POST` `GET` `DELETE` `/admin/v2/server-provision` | Server mock response behavior and transformation pipeline |
 | **server-data** | `GET` `PUT` `DELETE` `/admin/v2/server-data` | Server events storage and inspection |
 | **client-endpoint** | `POST` `GET` `DELETE` `/admin/v2/client-endpoint` | Remote server connection definitions |
-| **client-provision** | `POST` `GET` `DELETE` `/admin/v2/client-provision` | Client mock request behavior, triggering and transformation pipeline |
+| **client-provision** | `POST` `GET` `DELETE` `/admin/v2/client-provision`, `POST` `/admin/v2/client-provision/<id>/trigger` | Client mock request behavior, triggering and transformation pipeline |
 | **client-data** | `GET` `PUT` `DELETE` `/admin/v2/client-data` | Client events storage and inspection |
 
 ## Server-triggered client flows with serverEvent source
 
-When a server provision triggers a client provision (via `clientProvision.<id>` target), the client provision can read data directly from the originating server event using the `serverEvent` source. This avoids copying fields to intermediate `vault` variables and is the recommended approach when the client request must be built from server request data.
+When a server provision triggers a client provision (via the `clientProvision` target), the client provision can read data directly from the originating server event using the `serverEvent` source. This avoids copying fields to intermediate `vault` variables and is the recommended approach when the client request must be built from server request data.
 
-**Source syntax:** `serverEvent.<method>.<uri>.<event-number>.<json-path>`
+**Source syntax:** `{"source": "serverEvent", "requestMethod": <method>, "requestUri": <uri>, "eventNumber": <number>, "eventPath": <json pointer>}`
 
 **Example:** A webhook receiver that forwards the notification body to another endpoint:
 
@@ -1814,7 +1818,10 @@ When a server provision triggers a client provision (via `clientProvision.<id>` 
   "responseCode": 200,
   "responseBody": {"status": "received"},
   "transform": [
-    { "source": "value.1", "target": "clientProvision.forwardNotification.initial" }
+    {
+      "from": {"source": "literal", "value": "1"},
+      "to": {"target": "clientProvision", "id": "forwardNotification", "inState": "initial"}
+    }
   ]
 }
 ```
@@ -1829,8 +1836,15 @@ When a server provision triggers a client provision (via `clientProvision.<id>` 
   "requestHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "serverEvent.POST./api/v1/webhook/notify.0.body",
-      "target": "request.body.json.object"
+      "from": {
+        "source": "serverEvent",
+        "requestMethod": "POST",
+        "requestUri": "/api/v1/webhook/notify",
+        "eventNumber": -1,
+        "eventPath": "/requestBody"
+      },
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "requestBody"}
     }
   ]
 }
@@ -1840,9 +1854,9 @@ The client provision reads the last received body at `POST /api/v1/webhook/notif
 
 > **Note:** `serverEvent` requires server-data storage to be enabled (default). If `--discard-data` is set, the source will fail and the transformation is skipped.
 
-Similarly, server provisions can access client event history using the `clientEvent` source. This is useful when the server acts as an intermediary: it triggers a client flow, and then uses the client response data to build its own response. The `clientEvent` source uses query-parameter addressing with `clientEndpointId`, `requestMethod`, `requestUri`, `eventNumber` and `eventPath` fields (see the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details).
+Similarly, server provisions can access client event history using the `clientEvent` source. This is useful when the server acts as an intermediary: it triggers a client flow, and then uses the client response data to build its own response. The `clientEvent` source is addressed with the `clientEndpointId`, `requestMethod`, `requestUri`, `eventNumber` and `eventPath` fields (see the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details).
 
-Both `serverEvent` and `clientEvent` also accept an optional `requestUriStartsWith` parameter: a **literal URI prefix** (not a regular expression) used instead of the exact `requestUri`. It selects every stored event whose URI starts with the prefix (merged and ordered by timestamp) and lets `eventNumber` pick within that set — so `eventNumber=-1` yields the most recent event whose URI starts with the prefix, regardless of an unknown trailing part (e.g. a server-generated identifier). See the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details.
+Both `serverEvent` and `clientEvent` also accept an optional `requestUriStartsWith` parameter: a **literal URI prefix** (not a regular expression) used instead of the exact `requestUri`. It selects every stored event whose URI starts with the prefix (merged and ordered by timestamp) and lets `eventNumber` pick within that set — so `"eventNumber": -1` yields the most recent event whose URI starts with the prefix, regardless of an unknown trailing part (e.g. a server-generated identifier). See the [transformation pipeline](docs/api/README.md#transformation-pipeline) section for details.
 
 ## Dynamic response delays
 
@@ -1858,18 +1872,13 @@ The simplest way to use this feature is to configure the server provisioning to 
   "requestUri": "/foo/bar",
   "responseCode": 200,
   "responseDelayMs": 20,
-  "responseHeaders": {
-    "content-type": "text/html"
-  },
+  "responseHeaders": {"content-type": "text/html"},
   "responseBody": "done!",
   "transform": [
+    {"from": {"source": "recvseq"}, "to": {"target": "var", "name": "recvseq"}},
     {
-      "source": "recvseq",
-      "target": "var.recvseq"
-    },
-    {
-      "source": "value.1",
-      "target": "vault.__core:response-delay-ms:@{recvseq}"
+      "from": {"source": "literal", "value": "1"},
+      "to": {"target": "vault", "key": "__core:response-delay-ms:@{recvseq}"}
     }
   ]
 }
@@ -1996,7 +2005,7 @@ __<prefix>:<reserved-function>:<additional information>
 | Hierarchical levels | `:` (colon) | Separates prefix, function and additional information. |
 | Words within a level | `-` (hyphen) | Separates words inside a single level (kebab-case), although for additional information it could be free |
 
-This convention avoids dots (`.`), which are reserved as separator between vault key and json-pointer path in the provision syntax (`vault.<key>.<path>`). Using colons ensures reserved entries can be read and written through both the REST admin API and provision transformations without restrictions.
+This convention avoids dots (`.`), which are not allowed in vault keys (the former provision syntax `vault.<key>.<path>` used them as separator). Using colons ensures reserved entries can be read and written through both the REST admin API and provision transformations without restrictions.
 
 ---
 

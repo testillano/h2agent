@@ -94,10 +94,7 @@ def test_011_provision_client_seq_addressing(h2ac_admin):
     "requestBody": {"name": "test"},
     "expectedResponseStatusCode": 201,
     "onResponseTransform": [
-      {
-        "source": "sendseq",
-        "target": "var.step1Seq"
-      }
+      {"from": {"source": "sendseq"}, "to": {"target": "var", "name": "step1Seq"}}
     ],
     "outState": "step2"
   }
@@ -112,12 +109,25 @@ def test_011_provision_client_seq_addressing(h2ac_admin):
     "expectedResponseStatusCode": 201,
     "transform": [
       {
-        "source": "clientEvent.clientEndpointId=seqtest&requestMethod=POST&requestUri=/app/v1/seq-test/create&sendseq=@{step1Seq}&eventPath=/responseBody",
-        "target": "vault.readBySeqResult"
+        "from": {
+          "source": "clientEvent",
+          "clientEndpointId": "seqtest",
+          "requestMethod": "POST",
+          "requestUri": "/app/v1/seq-test/create",
+          "sendseq": "@{step1Seq}",
+          "eventPath": "/responseBody"
+        },
+        "to": {"target": "vault", "key": "readBySeqResult"}
       },
       {
-        "source": "eraser",
-        "target": "clientEvent.clientEndpointId=seqtest&requestMethod=POST&requestUri=/app/v1/seq-test/create&sendseq=@{step1Seq}"
+        "from": {"source": "erase"},
+        "to": {
+          "target": "clientEvent",
+          "clientEndpointId": "seqtest",
+          "requestMethod": "POST",
+          "requestUri": "/app/v1/seq-test/create",
+          "sendseq": "@{step1Seq}"
+        }
       }
     ],
     "outState": "purge"
@@ -130,7 +140,7 @@ def test_011_provision_client_seq_addressing(h2ac_admin):
 def test_012_client_sendseq_source_and_eraser(h2ac_admin):
 
   # Trigger the chain
-  response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/seqFlow")
+  response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/seqFlow/trigger")
   assert response["status"] == 200
 
   # Wait for async chain completion

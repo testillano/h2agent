@@ -71,7 +71,7 @@ def test_003_concurrent_traffic(h2ac_admin, h2ac_traffic, admin_server_provision
     "responseCode": 200,
     "responseBody": {"result": "ok"},
     "transform": [
-      {"source": "recvseq", "target": "response.body.json.unsigned./seq"}
+      {"from": {"source": "recvseq"}, "filter": [{"op": "cast", "type": "unsigned"}], "to": {"target": "responseBody", "path": "/seq"}}
     ]
   }
   admin_server_provision(provision)

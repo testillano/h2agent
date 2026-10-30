@@ -32,6 +32,9 @@ class H2AgentClient:
     def post_json(self, url, body):
         return self.session.post(url, json=body)
 
+    def post(self, url, **kwargs):
+        return self.session.post(url, **kwargs)
+
     def put_json(self, url, body):
         return self.session.put(url, json=body)
 

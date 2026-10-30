@@ -680,22 +680,10 @@ FILE_MANAGER_PROVISION='''
   "requestUri":"/app/v1/foo/bar",
   "responseCode": 200,
   "transform": [
-    {
-      "source": "eraser",
-      "target": "txtFile./tmp/example.txt"
-    },
-    {
-      "source": "value./tmp/example.txt",
-      "target": "var.file"
-    },
-    {
-      "source": "value.hello",
-      "target": "txtFile.@{file}"
-    },
-    {
-      "source": "txtFile./tmp/example.txt",
-      "target": "response.body.string"
-    }
+    {"from": {"source": "erase"}, "to": {"target": "txtFile", "file": "/tmp/example.txt"}},
+    {"from": {"source": "literal", "value": "/tmp/example.txt"}, "to": {"target": "var", "name": "file"}},
+    {"from": {"source": "literal", "value": "hello"}, "to": {"target": "txtFile", "file": "@{file}"}},
+    {"from": {"source": "txtFile", "file": "/tmp/example.txt"}, "to": {"target": "responseBodyText"}}
   ]
 }
 '''
@@ -706,26 +694,11 @@ SOCKET_MANAGER_PROVISION='''
   "requestUri":"/app/v1/foo/bar",
   "responseCode": 200,
   "transform": [
-    {
-      "source": "value./tmp/udp.sock1",
-      "target": "var.file1"
-    },
-    {
-      "source": "value./tmp/udp.sock2",
-      "target": "var.file2"
-    },
-    {
-      "source": "value.0",
-      "target": "var.delayms"
-    },
-    {
-      "source": "value.hello",
-      "target": "udpSocket.@{file1}|@{delayms}"
-    },
-    {
-      "source": "value.world",
-      "target": "udpSocket.@{file2}|@{delayms}"
-    }
+    {"from": {"source": "literal", "value": "/tmp/udp.sock1"}, "to": {"target": "var", "name": "file1"}},
+    {"from": {"source": "literal", "value": "/tmp/udp.sock2"}, "to": {"target": "var", "name": "file2"}},
+    {"from": {"source": "literal", "value": "0"}, "to": {"target": "var", "name": "delayms"}},
+    {"from": {"source": "literal", "value": "hello"}, "to": {"target": "udpSocket", "socket": "@{file1}", "delayMs": "@{delayms}"}},
+    {"from": {"source": "literal", "value": "world"}, "to": {"target": "udpSocket", "socket": "@{file2}", "delayMs": "@{delayms}"}}
   ]
 }
 '''
@@ -743,17 +716,12 @@ VAULT_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
     "x-version":"1.0.0"
   }},
   "transform": [
+    {{"from": {{"source": "literal", "value": "{gvarcreated}value"}}, "to": {{"target": "vault", "key": "{gvarcreated}"}}}},
+    {{"from": {{"source": "erase"}}, "to": {{"target": "vault", "key": "{gvarremoved}"}}}},
     {{
-      "source": "value.{gvarcreated}value",
-      "target": "vault.{gvarcreated}"
-    }},
-    {{
-      "source": "eraser",
-      "target": "vault.{gvarremoved}"
-    }},
-    {{
-      "source": "vault.{gvaranswered}",
-      "target": "response.body.json.string./gvaranswered"
+      "from": {{"source": "vault", "key": "{gvaranswered}"}},
+      "filter": [{{"op": "cast", "type": "string"}}],
+      "to": {{"target": "responseBody", "path": "/gvaranswered"}}
     }}
   ]
 }}
@@ -774,18 +742,9 @@ TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE='''
     "x-version":"1.0.0"
   }},
   "transform": [
-    {{
-      "source": "value.var1value",
-      "target": "var.var1"
-    }},
-    {{
-      "source": "value.var2value",
-      "target": "var.var2"
-    }},
-    {{
-      "source": "{source}",
-      "target": "{target}"
-    }}
+    {{"from": {{"source": "literal", "value": "var1value"}}, "to": {{"target": "var", "name": "var1"}}}},
+    {{"from": {{"source": "literal", "value": "var2value"}}, "to": {{"target": "var", "name": "var2"}}}},
+    {rule}
   ]
 }}
 '''
@@ -803,22 +762,10 @@ TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE='''
     "x-version":"1.0.0"
   }},
   "transform": [
-    {{
-      "source": "value.var1value",
-      "target": "var.var1"
-    }},
-    {{
-      "source": "value.var2value",
-      "target": "var.var2"
-    }},
-    {{
-      "source": "{source}",
-      "target": "{target}"
-    }},
-    {{
-      "source": "{source2}",
-      "target": "{target2}"
-    }}
+    {{"from": {{"source": "literal", "value": "var1value"}}, "to": {{"target": "var", "name": "var1"}}}},
+    {{"from": {{"source": "literal", "value": "var2value"}}, "to": {{"target": "var", "name": "var2"}}}},
+    {rule},
+    {rule2}
   ]
 }}
 '''
@@ -839,18 +786,9 @@ TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE='''
     "x-version":"1.0.0"
   }},
   "transform": [
-    {{
-      "source": "value.var1value",
-      "target": "var.var1"
-    }},
-    {{
-      "source": "value.var2value",
-      "target": "var.var2"
-    }},
-    {{
-      "source": "{source}",
-      "target": "{target}"
-    }}
+    {{"from": {{"source": "literal", "value": "var1value"}}, "to": {{"target": "var", "name": "var1"}}}},
+    {{"from": {{"source": "literal", "value": "var2value"}}, "to": {{"target": "var", "name": "var2"}}}},
+    {rule}
   ]
 }}
 '''
@@ -865,10 +803,7 @@ TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE='''
     "x-version":"1.0.0"
   }},
   "transform": [
-    {{
-      "source": "value.{value}",
-      "target": "response.body.{what}"
-    }}
+    {{"from": {{"source": "literal", "value": "{value}"}}, "to": {{"target": "{what}"}}}}
   ]
 }}
 '''
@@ -884,12 +819,14 @@ TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE='''
   }},
   "transform": [
     {{
-      "source": "command.{command}",
-      "target": "response.body.json.string./output"
-    }} ,
+      "from": {{"source": "command", "command": "{command}"}},
+      "filter": [{{"op": "cast", "type": "string"}}],
+      "to": {{"target": "responseBody", "path": "/output"}}
+    }},
     {{
-      "source": "var.rc",
-      "target": "response.body.json.integer./rc"
+      "from": {{"source": "var", "name": "rc"}},
+      "filter": [{{"op": "cast", "type": "integer"}}],
+      "to": {{"target": "responseBody", "path": "/rc"}}
     }}
   ]
 }}

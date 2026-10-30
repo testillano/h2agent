@@ -3,35 +3,91 @@
     "requestMethod": "POST",
     "requestUri": "/app/v1/many-rules/user",
     "responseCode": 200,
-    "responseBody": {
-      "status": "ok",
-      "user": {}
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseBody": {"status": "ok", "user": {}},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
-      { "source": "request.body./id", "target": "var.id" },
-      { "source": "request.body./name", "target": "response.body.json.string./user/name" },
-      { "source": "request.body./age", "target": "var.age" },
-      { "source": "var.age", "target": "response.body.json.integer./user/age" },
-      { "source": "var.age", "target": "var.agePlus", "filter": { "Sum": 1 } },
-      { "source": "var.agePlus", "target": "response.body.json.integer./user/agePlus" },
-      { "source": "request.body./address", "target": "response.body.json.object./user/address" },
-      { "source": "request.body./address/city", "target": "var.city", "filter": { "Append": "-UK" } },
-      { "source": "var.city", "target": "response.body.json.string./user/city" },
-      { "source": "request.header.x-correlation", "target": "response.header.x-correlation" },
-      { "source": "request.header.x-correlation", "target": "response.body.json.string./trace/correlation" },
-      { "source": "vault.company", "target": "response.body.json.string./company" },
-      { "source": "value.@{id}-@{city}", "target": "response.body.json.string./key" },
-      { "source": "value.ok", "target": "var.flag" },
-      { "source": "value.premium", "target": "response.body.json.string./tier", "filter": { "ConditionVar": "flag" } },
-      { "source": "request.body./tags", "target": "response.body.json.object./tags" },
-      { "source": "value.@{id}", "target": "var.idCopy", "filter": { "Prepend": "user-" } },
-      { "source": "var.idCopy", "target": "response.body.json.string./user/ref" },
-      { "source": "timestamp.ms", "target": "response.body.json.unsigned./ts" },
-      { "source": "inState", "target": "response.body.json.string./state" },
-      { "source": "value.201", "target": "response.statusCode" }
+      {"from": {"source": "requestBody", "path": "/id"}, "to": {"target": "var", "name": "id"}},
+      {
+        "from": {"source": "requestBody", "path": "/name"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/user/name"}
+      },
+      {"from": {"source": "requestBody", "path": "/age"}, "to": {"target": "var", "name": "age"}},
+      {
+        "from": {"source": "var", "name": "age"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/user/age"}
+      },
+      {
+        "from": {"source": "var", "name": "age"},
+        "filter": [{"op": "sum", "value": 1}],
+        "to": {"target": "var", "name": "agePlus"}
+      },
+      {
+        "from": {"source": "var", "name": "agePlus"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/user/agePlus"}
+      },
+      {
+        "from": {"source": "requestBody", "path": "/address"},
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody", "path": "/user/address"}
+      },
+      {
+        "from": {"source": "requestBody", "path": "/address/city"},
+        "filter": [{"op": "append", "value": "-UK"}],
+        "to": {"target": "var", "name": "city"}
+      },
+      {
+        "from": {"source": "var", "name": "city"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/user/city"}
+      },
+      {
+        "from": {"source": "requestHeader", "name": "x-correlation"},
+        "to": {"target": "responseHeader", "name": "x-correlation"}
+      },
+      {
+        "from": {"source": "requestHeader", "name": "x-correlation"},
+        "to": {"target": "responseBody", "path": "/trace/correlation"}
+      },
+      {
+        "from": {"source": "vault", "key": "company"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/company"}
+      },
+      {
+        "from": {"source": "literal", "value": "@{id}-@{city}"},
+        "to": {"target": "responseBody", "path": "/key"}
+      },
+      {"from": {"source": "literal", "value": "ok"}, "to": {"target": "var", "name": "flag"}},
+      {
+        "from": {"source": "literal", "value": "premium"},
+        "filter": [{"op": "conditionVar", "name": "flag"}],
+        "to": {"target": "responseBody", "path": "/tier"}
+      },
+      {
+        "from": {"source": "requestBody", "path": "/tags"},
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody", "path": "/tags"}
+      },
+      {
+        "from": {"source": "literal", "value": "@{id}"},
+        "filter": [{"op": "prepend", "value": "user-"}],
+        "to": {"target": "var", "name": "idCopy"}
+      },
+      {
+        "from": {"source": "var", "name": "idCopy"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/user/ref"}
+      },
+      {
+        "from": {"source": "timestamp", "unit": "ms"},
+        "filter": [{"op": "cast", "type": "unsigned"}],
+        "to": {"target": "responseBody", "path": "/ts"}
+      },
+      {"from": {"source": "inState"}, "to": {"target": "responseBody", "path": "/state"}},
+      {"from": {"source": "literal", "value": "201"}, "to": {"target": "responseStatusCode"}}
     ]
   }
 ]

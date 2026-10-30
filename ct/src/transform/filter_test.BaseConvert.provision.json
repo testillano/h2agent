@@ -2,23 +2,18 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "value.255",
-      "target": "response.body.json.string./hexLower",
-      "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+      "from": {"source": "literal", "value": "255"},
+      "filter": [{"op": "baseConvert", "in": 10, "out": 16}],
+      "to": {"target": "responseBody", "path": "/hexLower"}
     },
     {
-      "source": "value.255",
-      "target": "response.body.json.string./hexUpper",
-      "filter": { "BaseConvert": { "in": 10, "out": 16, "capital": true } }
+      "from": {"source": "literal", "value": "255"},
+      "filter": [{"op": "baseConvert", "in": 10, "out": 16, "capital": true}],
+      "to": {"target": "responseBody", "path": "/hexUpper"}
     }
   ]
 }

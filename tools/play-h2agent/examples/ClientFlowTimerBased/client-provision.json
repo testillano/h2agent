@@ -1,43 +1,39 @@
 [
   {
-    "id":"myFlow",
-    "endpoint":"myServer",
+    "id": "myFlow",
+    "endpoint": "myServer",
     "expectedResponseStatusCode": 200,
-    "inState":"initial",
-    "outState":"step2",
-    "requestMethod":"GET",
-    "requestHeaders":{"content-type":"application/json"},
-    "transform":[
+    "inState": "initial",
+    "outState": "step2",
+    "requestMethod": "GET",
+    "requestHeaders": {"content-type": "application/json"},
+    "transform": [
       {
-        "source":"value./api/v1/hello/",
-        "filter":{"Append":"@{sequence}"},
-        "target":"request.uri"
+        "from": {"source": "literal", "value": "/api/v1/hello/"},
+        "filter": [{"op": "append", "value": "@{sequence}"}],
+        "to": {"target": "requestUri"}
       }
     ],
-    "onResponseTransform":[
-      {
-        "source":"response.body",
-        "target":"vault.helloResponse"
-      }
-    ]
+    "onResponseTransform": [{"from": {"source": "responseBody"}, "to": {"target": "vault", "key": "helloResponse"}}]
   },
   {
-    "id":"myFlow",
-    "endpoint":"myServer",
+    "id": "myFlow",
+    "endpoint": "myServer",
     "expectedResponseStatusCode": 200,
-    "inState":"step2",
-    "outState":"road-closed",
-    "requestMethod":"POST",
-    "requestHeaders":{"content-type":"application/json"},
-    "transform":[
+    "inState": "step2",
+    "outState": "road-closed",
+    "requestMethod": "POST",
+    "requestHeaders": {"content-type": "application/json"},
+    "transform": [
       {
-        "source":"value./api/v1/goodbye/",
-        "filter":{"Append":"@{sequence}"},
-        "target":"request.uri"
+        "from": {"source": "literal", "value": "/api/v1/goodbye/"},
+        "filter": [{"op": "append", "value": "@{sequence}"}],
+        "to": {"target": "requestUri"}
       },
       {
-        "source":"vault.helloResponse",
-        "target":"request.body.json.jsonstring"
+        "from": {"source": "vault", "key": "helloResponse"},
+        "filter": [{"op": "cast", "type": "json"}],
+        "to": {"target": "requestBody"}
       }
     ]
   }

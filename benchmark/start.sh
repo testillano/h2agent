@@ -469,7 +469,7 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   echo
   echo "Triggering ${H2CLIENT__ITERATIONS} provisions at ${H2CLIENT__CPS} cps (~${EXPECTED_SECS}s expected)..."
   START_NS=$(date +%s%N)
-  client_admin_curl GET "admin/v2/client-provision/${PROVISION_ID}?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&cps=${H2CLIENT__CPS}" || exit 1
+  client_admin_curl POST "admin/v2/client-provision/${PROVISION_ID}/trigger?sequenceBegin=1&sequenceEnd=${H2CLIENT__ITERATIONS}&cps=${H2CLIENT__CPS}" || exit 1
   cat ${TMP_DIR}/curl.output
   echo
 

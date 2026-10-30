@@ -8,7 +8,7 @@ A second server provision handles the forwarded request and responds 200.
 Flow:
   external POST /api/v1/webhook/notify
     → server responds 200 {"status":"received"}
-    → triggers clientProvision.forwardNotification
+    → triggers client provision forwardNotification (clientProvision target)
       → client POSTs /api/v1/forward with the original notification body
         → server responds 200 {"status":"forwarded"}
 

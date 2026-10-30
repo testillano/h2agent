@@ -9,7 +9,7 @@ In client mode, `h2agent` exposes the current execution counter via `sequence`. 
 When a provision is triggered with a range:
 
 ```
-GET /admin/v2/client-provision/sender?sequenceBegin=1&sequenceEnd=5&cps=2
+POST /admin/v2/client-provision/sender/trigger?sequenceBegin=1&sequenceEnd=5&cps=2
 ```
 
 The provision fires 5 times. On each execution, `sequence` holds the current counter value (1, 2, 3, 4, 5).
@@ -18,10 +18,12 @@ You can use it in a transform to set a field in the request body:
 
 ```json
 {
-  "source": "value.@{sequence}",
-  "target": "request.body.json.integer./counter"
+  "from": {"source": "literal", "value": "@{sequence}"},
+  "to": {"target": "requestBody", "path": "/counter"}
 }
 ```
+
+This builds `{"counter": "<sequence>"}`: the node gets the value as the source yields it (a `literal` is a text).
 
 ## The server
 
@@ -31,6 +33,6 @@ The server provision is already configured (`server-provision.json`). It echoes 
 
 Complete `client-provision.json` to send `POST /game/ping` with body `{"bounce": <sequence_number>}`.
 
-The `test.sh` triggers 5 requests and verifies that the last one had `bounce=5` in the request body received by the server.
+The `test.sh` triggers 5 requests and verifies that the last one had `bounce` equal to the **number** `5` (not the string `"5"`) in the request body received by the server.
 
-**Hint**: add a `transform` entry to set the `bounce` field with `sequence`. The transform creates the JSON node automatically — no need for a static `requestBody`.
+**Hint**: a `transform` entry creates the json node automatically — no need for a static `requestBody`. Take care of the value type: a json body target keeps the type of the value it receives, and the transformation filters can convert it.

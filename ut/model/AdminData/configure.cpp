@@ -43,9 +43,9 @@ const nlohmann::json ProvisionConfiguration__Success = R"(
   "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "from": {"random": [10, 30]},
-      "to": {"responseBody": "/randomBetween10and30"},
-      "filter": [{"as": "integer"}]
+      "from": {"source": "random", "min": 10, "max": 30},
+      "filter": [{"op": "cast", "type": "integer"}],
+      "to": {"target": "responseBody", "path": "/randomBetween10and30"}
     }
   ],
   "requestSchemaId": "myRequestsSchema",

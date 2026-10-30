@@ -7,17 +7,12 @@ As you already know, as part of a provision is possible to apply a transformatio
   "requestMethod": "DELETE",
   "requestUri": "/the/uri/path",
   "responseCode": 200,
-  "transform": [
-    {
-      "source": "value.the-next-state",
-      "target": "outState"
-    }
-  ],
+  "transform": [{"from": {"source": "literal", "value": "the-next-state"}, "to": {"target": "outState"}}],
   "outState": "this-will-be-overridden-by-target-outState-transformation"
 }
 ```
 
-But also, you could optionally specify a foreign method in the transformation target, for example `outState.GET`:
+But also, you could optionally specify a foreign method in the transformation target, for example `GET`:
 
 ```json
 {
@@ -26,8 +21,8 @@ But also, you could optionally specify a foreign method in the transformation ta
   "responseCode": 200,
   "transform": [
     {
-      "source": "value.the-next-state-for-GET",
-      "target": "outState.GET"
+      "from": {"source": "literal", "value": "the-next-state-for-GET"},
+      "to": {"target": "outState", "method": "GET"}
     }
   ],
   "outState": "the-next-state-for-DELETEs"
@@ -37,9 +32,7 @@ But also, you could optionally specify a foreign method in the transformation ta
 This means, that a virtual event will be created for a `GET` request and will be initialized with the state `the-next-state-for-GET`.
 So this acts like a `GET` is received and its state evolves following a foreign provision configuration. With this mechanism, it is possible to simulate things like a database where an element was removed.
 
-This is the complete target specification for the foreign state definition:
-
-outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
+The `outState` target accepts an optional `method` (`POST`, `GET`, `PUT`, `DELETE` or `HEAD`) and, with it, an optional `uri` (defaults to the current one): virtual server data will be created if needed, so that we can modify the flow for other methods (and URIs) different than the one which is managing the current provision. The `uri` **admits variables substitution**. Check the target in the [documentation](https://github.com/testillano/h2agent/blob/master/docs/api/README.md#transformation-pipeline).
 
 ## Exercise
 

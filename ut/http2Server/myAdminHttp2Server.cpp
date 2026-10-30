@@ -497,7 +497,7 @@ TEST_F(MyAdminHttp2ServerUnitTest, CapabilitiesReportVersions) {
     nlohmann::json caps = nlohmann::json::parse(admin_server_->capabilitiesAsJsonString());
     EXPECT_EQ(caps["apiVersion"], "v2");
     EXPECT_EQ(caps["programVersion"], "v9.9.9-test");
-    EXPECT_EQ(caps["grammar"], "v1");
+    EXPECT_EQ(caps["grammar"], "v2");
 }
 
 TEST_F(MyAdminHttp2ServerUnitTest, CapabilitiesUnknownProgramVersion) {

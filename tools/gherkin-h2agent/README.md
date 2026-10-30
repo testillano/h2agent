@@ -35,7 +35,7 @@ output/
 ├── 03.traffic-POST.json          ← POST /api/v1/users (type: traffic)
 ├── 04.client-endpoint.json       ← POST /admin/v2/client-endpoint
 ├── 05.client-provision.json      ← POST /admin/v2/client-provision
-└── 06.trigger-fetchData.json     ← GET /admin/v2/client-provision/fetchData
+└── 06.trigger-fetchData.json     ← POST /admin/v2/client-provision/fetchData/trigger
 ```
 
 Each file is a JSON object with the following fields:
@@ -95,14 +95,17 @@ Given a server provision for "POST" on "/api/v1/users"
   And with response delay 50 ms
   And with request schema "my-schema"
   And with response schema "my-schema"
-  And with transform from "request.body./name" to "response.body.json.string./name"
-  And with transform from "value.42" to "response.body.json.integer./count" and filter
+  And with transform
     """
-    {"Sum": 1}
+    {"from": {"source": "requestBody", "path": "/name"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/name"}}
+    """
+  And with transform
+    """
+    {"from": {"source": "literal", "value": "42"}, "filter": [{"op": "sum", "value": 1}, {"op": "cast", "type": "integer"}], "to": {"target": "responseBody", "path": "/count"}}
     """
   And with transforms
     """
-    [{"source": "timestamp.ms", "target": "response.body.json.unsigned./ts"}]
+    [{"from": {"source": "timestamp", "unit": "ms"}, "filter": [{"op": "cast", "type": "unsigned"}], "to": {"target": "responseBody", "path": "/ts"}}]
     """
 When the server provision is committed
 ```
@@ -139,8 +142,14 @@ Given a client provision "myProv"
     """
   And with request delay 100 ms
   And with timeout 5000 ms
-  And with transform from "value.hello" to "request.body.json.string./greeting"
-  And with on-response transform from "response.body./id" to "vault.lastId"
+  And with transform
+    """
+    {"from": {"source": "literal", "value": "hello"}, "to": {"target": "requestBody", "path": "/greeting"}}
+    """
+  And with on-response transform
+    """
+    {"from": {"source": "responseBody", "path": "/id"}, "to": {"target": "vault", "key": "lastId"}}
+    """
 When the client provision is committed
 ```
 

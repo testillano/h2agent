@@ -2,36 +2,33 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "request.uri",
-      "target": "var.captures",
-      "filter": {
-        "RegexCapture": "/app/v1/([a-z]*)/bar/([0-9]*)"
-      }
+      "from": {"source": "requestUri"},
+      "filter": [{"op": "regexCapture", "rgx": "/app/v1/([a-z]*)/bar/([0-9]*)"}],
+      "to": {"target": "var", "name": "captures"}
     },
     {
-      "source": "var.captures.1",
-      "target": "response.body.json.string./captureFooFromURI"
+      "from": {"source": "var", "name": "captures.1"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/captureFooFromURI"}
     },
     {
-      "source": "var.captures.2",
-      "target": "response.body.json.string./captureBarIdFromURI"
+      "from": {"source": "var", "name": "captures.2"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/captureBarIdFromURI"}
     },
     {
-      "source": "var.captures.3",
-      "target": "response.body.json.string./thisShouldBeSkipped"
+      "from": {"source": "var", "name": "captures.3"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/thisShouldBeSkipped"}
     },
     {
-      "source": "var.captures",
-      "target": "response.body.json.string./variableAsIs"
+      "from": {"source": "var", "name": "captures"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/variableAsIs"}
     }
   ]
 }

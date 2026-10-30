@@ -1,6 +1,6 @@
 # Arithmetic Server
 
-It is possible to calculate mathematical expressions by mean the data source `math.<expression>`.
+It is possible to calculate mathematical expressions by mean the `math` data source (`{"source": "math", "expression": "<expression>"}`).
 
 The parser/compiler is provided by [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) third party library. For example, you may implement a simple arithmetic server with this kind of provision:
 
@@ -10,13 +10,11 @@ The parser/compiler is provided by [Arash Partow's exprtk](https://github.com/Ar
   "requestUri": "/app/v1/calculate",
   "responseCode": 200,
   "transform": [
+    {"from": {"source": "requestBody"}, "to": {"target": "var", "name": "expression"}},
     {
-      "source": "request.body",
-      "target": "var.expression"
-    },
-    {
-      "source": "math.@{expression}",
-      "target": "response.body.json.float"
+      "from": {"source": "math", "expression": "@{expression}"},
+      "filter": [{"op": "cast", "type": "float"}],
+      "to": {"target": "responseBody"}
     }
   ]
 }

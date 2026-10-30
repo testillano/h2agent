@@ -7,7 +7,7 @@ You have a service that claims to handle requests at a certain rate. But does it
 When triggering a client provision, you can control the rate and total count:
 
 ```
-GET /admin/v2/client-provision/<id>?sequenceBegin=1&sequenceEnd=50&cps=10
+POST /admin/v2/client-provision/<id>/trigger?sequenceBegin=1&sequenceEnd=50&cps=10
 ```
 
 This fires the provision 50 times at 10 provisions per second (~5 seconds total). You can poll the progress at any time via the REST API:

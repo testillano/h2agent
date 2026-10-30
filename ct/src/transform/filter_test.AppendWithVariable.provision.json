@@ -2,24 +2,14 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
+    {"from": {"source": "literal", "value": "suffix"}, "to": {"target": "var", "name": "what"}},
     {
-      "source": "value.suffix",
-      "target": "var.what"
-    },
-    {
-      "source": "request.uri",
-      "target": "response.body.json.string./uri-appended",
-      "filter": {
-        "Append": "-@{what}"
-      }
+      "from": {"source": "requestUri"},
+      "filter": [{"op": "append", "value": "-@{what}"}],
+      "to": {"target": "responseBody", "path": "/uri-appended"}
     }
   ]
 }

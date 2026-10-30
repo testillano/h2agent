@@ -4,11 +4,18 @@
   "expectedResponseStatusCode": 200,
   "requestMethod": "POST",
   "requestUri": "/api/v1/forward",
-  "requestHeaders": {"content-type":"application/json"},
+  "requestHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "serverEvent.POST./api/v1/webhook/notify.0.body",
-      "target": "request.body.json.object"
+      "from": {
+        "source": "serverEvent",
+        "requestMethod": "POST",
+        "requestUri": "/api/v1/webhook/notify",
+        "eventNumber": -1,
+        "eventPath": "/requestBody"
+      },
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "requestBody"}
     }
   ]
 }

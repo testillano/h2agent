@@ -2,21 +2,14 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
+    {"from": {"source": "recvseq"}, "to": {"target": "var", "name": "aux"}},
     {
-      "source": "recvseq",
-      "target": "var.aux"
-    },
-    {
-      "source": "var.aux",
-      "target": "response.body.json.unsigned./recvseqFromVarAux"
+      "from": {"source": "var", "name": "aux"},
+      "filter": [{"op": "cast", "type": "unsigned"}],
+      "to": {"target": "responseBody", "path": "/recvseqFromVarAux"}
     }
   ]
 }

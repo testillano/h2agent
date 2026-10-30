@@ -62,9 +62,9 @@ public:
  * Transformation grammar v1 <-> v2 converter (docs/developers/GrammarV2.md).
  *
  * This is a SYNTAX-ONLY step: every v2 rule produced behaves exactly as its v1
- * origin. The v1 parsing mirrors model::Transformation::load (same prefixes,
+ * origin. The v1 parsing mirrors the former v1 runtime parser (same prefixes,
  * same precedence), but with strict literal dots: inputs rejected here are
- * inputs that the v1 json schema already rejects.
+ * inputs that the v1 json schema already rejected.
  *
  * The reverse direction (v2 -> v1) exists as a test oracle (v1 -> v2 -> v1 is
  * the identity on canonical v1) and as a diagnostic aid. It only accepts the
@@ -72,14 +72,16 @@ public:
  *
  * Mode-agnostic on purpose: every v1 string maps to a single v2 kind whatever
  * the provision type (server, client request, client response); whether a kind
- * is applicable in a context is checked by the schema/parser, not here.
+ * is applicable in a context is checked by the schema/parser, not here. The
+ * only exception is event addressing ('serverEvent'/'clientEvent'), whose
+ * accepted fields depend on the role (source or purge target).
  */
 class GrammarMigrator {
 public:
     /** Grammar found in a document (provision, provision array or rule). */
     enum class Grammar { None, V1, V2, Mixed };
 
-    /** Converts one v1 source string into its v2 'from' value. */
+    /** Converts one v1 source string into its v2 'from' object ({"source": <kind>, ...}). */
     static Json sourceToV2(const std::string &v1, const std::string &where = "");
 
     /** Converts one v2 'from' value into its v1 source string. */
@@ -87,21 +89,28 @@ public:
 
     /**
      * Converts one v1 target string into its v2 'to' value.
-     * @param asType output: the cast the v1 target implied ("" when none),
-     *        to be appended as {"as": <asType>} at the end of the filter list.
+     * @param castType output: the cast the v1 target implied ("" when none),
+     *        to be appended as {"op": "cast", "type": <castType>} at the end of
+     *        the filter list.
      */
-    static Json targetToV2(const std::string &v1, std::string &asType, const std::string &where = "");
+    static Json targetToV2(const std::string &v1, std::string &castType, const std::string &where = "");
 
     /**
-     * Converts one v2 'to' value (plus the trailing 'as' cast, "" if none) into
+     * Converts one v2 'to' object (plus the trailing cast type, "" if none) into
      * its v1 target string.
      */
-    static std::string targetToV1(const Json &v2, const std::string &asType, const std::string &where = "");
+    static std::string targetToV1(const Json &v2, const std::string &castType, const std::string &where = "");
+
+    /** Converts one v1 filter ("Size" or a one-key object) into its v2 item ({"op": ...}). */
+    static Json filterToV2(const Json &v1, const std::string &where = "");
+
+    /** Converts one v2 filter item (except the cast) into its v1 filter. */
+    static Json filterToV1(const Json &v2, const std::string &where = "");
 
     /** Converts one v1 rule (source/target/filter/onFilterFail), recursively. */
     static Json ruleToV2(const Json &v1Rule, const std::string &where = "");
 
-    /** Converts one v2 rule (from/to/filter/onFilterFail), recursively. */
+    /** Converts one v2 rule (from/filter/to/onFilterFail), recursively. */
     static Json ruleToV1(const Json &v2Rule, const std::string &where = "");
 
     /**

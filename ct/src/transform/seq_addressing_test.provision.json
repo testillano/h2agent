@@ -5,12 +5,7 @@
     "responseCode": 200,
     "responseBody": {"origin": "seq-test"},
     "responseHeaders": {"content-type": "application/json"},
-    "transform": [
-      {
-        "source": "recvseq",
-        "target": "vault.lastRecvSeq"
-      }
-    ]
+    "transform": [{"from": {"source": "recvseq"}, "to": {"target": "vault", "key": "lastRecvSeq"}}]
   },
   {
     "requestMethod": "POST",
@@ -20,8 +15,15 @@
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "serverEvent.requestMethod=GET&requestUri=/app/v1/seq-test/data&recvseq=@{lastRecvSeq}&eventPath=/responseBody",
-        "target": "response.body.json.object./readResult"
+        "from": {
+          "source": "serverEvent",
+          "requestMethod": "GET",
+          "requestUri": "/app/v1/seq-test/data",
+          "recvseq": "@{lastRecvSeq}",
+          "eventPath": "/responseBody"
+        },
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody", "path": "/readResult"}
       }
     ]
   },
@@ -33,8 +35,13 @@
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "eraser",
-        "target": "serverEvent.requestMethod=GET&requestUri=/app/v1/seq-test/data&recvseq=@{lastRecvSeq}"
+        "from": {"source": "erase"},
+        "to": {
+          "target": "serverEvent",
+          "requestMethod": "GET",
+          "requestUri": "/app/v1/seq-test/data",
+          "recvseq": "@{lastRecvSeq}"
+        }
       }
     ]
   }

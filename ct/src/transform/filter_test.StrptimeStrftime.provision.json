@@ -2,27 +2,23 @@
   "requestMethod": "POST",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "request.body./date",
-      "target": "var.epoch",
-      "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"source": "requestBody", "path": "/date"},
+      "filter": [{"op": "strptime", "fmt": "%Y-%m-%dT%H:%M:%S"}],
+      "to": {"target": "var", "name": "epoch"}
     },
     {
-      "source": "var.epoch",
-      "target": "var.epoch",
-      "filter": { "Sum": 86400 }
+      "from": {"source": "var", "name": "epoch"},
+      "filter": [{"op": "sum", "value": 86400}],
+      "to": {"target": "var", "name": "epoch"}
     },
     {
-      "source": "var.epoch",
-      "target": "response.body.json.string./nextDay",
-      "filter": { "Strftime": { "fmt": "%Y-%m-%d" } }
+      "from": {"source": "var", "name": "epoch"},
+      "filter": [{"op": "strftime", "fmt": "%Y-%m-%d"}, {"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/nextDay"}
     }
   ]
 }

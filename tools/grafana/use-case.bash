@@ -19,31 +19,35 @@ cat << EOF > /tmp/provision.json
     "outState": "purge",
     "transform": [
       {
-        "source": "request.uri",
-        "target": "var.uri_parts",
-        "filter": {
-          "RegexCapture": "(/sold/book/)([0-9]+)"
-        }
+        "from": {"source": "requestUri"},
+        "filter": [{"op": "regexCapture", "rgx": "(/sold/book/)([0-9]+)"}],
+        "to": {"target": "var", "name": "uri_parts"}
       },
       {
-        "source": "var.uri_parts.2",
-        "filter": { "EqualTo": "81" },
-        "target": "var.mises"
+        "from": {"source": "var", "name": "uri_parts.2"},
+        "filter": [{"op": "equalTo", "value": "81"}],
+        "to": {"target": "var", "name": "mises"}
       },
       {
-        "source": "var.uri_parts.2",
-        "filter": { "EqualTo": "99" },
-        "target": "var.hayek"
+        "from": {"source": "var", "name": "uri_parts.2"},
+        "filter": [{"op": "equalTo", "value": "99"}],
+        "to": {"target": "var", "name": "hayek"}
       },
       {
-        "source": "value.Book: Human Action | Author: Von Mises, Ludwig | Cost: 51 euro\n",
-        "filter": { "ConditionVar": "mises" },
-        "target": "txtFile./tmp/sales.log"
+        "from": {
+          "source": "literal",
+          "value": "Book: Human Action | Author: Von Mises, Ludwig | Cost: 51 euro\n"
+        },
+        "filter": [{"op": "conditionVar", "name": "mises"}],
+        "to": {"target": "txtFile", "file": "/tmp/sales.log"}
       },
       {
-        "source": "value.Book: The Road To Serfdom | Author: Hayek, F.A. | Cost: 14 euro\n",
-        "filter": { "ConditionVar": "hayek" },
-        "target": "txtFile./tmp/sales.log"
+        "from": {
+          "source": "literal",
+          "value": "Book: The Road To Serfdom | Author: Hayek, F.A. | Cost: 14 euro\n"
+        },
+        "filter": [{"op": "conditionVar", "name": "hayek"}],
+        "to": {"target": "txtFile", "file": "/tmp/sales.log"}
       }
     ]
   },
@@ -52,79 +56,73 @@ cat << EOF > /tmp/provision.json
     "requestUri": "/buy/book/",
     "responseCode": 202,
     "outState": "purge",
-    "responseBody": {
-      "message": "Sorry we don't have this book, but we will try to bring it as soon as possible !"
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseBody": {"message": "Sorry we don't have this book, but we will try to bring it as soon as possible !"},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "request.uri",
-        "target": "var.uri_parts",
-        "filter": {
-          "RegexCapture": "(/buy/book/)([0-9]+)"
-        }
+        "from": {"source": "requestUri"},
+        "filter": [{"op": "regexCapture", "rgx": "(/buy/book/)([0-9]+)"}],
+        "to": {"target": "var", "name": "uri_parts"}
+      },
+      {"from": {"source": "literal", "value": ""}, "to": {"target": "var", "name": "mises"}},
+      {
+        "from": {"source": "math", "expression": "100/5"},
+        "to": {"target": "var", "name": "debeser20"}
       },
       {
-        "source": "value.",
-        "target": "var.mises"
+        "from": {"source": "math", "expression": "1/5"},
+        "to": {"target": "var", "name": "debeser0,2"}
       },
       {
-        "source": "math.100/5",
-        "target": "var.debeser20"
+        "from": {"source": "math", "expression": "@{uri_parts.2} % 100"},
+        "filter": [{"op": "equalTo", "value": "81"}],
+        "to": {"target": "var", "name": "mises"}
+      },
+      {"from": {"source": "literal", "value": ""}, "to": {"target": "var", "name": "hayek"}},
+      {
+        "from": {"source": "math", "expression": "@{uri_parts.2} % 100"},
+        "filter": [{"op": "equalTo", "value": "99"}],
+        "to": {"target": "var", "name": "hayek"}
       },
       {
-        "source": "math.1/5",
-        "target": "var.debeser0,2"
+        "from": {
+          "source": "literal",
+          "value": "{\"isbn\":\"978-1614273547\",\"book\":\"Human Action\",\"author\":\"Von Mises, Ludwig\",\"message\":\"Accounts debt is: 51 euros\"}"
+        },
+        "filter": [{"op": "conditionVar", "name": "mises"}, {"op": "cast", "type": "json"}],
+        "to": {"target": "responseBody"}
       },
       {
-        "source": "math.@{uri_parts.2} % 100",
-        "filter": { "EqualTo": "81" },
-        "target": "var.mises"
+        "from": {
+          "source": "literal",
+          "value": "{\"isbn\":\"978-0226320595\",\"book\":\"The Road To Serfdom\",\"author\":\"Hayek, F.A.\",\"message\":\"Accounts debt is: 14 euros\"}"
+        },
+        "filter": [{"op": "conditionVar", "name": "hayek"}, {"op": "cast", "type": "json"}],
+        "to": {"target": "responseBody"}
       },
       {
-        "source": "value.",
-        "target": "var.hayek"
+        "from": {"source": "literal", "value": "POST|sold/book/81"},
+        "filter": [{"op": "conditionVar", "name": "mises"}],
+        "to": {"target": "udpSocket", "socket": "/tmp/udp.sock"}
       },
       {
-        "source": "math.@{uri_parts.2} % 100",
-        "filter": { "EqualTo": "99" },
-        "target": "var.hayek"
+        "from": {"source": "literal", "value": "POST|sold/book/99"},
+        "filter": [{"op": "conditionVar", "name": "hayek"}],
+        "to": {"target": "udpSocket", "socket": "/tmp/udp.sock"}
       },
       {
-        "source": "value.{\"isbn\":\"978-1614273547\",\"book\":\"Human Action\",\"author\":\"Von Mises, Ludwig\",\"message\":\"Accounts debt is: 51 euros\"}",
-        "filter": { "ConditionVar": "mises" },
-        "target": "response.body.json.jsonstring"
+        "from": {"source": "literal", "value": "@{mises}@{hayek}"},
+        "to": {"target": "var", "name": "found"}
       },
       {
-        "source": "value.{\"isbn\":\"978-0226320595\",\"book\":\"The Road To Serfdom\",\"author\":\"Hayek, F.A.\",\"message\":\"Accounts debt is: 14 euros\"}",
-        "filter": { "ConditionVar": "hayek" },
-        "target": "response.body.json.jsonstring"
+        "from": {"source": "literal", "value": "Request order: @{uri_parts.2}\n"},
+        "filter": [{"op": "conditionVar", "name": "found", "not": true}],
+        "to": {"target": "txtFile", "file": "/tmp/lost_sales.log"}
       },
       {
-        "source": "value.POST|sold/book/81",
-        "filter": { "ConditionVar": "mises" },
-        "target": "udpSocket./tmp/udp.sock"
-      },
-      {
-        "source": "value.POST|sold/book/99",
-        "filter": { "ConditionVar": "hayek" },
-        "target": "udpSocket./tmp/udp.sock"
-      },
-      {
-        "source": "value.@{mises}@{hayek}",
-        "target": "var.found"
-      },
-      {
-        "source": "value.Request order: @{uri_parts.2}\n",
-        "filter": { "ConditionVar": "!found" },
-        "target": "txtFile./tmp/lost_sales.log"
-      },
-      {
-        "source": "value.200",
-        "filter": { "ConditionVar": "found" },
-        "target": "response.statusCode"
+        "from": {"source": "literal", "value": "200"},
+        "filter": [{"op": "conditionVar", "name": "found"}],
+        "to": {"target": "responseStatusCode"}
       }
     ]
   }

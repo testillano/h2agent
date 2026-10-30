@@ -66,6 +66,7 @@ SOFTWARE.
 #include <SocketManager.hpp>
 #include <functions.hpp>
 #include <GrammarMigrator.hpp>
+#include <JsonSchema.hpp>
 
 
 namespace h2agent
@@ -147,6 +148,13 @@ bool MyAdminHttp2Server::checkHeaders(const
         return true;
     }
 
+    // Client provision trigger: an action without request body (parameters go in the query):
+    static const std::string triggerSuffix = "/trigger";
+    const std::string &path = req.uri().path;
+    if (path.size() > triggerSuffix.size() && path.compare(path.size() - triggerSuffix.size(), triggerSuffix.size(), triggerSuffix) == 0) {
+        return true;
+    }
+
     auto ctype     = req.header().find("content-type");
     auto clength   = req.header().find("content-length");
     auto ctype_end = req.header().end();
@@ -204,7 +212,7 @@ std::string MyAdminHttp2Server::capabilitiesAsJsonString() const
     nlohmann::json result;
     result["apiVersion"] = getApiVersion();
     result["programVersion"] = program_version_.empty() ? "unknown" : program_version_;
-    result["grammar"] = "v1";
+    result["grammar"] = "v2";
     return result.dump();
 }
 
@@ -271,6 +279,23 @@ void MyAdminHttp2Server::receiveNOOP(unsigned int& statusCode, nghttp2::asio_htt
     responseBody = buildJsonResponse(false, "no operation provided");
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
     statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+}
+
+const std::vector<std::string> &MyAdminHttp2Server::apiSchemaResources() {
+    static const std::vector<std::string> resources = {
+        "server-matching", "server-provision", "client-endpoint", "client-provision", "schema", "vault"
+    };
+    return resources;
+}
+
+const h2agent::jsonschema::JsonSchema *MyAdminHttp2Server::apiSchemaOf(const std::string &resource) const {
+    if (resource == "server-matching") return &getAdminData()->getServerMatchingData().getSchema();
+    if (resource == "server-provision") return &getAdminData()->getServerProvisionData().getSchema();
+    if (resource == "client-endpoint") return &getAdminData()->getClientEndpointData().getSchema();
+    if (resource == "client-provision") return &getAdminData()->getClientProvisionData().getSchema();
+    if (resource == "schema") return &getAdminData()->getSchemaData().getSchema();
+    if (resource == "vault") return &getVault()->getSchema();
+    return nullptr;
 }
 
 int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject, std::string& log) const
@@ -441,16 +466,27 @@ int MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::s
     return result;
 }
 
-void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
+void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string &queryParams, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
-    LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     std::string jsonResponse_response;
     std::string warning;
 
     // All responses are json content:
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+
+    // Client provision trigger (action: no request body, parameters in the query):
+    static const std::regex clientProvisionTrigger("^client-provision/([^/]+)/trigger$", std::regex::optimize);
+    std::smatch matches;
+    if (std::regex_match(pathSuffix, matches, clientProvisionTrigger)) {
+        triggerClientOperation(matches.str(1), queryParams, statusCode);
+        bool result = statusCodeOK(statusCode);
+        responseBody = buildJsonResponse(result, (result ? "operation processed":"operation failed"));
+        return;
+    }
+
+    LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     // Admin schema validation:
     nlohmann::json requestJson;
@@ -500,44 +536,35 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
 
     // composed path suffixes
     std::smatch matches;
-    static std::regex clientProvisionId("^client-provision/(.*)", std::regex::optimize);
+    static std::regex clientProvisionId("^client-provision/([^/]+)(/trigger)?$", std::regex::optimize);
     static std::regex vaultWait("^vault/([^/]+)/wait$", std::regex::optimize);
+    static std::regex apiSchema("^api-schema/([^/]+)$", std::regex::optimize);
+    static std::regex retiredSchema("^(server-matching|server-provision|client-endpoint|client-provision|schema|vault)/schema$", std::regex::optimize);
 
 
-    if (pathSuffix == "server-matching/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getServerMatchingData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
+    if (pathSuffix == "api-schema") {
+        nlohmann::json resources = nlohmann::json::array();
+        for (const auto &r : apiSchemaResources()) resources.push_back(r);
+        responseBody = resources.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
-    else if (pathSuffix == "server-provision/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getServerProvisionData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    else if (std::regex_match(pathSuffix, matches, apiSchema)) { // api-schema/<resource>
+        const h2agent::jsonschema::JsonSchema *schema = apiSchemaOf(matches.str(1));
+        if (schema) {
+            // Add the $id field dynamically (full URI including scheme/host)
+            nlohmann::json jsonSchema = schema->getJson();
+            jsonSchema["$id"] = uri;
+            responseBody = jsonSchema.dump();
+            statusCode = ert::http2comm::ResponseCode::OK; // 200
+        }
+        else {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND; // 404
+            responseBody = buildJsonResponse(false, std::string("unknown api-schema resource '") + matches.str(1) + "' (GET api-schema lists them)");
+        }
     }
-    else if (pathSuffix == "client-endpoint/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getClientEndpointData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
-    }
-    else if (pathSuffix == "client-provision/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getClientProvisionData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
-    }
-    else if (pathSuffix == "schema/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getSchemaData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    else if (std::regex_match(pathSuffix, matches, retiredSchema)) { // <resource>/schema (retired)
+        statusCode = ert::http2comm::ResponseCode::GONE; // 410
+        responseBody = buildJsonResponse(false, std::string("retired: use GET ") + getApiPath() + "/api-schema/" + matches.str(1));
     }
     else if (pathSuffix == "server-data/summary") {
         std::string maxKeys = "";
@@ -645,13 +672,6 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             }
         }
     }
-    else if (pathSuffix == "vault/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getVault()->getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
-    }
     else if (std::regex_match(pathSuffix, matches, vaultWait)) { // vault/<key>/wait
         if (!wait_manager_) {
             statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
@@ -726,10 +746,9 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getAdminData()->getClientProvisionData().asJsonString(true /*unused*/);
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
-    else if (std::regex_match(pathSuffix, matches, clientProvisionId)) { // client-provision/<client provision id>
-        triggerClientOperation(matches.str(1), queryParams, statusCode);
-        bool result = statusCodeOK(statusCode);
-        responseBody = buildJsonResponse(result, (result ? "operation processed":"operation failed"));
+    else if (std::regex_match(pathSuffix, matches, clientProvisionId)) { // client-provision/<id>[/trigger]: retired GET trigger
+        statusCode = ert::http2comm::ResponseCode::GONE; // 410
+        responseBody = buildJsonResponse(false, std::string("retired: trigger with POST ") + getApiPath() + "/client-provision/" + matches.str(1) + "/trigger");
     }
     else if (pathSuffix == "schema") {
         responseBody = getAdminData()->getSchemaData().asJsonString();
@@ -1286,7 +1305,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         return;
     }
     else if (method == "POST") {
-        receivePOST(pathSuffix, requestBody, statusCode, headers, responseBody);
+        receivePOST(pathSuffix, uriQuery, requestBody, statusCode, headers, responseBody);
         return;
     }
     else if (method == "PUT") {

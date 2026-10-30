@@ -1,6 +1,6 @@
 # Matching algorithms III: RegexMatching
 
-**(It is recommended to read more about matching algorithms at project [documentation](https://github.com/testillano/h2agent#post-adminv1server-matching)**)
+**(It is recommended to read more about matching algorithms at project [documentation](https://github.com/testillano/h2agent/blob/master/docs/api/README.md#matching-algorithms)**)
 
 The  `RegexMatching` algorithm acts checking matches for `URIs` received against the regular expressions configured in the provision ordered list. So, not only the match must validate the selection but the provision order is important because the first expression matched is the one used to rule the behavior.
 

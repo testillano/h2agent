@@ -16,23 +16,24 @@ How to maintain the REST API documentation for h2agent.
 
 ### Auto-generatable (from running server)
 
-These schemas match the JSON Schemas returned by h2agent's `/admin/v2/*/schema` endpoints.
+These schemas match the JSON Schemas returned by h2agent's `/admin/v2/api-schema/<resource>` endpoints.
 They can be checked for drift with `check_schema_drift.py` (it prints the server schemas; it
 does not rewrite `openapi.yaml`).
 
 | Schema | Source endpoint |
 |---|---|
-| `SchemaConfig` | `/admin/v2/schema/schema` |
-| `VaultMap` | `/admin/v2/vault/schema` |
-| `ServerMatching` | `/admin/v2/server-matching/schema` |
-| `ServerProvision` | `/admin/v2/server-provision/schema` |
-| `ClientEndpoint` | `/admin/v2/client-endpoint/schema` |
-| `ClientProvision` | `/admin/v2/client-provision/schema` |
+| `SchemaConfig` | `/admin/v2/api-schema/schema` |
+| `VaultMap` | `/admin/v2/api-schema/vault` |
+| `ServerMatching` | `/admin/v2/api-schema/server-matching` |
+| `ServerProvision` | `/admin/v2/api-schema/server-provision` |
+| `ClientEndpoint` | `/admin/v2/api-schema/client-endpoint` |
+| `ClientProvision` | `/admin/v2/api-schema/client-provision` |
 
-The server also provides `TransformFilter` (as `filter` definition) and transform item
-structures inline within provision schemas. In the OpenAPI spec these are extracted as
-separate components (`ServerTransformItem`, `ClientRequestTransformItem`,
-`ClientResponseTransformItem`, `TransformFilter`) for readability.
+The server also provides the transformation grammar (v2) as definitions inside the provision
+schemas (`filter`, `from`, `to`, `rule`, and `responseFrom`/`responseTo`/`responseRule` for client
+provisions). In the OpenAPI spec these are extracted as separate components for readability:
+`TransformFilter`, `ServerTransformSource`/`Target`/`Item`, `ClientRequestTransformSource`/`Target`/`Item`
+and `ClientResponseTransformSource`/`Target`/`Item` (draft-07 `dependencies` becomes `dependentRequired`).
 
 ### Manual (inferred from responses)
 

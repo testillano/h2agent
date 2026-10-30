@@ -2,34 +2,30 @@
   "requestMethod": "GET",
   "requestUri": "/api/v1/resource",
   "responseCode": 200,
-  "responseBody": {
-    "status": "authorized",
-    "message": "Welcome"
-  },
+  "responseBody": {"status": "authorized", "message": "Welcome"},
   "transform": [
     {
-      "source": "request.headers",
-      "target": "var.headersOK",
-      "filter": {
-        "JsonConstraint": [
-          {"name": "x-api-key", "value": "my-secret-key"},
-          {"name": "x-client-id", "value": "service-a"}
-        ]
-      }
+      "from": {"source": "requestHeaders"},
+      "filter": [
+        {
+          "op": "jsonConstraint",
+          "value": [
+            {"name": "x-api-key", "value": "my-secret-key"},
+            {"name": "x-client-id", "value": "service-a"}
+          ]
+        }
+      ],
+      "to": {"target": "var", "name": "headersOK"}
     },
     {
-      "source": "value.403",
-      "target": "response.statusCode",
-      "filter": {
-        "ConditionVar": "!headersOK"
-      }
+      "from": {"source": "literal", "value": "403"},
+      "filter": [{"op": "conditionVar", "name": "headersOK", "not": true}],
+      "to": {"target": "responseStatusCode"}
     },
     {
-      "source": "var.headersOK.fail",
-      "target": "response.body.string",
-      "filter": {
-        "ConditionVar": "!headersOK"
-      }
+      "from": {"source": "var", "name": "headersOK.fail"},
+      "filter": [{"op": "conditionVar", "name": "headersOK", "not": true}],
+      "to": {"target": "responseBodyText"}
     }
   ]
 }

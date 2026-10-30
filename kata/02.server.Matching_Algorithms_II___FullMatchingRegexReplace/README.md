@@ -1,8 +1,8 @@
 # Matching algorithms II: FullMatchingRegexReplace
 
-**(It is recommended to read more about matching algorithms at project [documentation](https://github.com/testillano/h2agent#post-adminv1server-matching)**)
+**(It is recommended to read more about matching algorithms at project [documentation](https://github.com/testillano/h2agent/blob/master/docs/api/README.md#matching-algorithms)**)
 
-The  `FullMatchingRegexReplace` algorithm acts like the previous `FullMatching` after a `RegexReplace` transformation over the `URI` received.
+The  `FullMatchingRegexReplace` algorithm acts like the previous `FullMatching` after a regex-replace transformation (`rgx` and `fmt`) over the `URI` received.
 
 This algorithm is tremendously powerful and has endless possibilities when it comes to manipulating information. The `h2agent` implements it through the [regex-replace](http://www.cplusplus.com/reference/regex/regex_replace/) C++ function template.
 

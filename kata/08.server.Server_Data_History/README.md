@@ -36,9 +36,9 @@ Imagine the following current server data map:
 
 **Note**: remember that `./tools/helpers.bash` can be sourced to access some helper functions, for example you could execute `server_data && json`, which dumps the current server data snapshot in pretty `json` format like the previous example.
 
-Now, you can prepare an event source to access the request body for the last event in events history shown above (the last is the first as only one event is registered). Take into account the request *URI* must be encoded in this case (you can use the utility `./tools/url.sh` within the project):
+Now, you can prepare an event source to access the request body for the last event in events history shown above (the last is the first as only one event is registered). Each address field is a plain json value, so the request *URI* is written as it is, query parameters included:
 
-​	`serverEvent.requestMethod=POST&requestUri=/app/v1/stock/madrid%3Floc%3D123&eventNumber=-1&eventPath=/requestBody`
+	`{"source": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/stock/madrid?loc=123", "eventNumber": -1, "eventPath": "/requestBody"}`
 
 Then, the event source would store this `json` object:
 
@@ -59,18 +59,25 @@ Now, just configure a provision to extract such object and transfer it to wherev
   "responseCode": 200,
   "transform": [
     {
-      "source": "value./app/v1/stock/madrid?loc=123",
-      "target": "var.eventRequestUri"
+      "from": {"source": "literal", "value": "/app/v1/stock/madrid?loc=123"},
+      "to": {"target": "var", "name": "eventRequestUri"}
     },
     {
-      "source": "serverEvent.requestMethod=POST&requestUri=@{eventRequestUri}&eventNumber=-1&eventPath=/requestBody",
-      "target": "response.body.json.object"
+      "from": {
+        "source": "serverEvent",
+        "requestMethod": "POST",
+        "requestUri": "@{eventRequestUri}",
+        "eventNumber": -1,
+        "eventPath": "/requestBody"
+      },
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "responseBody"}
     }
   ]
 }
 ```
 
-Note that, instead of defining a server event source with the request *URI* encoded, we decided to define a variable for the *URI*  (`eventRequestUri`) which will be replaced after query parameters interpretation (skipping the potential ambiguity problem). Anyway, you may use the single transformation with the encoded information for the *URI*.
+Note that, instead of writing the request *URI* in the event source, we decided to define a variable for it (`eventRequestUri`): every address field admits variables substitution, so the address can be built from previous transformations (for example, from the received *URI*).
 
 ## Exercise
 

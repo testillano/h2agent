@@ -61,6 +61,16 @@ bool startsWith(const std::string &s, const std::string &prefix) {
     return s.compare(0, prefix.size(), prefix) == 0;
 }
 
+bool contains(const std::vector<std::string> &v, const std::string &s) {
+    return std::find(v.begin(), v.end(), s) != v.end();
+}
+
+std::string joined(const std::vector<std::string> &v) {
+    std::string out;
+    for (const auto &s : v) out += (out.empty() ? "" : ", ") + s;
+    return out.empty() ? "none" : out;
+}
+
 /** Splits keeping empty tokens ("a||b|" -> a, "", b, ""), as v1 randomset does. */
 std::vector<std::string> splitKeepEmpty(const std::string &s, char sep) {
     std::vector<std::string> result;
@@ -74,100 +84,143 @@ std::vector<std::string> splitKeepEmpty(const std::string &s, char sep) {
     return result;
 }
 
-/** v1 node paths after a key: '/' followed by at least one character. */
-bool isV1NodePath(const std::string &s) {
-    return s.size() > 1 && s[0] == '/';
+/** Json pointer as written after a v1 '<prefix>.': '/' followed by anything. */
+bool isPointer(const std::string &s) {
+    return !s.empty() && s[0] == '/';
 }
 
-/** Canonical unsigned decimal (no sign, no leading zeros): safe to turn into a json number and back. */
-bool isCanonicalUnsigned(const std::string &s) {
-    if (s.empty() || s.size() > 9) return false; // well below uint32 limits
-    if (!std::all_of(s.begin(), s.end(), [](unsigned char c) {
+/** Canonical decimal integer (optional '-', no leading zeros): safe as a json number and back. */
+bool isCanonicalInteger(const std::string &s, bool allowNegative) {
+    const std::string digits = (allowNegative && !s.empty() && s[0] == '-') ? s.substr(1) : s;
+    if (digits.empty() || digits.size() > 9) return false; // well below 32-bit limits
+    if (!std::all_of(digits.begin(), digits.end(), [](unsigned char c) {
     return std::isdigit(c);
     })) return false;
-    return s == "0" || s[0] != '0';
+    if (digits == "0") return s == "0"; // no "-0"
+    return digits[0] != '0';
 }
 
-/////////////////
-// VOCABULARY  //
-/////////////////
+bool hasVariable(const std::string &s) {
+    return s.find("@{") != std::string::npos;
+}
 
-// Kinds without arguments (plain string in v2), v1 spelling -> v2 kind.
+/** Same decoding as the v1 runtime for event address values (Engine urlDecode). */
+std::string urlDecode(const std::string &in) {
+    std::string out;
+    for (std::size_t i = 0; i < in.size(); ++i) {
+        if (in[i] == '%' && i + 2 < in.size() && std::isxdigit(static_cast<unsigned char>(in[i + 1])) &&
+                std::isxdigit(static_cast<unsigned char>(in[i + 2]))) {
+            out.push_back(static_cast<char>(std::stoi(in.substr(i + 1, 2), nullptr, 16)));
+            i += 2;
+        } else if (in[i] == '+') {
+            out.push_back(' ');
+        } else {
+            out.push_back(in[i]);
+        }
+    }
+    return out;
+}
+
+/** Minimal encoding for a v1 event address value: only what the v1 parser would misread. */
+std::string urlEncode(const std::string &in) {
+    std::string out;
+    for (char c : in) {
+        if (c == '%') out += "%25";
+        else if (c == '&') out += "%26";
+        else if (c == '+') out += "%2B";
+        else out.push_back(c);
+    }
+    return out;
+}
+
+/** Checks that 'obj' (a v2 kind object) only holds the discriminator and the allowed fields. */
+void checkFields(const Json &obj, const std::string &discriminator, const std::string &kind,
+                 const std::vector<std::string> &allowed, const std::vector<std::string> &required, const std::string &where) {
+    for (const auto &item : obj.items()) {
+        if (item.key() == discriminator || contains(allowed, item.key())) continue;
+        fail(where, "unknown field '" + item.key() + "' for " + discriminator + " '" + kind + "' (valid: " + joined(allowed) + ")");
+    }
+    for (const auto &r : required) {
+        if (!obj.contains(r)) fail(where, discriminator + " '" + kind + "' requires '" + r + "'");
+    }
+}
+
+std::string textField(const Json &obj, const std::string &key, const std::string &where, bool emptyAllowed = false) {
+    const auto it = obj.find(key);
+    if (it == obj.end() || !it->is_string()) fail(where, "'" + key + "' must be a string");
+    const std::string value = it->get<std::string>();
+    if (value.empty() && !emptyAllowed) fail(where, "'" + key + "' must not be empty");
+    return value;
+}
+
+/** Text of a numeric field which may also be a string holding a variable ("@{seq}"). */
+std::string numberOrVariable(const Json &obj, const std::string &key, bool allowNegative, const std::string &where) {
+    const Json &v = obj.at(key);
+    if (v.is_number_integer() && (allowNegative || v.get<long long>() >= 0)) return std::to_string(v.get<long long>());
+    if (v.is_number_unsigned()) return std::to_string(v.get<unsigned long long>());
+    if (v.is_string() && hasVariable(v.get<std::string>())) return v.get<std::string>();
+    fail(where, "'" + key + "' must be " + (allowNegative ? "an integer" : "a non-negative integer") + " or a text with variables");
+}
+
+/** v1 'vault.<key>[...]' key rule: non-empty, no dots. */
+void checkVaultKey(const std::string &key, const std::string &where) {
+    if (key.empty() || key.find('.') != std::string::npos) {
+        fail(where, "vault key '" + key + "' must be non-empty and contain no dots");
+    }
+}
+
+////////////////
+// VOCABULARY //
+////////////////
+
+// Kinds without fields, v1 spelling -> v2 kind.
 const std::vector<std::pair<std::string, std::string>> &plainSources() {
     static const std::vector<std::pair<std::string, std::string>> table = {
-        {"request.uri", "requestUri"},
-        {"request.uri.path", "requestUriPath"},
-        {"request.headers", "requestHeaders"},
-        {"response.headers", "responseHeaders"},
-        {"response.statusCode", "responseStatusCode"},
-        {"eraser", "eraser"},
-        {"recvseq", "recvseq"},
-        {"sendseq", "sendseq"},
-        {"inState", "inState"},
+        {"request.uri", "requestUri"}, {"request.uri.path", "requestUriPath"}, {"request.headers", "requestHeaders"},
+        {"response.headers", "responseHeaders"}, {"response.statusCode", "responseStatusCode"}, {"eraser", "erase"},
+        {"recvseq", "recvseq"}, {"sendseq", "sendseq"}, {"inState", "inState"},
     };
     return table;
 }
 
 const std::vector<std::pair<std::string, std::string>> &plainTargets() {
     static const std::vector<std::pair<std::string, std::string>> table = {
-        {"response.body.string", "responseBodyText"},
-        {"response.body.hexstring", "responseBodyHex"},
-        {"request.body.string", "requestBodyText"},
-        {"request.body.hexstring", "requestBodyHex"},
-        {"response.statusCode", "responseStatusCode"},
-        {"response.delayMs", "responseDelayMs"},
-        {"request.uri", "requestUri"},
-        {"request.method", "requestMethod"},
-        {"request.delayMs", "requestDelayMs"},
-        {"request.timeoutMs", "requestTimeoutMs"},
-        {"outState", "outState"},
-        {"break", "break"},
+        {"response.body.string", "responseBodyText"}, {"response.body.hexstring", "responseBodyHex"},
+        {"request.body.string", "requestBodyText"}, {"request.body.hexstring", "requestBodyHex"},
+        {"response.statusCode", "responseStatusCode"}, {"response.delayMs", "responseDelayMs"},
+        {"request.uri", "requestUri"}, {"request.method", "requestMethod"}, {"request.delayMs", "requestDelayMs"},
+        {"request.timeoutMs", "requestTimeoutMs"}, {"break", "stop"},
     };
     return table;
 }
 
-// Kinds whose whole argument is the text after a v1 prefix (prefix -> kind).
-// 'emptyAllowed': v1 accepts an empty remainder (math., value.).
-struct PrefixKind {
+// Kinds with a single text field holding everything after a v1 prefix.
+struct OneField {
     const char *prefix;
     const char *kind;
-    bool emptyAllowed;
+    const char *field;
+    bool emptyAllowed;  // v1 accepts an empty remainder (math., value.)
 };
 
-const std::vector<PrefixKind> &prefixSources() {
-    static const std::vector<PrefixKind> table = {
-        {"request.uri.param.", "requestUriParam", false},
-        {"request.body.", "requestBody", false},
-        {"response.body.", "responseBody", false},
-        {"request.header.", "requestHeader", false},
-        {"response.header.", "responseHeader", false},
-        {"math.", "math", true},
-        {"strftime.", "strftime", false},
-        {"var.", "var", false},
-        {"value.", "value", true},
-        {"serverEvent.", "serverEvent", false},
-        {"clientEvent.", "clientEvent", false},
-        {"txtFile.", "txtFile", false},
-        {"binFile.", "binFile", false},
-        {"command.", "command", false},
+const std::vector<OneField> &oneFieldSources() {
+    static const std::vector<OneField> table = {
+        {"request.uri.param.", "requestUriParam", "name", false}, {"request.header.", "requestHeader", "name", false},
+        {"response.header.", "responseHeader", "name", false}, {"math.", "math", "expression", true},
+        {"strftime.", "strftime", "fmt", false}, {"var.", "var", "name", false}, {"value.", "literal", "value", true},
+        {"txtFile.", "txtFile", "file", false}, {"binFile.", "binFile", "file", false}, {"command.", "command", "command", false},
     };
     return table;
 }
 
-const std::vector<PrefixKind> &prefixTargets() {
-    static const std::vector<PrefixKind> table = {
-        {"response.header.", "responseHeader", false},
-        {"request.header.", "requestHeader", false},
-        {"var.", "var", false},
-        {"txtFile.", "txtFile", false},
-        {"binFile.", "binFile", false},
-        {"serverEvent.", "serverEvent", false},
-        {"clientEvent.", "clientEvent", false},
+const std::vector<OneField> &oneFieldTargets() {
+    static const std::vector<OneField> table = {
+        {"response.header.", "responseHeader", "name", false}, {"request.header.", "requestHeader", "name", false},
+        {"var.", "var", "name", false}, {"txtFile.", "txtFile", "file", false}, {"binFile.", "binFile", "file", false},
     };
     return table;
 }
 
-// v1 typed body targets: '<side>.body.json.<type>' -> v2 cast.
+// v1 typed body targets: '<side>.body.json.<type>' -> v2 cast type.
 const std::vector<std::pair<std::string, std::string>> &jsonTypes() {
     static const std::vector<std::pair<std::string, std::string>> table = {
         {"string", "string"}, {"integer", "integer"}, {"unsigned", "unsigned"}, {"float", "float"},
@@ -181,108 +234,152 @@ const std::vector<std::string> &outStateMethods() {
     return methods;
 }
 
-// Allowed sibling fields per object kind (besides the kind key itself).
-const std::map<std::string, std::vector<std::string>> &fromSiblings() {
-    static const std::map<std::string, std::vector<std::string>> table = {
-        {"requestUriParam", {}}, {"requestBody", {}}, {"responseBody", {}}, {"requestHeader", {}},
-        {"responseHeader", {}}, {"math", {}}, {"random", {}}, {"randomset", {}}, {"timestamp", {}},
-        {"strftime", {}}, {"var", {}}, {"vault", {"path"}}, {"value", {}}, {"serverEvent", {}},
-        {"clientEvent", {}}, {"txtFile", {}}, {"binFile", {}}, {"command", {}},
+/////////////////////
+// EVENT ADDRESSES //
+/////////////////////
+
+enum class FieldType { Text, Integer, Unsigned };
+
+/** Accepted event address fields per domain and role (as the v1 runtime reads them). */
+const std::vector<std::pair<std::string, FieldType>> &eventFields(const std::string &domain, bool source) {
+    static const std::vector<std::pair<std::string, FieldType>> serverSource = {
+        {"requestMethod", FieldType::Text}, {"requestUri", FieldType::Text}, {"requestUriStartsWith", FieldType::Text},
+        {"eventNumber", FieldType::Integer}, {"eventPath", FieldType::Text}, {"recvseq", FieldType::Unsigned},
     };
-    return table;
+    static const std::vector<std::pair<std::string, FieldType>> clientSource = {
+        {"clientEndpointId", FieldType::Text}, {"requestMethod", FieldType::Text}, {"requestUri", FieldType::Text},
+        {"requestUriStartsWith", FieldType::Text}, {"eventNumber", FieldType::Integer}, {"eventPath", FieldType::Text},
+        {"sendseq", FieldType::Unsigned},
+    };
+    static const std::vector<std::pair<std::string, FieldType>> serverPurge = {
+        {"requestMethod", FieldType::Text}, {"requestUri", FieldType::Text}, {"eventNumber", FieldType::Integer},
+        {"recvseq", FieldType::Unsigned},
+    };
+    static const std::vector<std::pair<std::string, FieldType>> clientPurge = {
+        {"clientEndpointId", FieldType::Text}, {"requestMethod", FieldType::Text}, {"requestUri", FieldType::Text},
+        {"eventNumber", FieldType::Integer}, {"sendseq", FieldType::Unsigned},
+    };
+    if (domain == "serverEvent") return source ? serverSource : serverPurge;
+    return source ? clientSource : clientPurge;
 }
 
-const std::map<std::string, std::vector<std::string>> &toSiblings() {
-    static const std::map<std::string, std::vector<std::string>> table = {
-        {"responseBody", {}}, {"requestBody", {}}, {"responseHeader", {}}, {"requestHeader", {}},
-        {"var", {}}, {"vault", {"path"}}, {"foreignOutState", {"uri"}}, {"txtFile", {}}, {"binFile", {}},
-        {"udpSocket", {"delayMs"}}, {"serverEvent", {}}, {"clientEvent", {}}, {"clientProvision", {"inState"}},
-    };
-    return table;
+std::vector<std::string> fieldNames(const std::vector<std::pair<std::string, FieldType>> &fields) {
+    std::vector<std::string> names;
+    for (const auto &f : fields) names.push_back(f.first);
+    return names;
 }
 
-/**
- * Identifies the kind of a v2 'from'/'to' object: exactly one key must be a
- * known object kind, every other key must be one of its allowed siblings.
- */
-std::string objectKind(const Json &v2, const std::map<std::string, std::vector<std::string>> &kinds,
-                       const std::string &where) {
-    std::string kind;
-    for (const auto &item : v2.items()) {
-        if (kinds.count(item.key()) == 0) continue;
-        if (!kind.empty()) fail(where, "more than one kind ('" + kind + "', '" + item.key() + "')");
-        kind = item.key();
-    }
-    if (kind.empty()) fail(where, "unknown kind in " + v2.dump());
-    const auto &allowed = kinds.at(kind);
-    for (const auto &item : v2.items()) {
-        if (item.key() == kind) continue;
-        if (std::find(allowed.begin(), allowed.end(), item.key()) == allowed.end()) {
-            std::string valid;
-            for (const auto &a : allowed) valid += (valid.empty() ? "" : ", ") + a;
-            fail(where, "unknown field '" + item.key() + "' for kind '" + kind + "' (valid: " +
-                 (valid.empty() ? "none" : valid) + ")");
+/** v1 'k=v&k=v' address (values url-encoded) -> v2 fields appended to 'obj', in input order. */
+void eventToV2(const std::string &query, const std::string &domain, bool source, Json &obj, const std::string &where) {
+    const auto &allowed = eventFields(domain, source);
+    if (query.empty()) fail(where, "empty " + domain + " address");
+    for (const auto &pair : splitKeepEmpty(query, '&')) {
+        const std::size_t eq = pair.find('=');
+        const std::string key = pair.substr(0, eq);
+        const std::string value = (eq == std::string::npos) ? "" : urlDecode(pair.substr(eq + 1));
+        auto it = std::find_if(allowed.begin(), allowed.end(), [&](const auto &f) {
+            return f.first == key;
+        });
+        if (it == allowed.end()) fail(where, "unknown " + domain + " address field '" + key + "' (valid: " + joined(fieldNames(allowed)) + ")");
+        if (obj.contains(key)) fail(where, "repeated " + domain + " address field '" + key + "'");
+        if (it->second == FieldType::Text) {
+            obj[key] = value;
+        } else if (isCanonicalInteger(value, it->second == FieldType::Integer)) {
+            obj[key] = std::stoll(value);
+        } else if (hasVariable(value)) {
+            obj[key] = value;
+        } else {
+            fail(where, domain + " address field '" + key + "' must be a number or a text with variables, got '" + value + "'");
         }
     }
-    return kind;
 }
 
-std::string stringArg(const Json &v2, const std::string &key, const std::string &where, bool emptyAllowed = false) {
-    const auto it = v2.find(key);
-    if (it == v2.end() || !it->is_string()) fail(where, "'" + key + "' must be a string");
-    const std::string value = it->get<std::string>();
-    if (value.empty() && !emptyAllowed) fail(where, "'" + key + "' must not be empty");
-    return value;
-}
-
-/** v1 'vault.<key>[...]' key rule: non-empty, no dots. */
-void checkVaultKey(const std::string &key, const std::string &where) {
-    if (key.empty() || key.find('.') != std::string::npos) {
-        fail(where, "vault key '" + key + "' must be non-empty and contain no dots");
+/** v2 event fields of 'obj' (besides the discriminator) -> v1 'k=v&k=v' address. */
+std::string eventToV1(const Json &obj, const std::string &discriminator, const std::string &domain, bool source, const std::string &where) {
+    const auto &allowed = eventFields(domain, source);
+    checkFields(obj, discriminator, domain, fieldNames(allowed), {}, where);
+    std::string query;
+    for (const auto &item : obj.items()) {
+        if (item.key() == discriminator) continue;
+        auto it = std::find_if(allowed.begin(), allowed.end(), [&](const auto &f) {
+            return f.first == item.key();
+        });
+        const std::string value = (it->second == FieldType::Text) ? textField(obj, item.key(), where, true)
+                                  : numberOrVariable(obj, item.key(), it->second == FieldType::Integer, where);
+        query += (query.empty() ? "" : "&") + item.key() + "=" + urlEncode(value);
     }
+    if (query.empty()) fail(where, domain + " requires address fields");
+    return query;
 }
 
 /////////////
 // FILTERS //
 /////////////
 
-Json filterToV2(const Json &v1Filter, const std::string &where) {
-    if (v1Filter.is_string()) {
-        if (v1Filter.get<std::string>() != "Size") fail(where, "unknown filter '" + v1Filter.get<std::string>() + "'");
-        return v1Filter;
-    }
-    if (!v1Filter.is_object() || v1Filter.size() != 1) fail(where, "a filter is \"Size\" or an object with one key");
-    const std::string name = v1Filter.begin().key();
-    if (name == "Size") fail(where, "'Size' takes no arguments: write \"Size\"");
-    if (name == "as") fail(where, "'as' is not a v1 filter");
-    return v1Filter;
+// v1 filters whose argument is a single value -> v2 field holding it.
+struct ScalarFilter {
+    const char *v1;
+    const char *op;
+    const char *field;
+    bool numeric;  // Sum/Multiply take a number, the rest a string
+};
+
+const std::vector<ScalarFilter> &scalarFilters() {
+    static const std::vector<ScalarFilter> table = {
+        {"RegexCapture", "regexCapture", "rgx", false}, {"RegexKey", "regexKey", "rgx", false},
+        {"Append", "append", "value", false}, {"Prepend", "prepend", "value", false},
+        {"Sum", "sum", "value", true}, {"Multiply", "multiply", "value", true},
+        {"EqualTo", "equalTo", "value", false}, {"DifferentFrom", "differentFrom", "value", false},
+        {"SchemaId", "schemaId", "id", false},
+    };
+    return table;
 }
 
-void filtersToV1(const Json &v2Filters, Json &v1Filter, std::string &asType, const std::string &where) {
-    if (!v2Filters.is_array()) fail(where, "must be a list");
-    std::vector<Json> plain;
-    for (std::size_t i = 0; i < v2Filters.size(); i++) {
-        const Json &f = v2Filters[i];
-        const std::string at = where + "/" + std::to_string(i);
-        if (f.is_object() && f.size() == 1 && f.contains("as")) {
-            if (i + 1 != v2Filters.size()) fail(at, "'as' is only expressible in v1 as the last filter");
-            if (!f["as"].is_string()) fail(at, "'as' must be a string");
-            asType = f["as"].get<std::string>();
-            continue;
-        }
-        plain.push_back(filterToV2(f, at)); // same shape check
-    }
-    if (plain.size() > 1) fail(where, "a chain of several filters is not expressible in v1");
-    if (!plain.empty()) v1Filter = plain.front();
+// v1 filters whose argument is an object: its fields are flattened as they are.
+struct ObjectFilter {
+    const char *v1;
+    const char *op;
+    std::vector<std::string> fields;
+    std::vector<std::string> required;
+};
+
+const std::vector<ObjectFilter> &objectFilters() {
+    static const std::vector<ObjectFilter> table = {
+        {"RegexReplace", "regexReplace", {"rgx", "fmt"}, {"rgx", "fmt"}},
+        {"Split", "split", {"size", "count", "sep", "filler", "numeric"}, {}},
+        {"BaseConvert", "baseConvert", {"in", "out", "capital"}, {"in", "out"}},
+        {"Strptime", "strptime", {"fmt", "unit"}, {"fmt"}},
+        {"Strftime", "strftime", {"fmt", "unit"}, {"fmt"}},
+    };
+    return table;
 }
 
-/** Applies the rule-level conversion for one v1 or v2 rule. */
+/**
+ * Sources which always yield a string: a cast to string on a json body target is
+ * redundant for them (a body target without cast keeps the source type), so the
+ * migrator does not produce it.
+ */
+const std::vector<std::string> &textSources() {
+    static const std::vector<std::string> kinds = {
+        "literal", "requestHeader", "requestUriParam", "requestUri", "requestUriPath", "strftime", "inState"
+    };
+    return kinds;
+}
+
+bool isBodyTarget(const Json &to) {
+    return to["target"] == "responseBody" || to["target"] == "requestBody";
+}
+
+const std::vector<std::string> &castTypes() {
+    static const std::vector<std::string> types = {"string", "integer", "unsigned", "float", "boolean", "object", "json"};
+    return types;
+}
+
+/** Applies the rule-level key check for one v1 or v2 rule. */
 void checkRuleKeys(const Json &rule, const std::vector<std::string> &allowed, const std::string &where) {
     if (!rule.is_object()) fail(where, "a rule must be an object");
     for (const auto &item : rule.items()) {
-        if (std::find(allowed.begin(), allowed.end(), item.key()) == allowed.end()) {
-            fail(where, "unexpected field '" + item.key() + "'");
-        }
+        if (!contains(allowed, item.key())) fail(where, "unexpected field '" + item.key() + "'");
     }
 }
 
@@ -374,7 +471,11 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
         }
     }
 
-    static const std::regex ruleLiteral(R"rgx("source"\s*:\s*")rgx", std::regex::optimize);
+    // v1 rule literals: a dotted (or v1-only) value right after "source"/"target". v2 kind names
+    // never contain dots, so '{"source": "requestBody"}' does not match.
+    static const std::regex ruleLiteral(
+        R"rgx("source"\s*:\s*"(eraser"|(request|response|var|vault|value|math|random|randomset|timestamp|strftime|serverEvent|clientEvent|txtFile|binFile|command)\.)|"target"\s*:\s*"(break"|(response|request|var|vault|outState|txtFile|binFile|udpSocket|serverEvent|clientEvent|clientProvision)\.))rgx",
+        std::regex::optimize);
     std::istringstream lines(content);
     std::string line;
     for (std::size_t n = 1; std::getline(lines, line); n++) {
@@ -391,17 +492,24 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
 
 Json GrammarMigrator::sourceToV2(const std::string &v1, const std::string &where) {
     for (const auto &entry : plainSources()) {
-        if (v1 == entry.first) return entry.second;
+        if (v1 == entry.first) return Json{{"source", entry.second}};
     }
-    if (v1 == "request.body") return Json{{"requestBody", ""}};
-    if (v1 == "response.body") return Json{{"responseBody", ""}};
-
+    for (const std::string side : {
+                "request", "response"
+            }) {
+        const std::string whole = side + ".body";
+        if (v1 == whole) return Json{{"source", side + "Body"}};
+        if (!startsWith(v1, whole + ".")) continue;
+        const std::string path = v1.substr(whole.size() + 1);
+        if (!isPointer(path)) fail(where, "body path must be a json pointer ('/<node>...'): '" + v1 + "'");
+        return Json{{"source", side + "Body"}, {"path", path}};
+    }
     if (startsWith(v1, "random.")) {
         static const std::regex range(R"(^random\.([-+]?[0-9]+)\.([-+]?[0-9]+)$)", std::regex::optimize);
         std::smatch m;
         if (!std::regex_match(v1, m, range)) fail(where, "v1 source 'random.<min>.<max>' expected, got '" + v1 + "'");
         try {
-            return Json{{"random", Json::array({std::stoi(m.str(1)), std::stoi(m.str(2))})}};
+            return Json{{"source", "random"}, {"min", std::stoi(m.str(1))}, {"max", std::stoi(m.str(2))}};
         } catch (const std::exception &) {
             fail(where, "random range out of integer limits: '" + v1 + "'");
         }
@@ -409,96 +517,111 @@ Json GrammarMigrator::sourceToV2(const std::string &v1, const std::string &where
     if (startsWith(v1, "randomset.")) {
         const std::string rest = v1.substr(10);
         if (rest.empty()) fail(where, "empty randomset");
-        Json set = Json::array();
-        for (const auto &token : splitKeepEmpty(rest, '|')) set.push_back(token);
-        return Json{{"randomset", set}};
+        Json values = Json::array();
+        for (const auto &token : splitKeepEmpty(rest, '|')) values.push_back(token);
+        return Json{{"source", "randomset"}, {"values", values}};
     }
     if (startsWith(v1, "timestamp.")) {
         const std::string unit = v1.substr(10);
         if (unit != "s" && unit != "ms" && unit != "us" && unit != "ns") fail(where, "timestamp unit must be s, ms, us or ns: '" + v1 + "'");
-        return Json{{"timestamp", unit}};
+        return Json{{"source", "timestamp"}, {"unit", unit}};
     }
     if (startsWith(v1, "vault.")) {
         const std::string rest = v1.substr(6);
         const std::size_t dot = rest.find('.');
         const std::string key = rest.substr(0, dot);
         checkVaultKey(key, where);
-        if (dot == std::string::npos) return Json{{"vault", key}};
+        if (dot == std::string::npos) return Json{{"source", "vault"}, {"key", key}};
         const std::string path = rest.substr(dot + 1);
-        if (!isV1NodePath(path)) fail(where, "vault node path must be '/<node>...': '" + v1 + "'");
-        return Json{{"vault", key}, {"path", path}};
+        if (path.size() < 2 || !isPointer(path)) fail(where, "vault node path must be '/<node>...': '" + v1 + "'");
+        return Json{{"source", "vault"}, {"key", key}, {"path", path}};
     }
-    for (const auto &entry : prefixSources()) {
+    for (const std::string domain : {
+                "serverEvent", "clientEvent"
+            }) {
+        if (!startsWith(v1, domain + ".")) continue;
+        Json from = Json{{"source", domain}};
+        eventToV2(v1.substr(domain.size() + 1), domain, true, from, where);
+        return from;
+    }
+    for (const auto &entry : oneFieldSources()) {
         if (!startsWith(v1, entry.prefix)) continue;
         const std::string arg = v1.substr(std::char_traits<char>::length(entry.prefix));
         if (arg.empty() && !entry.emptyAllowed) fail(where, "missing argument in v1 source '" + v1 + "'");
-        return Json{{entry.kind, arg}};
+        return Json{{"source", entry.kind}, {entry.field, arg}};
     }
     fail(where, "cannot identify v1 source '" + v1 + "'");
 }
 
 std::string GrammarMigrator::sourceToV1(const Json &v2, const std::string &where) {
-    if (v2.is_string()) {
-        const std::string kind = v2.get<std::string>();
-        for (const auto &entry : plainSources()) {
-            if (kind == entry.second) return entry.first;
-        }
-        if (fromSiblings().count(kind)) fail(where, "kind '" + kind + "' requires an argument: {\"" + kind + "\": ...}");
-        fail(where, "unknown source kind '" + kind + "'");
-    }
-    if (!v2.is_object()) fail(where, "must be a kind string or a one-kind object");
+    if (!v2.is_object() || !v2.contains("source") || !v2["source"].is_string()) fail(where, "must be an object with a 'source' kind");
+    const std::string kind = v2["source"].get<std::string>();
 
-    const std::string kind = objectKind(v2, fromSiblings(), where);
+    for (const auto &entry : plainSources()) {
+        if (kind != entry.second) continue;
+        checkFields(v2, "source", kind, {}, {}, where);
+        return entry.first;
+    }
     if (kind == "requestBody" || kind == "responseBody") {
-        const std::string path = stringArg(v2, kind, where, true);
-        return std::string(kind == "requestBody" ? "request.body" : "response.body") + (path.empty() ? "" : "." + path);
+        checkFields(v2, "source", kind, {"path"}, {}, where);
+        const std::string base = (kind == "requestBody") ? "request.body" : "response.body";
+        if (!v2.contains("path")) return base;
+        const std::string path = textField(v2, "path", where);
+        if (!isPointer(path)) fail(where, "'path' must be a json pointer ('/<node>...')");
+        return base + "." + path;
     }
     if (kind == "random") {
-        const Json &r = v2[kind];
-        if (!r.is_array() || r.size() != 2 || !r[0].is_number_integer() || !r[1].is_number_integer()) {
-            fail(where, "'random' must be [<min integer>, <max integer>]");
-        }
-        return "random." + std::to_string(r[0].get<long long>()) + "." + std::to_string(r[1].get<long long>());
+        checkFields(v2, "source", kind, {"min", "max"}, {"min", "max"}, where);
+        if (!v2["min"].is_number_integer() || !v2["max"].is_number_integer()) fail(where, "'min' and 'max' must be integers");
+        return "random." + std::to_string(v2["min"].get<long long>()) + "." + std::to_string(v2["max"].get<long long>());
     }
     if (kind == "randomset") {
-        const Json &set = v2[kind];
-        if (!set.is_array() || set.empty()) fail(where, "'randomset' must be a non-empty list of strings");
-        std::string joined;
-        for (std::size_t i = 0; i < set.size(); i++) {
-            if (!set[i].is_string()) fail(where, "'randomset' must be a non-empty list of strings");
-            const std::string token = set[i].get<std::string>();
-            if (token.find('|') != std::string::npos) fail(where, "randomset item with '|' is not expressible in v1");
-            joined += (i ? "|" : "") + token;
+        checkFields(v2, "source", kind, {"values"}, {"values"}, where);
+        const Json &values = v2["values"];
+        if (!values.is_array() || values.empty()) fail(where, "'values' must be a non-empty list of strings");
+        std::string joinedValues;
+        for (std::size_t i = 0; i < values.size(); i++) {
+            if (!values[i].is_string()) fail(where, "'values' must be a non-empty list of strings");
+            const std::string token = values[i].get<std::string>();
+            if (token.find('|') != std::string::npos) fail(where, "randomset value with '|' is not expressible in v1");
+            joinedValues += (i ? "|" : "") + token;
         }
-        return "randomset." + joined;
+        return "randomset." + joinedValues;
     }
     if (kind == "timestamp") {
-        const std::string unit = stringArg(v2, kind, where);
-        if (unit != "s" && unit != "ms" && unit != "us" && unit != "ns") fail(where, "timestamp unit must be s, ms, us or ns");
+        checkFields(v2, "source", kind, {"unit"}, {"unit"}, where);
+        const std::string unit = textField(v2, "unit", where);
+        if (unit != "s" && unit != "ms" && unit != "us" && unit != "ns") fail(where, "'unit' must be s, ms, us or ns");
         return "timestamp." + unit;
     }
     if (kind == "vault") {
-        const std::string key = stringArg(v2, kind, where);
+        checkFields(v2, "source", kind, {"key", "path"}, {"key"}, where);
+        const std::string key = textField(v2, "key", where);
         checkVaultKey(key, where);
         if (!v2.contains("path")) return "vault." + key;
-        const std::string path = stringArg(v2, "path", where);
-        if (!isV1NodePath(path)) fail(where, "vault 'path' must be '/<node>...'");
+        const std::string path = textField(v2, "path", where);
+        if (path.size() < 2 || !isPointer(path)) fail(where, "vault 'path' must be '/<node>...'");
         return "vault." + key + "." + path;
     }
-    for (const auto &entry : prefixSources()) {
-        if (kind == entry.kind) return entry.prefix + stringArg(v2, kind, where, entry.emptyAllowed);
+    if (kind == "serverEvent" || kind == "clientEvent") {
+        return kind + "." + eventToV1(v2, "source", kind, true, where);
     }
-    fail(where, "unknown source kind '" + kind + "'"); // unreachable: objectKind validated it
+    for (const auto &entry : oneFieldSources()) {
+        if (kind != entry.kind) continue;
+        checkFields(v2, "source", kind, {entry.field}, {entry.field}, where);
+        return entry.prefix + textField(v2, entry.field, where, entry.emptyAllowed);
+    }
+    fail(where, "unknown source '" + kind + "'");
 }
 
 /////////////
 // TARGETS //
 /////////////
 
-Json GrammarMigrator::targetToV2(const std::string &v1, std::string &asType, const std::string &where) {
-    asType.clear();
+Json GrammarMigrator::targetToV2(const std::string &v1, std::string &castType, const std::string &where) {
+    castType.clear();
     for (const auto &entry : plainTargets()) {
-        if (v1 == entry.first) return entry.second;
+        if (v1 == entry.first) return Json{{"target", entry.second}};
     }
     for (const std::string side : {
                 "response", "request"
@@ -509,9 +632,14 @@ Json GrammarMigrator::targetToV2(const std::string &v1, std::string &asType, con
         for (const auto &type : jsonTypes()) {
             if (!startsWith(rest, type.first)) continue;
             const std::string tail = rest.substr(type.first.size());
-            if (!tail.empty() && (tail[0] != '.' || tail.size() == 1)) continue;
-            asType = type.second;
-            return Json{{side + "Body", tail.empty() ? "" : tail.substr(1)}};
+            if (!tail.empty() && tail[0] != '.') continue;
+            castType = type.second;
+            Json to = Json{{"target", side + "Body"}};
+            if (tail.empty()) return to;
+            const std::string path = tail.substr(1);
+            if (!isPointer(path)) fail(where, "body path must be a json pointer ('/<node>...'): '" + v1 + "'");
+            to["path"] = path;
+            return to;
         }
         fail(where, "unknown json type in v1 target '" + v1 + "'");
     }
@@ -521,26 +649,24 @@ Json GrammarMigrator::targetToV2(const std::string &v1, std::string &asType, con
         std::smatch m;
         Json to;
         if (std::regex_match(v1, m, typed)) {
-            asType = (m.str(2) == "object") ? "object" : "json";
-            to = Json{{"vault", m.str(1)}};
+            castType = (m.str(2) == "object") ? "object" : "json";
+            to = Json{{"target", "vault"}, {"key", m.str(1)}};
             if (m[3].matched) to["path"] = m.str(3);
         } else if (std::regex_match(v1, m, plain)) {
-            to = Json{{"vault", m.str(1)}};
+            to = Json{{"target", "vault"}, {"key", m.str(1)}};
             if (m[2].matched) to["path"] = m.str(2);
         } else {
             fail(where, "v1 target 'vault.<key>[.json.object|.json.jsonstring][./<node>...]' expected, got '" + v1 + "'");
         }
         return to;
     }
+    if (v1 == "outState") return Json{{"target", "outState"}};
     if (startsWith(v1, "outState.")) {
         const std::string rest = v1.substr(9);
         const std::size_t dot = rest.find('.');
         const std::string method = rest.substr(0, dot);
-        const auto &methods = outStateMethods();
-        if (std::find(methods.begin(), methods.end(), method) == methods.end()) {
-            fail(where, "v1 target 'outState.<POST|GET|PUT|DELETE|HEAD>[.<uri>]' expected, got '" + v1 + "'");
-        }
-        Json to = Json{{"foreignOutState", method}};
+        if (!contains(outStateMethods(), method)) fail(where, "v1 target 'outState.<POST|GET|PUT|DELETE|HEAD>[.<uri>]' expected, got '" + v1 + "'");
+        Json to = Json{{"target", "outState"}, {"method", method}};
         if (dot != std::string::npos) {
             const std::string uri = rest.substr(dot + 1);
             if (uri.empty()) fail(where, "empty uri in v1 target '" + v1 + "'");
@@ -551,14 +677,15 @@ Json GrammarMigrator::targetToV2(const std::string &v1, std::string &asType, con
     if (startsWith(v1, "udpSocket.")) {
         const std::string rest = v1.substr(10);
         const std::size_t bar = rest.find('|');
-        const std::string path = rest.substr(0, bar);
-        if (path.empty()) fail(where, "missing socket path in v1 target '" + v1 + "'");
-        Json to = Json{{"udpSocket", path}};
+        const std::string socket = rest.substr(0, bar);
+        if (socket.empty()) fail(where, "missing socket path in v1 target '" + v1 + "'");
+        Json to = Json{{"target", "udpSocket"}, {"socket", socket}};
         if (bar != std::string::npos) {
-            // The delay may hold variables ("@{d}"): kept as text unless it is a plain number.
+            // The delay may hold variables ("@{d}"): kept as text unless it is a canonical number.
             const std::string delay = rest.substr(bar + 1);
-            if (isCanonicalUnsigned(delay)) to["delayMs"] = std::stoul(delay);
-            else to["delayMs"] = delay;
+            if (isCanonicalInteger(delay, false)) to["delayMs"] = std::stoul(delay);
+            else if (!delay.empty()) to["delayMs"] = delay;
+            else fail(where, "empty delay in v1 target '" + v1 + "'");
         }
         return to;
     }
@@ -568,87 +695,196 @@ Json GrammarMigrator::targetToV2(const std::string &v1, std::string &asType, con
         const std::string id = rest.substr(0, dot);
         const std::string inState = (dot == std::string::npos) ? "" : rest.substr(dot + 1);
         if (id.empty() || inState.empty()) fail(where, "v1 target 'clientProvision.<id>.<inState>' expected, got '" + v1 + "'");
-        return Json{{"clientProvision", id}, {"inState", inState}};
+        return Json{{"target", "clientProvision"}, {"id", id}, {"inState", inState}};
     }
-    for (const auto &entry : prefixTargets()) {
+    for (const std::string domain : {
+                "serverEvent", "clientEvent"
+            }) {
+        if (!startsWith(v1, domain + ".")) continue;
+        Json to = Json{{"target", domain}};
+        eventToV2(v1.substr(domain.size() + 1), domain, false, to, where);
+        return to;
+    }
+    for (const auto &entry : oneFieldTargets()) {
         if (!startsWith(v1, entry.prefix)) continue;
         const std::string arg = v1.substr(std::char_traits<char>::length(entry.prefix));
         if (arg.empty()) fail(where, "missing argument in v1 target '" + v1 + "'");
-        return Json{{entry.kind, arg}};
+        return Json{{"target", entry.kind}, {entry.field, arg}};
     }
     fail(where, "cannot identify v1 target '" + v1 + "'");
 }
 
-std::string GrammarMigrator::targetToV1(const Json &v2, const std::string &asType, const std::string &where) {
-    const auto noCast = [&](const std::string &kind) {
-        if (!asType.empty()) fail(where, "{\"as\": \"" + asType + "\"} on target '" + kind + "' is not expressible in v1");
+std::string GrammarMigrator::targetToV1(const Json &v2, const std::string &castType, const std::string &where) {
+    if (!v2.is_object() || !v2.contains("target") || !v2["target"].is_string()) fail(where, "must be an object with a 'target' kind");
+    const std::string kind = v2["target"].get<std::string>();
+    const auto noCast = [&]() {
+        if (!castType.empty()) fail(where, "cast to '" + castType + "' on target '" + kind + "' is not expressible in v1");
     };
 
-    if (v2.is_string()) {
-        const std::string kind = v2.get<std::string>();
-        for (const auto &entry : plainTargets()) {
-            if (kind == entry.second) {
-                noCast(kind);
-                return entry.first;
-            }
-        }
-        if (toSiblings().count(kind)) fail(where, "kind '" + kind + "' requires an argument: {\"" + kind + "\": ...}");
-        fail(where, "unknown target kind '" + kind + "'");
+    for (const auto &entry : plainTargets()) {
+        if (kind != entry.second) continue;
+        checkFields(v2, "target", kind, {}, {}, where);
+        noCast();
+        return entry.first;
     }
-    if (!v2.is_object()) fail(where, "must be a kind string or a one-kind object");
-
-    const std::string kind = objectKind(v2, toSiblings(), where);
     if (kind == "responseBody" || kind == "requestBody") {
-        const std::string path = stringArg(v2, kind, where, true);
-        if (asType.empty()) fail(where, "target '" + kind + "' needs a final {\"as\": <type>} to be expressible in v1");
+        checkFields(v2, "target", kind, {"path"}, {}, where);
+        if (castType.empty()) fail(where, "target '" + kind + "' needs a final cast filter to be expressible in v1");
         std::string v1Type;
         for (const auto &type : jsonTypes()) {
-            if (type.second == asType) v1Type = type.first;
+            if (type.second == castType) v1Type = type.first;
         }
-        if (v1Type.empty()) fail(where, "unknown cast {\"as\": \"" + asType + "\"}");
-        return std::string(kind == "responseBody" ? "response" : "request") + ".body.json." + v1Type + (path.empty() ? "" : "." + path);
+        if (v1Type.empty()) fail(where, "unknown cast type '" + castType + "'");
+        std::string v1 = std::string(kind == "responseBody" ? "response" : "request") + ".body.json." + v1Type;
+        if (!v2.contains("path")) return v1;
+        const std::string path = textField(v2, "path", where);
+        if (!isPointer(path)) fail(where, "'path' must be a json pointer ('/<node>...')");
+        return v1 + "." + path;
     }
     if (kind == "vault") {
-        const std::string key = stringArg(v2, kind, where);
+        checkFields(v2, "target", kind, {"key", "path"}, {"key"}, where);
+        const std::string key = textField(v2, "key", where);
         checkVaultKey(key, where);
         std::string v1 = "vault." + key;
-        if (asType == "object") v1 += ".json.object";
-        else if (asType == "json") v1 += ".json.jsonstring";
-        else noCast(kind);
+        if (castType == "object") v1 += ".json.object";
+        else if (castType == "json") v1 += ".json.jsonstring";
+        else noCast();
         if (v2.contains("path")) {
-            const std::string path = stringArg(v2, "path", where);
-            if (!isV1NodePath(path)) fail(where, "vault 'path' must be '/<node>...'");
+            const std::string path = textField(v2, "path", where);
+            if (path.size() < 2 || !isPointer(path)) fail(where, "vault 'path' must be '/<node>...'");
             v1 += "." + path;
         }
         return v1;
     }
-    noCast(kind);
-    if (kind == "foreignOutState") {
-        const std::string method = stringArg(v2, kind, where);
-        const auto &methods = outStateMethods();
-        if (std::find(methods.begin(), methods.end(), method) == methods.end()) fail(where, "method must be POST, GET, PUT, DELETE or HEAD");
-        return "outState." + method + (v2.contains("uri") ? "." + stringArg(v2, "uri", where) : "");
+    noCast();
+    if (kind == "outState") {
+        checkFields(v2, "target", kind, {"method", "uri"}, {}, where);
+        if (!v2.contains("method")) {
+            if (v2.contains("uri")) fail(where, "'uri' requires 'method'");
+            return "outState";
+        }
+        const std::string method = textField(v2, "method", where);
+        if (!contains(outStateMethods(), method)) fail(where, "'method' must be POST, GET, PUT, DELETE or HEAD");
+        return "outState." + method + (v2.contains("uri") ? "." + textField(v2, "uri", where) : "");
     }
     if (kind == "udpSocket") {
-        std::string v1 = "udpSocket." + stringArg(v2, kind, where);
+        checkFields(v2, "target", kind, {"socket", "delayMs"}, {"socket"}, where);
+        std::string v1 = "udpSocket." + textField(v2, "socket", where);
         if (v2.contains("delayMs")) {
             const Json &delay = v2["delayMs"];
             if (delay.is_number_unsigned() || (delay.is_number_integer() && delay.get<long long>() >= 0)) v1 += "|" + std::to_string(delay.get<unsigned long long>());
-            else if (delay.is_string()) v1 += "|" + delay.get<std::string>();
+            else if (delay.is_string() && !delay.get<std::string>().empty()) v1 += "|" + delay.get<std::string>();
             else fail(where, "'delayMs' must be a non-negative integer or a text with variables");
         }
         return v1;
     }
     if (kind == "clientProvision") {
-        const std::string id = stringArg(v2, kind, where);
-        if (id.find('.') != std::string::npos) fail(where, "client provision id must contain no dots");
-        if (!v2.contains("inState")) fail(where, "'clientProvision' requires 'inState'");
-        return "clientProvision." + id + "." + stringArg(v2, "inState", where);
+        checkFields(v2, "target", kind, {"id", "inState"}, {"id", "inState"}, where);
+        const std::string id = textField(v2, "id", where);
+        if (id.find('.') != std::string::npos) fail(where, "client provision 'id' must contain no dots");
+        return "clientProvision." + id + "." + textField(v2, "inState", where);
     }
-    for (const auto &entry : prefixTargets()) {
-        if (kind == entry.kind) return entry.prefix + stringArg(v2, kind, where);
+    if (kind == "serverEvent" || kind == "clientEvent") {
+        return kind + "." + eventToV1(v2, "target", kind, false, where);
     }
-    fail(where, "unknown target kind '" + kind + "'"); // unreachable: objectKind validated it
+    for (const auto &entry : oneFieldTargets()) {
+        if (kind != entry.kind) continue;
+        checkFields(v2, "target", kind, {entry.field}, {entry.field}, where);
+        return entry.prefix + textField(v2, entry.field, where);
+    }
+    fail(where, "unknown target '" + kind + "'");
+}
+
+/////////////
+// FILTERS //
+/////////////
+
+Json GrammarMigrator::filterToV2(const Json &v1, const std::string &where) {
+    if (v1.is_string()) {
+        if (v1.get<std::string>() != "Size") fail(where, "unknown filter '" + v1.get<std::string>() + "'");
+        return Json{{"op", "size"}};
+    }
+    if (!v1.is_object() || v1.size() != 1) fail(where, "a v1 filter is \"Size\" or an object with one key");
+    const std::string name = v1.begin().key();
+    const Json &arg = v1.begin().value();
+
+    if (name == "ConditionVar") {
+        if (!arg.is_string()) fail(where, "ConditionVar argument must be a string");
+        std::string var = arg.get<std::string>();
+        const bool negated = !var.empty() && var[0] == '!';
+        if (negated) var = var.substr(1);
+        if (var.empty()) fail(where, "ConditionVar needs a variable name");
+        Json item = Json{{"op", "conditionVar"}, {"name", var}};
+        if (negated) item["not"] = true;
+        return item;
+    }
+    if (name == "JsonConstraint") {
+        if (!arg.is_object() && !arg.is_array()) fail(where, "JsonConstraint argument must be an object or an array");
+        return Json{{"op", "jsonConstraint"}, {"value", arg}};
+    }
+    for (const auto &f : scalarFilters()) {
+        if (name != f.v1) continue;
+        if (f.numeric ? !arg.is_number() : !arg.is_string()) fail(where, name + " argument must be " + (f.numeric ? "a number" : "a string"));
+        return Json{{"op", f.op}, {f.field, arg}};
+    }
+    for (const auto &f : objectFilters()) {
+        if (name != f.v1) continue;
+        if (!arg.is_object()) fail(where, name + " argument must be an object");
+        Json item = Json{{"op", f.op}};
+        for (const auto &field : arg.items()) {
+            if (!contains(f.fields, field.key())) fail(where, "unknown " + name + " field '" + field.key() + "' (valid: " + joined(f.fields) + ")");
+            item[field.key()] = field.value();
+        }
+        for (const auto &r : f.required) {
+            if (!arg.contains(r)) fail(where, name + " requires '" + r + "'");
+        }
+        return item;
+    }
+    if (name == "Size") fail(where, "'Size' takes no arguments: write \"Size\"");
+    fail(where, "unknown filter '" + name + "'");
+}
+
+Json GrammarMigrator::filterToV1(const Json &v2, const std::string &where) {
+    if (!v2.is_object() || !v2.contains("op") || !v2["op"].is_string()) fail(where, "a filter must be an object with an 'op'");
+    const std::string op = v2["op"].get<std::string>();
+
+    if (op == "size") {
+        checkFields(v2, "op", op, {}, {}, where);
+        return "Size";
+    }
+    if (op == "conditionVar") {
+        checkFields(v2, "op", op, {"name", "not"}, {"name"}, where);
+        const std::string name = textField(v2, "name", where);
+        bool negated = false;
+        if (v2.contains("not")) {
+            if (!v2["not"].is_boolean()) fail(where, "'not' must be a boolean");
+            negated = v2["not"].get<bool>();
+        }
+        return Json{{"ConditionVar", (negated ? "!" : "") + name}};
+    }
+    if (op == "jsonConstraint") {
+        checkFields(v2, "op", op, {"value"}, {"value"}, where);
+        if (!v2["value"].is_object() && !v2["value"].is_array()) fail(where, "'value' must be an object or an array");
+        return Json{{"JsonConstraint", v2["value"]}};
+    }
+    for (const auto &f : scalarFilters()) {
+        if (op != f.op) continue;
+        checkFields(v2, "op", op, {f.field}, {f.field}, where);
+        const Json &arg = v2[f.field];
+        if (f.numeric ? !arg.is_number() : !arg.is_string()) fail(where, std::string("'") + f.field + "' must be " + (f.numeric ? "a number" : "a string"));
+        return Json{{f.v1, arg}};
+    }
+    for (const auto &f : objectFilters()) {
+        if (op != f.op) continue;
+        checkFields(v2, "op", op, f.fields, f.required, where);
+        Json arg = Json::object();
+        for (const auto &field : v2.items()) {
+            if (field.key() != "op") arg[field.key()] = field.value();
+        }
+        return Json{{f.v1, arg}};
+    }
+    if (op == "cast") fail(where, "a cast is only expressible in v1 as the last filter");
+    fail(where, "unknown filter op '" + op + "'");
 }
 
 ///////////
@@ -663,13 +899,28 @@ Json GrammarMigrator::ruleToV2(const Json &v1Rule, const std::string &where) {
 
     Json rule = Json::object();
     rule["from"] = sourceToV2(v1Rule["source"].get<std::string>(), where + "/source");
-    std::string asType;
-    rule["to"] = targetToV2(v1Rule["target"].get<std::string>(), asType, where + "/target");
+
+    // v1 skips any eraser rule carrying a filter (running onFilterFail instead): in v2 a
+    // conditional erase does erase, so the behaviour cannot be kept by a syntax change.
+    if (rule["from"]["source"] == "erase" && v1Rule.contains("filter")) {
+        fail(where + "/filter", "v1 never applies an 'eraser' rule with a filter (it is skipped): remove the rule, or rewrite it as a v2 conditional erase");
+    }
+
+    std::string castType;
+    Json to = targetToV2(v1Rule["target"].get<std::string>(), castType, where + "/target");
+    if ((to["target"] == "serverEvent" || to["target"] == "clientEvent") && rule["from"]["source"] != "erase") {
+        fail(where + "/source", "v1 never applies an event purge target with a source other than 'eraser' (it is skipped): remove the rule");
+    }
+
+    if (castType == "string" && isBodyTarget(to) && contains(textSources(), rule["from"]["source"].get<std::string>())) {
+        castType.clear();  // redundant: the source already yields a string
+    }
 
     Json filters = Json::array();
     if (v1Rule.contains("filter")) filters.push_back(filterToV2(v1Rule["filter"], where + "/filter"));
-    if (!asType.empty()) filters.push_back(Json{{"as", asType}});
+    if (!castType.empty()) filters.push_back(Json{{"op", "cast"}, {"type", castType}});
     if (!filters.empty()) rule["filter"] = filters;
+    rule["to"] = to;
 
     if (v1Rule.contains("onFilterFail")) {
         const Json &off = v1Rule["onFilterFail"];
@@ -683,17 +934,44 @@ Json GrammarMigrator::ruleToV2(const Json &v1Rule, const std::string &where) {
 
 Json GrammarMigrator::ruleToV1(const Json &v2Rule, const std::string &where) {
     if (v2Rule.is_object() && (v2Rule.contains("source") || v2Rule.contains("target"))) fail(where, "rule is already v1");
-    checkRuleKeys(v2Rule, {"from", "to", "filter", "onFilterFail"}, where);
+    checkRuleKeys(v2Rule, {"from", "filter", "to", "onFilterFail"}, where);
     if (!v2Rule.contains("from")) fail(where + "/from", "missing");
     if (!v2Rule.contains("to")) fail(where + "/to", "missing");
 
     Json v1Filter;
-    std::string asType;
-    if (v2Rule.contains("filter")) filtersToV1(v2Rule["filter"], v1Filter, asType, where + "/filter");
+    std::string castType;
+    if (v2Rule.contains("filter")) {
+        const Json &filters = v2Rule["filter"];
+        const std::string at = where + "/filter";
+        if (!filters.is_array() || filters.empty()) fail(at, "must be a non-empty list");
+        std::vector<Json> plain;
+        for (std::size_t i = 0; i < filters.size(); i++) {
+            const Json &f = filters[i];
+            const std::string fat = at + "/" + std::to_string(i);
+            if (f.is_object() && f.contains("op") && f["op"] == "cast") {
+                if (i + 1 != filters.size()) fail(fat, "a cast is only expressible in v1 as the last filter");
+                checkFields(f, "op", "cast", {"type"}, {"type"}, fat);
+                castType = textField(f, "type", fat);
+                if (!contains(castTypes(), castType)) fail(fat, "unknown cast type '" + castType + "'");
+                continue;
+            }
+            plain.push_back(filterToV1(f, fat));
+        }
+        if (plain.size() > 1) fail(at, "a chain of several filters is not expressible in v1");
+        if (!plain.empty()) v1Filter = plain.front();
+    }
+
+    // A json body target without cast keeps the source type: v1 typed it as a string for text sources.
+    if (castType.empty() && v2Rule["to"].is_object() && v2Rule["to"].contains("target") && isBodyTarget(v2Rule["to"]) &&
+            v2Rule["from"].is_object() && v2Rule["from"].contains("source") && v2Rule["from"]["source"].is_string() &&
+            contains(textSources(), v2Rule["from"]["source"].get<std::string>())) {
+        castType = "string";
+    }
 
     Json rule = Json::object();
     rule["source"] = sourceToV1(v2Rule["from"], where + "/from");
-    rule["target"] = targetToV1(v2Rule["to"], asType, where + "/to");
+    if (rule["source"] == "eraser" && !v1Filter.is_null()) fail(where + "/filter", "a conditional erase is not expressible in v1");
+    rule["target"] = targetToV1(v2Rule["to"], castType, where + "/to");
     if (!v1Filter.is_null()) rule["filter"] = v1Filter;
 
     if (v2Rule.contains("onFilterFail")) {
@@ -760,7 +1038,7 @@ std::vector<GrammarMigrator::ScanHit> GrammarMigrator::scan(const std::string &p
     for (; it != end; it.increment(ec)) {
         if (ec) break;
         if (it->is_directory(ec)) {
-            if (std::find(skipped.begin(), skipped.end(), it->path().filename().string()) != skipped.end()) it.disable_recursion_pending();
+            if (contains(skipped, it->path().filename().string())) it.disable_recursion_pending();
             continue;
         }
         if (it->is_regular_file(ec)) scanFile(it->path(), hits);

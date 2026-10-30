@@ -60,7 +60,7 @@ Finally we will use the <u>out-state for foreign method</u> feature to simulate 
 
 Check the file [./demo/server-provision.json](./server-provision.json).
 
-For further understanding you may read the project [README.md](https://github.com/testillano/h2agent/blob/master/README.md) file, but we will explain here with more detail the state machine for the last requirement (consistent deletion of registries) because it is an special case of *FSM* (finite state machine) with **foreign methods** (as uses target `outState.GET` within a *DELETE* provision) and it is not normally needed to fulfill most of the testing requirements in the real world because test cases should be restricted to very well known states and limited scopes to have good testing granularity.
+For further understanding you may read the project [README.md](https://github.com/testillano/h2agent/blob/master/README.md) file, but we will explain here with more detail the state machine for the last requirement (consistent deletion of registries) because it is an special case of *FSM* (finite state machine) with **foreign methods** (as uses target `{"target": "outState", "method": "GET"}` within a *DELETE* provision) and it is not normally needed to fulfill most of the testing requirements in the real world because test cases should be restricted to very well known states and limited scopes to have good testing granularity.
 
 Normally `h2agent` is powerful enough using provision in/out states because on regular testing we will mock an specific node and the states are predictable for an specific scenario, that is to say: normally, there is no need to simulate a node in such a deep and reliable way that we do here with deletion use case.
 
@@ -73,8 +73,8 @@ So, focus in the provisions designed for that deletion requirement:
     "responseCode": 204,
     "transform": [
       {
-        "source": "value.get-obtains-not-found",
-        "target": "outState.GET"
+        "from": {"source": "literal", "value": "get-obtains-not-found"},
+        "to": {"target": "outState", "method": "GET"}
       }
     ],
     "outState": "delete-not-found"

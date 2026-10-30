@@ -2,29 +2,32 @@
   "requestMethod": "GET",
   "requestUri": "/divide/by/two",
   "responseCode": 200,
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
+  "responseHeaders": {"content-type": "application/json"},
   "transform": [
+    {"from": {"source": "literal", "value": "100"}, "to": {"target": "var", "name": "previous"}},
     {
-      "source": "value.100",
-      "target": "var.previous"
+      "from": {
+        "source": "serverEvent",
+        "requestMethod": "GET",
+        "requestUri": "/divide/by/two",
+        "eventNumber": -1,
+        "eventPath": "/responseBody/current"
+      },
+      "to": {"target": "var", "name": "previous"}
     },
     {
-      "source": "serverEvent.requestMethod=GET&requestUri=/divide/by/two&eventNumber=-1&eventPath=/responseBody/current",
-      "target": "var.previous"
+      "from": {"source": "math", "expression": "@{previous}/2"},
+      "to": {"target": "var", "name": "current"}
     },
     {
-      "source": "math.@{previous}/2",
-      "target": "var.current"
+      "from": {"source": "literal", "value": "@{previous}"},
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "responseBody", "path": "/previous"}
     },
     {
-      "source": "value.@{previous}",
-      "target": "response.body.json.object./previous"
-    },
-    {
-      "source": "value.@{current}",
-      "target": "response.body.json.object./current"
+      "from": {"source": "literal", "value": "@{current}"},
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "responseBody", "path": "/current"}
     }
   ]
 }

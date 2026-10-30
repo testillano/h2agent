@@ -23,73 +23,46 @@
       "registered": "2021-02-24T01:05:41 -01:00",
       "latitude": -76.273677,
       "longitude": -48.788879,
-      "tags": [
-        "nostrud",
-        "tempor",
-        "ea",
-        "duis",
-        "ut",
-        "veniam",
-        "cupidatat"
-      ],
+      "tags": ["nostrud", "tempor", "ea", "duis", "ut", "veniam", "cupidatat"],
       "friends": [
-        {
-          "id": 0,
-          "name": "Frances Floyd"
-        },
-        {
-          "id": 1,
-          "name": "Duke Cohen"
-        },
-        {
-          "id": 2,
-          "name": "Deborah Burton"
-        }
+        {"id": 0, "name": "Frances Floyd"},
+        {"id": 1, "name": "Duke Cohen"},
+        {"id": 2, "name": "Deborah Burton"}
       ],
       "greeting": "Hello, Joseph Norton! You have 1 unread messages.",
       "favoriteFruit": "banana"
     },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
+      {"from": {"source": "requestUriPath"}, "to": {"target": "responseBody", "path": "/uriPath"}},
       {
-        "source": "request.uri.path",
-        "target": "response.body.json.string./uriPath"
+        "from": {"source": "vault", "key": "COMPANY NAME"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/company"}
+      },
+      {"from": {"source": "responseBody", "path": "/name"}, "to": {"target": "var", "name": "name"}},
+      {
+        "from": {"source": "vault", "key": "EMAIL:@{name}"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/email"}
+      },
+      {"from": {"source": "timestamp", "unit": "us"}, "to": {"target": "var", "name": "usecs"}},
+      {
+        "from": {"source": "literal", "value": "@{usecs}\n"},
+        "to": {"target": "txtFile", "file": "/tmp/h2agent_benchmark_timestamp_usecs.log"}
       },
       {
-        "source": "vault.COMPANY NAME",
-        "target": "response.body.json.string./company"
+        "from": {"source": "txtFile", "file": "/etc/group"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/sourceFileContent"}
       },
       {
-        "source": "response.body./name",
-        "target": "var.name"
-      },
-      {
-        "source": "vault.EMAIL:@{name}",
-        "target": "response.body.json.string./email"
-      },
-      {
-        "source": "timestamp.us",
-        "target": "var.usecs"
-      },
-      {
-        "source": "value.@{usecs}\n",
-        "target": "txtFile./tmp/h2agent_benchmark_timestamp_usecs.log"
-      },
-      {
-        "source": "txtFile./etc/group",
-        "target": "response.body.json.string./sourceFileContent"
-      },
-      {
-        "source": "request.uri.path",
-        "target": "response.body.json.unsigned./identifier",
-        "filter": {
-          "RegexReplace": {
-            "rgx": "(/app/v1/load-test/v1/id-)([0-9]+)",
-            "fmt": "$2"
-          }
-        }
+        "from": {"source": "requestUriPath"},
+        "filter": [
+          {"op": "regexReplace", "rgx": "(/app/v1/load-test/v1/id-)([0-9]+)", "fmt": "$2"},
+          {"op": "cast", "type": "unsigned"}
+        ],
+        "to": {"target": "responseBody", "path": "/identifier"}
       }
     ]
   }

@@ -8,7 +8,10 @@
     "responseBody": {"step": 1},
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
-      {"source": "request.body./captured", "target": "var.myData"}
+      {
+        "from": {"source": "requestBody", "path": "/captured"},
+        "to": {"target": "var", "name": "myData"}
+      }
     ]
   },
   {
@@ -19,7 +22,11 @@
     "responseBody": {"step": 2},
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
-      {"source": "var.myData", "target": "response.body.json.string./propagated"}
+      {
+        "from": {"source": "var", "name": "myData"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/propagated"}
+      }
     ]
   }
 ]

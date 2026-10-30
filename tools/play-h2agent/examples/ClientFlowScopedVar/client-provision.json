@@ -8,7 +8,10 @@
     "expectedResponseStatusCode": 200,
     "outState": "authenticated",
     "onResponseTransform": [
-      {"source": "response.body./token", "target": "var.token"}
+      {
+        "from": {"source": "responseBody", "path": "/token"},
+        "to": {"target": "var", "name": "token"}
+      }
     ]
   },
   {
@@ -20,7 +23,11 @@
     "requestHeaders": {"content-type": "application/json"},
     "expectedResponseStatusCode": 200,
     "transform": [
-      {"source": "var.token", "target": "request.body.json.string./auth"}
+      {
+        "from": {"source": "var", "name": "token"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "requestBody", "path": "/auth"}
+      }
     ]
   }
 ]

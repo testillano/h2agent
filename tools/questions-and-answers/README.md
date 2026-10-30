@@ -42,8 +42,9 @@ In the context of h2agent process configuration, a transformation item is a conf
 For example, the following transformation item extracts a random choice of rock, paper, or scissors from the `randomset` variable and sets it as the response body:
 ```json
 {
-  "source": "randomset.rock|paper|scissors",
-  "target": "response.body.json.string"
+  "from": {"source": "randomset", "values": ["rock", "paper", "scissors"]},
+  "filter": [{"op": "cast", "type": "string"}],
+  "to": {"target": "responseBody"}
 }
 ```
 Transformation items are specified in the `transform` array of a provision configuration object. They allow for advanced configurations, such as extracting information from the message received (body, headers, URI, etc.), modifying them, and then transferring the modified data to another location.

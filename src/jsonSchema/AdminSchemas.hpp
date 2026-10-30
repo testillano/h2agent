@@ -50,110 +50,200 @@ namespace adminSchemas
 //////////////////////////////////////////////////////////////////////////////
 // Transformation grammar v2 (docs/developers/GrammarV2.md)
 //
-// Rule: {"from": <source>, "to": <target>, "filter": [<filter>...], "onFilterFail": [<rule>...]}
-// A kind without arguments is a plain string ("requestHeaders"); a kind with
-// arguments is an object with exactly one kind key plus its sibling fields
-// ({"vault": "K", "path": "/a"}). Each kind has exactly one valid form.
-//
-// The schema is built from per-kind tables so that each provision context
-// (server transform, client transform, client onResponseTransform) lists the
-// kinds it accepts, exactly as the v1 schema patterns did.
+// Rule: {"from": {"source": <kind>, ...}, "filter": [{"op": <op>, ...}], "to": {"target": <kind>, ...},
+//        "onFilterFail": [<rule>...]}
+// 'source', 'target' and 'op' are discriminators; every other argument is a
+// named field. The schema is built from per-kind tables so that each provision
+// context (server transform, client transform, client onResponseTransform)
+// lists the kinds it accepts, with the same scope as the former v1 patterns.
 //////////////////////////////////////////////////////////////////////////////
 namespace grammar
 {
 
-/** Json-pointer argument: "" (whole document) or "/<node>...". */
-inline nlohmann::json pointerArg() {
-    return {{"type", "string"}, {"pattern", "^(/.*)?$"}};
-}
-inline nlohmann::json textArg() {
+inline nlohmann::json text() {
     return {{"type", "string"}, {"minLength", 1}};
 }
-inline nlohmann::json anyTextArg() {
+inline nlohmann::json anyText() {
     return {{"type", "string"}};
 }
-inline nlohmann::json vaultKeyArg() {
-    return {{"type", "string"}, {"pattern", "^[^.]+$"}};
+/** Json pointer inside a document (absent field = whole document). */
+inline nlohmann::json pointer() {
+    return {{"type", "string"}, {"pattern", "^/"}};
 }
-inline nlohmann::json nodePathArg() {
+/** Vault node path: "/<node>...". */
+inline nlohmann::json nodePath() {
     return {{"type", "string"}, {"pattern", "^/.+$"}};
 }
-
-/** Object kind: exactly the kind key (mandatory) plus optional/mandatory siblings. */
-inline nlohmann::json objectKind(const std::string &kind, const nlohmann::json &arg,
-                                 const nlohmann::json &siblings = nlohmann::json::object(),
-                                 const std::vector<std::string> &requiredSiblings = {}) {
-    nlohmann::json properties = siblings;
-    properties[kind] = arg;
-    nlohmann::json required = nlohmann::json::array({kind});
-    for (const auto &s : requiredSiblings) required.push_back(s);
-    return {{"type", "object"}, {"additionalProperties", false}, {"required", required}, {"properties", properties}};
+/** Key or identifier without dots. */
+inline nlohmann::json dotless() {
+    return {{"type", "string"}, {"pattern", "^[^.]+$"}};
+}
+/** Number field which also accepts a text holding a variable ("@{seq}"). */
+inline nlohmann::json numberOrVariable(bool allowNegative) {
+    nlohmann::json number = {{"type", "integer"}};
+    if (!allowNegative) number["minimum"] = 0;
+    return {{"oneOf", {number, {{"type", "string"}, {"pattern", "@\\{"}}}}};
+}
+inline nlohmann::json enumOf(const std::vector<std::string> &values) {
+    return {{"type", "string"}, {"enum", values}};
 }
 
-inline const nlohmann::json &objectSources() {
-    static const nlohmann::json kinds = {
-        {"requestUriParam", objectKind("requestUriParam", textArg())},
-        {"requestBody", objectKind("requestBody", pointerArg())},
-        {"responseBody", objectKind("responseBody", pointerArg())},
-        {"requestHeader", objectKind("requestHeader", textArg())},
-        {"responseHeader", objectKind("responseHeader", textArg())},
-        {"math", objectKind("math", anyTextArg())},
-        {"random", objectKind("random", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"minItems", 2}, {"maxItems", 2}})},
-        {"randomset", objectKind("randomset", {{"type", "array"}, {"items", {{"type", "string"}}}, {"minItems", 1}})},
-        {"timestamp", objectKind("timestamp", {{"type", "string"}, {"enum", {"s", "ms", "us", "ns"}}})},
-        {"strftime", objectKind("strftime", textArg())},
-        {"var", objectKind("var", textArg())},
-        {"vault", objectKind("vault", vaultKeyArg(), {{"path", nodePathArg()}})},
-        {"value", objectKind("value", anyTextArg())},
-        {"serverEvent", objectKind("serverEvent", textArg())},
-        {"clientEvent", objectKind("clientEvent", textArg())},
-        {"txtFile", objectKind("txtFile", textArg())},
-        {"binFile", objectKind("binFile", textArg())},
-        {"command", objectKind("command", textArg())},
+/** One kind: the discriminator fixed to 'kind' plus its fields (no others allowed). */
+inline nlohmann::json kind(const std::string &discriminator, const std::string &name,
+                           const nlohmann::json &fields = nlohmann::json::object(),
+                           const std::vector<std::string> &required = {}) {
+    nlohmann::json properties = fields;
+    properties[discriminator] = {{"type", "string"}, {"enum", {name}}};
+    nlohmann::json req = nlohmann::json::array({discriminator});
+    for (const auto &r : required) req.push_back(r);
+    return {{"type", "object"}, {"additionalProperties", false}, {"required", req}, {"properties", properties}};
+}
+
+/** Event address fields, per domain and role (source or purge target). */
+inline nlohmann::json eventFields(bool client, bool source) {
+    nlohmann::json f = {
+        {"requestMethod", text()}, {"requestUri", anyText()},
+        {"eventNumber", numberOrVariable(true)}
     };
-    return kinds;
-}
-
-inline const nlohmann::json &objectTargets() {
-    static const nlohmann::json kinds = {
-        {"responseBody", objectKind("responseBody", pointerArg())},
-        {"requestBody", objectKind("requestBody", pointerArg())},
-        {"responseHeader", objectKind("responseHeader", textArg())},
-        {"requestHeader", objectKind("requestHeader", textArg())},
-        {"var", objectKind("var", textArg())},
-        {"vault", objectKind("vault", vaultKeyArg(), {{"path", nodePathArg()}})},
-        {   "foreignOutState", objectKind("foreignOutState", {{"type", "string"}, {"enum", {"POST", "GET", "PUT", "DELETE", "HEAD"}}},
-            {{"uri", textArg()}})
-        },
-        {"txtFile", objectKind("txtFile", textArg())},
-        {"binFile", objectKind("binFile", textArg())},
-        {   "udpSocket", objectKind("udpSocket", textArg(),
-            {{"delayMs", {{"oneOf", {{{"type", "integer"}, {"minimum", 0}}, textArg()}}}}})
-        },
-        {"serverEvent", objectKind("serverEvent", textArg())},
-        {"clientEvent", objectKind("clientEvent", textArg())},
-        {"clientProvision", objectKind("clientProvision", vaultKeyArg(), {{"inState", textArg()}}, {"inState"})},
-    };
-    return kinds;
-}
-
-/**
- * One kind slot ('from' or 'to'): plain-string kinds as an enum, object kinds
- * as one exclusive branch each. 'kinds' lists every kind accepted in the context.
- */
-inline nlohmann::json slot(const std::vector<std::string> &kinds, const nlohmann::json &objectKinds) {
-    nlohmann::json plain = nlohmann::json::array();
-    nlohmann::json branches = nlohmann::json::array();
-    for (const auto &kind : kinds) {
-        auto it = objectKinds.find(kind);
-        if (it != objectKinds.end()) branches.push_back(*it);
-        else plain.push_back(kind);
+    if (client) {
+        f["clientEndpointId"] = text();
+        f["sendseq"] = numberOrVariable(false);
     }
-    if (!plain.empty()) branches.insert(branches.begin(), nlohmann::json{{"type", "string"}, {"enum", plain}});
+    else {
+        f["recvseq"] = numberOrVariable(false);
+    }
+    if (source) {
+        f["requestUriStartsWith"] = anyText();
+        f["eventPath"] = anyText();
+    }
+    return f;
+}
+
+inline nlohmann::json sourceKind(const std::string &name) {
+    static const nlohmann::json kinds = {
+        {"requestUri", kind("source", "requestUri")},
+        {"requestUriPath", kind("source", "requestUriPath")},
+        {"requestUriParam", kind("source", "requestUriParam", {{"name", text()}}, {"name"})},
+        {"requestBody", kind("source", "requestBody", {{"path", pointer()}})},
+        {"responseBody", kind("source", "responseBody", {{"path", pointer()}})},
+        {"requestHeader", kind("source", "requestHeader", {{"name", text()}}, {"name"})},
+        {"requestHeaders", kind("source", "requestHeaders")},
+        {"responseHeader", kind("source", "responseHeader", {{"name", text()}}, {"name"})},
+        {"responseHeaders", kind("source", "responseHeaders")},
+        {"responseStatusCode", kind("source", "responseStatusCode")},
+        {"erase", kind("source", "erase")},
+        {"math", kind("source", "math", {{"expression", anyText()}}, {"expression"})},
+        {"random", kind("source", "random", {{"min", {{"type", "integer"}}}, {"max", {{"type", "integer"}}}}, {"min", "max"})},
+        {"randomset", kind("source", "randomset", {{"values", {{"type", "array"}, {"items", {{"type", "string"}}}, {"minItems", 1}}}}, {"values"})},
+        {"timestamp", kind("source", "timestamp", {{"unit", enumOf({"s", "ms", "us", "ns"})}}, {"unit"})},
+        {"strftime", kind("source", "strftime", {{"fmt", text()}}, {"fmt"})},
+        {"recvseq", kind("source", "recvseq")},
+        {"sendseq", kind("source", "sendseq")},
+        {"var", kind("source", "var", {{"name", text()}}, {"name"})},
+        {"vault", kind("source", "vault", {{"key", dotless()}, {"path", nodePath()}}, {"key"})},
+        {"literal", kind("source", "literal", {{"value", anyText()}}, {"value"})},
+        {"inState", kind("source", "inState")},
+        {"serverEvent", kind("source", "serverEvent", eventFields(false, true))},
+        {"clientEvent", kind("source", "clientEvent", eventFields(true, true))},
+        {"txtFile", kind("source", "txtFile", {{"file", text()}}, {"file"})},
+        {"binFile", kind("source", "binFile", {{"file", text()}}, {"file"})},
+        {"command", kind("source", "command", {{"command", text()}}, {"command"})},
+    };
+    return kinds.at(name);
+}
+
+inline nlohmann::json targetKind(const std::string &name) {
+    static const nlohmann::json kinds = {
+        {"responseBodyText", kind("target", "responseBodyText")},
+        {"responseBodyHex", kind("target", "responseBodyHex")},
+        {"responseBody", kind("target", "responseBody", {{"path", pointer()}})},
+        {"requestBodyText", kind("target", "requestBodyText")},
+        {"requestBodyHex", kind("target", "requestBodyHex")},
+        {"requestBody", kind("target", "requestBody", {{"path", pointer()}})},
+        {"responseHeader", kind("target", "responseHeader", {{"name", text()}}, {"name"})},
+        {"responseStatusCode", kind("target", "responseStatusCode")},
+        {"responseDelayMs", kind("target", "responseDelayMs")},
+        {"requestHeader", kind("target", "requestHeader", {{"name", text()}}, {"name"})},
+        {"requestUri", kind("target", "requestUri")},
+        {"requestMethod", kind("target", "requestMethod")},
+        {"requestDelayMs", kind("target", "requestDelayMs")},
+        {"requestTimeoutMs", kind("target", "requestTimeoutMs")},
+        {"var", kind("target", "var", {{"name", text()}}, {"name"})},
+        {"vault", kind("target", "vault", {{"key", dotless()}, {"path", nodePath()}}, {"key"})},
+        // server outState: optional foreign method/uri ('uri' requires 'method'):
+        {   "outState", [] {
+                nlohmann::json k = kind("target", "outState", {{"method", enumOf({"POST", "GET", "PUT", "DELETE", "HEAD"})}, {"uri", text()}});
+                k["dependencies"] = {{"uri", {"method"}}};
+                return k;
+            }()
+        },
+        // client outState: next step state only
+        {"outStatePlain", kind("target", "outState")},
+        {"txtFile", kind("target", "txtFile", {{"file", text()}}, {"file"})},
+        {"binFile", kind("target", "binFile", {{"file", text()}}, {"file"})},
+        {"udpSocket", kind("target", "udpSocket", {{"socket", text()}, {"delayMs", {{"oneOf", {{{"type", "integer"}, {"minimum", 0}}, text()}}}}}, {"socket"})},
+        {"serverEvent", kind("target", "serverEvent", eventFields(false, false))},
+        {"clientEvent", kind("target", "clientEvent", eventFields(true, false))},
+        {"clientProvision", kind("target", "clientProvision", {{"id", dotless()}, {"inState", text()}}, {"id", "inState"})},
+        {"stop", kind("target", "stop")},
+    };
+    return kinds.at(name);
+}
+
+/** Filter items: one exclusive branch per op ('cast' included). */
+inline nlohmann::json filter(const nlohmann::json &conditionVarName) {
+    const nlohmann::json unit = enumOf({"s", "ms", "us", "ns"});
+    const nlohmann::json ops = nlohmann::json::array({
+        kind("op", "regexCapture", {{"rgx", anyText()}}, {"rgx"}),
+        kind("op", "regexReplace", {{"rgx", anyText()}, {"fmt", anyText()}}, {"rgx", "fmt"}),
+        kind("op", "regexKey", {{"rgx", anyText()}}, {"rgx"}),
+        kind("op", "append", {{"value", anyText()}}, {"value"}),
+        kind("op", "prepend", {{"value", anyText()}}, {"value"}),
+        kind("op", "sum", {{"value", {{"type", "number"}}}}, {"value"}),
+        kind("op", "multiply", {{"value", {{"type", "number"}}}}, {"value"}),
+        kind("op", "conditionVar", {{"name", conditionVarName}, {"not", {{"type", "boolean"}}}}, {"name"}),
+        kind("op", "equalTo", {{"value", anyText()}}, {"value"}),
+        kind("op", "differentFrom", {{"value", anyText()}}, {"value"}),
+        kind("op", "jsonConstraint", {{"value", {{"type", {"object", "array"}}}}}, {"value"}),
+        kind("op", "schemaId", {{"id", anyText()}}, {"id"}),
+        kind("op", "split", {
+            {"size", {{"type", "integer"}, {"minimum", 1}}}, {"count", {{"type", "integer"}, {"minimum", 1}}},
+            {"sep", anyText()}, {"filler", anyText()}, {"numeric", {{"type", "boolean"}}}
+        }),
+        kind("op", "baseConvert", {
+            {"in", {{"type", "integer"}, {"minimum", 2}, {"maximum", 36}}}, {"out", {{"type", "integer"}, {"minimum", 2}, {"maximum", 36}}},
+            {"capital", {{"type", "boolean"}}}
+        }, {"in", "out"}),
+        kind("op", "strptime", {{"fmt", anyText()}, {"unit", unit}}, {"fmt"}),
+        kind("op", "strftime", {{"fmt", anyText()}, {"unit", unit}}, {"fmt"}),
+        kind("op", "size"),
+        kind("op", "cast", {{"type", enumOf({"string", "integer", "unsigned", "float", "boolean", "object", "json"})}}, {"type"}),
+    });
+    return {{"oneOf", ops}};
+}
+
+/** conditionVar variable name: negation is the 'not' field, never a leading '!'. */
+inline nlohmann::json conditionVarName() {
+    return {{"type", "string"}, {"minLength", 1}, {"pattern", "^[^!]"}};
+}
+
+/** One stage slot ('from' or 'to'): one exclusive branch per accepted kind. */
+inline nlohmann::json slot(const std::vector<std::string> &kinds, nlohmann::json (*kindOf)(const std::string &)) {
+    nlohmann::json branches = nlohmann::json::array();
+    for (const auto &k : kinds) branches.push_back(kindOf(k));
     return {{"oneOf", branches}};
 }
 
-/** Rule definition for one context; onFilterFail rules belong to the same context. */
+/** Condition "rule.<stage>.<discriminator> is one of <kinds>" (for if/then constraints). */
+inline nlohmann::json stage(const std::string &name, const std::string &discriminator, const std::vector<std::string> &kinds) {
+    return {{"required", {name}}, {"properties", {{name, {{"required", {discriminator}}, {"properties", {{discriminator, {{"enum", kinds}}}}}}}}}};
+}
+
+/**
+ * Rule definition for one context; onFilterFail rules belong to the same
+ * context. An 'erase' source provides no value (only 'conditionVar' filters and
+ * the cast), and it is the only source an event purge target accepts.
+ */
 inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef, const std::string &selfRef) {
     return {
         {"type", "object"},
@@ -161,9 +251,21 @@ inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef,
         {"required", {"from", "to"}},
         {   "properties", {
                 {"from", {{"$ref", fromRef}}},
-                {"to", {{"$ref", toRef}}},
                 {"filter", {{"type", "array"}, {"minItems", 1}, {"items", {{"$ref", "#/definitions/filter"}}}}},
+                {"to", {{"$ref", toRef}}},
                 {"onFilterFail", {{"type", "array"}, {"minItems", 1}, {"items", {{"$ref", selfRef}}}}}
+            }
+        },
+        {   "allOf", {
+                // 'erase' provides no value: only conditionVar filters, plus the cast which keeps the
+                // v1 erase flavour on a body target (object: remove the node, string: empty string)
+                {   {"if", stage("from", "source", {"erase"})},
+                    {"then", {{"properties", {{"filter", {{"items", {{"required", {"op"}}, {"properties", {{"op", {{"enum", {"conditionVar", "cast"}}}}}}}}}}}}}}
+                },
+                // event purge (serverEvent/clientEvent target) is only fed by 'erase'
+                {   {"if", stage("to", "target", {"serverEvent", "clientEvent"})},
+                    {"then", stage("from", "source", {"erase"})}
+                }
             }
         }
     };
@@ -176,65 +278,58 @@ inline nlohmann::json rules(const std::string &ruleRef, bool nonEmpty) {
     return r;
 }
 
-/** Adds the 'as' cast to the filter definition (last element of a filter list). */
-inline void addCastFilter(nlohmann::json &filterDefinition) {
-    nlohmann::json &object = filterDefinition["oneOf"][1];
-    object["oneOf"].push_back({{"required", {"as"}}});
-    object["properties"]["as"] = {{"type", "string"}, {"enum", {"string", "integer", "unsigned", "float", "boolean", "object", "json"}}};
-}
-
 // Kinds accepted per context (same scope as the v1 schema patterns):
 inline const std::vector<std::string> &serverFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
-        "responseBody", "responseHeaders", "eraser", "math", "random", "randomset", "timestamp", "strftime",
-        "recvseq", "var", "vault", "serverEvent", "clientEvent", "value", "inState", "txtFile", "binFile", "command"
+        "responseBody", "responseHeaders", "erase", "math", "random", "randomset", "timestamp", "strftime",
+        "recvseq", "var", "vault", "serverEvent", "clientEvent", "literal", "inState", "txtFile", "binFile", "command"
     };
     return k;
 }
 inline const std::vector<std::string> &serverTo() {
     static const std::vector<std::string> k = {
         "responseBodyText", "responseBodyHex", "responseBody", "responseHeader", "responseStatusCode",
-        "responseDelayMs", "var", "vault", "serverEvent", "outState", "foreignOutState", "txtFile", "binFile",
-        "udpSocket", "clientProvision", "break"
+        "responseDelayMs", "var", "vault", "serverEvent", "outState", "txtFile", "binFile", "udpSocket",
+        "clientProvision", "stop"
     };
     return k;
 }
 inline const std::vector<std::string> &clientFrom() {
     static const std::vector<std::string> k = {
-        "requestUri", "requestBody", "requestHeader", "requestHeaders", "responseHeaders", "eraser", "math",
+        "requestUri", "requestBody", "requestHeader", "requestHeaders", "responseHeaders", "erase", "math",
         "random", "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent",
-        "value", "inState", "txtFile", "binFile", "command"
+        "literal", "inState", "txtFile", "binFile", "command"
     };
     return k;
 }
 inline const std::vector<std::string> &clientTo() {
     static const std::vector<std::string> k = {
         "requestBodyText", "requestBodyHex", "requestBody", "requestHeader", "requestDelayMs", "requestTimeoutMs",
-        "requestUri", "requestMethod", "var", "vault", "clientEvent", "outState", "txtFile", "binFile", "udpSocket"
+        "requestUri", "requestMethod", "var", "vault", "clientEvent", "outStatePlain", "txtFile", "binFile", "udpSocket"
     };
     return k;
 }
 inline const std::vector<std::string> &clientResponseFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
-        "responseBody", "responseHeader", "responseHeaders", "responseStatusCode", "eraser", "math", "random",
-        "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent", "value",
+        "responseBody", "responseHeader", "responseHeaders", "responseStatusCode", "erase", "math", "random",
+        "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent", "literal",
         "inState", "txtFile", "binFile", "command"
     };
     return k;
 }
 inline const std::vector<std::string> &clientResponseTo() {
-    static const std::vector<std::string> k = {"var", "vault", "clientEvent", "outState", "txtFile", "binFile", "udpSocket", "break"};
+    static const std::vector<std::string> k = {"var", "vault", "clientEvent", "outStatePlain", "txtFile", "binFile", "udpSocket", "stop"};
     return k;
 }
 
 /** Completes a server provision schema with the v2 transformation grammar. */
 inline nlohmann::json withServerGrammar(nlohmann::json schema) {
     auto &d = schema["definitions"];
-    addCastFilter(d["filter"]);
-    d["from"] = slot(serverFrom(), objectSources());
-    d["to"] = slot(serverTo(), objectTargets());
+    d["filter"] = filter(conditionVarName());
+    d["from"] = slot(serverFrom(), sourceKind);
+    d["to"] = slot(serverTo(), targetKind);
     d["rule"] = rule("#/definitions/from", "#/definitions/to", "#/definitions/rule");
     schema["properties"]["transform"] = rules("#/definitions/rule", true);
     return schema;
@@ -243,12 +338,12 @@ inline nlohmann::json withServerGrammar(nlohmann::json schema) {
 /** Completes a client provision schema with the v2 transformation grammar. */
 inline nlohmann::json withClientGrammar(nlohmann::json schema) {
     auto &d = schema["definitions"];
-    addCastFilter(d["filter"]);
-    d["from"] = slot(clientFrom(), objectSources());
-    d["to"] = slot(clientTo(), objectTargets());
+    d["filter"] = filter(conditionVarName());
+    d["from"] = slot(clientFrom(), sourceKind);
+    d["to"] = slot(clientTo(), targetKind);
     d["rule"] = rule("#/definitions/from", "#/definitions/to", "#/definitions/rule");
-    d["responseFrom"] = slot(clientResponseFrom(), objectSources());
-    d["responseTo"] = slot(clientResponseTo(), objectTargets());
+    d["responseFrom"] = slot(clientResponseFrom(), sourceKind);
+    d["responseTo"] = slot(clientResponseTo(), targetKind);
     d["responseRule"] = rule("#/definitions/responseFrom", "#/definitions/responseTo", "#/definitions/responseRule");
     schema["properties"]["transform"] = rules("#/definitions/rule", true);
     schema["properties"]["onResponseTransform"] = rules("#/definitions/responseRule", false);
@@ -332,107 +427,11 @@ const nlohmann::json server_matching = R"(
 //
 // About pattern (schema regex): https://json-schema.org/understanding-json-schema/reference/regular_expressions.html
 //
-// ConditionVar pattern: ^(?!$)(?!!$).*$
-// 1) non empty string:     "negative lookahead" (?!$)
-// 2) non valid string "!": "negative lookahead" (?!!$)
 const nlohmann::json server_provision = grammar::withServerGrammar(R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
 
-  "definitions": {
-    "filter": {
-      "oneOf": [
-        { "type": "string", "enum": ["Size"] },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "oneOf": [
-        {"required": ["RegexCapture"]},
-        {"required": ["RegexReplace"]},
-        {"required": ["Append"]},
-        {"required": ["Prepend"]},
-        {"required": ["Sum"]},
-        {"required": ["Multiply"]},
-        {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]},
-        {"required": ["DifferentFrom"]},
-        {"required": ["JsonConstraint"]},
-        {"required": ["SchemaId"]},
-        {"required": ["Split"]},
-        {"required": ["BaseConvert"]},
-        {"required": ["Strptime"]},
-        {"required": ["Strftime"]},
-        {"required": ["RegexKey"]}
-      ],
-      "properties": {
-        "RegexCapture": { "type": "string" },
-        "RegexReplace": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "rgx": {
-              "type": "string"
-            },
-            "fmt": {
-              "type": "string"
-            }
-          },
-          "required": [ "rgx", "fmt" ]
-        },
-        "Append": { "type": "string" },
-        "Prepend": { "type": "string" },
-        "Sum": { "type": "number" },
-        "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string", "pattern": "^(?!$)(?!!$).*$" },
-        "EqualTo": { "type": "string" },
-        "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": ["object", "array"] },
-        "SchemaId": { "type": "string" },
-        "Split": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "size": { "type": "integer", "minimum": 1 },
-            "count": { "type": "integer", "minimum": 1 },
-            "sep": { "type": "string" },
-            "filler": { "type": "string" },
-            "numeric": { "type": "boolean" }
-          }
-        },
-        "BaseConvert": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [ "in", "out" ],
-          "properties": {
-            "in": { "type": "integer", "minimum": 2, "maximum": 36 },
-            "out": { "type": "integer", "minimum": 2, "maximum": 36 },
-            "capital": { "type": "boolean" }
-          }
-        },
-        "Strptime": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [ "fmt" ],
-          "properties": {
-            "fmt": { "type": "string" },
-            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
-          }
-        },
-        "Strftime": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [ "fmt" ],
-          "properties": {
-            "fmt": { "type": "string" },
-            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
-          }
-        },
-        "RegexKey": { "type": "string" }
-      }
-        }
-      ]
-    }
-  },
+  "definitions": {},
   "type": "object",
   "additionalProperties": false,
 
@@ -547,107 +546,11 @@ const nlohmann::json client_endpoint = R"(
 }
 )"_json;
 
-// ConditionVar pattern: ^(?!$)(?!!$).*$
-// 1) non empty string:     "negative lookahead" (?!$)
-// 2) non valid string "!": "negative lookahead" (?!!$)
 const nlohmann::json client_provision = grammar::withClientGrammar(R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
 
-  "definitions": {
-    "filter": {
-      "oneOf": [
-        { "type": "string", "enum": ["Size"] },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "oneOf": [
-        {"required": ["RegexCapture"]},
-        {"required": ["RegexReplace"]},
-        {"required": ["Append"]},
-        {"required": ["Prepend"]},
-        {"required": ["Sum"]},
-        {"required": ["Multiply"]},
-        {"required": ["ConditionVar"]},
-        {"required": ["EqualTo"]},
-        {"required": ["DifferentFrom"]},
-        {"required": ["JsonConstraint"]},
-        {"required": ["SchemaId"]},
-        {"required": ["Split"]},
-        {"required": ["BaseConvert"]},
-        {"required": ["Strptime"]},
-        {"required": ["Strftime"]},
-        {"required": ["RegexKey"]}
-      ],
-      "properties": {
-        "RegexCapture": { "type": "string" },
-        "RegexReplace": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "rgx": {
-              "type": "string"
-            },
-            "fmt": {
-              "type": "string"
-            }
-          },
-          "required": [ "rgx", "fmt" ]
-        },
-        "Append": { "type": "string" },
-        "Prepend": { "type": "string" },
-        "Sum": { "type": "number" },
-        "Multiply": { "type": "number" },
-        "ConditionVar": { "type": "string", "pattern": "^!?.*$" },
-        "EqualTo": { "type": "string" },
-        "DifferentFrom": { "type": "string" },
-        "JsonConstraint": { "type": ["object", "array"] },
-        "SchemaId": { "type": "string" },
-        "Split": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "size": { "type": "integer", "minimum": 1 },
-            "count": { "type": "integer", "minimum": 1 },
-            "sep": { "type": "string" },
-            "filler": { "type": "string" },
-            "numeric": { "type": "boolean" }
-          }
-        },
-        "BaseConvert": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [ "in", "out" ],
-          "properties": {
-            "in": { "type": "integer", "minimum": 2, "maximum": 36 },
-            "out": { "type": "integer", "minimum": 2, "maximum": 36 },
-            "capital": { "type": "boolean" }
-          }
-        },
-        "Strptime": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [ "fmt" ],
-          "properties": {
-            "fmt": { "type": "string" },
-            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
-          }
-        },
-        "Strftime": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [ "fmt" ],
-          "properties": {
-            "fmt": { "type": "string" },
-            "unit": { "type": "string", "enum": ["s", "ms", "us", "ns"] }
-          }
-        },
-        "RegexKey": { "type": "string" }
-      }
-        }
-      ]
-    }
-  },
+  "definitions": {},
   "type": "object",
   "additionalProperties": false,
 

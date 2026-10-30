@@ -707,7 +707,7 @@ client_provision_trigger() {
   [ -n "${repeat}" ] && queryParams+="&repeat=${repeat}"
   [ -n "${inState}" ] && queryParams+="&inState=${inState}"
   [ -n "${queryParams}" ] && queryParams=$(echo ${queryParams} | sed 's/&/?/')
-  do_curl -XGET "$(admin_url)/client-provision/${id}${queryParams}"
+  do_curl -XPOST "$(admin_url)/client-provision/${id}/trigger${queryParams}"
 }
 
 client_provision_cps() {
@@ -735,7 +735,7 @@ client_provision_cps() {
   [ -n "$repeat" ] && { [ -n "$base_q" ] && base_q+="&"; base_q+="repeat=${repeat}"; }
 
   # Build URL with cps: base_q may be empty
-  _cps_url() { local c=$1; local q="${base_q:+${base_q}&}cps=${c}"; echo "$(admin_url)/client-provision/${id}?${q}"; }
+  _cps_url() { local c=$1; local q="${base_q:+${base_q}&}cps=${c}"; echo "$(admin_url)/client-provision/${id}/trigger?${q}"; }
 
   if [ "$(echo "${rampUp} > 0" | bc)" = "1" ]; then
     # Read current cps from provision dynamics
@@ -998,33 +998,33 @@ client_data() {
 # OPERATION SCHEMAS
 
 schema_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema_schema [-h|--help]; Gets the schema configuration schema ($(admin_url)/schema/schema)." && return 0
-  do_curl "$(admin_url)/schema/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: schema_schema [-h|--help]; Gets the schema configuration schema ($(admin_url)/api-schema/schema)." && return 0
+  do_curl "$(admin_url)/api-schema/schema"
 }
 
 vault_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: vault_schema [-h|--help]; Gets the agent vault configuration schema ($(admin_url)/vault/schema)." && return 0
-  do_curl "$(admin_url)/vault/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: vault_schema [-h|--help]; Gets the agent vault configuration schema ($(admin_url)/api-schema/vault)." && return 0
+  do_curl "$(admin_url)/api-schema/vault"
 }
 
 server_matching_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema ($(admin_url)/server-matching/schema)." && return 0
-  do_curl "$(admin_url)/server-matching/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_matching_schema [-h|--help]; Gets the server matching configuration schema ($(admin_url)/api-schema/server-matching)." && return 0
+  do_curl "$(admin_url)/api-schema/server-matching"
 }
 
 server_provision_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema ($(admin_url)/server-provision/schema)." && return 0
-  do_curl "$(admin_url)/server-provision/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: server_provision_schema [-h|--help]; Gets the server provision configuration schema ($(admin_url)/api-schema/server-provision)." && return 0
+  do_curl "$(admin_url)/api-schema/server-provision"
 }
 
 client_endpoint_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema ($(admin_url)/client-endpoint/schema)." && return 0
-  do_curl "$(admin_url)/client-endpoint/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_endpoint_schema [-h|--help]; Gets the client endpoint configuration schema ($(admin_url)/api-schema/client-endpoint)." && return 0
+  do_curl "$(admin_url)/api-schema/client-endpoint"
 }
 
 client_provision_schema() {
-  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema ($(admin_url)/client-provision/schema)." && return 0
-  do_curl "$(admin_url)/client-provision/schema"
+  [ "$1" = "-h" -o "$1" = "--help" ] && echo "Usage: client_provision_schema [-h|--help]; Gets the client provision configuration schema ($(admin_url)/api-schema/client-provision)." && return 0
+  do_curl "$(admin_url)/api-schema/client-provision"
 }
 
 # -----------------------------------------------------------------------------
@@ -1832,11 +1832,13 @@ server_example() {
     "responseSchemaId": "dummySchemaId",
     "responseDelayMs": 0,
     "responseCode": 201,
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
-      { "source": "request.body", "target": "response.body.json.object" }
+      {
+        "from": {"source": "requestBody"},
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody"}
+      }
     ]
   }
 !

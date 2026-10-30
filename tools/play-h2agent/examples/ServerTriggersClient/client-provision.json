@@ -4,11 +4,12 @@
   "expectedResponseStatusCode": 200,
   "requestMethod": "POST",
   "requestUri": "/api/v1/forward",
-  "requestHeaders": {"content-type":"application/json"},
+  "requestHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "vault.notificationBody",
-      "target": "request.body.json.jsonstring"
+      "from": {"source": "vault", "key": "notificationBody"},
+      "filter": [{"op": "cast", "type": "json"}],
+      "to": {"target": "requestBody"}
     }
   ]
 }

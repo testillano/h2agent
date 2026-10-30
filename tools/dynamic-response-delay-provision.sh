@@ -21,18 +21,13 @@ cat << EOF > ${json}
   "requestUri": "/foo/bar",
   "responseCode": 200,
   "responseDelayMs": 20,
-  "responseHeaders": {
-    "content-type": "text/html"
-  },
+  "responseHeaders": {"content-type": "text/html"},
   "responseBody": "done!",
   "transform": [
+    {"from": {"source": "recvseq"}, "to": {"target": "var", "name": "recvseq"}},
     {
-      "source": "recvseq",
-      "target": "var.recvseq"
-    },
-    {
-      "source": "value.${milliseconds}",
-      "target": "vault.__core:response-delay-ms:@{recvseq}"
+      "from": {"source": "literal", "value": "${milliseconds}"},
+      "to": {"target": "vault", "key": "__core:response-delay-ms:@{recvseq}"}
     }
   ]
 }

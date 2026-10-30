@@ -2,23 +2,18 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "value.55011223",
-      "target": "response.body.json.string./splitDefault",
-      "filter": { "Split": {} }
+      "from": {"source": "literal", "value": "55011223"},
+      "filter": [{"op": "split"}],
+      "to": {"target": "responseBody", "path": "/splitDefault"}
     },
     {
-      "source": "value.55011223",
-      "target": "response.body.json.string./splitNumeric",
-      "filter": { "Split": { "numeric": true } }
+      "from": {"source": "literal", "value": "55011223"},
+      "filter": [{"op": "split", "numeric": true}],
+      "to": {"target": "responseBody", "path": "/splitNumeric"}
     }
   ]
 }

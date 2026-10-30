@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <nghttp2/asio_http2_server.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -46,7 +47,6 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <AdminSchema.hpp>
-#include <Transformation.hpp>
 #include <TypeConverter.hpp>
 #include <DataPart.hpp>
 
@@ -119,10 +119,10 @@ class AdminServerProvision
     model::FileManager *file_manager_{}; // just in case it is used
     model::SocketManager *socket_manager_{}; // just in case it is used
 
-    void loadTransformation(const nlohmann::json &j);
-
-    std::vector<std::shared_ptr<Transformation>> transformations_{};
-    std::shared_ptr<h2agent::engine::Pipeline> engine_pipeline_{};  // v1 transform translated + parsed once at load
+    std::shared_ptr<h2agent::engine::Pipeline> engine_pipeline_{};  // 'transform' lowered + parsed once at load
+    bool uses_request_body_source_{};  // some rule reads the request body (it must be decoded)
+    bool uses_json_body_target_{};     // some rule writes the response json body (it is cloned)
+    bool needs_storage_{};             // some rule reads or purges stored events
 
 
 public:
@@ -371,14 +371,7 @@ public:
      * @return True if any transformation requires stored events
      */
     bool needsStorage() const {
-        for (const auto& t : transformations_) {
-            auto st = t->getSourceType();
-            auto tt = t->getTargetType();
-            if (st == Transformation::ServerEvent || st == Transformation::ClientEvent ||
-                    tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
-                return true;
-        }
-        return false;
+        return needs_storage_;
     }
 };
 

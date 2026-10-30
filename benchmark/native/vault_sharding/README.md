@@ -11,7 +11,7 @@ out of `tests/` (which is reserved for the `start.sh` network profiles).
 
 Quantifies the effect of sharding the vault mutex (`src/model/Map.hpp`).
 
-The vault is written on the **traffic hot path**: every `vault.X` transformation
+The vault is written on the **traffic hot path**: every `vault` transformation
 target (from both the client and server roles) is a write under the map mutex.
 A provision that touches **many** vault keys, under **many** concurrent
 requests, serializes on that mutex. `Map` supports opt-in N-way sharding (the
@@ -65,7 +65,7 @@ clean run of this micro-benchmark as a race-freedom guarantee for h2agent.
 - Sharding reduces contention by roughly `1/N` **only for distinct keys**. A
   single hot key shared across threads still serializes on its one shard (by
   design) -- and note that a shared counter incremented via
-  `math.@{K}+1 -> vault.K` also has a read-modify-write race that sharding does
+  `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` also has a read-modify-write race that sharding does
   not fix (see `docs/api` on per-subscriber vs global counters).
 - The admin `getJson()` probe is a correctness/no-deadlock check, not a speed
   target: whole-map operations lock all shards on purpose (admin path).

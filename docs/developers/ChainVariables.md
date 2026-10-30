@@ -2,27 +2,27 @@
 
 ## Terminology
 
-- **User-facing (docs/api)**: "scoped variable" — contrasts with "vault entry" and describes the behavior: `var.*` has a defined lifetime scope (the `outState` chain), unlike `vault.*` which persists indefinitely.
+- **User-facing (docs/api)**: "scoped variable" — contrasts with "vault entry" and describes the behavior: a `var` has a defined lifetime scope (the `outState` chain), unlike a `vault` entry which persists indefinitely.
 - **Code internals**: `chain_variables_`, `chainVariables`, `getChainVariables()` — describes the mechanism: these are the variables that persist along the `outState` chain.
 
-The keyword remains `var.*` — no API change.
+The kind remains `var` (`{"source": "var", "name": ...}` / `{"target": "var", "name": ...}`) — no API change.
 
 ## Motivation
 
-Before this change, `var.*` was provision-scoped: created and destroyed within a single provision execution. To pass data across `outState` links, the only option was `vault.*`, which has two problems:
+Before this change, `var` was provision-scoped: created and destroyed within a single provision execution. To pass data across `outState` links, the only option was `vault`, which has two problems:
 
-1. **Namespace pollution**: concurrent flows share the global namespace, requiring `sequence`-based naming (`vault.flow_@{sequence}_myData`) to avoid collisions.
-2. **Manual cleanup**: vault are never freed automatically, requiring explicit `eraser` transformations at the end of every chain to prevent memory growth.
+1. **Namespace pollution**: concurrent flows share the global namespace, requiring `sequence`-based naming (vault key `flow_@{sequence}_myData`) to avoid collisions.
+2. **Manual cleanup**: vault are never freed automatically, requiring explicit `erase` transformations at the end of every chain to prevent memory growth.
 
 ## Design decision: promote `var` vs new `chainVar` keyword
 
-We chose to promote `var.*` to chain-scoped rather than introduce a new `chainVar.*` keyword:
+We chose to promote `var` to chain-scoped rather than introduce a new `chainVar` kind:
 
-- **Simpler UX**: the user writes `var.foo` and it just works across the chain. No new concept.
+- **Simpler UX**: the user writes `{"target": "var", "name": "foo"}` and it just works across the chain. No new concept.
 - **Backward compatible**: without `outState`, `var` behaves exactly as before. The only change is for chains, where vars now survive across links — but nobody relies on vars being *lost* between links.
 - **No schema changes**: no new source/target types, no regex updates.
 
-The alternative (`chainVar.*`) was considered but rejected as it adds cognitive load without meaningful benefit. It is documented in `chain-scoped-variable.md` at the project root for historical reference.
+The alternative (`chainVar`) was considered but rejected as it adds cognitive load without meaningful benefit. It is documented in `chain-scoped-variable.md` at the project root for historical reference.
 
 ## Chain scope per mode
 
@@ -47,23 +47,30 @@ Variables set in `transform()` (request phase) are visible in `transformResponse
 ```json
 [
   {
-    "id": "authenticate", "endpoint": "backend",
-    "requestMethod": "POST", "requestUri": "/auth",
+    "id": "authenticate",
+    "endpoint": "backend",
+    "requestMethod": "POST",
+    "requestUri": "/auth",
     "outState": "authenticated",
     "onResponseTransform": [
-      {"source": "response.body./token", "target": "var.token"}
+      {
+        "from": {"source": "responseBody", "path": "/token"},
+        "to": {"target": "var", "name": "token"}
+      }
     ]
   },
   {
-    "id": "fetchData", "endpoint": "backend",
-    "requestMethod": "GET", "requestUri": "/data",
+    "id": "fetchData",
+    "endpoint": "backend",
+    "requestMethod": "GET",
+    "requestUri": "/data",
     "inState": "authenticated",
-    "requestHeaders": {"authorization": "Bearer @{var.token}"}
+    "requestHeaders": {"authorization": "Bearer @{token}"}
   }
 ]
 ```
 
-Without scoped vars, link 2 would need: `clientEvent.clientEndpointId=backend&requestMethod=POST&requestUri=/auth&eventNumber=-1&eventPath=/responseBody/token`.
+Without scoped vars, link 2 would need: `{"source": "clientEvent", "clientEndpointId": "backend", "requestMethod": "POST", "requestUri": "/auth", "eventNumber": -1, "eventPath": "/responseBody/token"}`.
 
 ### Server mode (implicit chain)
 
@@ -82,7 +89,7 @@ Request 1: GET /foo
 Request 2: GET /foo
   → findLastRegisteredRequestState(GET, /foo) → inState="step2", chainVars={total: "100"}
   → provision(inState=step2).transform(..., chainVars)
-  → reads var.total → "100"
+  → reads var total → "100"
 ```
 
 **Important**: the chain variables are scoped to the `DataKey` (method + uri), not to a specific `inState`. All state transitions for the same `(method, uri)` share the same variables map. This is consistent with how the state itself works — there is one state per `DataKey`, not per provision.
@@ -93,7 +100,7 @@ In server mode, `serverEvent` already covers most cross-link data needs (since e
 
 In both modes, concurrent flows to the same `DataKey` share the same chain variables. This is the same limitation that already exists for the state: if two clients send requests to `(GET, /foo)` concurrently, they share the state progression. The chain variables inherit this design constraint.
 
-For concurrent isolation, users should use `vault.*` with `sequence`-based naming (the existing pattern).
+For concurrent isolation, users should use `vault` with `sequence`-based keys (the existing pattern).
 
 ## Performance impact
 

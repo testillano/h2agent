@@ -1,8 +1,7 @@
 add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/functions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TypeConverter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Transformation.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/EngineGrammarV1.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/EngineGrammarV2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/EngineHost.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockEvent.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockEventsHistory.cpp
@@ -45,5 +44,3 @@ INTERFACE
 )
 
 
-# Grammar v2 -> v1 bridge (phase [0.7a], GrammarV2Bridge.hpp): temporary.
-target_link_libraries( h2agent-model PUBLIC h2agent-migrate-lib )

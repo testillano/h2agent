@@ -26,4 +26,4 @@ The `server-matching.json` is provided. Create both:
 
 The `test.sh` verifies the full sequence.
 
-**Hint**: the `POST /knock` needs to set a foreign state for `GET /enter` using `outState.GET./enter`, since they are different URIs/methods.
+**Hint**: `POST /knock` and `GET /enter` are different methods and URIs, so they have separate state machines: the knock must change the state of the other one (remember the *foreign states* of exercise 10).

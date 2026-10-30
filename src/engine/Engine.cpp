@@ -680,6 +680,11 @@ bool matchJsonTypedTarget(const std::string &expr, const std::string &kind, Rule
 TargetType classifyTarget(const std::string &expr, Rule &rule) {
     if (expr == "output.string") return TargetType::OutputString;
     if (expr == "output.hexstring") return TargetType::OutputHexString;
+    if (expr == "output.json") return TargetType::OutputJson;  // root ("" path)
+    if (startsWith(expr, "output.json./")) {
+        rule.targetPath = expr.substr(12);  // the /pointer part
+        return TargetType::OutputJson;
+    }
     if (matchJsonTypedTarget(expr, "string", rule)) return TargetType::OutputJsonString;
     if (matchJsonTypedTarget(expr, "integer", rule)) return TargetType::OutputJsonInteger;
     if (matchJsonTypedTarget(expr, "unsigned", rule)) return TargetType::OutputJsonUnsigned;
@@ -1689,6 +1694,9 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 output[ptr] = asString(value);
                 break;
             }
+            case TargetType::OutputJson:
+                output[targetPointer()] = value;  // native type of the source ("" => whole document)
+                break;
             case TargetType::OutputJsonInteger: {
                 std::int64_t n;
                 if (toInteger(value, n)) {

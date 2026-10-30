@@ -35,6 +35,7 @@ SOFTWARE.
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,7 +51,6 @@ SOFTWARE.
 #include <ert/http2comm/Http2Client.hpp>
 
 #include <AdminSchema.hpp>
-#include <Transformation.hpp>
 #include <TypeConverter.hpp>
 #include <DataPart.hpp>
 
@@ -119,10 +119,9 @@ class AdminClientProvision
     model::FileManager *file_manager_{}; // just in case it is used
     model::SocketManager *socket_manager_{}; // just in case it is used
 
-    void loadTransformation(std::vector<std::shared_ptr<Transformation>> &transformationsVector, const nlohmann::json &j);
-
-    std::vector<std::shared_ptr<Transformation>> transformations_{};
-    std::vector<std::shared_ptr<Transformation>> on_response_transformations_{};
+    bool uses_json_body_target_{};   // some 'transform' rule writes the request json body (it is cloned)
+    bool needs_storage_{};           // some rule reads or purges stored events
+    bool has_response_transform_{};  // 'onResponseTransform' is not empty
     std::shared_ptr<h2agent::engine::Pipeline> engine_pipeline_{};           // 'transform' (request build)
     std::shared_ptr<h2agent::engine::Pipeline> engine_response_pipeline_{};  // 'onResponseTransform'
 
@@ -486,18 +485,7 @@ public:
      * @return True if any transformation requires stored events
      */
     bool needsStorage() const {
-        for (const auto* vec : {
-                    &transformations_, &on_response_transformations_
-                }) {
-            for (const auto& t : *vec) {
-                auto st = t->getSourceType();
-                auto tt = t->getTargetType();
-                if (st == Transformation::ServerEvent || st == Transformation::ClientEvent ||
-                        tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
-                    return true;
-            }
-        }
-        return false;
+        return needs_storage_;
     }
 };
 

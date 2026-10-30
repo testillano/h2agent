@@ -36,8 +36,6 @@ SOFTWARE.
 #pragma once
 
 #include <string>
-#include <utility>
-#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -45,12 +43,15 @@ namespace h2agent {
 namespace model {
 
 /**
- * Host vocabulary layer between h2agent v1 provision grammar and the
- * transport-neutral transformation engine (src/engine, h2agent::engine).
+ * Host vocabulary layer between the h2agent transformation grammar v2
+ * (docs/developers/GrammarV2.md) and the transformation engine (src/engine,
+ * h2agent::engine).
  *
- * The alias map is HARDCODED here on purpose (proposal 8.7): the engine knows
- * only neutral names (input/output/meta/local/global/sequence); h2agent maps its
- * HTTP vocabulary onto them. Rule: aliases only RENAME, never remodel structure.
+ * Provisions arrive in grammar v2 (already validated by the provision schema).
+ * Each rule is lowered ONCE at load time into the engine rule representation:
+ * a {"source", "target", "filter"} object whose expressions address the
+ * engine documents (input/output/meta), stores (local/global) and effects.
+ * The engine representation is internal: it is never exposed to users.
  *
  * Neutral input document exposed by the host (see ServerInputDocument):
  *   {"uri": <url-decoded normalized uri>, "uriPath": <path>,
@@ -65,51 +66,45 @@ namespace model {
  *
  * Dependency-free (nlohmann only) so it is unit-testable in isolation.
  */
-class EngineGrammarV1 {
+class EngineGrammarV2 {
 public:
-    /** Which v1 pipeline is being translated (sources/targets differ). */
+    /** Which pipeline is being lowered (applicable kinds differ). */
     enum class Mode {
         Server,         // server provision "transform"
         ClientRequest,  // client provision "transform" (builds the outgoing request)
         ClientResponse  // client provision "onResponseTransform" (reads the response)
     };
 
-    /** Marker prefix for v1 expressions that are not applicable in the given
-     * mode (v1 silently ignores/skips them). The engine classifies anything with
-     * this prefix as Unsupported, so the rule is skipped and traced. */
+    /** Marker prefix for kinds not applicable in a mode: the engine classifies
+     * it as Unsupported, so the rule is skipped and traced (v1 parity). */
     static constexpr const char *NotApplicable = "n/a.";
 
-    /**
-     * Translate one v1 source expression to the engine grammar.
-     * @param usesJsonBodyTarget ClientRequest only: whether the provision has a
-     *        request.body.json.* target (v1 then reads the body being built;
-     *        otherwise request.body yields the whole template as a string).
-     */
-    static std::string translateSource(const std::string &v1, Mode mode, bool usesJsonBodyTarget = false);
+    /** Facts about a rule list needed by the host before evaluation (top-level rules only). */
+    struct Summary {
+        bool usesRequestBody{};     // some 'from' reads requestBody (request body must be decoded)
+        bool usesJsonBodyTarget{};  // some 'to' writes the (server response | client request) json body
+        bool needsStorage{};        // some rule reads or purges stored events
+        bool endsWithStop{};        // last rule is a 'stop' target (illogical, warned)
+    };
 
-    /** Translate one v1 target expression to the engine grammar. */
-    static std::string translateTarget(const std::string &v1, Mode mode);
-
-    /**
-     * Translate a whole v1 transform array (each item: source/target/filter/
-     * onFilterFail). Filters are grammar-identical and pass through untouched;
-     * onFilterFail is translated recursively. Non-array input yields an empty
-     * array.
-     */
-    static nlohmann::json translatePipeline(const nlohmann::json &v1Transforms, Mode mode,
-                                            bool usesJsonBodyTarget = false);
+    static Summary summarize(const nlohmann::json &v2Rules, Mode mode);
 
     /**
-     * Escape a single json-pointer reference token (RFC 6901: '~'->'~0',
-     * '/'->'~1'). Used for header / query-parameter names placed under input.
+     * Lowers a grammar v2 rule list (recursively, onFilterFail included).
+     *
+     * @param usesJsonBodyTarget ClientRequest only: whether the provision writes
+     *        the request json body (requestBody then reads the body being built;
+     *        otherwise it yields the whole template as a string, v1 parity).
+     * @param error Reason when a rule uses a v2 feature not supported yet by the
+     *        engine (several chained filters, a cast which is not the last filter
+     *        of a json body or vault target, a conditional erase).
+     * @return Engine rule array, or null json on error.
      */
+    static nlohmann::json lowerPipeline(const nlohmann::json &v2Rules, Mode mode, bool usesJsonBodyTarget,
+                                        std::string &error);
+
+    /** Escapes a json-pointer reference token (RFC 6901: '~'->'~0', '/'->'~1'). */
     static std::string escapePointerToken(const std::string &token);
-
-    /**
-     * Alias table (v1 prefix -> engine prefix) for the given mode, dumped at
-     * startup for diagnostics (proposal 8.7: raw layer + alias dump).
-     */
-    static std::vector<std::pair<std::string, std::string>> aliases(Mode mode);
 };
 
 }  // namespace model

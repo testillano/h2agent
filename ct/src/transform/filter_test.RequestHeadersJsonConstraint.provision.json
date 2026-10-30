@@ -2,36 +2,23 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/2",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-2"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-2"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "request.headers",
-      "target": "var.validatedHeaders",
-      "filter": {
-        "JsonConstraint": [
-          {"name": "x-mandatory", "value": "required-value"}
-        ]
-      }
+      "from": {"source": "requestHeaders"},
+      "filter": [{"op": "jsonConstraint", "value": [{"name": "x-mandatory", "value": "required-value"}]}],
+      "to": {"target": "var", "name": "validatedHeaders"}
     },
     {
-      "source": "value.400",
-      "target": "response.statusCode",
-      "filter": {
-        "ConditionVar": "!validatedHeaders"
-      }
+      "from": {"source": "literal", "value": "400"},
+      "filter": [{"op": "conditionVar", "name": "validatedHeaders", "not": true}],
+      "to": {"target": "responseStatusCode"}
     },
     {
-      "source": "var.validatedHeaders.fail",
-      "target": "response.body.string",
-      "filter": {
-        "ConditionVar": "!validatedHeaders"
-      }
+      "from": {"source": "var", "name": "validatedHeaders.fail"},
+      "filter": [{"op": "conditionVar", "name": "validatedHeaders", "not": true}],
+      "to": {"target": "responseBodyText"}
     }
   ]
 }

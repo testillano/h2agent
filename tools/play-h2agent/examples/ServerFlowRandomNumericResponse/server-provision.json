@@ -2,10 +2,5 @@
   "requestMethod": "GET",
   "requestUri": "/give/me/random/number",
   "responseCode": 200,
-  "transform": [
-     {
-       "source": "random.0.999",
-       "target": "response.body.string"
-     }
-  ]
+  "transform": [{"from": {"source": "random", "min": 0, "max": 999}, "to": {"target": "responseBodyText"}}]
 }

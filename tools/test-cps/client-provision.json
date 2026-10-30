@@ -5,9 +5,9 @@
   "requestUri": "/foo/bar/0",
   "transform": [
     {
-      "source": "var.sequence",
-      "target": "request.uri",
-      "filter": { "Prepend": "/foo/bar/" }
+      "from": {"source": "var", "name": "sequence"},
+      "filter": [{"op": "prepend", "value": "/foo/bar/"}],
+      "to": {"target": "requestUri"}
     }
   ]
 }

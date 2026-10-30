@@ -15,7 +15,10 @@ Feature: h2agent client mode examples
         """
         {"id": 1}
         """
-      And with transform from "request.body./name" to "response.body.json.string./name"
+      And with transform
+        """
+        {"from": {"source": "requestBody", "path": "/name"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/name"}}
+        """
     When the server provision is committed
 
     # Client side: send a request and capture the response
@@ -28,7 +31,10 @@ Feature: h2agent client mode examples
         """
         {"name": "Bob"}
         """
-      And with on-response transform from "response.body./name" to "vault.lastCreatedUser"
+      And with on-response transform
+        """
+        {"from": {"source": "responseBody", "path": "/name"}, "to": {"target": "vault", "key": "lastCreatedUser"}}
+        """
     When the client provision is committed
       And client provision "createUser" is triggered
 
@@ -60,7 +66,10 @@ Feature: h2agent client mode examples
         """
         {"item": "placeholder"}
         """
-      And with transform from "value.item-@{sequence}" to "request.body.json.string./item"
+      And with transform
+        """
+        {"from": {"source": "literal", "value": "item-@{sequence}"}, "to": {"target": "requestBody", "path": "/item"}}
+        """
     When the client provision is committed
       And client provision "batchInsert" is triggered from 1 to 5 at 50 cps
 
@@ -88,7 +97,10 @@ Feature: h2agent client mode examples
         """
         {"data": "protected-content"}
         """
-      And with transform from "request.header.authorization" to "response.body.json.string./auth"
+      And with transform
+        """
+        {"from": {"source": "requestHeader", "name": "authorization"}, "to": {"target": "responseBody", "path": "/auth"}}
+        """
     When the server provision is committed
 
     # Client step 1: authenticate, capture token, chain to step 2
@@ -99,7 +111,10 @@ Feature: h2agent client mode examples
       And with outState "authenticated"
       And with request method "POST"
       And with request uri "/api/v1/auth"
-      And with on-response transform from "response.body./token" to "var.token"
+      And with on-response transform
+        """
+        {"from": {"source": "responseBody", "path": "/token"}, "to": {"target": "var", "name": "token"}}
+        """
     When the client provision is committed
 
     # Client step 2: fetch data using the captured token
@@ -108,7 +123,10 @@ Feature: h2agent client mode examples
       And with inState "authenticated"
       And with request method "GET"
       And with request uri "/api/v1/data"
-      And with transform from "var.token" to "request.header.authorization"
+      And with transform
+        """
+        {"from": {"source": "var", "name": "token"}, "to": {"target": "requestHeader", "name": "authorization"}}
+        """
     When the client provision is committed
 
     # Trigger the chain — step 1 fires, state progresses, step 2 fires
@@ -139,8 +157,14 @@ Feature: h2agent client mode examples
           "requestMethod": "GET",
           "requestUri": "/api/v1/status",
           "onResponseTransform": [
-            {"source": "response.body./status", "target": "vault.svcStatus"},
-            {"source": "response.body./version", "target": "vault.svcVersion"}
+            {
+              "from": {"source": "responseBody", "path": "/status"},
+              "to": {"target": "vault", "key": "svcStatus"}
+            },
+            {
+              "from": {"source": "responseBody", "path": "/version"},
+              "to": {"target": "vault", "key": "svcVersion"}
+            }
           ]
         }
         """
