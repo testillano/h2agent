@@ -52,6 +52,7 @@ SOFTWARE.
 #include <Engine.hpp>
 #include <EngineGrammarV1.hpp>
 #include <EngineHost.hpp>
+#include <GrammarV2Bridge.hpp>
 #include <MockClientData.hpp>
 #include <MockServerData.hpp>
 #include <Configuration.hpp>
@@ -584,8 +585,18 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         expected_response_status_code_ = *it;
     }
 
-    auto transform_it = j.find("transform");
-    if (transform_it != j.end()) {
+    // Grammar v2 rules run through the v1 path until phase [0.7b] (see GrammarV2Bridge.hpp):
+    nlohmann::json jv1;
+    {
+        std::string error;
+        if (!provisionToV1(j, jv1, error)) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Transformation not supported yet: %s", error.c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
+    }
+
+    auto transform_it = jv1.find("transform");
+    if (transform_it != jv1.end()) {
         LOGDEBUG(ert::tracing::Logger::debug("Load transformations ('transform' node)", ERT_FILE_LOCATION));
         for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
             loadTransformation(transformations_, it);
@@ -595,8 +606,8 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         }
     }
 
-    transform_it = j.find("onResponseTransform");
-    if (transform_it != j.end()) {
+    transform_it = jv1.find("onResponseTransform");
+    if (transform_it != jv1.end()) {
         LOGDEBUG(ert::tracing::Logger::debug("Load transformations ('onResponseTransform' node)", ERT_FILE_LOCATION));
         for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
             loadTransformation(on_response_transformations_, it);
@@ -622,16 +633,16 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
                 break;
             }
         }
-        auto tr = j.find("transform");
-        auto otr = j.find("onResponseTransform");
+        auto tr = jv1.find("transform");
+        auto otr = jv1.find("onResponseTransform");
         std::string error;
         engine_pipeline_ = h2agent::engine::Engine{}.parse(
-                               EngineGrammarV1::translatePipeline(tr != j.end() ? *tr : nlohmann::json::array(),
+                               EngineGrammarV1::translatePipeline(tr != jv1.end() ? *tr : nlohmann::json::array(),
                                        EngineGrammarV1::Mode::ClientRequest, usesJsonBodyTarget),
                                error);
         if (engine_pipeline_) {
             engine_response_pipeline_ = h2agent::engine::Engine{}.parse(
-                                            EngineGrammarV1::translatePipeline(otr != j.end() ? *otr : nlohmann::json::array(),
+                                            EngineGrammarV1::translatePipeline(otr != jv1.end() ? *otr : nlohmann::json::array(),
                                                     EngineGrammarV1::Mode::ClientResponse),
                                             error);
         }

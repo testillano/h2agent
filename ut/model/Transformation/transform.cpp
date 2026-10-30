@@ -123,11 +123,10 @@ const nlohmann::json SchemaExample = R"(
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
 const nlohmann::json TransformationItemRegexCapture = R"delim(
 {
-  "source": "request.uri",
-  "target": "var.uri_parts",
-  "filter": {
-    "RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)"
-}
+  "from": "requestUri",
+  "to": {"var": "uri_parts"},
+  "filter": [{"RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)"
+}]
 }
 )delim"_json;
 
@@ -135,11 +134,9 @@ const nlohmann::json TransformationItemRegexCapture = R"delim(
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
 const nlohmann::json TransformationItemRegexCaptureUnmatches = R"delim(
 {
-  "source": "request.uri",
-  "target": "var.uri_parts",
-  "filter": {
-    "RegexCapture": "(/app/v2/foo/bar/)([a-z]*)(\\?name=proc)"
-}
+  "from": "requestUri",
+  "to": {"var": "uri_parts"},
+  "filter": [{"RegexCapture": "(/app/v2/foo/bar/)([a-z]*)(\\?name=proc)"}]
 }
 )delim"_json;
 
@@ -147,11 +144,9 @@ const nlohmann::json TransformationItemRegexCaptureUnmatches = R"delim(
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
 const nlohmann::json TransformationItemRegexCaptureWithVault = R"delim(
 {
-  "source": "request.uri",
-  "target": "vault.g_uri_parts",
-  "filter": {
-    "RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)"
-}
+  "from": "requestUri",
+  "to": {"vault": "g_uri_parts"},
+  "filter": [{"RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)"}]
 }
 )delim"_json;
 
@@ -159,26 +154,15 @@ const nlohmann::json TransformationItemRegexCaptureWithVault = R"delim(
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
 const nlohmann::json TransformationItemRegexReplace = R"delim(
 {
-  "source": "request.uri.path",
-  "target": "response.body.string",
-  "filter": {
-    "RegexReplace": {
-      "rgx": "(/app/v1/foo/bar/)([0-9]*)",
-      "fmt": "$2"
-    }
-  }
+  "from": "requestUriPath",
+  "to": "responseBodyText",
+  "filter": [{"RegexReplace": {"rgx": "(/app/v1/foo/bar/)([0-9]*)", "fmt": "$2"}}]
 }
 )delim"_json;
 
 // We extend delimiters to 'foo(' and ')foo' because internal regex have also parentheses:
 const nlohmann::json TransformationItemBadRegex = R"delim(
-{
-  "source": "request.uri",
-  "target": "response.body.string",
-  "filter": {
-    "RegexCapture": "["
-  }
-}
+{"from": "requestUri", "to": "responseBodyText", "filter": [{"RegexCapture": "["}]}
 )delim"_json;
 
 
@@ -195,66 +179,59 @@ const nlohmann::json TransformationAsStringTarget3 = R"({ "source": "value.foo",
 
 // Split filter test items:
 const nlohmann::json TransformationItemSplitDefaults = R"(
-{
-  "source": "value.55011223",
-  "target": "response.body.string",
-  "filter": { "Split": {} }
-}
+{"from": {"value": "55011223"}, "to": "responseBodyText", "filter": [{"Split": {}}]}
 )"_json;
 
 const nlohmann::json TransformationItemSplitNumeric = R"(
-{
-  "source": "value.55011223",
-  "target": "response.body.string",
-  "filter": { "Split": { "numeric": true } }
-}
+{"from": {"value": "55011223"}, "to": "responseBodyText", "filter": [{"Split": {"numeric": true}}]}
 )"_json;
 
 const nlohmann::json TransformationItemSplitCustom = R"(
 {
-  "source": "value.AABBCC",
-  "target": "response.body.string",
-  "filter": { "Split": { "size": 2, "count": 3, "sep": ":", "filler": "X", "numeric": false } }
+  "from": {"value": "AABBCC"},
+  "to": "responseBodyText",
+  "filter": [{"Split": {"size": 2, "count": 3, "sep": ":", "filler": "X", "numeric": false}}]
 }
 )"_json;
 
 // Transformation items to cover asString() for different types of filters:
 const nlohmann::json TransformationAsStringFilter1 = R"({ "source": "value.foo", "filter": { "Sum": 1 }, "target": "response.body.string" })"_json;
 const nlohmann::json TransformationAsStringFilter2 = R"({ "source": "value.foo", "filter": { "EqualTo": "@{bar}" }, "target": "response.body.string" })"_json;
-const nlohmann::json TransformationAsStringFilter3 = TransformationItemRegexCapture;
-const nlohmann::json TransformationAsStringFilter4 = TransformationItemRegexReplace;
-const nlohmann::json TransformationAsStringFilter5 = TransformationItemSplitNumeric;
+// model::Transformation still loads grammar v1 (until phase [0.7b]): v1 copies of the items above.
+const nlohmann::json TransformationAsStringFilter3 = R"delim({ "source": "request.uri", "target": "var.uri_parts", "filter": { "RegexCapture": "(/app/v1/foo/bar/)([0-9]*)(\\?name=test)" } })delim"_json;
+const nlohmann::json TransformationAsStringFilter4 = R"delim({ "source": "request.uri.path", "target": "response.body.string", "filter": { "RegexReplace": { "rgx": "(/app/v1/foo/bar/)([0-9]*)", "fmt": "$2" } } })delim"_json;
+const nlohmann::json TransformationAsStringFilter5 = R"({ "source": "value.55011223", "target": "response.body.string", "filter": { "Split": { "numeric": true } } })"_json;
 
 // BaseConvert filter test items:
 const nlohmann::json TransformationItemBaseConvertDecToHex = R"(
 {
-  "source": "value.255",
-  "target": "response.body.string",
-  "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+  "from": {"value": "255"},
+  "to": "responseBodyText",
+  "filter": [{"BaseConvert": {"in": 10, "out": 16}}]
 }
 )"_json;
 
 const nlohmann::json TransformationItemBaseConvertDecToHexCapital = R"(
 {
-  "source": "value.255",
-  "target": "response.body.string",
-  "filter": { "BaseConvert": { "in": 10, "out": 16, "capital": true } }
+  "from": {"value": "255"},
+  "to": "responseBodyText",
+  "filter": [{"BaseConvert": {"in": 10, "out": 16, "capital": true}}]
 }
 )"_json;
 
 const nlohmann::json TransformationItemBaseConvertHexToDec = R"(
 {
-  "source": "value.ff",
-  "target": "response.body.string",
-  "filter": { "BaseConvert": { "in": 16, "out": 10 } }
+  "from": {"value": "ff"},
+  "to": "responseBodyText",
+  "filter": [{"BaseConvert": {"in": 16, "out": 10}}]
 }
 )"_json;
 
 const nlohmann::json TransformationItemBaseConvertDecToBin = R"(
 {
-  "source": "value.10",
-  "target": "response.body.string",
-  "filter": { "BaseConvert": { "in": 10, "out": 2 } }
+  "from": {"value": "10"},
+  "to": "responseBodyText",
+  "filter": [{"BaseConvert": {"in": 10, "out": 2}}]
 }
 )"_json;
 
@@ -615,7 +592,7 @@ TEST_F(Transform_test, ResponseNotValidated)
 TEST_F(Transform_test, SourceRequestUri)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.uri", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": "requestUri", "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -629,7 +606,7 @@ TEST_F(Transform_test, SourceRequestUri)
 TEST_F(Transform_test, SourceRequestUriPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.uri.path", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": "requestUriPath", "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -643,7 +620,7 @@ TEST_F(Transform_test, SourceRequestUriPath)
 TEST_F(Transform_test, SourceRequestUriParam)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.uri.param.name", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestUriParam": "name"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -657,7 +634,7 @@ TEST_F(Transform_test, SourceRequestUriParam)
 TEST_F(Transform_test, SourceRequestUriParamUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.uri.param.missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestUriParam": "missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -671,7 +648,7 @@ TEST_F(Transform_test, SourceRequestUriParamUnknown)
 TEST_F(Transform_test, SourceRequestBody)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -685,7 +662,7 @@ TEST_F(Transform_test, SourceRequestBody)
 TEST_F(Transform_test, SourceRequestBodyEmpty)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -699,7 +676,7 @@ TEST_F(Transform_test, SourceRequestBodyEmpty)
 TEST_F(Transform_test, SourceRequestBodyPlainText)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -717,7 +694,7 @@ TEST_F(Transform_test, SourceRequestBodyPlainText)
 TEST_F(Transform_test, SourceRequestBodyPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body./foo", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": "/foo"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -731,7 +708,7 @@ TEST_F(Transform_test, SourceRequestBodyPath)
 TEST_F(Transform_test, SourceRequestBodyPathUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body./missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": "/missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -745,7 +722,7 @@ TEST_F(Transform_test, SourceRequestBodyPathUnknown)
 TEST_F(Transform_test, SourceRequestHeader)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.header.x-version", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestHeader": "x-version"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -759,7 +736,7 @@ TEST_F(Transform_test, SourceRequestHeader)
 TEST_F(Transform_test, SourceRequestHeaderUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.header.missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestHeader": "missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -773,7 +750,7 @@ TEST_F(Transform_test, SourceRequestHeaderUnknown)
 TEST_F(Transform_test, SourceResponseBody)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "response.body", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"responseBody": ""}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -787,7 +764,7 @@ TEST_F(Transform_test, SourceResponseBody)
 TEST_F(Transform_test, SourceResponseBodyPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "response.body./bar", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"responseBody": "/bar"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -801,7 +778,7 @@ TEST_F(Transform_test, SourceResponseBodyPath)
 TEST_F(Transform_test, SourceResponseBodyPathUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "response.body./missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"responseBody": "/missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -815,7 +792,7 @@ TEST_F(Transform_test, SourceResponseBodyPathUnknown)
 TEST_F(Transform_test, SourceEraser)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "eraser", "target": "response.body.json.object./remove-me" })"_json;
+    const nlohmann::json item = R"({ "from": "eraser", "to": {"responseBody": "/remove-me"}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -829,7 +806,7 @@ TEST_F(Transform_test, SourceEraser)
 TEST_F(Transform_test, SourceEraserWholeJson)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "eraser", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": "eraser", "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -843,10 +820,10 @@ TEST_F(Transform_test, SourceEraserWholeJson)
 TEST_F(Transform_test, SourceEraserVault)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.myVaultEntry_value", "target": "vault.myVaultEntry" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.myVaultEntry", "target": "response.body.json.object./vaultBeforeRemoval" })"_json;
-    const nlohmann::json item3 = R"({ "source": "eraser", "target": "vault.myVaultEntry" })"_json;
-    const nlohmann::json item4 = R"({ "source": "vault.myVaultEntry", "target": "response.body.json.object./vaultAfterRemoval" })"_json; // will be skipped
+    const nlohmann::json item1 = R"({ "from": {"value": "myVaultEntry_value"}, "to": {"vault": "myVaultEntry"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "myVaultEntry"}, "to": {"responseBody": "/vaultBeforeRemoval"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": "eraser", "to": {"vault": "myVaultEntry"} })"_json;
+    const nlohmann::json item4 = R"({ "from": {"vault": "myVaultEntry"}, "to": {"responseBody": "/vaultAfterRemoval"}, "filter": [{"as": "object"}] })"_json; // will be skipped
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -866,7 +843,7 @@ TEST_F(Transform_test, SourceEraserVault)
 TEST_F(Transform_test, SourceMath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "math.1+1", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"math": "1+1"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -880,7 +857,7 @@ TEST_F(Transform_test, SourceMath)
 TEST_F(Transform_test, SourceRandom)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "random.10.10", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"random": [10, 10]}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -894,7 +871,7 @@ TEST_F(Transform_test, SourceRandom)
 TEST_F(Transform_test, SourceRandomSet)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "randomset.hi|hi|hi", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"randomset": ["hi", "hi", "hi"]}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -908,10 +885,10 @@ TEST_F(Transform_test, SourceRandomSet)
 TEST_F(Transform_test, SourceTimestamp)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "timestamp.ms", "target": "response.body.json.object./timestampMs" })"_json;
-    const nlohmann::json item2 = R"({ "source": "timestamp.us", "target": "response.body.json.object./timestampUs" })"_json;
-    const nlohmann::json item3 = R"({ "source": "timestamp.ns", "target": "response.body.json.object./timestampNs" })"_json;
-    const nlohmann::json item4 = R"({ "source": "timestamp.s", "target": "response.body.json.object./timestampS" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"timestamp": "ms"}, "to": {"responseBody": "/timestampMs"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"timestamp": "us"}, "to": {"responseBody": "/timestampUs"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"timestamp": "ns"}, "to": {"responseBody": "/timestampNs"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"timestamp": "s"}, "to": {"responseBody": "/timestampS"}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -939,7 +916,7 @@ TEST_F(Transform_test, SourceTimestamp)
 TEST_F(Transform_test, SourceStrftime)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "strftime.This month is %b.", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"strftime": "This month is %b."}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -957,7 +934,7 @@ TEST_F(Transform_test, SourceStrftime)
 TEST_F(Transform_test, SourceRecvseq)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "recvseq", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": "recvseq", "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -971,8 +948,8 @@ TEST_F(Transform_test, SourceRecvseq)
 TEST_F(Transform_test, SourceVariable)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.myVariable_value", "target":"var.myVariable" })"_json;
-    const nlohmann::json item2 = R"({ "source": "var.myVariable", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "myVariable_value"}, "to": {"var": "myVariable"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"var": "myVariable"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -987,7 +964,7 @@ TEST_F(Transform_test, SourceVariable)
 TEST_F(Transform_test, SourceVariableUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "var.myVariable", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"var": "myVariable"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1001,7 +978,7 @@ TEST_F(Transform_test, SourceVariableUnknown)
 TEST_F(Transform_test, SourceVault)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "vault.myVault", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"vault": "myVault"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1015,7 +992,7 @@ TEST_F(Transform_test, SourceVault)
 TEST_F(Transform_test, SourceVaultUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "vault.missingVault", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"vault": "missingVault"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1029,7 +1006,7 @@ TEST_F(Transform_test, SourceVaultUnknown)
 TEST_F(Transform_test, SourceServerEvent)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"serverEvent": "requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1043,7 +1020,7 @@ TEST_F(Transform_test, SourceServerEvent)
 TEST_F(Transform_test, SourceServerEventPathUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"serverEvent": "requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1057,7 +1034,7 @@ TEST_F(Transform_test, SourceServerEventPathUnknown)
 TEST_F(Transform_test, SourceClientEvent)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "clientEvent.clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/baz", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"clientEvent": "clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/baz"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1071,7 +1048,7 @@ TEST_F(Transform_test, SourceClientEvent)
 TEST_F(Transform_test, SourceClientEventPathUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "clientEvent.clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"clientEvent": "clientEndpointId=myEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1085,7 +1062,7 @@ TEST_F(Transform_test, SourceClientEventPathUnknown)
 TEST_F(Transform_test, SourceClientEventEndpointUnknown)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "clientEvent.clientEndpointId=unknownEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/baz", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"clientEvent": "clientEndpointId=unknownEndpoint&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody/baz"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1099,7 +1076,7 @@ TEST_F(Transform_test, SourceClientEventEndpointUnknown)
 TEST_F(Transform_test, SourceValue)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.hello", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "hello"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1113,7 +1090,7 @@ TEST_F(Transform_test, SourceValue)
 TEST_F(Transform_test, SourceInState)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "inState", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": "inState", "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1132,7 +1109,7 @@ TEST_F(Transform_test, SourceTxtFile)
     tmpfile.close();
 
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "txtFile./tmp/h2agent.UT.Transform_test.SourceTxtFile.txt", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"txtFile": "/tmp/h2agent.UT.Transform_test.SourceTxtFile.txt"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1152,7 +1129,7 @@ TEST_F(Transform_test, SourceBinFile)
     tmpfile.close();
 
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "binFile./tmp/h2agent.UT.Transform_test.SourceBinFile.bin", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"binFile": "/tmp/h2agent.UT.Transform_test.SourceBinFile.bin"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1168,8 +1145,8 @@ TEST_F(Transform_test, SourceBinFile)
 TEST_F(Transform_test, SourceCommand)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "command.echo -n foo", "target": "response.body.string" })"_json;
-    const nlohmann::json item2 = R"({ "source": "math.200+@{rc}", "target": "response.statusCode" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"command": "echo -n foo"}, "to": "responseBodyText" })"_json;
+    const nlohmann::json item2 = R"({ "from": {"math": "200+@{rc}"}, "to": "responseStatusCode" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1184,8 +1161,8 @@ TEST_F(Transform_test, SourceCommand)
 TEST_F(Transform_test, SourceCommandFail)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "command.unknowncommand", "target": "var.command-output" })"_json;
-    const nlohmann::json item2 = R"({ "source": "value.@{command-output}@{rc}", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"command": "unknowncommand"}, "to": {"var": "command-output"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"value": "@{command-output}@{rc}"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1209,7 +1186,7 @@ TEST_F(Transform_test, SourceCommandFail)
 TEST_F(Transform_test, TargetResponseBodyString)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.plain text", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "plain text"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1223,7 +1200,7 @@ TEST_F(Transform_test, TargetResponseBodyString)
 TEST_F(Transform_test, TargetResponseBodyHexString)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.0xc0a8", "target": "response.body.hexstring" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "0xc0a8"}, "to": "responseBodyHex" })"_json;
     server_provision_json_["transform"].push_back(item);
     server_provision_json_["responseHeaders"]["content-type"] = "application/octet-stream";
 
@@ -1242,7 +1219,7 @@ TEST_F(Transform_test, TargetResponseBodyHexString)
 TEST_F(Transform_test, TargetResponseBodyJsonObjectFromString)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.hello", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "hello"}, "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1256,7 +1233,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObjectFromString)
 TEST_F(Transform_test, TargetResponseBodyJsonObjectFromInteger)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "random.10.10", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": {"random": [10, 10]}, "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1270,7 +1247,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObjectFromInteger)
 TEST_F(Transform_test, TargetResponseBodyJsonObjectFromUnsigned)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "recvseq", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": "recvseq", "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1284,7 +1261,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObjectFromUnsigned)
 TEST_F(Transform_test, TargetResponseBodyJsonObjectFromFloat)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "math.1/2", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": {"math": "1/2"}, "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1298,7 +1275,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObjectFromFloat)
 TEST_F(Transform_test, TargetResponseBodyJsonObjectFromBoolean)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body./boo", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": "/boo"}, "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1312,7 +1289,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObjectFromBoolean)
 TEST_F(Transform_test, TargetResponseBodyJsonObject)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.json.object" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": {"responseBody": ""}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1326,7 +1303,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObject)
 TEST_F(Transform_test, TargetResponseBodyJsonJsonstring)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.{\"bar\":\"bar-8\"}", "target": "response.body.json.jsonstring" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "{\"bar\":\"bar-8\"}"}, "to": {"responseBody": ""}, "filter": [{"as": "json"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1340,7 +1317,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonJsonstring)
 TEST_F(Transform_test, TargetResponseBodyJsonJsonstringMalformed)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.{\"bar:\"bar-8\"}", "target": "response.body.json.jsonstring" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "{\"bar:\"bar-8\"}"}, "to": {"responseBody": ""}, "filter": [{"as": "json"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1354,7 +1331,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonJsonstringMalformed)
 TEST_F(Transform_test, TargetResponseBodyJsonString)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.hello", "target": "response.body.json.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "hello"}, "to": {"responseBody": ""}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1368,7 +1345,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonString)
 TEST_F(Transform_test, TargetResponseBodyJsonInteger)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.-15", "target": "response.body.json.integer" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "-15"}, "to": {"responseBody": ""}, "filter": [{"as": "integer"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1382,7 +1359,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonInteger)
 TEST_F(Transform_test, TargetResponseBodyJsonUnsigned)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.15", "target": "response.body.json.unsigned" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "15"}, "to": {"responseBody": ""}, "filter": [{"as": "unsigned"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1396,7 +1373,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonUnsigned)
 TEST_F(Transform_test, TargetResponseBodyJsonFloat)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.3.14", "target": "response.body.json.float" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "3.14"}, "to": {"responseBody": ""}, "filter": [{"as": "float"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1410,7 +1387,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonFloat)
 TEST_F(Transform_test, TargetResponseBodyJsonBoolean)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.non-empty-string-means-true", "target": "response.body.json.boolean" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "non-empty-string-means-true"}, "to": {"responseBody": ""}, "filter": [{"as": "boolean"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1428,7 +1405,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonBoolean)
 TEST_F(Transform_test, TargetResponseBodyJsonObjectPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.json.object./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": {"responseBody": "/target"}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1442,7 +1419,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonObjectPath)
 TEST_F(Transform_test, TargetResponseBodyJsonJsonstringPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.{\"bar\":\"bar-8\"}", "target": "response.body.json.jsonstring./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "{\"bar\":\"bar-8\"}"}, "to": {"responseBody": "/target"}, "filter": [{"as": "json"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1456,7 +1433,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonJsonstringPath)
 TEST_F(Transform_test, TargetResponseBodyJsonStringPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.hello", "target": "response.body.json.string./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "hello"}, "to": {"responseBody": "/target"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1469,16 +1446,11 @@ TEST_F(Transform_test, TargetResponseBodyJsonStringPath)
 
 TEST_F(Transform_test, TargetResponseBodyJsonStringMissingPathException) // json_pointer with missing path
 {
-    // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.json.string.target" })"_json;
+    // A body path which is not a json pointer is rejected by the schema (v1 failed at runtime):
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": {"responseBody": "target"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
-    // Run transformation:
-    provisionAndTransform("hello");
-
-    // Validations:
-    EXPECT_EQ(status_code_, 200);
-    EXPECT_EQ(response_body_, ProvisionConfiguration_GET_responseBodyAsString);
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
 }
 
 // Setting json field with binary data may raise an exception:
@@ -1486,7 +1458,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonStringMissingPathException) // json
 TEST_F(Transform_test, TargetResponseBodyJsonStringPathExceptionDueToBinary)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "request.body", "target": "response.body.json.string./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"requestBody": ""}, "to": {"responseBody": "/target"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1507,7 +1479,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonStringPathExceptionDueToBinary)
 TEST_F(Transform_test, TargetResponseBodyJsonIntegerPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.-15", "target": "response.body.json.integer./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "-15"}, "to": {"responseBody": "/target"}, "filter": [{"as": "integer"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1521,7 +1493,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonIntegerPath)
 TEST_F(Transform_test, TargetResponseBodyJsonUnsignedPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.15", "target": "response.body.json.unsigned./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "15"}, "to": {"responseBody": "/target"}, "filter": [{"as": "unsigned"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1535,7 +1507,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonUnsignedPath)
 TEST_F(Transform_test, TargetResponseBodyJsonFloatPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.3.14", "target": "response.body.json.float./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "3.14"}, "to": {"responseBody": "/target"}, "filter": [{"as": "float"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1549,7 +1521,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonFloatPath)
 TEST_F(Transform_test, TargetResponseBodyJsonBooleanPath)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.non-empty-string-means-true", "target": "response.body.json.boolean./target" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "non-empty-string-means-true"}, "to": {"responseBody": "/target"}, "filter": [{"as": "boolean"}] })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1563,7 +1535,7 @@ TEST_F(Transform_test, TargetResponseBodyJsonBooleanPath)
 TEST_F(Transform_test, TargetResponseHeader)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.1.2.3", "target": "response.header.version" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "1.2.3"}, "to": {"responseHeader": "version"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1580,7 +1552,7 @@ TEST_F(Transform_test, TargetResponseHeader)
 TEST_F(Transform_test, TargetResponseStatusCode)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.201", "target": "response.statusCode" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "201"}, "to": "responseStatusCode" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1594,7 +1566,7 @@ TEST_F(Transform_test, TargetResponseStatusCode)
 TEST_F(Transform_test, TargetResponsedelayMs)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.125", "target": "response.delayMs" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "125"}, "to": "responseDelayMs" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1609,8 +1581,8 @@ TEST_F(Transform_test, TargetResponsedelayMs)
 TEST_F(Transform_test, TargetVariable)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.hello", "target": "var.varname" })"_json;
-    const nlohmann::json item2 = R"({ "source": "var.varname", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "hello"}, "to": {"var": "varname"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"var": "varname"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1625,8 +1597,8 @@ TEST_F(Transform_test, TargetVariable)
 TEST_F(Transform_test, TargetVault)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.hello", "target": "vault.vaultname" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.vaultname", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "hello"}, "to": {"vault": "vaultname"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "vaultname"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1641,10 +1613,10 @@ TEST_F(Transform_test, TargetVault)
 TEST_F(Transform_test, TargetServerEvent) // 'eraser' is the only compatible source
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.any", "target": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo" })"_json;
-    const nlohmann::json item2 = R"({ "source": "eraser", "target": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo" })"_json;
-    const nlohmann::json item3 = R"({ "source": "eraser", "target": "serverEvent.requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo" })"_json;
-    const nlohmann::json item4 = R"({ "source": "serverEvent.requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "any"}, "to": {"serverEvent": "requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo"} })"_json;
+    const nlohmann::json item2 = R"({ "from": "eraser", "to": {"serverEvent": "requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo"} })"_json;
+    const nlohmann::json item3 = R"({ "from": "eraser", "to": {"serverEvent": "requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo"} })"_json;
+    const nlohmann::json item4 = R"({ "from": {"serverEvent": "requestMethod=POST&requestUri=/app/v1/foo/bar/1&eventNumber=-1&eventPath=/requestBody/foo"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1); // invalid (skipped): only "eraser" is a compatible source for serverEvent target.
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3); // invalid: missing requestMethod
@@ -1661,7 +1633,7 @@ TEST_F(Transform_test, TargetServerEvent) // 'eraser' is the only compatible sou
 TEST_F(Transform_test, TargetOutState)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.out-state", "target": "outState" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "out-state"}, "to": "outState" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1676,7 +1648,7 @@ TEST_F(Transform_test, TargetOutState)
 TEST_F(Transform_test, TargetOutStateForeign)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "value.foreign-state", "target": "outState.POST./foreign/uri" })"_json;
+    const nlohmann::json item = R"({ "from": {"value": "foreign-state"}, "to": {"foreignOutState": "POST", "uri": "/foreign/uri"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1693,9 +1665,9 @@ TEST_F(Transform_test, TargetOutStateForeign)
 TEST_F(Transform_test, TargetTxtFile)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.example2", "target": "txtFile./tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt" })"_json;
-    const nlohmann::json item2 = R"({ "source": "txtFile./tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt", "target": "response.body.string" })"_json;
-    const nlohmann::json item3 = R"({ "source": "eraser", "target": "txtFile./tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "example2"}, "to": {"txtFile": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"txtFile": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"}, "to": "responseBodyText" })"_json;
+    const nlohmann::json item3 = R"({ "from": "eraser", "to": {"txtFile": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"} })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -1717,8 +1689,8 @@ TEST_F(Transform_test, TargetBinFile)
     tmpfile.close();
 
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "binFile./tmp/h2agent.UT.Transform_test.SourceBinFile.bin", "target": "binFile./tmp/h2agent.UT.Transform_test.SourceBinFile2.bin" })"_json;
-    const nlohmann::json item2 = R"({ "source": "eraser", "target": "binFile./tmp/h2agent.UT.Transform_test.SourceBinFile.bin" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"binFile": "/tmp/h2agent.UT.Transform_test.SourceBinFile.bin"}, "to": {"binFile": "/tmp/h2agent.UT.Transform_test.SourceBinFile2.bin"} })"_json;
+    const nlohmann::json item2 = R"({ "from": "eraser", "to": {"binFile": "/tmp/h2agent.UT.Transform_test.SourceBinFile.bin"} })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1740,13 +1712,9 @@ TEST_F(Transform_test, TargetUDPSocket)
 {
     // Socket path:
     std::string socketPath = "/tmp/h2agent.UT.Transform_test.TargetUDPSocket";
-    std::string targetValue = "udpSocket.";
-    targetValue += socketPath;
-    targetValue += "|0";
-
     // Build test provision:
-    nlohmann::json item = R"({ "source": "value.hello", "target": "tobereplaced" })"_json;
-    item["target"] = targetValue;
+    nlohmann::json item = R"({ "from": {"value": "hello"} })"_json;
+    item["to"] = {{"udpSocket", socketPath}, {"delayMs", 0}};
 
     server_provision_json_["transform"].push_back(item);
 
@@ -1787,10 +1755,10 @@ TEST_F(Transform_test, TargetUDPSocket)
 TEST_F(Transform_test, TargetBreak)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "value.", "target": "break" })"_json; // this break is not triggered (empty value)
-    const nlohmann::json item2 = R"({ "source": "value.hello", "target": "response.body.string" })"_json;
-    const nlohmann::json item3 = R"({ "source": "value.non-empty", "target": "break" })"_json;
-    const nlohmann::json item4 = R"({ "source": "value.201", "target": "response.statusCode" })"_json; // not reached (previous break is non-empty-triggered)
+    const nlohmann::json item1 = R"({ "from": {"value": ""}, "to": "break" })"_json; // this break is not triggered (empty value)
+    const nlohmann::json item2 = R"({ "from": {"value": "hello"}, "to": "responseBodyText" })"_json;
+    const nlohmann::json item3 = R"({ "from": {"value": "non-empty"}, "to": "break" })"_json;
+    const nlohmann::json item4 = R"({ "from": {"value": "201"}, "to": "responseStatusCode" })"_json; // not reached (previous break is non-empty-triggered)
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -1807,8 +1775,8 @@ TEST_F(Transform_test, TargetBreak)
 TEST_F(Transform_test, TargetClientProvision)
 {
     // Build test provision with clientProvision trigger (source as conditional gate):
-    const nlohmann::json item1 = R"({ "source": "value.1", "target": "clientProvision.myFlow.initial" })"_json;
-    const nlohmann::json item2 = R"({ "source": "value.go", "target": "clientProvision.anotherFlow.step2" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "1"}, "to": {"clientProvision": "myFlow", "inState": "initial"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"value": "go"}, "to": {"clientProvision": "anotherFlow", "inState": "step2"} })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1826,7 +1794,7 @@ TEST_F(Transform_test, TargetClientProvision)
 TEST_F(Transform_test, TargetClientProvisionWithEraser)
 {
     // When eraser source is used, trigger is skipped (conditional gate):
-    const nlohmann::json item = R"({ "source": "eraser", "target": "clientProvision.myFlow.initial" })"_json;
+    const nlohmann::json item = R"({ "from": "eraser", "to": {"clientProvision": "myFlow", "inState": "initial"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1839,7 +1807,7 @@ TEST_F(Transform_test, TargetClientProvisionWithEraser)
 TEST_F(Transform_test, TargetClientProvisionSkippedOnEmptyVar)
 {
     // When source variable does not exist, trigger is skipped:
-    const nlohmann::json item = R"({ "source": "var.nonExistent", "target": "clientProvision.myFlow.initial" })"_json;
+    const nlohmann::json item = R"({ "from": {"var": "nonExistent"}, "to": {"clientProvision": "myFlow", "inState": "initial"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -1851,15 +1819,11 @@ TEST_F(Transform_test, TargetClientProvisionSkippedOnEmptyVar)
 
 TEST_F(Transform_test, TargetClientProvisionMissingInState)
 {
-    // clientProvision without inState should fail to load:
-    const nlohmann::json item = R"({ "source": "value.1", "target": "clientProvision.myFlow" })"_json;
+    // clientProvision without inState is rejected by the schema:
+    const nlohmann::json item = R"({ "from": {"value": "1"}, "to": {"clientProvision": "myFlow"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
-    // Run transformation (the transform item is discarded at load time):
-    provisionAndTransform(request_body_.dump());
-
-    // Validations: no triggers (discarded provision)
-    ASSERT_EQ(client_provision_triggers_.size(), 0);
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
 }
 
 ///////////////////////////////////////////////////
@@ -1869,7 +1833,7 @@ TEST_F(Transform_test, TargetClientProvisionMissingInState)
 TEST_F(Transform_test, FilterIncompatibleWithEraser)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "source": "eraser", "filter": { "ConditionVar": "myVault" }, "target": "response.body.json.object./remove-me" })"_json;
+    const nlohmann::json item = R"({ "from": "eraser", "to": {"responseBody": "/remove-me"}, "filter": [{"ConditionVar": "myVault"}, {"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(TransformationItemBadRegex);
 
     // Run transformation:
@@ -1883,10 +1847,10 @@ TEST_F(Transform_test, FilterIncompatibleWithEraser)
 TEST_F(Transform_test, FilterRegexCapture)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "var.uri_parts", "target": "response.body.json.string./uri_parts" })"_json;
-    const nlohmann::json item2 = R"({ "source": "var.uri_parts.1", "target": "response.body.json.string./uri_parts.1" })"_json;
-    const nlohmann::json item3 = R"({ "source": "var.uri_parts.2", "target": "response.body.json.string./uri_parts.2" })"_json;
-    const nlohmann::json item4 = R"({ "source": "var.uri_parts.3", "target": "response.body.json.string./uri_parts.3" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"var": "uri_parts"}, "to": {"responseBody": "/uri_parts"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"var": "uri_parts.1"}, "to": {"responseBody": "/uri_parts.1"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"var": "uri_parts.2"}, "to": {"responseBody": "/uri_parts.2"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"var": "uri_parts.3"}, "to": {"responseBody": "/uri_parts.3"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(TransformationItemRegexCapture);
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -1912,10 +1876,10 @@ TEST_F(Transform_test, FilterRegexCaptureWithVault)
     // Build test provision:
     // RegexCapture on vault stores captures as JSON object: {"0": "full", "1": "group1", ...}
     // Access individual captures via json pointer path: vault.g_uri_parts./1
-    const nlohmann::json item1 = R"({ "source": "vault.g_uri_parts", "target": "response.body.json.object./g_uri_parts" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.g_uri_parts./1", "target": "response.body.json.string./g_uri_parts.1" })"_json;
-    const nlohmann::json item3 = R"({ "source": "vault.g_uri_parts./2", "target": "response.body.json.string./g_uri_parts.2" })"_json;
-    const nlohmann::json item4 = R"({ "source": "vault.g_uri_parts./3", "target": "response.body.json.string./g_uri_parts.3" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"vault": "g_uri_parts"}, "to": {"responseBody": "/g_uri_parts"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "g_uri_parts", "path": "/1"}, "to": {"responseBody": "/g_uri_parts.1"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"vault": "g_uri_parts", "path": "/2"}, "to": {"responseBody": "/g_uri_parts.2"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"vault": "g_uri_parts", "path": "/3"}, "to": {"responseBody": "/g_uri_parts.3"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(TransformationItemRegexCaptureWithVault);
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -1939,10 +1903,10 @@ TEST_F(Transform_test, FilterRegexCaptureWithVault)
 TEST_F(Transform_test, FilterRegexCaptureUnmatches)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "source": "var.uri_parts", "target": "response.body.json.string./uri_parts" })"_json;
-    const nlohmann::json item2 = R"({ "source": "var.uri_parts.1", "target": "response.body.json.string./uri_parts.1" })"_json;
-    const nlohmann::json item3 = R"({ "source": "var.uri_parts.2", "target": "response.body.json.string./uri_parts.2" })"_json;
-    const nlohmann::json item4 = R"({ "source": "var.uri_parts.3", "target": "response.body.json.string./uri_parts.3" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"var": "uri_parts"}, "to": {"responseBody": "/uri_parts"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"var": "uri_parts.1"}, "to": {"responseBody": "/uri_parts.1"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"var": "uri_parts.2"}, "to": {"responseBody": "/uri_parts.2"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"var": "uri_parts.3"}, "to": {"responseBody": "/uri_parts.3"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(TransformationItemRegexCaptureUnmatches);
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -1988,11 +1952,9 @@ TEST_F(Transform_test, FilterAppend)
     // Build test provision:
     const nlohmann::json item = R"(
     {
-      "source": "inState",
-      "target": "response.body.string",
-      "filter": {
-        "Append": " state, and variable is: @{myVault}"
-      }
+      "from": "inState",
+      "to": "responseBodyText",
+      "filter": [{"Append": " state, and variable is: @{myVault}"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2010,11 +1972,9 @@ TEST_F(Transform_test, FilterPrepend)
     // Build test provision:
     const nlohmann::json item = R"(
     {
-      "source": "inState",
-      "target": "response.body.string",
-      "filter": {
-        "Prepend": "@{myVault} variable value, and state is: "
-      }
+      "from": "inState",
+      "to": "responseBodyText",
+      "filter": [{"Prepend": "@{myVault} variable value, and state is: "}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2031,31 +1991,13 @@ TEST_F(Transform_test, FilterSum)
 {
     // Build test provision:
     const nlohmann::json item1 = R"(
-    {
-      "source": "value.-3",
-      "target": "var.accum",
-      "filter": {
-        "Sum": -5
-      }
-    }
+    {"from": {"value": "-3"}, "to": {"var": "accum"}, "filter": [{"Sum": -5}]}
     )"_json;
     const nlohmann::json item2 = R"(
-    {
-      "source": "var.accum",
-      "target": "response.body.string",
-      "filter": {
-        "Sum": 9
-      }
-    }
+    {"from": {"var": "accum"}, "to": "responseBodyText", "filter": [{"Sum": 9}]}
     )"_json;
     const nlohmann::json item3 = R"(
-    {
-      "source": "value.200.5",
-      "target": "response.statusCode",
-      "filter": {
-        "Sum": 0.5
-      }
-    }
+    {"from": {"value": "200.5"}, "to": "responseStatusCode", "filter": [{"Sum": 0.5}]}
     )"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -2073,31 +2015,13 @@ TEST_F(Transform_test, FilterMultiply)
 {
     // Build test provision:
     const nlohmann::json item1 = R"(
-    {
-      "source": "value.10",
-      "target": "var.accum",
-      "filter": {
-        "Multiply": 2
-      }
-    }
+    {"from": {"value": "10"}, "to": {"var": "accum"}, "filter": [{"Multiply": 2}]}
     )"_json;
     const nlohmann::json item2 = R"(
-    {
-      "source": "var.accum",
-      "target": "var.accum",
-      "filter": {
-        "Multiply": -0.5
-      }
-    }
+    {"from": {"var": "accum"}, "to": {"var": "accum"}, "filter": [{"Multiply": -0.5}]}
     )"_json;
     const nlohmann::json item3 = R"(
-    {
-      "source": "var.accum",
-      "target": "response.body.string",
-      "filter": {
-        "Multiply": -1
-      }
-    }
+    {"from": {"var": "accum"}, "to": "responseBodyText", "filter": [{"Multiply": -1}]}
     )"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -2116,20 +2040,16 @@ TEST_F(Transform_test, FilterEqualTo)
     // Build test provision:
     const nlohmann::json item1 = R"(
     {
-      "source": "value.myVault_value",
-      "target": "response.body.string",
-      "filter": {
-        "EqualTo": "@{myVault}"
-      }
+      "from": {"value": "myVault_value"},
+      "to": "responseBodyText",
+      "filter": [{"EqualTo": "@{myVault}"}]
     }
     )"_json;
     const nlohmann::json item2 = R"(
     {
-      "source": "value.this is different",
-      "target": "response.body.string",
-      "filter": {
-        "EqualTo": "@{myVault}"
-      }
+      "from": {"value": "this is different"},
+      "to": "responseBodyText",
+      "filter": [{"EqualTo": "@{myVault}"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item1);
@@ -2148,20 +2068,16 @@ TEST_F(Transform_test, FilterDifferentFrom)
     // Build test provision:
     const nlohmann::json item1 = R"(
     {
-      "source": "value.myVault_value",
-      "target": "response.body.string",
-      "filter": {
-        "DifferentFrom": "@{myVault}"
-      }
+      "from": {"value": "myVault_value"},
+      "to": "responseBodyText",
+      "filter": [{"DifferentFrom": "@{myVault}"}]
     }
     )"_json;
     const nlohmann::json item2 = R"(
     {
-      "source": "value.this is different",
-      "target": "response.body.string",
-      "filter": {
-        "DifferentFrom": "@{myVault}"
-      }
+      "from": {"value": "this is different"},
+      "to": "responseBodyText",
+      "filter": [{"DifferentFrom": "@{myVault}"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item1);
@@ -2179,30 +2095,16 @@ TEST_F(Transform_test, FilterConditionVar)
 {
     // Build test provision:
     const nlohmann::json item1 = R"(
-    {
-      "source": "value.hi",
-      "target": "response.body.string",
-      "filter": {
-        "ConditionVar": "myVault"
-      }
-    }
+    {"from": {"value": "hi"}, "to": "responseBodyText", "filter": [{"ConditionVar": "myVault"}]}
     )"_json;
     const nlohmann::json item2 = R"(
-    {
-      "source": "value.bye",
-      "target": "response.body.string",
-      "filter": {
-        "ConditionVar": "missingVar"
-      }
-    }
+    {"from": {"value": "bye"}, "to": "responseBodyText", "filter": [{"ConditionVar": "missingVar"}]}
     )"_json;
     const nlohmann::json item3 = R"(
     {
-      "source": "value.201",
-      "target": "response.statusCode",
-      "filter": {
-        "ConditionVar": "!missingVar"
-      }
+      "from": {"value": "201"},
+      "to": "responseStatusCode",
+      "filter": [{"ConditionVar": "!missingVar"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item1);
@@ -2222,12 +2124,10 @@ TEST_F(Transform_test, OnFilterFail)
     // ConditionVar with onFilterFail: if myVault exists -> "found", else -> "missing"
     const nlohmann::json item1 = R"(
     {
-      "source": "value.found",
-      "target": "response.body.string",
-      "filter": { "ConditionVar": "myVault" },
-      "onFilterFail": [
-        { "source": "value.missing", "target": "response.body.string" }
-      ]
+      "from": {"value": "found"},
+      "to": "responseBodyText",
+      "filter": [{"ConditionVar": "myVault"}],
+      "onFilterFail": [{"from": {"value": "missing"}, "to": "responseBodyText"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item1);
@@ -2243,12 +2143,10 @@ TEST_F(Transform_test, OnFilterFailTriggered)
     // ConditionVar on non-existent var: filter fails, onFilterFail executes
     const nlohmann::json item1 = R"(
     {
-      "source": "value.found",
-      "target": "response.body.string",
-      "filter": { "ConditionVar": "nonExistent" },
-      "onFilterFail": [
-        { "source": "value.fallback", "target": "response.body.string" }
-      ]
+      "from": {"value": "found"},
+      "to": "responseBodyText",
+      "filter": [{"ConditionVar": "nonExistent"}],
+      "onFilterFail": [{"from": {"value": "fallback"}, "to": "responseBodyText"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item1);
@@ -2263,12 +2161,10 @@ TEST_F(Transform_test, OnFilterFailWithEqualTo)
     // EqualTo filter with onFilterFail
     const nlohmann::json item1 = R"(
     {
-      "source": "value.hello",
-      "target": "response.body.string",
-      "filter": { "EqualTo": "world" },
-      "onFilterFail": [
-        { "source": "value.not_equal", "target": "response.body.string" }
-      ]
+      "from": {"value": "hello"},
+      "to": "responseBodyText",
+      "filter": [{"EqualTo": "world"}],
+      "onFilterFail": [{"from": {"value": "not_equal"}, "to": "responseBodyText"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item1);
@@ -2284,17 +2180,15 @@ TEST_F(Transform_test, OnFilterFailNested)
     // Nested onFilterFail: if/else-if/else — tests deep recursion
     const nlohmann::json item1 = R"(
     {
-      "source": "value.hello",
-      "target": "response.body.string",
-      "filter": { "EqualTo": "a" },
+      "from": {"value": "hello"},
+      "to": "responseBodyText",
+      "filter": [{"EqualTo": "a"}],
       "onFilterFail": [
         {
-          "source": "value.hello",
-          "target": "response.body.string",
-          "filter": { "EqualTo": "b" },
-          "onFilterFail": [
-            { "source": "value.default", "target": "response.body.string" }
-          ]
+          "from": {"value": "hello"},
+          "to": "responseBodyText",
+          "filter": [{"EqualTo": "b"}],
+          "onFilterFail": [{"from": {"value": "default"}, "to": "responseBodyText"}]
         }
       ]
     }
@@ -2312,13 +2206,9 @@ TEST_F(Transform_test, FilterJsonConstraintSucceed)
     // Build test provision:
     const nlohmann::json item = R"(
     {
-      "source": "request.body",
-      "target": "response.body.string",
-      "filter": {
-        "JsonConstraint": {
-          "foo": 1
-        }
-      }
+      "from": {"requestBody": ""},
+      "to": "responseBodyText",
+      "filter": [{"JsonConstraint": {"foo": 1}}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2336,13 +2226,9 @@ TEST_F(Transform_test, FilterJsonConstraintFail)
     // Build test provision:
     const nlohmann::json item = R"(
     {
-      "source": "request.body",
-      "target": "response.body.string",
-      "filter": {
-        "JsonConstraint": {
-          "foo": 2
-        }
-      }
+      "from": {"requestBody": ""},
+      "to": "responseBodyText",
+      "filter": [{"JsonConstraint": {"foo": 2}}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2362,25 +2248,19 @@ TEST_F(Transform_test, FilterJsonConstraintFailAndTargetVariable)
     // Build test provision:
     const nlohmann::json item1 = R"(
     {
-      "source": "request.body",
-      "target": "var.expectedBody",
-      "filter": {
-        "JsonConstraint": {
-          "foo": 2
-        }
-      }
+      "from": {"requestBody": ""},
+      "to": {"var": "expectedBody"},
+      "filter": [{"JsonConstraint": {"foo": 2}}]
     }
     )"_json;
     const nlohmann::json item2 = R"(
     {
-      "source": "value.400",
-      "target": "response.statusCode",
-      "filter": {
-        "ConditionVar": "!expectedBody"
-      }
+      "from": {"value": "400"},
+      "to": "responseStatusCode",
+      "filter": [{"ConditionVar": "!expectedBody"}]
     }
     )"_json;
-    const nlohmann::json item3 = R"({ "source": "var.expectedBody.fail", "target": "response.body.string" })"_json;
+    const nlohmann::json item3 = R"({ "from": {"var": "expectedBody.fail"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -2398,11 +2278,9 @@ TEST_F(Transform_test, FilterSchemaId)
     // Build test provision:
     const nlohmann::json item = R"(
     {
-      "source": "request.body",
-      "target": "response.body.string",
-      "filter": {
-        "SchemaId": "SchemaExample"
-      }
+      "from": {"requestBody": ""},
+      "to": "responseBodyText",
+      "filter": [{"SchemaId": "SchemaExample"}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2442,7 +2320,7 @@ TEST_F(Transform_test, NeedsStorageFalseForBasicProvision)
 
 TEST_F(Transform_test, NeedsStorageTrueForServerEventSource)
 {
-    server_provision_json_["transform"] = R"([{"source":"serverEvent.requestBody","target":"response.body.json.string./result"}])"_json;
+    server_provision_json_["transform"] = R"([{"from": {"serverEvent": "requestBody"}, "to": {"responseBody": "/result"}, "filter": [{"as": "string"}]}])"_json;
     EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
     auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision != nullptr);
@@ -2452,7 +2330,7 @@ TEST_F(Transform_test, NeedsStorageTrueForServerEventSource)
 
 TEST_F(Transform_test, NeedsStorageTrueForServerEventToPurgeTarget)
 {
-    server_provision_json_["transform"] = R"([{"source":"eraser","target":"serverEvent.purge"}])"_json;
+    server_provision_json_["transform"] = R"([{"from": "eraser", "to": {"serverEvent": "purge"}}])"_json;
     EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
     auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision != nullptr);
@@ -2468,9 +2346,7 @@ TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
     nlohmann::json link1 = ProvisionConfiguration_GET;
     link1["inState"] = "initial";
     link1["outState"] = "step2";
-    link1["transform"] = R"([
-        {"source": "request.body./foo", "target": "var.captured"}
-    ])"_json;
+    link1["transform"] = R"([{"from": {"requestBody": "/foo"}, "to": {"var": "captured"}}])"_json;
 
     EXPECT_EQ(adata_.loadServerProvision(link1, common_resources_), h2agent::model::AdminServerProvisionData::Success);
     auto provision1 = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
@@ -2485,9 +2361,7 @@ TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
     // Link 2: read var.captured into response body (same variables_ map = chain propagation)
     nlohmann::json link2 = ProvisionConfiguration_GET;
     link2["inState"] = "step2";
-    link2["transform"] = R"([
-        {"source": "var.captured", "target": "response.body.string"}
-    ])"_json;
+    link2["transform"] = R"([{"from": {"var": "captured"}, "to": "responseBodyText"}])"_json;
 
     EXPECT_EQ(adata_.loadServerProvision(link2, common_resources_), h2agent::model::AdminServerProvisionData::Success);
     auto provision2 = adata_.getServerProvisionData().find("step2", "GET", "/app/v1/foo/bar/1?name=test");
@@ -2546,9 +2420,9 @@ TEST_F(Transform_test, FilterSplitPadding)
     // Source shorter than size*count -> left-pad with filler
     const nlohmann::json item = R"(
     {
-      "source": "value.123",
-      "target": "response.body.string",
-      "filter": { "Split": { "size": 2, "count": 4, "numeric": true } }
+      "from": {"value": "123"},
+      "to": "responseBodyText",
+      "filter": [{"Split": {"size": 2, "count": 4, "numeric": true}}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2566,9 +2440,9 @@ TEST_F(Transform_test, FilterSplitTruncation)
     // Source longer than size*count -> take last size*count chars
     const nlohmann::json item = R"(
     {
-      "source": "value.987655011223",
-      "target": "response.body.string",
-      "filter": { "Split": { "numeric": true } }
+      "from": {"value": "987655011223"},
+      "to": "responseBodyText",
+      "filter": [{"Split": {"numeric": true}}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2617,9 +2491,9 @@ TEST_F(Transform_test, FilterBaseConvertZero)
 {
     const nlohmann::json item = R"(
     {
-      "source": "value.0",
-      "target": "response.body.string",
-      "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+      "from": {"value": "0"},
+      "to": "responseBodyText",
+      "filter": [{"BaseConvert": {"in": 10, "out": 16}}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2632,9 +2506,9 @@ TEST_F(Transform_test, FilterBaseConvertInvalidSource)
 {
     const nlohmann::json item = R"(
     {
-      "source": "value.not_a_number",
-      "target": "response.body.string",
-      "filter": { "BaseConvert": { "in": 10, "out": 16 } }
+      "from": {"value": "not_a_number"},
+      "to": "responseBodyText",
+      "filter": [{"BaseConvert": {"in": 10, "out": 16}}]
     }
     )"_json;
     server_provision_json_["transform"].push_back(item);
@@ -2646,10 +2520,7 @@ TEST_F(Transform_test, FilterBaseConvertInvalidSource)
 TEST_F(Transform_test, SourceRequestHeaders)
 {
     const nlohmann::json item = R"(
-    {
-      "source": "request.headers",
-      "target": "response.body.json.object./hdrs"
-    }
+    {"from": "requestHeaders", "to": {"responseBody": "/hdrs"}, "filter": [{"as": "object"}]}
     )"_json;
     server_provision_json_["transform"].push_back(item);
     provisionAndTransform(request_body_.dump());
@@ -2675,10 +2546,7 @@ TEST_F(Transform_test, SourceRequestHeadersDuplicateKeys)
     request_headers_.emplace("cookie", nghttp2::asio_http2::header_value{"lang=en"});
 
     const nlohmann::json item = R"(
-    {
-      "source": "request.headers",
-      "target": "response.body.json.object./hdrs"
-    }
+    {"from": "requestHeaders", "to": {"responseBody": "/hdrs"}, "filter": [{"as": "object"}]}
     )"_json;
     server_provision_json_["transform"].push_back(item);
     provisionAndTransform(request_body_.dump());
@@ -2699,10 +2567,21 @@ TEST_F(Transform_test, SourceRequestHeadersDuplicateKeys)
 // an EMPTY headers array, which must still be validated (v1 RequestHeaders never
 // fails), so the constraint fails and the fallback rules answer 400.
 static const nlohmann::json HeadersJsonConstraintTransform = R"([
-  {"source": "request.headers", "target": "var.validatedHeaders",
-   "filter": {"JsonConstraint": [{"name": "x-mandatory", "value": "required-value"}]}},
-  {"source": "value.400", "target": "response.statusCode", "filter": {"ConditionVar": "!validatedHeaders"}},
-  {"source": "var.validatedHeaders.fail", "target": "response.body.string", "filter": {"ConditionVar": "!validatedHeaders"}}
+  {
+    "from": "requestHeaders",
+    "to": {"var": "validatedHeaders"},
+    "filter": [{"JsonConstraint": [{"name": "x-mandatory", "value": "required-value"}]}]
+  },
+  {
+    "from": {"value": "400"},
+    "to": "responseStatusCode",
+    "filter": [{"ConditionVar": "!validatedHeaders"}]
+  },
+  {
+    "from": {"var": "validatedHeaders.fail"},
+    "to": "responseBodyText",
+    "filter": [{"ConditionVar": "!validatedHeaders"}]
+  }
 ])"_json;
 
 TEST_F(Transform_test, SourceRequestHeadersEmptyJsonConstraintFails)
@@ -2745,9 +2624,9 @@ TEST_F(Transform_test, SourceRequestHeadersJsonConstraintSucceeds)
 TEST_F(Transform_test, TargetVaultWithPath)
 {
     // Store a value at a specific path within a vault entry
-    const nlohmann::json item1 = R"({ "source": "value.alice", "target": "vault.user./name" })"_json;
-    const nlohmann::json item2 = R"({ "source": "value.30", "target": "vault.user./age" })"_json;
-    const nlohmann::json item3 = R"({ "source": "vault.user", "target": "response.body.json.object./result" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "alice"}, "to": {"vault": "user", "path": "/name"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"value": "30"}, "to": {"vault": "user", "path": "/age"} })"_json;
+    const nlohmann::json item3 = R"({ "from": {"vault": "user"}, "to": {"responseBody": "/result"}, "filter": [{"as": "object"}] })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -2765,7 +2644,7 @@ TEST_F(Transform_test, SourceVaultWithPath)
     // Pre-load a JSON object, then read a subfield via path
     common_resources_.VaultPtr->load("config", nlohmann::json({{"host","localhost"},{"port",8080}}));
 
-    const nlohmann::json item = R"({ "source": "vault.config./host", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"vault": "config", "path": "/host"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     provisionAndTransform(request_body_.dump());
@@ -2779,7 +2658,7 @@ TEST_F(Transform_test, SourceVaultWithPathNumeric)
     // Read a numeric subfield — should come as json dump
     common_resources_.VaultPtr->load("config", nlohmann::json({{"port",8080}}));
 
-    const nlohmann::json item = R"({ "source": "vault.config./port", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"vault": "config", "path": "/port"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     provisionAndTransform(request_body_.dump());
@@ -2793,7 +2672,7 @@ TEST_F(Transform_test, SourceVaultWithPathMissing)
     // Path does not exist — transform should be skipped
     common_resources_.VaultPtr->load("config", nlohmann::json({{"host","localhost"}}));
 
-    const nlohmann::json item = R"({ "source": "vault.config./missing", "target": "response.body.string" })"_json;
+    const nlohmann::json item = R"({ "from": {"vault": "config", "path": "/missing"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item);
 
     provisionAndTransform(request_body_.dump());
@@ -2805,8 +2684,8 @@ TEST_F(Transform_test, SourceVaultWithPathMissing)
 TEST_F(Transform_test, TargetVaultJsonObject)
 {
     // Store a JSON object from request body into vault, then read a subfield
-    const nlohmann::json item1 = R"({ "source": "request.body", "target": "vault.captured" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.captured./foo", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"requestBody": ""}, "to": {"vault": "captured"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "captured", "path": "/foo"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -2819,8 +2698,8 @@ TEST_F(Transform_test, TargetVaultJsonObject)
 TEST_F(Transform_test, TargetVaultJsonObjectTyped)
 {
     // vault.key.json.object stores source as native JSON object
-    const nlohmann::json item1 = R"({ "source": "request.body", "target": "vault.obj.json.object" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.obj./foo", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"requestBody": ""}, "to": {"vault": "obj"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "obj", "path": "/foo"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -2833,8 +2712,8 @@ TEST_F(Transform_test, TargetVaultJsonObjectTyped)
 TEST_F(Transform_test, TargetVaultJsonObjectTypedWithPath)
 {
     // vault.key.json.object./path stores object at sub-path
-    const nlohmann::json item1 = R"({ "source": "request.body", "target": "vault.container.json.object./nested" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.container./nested/foo", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"requestBody": ""}, "to": {"vault": "container", "path": "/nested"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "container", "path": "/nested/foo"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -2847,8 +2726,8 @@ TEST_F(Transform_test, TargetVaultJsonObjectTypedWithPath)
 TEST_F(Transform_test, TargetVaultJsonObjectTypedFailsOnString)
 {
     // vault.key.json.object should skip when source is a plain string (not an object)
-    const nlohmann::json item1 = R"({ "source": "value.just-a-string", "target": "vault.obj.json.object" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.obj", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "just-a-string"}, "to": {"vault": "obj"}, "filter": [{"as": "object"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "obj"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -2862,9 +2741,9 @@ TEST_F(Transform_test, TargetVaultJsonObjectTypedFailsOnString)
 TEST_F(Transform_test, TargetVaultJsonJsonString)
 {
     // vault.key.json.jsonstring parses a JSON-encoded string into a native object
-    const nlohmann::json item1 = R"({ "source": "value.{\"volume\":100,\"time\":30}", "target": "vault.parsed.json.jsonstring" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.parsed./volume", "target": "response.body.json.unsigned./vol" })"_json;
-    const nlohmann::json item3 = R"({ "source": "vault.parsed./time", "target": "response.body.json.unsigned./t" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "{\"volume\":100,\"time\":30}"}, "to": {"vault": "parsed"}, "filter": [{"as": "json"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "parsed", "path": "/volume"}, "to": {"responseBody": "/vol"}, "filter": [{"as": "unsigned"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"vault": "parsed", "path": "/time"}, "to": {"responseBody": "/t"}, "filter": [{"as": "unsigned"}] })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -2880,8 +2759,8 @@ TEST_F(Transform_test, TargetVaultJsonJsonString)
 TEST_F(Transform_test, TargetVaultJsonJsonStringWithPath)
 {
     // vault.key.json.jsonstring./path parses and stores at sub-path
-    const nlohmann::json item1 = R"({ "source": "value.{\"a\":1}", "target": "vault.container.json.jsonstring./data" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.container./data/a", "target": "response.body.json.integer./result" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "{\"a\":1}"}, "to": {"vault": "container", "path": "/data"}, "filter": [{"as": "json"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "container", "path": "/data/a"}, "to": {"responseBody": "/result"}, "filter": [{"as": "integer"}] })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -2895,8 +2774,8 @@ TEST_F(Transform_test, TargetVaultJsonJsonStringWithPath)
 TEST_F(Transform_test, TargetVaultJsonJsonStringInvalidJson)
 {
     // vault.key.json.jsonstring should skip when source is not valid JSON
-    const nlohmann::json item1 = R"({ "source": "value.not-valid-json", "target": "vault.parsed.json.jsonstring" })"_json;
-    const nlohmann::json item2 = R"({ "source": "vault.parsed", "target": "response.body.string" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "not-valid-json"}, "to": {"vault": "parsed"}, "filter": [{"as": "json"}] })"_json;
+    const nlohmann::json item2 = R"({ "from": {"vault": "parsed"}, "to": "responseBodyText" })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -2910,10 +2789,10 @@ TEST_F(Transform_test, TargetVaultJsonJsonStringInvalidJson)
 TEST_F(Transform_test, TargetVaultJsonJsonStringFromVar)
 {
     // Typical flow: serverEvent → var (string) → vault.json.jsonstring → vault path navigation
-    const nlohmann::json item1 = R"({ "source": "value.{\"name\":\"alice\",\"age\":30}", "target": "var.rawJson" })"_json;
-    const nlohmann::json item2 = R"({ "source": "var.rawJson", "target": "vault.user.json.jsonstring" })"_json;
-    const nlohmann::json item3 = R"({ "source": "vault.user./name", "target": "response.body.json.string./userName" })"_json;
-    const nlohmann::json item4 = R"({ "source": "vault.user./age", "target": "response.body.json.unsigned./userAge" })"_json;
+    const nlohmann::json item1 = R"({ "from": {"value": "{\"name\":\"alice\",\"age\":30}"}, "to": {"var": "rawJson"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"var": "rawJson"}, "to": {"vault": "user"}, "filter": [{"as": "json"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"vault": "user", "path": "/name"}, "to": {"responseBody": "/userName"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"vault": "user", "path": "/age"}, "to": {"responseBody": "/userAge"}, "filter": [{"as": "unsigned"}] })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -2931,9 +2810,9 @@ TEST_F(Transform_test, FilterStrptimeBasic)
 {
     // Parse a date string into epoch seconds
     const nlohmann::json item1 = R"({
-        "source": "value.2026-03-30T16:00:00",
-        "target": "response.body.json.integer./epoch",
-        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"value": "2026-03-30T16:00:00"},
+      "to": {"responseBody": "/epoch"},
+      "filter": [{"Strptime": {"fmt": "%Y-%m-%dT%H:%M:%S"}}, {"as": "integer"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -2948,9 +2827,9 @@ TEST_F(Transform_test, FilterStrptimeBasic)
 TEST_F(Transform_test, FilterStrptimeMilliseconds)
 {
     const nlohmann::json item1 = R"({
-        "source": "value.2026-03-30T16:00:00",
-        "target": "response.body.json.integer./epoch_ms",
-        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S", "unit": "ms" } }
+      "from": {"value": "2026-03-30T16:00:00"},
+      "to": {"responseBody": "/epoch_ms"},
+      "filter": [{"Strptime": {"fmt": "%Y-%m-%dT%H:%M:%S", "unit": "ms"}}, {"as": "integer"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -2965,9 +2844,9 @@ TEST_F(Transform_test, FilterStrptimeInvalidFormat)
 {
     // Invalid date string should skip the transform
     const nlohmann::json item1 = R"({
-        "source": "value.not-a-date",
-        "target": "response.body.json.integer./epoch",
-        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"value": "not-a-date"},
+      "to": {"responseBody": "/epoch"},
+      "filter": [{"Strptime": {"fmt": "%Y-%m-%dT%H:%M:%S"}}, {"as": "integer"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -2981,9 +2860,9 @@ TEST_F(Transform_test, FilterStrftimeBasic)
 {
     // Format epoch seconds into a date string
     const nlohmann::json item1 = R"({
-        "source": "value.1774886400",
-        "target": "response.body.json.string./date",
-        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"value": "1774886400"},
+      "to": {"responseBody": "/date"},
+      "filter": [{"Strftime": {"fmt": "%Y-%m-%dT%H:%M:%S"}}, {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -2997,9 +2876,9 @@ TEST_F(Transform_test, FilterStrftimeBasic)
 TEST_F(Transform_test, FilterStrftimeFromMilliseconds)
 {
     const nlohmann::json item1 = R"({
-        "source": "value.1774886400000",
-        "target": "response.body.json.string./date",
-        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S", "unit": "ms" } }
+      "from": {"value": "1774886400000"},
+      "to": {"responseBody": "/date"},
+      "filter": [{"Strftime": {"fmt": "%Y-%m-%dT%H:%M:%S", "unit": "ms"}}, {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -3014,19 +2893,15 @@ TEST_F(Transform_test, FilterStrptimeStrftimeRoundTrip)
 {
     // Parse → Sum 1 hour → Format back
     const nlohmann::json item1 = R"({
-        "source": "value.2026-03-30T16:00:00",
-        "target": "var.epoch",
-        "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"value": "2026-03-30T16:00:00"},
+      "to": {"var": "epoch"},
+      "filter": [{"Strptime": {"fmt": "%Y-%m-%dT%H:%M:%S"}}]
     })"_json;
-    const nlohmann::json item2 = R"({
-        "source": "var.epoch",
-        "target": "var.epoch",
-        "filter": { "Sum": 3600 }
-    })"_json;
+    const nlohmann::json item2 = R"({"from": {"var": "epoch"}, "to": {"var": "epoch"}, "filter": [{"Sum": 3600}]})"_json;
     const nlohmann::json item3 = R"({
-        "source": "var.epoch",
-        "target": "response.body.json.string./future",
-        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"var": "epoch"},
+      "to": {"responseBody": "/future"},
+      "filter": [{"Strftime": {"fmt": "%Y-%m-%dT%H:%M:%S"}}, {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -3043,9 +2918,9 @@ TEST_F(Transform_test, FilterStrftimeNonNumericSource)
 {
     // Strftime with a non-numeric source should skip
     const nlohmann::json item1 = R"({
-        "source": "value.not-a-number",
-        "target": "response.body.json.string./date",
-        "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+      "from": {"value": "not-a-number"},
+      "to": {"responseBody": "/date"},
+      "filter": [{"Strftime": {"fmt": "%Y-%m-%dT%H:%M:%S"}}, {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -3063,14 +2938,11 @@ TEST_F(Transform_test, FilterRegexKeyBasic)
         {"user-5678-def", nlohmann::json({{"name", "bob"}, {"age", 25}})}
     }));
 
-    const nlohmann::json item1 = R"({
-        "source": "vault.data",
-        "target": "vault.found",
-        "filter": { "RegexKey": "user-5678-.*" }
-    })"_json;
+    const nlohmann::json item1 = R"({"from": {"vault": "data"}, "to": {"vault": "found"}, "filter": [{"RegexKey": "user-5678-.*"}]})"_json;
     const nlohmann::json item2 = R"({
-        "source": "vault.found./name",
-        "target": "response.body.json.string./result"
+      "from": {"vault": "found", "path": "/name"},
+      "to": {"responseBody": "/result"},
+      "filter": [{"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -3086,14 +2958,11 @@ TEST_F(Transform_test, FilterRegexKeyFromRequestBody)
 {
     // RegexKey on request body subpath
     const nlohmann::json item1 = R"({
-        "source": "request.body./node1",
-        "target": "vault.match",
-        "filter": { "RegexKey": "node.*" }
+      "from": {"requestBody": "/node1"},
+      "to": {"vault": "match"},
+      "filter": [{"RegexKey": "node.*"}]
     })"_json;
-    const nlohmann::json item2 = R"({
-        "source": "vault.match",
-        "target": "response.body.string"
-    })"_json;
+    const nlohmann::json item2 = R"({"from": {"vault": "match"}, "to": "responseBodyText"})"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -3108,9 +2977,9 @@ TEST_F(Transform_test, FilterRegexKeyNoMatch)
     common_resources_.VaultPtr->load("data", nlohmann::json({{"keyA", 1}, {"keyB", 2}}));
 
     const nlohmann::json item1 = R"({
-        "source": "vault.data",
-        "target": "response.body.json.integer./val",
-        "filter": { "RegexKey": "noMatch.*" }
+      "from": {"vault": "data"},
+      "to": {"responseBody": "/val"},
+      "filter": [{"RegexKey": "noMatch.*"}, {"as": "integer"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -3123,11 +2992,7 @@ TEST_F(Transform_test, FilterRegexKeyNoMatch)
 TEST_F(Transform_test, FilterRegexKeyNotAnObject)
 {
     // Source is a string, not an object — filter should be skipped
-    const nlohmann::json item1 = R"({
-        "source": "value.just-a-string",
-        "target": "vault.result",
-        "filter": { "RegexKey": ".*" }
-    })"_json;
+    const nlohmann::json item1 = R"({"from": {"value": "just-a-string"}, "to": {"vault": "result"}, "filter": [{"RegexKey": ".*"}]})"_json;
     server_provision_json_["transform"].push_back(item1);
 
     provisionAndTransform(request_body_.dump());
@@ -3142,9 +3007,9 @@ TEST_F(Transform_test, FilterRegexKeyStringValue)
     common_resources_.VaultPtr->load("cfg", nlohmann::json({{"host-prod", "10.0.0.1"}, {"host-dev", "127.0.0.1"}}));
 
     const nlohmann::json item1 = R"({
-        "source": "vault.cfg",
-        "target": "response.body.json.string./addr",
-        "filter": { "RegexKey": "host-prod" }
+      "from": {"vault": "cfg"},
+      "to": {"responseBody": "/addr"},
+      "filter": [{"RegexKey": "host-prod"}, {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item1);
 
@@ -3164,28 +3029,28 @@ TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVault)
     }));
 
     const nlohmann::json item1 = R"delim({
-        "source": "vault.data",
-        "target": "vault.matched",
-        "filter": { "RegexKey": "imsi-([0-9]+):(rule1)" }
+      "from": {"vault": "data"},
+      "to": {"vault": "matched"},
+      "filter": [{"RegexKey": "imsi-([0-9]+):(rule1)"}]
     })delim"_json;
-const nlohmann::json item2 = R"({ "source": "vault.matched./qos", "target": "response.body.json.integer./qos" })"_json;
-const nlohmann::json item3 = R"({ "source": "var.matched.0", "target": "response.body.json.string./key" })"_json;
-const nlohmann::json item4 = R"({ "source": "var.matched.1", "target": "response.body.json.string./imsi" })"_json;
-const nlohmann::json item5 = R"({ "source": "var.matched.2", "target": "response.body.json.string./rule" })"_json;
-server_provision_json_["transform"].push_back(item1);
-server_provision_json_["transform"].push_back(item2);
-server_provision_json_["transform"].push_back(item3);
-server_provision_json_["transform"].push_back(item4);
-server_provision_json_["transform"].push_back(item5);
+    const nlohmann::json item2 = R"({ "from": {"vault": "matched", "path": "/qos"}, "to": {"responseBody": "/qos"}, "filter": [{"as": "integer"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"var": "matched.0"}, "to": {"responseBody": "/key"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"var": "matched.1"}, "to": {"responseBody": "/imsi"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item5 = R"({ "from": {"var": "matched.2"}, "to": {"responseBody": "/rule"}, "filter": [{"as": "string"}] })"_json;
+    server_provision_json_["transform"].push_back(item1);
+    server_provision_json_["transform"].push_back(item2);
+    server_provision_json_["transform"].push_back(item3);
+    server_provision_json_["transform"].push_back(item4);
+    server_provision_json_["transform"].push_back(item5);
 
-provisionAndTransform(request_body_.dump());
+    provisionAndTransform(request_body_.dump());
 
-EXPECT_EQ(status_code_, 200);
-nlohmann::json body = nlohmann::json::parse(response_body_);
-EXPECT_EQ(body["qos"], 15);
-EXPECT_EQ(body["key"], "imsi-5550110000000:rule1");
-EXPECT_EQ(body["imsi"], "5550110000000");
-EXPECT_EQ(body["rule"], "rule1");
+    EXPECT_EQ(status_code_, 200);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["qos"], 15);
+    EXPECT_EQ(body["key"], "imsi-5550110000000:rule1");
+    EXPECT_EQ(body["imsi"], "5550110000000");
+    EXPECT_EQ(body["rule"], "rule1");
 }
 
 TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVar)
@@ -3197,14 +3062,14 @@ TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVar)
     }));
 
     const nlohmann::json item1 = R"delim({
-        "source": "vault.cfg",
-        "target": "var.result",
-        "filter": { "RegexKey": "host-(prod)-(eu)" }
+      "from": {"vault": "cfg"},
+      "to": {"var": "result"},
+      "filter": [{"RegexKey": "host-(prod)-(eu)"}]
     })delim"_json;
-    const nlohmann::json item2 = R"({ "source": "var.result", "target": "response.body.json.string./value" })"_json;
-    const nlohmann::json item3 = R"({ "source": "var.result.0", "target": "response.body.json.string./key" })"_json;
-    const nlohmann::json item4 = R"({ "source": "var.result.1", "target": "response.body.json.string./env" })"_json;
-    const nlohmann::json item5 = R"({ "source": "var.result.2", "target": "response.body.json.string./region" })"_json;
+    const nlohmann::json item2 = R"({ "from": {"var": "result"}, "to": {"responseBody": "/value"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item3 = R"({ "from": {"var": "result.0"}, "to": {"responseBody": "/key"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item4 = R"({ "from": {"var": "result.1"}, "to": {"responseBody": "/env"}, "filter": [{"as": "string"}] })"_json;
+    const nlohmann::json item5 = R"({ "from": {"var": "result.2"}, "to": {"responseBody": "/region"}, "filter": [{"as": "string"}] })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -3224,9 +3089,9 @@ TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVar)
 TEST_F(Transform_test, FilterSizeJsonArray)
 {
     const nlohmann::json item = R"({
-        "source": "request.body./node1/node2",
-        "target": "response.body.json.string./count",
-        "filter": "Size"
+      "from": {"requestBody": "/node1/node2"},
+      "to": {"responseBody": "/count"},
+      "filter": ["Size", {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item);
 
@@ -3235,9 +3100,9 @@ TEST_F(Transform_test, FilterSizeJsonArray)
     nlohmann::json body;
     body["items"] = nlohmann::json::array({1, 2, 3, 4, 5});
     const nlohmann::json item2 = R"({
-        "source": "request.body./items",
-        "target": "response.body.json.string./count",
-        "filter": "Size"
+      "from": {"requestBody": "/items"},
+      "to": {"responseBody": "/count"},
+      "filter": ["Size", {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].clear();
     server_provision_json_["transform"].push_back(item2);
@@ -3254,9 +3119,9 @@ TEST_F(Transform_test, FilterSizeJsonObject)
     nlohmann::json body;
     body["data"] = nlohmann::json({{"a", 1}, {"b", 2}, {"c", 3}});
     const nlohmann::json item = R"({
-        "source": "request.body./data",
-        "target": "response.body.json.string./count",
-        "filter": "Size"
+      "from": {"requestBody": "/data"},
+      "to": {"responseBody": "/count"},
+      "filter": ["Size", {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item);
 
@@ -3270,9 +3135,9 @@ TEST_F(Transform_test, FilterSizeJsonObject)
 TEST_F(Transform_test, FilterSizeString)
 {
     const nlohmann::json item = R"({
-        "source": "value.hello",
-        "target": "response.body.json.string./count",
-        "filter": "Size"
+      "from": {"value": "hello"},
+      "to": {"responseBody": "/count"},
+      "filter": ["Size", {"as": "string"}]
     })"_json;
     server_provision_json_["transform"].push_back(item);
 

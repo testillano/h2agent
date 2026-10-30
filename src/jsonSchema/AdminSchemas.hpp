@@ -37,6 +37,7 @@ SOFTWARE.
 
 // Standard
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -45,6 +46,216 @@ namespace h2agent
 {
 namespace adminSchemas
 {
+
+//////////////////////////////////////////////////////////////////////////////
+// Transformation grammar v2 (docs/developers/GrammarV2.md)
+//
+// Rule: {"from": <source>, "to": <target>, "filter": [<filter>...], "onFilterFail": [<rule>...]}
+// A kind without arguments is a plain string ("requestHeaders"); a kind with
+// arguments is an object with exactly one kind key plus its sibling fields
+// ({"vault": "K", "path": "/a"}). Each kind has exactly one valid form.
+//
+// The schema is built from per-kind tables so that each provision context
+// (server transform, client transform, client onResponseTransform) lists the
+// kinds it accepts, exactly as the v1 schema patterns did.
+//////////////////////////////////////////////////////////////////////////////
+namespace grammar
+{
+
+/** Json-pointer argument: "" (whole document) or "/<node>...". */
+inline nlohmann::json pointerArg() {
+    return {{"type", "string"}, {"pattern", "^(/.*)?$"}};
+}
+inline nlohmann::json textArg() {
+    return {{"type", "string"}, {"minLength", 1}};
+}
+inline nlohmann::json anyTextArg() {
+    return {{"type", "string"}};
+}
+inline nlohmann::json vaultKeyArg() {
+    return {{"type", "string"}, {"pattern", "^[^.]+$"}};
+}
+inline nlohmann::json nodePathArg() {
+    return {{"type", "string"}, {"pattern", "^/.+$"}};
+}
+
+/** Object kind: exactly the kind key (mandatory) plus optional/mandatory siblings. */
+inline nlohmann::json objectKind(const std::string &kind, const nlohmann::json &arg,
+                                 const nlohmann::json &siblings = nlohmann::json::object(),
+                                 const std::vector<std::string> &requiredSiblings = {}) {
+    nlohmann::json properties = siblings;
+    properties[kind] = arg;
+    nlohmann::json required = nlohmann::json::array({kind});
+    for (const auto &s : requiredSiblings) required.push_back(s);
+    return {{"type", "object"}, {"additionalProperties", false}, {"required", required}, {"properties", properties}};
+}
+
+inline const nlohmann::json &objectSources() {
+    static const nlohmann::json kinds = {
+        {"requestUriParam", objectKind("requestUriParam", textArg())},
+        {"requestBody", objectKind("requestBody", pointerArg())},
+        {"responseBody", objectKind("responseBody", pointerArg())},
+        {"requestHeader", objectKind("requestHeader", textArg())},
+        {"responseHeader", objectKind("responseHeader", textArg())},
+        {"math", objectKind("math", anyTextArg())},
+        {"random", objectKind("random", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"minItems", 2}, {"maxItems", 2}})},
+        {"randomset", objectKind("randomset", {{"type", "array"}, {"items", {{"type", "string"}}}, {"minItems", 1}})},
+        {"timestamp", objectKind("timestamp", {{"type", "string"}, {"enum", {"s", "ms", "us", "ns"}}})},
+        {"strftime", objectKind("strftime", textArg())},
+        {"var", objectKind("var", textArg())},
+        {"vault", objectKind("vault", vaultKeyArg(), {{"path", nodePathArg()}})},
+        {"value", objectKind("value", anyTextArg())},
+        {"serverEvent", objectKind("serverEvent", textArg())},
+        {"clientEvent", objectKind("clientEvent", textArg())},
+        {"txtFile", objectKind("txtFile", textArg())},
+        {"binFile", objectKind("binFile", textArg())},
+        {"command", objectKind("command", textArg())},
+    };
+    return kinds;
+}
+
+inline const nlohmann::json &objectTargets() {
+    static const nlohmann::json kinds = {
+        {"responseBody", objectKind("responseBody", pointerArg())},
+        {"requestBody", objectKind("requestBody", pointerArg())},
+        {"responseHeader", objectKind("responseHeader", textArg())},
+        {"requestHeader", objectKind("requestHeader", textArg())},
+        {"var", objectKind("var", textArg())},
+        {"vault", objectKind("vault", vaultKeyArg(), {{"path", nodePathArg()}})},
+        {   "foreignOutState", objectKind("foreignOutState", {{"type", "string"}, {"enum", {"POST", "GET", "PUT", "DELETE", "HEAD"}}},
+            {{"uri", textArg()}})
+        },
+        {"txtFile", objectKind("txtFile", textArg())},
+        {"binFile", objectKind("binFile", textArg())},
+        {   "udpSocket", objectKind("udpSocket", textArg(),
+            {{"delayMs", {{"oneOf", {{{"type", "integer"}, {"minimum", 0}}, textArg()}}}}})
+        },
+        {"serverEvent", objectKind("serverEvent", textArg())},
+        {"clientEvent", objectKind("clientEvent", textArg())},
+        {"clientProvision", objectKind("clientProvision", vaultKeyArg(), {{"inState", textArg()}}, {"inState"})},
+    };
+    return kinds;
+}
+
+/**
+ * One kind slot ('from' or 'to'): plain-string kinds as an enum, object kinds
+ * as one exclusive branch each. 'kinds' lists every kind accepted in the context.
+ */
+inline nlohmann::json slot(const std::vector<std::string> &kinds, const nlohmann::json &objectKinds) {
+    nlohmann::json plain = nlohmann::json::array();
+    nlohmann::json branches = nlohmann::json::array();
+    for (const auto &kind : kinds) {
+        auto it = objectKinds.find(kind);
+        if (it != objectKinds.end()) branches.push_back(*it);
+        else plain.push_back(kind);
+    }
+    if (!plain.empty()) branches.insert(branches.begin(), nlohmann::json{{"type", "string"}, {"enum", plain}});
+    return {{"oneOf", branches}};
+}
+
+/** Rule definition for one context; onFilterFail rules belong to the same context. */
+inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef, const std::string &selfRef) {
+    return {
+        {"type", "object"},
+        {"additionalProperties", false},
+        {"required", {"from", "to"}},
+        {   "properties", {
+                {"from", {{"$ref", fromRef}}},
+                {"to", {{"$ref", toRef}}},
+                {"filter", {{"type", "array"}, {"minItems", 1}, {"items", {{"$ref", "#/definitions/filter"}}}}},
+                {"onFilterFail", {{"type", "array"}, {"minItems", 1}, {"items", {{"$ref", selfRef}}}}}
+            }
+        }
+    };
+}
+
+/** Rules array (provision 'transform' / 'onResponseTransform' value). */
+inline nlohmann::json rules(const std::string &ruleRef, bool nonEmpty) {
+    nlohmann::json r = {{"type", "array"}, {"items", {{"$ref", ruleRef}}}};
+    if (nonEmpty) r["minItems"] = 1;
+    return r;
+}
+
+/** Adds the 'as' cast to the filter definition (last element of a filter list). */
+inline void addCastFilter(nlohmann::json &filterDefinition) {
+    nlohmann::json &object = filterDefinition["oneOf"][1];
+    object["oneOf"].push_back({{"required", {"as"}}});
+    object["properties"]["as"] = {{"type", "string"}, {"enum", {"string", "integer", "unsigned", "float", "boolean", "object", "json"}}};
+}
+
+// Kinds accepted per context (same scope as the v1 schema patterns):
+inline const std::vector<std::string> &serverFrom() {
+    static const std::vector<std::string> k = {
+        "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
+        "responseBody", "responseHeaders", "eraser", "math", "random", "randomset", "timestamp", "strftime",
+        "recvseq", "var", "vault", "serverEvent", "clientEvent", "value", "inState", "txtFile", "binFile", "command"
+    };
+    return k;
+}
+inline const std::vector<std::string> &serverTo() {
+    static const std::vector<std::string> k = {
+        "responseBodyText", "responseBodyHex", "responseBody", "responseHeader", "responseStatusCode",
+        "responseDelayMs", "var", "vault", "serverEvent", "outState", "foreignOutState", "txtFile", "binFile",
+        "udpSocket", "clientProvision", "break"
+    };
+    return k;
+}
+inline const std::vector<std::string> &clientFrom() {
+    static const std::vector<std::string> k = {
+        "requestUri", "requestBody", "requestHeader", "requestHeaders", "responseHeaders", "eraser", "math",
+        "random", "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent",
+        "value", "inState", "txtFile", "binFile", "command"
+    };
+    return k;
+}
+inline const std::vector<std::string> &clientTo() {
+    static const std::vector<std::string> k = {
+        "requestBodyText", "requestBodyHex", "requestBody", "requestHeader", "requestDelayMs", "requestTimeoutMs",
+        "requestUri", "requestMethod", "var", "vault", "clientEvent", "outState", "txtFile", "binFile", "udpSocket"
+    };
+    return k;
+}
+inline const std::vector<std::string> &clientResponseFrom() {
+    static const std::vector<std::string> k = {
+        "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
+        "responseBody", "responseHeader", "responseHeaders", "responseStatusCode", "eraser", "math", "random",
+        "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent", "value",
+        "inState", "txtFile", "binFile", "command"
+    };
+    return k;
+}
+inline const std::vector<std::string> &clientResponseTo() {
+    static const std::vector<std::string> k = {"var", "vault", "clientEvent", "outState", "txtFile", "binFile", "udpSocket", "break"};
+    return k;
+}
+
+/** Completes a server provision schema with the v2 transformation grammar. */
+inline nlohmann::json withServerGrammar(nlohmann::json schema) {
+    auto &d = schema["definitions"];
+    addCastFilter(d["filter"]);
+    d["from"] = slot(serverFrom(), objectSources());
+    d["to"] = slot(serverTo(), objectTargets());
+    d["rule"] = rule("#/definitions/from", "#/definitions/to", "#/definitions/rule");
+    schema["properties"]["transform"] = rules("#/definitions/rule", true);
+    return schema;
+}
+
+/** Completes a client provision schema with the v2 transformation grammar. */
+inline nlohmann::json withClientGrammar(nlohmann::json schema) {
+    auto &d = schema["definitions"];
+    addCastFilter(d["filter"]);
+    d["from"] = slot(clientFrom(), objectSources());
+    d["to"] = slot(clientTo(), objectTargets());
+    d["rule"] = rule("#/definitions/from", "#/definitions/to", "#/definitions/rule");
+    d["responseFrom"] = slot(clientResponseFrom(), objectSources());
+    d["responseTo"] = slot(clientResponseTo(), objectTargets());
+    d["responseRule"] = rule("#/definitions/responseFrom", "#/definitions/responseTo", "#/definitions/responseRule");
+    schema["properties"]["transform"] = rules("#/definitions/rule", true);
+    schema["properties"]["onResponseTransform"] = rules("#/definitions/responseRule", false);
+    return schema;
+}
+
+} // namespace grammar
 
 const nlohmann::json schema = R"(
 {
@@ -124,7 +335,7 @@ const nlohmann::json server_matching = R"(
 // ConditionVar pattern: ^(?!$)(?!!$).*$
 // 1) non empty string:     "negative lookahead" (?!$)
 // 2) non valid string "!": "negative lookahead" (?!!$)
-const nlohmann::json server_provision = R"(
+const nlohmann::json server_provision = grammar::withServerGrammar(R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
 
@@ -270,45 +481,13 @@ const nlohmann::json server_provision = R"(
     "responseDelayMs": {
       "type": "integer"
     },
-    "transform" : {
-      "type" : "array",
-      "minItems": 1,
-      "items" : {
-        "type" : "object",
-        "minProperties": 2,
-        "maxProperties": 4,
-        "properties": {
-          "source": {
-            "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+|headers)$|^response\\.(body(\\..+)?|headers)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^recvseq$|^(var|vault|serverEvent|clientEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
-          },
-          "target": {
-            "type": "string",
-            "pattern": "^response\\.body\\.(string$|hexstring$)|^response\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^response\\.(header\\..+|statusCode|delayMs)$|^(var|vault|serverEvent)\\..+|^outState(\\.(POST|GET|PUT|DELETE|HEAD)(\\..+)?)?$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^clientProvision\\..+|^break$"
-          },
-          "onFilterFail": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "minProperties": 2,
-              "required": ["source", "target"]
-            }
-          }
-        },
-        "additionalProperties" : {
-          "$ref" : "#/definitions/filter"
-        },
-        "required": [ "source", "target" ]
-      }
-    },
     "responseSchemaId": {
       "type": "string"
     }
   },
   "required": [ "requestMethod", "responseCode" ]
 }
-)"_json;
+)"_json);
 
 // Valid HTTP schemes:
 //
@@ -371,7 +550,7 @@ const nlohmann::json client_endpoint = R"(
 // ConditionVar pattern: ^(?!$)(?!!$).*$
 // 1) non empty string:     "negative lookahead" (?!$)
 // 2) non valid string "!": "negative lookahead" (?!!$)
-const nlohmann::json client_provision = R"(
+const nlohmann::json client_provision = grammar::withClientGrammar(R"(
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
 
@@ -526,69 +705,6 @@ const nlohmann::json client_provision = R"(
     "timeoutMs": {
       "type": "integer"
     },
-    "transform" : {
-      "type" : "array",
-      "minItems": 1,
-      "items" : {
-        "type" : "object",
-        "minProperties": 2,
-        "maxProperties": 4,
-        "properties": {
-          "source": {
-            "type": "string",
-            "pattern": "^request\\.(uri|body(\\..+)?|header\\..+|headers)$|^response\\.headers$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|vault|clientEvent|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
-          },
-          "target": {
-            "type": "string",
-            "pattern": "^request\\.body\\.(string$|hexstring$)|^request\\.body\\.json\\.(object$|object\\..+|jsonstring$|jsonstring\\..+|string$|string\\..+|integer$|integer\\..+|unsigned$|unsigned\\..+|float$|float\\..+|boolean$|boolean\\..+)|^request\\.(header\\..+|delayMs|timeoutMs|uri|method)$|^(var|vault|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+"
-          },
-          "onFilterFail": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "minProperties": 2,
-              "required": ["source", "target"]
-            }
-          }
-        },
-        "additionalProperties" : {
-          "$ref" : "#/definitions/filter"
-        },
-        "required": [ "source", "target" ]
-      }
-    },
-    "onResponseTransform" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "minProperties": 2,
-        "maxProperties": 4,
-        "properties": {
-          "source": {
-            "type": "string",
-            "pattern": "^request\\.(uri(\\.(path$|param\\..+))?|body(\\..+)?|header\\..+|headers)$|^response\\.(body(\\..+)?|header\\..+|headers|statusCode)$|^eraser$|^math\\..*|^random\\.[-+]{0,1}[0-9]+\\.[-+]{0,1}[0-9]+$|^randomset\\..+|^timestamp\\.[m|u|n]{0,1}s$|^strftime\\..+|^sendseq$|^(var|vault|clientEvent|serverEvent)\\..+|^(value)\\..*|^inState$|^txtFile\\..+|^binFile\\..+|^command\\..+"
-          },
-          "target": {
-            "type": "string",
-            "pattern": "^(var|vault|clientEvent)\\..+|^outState$|^txtFile\\..+|^binFile\\..+|^udpSocket\\..+|^break$"
-          },
-          "onFilterFail": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "minProperties": 2,
-              "required": ["source", "target"]
-            }
-          }
-        },
-        "additionalProperties" : {
-          "$ref" : "#/definitions/filter"
-        },
-        "required": [ "source", "target" ]
-      }
-    },
     "responseSchemaId": {
       "type": "string"
     },
@@ -600,7 +716,7 @@ const nlohmann::json client_provision = R"(
   },
   "required": [ "id" ]
 }
-)"_json;
+)"_json);
 
 }
 }

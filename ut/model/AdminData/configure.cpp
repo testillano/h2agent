@@ -39,17 +39,13 @@ const nlohmann::json ProvisionConfiguration__Success = R"(
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1?name=test",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "random.10.30",
-      "target": "response.body.json.integer./randomBetween10and30"
+      "from": {"random": [10, 30]},
+      "to": {"responseBody": "/randomBetween10and30"},
+      "filter": [{"as": "integer"}]
     }
   ],
   "requestSchemaId": "myRequestsSchema",

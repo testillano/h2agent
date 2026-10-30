@@ -14,3 +14,6 @@ INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+
+# Retired grammar v1 hint (GrammarMigrator::detect).
+target_link_libraries( h2agent-http2 PUBLIC h2agent-migrate-lib )

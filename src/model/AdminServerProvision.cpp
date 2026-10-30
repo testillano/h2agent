@@ -51,6 +51,7 @@ SOFTWARE.
 #include <Engine.hpp>
 #include <EngineGrammarV1.hpp>
 #include <EngineHost.hpp>
+#include <GrammarV2Bridge.hpp>
 #include <MockServerData.hpp>
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
@@ -348,8 +349,18 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
         response_delay_ms_ = *it;
     }
 
-    auto transform_it = j.find("transform");
-    if (transform_it != j.end()) {
+    // Grammar v2 rules run through the v1 path until phase [0.7b] (see GrammarV2Bridge.hpp):
+    nlohmann::json jv1;
+    {
+        std::string error;
+        if (!provisionToV1(j, jv1, error)) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Transformation not supported yet: %s", error.c_str()), ERT_FILE_LOCATION);
+            return false;
+        }
+    }
+
+    auto transform_it = jv1.find("transform");
+    if (transform_it != jv1.end()) {
         for (auto it : *transform_it) { // "it" is of type json::reference and has no key() member
             loadTransformation(it);
         }
@@ -362,7 +373,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     {
         std::string error;
         engine_pipeline_ = h2agent::engine::Engine{}.parse(
-                               EngineGrammarV1::translatePipeline(transform_it != j.end() ? *transform_it : nlohmann::json::array(),
+                               EngineGrammarV1::translatePipeline(transform_it != jv1.end() ? *transform_it : nlohmann::json::array(),
                                        EngineGrammarV1::Mode::Server),
                                error);
         if (!engine_pipeline_) {

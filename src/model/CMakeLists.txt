@@ -44,3 +44,6 @@ INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+
+# Grammar v2 -> v1 bridge (phase [0.7a], GrammarV2Bridge.hpp): temporary.
+target_link_libraries( h2agent-model PUBLIC h2agent-migrate-lib )

@@ -65,6 +65,7 @@ SOFTWARE.
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <functions.hpp>
+#include <GrammarMigrator.hpp>
 
 
 namespace h2agent
@@ -309,6 +310,18 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
     return result;
 }
 
+namespace {
+
+/** Hint appended to a rejected provision written in the retired transformation grammar v1. */
+std::string retiredGrammarHint(const nlohmann::json &provisions) {
+    using Grammar = h2agent::migrate::GrammarMigrator::Grammar;
+    const auto grammar = h2agent::migrate::GrammarMigrator::detect(h2agent::migrate::Json::parse(provisions.dump()));
+    if (grammar != Grammar::V1 && grammar != Grammar::Mixed) return "";
+    return ": transformation grammar v1 ('source'/'target') is retired, migrate provisions with the h2agent-migrate tool (see docs/developers/GrammarV2.md)";
+}
+
+}
+
 int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "server-provision operation; ";
@@ -335,6 +348,7 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
+        log += retiredGrammarHint(configurationObject);
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadContent) {
         log += (isArray ? "detected one invalid server provision data received":"invalid server provision data received");
@@ -387,6 +401,7 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
+        log += retiredGrammarHint(configurationObject);
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadContent) {
         log += (isArray ? "detected one invalid client provision data received":"invalid client provision data received");
