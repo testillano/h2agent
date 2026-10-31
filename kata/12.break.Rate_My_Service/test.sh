@@ -26,7 +26,7 @@ TIMEOUT=$(( EXPECTED_SECS * 3 + 5 ))
 
 title "Triggering ${ITERATIONS} provisions at ${CPS} cps (~${EXPECTED_SECS}s expected)" "" "*"
 START_NS=$(date +%s%N)
-h2a_curl GET "client-provision/rater?sequenceBegin=1&sequenceEnd=${ITERATIONS}&cps=${CPS}" >/dev/null
+h2a_curl POST "client-provision/rater/trigger?sequenceBegin=1&sequenceEnd=${ITERATIONS}&cps=${CPS}" >/dev/null
 
 echo "Waiting for completion (timeout ${TIMEOUT}s)..."
 while true; do

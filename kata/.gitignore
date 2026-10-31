@@ -1,0 +1,10 @@
+# Exposed solutions (expose_solutions.sh) without a starting point committed: never commit them.
+# A solution with a starting point is tracked, so it cannot be ignored here: the pre-commit hook protects it.
+*/SOLUTION.md
+08.server.Server_Data_History/server-provision.json
+09.server.Arithmetic_Server/server-provision.json
+10.server.Foreign_States/server-matching.json
+10.server.Foreign_States/server-provision.json
+13.client+server.The_Forgetful_Server/client-provision.json
+14.client+server.Knock_Knock/client-provision.json
+14.client+server.Knock_Knock/server-provision.json

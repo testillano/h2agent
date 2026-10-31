@@ -5,8 +5,9 @@
   "responseHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "timestamp.ms",
-      "target": "response.body.json.integer./ts"
+      "from": {"source": "timestamp", "unit": "ms"},
+      "filter": [{"op": "cast", "type": "integer"}],
+      "to": {"target": "responseBody", "path": "/ts"}
     }
   ]
 }

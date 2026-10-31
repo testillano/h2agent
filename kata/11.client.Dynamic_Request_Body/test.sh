@@ -27,7 +27,7 @@ h2a_curl POST client-provision client-provision.json >/dev/null
 
 # Trigger 5 bounces at 2 cps
 BOUNCES=5
-h2a_curl GET "client-provision/ping?sequenceBegin=1&sequenceEnd=${BOUNCES}&cps=2" >/dev/null
+h2a_curl POST "client-provision/ping/trigger?sequenceBegin=1&sequenceEnd=${BOUNCES}&cps=2" >/dev/null
 
 # Wait for completion
 echo "Waiting for ${BOUNCES} bounces..."
@@ -35,9 +35,11 @@ TIMEOUT=15
 START=$(date +%s)
 while true; do
   sleep 0.5
-  seq=$(h2a_curl GET "client-provision" 2>/dev/null | \
-    jq '[.[] | select(.id=="ping")] | .[0].dynamics.sequence // 0' 2>/dev/null || echo 0)
-  [ "${seq:-0}" -ge "${BOUNCES}" ] && break
+  # Wait for the requests received by the server (the provision sequence advances
+  # when a tick is fired, before its request is answered and stored):
+  received=$(curl -sf --http2-prior-knowledge "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-data" 2>/dev/null | \
+    jq '[.[] | select(.uri=="/game/ping" and .method=="POST")] | .[0].events | length' 2>/dev/null || echo 0)
+  [ "${received:-0}" -ge "${BOUNCES}" ] && break
   [ $(( $(date +%s) - START )) -ge ${TIMEOUT} ] && echo "Timeout!" && break
 done
 

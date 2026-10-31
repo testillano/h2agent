@@ -54,7 +54,7 @@ Depending on the exercise category, the student must create or complete the miss
 
 - `server` exercises: create `server-matching.json` and/or `server-provision.json`.
 - `client` exercises: complete `client-provision.json`.
-- `client+server` exercises: create `server-provision.json` (client files are provided).
+- `client+server` exercises: create `server-provision.json` and/or `client-provision.json` (check each exercise statement).
 - `break` exercises: nothing to do — just run `test.sh` and have fun!
 
 The testing procedure is always the same: run `test.sh` inside the exercise directory. It configures the agent, sends the required requests and validates the responses.
@@ -62,6 +62,49 @@ The testing procedure is always the same: run `test.sh` inside the exercise dire
 ## Run the kata: evaluation
 
 You could get feedback to know if your current answers are correct just executing `./kata/evaluate.sh`.
+
+## Maintenance (kata administrators)
+
+This section is for whoever maintains the exercises, not for students.
+
+### How solutions are kept
+
+Each solved file is stored encrypted next to its exercise version: `<file>.enc` holds the solution of `<file>` (AES-256-CBC, `openssl enc -pbkdf2`), and `SOLUTION.md.enc` the explanation. The plain files committed are the starting points the student sees. The password is kept in the private repository `testillano/h2agent-passwords`.
+
+A file without a `.enc` partner (for example the server provision of a `client` exercise, or every `test.sh`) is not a solution: it is committed in plain text.
+
+### Expose, fix, hide
+
+```bash
+$ cd kata
+$ ./expose_solutions.sh <password>   # decrypts every <file>.enc into <file> (overwrites the starting points)
+$                                    # also activates the pre-commit hook (core.hooksPath kata/.githooks)
+$ NON_INTERACT=true ./evaluate.sh    # option 'a': every exercise must pass with the solutions exposed
+$ # ... fix solutions, SOLUTION.md, test.sh, README.md ...
+$ ./hide_solutions.sh <password>     # encrypts again every <file> having a <file>.enc partner
+```
+
+Then restore the starting points and commit:
+
+```bash
+$ git checkout -- $(for e in $(git ls-files '*.enc'); do f=${e%.enc}; git ls-files --error-unmatch "$f" &>/dev/null && echo "$f"; done)
+$ git add $(git ls-files -m -o --exclude-standard -- '*.enc') <plain files changed: test.sh, non-solution provisions, README.md>
+$ git status   # clean: exposed solutions without a starting point are ignored (kata/.gitignore)
+```
+
+The pre-commit hook rejects a commit staging an exposed solution (a file having a `.enc` partner). Exposed solutions without a starting point committed (the files the student must create, and every `SOLUTION.md`) are also listed in `kata/.gitignore`, so they cannot be added by mistake.
+
+### Adding a solution file
+
+To encrypt a new solution file (a new exercise, or a file of an existing one which was not encrypted before), create its empty partner before hiding: `touch <file>.enc`. `hide_solutions.sh` only encrypts files with a `.enc` partner. When the student has to create that file (no starting point committed), also add it to `kata/.gitignore`.
+
+### Evaluation environment
+
+`evaluate.sh` and every `test.sh` use the agent at `localhost:8074` (admin) and `localhost:8000` (traffic); `client` exercises also point their client endpoint to `localhost:8000`. Make sure the agent listening there is the version under test (`curl --http2-prior-knowledge http://localhost:8074/admin/v2/capabilities`), restart it between runs if needed, and that no other process holds those ports.
+
+### When the provision grammar or the admin API change
+
+Migrate both the starting points and the exposed solutions (`h2agent-migrate --in <file> --out <file>`, and `h2agent-migrate --scan .` must report nothing), update `SOLUTION.md` texts, the `README.md` statements and the `test.sh` admin calls, run the evaluation and hide again.
 
 ## Good luck
 
