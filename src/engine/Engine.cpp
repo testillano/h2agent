@@ -78,10 +78,10 @@ std::optional<nlohmann::json> lookupVariable(const std::string &ref, const Ports
     return v;
 }
 
-// Resolve @{name} / @{name/pointer} substitutions (see lookupVariable). Unknown
-// variables are replaced by an empty string; strings are inserted as they are and
-// any other value as its compact json text. A bare value (no @{...}) is returned
-// unchanged.
+// Resolve @{name} / @{name/pointer} substitutions (see lookupVariable): strings
+// are inserted as they are and any other value as its compact json text. An
+// unknown name or pointer is kept literally (v1 behavior: only existing variables
+// are replaced). A bare value (no @{...}) is returned unchanged.
 std::string substituteVariables(const std::string &in, const Ports &ports) {
     std::string out;
     out.reserve(in.size());
@@ -92,6 +92,7 @@ std::string substituteVariables(const std::string &in, const Ports &ports) {
             if (close != std::string::npos) {
                 auto v = lookupVariable(in.substr(i + 2, close - (i + 2)), ports);
                 if (v) out += v->is_string() ? v->get_ref<const std::string &>() : v->dump();
+                else out.append(in, i, close + 1 - i);  // unknown: kept literally (v1)
                 i = close + 1;
                 continue;
             }

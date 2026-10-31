@@ -36,6 +36,7 @@ Every rule has the same three stages, executed in this order:
 * **Filters run in list order**, each one on the output of the previous one; the first failing filter stops the chain (target untouched, `onFilterFail` runs). The cast is a filter (it can only appear in a filter list): `{"op": "cast", "type": "string|integer|unsigned|float|boolean|object|json"}`.
 * **Paths are json pointers.** Nothing in the grammar is separated by dots, and nothing is url-encoded any more.
 * Variables (`@{name}`) are substituted in the same fields as in v1. New in v2: `@{name/<json pointer>}` navigates into the stored value (`@{doc/a/b}`, `@{caps/1}`); `conditionVar` accepts the same reference.
+* New in v2: provision references `#{key}` / `#{key/<json pointer>}` are resolved once, at provision load, against the vault (every string value of the provision; a missing reference is kept literally and warned, like an unknown `@{}` variable). See [provision references](../api/README.md#provision-references-key).
 * Everything else in a provision (`requestMethod`, `responseCode`, `inState`, `outState`, ...) is unchanged.
 
 ## Sources (`from`)

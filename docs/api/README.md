@@ -516,6 +516,28 @@ Note that a `path` is a json pointer (`"path": "/1"`), while a dotted `var` name
 
 If the vault already existed (regardless of its previous type — string, number, or object), the `regexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `{"target": "vault", "key": "MY_OBJ", "path": "/captures"}` will only replace the `/captures` field, preserving the rest of the object.
 
+### Provision references: `#{key}`
+
+A provision may reference vault entries that are resolved **once, when the provision is loaded** (`POST /admin/v2/server-provision`, `POST /admin/v2/client-provision`, or the startup `--traffic-server-provision` / `--traffic-client-provision` files, which are loaded after `--vault`):
+
+* `#{key}` is replaced by the vault entry, and `#{key/<json pointer>}` by a node of it (the first `/` starts the pointer, as in `@{}`). Strings are inserted as they are, any other value as its compact json text.
+* Every string value of the provision is resolved (`requestUri`, `responseBody`, headers, transformation fields...); object keys are not.
+* A reference which does not exist at load time (key or pointer) is **kept literally**, as an unknown `@{}` variable is, and reported as a warning (in the logs and in the `warning` field of the `POST` response).
+* References are consumed: the provision stored (and returned by `GET`) holds the resolved values, not the references. They are never dynamic: a later vault change is not observed until the provision is loaded again.
+
+Typical use is sharing constant values among many provisions, specially regular expressions, which are compiled at load and cannot hold runtime `@{}` variables:
+
+```bash
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
+       -d'{"patterns": {"imsi": "([0-9]{15})", "msisdn": "(34[0-9]{9})"}}'
+```
+
+```json
+{"from": {"source": "requestUriPath"}, "filter": [{"op": "regexCapture", "rgx": "/subscribers/imsi-#{patterns/imsi}"}], "to": {"target": "var", "name": "imsi"}}
+```
+
+Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
+
 ### Boolean criterion
 
 Every place where the grammar takes a decision on a value uses the same criterion:
@@ -575,7 +597,7 @@ Before describing sources and targets (and filters), just to clarify that in som
 
 > **Important**: the `@{name}` pattern uses the bare variable name or vault key. For example, a value stored via `"to": {"target": "vault", "key": "mySeq"}` is referenced as `@{mySeq}`.
 >
-> A json pointer may follow the name to navigate into the stored value: `@{name/<pointer>}` (the first `/` starts the pointer). For example `@{doc/user/id}` for a stored object, `@{list/0}` for an array item, or `@{uri_parts/1}` for a capture group held in a vault. Local variables are searched before vaults, strings are inserted as they are and any other value as its compact json text; an unknown name or pointer is replaced by an empty string. The same reference is accepted by the `conditionVar` filter (`"name": "doc/enabled"`).
+> A json pointer may follow the name to navigate into the stored value: `@{name/<pointer>}` (the first `/` starts the pointer). For example `@{doc/user/id}` for a stored object, `@{list/0}` for an array item, or `@{uri_parts/1}` for a capture group held in a vault. Local variables are searched before vaults, strings are inserted as they are and any other value as its compact json text; an unknown name or pointer is kept literally (`@{name}` stays in the text, as in v1). The same reference is accepted by the `conditionVar` filter (`"name": "doc/enabled"`).
 
 
 

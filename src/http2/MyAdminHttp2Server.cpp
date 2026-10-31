@@ -60,6 +60,7 @@ SOFTWARE.
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
 #include <Vault.hpp>
+#include <ProvisionReferences.hpp>
 #include <WaitManager.hpp>
 #include <SseManager.hpp>
 #include <FileManager.hpp>
@@ -360,15 +361,25 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
         return ert::http2comm::ResponseCode::NOT_FOUND; // 404
     }
 
-    h2agent::model::AdminServerProvisionData::LoadResult loadResult = getAdminData()->loadServerProvision(configurationObject, common_resources_);
+    // Provision references (#{...}) are resolved once, here, against the vault
+    // (an unresolved one is kept literally and warned):
+    nlohmann::json resolved = configurationObject;
+    std::string referencesWarning;
+    if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {
+        LOGWARNING(ert::tracing::Logger::warning(referencesWarning, ERT_FILE_LOCATION));
+        warning = referencesWarning;  // also reported in the response
+    }
+
+    h2agent::model::AdminServerProvisionData::LoadResult loadResult = getAdminData()->loadServerProvision(resolved, common_resources_);
     int result = ((loadResult == h2agent::model::AdminServerProvisionData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
         log += (isArray ? "valid schemas and server provisions data received":"valid schema and server provision data received");
         if (getAdminData()->getServerProvisionData().needsStorage() && getHttp2Server() && !getHttp2Server()->isDataStored()) {
-            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
-            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+            const std::string storageWarning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(storageWarning, ERT_FILE_LOCATION));
+            warning += (warning.empty() ? "" : "; ") + storageWarning;
         }
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
@@ -413,15 +424,25 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
 {
     log = "client-provision operation; ";
 
-    h2agent::model::AdminClientProvisionData::LoadResult loadResult = getAdminData()->loadClientProvision(configurationObject, common_resources_);
+    // Provision references (#{...}) are resolved once, here, against the vault
+    // (an unresolved one is kept literally and warned):
+    nlohmann::json resolved = configurationObject;
+    std::string referencesWarning;
+    if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {
+        LOGWARNING(ert::tracing::Logger::warning(referencesWarning, ERT_FILE_LOCATION));
+        warning = referencesWarning;  // also reported in the response
+    }
+
+    h2agent::model::AdminClientProvisionData::LoadResult loadResult = getAdminData()->loadClientProvision(resolved, common_resources_);
     int result = ((loadResult == h2agent::model::AdminClientProvisionData::Success) ? 201:400);
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminClientProvisionData::Success) {
         log += (isArray ? "valid schemas and client provisions data received":"valid schema and client provision data received");
         if (getAdminData()->getClientProvisionData().needsStorage() && !client_data_) {
-            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
-            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+            const std::string storageWarning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(storageWarning, ERT_FILE_LOCATION));
+            warning += (warning.empty() ? "" : "; ") + storageWarning;
         }
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadSchema) {

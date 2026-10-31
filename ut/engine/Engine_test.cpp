@@ -285,7 +285,7 @@ TEST(Engine_test, LocalScopeWinsOverGlobal) {
     EXPECT_EQ(ctx.outBody.raw, "local");
 }
 
-TEST(Engine_test, UnknownVariableBecomesEmpty) {
+TEST(Engine_test, UnknownVariableIsKeptLiterally) {
     Engine engine;
     auto pipeline = parseOne(engine, "value.a@{missing}b", "output.string");
     ASSERT_NE(pipeline, nullptr);
@@ -296,7 +296,7 @@ TEST(Engine_test, UnknownVariableBecomesEmpty) {
 
     StandaloneContext ctx;
     engine.evaluate(pipeline, ctx, ports);
-    EXPECT_EQ(ctx.outBody.raw, "ab");
+    EXPECT_EQ(ctx.outBody.raw, "a@{missing}b");  // v1: only existing variables are replaced
 }
 
 TEST(Engine_test, UnsupportedRuleIsSkippedAndTraced) {
@@ -2947,7 +2947,7 @@ TEST(Engine_test, VariableReferenceNavigatesWithPointer) {
     StandaloneContext ctx;
     ctx.input = nlohmann::json::parse(R"({"a":{"b":7},"list":["x","y"],"flag":true,"off":0})");
     engine.evaluate(pipeline, ctx, ports);
-    EXPECT_EQ(ctx.outBody.raw, "42-x 7 y [] {\"b\":7}");
+    EXPECT_EQ(ctx.outBody.raw, "42-x 7 y [@{doc/missing}] {\"b\":7}");
     EXPECT_EQ(store.get(Store::Scope::Global, "RCVD_42"), nlohmann::json("1"));
     EXPECT_EQ(store.get(Store::Scope::Local, "twice"), nlohmann::json(14));
     EXPECT_EQ(store.get(Store::Scope::Local, "cond"), nlohmann::json("yes"));
