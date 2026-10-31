@@ -1456,7 +1456,7 @@ ___________________________________ _________ _______________ __________________
 
 ## Execution of h2agent-migrate utility
 
-This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"source": "requestBody", "path": "/a"}`, `"filter": [{"op": "cast", "type": "integer"}]`, `"to": {"target": "responseBody", "path": "/n"}`). It is a syntax-only conversion: each v2 rule behaves as its v1 origin, except that variables and vaults keep the json type of their values (see [store values](./docs/developers/GrammarV2.md#store-values)). The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md).
+This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"source": "requestBody", "path": "/a"}`, `"filter": [{"op": "cast", "type": "integer"}]`, `"to": {"target": "responseBody", "path": "/n"}`). It is a syntax-only conversion: each v2 rule behaves as its v1 origin, except that variables and vaults keep the json type of their values (see [store values](./docs/developers/GrammarV2.md#store-values)). The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md), and every change from 4.x to 5.0.0 (API and grammar, with before/after examples) in the [migration guide](./docs/MigrationGuide.md).
 
 It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), so test suites can be migrated before upgrading.
 

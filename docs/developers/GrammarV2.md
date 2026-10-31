@@ -183,7 +183,7 @@ v1 tested the text of the value (non-empty is true). With the native store value
 
 ## Stop
 
-`{"target": "stop"}` is v1 `break` renamed: when the value reaching it (after the filters) is not empty, the remaining items of the list are not executed.
+`{"target": "stop"}` is v1 `break` renamed: when the value reaching it (after the filters) is true (see [Boolean criterion](#boolean-criterion)), the remaining items of the list are not executed.
 
 ```json
 {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "stop"}}
