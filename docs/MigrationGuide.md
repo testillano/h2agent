@@ -123,6 +123,10 @@ curl --http2-prior-knowledge -XPOST "http://localhost:8074/admin/v2/client-provi
 `GET /admin/v2/client-provision/<id>` answers `410 Gone` with a hint. As with the schemas, provision ids
 `schema` and `unused` are not shadowed any more.
 
+**[behaviour]** Timer triggers (`cps`) send exactly the range `[sequenceBegin, sequenceEnd]`. 4.x (since the
+worker pool) sent one extra request first, with `sequence = sequenceBegin - 1` (`sequenceBegin=1&sequenceEnd=5`
+sent 0, 1, 2, 3, 4, 5). Tests counting the requests of a range, or tolerating that extra one, may need a review.
+
 ### 2.4 Capabilities **[new]**
 
 ```bash

@@ -398,7 +398,7 @@ void AdminClientProvision::startTicking(boost::asio::io_context *ioContext, std:
     stopTicking();
     io_context_ = ioContext;
     tick_callback_ = std::move(tickCallback);
-    if (seq_.load() < seq_begin_.load() - 1 || seq_.load() > seq_end_.load()) {
+    if (seq_.load() < seq_begin_.load() - 1 || seq_.load() >= seq_end_.load()) {
         seq_ = seq_begin_.load() - 1; // outside range: reset (exhausted or never started)
     }
     saveDynamics();
@@ -441,19 +441,23 @@ void AdminClientProvision::scheduleTick(bool first) {
     timer_->async_wait([this](const boost::system::error_code &ec) {
         if (ec) return; // cancelled
 
-        // Try to dispatch. If congested, don't advance seq (retry next tick).
         scheduleTick(false); // schedule next BEFORE callback to avoid drift
+
+        // seq_ is the last dispatched sequence (sequenceBegin - 1 before the first tick):
+        // each tick dispatches seq_ + 1, so the range sent is exactly [sequenceBegin, sequenceEnd].
+        // If congested, don't advance seq (retry next tick).
         if (tick_callback_ && !tick_callback_()) {
             return; // congested: seq not advanced, will retry
         }
 
         seq_++;
 
-        if (seq_.load() > seq_end_.load()) {
+        if (seq_.load() >= seq_end_.load()) { // range exhausted
             if (repeat_) {
-                seq_ = seq_begin_.load();
+                seq_ = seq_begin_.load() - 1; // next tick dispatches sequenceBegin again
             }
             else {
+                seq_ = seq_end_.load() + 1; // dynamics: 'sequence > sequenceEnd' means done
                 saveDynamics(); // final update before stopping
                 stopTicking();
                 return;

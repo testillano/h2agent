@@ -1627,7 +1627,7 @@ void MyAdminHttp2Server::triggerClientOperation(const std::string &clientProvisi
     if (statusCode == ert::http2comm::ResponseCode::ACCEPTED && provision->getCps() > 0) {
         if (!provision->isTicking()) {
             provision->startTicking(timers_io_context_, [this, provision, inState, clientEndpoint]() -> bool {
-                auto tickSeq = provision->getSeq(); // capture BEFORE post (timer thread)
+                auto tickSeq = provision->getSeq() + 1; // sequence of this tick (last dispatched + 1), captured BEFORE post (timer thread)
                 if (client_worker_io_context_) {
                     return postToPool([this, provision, inState, clientEndpoint, tickSeq]() {
                         sendClientRequest(provision, inState, clientEndpoint, tickSeq);
