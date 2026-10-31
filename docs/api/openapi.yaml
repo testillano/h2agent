@@ -1814,6 +1814,9 @@ components:
           name:
             minLength: 1
             type: string
+          path:
+            pattern: ^/.+$
+            type: string
           source:
             enum:
             - var
@@ -2028,6 +2031,9 @@ components:
         properties:
           name:
             minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
             type: string
           target:
             enum:
@@ -2465,6 +2471,9 @@ components:
           name:
             minLength: 1
             type: string
+          path:
+            pattern: ^/.+$
+            type: string
           source:
             enum:
             - var
@@ -2697,6 +2706,9 @@ components:
         properties:
           name:
             minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
             type: string
           target:
             enum:
@@ -3080,6 +3092,9 @@ components:
           name:
             minLength: 1
             type: string
+          path:
+            pattern: ^/.+$
+            type: string
           source:
             enum:
             - var
@@ -3233,6 +3248,9 @@ components:
         properties:
           name:
             minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
             type: string
           target:
             enum:

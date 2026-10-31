@@ -1315,7 +1315,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     }
 }
 
-void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, std::string inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<std::map<std::string, std::string>> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
+void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, std::string inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<h2agent::model::Variables> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
 
     provision->employ();
     std::string requestMethod{};
@@ -1329,7 +1329,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
 
     // Initialize chain variables on first call:
     if (!chainVariables) {
-        chainVariables = std::make_shared<std::map<std::string, std::string>>();
+        chainVariables = std::make_shared<h2agent::model::Variables>();
     }
 
     // Initialize purge keys on first call (only if purge is enabled):

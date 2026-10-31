@@ -82,8 +82,9 @@ void usage(int rc) {
        << "[-h|--help]\n"
        << "  This help.\n\n"
 
-       << "Grammar v1 -> v2 is a syntax-only step: each v2 rule behaves exactly as its v1\n"
-       << "origin (mapping in docs/developers/GrammarV2.md).\n\n"
+       << "Grammar v1 -> v2 is a syntax-only step: each v2 rule behaves as its v1 origin,\n"
+       << "except that stored values keep their json type (mapping and store values in\n"
+       << "docs/developers/GrammarV2.md).\n\n"
 
        << "Exit codes: 0 success, 1 scan findings, 2 error.\n\n"
 

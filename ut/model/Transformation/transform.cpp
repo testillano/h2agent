@@ -260,7 +260,7 @@ public:
     std::string out_state_method_{};
     std::string out_state_uri_{};
     std::vector<std::pair<std::string, std::string>> client_provision_triggers_{};
-    std::map<std::string, std::string> variables_{};
+    h2agent::model::Variables variables_{};
 
     Transform_test() {
         adata_.loadServerMatching(MatchingConfiguration_FullMatching);
@@ -2293,6 +2293,44 @@ TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
     EXPECT_EQ(response_body_, "hello");
 }
 
+TEST_F(Transform_test, VarKeepsNativeJsonAcrossChainLinks)
+{
+    // Link 1: an object and a number stored in vars, a node written by path:
+    nlohmann::json link1 = ProvisionConfiguration_GET;
+    link1["inState"] = "initial";
+    link1["outState"] = "step2";
+    link1["transform"] = R"([
+      {"from": {"source": "requestBody"}, "to": {"target": "var", "name": "doc"}},
+      {"from": {"source": "recvseq"}, "to": {"target": "var", "name": "seq"}},
+      {"from": {"source": "literal", "value": "new"}, "to": {"target": "var", "name": "doc", "path": "/added"}}
+    ])"_json;
+    EXPECT_EQ(adata_.loadServerProvision(link1, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision1 = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision1);
+
+    request_body_data_part_.assign(R"({"foo":{"bar":5}})");
+    provision1->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+    EXPECT_EQ(variables_["doc"], nlohmann::json::parse(R"({"foo":{"bar":5},"added":"new"})"));
+    EXPECT_TRUE(variables_["seq"].is_number_unsigned());
+
+    // Link 2: the object goes to the body as an object (v1 wrote its json text), a node is read by path:
+    nlohmann::json link2 = ProvisionConfiguration_GET;
+    link2["inState"] = "step2";
+    link2["transform"] = R"([
+      {"from": {"source": "var", "name": "doc"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody", "path": "/doc"}},
+      {"from": {"source": "var", "name": "doc", "path": "/foo/bar"}, "to": {"target": "responseBody", "path": "/bar"}}
+    ])"_json;
+    EXPECT_EQ(adata_.loadServerProvision(link2, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision2 = adata_.getServerProvisionData().find("step2", "GET", "/app/v1/foo/bar/1?name=test");
+    ASSERT_TRUE(provision2);
+
+    request_body_data_part_.assign("{}");
+    provision2->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+    nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["doc"], nlohmann::json::parse(R"({"foo":{"bar":5},"added":"new"})"));
+    EXPECT_EQ(body["bar"], 5);
+}
+
 TEST_F(Transform_test, FilterSplitDefaults)
 {
     // Build test provision:
@@ -2520,7 +2558,7 @@ TEST_F(Transform_test, SourceRequestHeadersEmptyJsonConstraintFails)
 
     EXPECT_EQ(status_code_, 400);
     EXPECT_EQ(variables_["validatedHeaders"], "");
-    EXPECT_NE(variables_["validatedHeaders.fail"].find("JsonConstraint FAILED"), std::string::npos);
+    EXPECT_NE(variables_["validatedHeaders.fail"].get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
     EXPECT_NE(response_body_.find("JsonConstraint FAILED"), std::string::npos);
 }
 

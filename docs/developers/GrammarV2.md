@@ -1,6 +1,6 @@
 # Grammar v2: v1 -> v2 mapping
 
-This is the exact syntax mapping the migration tool (`h2agent-migrate`) produces and the v2 parser accepts. It is a **syntax-only** step: every v2 rule behaves exactly as its v1 origin. Semantic changes (store unification, `If`, chainable regex semantics...) come in later phases, each with its own migrator rule.
+This is the exact syntax mapping the migration tool (`h2agent-migrate`) produces and the v2 parser accepts. It is a **syntax-only** step: every v2 rule behaves as its v1 origin, except for the value typing of the stores (see [Store values](#store-values)). Further semantic changes (`If`, chainable regex semantics...) come in later phases, each with its own migrator rule.
 
 ## Tool
 
@@ -57,7 +57,7 @@ Every rule has the same three stages, executed in this order:
 | `timestamp.<unit>` | `{"source": "timestamp", "unit": "s\|ms\|us\|ns"}` | all |
 | `strftime.<format>` | `{"source": "strftime", "fmt": "<format>"}` | all |
 | `recvseq` / `sendseq` | `{"source": "recvseq"}` / `{"source": "sendseq"}` | server / client |
-| `var.<name>` | `{"source": "var", "name": "<name>"}` | all |
+| `var.<name>` | `{"source": "var", "name": "<name>"}` (v2 also admits `"path"`) | all |
 | `vault.<key>` / `vault.<key>./a` | `{"source": "vault", "key": "<key>"}` / `{..., "path": "/a"}` | all |
 | `value.<text>` | `{"source": "literal", "value": "<text>"}` | all |
 | `inState` | `{"source": "inState"}` | all |
@@ -129,14 +129,23 @@ The state written by `outState` is still the value of `from` (as in v1), e.g. `{
 
 The migrator produces at most `[<v1 filter>, {"op": "cast", ...}]`, which is exactly the v1 order (filter first, target typing last). Longer chains are accepted by the grammar and run in list order.
 
+## Store values
+
+`var` and `vault` hold native json values in 5.0.0 (v1: `var` held strings only, the vault stored objects and arrays natively but scalars as strings), and `var` also admits a json pointer `path` (source and target). The migrator does not compensate it, because the value type is only known at runtime. Visible differences:
+
+* a `var` object written to a json body with the `object` cast is the object (v1: its json text);
+* numbers and booleans are listed by `GET /admin/v2/vault` with their type (`2`, not `"2"`);
+* `conditionVar` over a numeric `0` or a boolean `false` is false (v1: a non-empty string, so true).
+
+`@{name}` substitutions are unchanged (non-string values are inserted as their compact json text, as v1 stored them). To keep a string, add `{"op": "cast", "type": "string"}` before the store target.
+
 ## Engine support
 
 The grammar accepts more than the engine runs yet. A provision using any of these is rejected at load time (400, "... is not supported yet"):
 
-* a chain of several filters (besides a final `cast`);
-* a `cast` which is not the last filter, or a `cast` on a target other than a json body (`responseBody`/`requestBody`) or a `vault` (`object`/`json` only);
-* a conditional `erase` (`conditionVar` filters);
 * a `randomset` value holding `|`.
+
+A final `cast` on a json body target (any type) or on a `vault` target (`object`/`json`) is run as the typed target of the engine (v1 typed write semantics: merge at root, erase flavours); any other `cast` runs as a chain filter.
 
 ## Erase
 
@@ -152,7 +161,7 @@ On a body target the cast keeps the v1 erase flavour, which depends on the v1 ta
 
 `erase` is also the only source an event purge target (`serverEvent`/`clientEvent` in `to`) accepts: v1 skipped any other source silently, the schema rejects it.
 
-v1 skipped silently any `eraser` rule carrying a filter, so conditional erase is a **new capability** (no v1 equivalent): the schema rejects any other filter with `erase` instead of skipping the rule.
+v1 skipped silently any `eraser` rule carrying a filter, so conditional erase is a **new capability** (no v1 equivalent): the schema rejects any other filter with `erase` instead of skipping the rule. When a condition does not hold, the target is kept and `onFilterFail` runs.
 
 ## Stop
 

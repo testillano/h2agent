@@ -215,7 +215,7 @@ bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &s
     return false;
 }
 
-bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &state, std::map<std::string, std::string> &chainVariables) const {
+bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &state, Variables &chainVariables) const {
 
     bool exists{};
     auto result = get(key.getKey(), exists);
@@ -236,7 +236,7 @@ bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &s
     return false;
 }
 
-void MockData::storeChainVariables(const DataKey &key, const std::map<std::string, std::string> &chainVariables) {
+void MockData::storeChainVariables(const DataKey &key, const Variables &chainVariables) {
 
     bool exists{};
     auto result = get(key.getKey(), exists);

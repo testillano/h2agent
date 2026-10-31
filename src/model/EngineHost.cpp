@@ -143,19 +143,10 @@ std::optional<nlohmann::json> extract(const nlohmann::json &doc, const std::stri
 // STORE //
 ///////////
 
-std::optional<nlohmann::json> EngineStore::get(Scope scope, const std::string &key, const std::string &pointer) const {
-    if (scope == Scope::Local) {
-        auto it = variables_.find(key);
-        if (it == variables_.end()) return std::nullopt;
-        if (pointer.empty()) return nlohmann::json(it->second);
-        try {  // var values are strings; a pointer is only meaningful over a json text
-            return nlohmann::json::parse(it->second).at(nlohmann::json::json_pointer(pointer));
-        } catch (const std::exception &) {
-            return std::nullopt;
-        }
-    }
-    nlohmann::json value;
-    if (!vault_ || !vault_->tryGet(key, value)) return std::nullopt;
+namespace {
+
+/** Value at a json pointer of a stored json (absent when the pointer does not exist). */
+std::optional<nlohmann::json> pointed(const nlohmann::json &value, const std::string &pointer) {
     if (pointer.empty()) return value;
     try {
         return value.at(nlohmann::json::json_pointer(pointer));
@@ -164,22 +155,27 @@ std::optional<nlohmann::json> EngineStore::get(Scope scope, const std::string &k
     }
 }
 
+}
+
+std::optional<nlohmann::json> EngineStore::get(Scope scope, const std::string &key, const std::string &pointer) const {
+    if (scope == Scope::Local) {
+        auto it = variables_.find(key);
+        if (it == variables_.end()) return std::nullopt;
+        return pointed(it->second, pointer);
+    }
+    nlohmann::json value;
+    if (!vault_ || !vault_->tryGet(key, value)) return std::nullopt;
+    return pointed(value, pointer);
+}
+
 void EngineStore::set(Scope scope, const std::string &key, const nlohmann::json &value, const std::string &pointer) {
     if (scope == Scope::Local) {
-        // v1 var: string-only (the engine already serializes, this is a safety net)
         if (pointer.empty()) {
-            variables_[key] = jsonToString(value);
+            variables_[key] = value;
         } else {
-            nlohmann::json doc = nlohmann::json::object();
-            auto it = variables_.find(key);
-            if (it != variables_.end()) {
-                try {
-                    doc = nlohmann::json::parse(it->second);
-                } catch (const std::exception &) {
-                }
-            }
-            doc[nlohmann::json::json_pointer(pointer)] = value;
-            variables_[key] = doc.dump();
+            nlohmann::json &current = variables_[key];
+            if (!current.is_object()) current = nlohmann::json::object();  // same as the vault (loadAtPath)
+            current[nlohmann::json::json_pointer(pointer)] = value;
         }
         return;
     }
@@ -193,7 +189,7 @@ void EngineStore::set(Scope scope, const std::string &key, const nlohmann::json 
 
 void EngineStore::setString(Scope scope, const std::string &key, std::string &&value) {
     if (scope == Scope::Local) {
-        variables_[key] = std::move(value);  // v1 var: plain string, no json round trip
+        variables_[key] = std::move(value);
         return;
     }
     if (vault_) vault_->load(key, nlohmann::json(std::move(value)));

@@ -43,6 +43,7 @@ SOFTWARE.
 #include <memory>
 #include <mutex>
 #include <regex>
+#include <set>
 
 #include <arashpartow/exprtk.hpp>
 
@@ -777,31 +778,31 @@ TargetType classifyTarget(const std::string &expr, Rule &rule) {
     return TargetType::Unsupported;
 }
 
-FilterType classifyFilter(const nlohmann::json &filterNode, Rule &rule) {
+FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule &rule) {
     // Parameterless string filter: {"filter":"Size"} (parity with h2agent).
     if (filterNode.is_string() && filterNode.get<std::string>() == "Size") {
-        rule.rawFilter = "Size";
+        filter.raw = "Size";
         return FilterType::Size;
     }
     if (!filterNode.is_object()) return FilterType::None;
     if (filterNode.contains("Append") && filterNode["Append"].is_string()) {
-        rule.filterArg = filterNode["Append"].get<std::string>();
-        rule.rawFilter = "Append";
+        filter.arg = filterNode["Append"].get<std::string>();
+        filter.raw = "Append";
         return FilterType::Append;
     }
     if (filterNode.contains("Prepend") && filterNode["Prepend"].is_string()) {
-        rule.filterArg = filterNode["Prepend"].get<std::string>();
-        rule.rawFilter = "Prepend";
+        filter.arg = filterNode["Prepend"].get<std::string>();
+        filter.raw = "Prepend";
         return FilterType::Prepend;
     }
     if (filterNode.contains("Sum") && filterNode["Sum"].is_number()) {
-        rule.filterNumber = filterNode["Sum"].get<double>();
-        rule.rawFilter = "Sum";
+        filter.number = filterNode["Sum"].get<double>();
+        filter.raw = "Sum";
         return FilterType::Sum;
     }
     if (filterNode.contains("Multiply") && filterNode["Multiply"].is_number()) {
-        rule.filterNumber = filterNode["Multiply"].get<double>();
-        rule.rawFilter = "Multiply";
+        filter.number = filterNode["Multiply"].get<double>();
+        filter.raw = "Multiply";
         return FilterType::Multiply;
     }
     // Regex filters: precompile the pattern ONCE here (never in evaluate, per the
@@ -812,10 +813,10 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Rule &rule) {
     if (filterNode.contains("RegexReplace") && filterNode["RegexReplace"].is_object()) {
         const auto &rr = filterNode["RegexReplace"];
         if (rr.contains("rgx") && rr["rgx"].is_string() && rr.contains("fmt") && rr["fmt"].is_string()) {
-            rule.rawFilter = "RegexReplace";
-            rule.filterArg = rr["fmt"].get<std::string>();  // replacement format
+            filter.raw = "RegexReplace";
+            filter.arg = rr["fmt"].get<std::string>();  // replacement format
             try {
-                rule.filterRegex = std::regex(rr["rgx"].get<std::string>(), std::regex::optimize);
+                filter.regex = std::regex(rr["rgx"].get<std::string>(), std::regex::optimize);
             } catch (const std::regex_error &) {
                 rule.targetType = TargetType::Unsupported;  // invalid pattern -> skip rule
                 return FilterType::None;
@@ -824,9 +825,9 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Rule &rule) {
         }
     }
     if (filterNode.contains("RegexCapture") && filterNode["RegexCapture"].is_string()) {
-        rule.rawFilter = "RegexCapture";
+        filter.raw = "RegexCapture";
         try {
-            rule.filterRegex = std::regex(filterNode["RegexCapture"].get<std::string>(), std::regex::optimize);
+            filter.regex = std::regex(filterNode["RegexCapture"].get<std::string>(), std::regex::optimize);
         } catch (const std::regex_error &) {
             rule.targetType = TargetType::Unsupported;  // invalid pattern -> skip rule
             return FilterType::None;
@@ -836,51 +837,51 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Rule &rule) {
     // ConditionVar: {"ConditionVar":"[!]varname"}. Stores the (possibly '!'-
     // prefixed) variable name verbatim; evaluation reads the store and inverts.
     if (filterNode.contains("ConditionVar") && filterNode["ConditionVar"].is_string()) {
-        rule.rawFilter = "ConditionVar";
-        rule.filterArg = filterNode["ConditionVar"].get<std::string>();
+        filter.raw = "ConditionVar";
+        filter.arg = filterNode["ConditionVar"].get<std::string>();
         return FilterType::ConditionVar;
     }
     if (filterNode.contains("EqualTo") && filterNode["EqualTo"].is_string()) {
-        rule.rawFilter = "EqualTo";
-        rule.filterArg = filterNode["EqualTo"].get<std::string>();  // admits @{var}
+        filter.raw = "EqualTo";
+        filter.arg = filterNode["EqualTo"].get<std::string>();  // admits @{var}
         return FilterType::EqualTo;
     }
     if (filterNode.contains("DifferentFrom") && filterNode["DifferentFrom"].is_string()) {
-        rule.rawFilter = "DifferentFrom";
-        rule.filterArg = filterNode["DifferentFrom"].get<std::string>();  // admits @{var}
+        filter.raw = "DifferentFrom";
+        filter.arg = filterNode["DifferentFrom"].get<std::string>();  // admits @{var}
         return FilterType::DifferentFrom;
     }
     // JsonConstraint: {"JsonConstraint":<obj|array>}. Keep the expected subset.
     if (filterNode.contains("JsonConstraint") &&
             (filterNode["JsonConstraint"].is_object() || filterNode["JsonConstraint"].is_array())) {
-        rule.rawFilter = "JsonConstraint";
-        rule.filterObject = filterNode["JsonConstraint"];
+        filter.raw = "JsonConstraint";
+        filter.object = filterNode["JsonConstraint"];
         return FilterType::JsonConstraint;
     }
     if (filterNode.contains("SchemaId") && filterNode["SchemaId"].is_string()) {
-        rule.rawFilter = "SchemaId";
-        rule.filterArg = filterNode["SchemaId"].get<std::string>();  // schema id
+        filter.raw = "SchemaId";
+        filter.arg = filterNode["SchemaId"].get<std::string>();  // schema id
         return FilterType::SchemaId;
     }
     // Split: {"Split":{size,count,sep,filler,numeric}} with defaults 2/4/'.'/'0'/false.
     if (filterNode.contains("Split") && filterNode["Split"].is_object()) {
         const auto &sp = filterNode["Split"];
-        rule.rawFilter = "Split";
-        rule.filterI1 = sp.contains("size") && sp["size"].is_number() ? sp["size"].get<long long>() : 2;
-        rule.filterI2 = sp.contains("count") && sp["count"].is_number() ? sp["count"].get<long long>() : 4;
-        rule.filterArg = sp.contains("sep") && sp["sep"].is_string() ? sp["sep"].get<std::string>() : ".";
-        rule.filterFiller = sp.contains("filler") && sp["filler"].is_string() ? sp["filler"].get<std::string>() : "0";
-        rule.filterFlag = sp.contains("numeric") && sp["numeric"].is_boolean() && sp["numeric"].get<bool>();
+        filter.raw = "Split";
+        filter.i1 = sp.contains("size") && sp["size"].is_number() ? sp["size"].get<long long>() : 2;
+        filter.i2 = sp.contains("count") && sp["count"].is_number() ? sp["count"].get<long long>() : 4;
+        filter.arg = sp.contains("sep") && sp["sep"].is_string() ? sp["sep"].get<std::string>() : ".";
+        filter.filler = sp.contains("filler") && sp["filler"].is_string() ? sp["filler"].get<std::string>() : "0";
+        filter.flag = sp.contains("numeric") && sp["numeric"].is_boolean() && sp["numeric"].get<bool>();
         return FilterType::Split;
     }
     // BaseConvert: {"BaseConvert":{in,out,capital}}. in/out are bases 2-36.
     if (filterNode.contains("BaseConvert") && filterNode["BaseConvert"].is_object()) {
         const auto &bc = filterNode["BaseConvert"];
         if (bc.contains("in") && bc["in"].is_number() && bc.contains("out") && bc["out"].is_number()) {
-            rule.rawFilter = "BaseConvert";
-            rule.filterI1 = bc["in"].get<long long>();
-            rule.filterI2 = bc["out"].get<long long>();
-            rule.filterFlag = bc.contains("capital") && bc["capital"].is_boolean() && bc["capital"].get<bool>();
+            filter.raw = "BaseConvert";
+            filter.i1 = bc["in"].get<long long>();
+            filter.i2 = bc["out"].get<long long>();
+            filter.flag = bc.contains("capital") && bc["capital"].is_boolean() && bc["capital"].get<bool>();
             return FilterType::BaseConvert;
         }
     }
@@ -892,34 +893,389 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Rule &rule) {
     if (filterNode.contains("Strptime") && filterNode["Strptime"].is_object()) {
         const auto &sp = filterNode["Strptime"];
         if (sp.contains("fmt") && sp["fmt"].is_string()) {
-            rule.rawFilter = "Strptime";
-            rule.filterArg = sp["fmt"].get<std::string>();
-            rule.filterUnit = parseUnit(sp);
+            filter.raw = "Strptime";
+            filter.arg = sp["fmt"].get<std::string>();
+            filter.unit = parseUnit(sp);
             return FilterType::Strptime;
         }
     }
     if (filterNode.contains("Strftime") && filterNode["Strftime"].is_object()) {
         const auto &sf = filterNode["Strftime"];
         if (sf.contains("fmt") && sf["fmt"].is_string()) {
-            rule.rawFilter = "Strftime";
-            rule.filterArg = sf["fmt"].get<std::string>();
-            rule.filterUnit = parseUnit(sf);
+            filter.raw = "Strftime";
+            filter.arg = sf["fmt"].get<std::string>();
+            filter.unit = parseUnit(sf);
             return FilterType::Strftime;
         }
     }
     // RegexKey: {"RegexKey":"<pattern>"}. Pattern precompiled; NO @{} subst.
     if (filterNode.contains("RegexKey") && filterNode["RegexKey"].is_string()) {
-        rule.rawFilter = "RegexKey";
+        filter.raw = "RegexKey";
         try {
-            rule.filterRegex = std::regex(filterNode["RegexKey"].get<std::string>(), std::regex::optimize);
+            filter.regex = std::regex(filterNode["RegexKey"].get<std::string>(), std::regex::optimize);
         } catch (const std::regex_error &) {
             rule.targetType = TargetType::Unsupported;  // invalid pattern -> skip rule
             return FilterType::None;
         }
         return FilterType::RegexKey;
     }
+    // Cast: {"Cast":"<type>"} (grammar v2 cast which is not a typed target).
+    if (filterNode.contains("Cast") && filterNode["Cast"].is_string()) {
+        static const std::set<std::string> types = {"string", "integer", "unsigned", "float", "boolean", "object", "json"};
+        filter.arg = filterNode["Cast"].get<std::string>();
+        if (types.count(filter.arg) == 0) return FilterType::None;
+        filter.raw = "Cast";
+        return FilterType::Cast;
+    }
     return FilterType::None;  // unknown/absent filter -> none
 }
+
+// ConditionVar test "[!]varname": true when the store variable (local first,
+// then global) is truthy -- present AND non-empty string / non-zero number /
+// true bool / any object or array --, inverted by a leading '!'.
+bool conditionHolds(const std::string &arg, const Ports &ports) {
+    std::string varname = arg;
+    bool reverse = (!varname.empty() && varname[0] == '!');
+    if (reverse) varname.erase(0, 1);
+    std::optional<nlohmann::json> v;
+    if (ports.store) {
+        v = ports.store->get(Store::Scope::Local, varname);
+        if (!v) v = ports.store->get(Store::Scope::Global, varname);
+    }
+    bool truthy = false;
+    if (v) {
+        const nlohmann::json &varval = *v;
+        if (varval.is_string())
+            truthy = !varval.get<std::string>().empty();
+        else if (varval.is_number_integer())
+            truthy = varval.get<std::int64_t>() != 0;
+        else if (varval.is_number_unsigned())
+            truthy = varval.get<std::uint64_t>() != 0;
+        else if (varval.is_number_float())
+            truthy = varval.get<double>() != 0.0;
+        else if (varval.is_boolean())
+            truthy = varval.get<bool>();
+        else
+            truthy = !varval.is_null();  // object/array present -> truthy
+    }
+    return reverse ? !truthy : truthy;
+}
+
+// Cast filter: converts `value` to the type (see FilterType::Cast). False when
+// the value cannot be converted (value untouched).
+bool castValue(const std::string &type, nlohmann::json &value) {
+    if (type == "string") {
+        value = asString(value);
+        return true;
+    }
+    if (type == "integer") {
+        std::int64_t n;
+        if (!toInteger(value, n)) return false;
+        value = n;
+        return true;
+    }
+    if (type == "unsigned") {
+        std::uint64_t n;
+        if (!toUnsigned(value, n)) return false;
+        value = n;
+        return true;
+    }
+    if (type == "float") {
+        double n;
+        if (!toFloat(value, n)) return false;
+        value = n;
+        return true;
+    }
+    if (type == "boolean") {
+        bool b;
+        if (!toBoolean(value, b)) return false;
+        value = b;
+        return true;
+    }
+    if (type == "object") return value.is_object() || value.is_array();
+    try {  // "json": parse the value text
+        value = nlohmann::json::parse(asString(value));
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+// Applies one filter of the rule chain over `value`. `last` tells whether it is
+// the last filter of the chain: only then capture groups take the store target
+// layout (otherwise the value goes on as the whole match / the matched key value).
+// Returns false when the filter fails (the rule is skipped and its onFilterFail
+// runs), with the reason in `note`.
+bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &value, const Ports &ports,
+                 std::vector<std::string> &localGroups, std::size_t &firstGroup, std::string &note) {
+    if (f.type == FilterType::Append) {
+        std::string argBuf;
+        value = asString(value) + resolveTemplate(f.arg, argBuf, ports);
+    } else if (f.type == FilterType::Prepend) {
+        std::string argBuf;
+        value = resolveTemplate(f.arg, argBuf, ports) + asString(value);
+    } else if (f.type == FilterType::Sum || f.type == FilterType::Multiply) {
+        // Coerce source to a number (string numbers accepted), operate, keep
+        // numeric.
+        double n = 0.0;
+        bool ok = true;
+        if (value.is_number()) {
+            n = value.get<double>();
+        } else if (value.is_string()) {
+            try {
+                n = std::stod(value.get<std::string>());
+            } catch (...) {
+                ok = false;
+            }
+        } else {
+            ok = false;
+        }
+        if (ok) {
+            double r = (f.type == FilterType::Sum) ? (n + f.number) : (n * f.number);
+            // Preserve integer-ness when the result is whole (nicer than 3.0).
+            if (r == static_cast<long long>(r))
+                value = static_cast<long long>(r);
+            else
+                value = r;
+        }
+        // On non-numeric source the filter is a no-op (value stays as-is),
+        // matching h2agent's "should not happen (protected by schema)" lenient
+        // behavior.
+    } else if (f.type == FilterType::RegexReplace) {
+        // std::regex_replace returns the source unchanged when there is no
+        // match (intended fallback). Result is always a string. Regex was
+        // precompiled at parse time (never here).
+        value = std::regex_replace(asString(value), f.regex, f.arg);
+    } else if (f.type == FilterType::RegexCapture) {
+        // Full-match semantics (std::regex_match). No full match -> skip the
+        // whole rule (parity with h2agent returning false). On match, the
+        // value becomes the whole match (group 0); capture groups are exposed
+        // as a single JSON object with numeric string keys
+        // {"0": whole, "1": g1, ...} so a store target can navigate them by
+        // json-pointer (e.g. local.caps./1).
+        std::smatch matches;
+        std::string subject = asString(value);
+        if (std::regex_match(subject, matches, f.regex) && !matches.empty()) {
+            // Main resolved value is the whole match (group 0), used by string
+            // targets. For store targets we instead write a groups object with
+            // numeric string keys {"0": whole, "1": g1, ...}, navigable by
+            // json-pointer (e.g. local.caps./1).
+            value = matches.str(0);
+            if (last && rule.targetType == TargetType::StoreGlobal) {
+                // v1 vault layout: single object {"0": whole, "1": g1, ...}
+                nlohmann::json groups = nlohmann::json::object();
+                for (std::size_t g = 0; g < matches.size(); ++g) groups[std::to_string(g)] = matches.str(g);
+                value = groups;
+            } else if (last && rule.targetType == TargetType::StoreLocal) {
+                // v1 var layout: key = whole match, "<key>.<n>" = group n (n>=1)
+                for (std::size_t g = 0; g < matches.size(); ++g) localGroups.push_back(matches.str(g));
+                firstGroup = 1;
+            }
+        } else {
+            note = "regex capture did not fully match; rule skipped";
+            return false;
+        }
+    } else if (f.type == FilterType::ConditionVar) {
+        // Transfer source->target only if the named store var is truthy; when
+        // the condition is false the whole rule is skipped (no target assignment).
+        if (!conditionHolds(f.arg, ports)) {
+            note = "ConditionVar is false; rule skipped";
+            return false;
+        }
+        // Pass: value stays as the resolved source (string parity with h2agent).
+    } else if (f.type == FilterType::EqualTo || f.type == FilterType::DifferentFrom) {
+        std::string cmp = substituteVariables(f.arg, ports);  // admits @{var}
+        bool equal = (asString(value) == cmp);
+        bool pass = (f.type == FilterType::EqualTo) ? equal : !equal;
+        if (!pass) {
+            note = (f.type == FilterType::EqualTo) ? "EqualTo is false; rule skipped" : "DifferentFrom is false; rule skipped";
+            return false;
+        }
+        // Pass: value stays as the resolved source string (h2agent parity).
+    } else if (f.type == FilterType::JsonConstraint) {
+        // Validate the json source contains the expected subset. On success
+        // value becomes "1"; otherwise it becomes the fail-report string
+        // (parity with h2agent: the rule still applies, carrying the report).
+        std::string failReport;
+        if (jsonConstraint(value, f.object, failReport))
+            value = std::string("1");
+        else
+            value = failReport;
+    } else if (f.type == FilterType::SchemaId) {
+        // Validate the json source against a registered schema id via the
+        // SchemaValidator port. '1' on success else ''. If the port is null
+        // the rule is skipped (validation ignored, parity with h2agent's
+        // "missing schema -> validation ignored").
+        // v1 parity: "1" when valid, the fail report when invalid; an unknown
+        // schema id (or no validator) leaves the source value unchanged.
+        if (ports.schema) {
+            std::string failReport;
+            std::optional<bool> ok = ports.schema->validate(f.arg, value, failReport);
+            if (ok) value = *ok ? std::string("1") : failReport;
+        }
+    } else if (f.type == FilterType::Split) {
+        // Take the last size*count chars (left-pad with filler when shorter),
+        // split into 'count' groups of 'size', joined by 'sep'; when numeric,
+        // strip leading zeros per group. Parity with h2agent Split.
+        long long size = f.i1;
+        long long count = f.i2;
+        const std::string &sep = f.arg;
+        const std::string &filler = f.filler;
+        bool numeric = f.flag;
+        std::size_t totalLen = static_cast<std::size_t>(size) * static_cast<std::size_t>(count);
+        std::string padded = asString(value);
+        if (padded.size() > totalLen) {
+            padded = padded.substr(padded.size() - totalLen);
+        } else if (padded.size() < totalLen && !filler.empty()) {
+            std::string padding;
+            while (padding.size() + padded.size() < totalLen) padding += filler;
+            if (padding.size() + padded.size() > totalLen)
+                padding = padding.substr(padding.size() + padded.size() - totalLen);
+            padded = padding + padded;
+        }
+        std::string out;
+        for (long long i = 0; i < count; ++i) {
+            if (i > 0) out += sep;
+            std::string group = padded.substr(static_cast<std::size_t>(i * size), static_cast<std::size_t>(size));
+            if (numeric) {
+                try {
+                    out += std::to_string(std::stoull(group));
+                } catch (...) {
+                    out += group;
+                }
+            } else {
+                out += group;
+            }
+        }
+        value = out;
+    } else if (f.type == FilterType::BaseConvert) {
+        // Reinterpret the source as a number in base 'in' and render in base
+        // 'out' (2-36). 'capital' selects upper-case digits. On any error the
+        // source is kept unchanged (parity with h2agent).
+        int baseIn = static_cast<int>(f.i1);
+        int baseOut = static_cast<int>(f.i2);
+        bool capital = f.flag;
+        std::string src = asString(value);
+        std::string out;
+        try {
+            unsigned long long val = std::stoull(src, nullptr, baseIn);
+            if (baseOut == 10) {
+                out = std::to_string(val);
+            } else {
+                if (val == 0) {
+                    out = "0";
+                } else {
+                    while (val > 0) {
+                        int d = static_cast<int>(val % static_cast<unsigned long long>(baseOut));
+                        out += (d < 10) ? static_cast<char>('0' + d)
+                               : static_cast<char>((capital ? 'A' : 'a') + d - 10);
+                        val /= static_cast<unsigned long long>(baseOut);
+                    }
+                    std::reverse(out.begin(), out.end());
+                }
+            }
+        } catch (...) {
+            out = src;  // fallback to source on error
+        }
+        value = out;
+    } else if (f.type == FilterType::Strptime) {
+        // Parse the source date string into a UNIX epoch via strptime+timegm,
+        // scaled by the unit. Parse failure skips the rule (h2agent parity).
+        std::string src = asString(value);
+        std::tm tmv{};
+        if (strptime(src.c_str(), f.arg.c_str(), &tmv) == nullptr) {
+            note = "Strptime filter failed to parse source; rule skipped";
+            return false;
+        }
+        std::int64_t epoch = static_cast<std::int64_t>(timegm(&tmv));
+        switch (f.unit) {
+        case 1:
+            epoch *= 1000LL;
+            break;
+        case 2:
+            epoch *= 1000000LL;
+            break;
+        case 3:
+            epoch *= 1000000000LL;
+            break;
+        default:
+            break;
+        }
+        value = epoch;
+    } else if (f.type == FilterType::Strftime) {
+        // Format a numeric epoch source (interpreted in the given unit) into a
+        // string via gmtime_r+strftime. Non-numeric source or format failure
+        // skips the rule (h2agent parity).
+        std::int64_t epoch = 0;
+        if (!toInteger(value, epoch)) {
+            note = "Strftime filter requires a numeric source (epoch); rule skipped";
+            return false;
+        }
+        switch (f.unit) {
+        case 1:
+            epoch /= 1000LL;
+            break;
+        case 2:
+            epoch /= 1000000LL;
+            break;
+        case 3:
+            epoch /= 1000000000LL;
+            break;
+        default:
+            break;
+        }
+        std::time_t t = static_cast<std::time_t>(epoch);
+        std::tm tmv{};
+        gmtime_r(&t, &tmv);
+        char buf[256] = {0};
+        std::size_t n = std::strftime(buf, sizeof(buf), f.arg.c_str(), &tmv);
+        if (n == 0) {
+            note = "Strftime filter failed to format epoch; rule skipped";
+            return false;
+        }
+        value = std::string(buf, n);
+    } else if (f.type == FilterType::RegexKey) {
+        // The source must be a json object; match its keys and resolve to the
+        // value of the FIRST matching key. No object or no match skips the rule
+        // (parity with h2agent). Regex precompiled at parse (never here).
+        if (!value.is_object()) {
+            note = "RegexKey filter requires a JSON object source; rule skipped";
+            return false;
+        }
+        bool matched = false;
+        std::smatch km;
+        for (auto it = value.begin(); it != value.end(); ++it) {
+            std::string key = it.key();
+            if (std::regex_match(key, km, f.regex)) {
+                value = it.value();  // resolve to the first matching key's value
+                if (last && (rule.targetType == TargetType::StoreLocal || rule.targetType == TargetType::StoreGlobal)) {
+                    for (std::size_t g = 0; g < km.size(); ++g) localGroups.push_back(km.str(g));
+                    firstGroup = 0;  // "<key>.0" = matched key, ".1".. = groups
+                }
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            note = "RegexKey filter: no key matched; rule skipped";
+            return false;
+        }
+    } else if (f.type == FilterType::Size) {
+        // Number of elements/keys (object/array) or characters (string) as a
+        // numeric string (parity with h2agent Size).
+        if (value.is_object() || value.is_array())
+            value = std::to_string(value.size());
+        else
+            value = std::to_string(asString(value).size());
+    } else if (f.type == FilterType::Cast) {
+        if (!castValue(f.arg, value)) {
+            note = "value could not be cast to '" + f.arg + "'; rule skipped";
+            return false;
+        }
+    }
+    return true;
+}
+
 
 }  // namespace
 
@@ -946,7 +1302,20 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
             // malformed: keep the per-event build, which skips the rule (v1 parity)
         }
     }
-    if (item.contains("filter")) rule.filterType = classifyFilter(item["filter"], rule);
+    // "filter": one filter, or a chain of filters run in list order.
+    auto fit = item.find("filter");
+    if (fit != item.end()) {
+        const bool chain = fit->is_array();
+        const std::size_t count = chain ? fit->size() : 1;
+        for (std::size_t k = 0; k < count; ++k) {
+            Filter filter;
+            filter.type = classifyFilter(chain ? (*fit)[k] : *fit, filter, rule);
+            if (filter.type == FilterType::None) continue;  // unknown filter -> none (v1 parity)
+            if (!rule.rawFilter.empty()) rule.rawFilter += ",";
+            rule.rawFilter += filter.raw;
+            rule.filters.push_back(std::move(filter));
+        }
+    }
     auto off = item.find("onFilterFail");
     if (off != item.end()) {
         if (!off->is_array()) {
@@ -1257,20 +1626,34 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             continue;
         }
 
-        // Eraser is a value-less source. PARITY: in h2agent, an eraser combined
-        // with a filter skips the whole transformation (a filter needs a real
-        // source value to operate on, which eraser does not provide). So if a
-        // filter is present on an eraser rule, skip it instead of erasing.
-        if (eraser && rule.filterType != FilterType::None) {
-            entry.applied = false;
-            if (trace) entry.note = "eraser with filter is not allowed; rule skipped";
-            if (trace) result.executionTrace.push_back(std::move(entry));
-            if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-            continue;
+        // Eraser is a value-less source: its only filters are ConditionVar (the
+        // target is erased only when every condition holds) and Cast (nothing to
+        // convert, ignored). Any other filter needs a real source value, so the
+        // rule is skipped (v1 parity; the v2 schema rejects it).
+        if (eraser && !rule.filters.empty()) {
+            const char *skipNote = nullptr;
+            for (const Filter &f : rule.filters) {
+                if (f.type == FilterType::Cast) continue;
+                if (f.type != FilterType::ConditionVar) {
+                    skipNote = "eraser with a filter other than ConditionVar is not allowed; rule skipped";
+                    break;
+                }
+                if (!conditionHolds(f.arg, ports)) {
+                    skipNote = "ConditionVar is false; rule skipped";
+                    break;
+                }
+            }
+            if (skipNote) {
+                entry.applied = false;
+                if (trace) entry.note = skipNote;
+                if (trace) result.executionTrace.push_back(std::move(entry));
+                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
+                continue;
+            }
         }
 
         // Eraser short-circuits to the target application: the erase/clear/empty
-        // behavior runs (no filter is involved, guaranteed by the guard above).
+        // behavior runs (the guard above already checked its conditions).
         if (eraser) {
             switch (rule.targetType) {
             case TargetType::StoreLocal:
@@ -1352,323 +1735,18 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
         std::vector<std::string> localGroups;
         std::size_t firstGroup = 0;
 
-        // --- filter (optional) ---
-        if (rule.filterType == FilterType::Append) {
-            std::string argBuf;
-            value = asString(value) + resolveTemplate(rule.filterArg, argBuf, ports);
-        } else if (rule.filterType == FilterType::Prepend) {
-            std::string argBuf;
-            value = resolveTemplate(rule.filterArg, argBuf, ports) + asString(value);
-        } else if (rule.filterType == FilterType::Sum || rule.filterType == FilterType::Multiply) {
-            // Coerce source to a number (string numbers accepted), operate, keep
-            // numeric.
-            double n = 0.0;
-            bool ok = true;
-            if (value.is_number()) {
-                n = value.get<double>();
-            } else if (value.is_string()) {
-                try {
-                    n = std::stod(value.get<std::string>());
-                } catch (...) {
-                    ok = false;
-                }
-            } else {
-                ok = false;
-            }
-            if (ok) {
-                double r = (rule.filterType == FilterType::Sum) ? (n + rule.filterNumber) : (n * rule.filterNumber);
-                // Preserve integer-ness when the result is whole (nicer than 3.0).
-                if (r == static_cast<long long>(r))
-                    value = static_cast<long long>(r);
-                else
-                    value = r;
-            }
-            // On non-numeric source the filter is a no-op (value stays as-is),
-            // matching h2agent's "should not happen (protected by schema)" lenient
-            // behavior.
-        } else if (rule.filterType == FilterType::RegexReplace) {
-            // std::regex_replace returns the source unchanged when there is no
-            // match (intended fallback). Result is always a string. Regex was
-            // precompiled at parse time (never here).
-            value = std::regex_replace(asString(value), rule.filterRegex, rule.filterArg);
-        } else if (rule.filterType == FilterType::RegexCapture) {
-            // Full-match semantics (std::regex_match). No full match -> skip the
-            // whole rule (parity with h2agent returning false). On match, the
-            // value becomes the whole match (group 0); capture groups are exposed
-            // as a single JSON object with numeric string keys
-            // {"0": whole, "1": g1, ...} so a store target can navigate them by
-            // json-pointer (e.g. local.caps./1).
-            std::smatch matches;
-            std::string subject = asString(value);
-            if (std::regex_match(subject, matches, rule.filterRegex) && !matches.empty()) {
-                // Main resolved value is the whole match (group 0), used by string
-                // targets. For store targets we instead write a groups object with
-                // numeric string keys {"0": whole, "1": g1, ...}, navigable by
-                // json-pointer (e.g. local.caps./1).
-                value = matches.str(0);
-                if (rule.targetType == TargetType::StoreGlobal) {
-                    // v1 vault layout: single object {"0": whole, "1": g1, ...}
-                    nlohmann::json groups = nlohmann::json::object();
-                    for (std::size_t g = 0; g < matches.size(); ++g) groups[std::to_string(g)] = matches.str(g);
-                    value = groups;
-                } else if (rule.targetType == TargetType::StoreLocal) {
-                    // v1 var layout: key = whole match, "<key>.<n>" = group n (n>=1)
-                    for (std::size_t g = 0; g < matches.size(); ++g) localGroups.push_back(matches.str(g));
-                    firstGroup = 1;
-                }
-            } else {
-                entry.applied = false;
-                if (trace) entry.note = "regex capture did not fully match; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-        } else if (rule.filterType == FilterType::ConditionVar) {
-            // Transfer source->target only if the named store var is truthy
-            // (defined and non-empty string / non-zero number). A leading '!'
-            // inverts the test. Local store is consulted before global. When the
-            // condition is false the whole rule is skipped (no target assignment).
-            std::string varname = rule.filterArg;
-            bool reverse = (!varname.empty() && varname[0] == '!');
-            if (reverse) varname.erase(0, 1);
-            bool found = false;
-            nlohmann::json varval;
-            if (ports.store) {
-                auto v = ports.store->get(Store::Scope::Local, varname);
-                if (!v) v = ports.store->get(Store::Scope::Global, varname);
-                if (v) {
-                    found = true;
-                    varval = *v;
-                }
-            }
-            // Truthy: present AND non-empty string / non-zero number / true bool.
-            bool truthy = false;
-            if (found) {
-                if (varval.is_string())
-                    truthy = !varval.get<std::string>().empty();
-                else if (varval.is_number_integer())
-                    truthy = varval.get<std::int64_t>() != 0;
-                else if (varval.is_number_unsigned())
-                    truthy = varval.get<std::uint64_t>() != 0;
-                else if (varval.is_number_float())
-                    truthy = varval.get<double>() != 0.0;
-                else if (varval.is_boolean())
-                    truthy = varval.get<bool>();
-                else
-                    truthy = !varval.is_null();  // object/array present -> truthy
-            }
-            bool pass = reverse ? !truthy : truthy;
-            if (!pass) {
-                entry.applied = false;
-                if (trace) entry.note = "ConditionVar is false; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-            // Pass: value stays as the resolved source (string parity with h2agent).
-        } else if (rule.filterType == FilterType::EqualTo || rule.filterType == FilterType::DifferentFrom) {
-            std::string cmp = substituteVariables(rule.filterArg, ports);  // admits @{var}
-            bool equal = (asString(value) == cmp);
-            bool pass = (rule.filterType == FilterType::EqualTo) ? equal : !equal;
-            if (!pass) {
-                entry.applied = false;
-                if (trace) entry.note = (rule.filterType == FilterType::EqualTo) ? "EqualTo is false; rule skipped"
-                                            : "DifferentFrom is false; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-            // Pass: value stays as the resolved source string (h2agent parity).
-        } else if (rule.filterType == FilterType::JsonConstraint) {
-            // Validate the json source contains the expected subset. On success
-            // value becomes "1"; otherwise it becomes the fail-report string
-            // (parity with h2agent: the rule still applies, carrying the report).
-            std::string failReport;
-            if (jsonConstraint(value, rule.filterObject, failReport))
-                value = std::string("1");
-            else
-                value = failReport;
-        } else if (rule.filterType == FilterType::SchemaId) {
-            // Validate the json source against a registered schema id via the
-            // SchemaValidator port. '1' on success else ''. If the port is null
-            // the rule is skipped (validation ignored, parity with h2agent's
-            // "missing schema -> validation ignored").
-            // v1 parity: "1" when valid, the fail report when invalid; an unknown
-            // schema id (or no validator) leaves the source value unchanged.
-            if (ports.schema) {
-                std::string failReport;
-                std::optional<bool> ok = ports.schema->validate(rule.filterArg, value, failReport);
-                if (ok) value = *ok ? std::string("1") : failReport;
-            }
-        } else if (rule.filterType == FilterType::Split) {
-            // Take the last size*count chars (left-pad with filler when shorter),
-            // split into 'count' groups of 'size', joined by 'sep'; when numeric,
-            // strip leading zeros per group. Parity with h2agent Split.
-            long long size = rule.filterI1;
-            long long count = rule.filterI2;
-            const std::string &sep = rule.filterArg;
-            const std::string &filler = rule.filterFiller;
-            bool numeric = rule.filterFlag;
-            std::size_t totalLen = static_cast<std::size_t>(size) * static_cast<std::size_t>(count);
-            std::string padded = asString(value);
-            if (padded.size() > totalLen) {
-                padded = padded.substr(padded.size() - totalLen);
-            } else if (padded.size() < totalLen && !filler.empty()) {
-                std::string padding;
-                while (padding.size() + padded.size() < totalLen) padding += filler;
-                if (padding.size() + padded.size() > totalLen)
-                    padding = padding.substr(padding.size() + padded.size() - totalLen);
-                padded = padding + padded;
-            }
-            std::string out;
-            for (long long i = 0; i < count; ++i) {
-                if (i > 0) out += sep;
-                std::string group = padded.substr(static_cast<std::size_t>(i * size), static_cast<std::size_t>(size));
-                if (numeric) {
-                    try {
-                        out += std::to_string(std::stoull(group));
-                    } catch (...) {
-                        out += group;
-                    }
-                } else {
-                    out += group;
-                }
-            }
-            value = out;
-        } else if (rule.filterType == FilterType::BaseConvert) {
-            // Reinterpret the source as a number in base 'in' and render in base
-            // 'out' (2-36). 'capital' selects upper-case digits. On any error the
-            // source is kept unchanged (parity with h2agent).
-            int baseIn = static_cast<int>(rule.filterI1);
-            int baseOut = static_cast<int>(rule.filterI2);
-            bool capital = rule.filterFlag;
-            std::string src = asString(value);
-            std::string out;
-            try {
-                unsigned long long val = std::stoull(src, nullptr, baseIn);
-                if (baseOut == 10) {
-                    out = std::to_string(val);
-                } else {
-                    if (val == 0) {
-                        out = "0";
-                    } else {
-                        while (val > 0) {
-                            int d = static_cast<int>(val % static_cast<unsigned long long>(baseOut));
-                            out += (d < 10) ? static_cast<char>('0' + d)
-                                   : static_cast<char>((capital ? 'A' : 'a') + d - 10);
-                            val /= static_cast<unsigned long long>(baseOut);
-                        }
-                        std::reverse(out.begin(), out.end());
-                    }
-                }
-            } catch (...) {
-                out = src;  // fallback to source on error
-            }
-            value = out;
-        } else if (rule.filterType == FilterType::Strptime) {
-            // Parse the source date string into a UNIX epoch via strptime+timegm,
-            // scaled by the unit. Parse failure skips the rule (h2agent parity).
-            std::string src = asString(value);
-            std::tm tmv{};
-            if (strptime(src.c_str(), rule.filterArg.c_str(), &tmv) == nullptr) {
-                entry.applied = false;
-                if (trace) entry.note = "Strptime filter failed to parse source; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-            std::int64_t epoch = static_cast<std::int64_t>(timegm(&tmv));
-            switch (rule.filterUnit) {
-            case 1:
-                epoch *= 1000LL;
-                break;
-            case 2:
-                epoch *= 1000000LL;
-                break;
-            case 3:
-                epoch *= 1000000000LL;
-                break;
-            default:
-                break;
-            }
-            value = epoch;
-        } else if (rule.filterType == FilterType::Strftime) {
-            // Format a numeric epoch source (interpreted in the given unit) into a
-            // string via gmtime_r+strftime. Non-numeric source or format failure
-            // skips the rule (h2agent parity).
-            std::int64_t epoch = 0;
-            if (!toInteger(value, epoch)) {
-                entry.applied = false;
-                if (trace) entry.note = "Strftime filter requires a numeric source (epoch); rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-            switch (rule.filterUnit) {
-            case 1:
-                epoch /= 1000LL;
-                break;
-            case 2:
-                epoch /= 1000000LL;
-                break;
-            case 3:
-                epoch /= 1000000000LL;
-                break;
-            default:
-                break;
-            }
-            std::time_t t = static_cast<std::time_t>(epoch);
-            std::tm tmv{};
-            gmtime_r(&t, &tmv);
-            char buf[256] = {0};
-            std::size_t n = std::strftime(buf, sizeof(buf), rule.filterArg.c_str(), &tmv);
-            if (n == 0) {
-                entry.applied = false;
-                if (trace) entry.note = "Strftime filter failed to format epoch; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-            value = std::string(buf, n);
-        } else if (rule.filterType == FilterType::RegexKey) {
-            // The source must be a json object; match its keys and resolve to the
-            // value of the FIRST matching key. No object or no match skips the rule
-            // (parity with h2agent). Regex precompiled at parse (never here).
-            if (!value.is_object()) {
-                entry.applied = false;
-                if (trace) entry.note = "RegexKey filter requires a JSON object source; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-            bool matched = false;
-            std::smatch km;
-            for (auto it = value.begin(); it != value.end(); ++it) {
-                std::string key = it.key();
-                if (std::regex_match(key, km, rule.filterRegex)) {
-                    value = it.value();  // resolve to the first matching key's value
-                    if (rule.targetType == TargetType::StoreLocal || rule.targetType == TargetType::StoreGlobal) {
-                        for (std::size_t g = 0; g < km.size(); ++g) localGroups.push_back(km.str(g));
-                        firstGroup = 0;  // "<key>.0" = matched key, ".1".. = groups
-                    }
-                    matched = true;
-                    break;
-                }
-            }
-            if (!matched) {
-                entry.applied = false;
-                if (trace) entry.note = "RegexKey filter: no key matched; rule skipped";
-                if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
-                continue;
-            }
-        } else if (rule.filterType == FilterType::Size) {
-            // Number of elements/keys (object/array) or characters (string) as a
-            // numeric string (parity with h2agent Size).
-            if (value.is_object() || value.is_array())
-                value = std::to_string(value.size());
-            else
-                value = std::to_string(asString(value).size());
+        // --- filters (optional chain, in list order) ---
+        std::string filterNote;
+        bool filtersPassed = true;
+        for (std::size_t k = 0; filtersPassed && k < rule.filters.size(); ++k)
+            filtersPassed = applyFilter(rule.filters[k], k + 1 == rule.filters.size(), rule, value, ports, localGroups,
+                                        firstGroup, filterNote);
+        if (!filtersPassed) {
+            entry.applied = false;
+            if (trace) entry.note = std::move(filterNote);
+            if (trace) result.executionTrace.push_back(std::move(entry));
+            if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
+            continue;
         }
 
         // --- target application ---
@@ -1781,16 +1859,14 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 // v1 parity for validation filters on var targets: a non-"1"
                 // result is a fail report -> "<key>.fail" = report, key = "".
                 if (rule.targetType == TargetType::StoreLocal &&
-                        (rule.filterType == FilterType::JsonConstraint || rule.filterType == FilterType::SchemaId) &&
+                        !rule.filters.empty() &&
+                        (rule.filters.back().type == FilterType::JsonConstraint ||
+                         rule.filters.back().type == FilterType::SchemaId) &&
                         asString(value) != "1") {
                     if (ports.store) ports.store->set(Store::Scope::Local, key + ".fail", asString(value));
                     value = std::string();
                 }
-                // v1 storage typing: var is string-only (objects serialized);
-                // vault keeps objects/arrays natively and stores scalars as strings.
-                if (!value.is_string() &&
-                        (rule.targetType == TargetType::StoreLocal || (!value.is_object() && !value.is_array())))
-                    value = asString(value);
+                // Native json in both scopes: the value keeps the type the source (or a cast) yields.
                 if (ports.store) {
                     if (tPtr.empty() && value.is_string())
                         ports.store->setString(scope, key, std::move(value.get_ref<std::string &>()));  // no json round trip

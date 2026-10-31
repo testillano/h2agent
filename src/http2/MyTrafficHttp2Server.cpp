@@ -253,7 +253,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
 // Find mock context:
     std::string inState{};
-    std::map<std::string, std::string> chainVariables{};
+    h2agent::model::Variables chainVariables{};
     h2agent::model::DataKey normalizedKey(method, normalizedUri);
 
     /*bool requestFound = */getMockServerData()->findLastRegisteredRequestState(normalizedKey, inState, chainVariables); // if not found, inState will be 'initial'

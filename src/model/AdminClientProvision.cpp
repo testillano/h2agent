@@ -161,7 +161,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
                                       unsigned int &requestDelayMs,
                                       unsigned int &requestTimeoutMs,
                                       std::string &error,
-                                      std::map<std::string, std::string> &variables,
+                                      Variables &variables,
                                       std::int64_t seq
                                     )
 {
@@ -259,7 +259,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         const ert::http2comm::Http2Client::response &receivedResponse,
         std::uint64_t sendSeq,
         std::string &outState,
-        std::map<std::string, std::string> &variables,
+        Variables &variables,
         std::int64_t seq
                                             )
 {

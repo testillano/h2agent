@@ -53,6 +53,7 @@ SOFTWARE.
 #include <AdminSchema.hpp>
 #include <TypeConverter.hpp>
 #include <DataPart.hpp>
+#include <Variables.hpp>
 
 
 namespace h2agent
@@ -173,7 +174,7 @@ public:
                     unsigned int &requestDelayMs,
                     unsigned int &requestTimeoutMs,
                     std::string &error,
-                    std::map<std::string, std::string> &variables,
+                    Variables &variables,
                     std::int64_t seq = -1
                   );
 
@@ -193,7 +194,7 @@ public:
                             const ert::http2comm::Http2Client::response &receivedResponse,
                             std::uint64_t sendSeq,
                             std::string &outState,
-                            std::map<std::string, std::string> &variables,
+                            Variables &variables,
                             std::int64_t seq = -1
                           );
 

@@ -48,6 +48,7 @@ SOFTWARE.
 
 #include <DataPart.hpp>
 #include <Ports.hpp>
+#include <Variables.hpp>
 
 namespace h2agent {
 namespace model {
@@ -66,13 +67,13 @@ class AdminData;
  * AdminServerProvision/AdminClientProvision process* functions.
  */
 
-/** Local scope = per-chain variables map (strings, v1 'var'); global = Vault. */
+/** Local scope = per-chain variables (native json, see Variables); global = Vault. */
 class EngineStore : public h2agent::engine::Store {
-    std::map<std::string, std::string> &variables_;
+    Variables &variables_;
     Vault *vault_;
 
 public:
-    EngineStore(std::map<std::string, std::string> &variables, Vault *vault) : variables_(variables), vault_(vault) {}
+    EngineStore(Variables &variables, Vault *vault) : variables_(variables), vault_(vault) {}
     std::optional<nlohmann::json> get(Scope scope, const std::string &key, const std::string &pointer) const override;
     void set(Scope scope, const std::string &key, const nlohmann::json &value, const std::string &pointer) override;
     void setString(Scope scope, const std::string &key, std::string &&value) override;

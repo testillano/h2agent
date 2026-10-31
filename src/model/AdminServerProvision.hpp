@@ -49,6 +49,7 @@ SOFTWARE.
 #include <AdminSchema.hpp>
 #include <TypeConverter.hpp>
 #include <DataPart.hpp>
+#include <Variables.hpp>
 
 
 namespace h2agent
@@ -165,7 +166,7 @@ public:
                     std::string &outStateMethod,
                     std::string &outStateUri,
                     std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                    std::map<std::string, std::string> &variables
+                    Variables &variables
                   );
 
     // setters:

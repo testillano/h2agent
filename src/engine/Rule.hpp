@@ -194,24 +194,53 @@ enum class FilterType {
     // the value of the FIRST matching key. No match skips the rule.
     Size,          // Size: plain string "Size". Resolve to the number of elements/keys
     // (object/array) or characters (string) as a numeric string.
+    Cast,          // Cast: {"Cast":"string|integer|unsigned|float|boolean|object|json"}.
+    // Convert the value to the type (object: object or array required; json:
+    // parse the value text). A failed conversion fails the filter.
+};
+
+/**
+ * One parsed filter of a rule chain (filters run in list order, each one on the
+ * output of the previous one).
+ */
+struct Filter {
+    FilterType type{FilterType::None};
+    std::string raw{};         // filter label for trace, e.g. "Append"
+
+    std::string arg{};         // Append/Prepend affix, EqualTo/DifferentFrom value,
+    // ConditionVar varname, SchemaId id, Split sep,
+    // Strptime/Strftime fmt, Cast type (admits @{var} where noted)
+    double number{0.0};        // Sum/Multiply operand
+    long long i1{0};           // Split size / BaseConvert in-base
+    long long i2{0};           // Split count / BaseConvert out-base
+    bool flag{false};          // Split numeric / BaseConvert capital
+    std::string filler{};      // Split filler
+    int unit{0};               // Strptime/Strftime unit (0:s, 1:ms, 2:us, 3:ns)
+    nlohmann::json object{};   // JsonConstraint expected subset
+
+    // Precompiled filter regex (RegexReplace/RegexCapture/RegexKey). Compiled
+    // ONCE at parse time (never in evaluate, per the performance rule).
+    // `arg` holds the replacement format for RegexReplace; it is unused by
+    // RegexCapture/RegexKey. An invalid pattern at parse time drops the filter
+    // and marks the rule Unsupported (so it is skipped + traced).
+    std::regex regex{};
 };
 
 /**
  * A single parsed `source -> [filter] -> target` rule.
  *
- * Holds the classified kinds plus the parsed arguments. This slice supports a
- * single optional filter (chainable filters are a later grammar-v2 phase).
+ * Holds the classified kinds plus the parsed arguments, and the optional
+ * filter chain.
  */
 struct MathProgram;  // defined in Engine.cpp (keeps exprtk out of this header)
 
 struct Rule {
     SourceType sourceType{SourceType::Unsupported};
     TargetType targetType{TargetType::Unsupported};
-    FilterType filterType{FilterType::None};
 
     std::string rawSource{};  // original source expression, e.g. "value.hello"
     std::string rawTarget{};  // original target expression, e.g. "output.string"
-    std::string rawFilter{};  // filter label for trace, e.g. "Append"
+    std::string rawFilter{};  // filter labels for trace, e.g. "Append,Cast"
 
     // Parsed source arguments:
     std::string sourceArg{};  // value literal / timestamp unit / strftime fmt / math expression
@@ -257,26 +286,8 @@ struct Rule {
     // (recursive, h2agent parity). A break inside a fallback stops the pipeline.
     std::vector<Rule> onFilterFail{};
 
-    // Parsed filter argument:
-    std::string filterArg{};   // Append/Prepend affix, EqualTo/DifferentFrom value,
-    // ConditionVar varname, SchemaId id, Split sep,
-    // Strptime/Strftime fmt (admits @{var} where noted)
-    double filterNumber{0.0};  // Sum/Multiply operand
-
-    // Extra filter arguments (new filters):
-    long long filterI1{0};      // Split size / BaseConvert in-base
-    long long filterI2{0};      // Split count / BaseConvert out-base
-    bool filterFlag{false};     // Split numeric / BaseConvert capital
-    std::string filterFiller{}; // Split filler
-    int filterUnit{0};          // Strptime/Strftime unit (0:s, 1:ms, 2:us, 3:ns)
-    nlohmann::json filterObject{};  // JsonConstraint expected subset
-
-    // Precompiled filter regex (RegexReplace/RegexCapture/RegexKey). Compiled
-    // ONCE at parse time (never in evaluate, per the performance rule).
-    // `filterArg` holds the replacement format for RegexReplace; it is unused by
-    // RegexCapture/RegexKey. An invalid pattern at parse time leaves the filter
-    // as None (and marks the rule Unsupported so it is skipped + traced).
-    std::regex filterRegex{};
+    // Filter chain (empty: no filter):
+    std::vector<Filter> filters{};
 
     // Precompiled math source (compiled ONCE at parse time, like the regex
     // above): @{var} are bound as exprtk variables instead of being substituted

@@ -121,7 +121,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       std::string &outStateMethod,
                                       std::string &outStateUri,
                                       std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                                      std::map<std::string, std::string> &variables
+                                      Variables &variables
                                     )
 {
     // Default values without transformations:

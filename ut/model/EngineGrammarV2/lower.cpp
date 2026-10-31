@@ -41,6 +41,8 @@ TEST(EngineGrammarV2_test, ServerSourcesAndTargets) {
         {R"({"from":{"source":"requestBody","path":"/a/b"},"filter":[{"op":"cast","type":"json"}],"to":{"target":"responseBody","path":"/x"}})", engineRule("input./body/a/b", "output.json.jsonstring./x")},
         {R"({"from":{"source":"literal","value":"hi"},"to":{"target":"responseBody","path":"/greeting"}})", engineRule("value.hi", "output.json./greeting")},
         {R"({"from":{"source":"responseBody","path":"/a"},"to":{"target":"vault","key":"K","path":"/b"}})", engineRule("output./a", "global.K./b")},
+        {R"({"from":{"source":"var","name":"doc","path":"/a"},"to":{"target":"var","name":"copy","path":"/b/c"}})", engineRule("local.doc./a", "local.copy./b/c")},
+        {R"({"from":{"source":"var","name":"uri_parts.1"},"to":{"target":"var","name":"v"}})", engineRule("local.uri_parts.1", "local.v")},
         {R"({"from":{"source":"requestHeader","name":"x-id"},"to":{"target":"responseHeader","name":"x-id"}})", engineRule("input./headerMap/x-id", "meta.header.x-id")},
         {R"({"from":{"source":"requestHeaders"},"filter":[{"op":"cast","type":"object"}],"to":{"target":"vault","key":"H"}})", engineRule("input./headers", "global.H.json.object")},
         {R"({"from":{"source":"recvseq"},"to":{"target":"responseStatusCode"}})", engineRule("sequence", "meta.statusCode")},
@@ -129,13 +131,46 @@ TEST(EngineGrammarV2_test, FiltersUseTheEngineShape) {
               R"({"filter":{"EqualTo":"y"},"onFilterFail":[{"source":"value.1","target":"break"}],"source":"value.x","target":"local.v"})");
 }
 
+TEST(EngineGrammarV2_test, FilterChainsAndCastsAreLowered) {
+    const std::vector<std::pair<std::string, std::string>> table = {
+        // chain, in list order:
+        {   R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"append","value":"a"},{"op":"prepend","value":"b"}],"to":{"target":"var","name":"v"}})",
+            engineRule("value.x", "local.v", R"([{"Append":"a"},{"Prepend":"b"}])")
+        },
+        // a cast which is not the last filter runs as a chain filter:
+        {   R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"integer"},{"op":"size"}],"to":{"target":"responseBody"}})",
+            engineRule("value.x", "output.json", R"([{"Cast":"integer"},"Size"])")
+        },
+        // a final cast on a typed target is the target typing (filters before it are kept):
+        {   R"({"from":{"source":"literal","value":"7"},"filter":[{"op":"sum","value":1},{"op":"cast","type":"integer"}],"to":{"target":"responseBody","path":"/n"}})",
+            engineRule("value.7", "output.json.integer./n", R"({"Sum":1})")
+        },
+        // a final cast on any other target runs as a filter:
+        {   R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"var","name":"v"}})",
+            engineRule("value.x", "local.v", R"({"Cast":"integer"})")
+        },
+        {   R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"vault","key":"K"}})",
+            engineRule("value.x", "global.K", R"({"Cast":"integer"})")
+        },
+        {   R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"json"}],"to":{"target":"responseHeader","name":"h"}})",
+            engineRule("value.x", "meta.header.h", R"({"Cast":"json"})")
+        },
+        // conditional erase (conditions kept, the final cast on a body target types it):
+        {   R"({"from":{"source":"erase"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"var","name":"v"}})",
+            engineRule("eraser", "local.v", R"({"ConditionVar":"c"})")
+        },
+        {   R"({"from":{"source":"erase"},"filter":[{"op":"conditionVar","name":"c"},{"op":"conditionVar","name":"d","not":true},{"op":"cast","type":"object"}],"to":{"target":"responseBody","path":"/a"}})",
+            engineRule("eraser", "output.json.object./a", R"([{"ConditionVar":"c"},{"ConditionVar":"!d"}])")
+        },
+    };
+    for (const auto &row : table) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(lowered(row.first, Mode::Server), row.second);
+    }
+}
+
 TEST(EngineGrammarV2_test, FeaturesNotSupportedYetAreRejected) {
     const std::vector<std::pair<std::string, std::string>> table = {
-        {R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"append","value":"a"},{"op":"prepend","value":"b"}],"to":{"target":"var","name":"v"}})", "a chain of several filters"},
-        {R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"integer"},{"op":"size"}],"to":{"target":"responseBody"}})", "cast before other filters"},
-        {R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"var","name":"v"}})", "cast to 'integer' on target 'var'"},
-        {R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"vault","key":"K"}})", "cast to 'integer' on a vault target"},
-        {R"({"from":{"source":"erase"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"var","name":"v"}})", "a conditional erase"},
         {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"var","name":"v"}})", "randomset value with '|'"},
     };
     for (const auto &row : table) {

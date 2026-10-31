@@ -2617,13 +2617,41 @@ TEST(Engine_test, ValidationFilterOnLocalTargetPublishesFailVar) {
     EXPECT_FALSE(store.get(Store::Scope::Local, "ok.fail")->get<std::string>().empty());
 }
 
-TEST(Engine_test, StoreTypingFollowsV1VarAndVault) {
+TEST(Engine_test, StoreKeepsNativeJsonInBothScopes) {
     Engine engine;
     std::string err;
     auto pipeline = engine.parse(R"([
       {"source":"input","target":"local.asVar"},
       {"source":"input","target":"global.asVault"},
-      {"source":"math.1+1","target":"global.num"}
+      {"source":"math.1+1","target":"global.num"},
+      {"source":"math.1+1","target":"local.num"},
+      {"source":"value.2","target":"local.text"},
+      {"source":"input./flag","target":"local.flag"}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.input = nlohmann::json{{"a", 1}, {"flag", false}};
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(store.get(Store::Scope::Local, "asVar"), ctx.input);
+    EXPECT_EQ(store.get(Store::Scope::Global, "asVault"), ctx.input);
+    EXPECT_EQ(store.get(Store::Scope::Global, "num"), nlohmann::json(2));
+    EXPECT_EQ(store.get(Store::Scope::Local, "num"), nlohmann::json(2));
+    EXPECT_EQ(store.get(Store::Scope::Local, "text"), nlohmann::json("2"));  // a literal is text
+    EXPECT_EQ(store.get(Store::Scope::Local, "flag"), nlohmann::json(false));
+}
+
+TEST(Engine_test, NativeVarRendersAsTextAndDrivesConditions) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"math.3-3","target":"local.zero"},
+      {"source":"input","target":"local.doc"},
+      {"source":"value.n=@{zero} doc=@{doc}","target":"output.string"},
+      {"source":"value.1","target":"local.hit","filter":{"ConditionVar":"zero"},
+       "onFilterFail":[{"source":"value.0","target":"local.hit"}]}
     ])"_json, err);
     ASSERT_NE(pipeline, nullptr) << err;
     MemStore store;
@@ -2632,9 +2660,30 @@ TEST(Engine_test, StoreTypingFollowsV1VarAndVault) {
     StandaloneContext ctx;
     ctx.input = nlohmann::json{{"a", 1}};
     engine.evaluate(pipeline, ctx, ports);
-    EXPECT_EQ(store.get(Store::Scope::Local, "asVar"), nlohmann::json("{\"a\":1}"));  // var: serialized
-    EXPECT_EQ(store.get(Store::Scope::Global, "asVault"), (nlohmann::json{{"a", 1}}));  // vault: native object
-    EXPECT_EQ(store.get(Store::Scope::Global, "num"), nlohmann::json("2"));              // vault scalar: string
+    EXPECT_EQ(ctx.outBody.raw, "n=0 doc={\"a\":1}");
+    EXPECT_EQ(store.get(Store::Scope::Local, "hit"), nlohmann::json("0"));  // numeric 0 is false
+}
+
+TEST(Engine_test, VarPathReadsAndWritesNodes) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"input","target":"local.doc"},
+      {"source":"local.doc./a/b","target":"output.json./b"},
+      {"source":"value.x","target":"local.doc./a/c"},
+      {"source":"value.y","target":"local.fresh./k"},
+      {"source":"local.doc./missing","target":"output.json./never"}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.input = nlohmann::json::parse(R"({"a":{"b":7}})");
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.output, nlohmann::json::parse(R"({"b":7})"));
+    EXPECT_EQ(store.get(Store::Scope::Local, "doc"), nlohmann::json::parse(R"({"a":{"b":7,"c":"x"}})"));
+    EXPECT_EQ(store.get(Store::Scope::Local, "fresh"), nlohmann::json::parse(R"({"k":"y"})"));
 }
 
 TEST(Engine_test, EraserOnFileTargetTruncatesAndTemplatedFlagReported) {
@@ -2709,3 +2758,170 @@ TEST(Engine_test, MetaSourceReadsLiveMetadataAndMetaTargetsWriteIt) {
     EXPECT_EQ(ctx.timeoutMs, 1500u);
 }
 
+
+// Filter chains and the Cast filter ----------------------------------------
+
+TEST(Engine_test, FilterChainRunsInListOrder) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.x","target":"output.string","filter":[{"Append":".a"},{"Prepend":"b."},{"Append":"@{s}"}]}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "s", "!");
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    auto result = engine.evaluate(pipeline, ctx, ports, /*trace=*/true);
+    EXPECT_EQ(ctx.outBody.raw, "b.x.a!");
+    ASSERT_EQ(result.executionTrace.size(), 1u);
+    EXPECT_EQ(result.executionTrace[0].filter, "Append,Prepend,Append");
+}
+
+TEST(Engine_test, FilterChainStopsAtFirstFailureAndRunsOnFilterFail) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.x","target":"output.string","filter":[{"Append":".a"},{"EqualTo":"x"},{"Append":".never"}],
+       "onFilterFail":[{"source":"value.fallback","target":"local.f"}]}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.outBody.raw = "untouched";
+    auto result = engine.evaluate(pipeline, ctx, ports, /*trace=*/true);
+    EXPECT_EQ(ctx.outBody.raw, "untouched");  // "x.a" != "x": the chain failed at its second filter
+    EXPECT_EQ(store.get(Store::Scope::Local, "f"), nlohmann::json("fallback"));
+    ASSERT_GE(result.executionTrace.size(), 1u);
+    EXPECT_FALSE(result.executionTrace[0].applied);
+    EXPECT_EQ(result.executionTrace[0].note, "EqualTo is false; rule skipped");
+}
+
+TEST(Engine_test, CaptureGroupsOnlyPublishedByTheLastFilter) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"j([
+      {"source":"value.id-42","target":"local.mid","filter":[{"RegexCapture":"id-([0-9]+)"},{"Append":"!"}]},
+      {"source":"value.id-42","target":"local.last","filter":[{"Append":""},{"RegexCapture":"id-([0-9]+)"}]}
+    ])j"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(store.get(Store::Scope::Local, "mid"), nlohmann::json("id-42!"));  // whole match goes on
+    EXPECT_FALSE(store.get(Store::Scope::Local, "mid.1").has_value());
+    EXPECT_EQ(store.get(Store::Scope::Local, "last"), nlohmann::json("id-42"));
+    EXPECT_EQ(store.get(Store::Scope::Local, "last.1"), nlohmann::json("42"));
+}
+
+TEST(Engine_test, CastFilterConvertsTheValue) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.42","target":"output.json./i","filter":{"Cast":"integer"}},
+      {"source":"value.42","target":"output.json./u","filter":{"Cast":"unsigned"}},
+      {"source":"value.1.5","target":"output.json./f","filter":{"Cast":"float"}},
+      {"source":"value.true","target":"output.json./b","filter":{"Cast":"boolean"}},
+      {"source":"value.{\"a\":[1]}","target":"output.json./j","filter":{"Cast":"json"}},
+      {"source":"sequence","target":"output.json./s","filter":{"Cast":"string"}},
+      {"source":"value.7","target":"output.json./chain","filter":[{"Cast":"integer"},{"Sum":1}]}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    Ports ports;
+    StandaloneContext ctx;
+    ctx.sequence = 3;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_TRUE(ctx.output["i"].is_number_integer());
+    EXPECT_EQ(ctx.output["i"], 42);
+    EXPECT_TRUE(ctx.output["u"].is_number_unsigned());
+    EXPECT_EQ(ctx.output["f"], 1.5);
+    EXPECT_EQ(ctx.output["b"], true);
+    EXPECT_EQ(ctx.output["j"], nlohmann::json::parse(R"({"a":[1]})"));
+    EXPECT_EQ(ctx.output["s"], "3");
+    EXPECT_EQ(ctx.output["chain"], 8);
+}
+
+TEST(Engine_test, CastFilterFailureSkipsTheRule) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.abc","target":"output.json./i","filter":{"Cast":"integer"}},
+      {"source":"value.{bad","target":"output.json./j","filter":{"Cast":"json"}},
+      {"source":"value.scalar","target":"output.json./o","filter":{"Cast":"object"}},
+      {"source":"value.abc","target":"local.v","filter":{"Cast":"float"},
+       "onFilterFail":[{"source":"value.1","target":"local.failed"}]}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.output = nlohmann::json::object();
+    auto result = engine.evaluate(pipeline, ctx, ports, /*trace=*/true);
+    EXPECT_EQ(ctx.output, nlohmann::json::object());
+    EXPECT_FALSE(store.get(Store::Scope::Local, "v").has_value());
+    EXPECT_EQ(store.get(Store::Scope::Local, "failed"), nlohmann::json("1"));
+    EXPECT_EQ(result.executionTrace[0].note, "value could not be cast to 'integer'; rule skipped");
+}
+
+TEST(Engine_test, UnknownCastTypeIsIgnoredAsUnknownFilter) {
+    // Unknown filters are dropped at parse (v1 parity); the schema rejects them before.
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([{"source":"value.x","target":"output.string","filter":{"Cast":"date"}}])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    Ports ports;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "x");
+}
+
+// Conditional erase --------------------------------------------------------
+
+TEST(Engine_test, ConditionalEraseErasesOnlyWhenEveryConditionHolds) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"eraser","target":"local.a","filter":[{"ConditionVar":"yes"},{"ConditionVar":"!no"}]},
+      {"source":"eraser","target":"local.b","filter":[{"ConditionVar":"yes"},{"ConditionVar":"no"}],
+       "onFilterFail":[{"source":"value.1","target":"local.kept"}]},
+      {"source":"eraser","target":"local.c","filter":[{"ConditionVar":"yes"},{"Cast":"string"}]}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "yes", "1");
+    store.set(Store::Scope::Local, "a", "A");
+    store.set(Store::Scope::Local, "b", "B");
+    store.set(Store::Scope::Local, "c", "C");
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    auto result = engine.evaluate(pipeline, ctx, ports, /*trace=*/true);
+    EXPECT_FALSE(store.get(Store::Scope::Local, "a").has_value());           // erased
+    EXPECT_EQ(store.get(Store::Scope::Local, "b"), nlohmann::json("B"));     // condition 'no' does not hold
+    EXPECT_EQ(store.get(Store::Scope::Local, "kept"), nlohmann::json("1"));  // its onFilterFail ran
+    EXPECT_FALSE(store.get(Store::Scope::Local, "c").has_value());           // the cast is ignored
+}
+
+TEST(Engine_test, ConditionalEraseOnBodyNode) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"eraser","target":"output.json.object./a","filter":{"ConditionVar":"go"}},
+      {"source":"eraser","target":"output.json.object./b","filter":{"ConditionVar":"!go"}}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "go", "1");
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.output = nlohmann::json{{"a", 1}, {"b", 2}};
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.output, nlohmann::json({{"b", 2}}));
+}

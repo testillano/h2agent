@@ -139,7 +139,7 @@ inline nlohmann::json sourceKind(const std::string &name) {
         {"strftime", kind("source", "strftime", {{"fmt", text()}}, {"fmt"})},
         {"recvseq", kind("source", "recvseq")},
         {"sendseq", kind("source", "sendseq")},
-        {"var", kind("source", "var", {{"name", text()}}, {"name"})},
+        {"var", kind("source", "var", {{"name", text()}, {"path", nodePath()}}, {"name"})},
         {"vault", kind("source", "vault", {{"key", dotless()}, {"path", nodePath()}}, {"key"})},
         {"literal", kind("source", "literal", {{"value", anyText()}}, {"value"})},
         {"inState", kind("source", "inState")},
@@ -168,7 +168,7 @@ inline nlohmann::json targetKind(const std::string &name) {
         {"requestMethod", kind("target", "requestMethod")},
         {"requestDelayMs", kind("target", "requestDelayMs")},
         {"requestTimeoutMs", kind("target", "requestTimeoutMs")},
-        {"var", kind("target", "var", {{"name", text()}}, {"name"})},
+        {"var", kind("target", "var", {{"name", text()}, {"path", nodePath()}}, {"name"})},
         {"vault", kind("target", "vault", {{"key", dotless()}, {"path", nodePath()}}, {"key"})},
         // server outState: optional foreign method/uri ('uri' requires 'method'):
         {   "outState", [] {

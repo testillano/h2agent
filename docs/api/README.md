@@ -457,14 +457,14 @@ We could optionally validate built responses against a `json` schema. When a ref
 
 ### Variable types: `var` vs `vault`
 
-There are two distinct variable systems available in transformations. Despite the similar naming, they differ not only in scope but also in storage type and behavior:
+There are two variable stores available in transformations. Both hold native `json` values (string, number, boolean, null, object, array) with the type the source (or a `cast` filter) yields, and both navigate them with a json pointer `path`; they differ in scope:
 
 | Aspect | `var` (local) | `vault` (global) |
 |--------|---------------|----------------------|
 | **Scope** | Per-provision `outState` chain. Destroyed when the chain ends. | Process-level. Persists until explicitly erased or deleted via REST API. |
-| **Storage type** | `string` only (`Map<string, string>`) | Any `json` type: string, number, boolean, object, array (`Map<string, json>`) |
+| **Storage type** | Any `json` type | Any `json` type |
 | **Name/key** | `name`, may contain dots (e.g. `captures.1`) | `key`, dots forbidden |
-| **Path navigation** | Not supported | Supported: `{"source": "vault", "key": "KEY", "path": "/path/to/field"}` (json pointer) |
+| **Path navigation** | `{"source": "var", "name": "NAME", "path": "/path/to/field"}` (json pointer) | `{"source": "vault", "key": "KEY", "path": "/path/to/field"}` (json pointer) |
 | **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v2/vault` |
 | **CLI loading** | Not supported | `--vault file.json` |
 | **Blocking wait** | Not supported | `GET /admin/v2/vault/<key>/wait` |
@@ -481,7 +481,7 @@ to: {"target": "var", "name": "uri_parts"}
 -> uri_parts.1 = "foo"                 (group 1)
 -> uri_parts.2 = "1"                   (group 2)
 
-Access: {"source": "var", "name": "uri_parts.1"} -> "foo"   (key lookup in flat string map)
+Access: {"source": "var", "name": "uri_parts.1"} -> "foo"   (the group is a variable of its own)
 ```
 
 > **Gotcha — dotted capture variables in a vault key.** A capture-group variable
@@ -505,20 +505,13 @@ to: {"target": "vault", "key": "uri_parts"}
 Access: {"source": "vault", "key": "uri_parts", "path": "/1"} -> "foo"   (json pointer path navigation)
 ```
 
-#### Type conversion when copying between `var` and `vault`
+#### Value types
 
-Since `var` stores strings and `vault` stores native JSON, copying between them involves implicit conversion:
+A value keeps its type when it is copied between variables and vaults (no serialization): a request body object stored in a `var` is written as an object by a `{"op": "cast", "type": "object"}` body target, and its nodes can be read with `path`. A number (`recvseq`, `math`, `timestamp`, `random`, `sum`...) is stored as a number, and a `literal` as a string. When a value is substituted in a text (`@{name}`), strings are inserted as they are and any other value as its compact json text (`60`, `true`, `{"a":1}`).
 
-| Source → Target | Conversion |
-|---|---|
-| `vault` (JSON object) → `var` | Serialized via `.dump()` (e.g. `{"a":1}` becomes the string `{"a":1}`) |
-| `vault` (string) → `var` | Direct string copy (no conversion) |
-| `var` → `vault` | Stored as JSON string value |
-| `vault` → `vault` | Native JSON copy (no serialization) |
+> **Changed in 5.0.0:** a `var` held strings only, and a vault stored numbers and booleans as strings. Values now keep their type, which affects: a `var` object written to a body (now an object, formerly its json text), the vault values listed by the REST API (`2` instead of `"2"`), and the `conditionVar` filter (a numeric `0` or a boolean `false` is now a false condition, formerly a non-empty, true one). Add `{"op": "cast", "type": "string"}` before the store target to keep a string.
 
-When a JSON object is stored in a `var` and later written to a json body target with `{"op": "cast", "type": "object"}`, it will be stored as a JSON string value (not parsed back). To deserialize it, use `{"op": "cast", "type": "json"}` instead, which parses the string back into a JSON object. For structured data that needs to be passed between transforms without serialization overhead, prefer `vault` targets.
-
-Note that a vault `path` is a json pointer (`"path": "/1"`), while a dotted `var` name is a plain key lookup (`"name": "uri_parts.1"`). Paths work the same way for `requestBody` and `responseBody`.
+Note that a `path` is a json pointer (`"path": "/1"`), while a dotted `var` name is a plain variable name (`"name": "uri_parts.1"`). Paths work the same way for `requestBody` and `responseBody`.
 
 If the vault already existed (regardless of its previous type — string, number, or object), the `regexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `{"target": "vault", "key": "MY_OBJ", "path": "/captures"}` will only replace the `/captures` field, preserving the rest of the object.
 
@@ -534,7 +527,7 @@ Each transformation has three stages, written in this order:
 
 `from` captures a value (the **source**), the optional `filter` list processes it, and `to` writes it (the **target**). `source`, `target` and `op` select the kind; every other argument is a named field (`path`, `name`, `key`, `value`...), and a missing `path` means the whole document. <u>The filters are applied over sources and sent to targets</u>. An optional `onFilterFail` list holds the transformations executed when a filter fails. The exact mapping from the former (v1) grammar is documented in [GrammarV2.md](../developers/GrammarV2.md), and the `h2agent-migrate` tool converts v1 provisions automatically.
 
-The value reaching a json body target (`responseBody`, or `requestBody` in client provisions) keeps the type the source yields; a final `{"op": "cast", "type": "string|integer|unsigned|float|boolean|object|json"}` filter converts it (`json` parses a json text).
+The value reaching a json body target (`responseBody`, or `requestBody` in client provisions) keeps the type the source yields; a final `{"op": "cast", "type": "string|integer|unsigned|float|boolean|object|json"}` filter converts it (`json` parses a json text). The cast may appear at any position of the filter list and with any target (see [filters](#filter-chains)).
 
 A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped going to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
 
@@ -623,7 +616,7 @@ The **source** of information is classified after parsing the following possible
 
 - `{"source": "recvseq"}`: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
 
-- `{"source": "var", "name": "<id>"}`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Cannot refer json objects. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
+- `{"source": "var", "name": "<id>"[, "path": "/<path>"]}`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Values can be strings, numbers, booleans, arrays or `json` objects; a `path` (json pointer) navigates into the stored value. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
 
 - `{"source": "vault", "key": "<key>"[, "path": "/<path>"]}`: general purpose vault (readable from anywhere, process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. When a `path` is provided (json pointer format), the source navigates into the stored `json` value (e.g. `{"source": "vault", "key": "TPL", "path": "/request/headers/auth"}` extracts the `auth` field). Without path, the whole value is used. For string values, the behavior is backward compatible with the former string-only storage. This source variable identifier **admits variables substitution** (on the key part). Vault are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed). **Note:** key names cannot contain dots.
 
@@ -803,7 +796,7 @@ The **target** of information is classified after parsing the following possible
 
 - `{"target": "responseDelayMs"}` *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- `{"target": "var", "name": "<id>"}` *[string (or number as string)]*: general purpose variable (writable at transformation chain, scoped to the `outState` chain). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Variables set here are automatically available in subsequent provisions linked via `outState`. Cannot store json objects. This target variable identifier **admits variables substitution**.
+- `{"target": "var", "name": "<id>"[, "path": "/<path>"]}` *[any json type]*: general purpose variable (writable at transformation chain, scoped to the `outState` chain). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Variables set here are automatically available in subsequent provisions linked via `outState`. The value keeps the type the source yields; with a `path` (json pointer) only that node is written, preserving the rest of the stored object. This target variable identifier **admits variables substitution**.
 
 - `{"target": "vault", "key": "<key>"[, "path": "/<path>"]}` *[any json type]*: general purpose vault (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. This target variable identifier **admits variables substitution** (on the key part).
 
@@ -923,6 +916,22 @@ There are several **filter** methods, but remember that filter node is optional,
 In the case above, *delay* will take the absolute value for the random generated (just in case the user configures a range with possible negative result).
 
 Filters give you the chance to make complex transformations:
+
+<a name="filter-chains"></a>The `filter` list is a **chain**: filters run in list order, each one over the output of the previous one, and the first failing filter stops the chain (the target is not touched and `onFilterFail` runs). For example, extract a number from the uri, add an offset and write it as an integer:
+
+```json
+{
+  "from": {"source": "requestUriPath"},
+  "filter": [
+    {"op": "regexReplace", "rgx": "/app/v1/id-([0-9]+)", "fmt": "$1"},
+    {"op": "cast", "type": "integer"},
+    {"op": "sum", "value": 1000}
+  ],
+  "to": {"target": "responseBody", "path": "/id"}
+}
+```
+
+The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`, `boolean`, `object` (an object or array is required) or `json` (the value text is parsed); a value which cannot be converted fails the filter. Capture groups of `regexCapture`/`regexKey` (`<id>.k` variables, vault group objects) are only published when that filter is the last one of the chain; otherwise the whole match (or the matched key value) goes on to the next filter.
 
 
 
@@ -1289,14 +1298,14 @@ Filters give you the chance to make complex transformations:
 
 
 
-- `conditionVar`: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>), which is:
+- `conditionVar`: conditional transfer from source to target based on the boolean interpretation of the value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>), which is:
 
   - **False** condition for cases:
     - <u>Undefined</u> variable.
-    - Defined but <u>empty</u> string.
+    - <u>Empty</u> string, number <u>zero</u>, boolean <u>false</u> or <u>null</u>.
 
   - **True** condition for the rest of cases:
-    - Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
+    - Non-empty string, non-zero number, boolean true, any object or array: note that the strings "0", "false" or any other "apparently false" non-empty string are true condition variables (only their numeric or boolean values are false).
       Also, variable name in `conditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>.
 
   Transfer procedure consists in <u>source copy over target</u> only when condition is **true**. For the **false** branch, you can use `onFilterFail` to provide alternative transforms that execute when the filter condition is not met:

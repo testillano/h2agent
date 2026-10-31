@@ -97,7 +97,7 @@ std::string lowerSource(const nlohmann::json &from, Mode mode, bool usesJsonBody
     const std::string kind = text(from, "source");
 
     // Common to every mode:
-    if (kind == "var") return "local." + text(from, "name");
+    if (kind == "var") return withPath("local." + text(from, "name"), from);
     if (kind == "vault") return withPath("global." + text(from, "key"), from);
     if (kind == "erase") return "eraser";
     if (kind == "math") return "math." + text(from, "expression");
@@ -156,6 +156,17 @@ std::string bodyKind(const std::string &castType) {
     return castType == "json" ? "jsonstring" : castType;
 }
 
+/**
+ * A final cast which the engine runs as a typed target: json body targets (any type) and vault targets (object/json).
+ * They keep the v1 typed write semantics (merge at root, erase flavours). Any other cast runs as a chain filter.
+ */
+bool typedTarget(const nlohmann::json &to, const std::string &castType, Mode mode) {
+    const std::string kind = text(to, "target");
+    if ((mode == Mode::Server && kind == "responseBody") || (mode == Mode::ClientRequest && kind == "requestBody")) return true;
+    return kind == "vault" && (castType == "object" || castType == "json");
+}
+
+/** `castType` is only given for typed targets (see typedTarget). */
 std::string lowerTarget(const nlohmann::json &to, const std::string &castType, Mode mode) {
     const std::string kind = text(to, "target");
     const bool bodyJson = (mode == Mode::Server && kind == "responseBody") || (mode == Mode::ClientRequest && kind == "requestBody");
@@ -165,13 +176,11 @@ std::string lowerTarget(const nlohmann::json &to, const std::string &castType, M
         std::string base = "global." + text(to, "key");
         if (castType == "object") base += ".json.object";
         else if (castType == "json") base += ".json.jsonstring";
-        else if (!castType.empty()) throw NotSupported{"cast to '" + castType + "' on a vault target"};
         return withPath(base, to);
     }
-    if (!castType.empty()) throw NotSupported{"cast to '" + castType + "' on target '" + kind + "'"};
 
     // Common to every mode:
-    if (kind == "var") return "local." + text(to, "name");
+    if (kind == "var") return withPath("local." + text(to, "name"), to);
     if (kind == "txtFile" || kind == "binFile") return kind + "." + text(to, "file");
     if (kind == "udpSocket") return "udpSocket." + text(to, "socket") + (to.contains("delayMs") ? "|" + number(to["delayMs"]) : "");
     if (kind == "stop") return "break";
@@ -239,27 +248,29 @@ nlohmann::json lowerFilter(const nlohmann::json &f) {
 nlohmann::json lowerRules(const nlohmann::json &rules, Mode mode, bool usesJsonBodyTarget);
 
 nlohmann::json lowerRule(const nlohmann::json &rule, Mode mode, bool usesJsonBodyTarget) {
-    std::string castType;
     std::vector<nlohmann::json> filters;
     auto fit = rule.find("filter");
     if (fit != rule.end()) {
-        for (std::size_t i = 0; i < fit->size(); i++) {
-            const nlohmann::json &f = (*fit)[i];
-            if (text(f, "op") == "cast") {
-                if (i + 1 != fit->size()) throw NotSupported{"cast before other filters"};
-                castType = text(f, "type");
-                continue;
-            }
-            filters.push_back(lowerFilter(f));
+        for (const auto &f : *fit) {
+            if (text(f, "op") == "cast") filters.push_back({{"Cast", text(f, "type")}});
+            else filters.push_back(lowerFilter(f));
         }
     }
-    if (filters.size() > 1) throw NotSupported{"a chain of several filters"};
+    // A final cast on a typed target is the target typing itself (v1 order: filter first, target typing last):
+    std::string castType;
+    if (!filters.empty() && filters.back().contains("Cast")) {
+        const std::string lastCast = filters.back()["Cast"].get<std::string>();
+        if (typedTarget(rule["to"], lastCast, mode)) {
+            castType = lastCast;
+            filters.pop_back();
+        }
+    }
 
     nlohmann::json out = nlohmann::json::object();
     out["source"] = lowerSource(rule["from"], mode, usesJsonBodyTarget);
-    if (out["source"] == "eraser" && !filters.empty()) throw NotSupported{"a conditional erase"};
     out["target"] = lowerTarget(rule["to"], castType, mode);
-    if (!filters.empty()) out["filter"] = filters.front();
+    if (filters.size() == 1) out["filter"] = filters.front();  // the engine single filter form
+    else if (!filters.empty()) out["filter"] = filters;  // chain, in list order
     auto off = rule.find("onFilterFail");
     if (off != rule.end()) out["onFilterFail"] = lowerRules(*off, mode, usesJsonBodyTarget);
     return out;

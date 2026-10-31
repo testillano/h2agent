@@ -55,7 +55,7 @@ public:
     unsigned int request_delay_ms_{};
     unsigned int request_timeout_ms_{};
     std::string error_{};
-    std::map<std::string, std::string> variables_{};
+    h2agent::model::Variables variables_{};
 
     ClientTransform_test() {
         client_provision_json_ = ClientProvision_POST;
