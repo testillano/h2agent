@@ -50,7 +50,7 @@ Then, the event source would store this `json` object:
 }
 ```
 
-Now, just configure a provision to extract such object and transfer it to wherever you want, for example, the response body:
+Now, just configure a provision to extract such object and transfer it to wherever you want, for example, the response body of a `GET` to the same *URI*:
 
 ```json
 {
@@ -59,7 +59,7 @@ Now, just configure a provision to extract such object and transfer it to wherev
   "responseCode": 200,
   "transform": [
     {
-      "from": {"source": "literal", "value": "/app/v1/stock/madrid?loc=123"},
+      "from": {"source": "requestUri"},
       "to": {"target": "var", "name": "eventRequestUri"}
     },
     {
@@ -77,7 +77,7 @@ Now, just configure a provision to extract such object and transfer it to wherev
 }
 ```
 
-Note that, instead of writing the request *URI* in the event source, we decided to define a variable for it (`eventRequestUri`): every address field admits variables substitution, so the address can be built from previous transformations (for example, from the received *URI*).
+Note that, instead of writing the request *URI* in the event source, we take it from the request received (`{"source": "requestUri"}`, the *URI* with its query parameters) into a variable (`eventRequestUri`): every address field admits variables substitution, so the address can be built from previous transformations. The same provision then serves any stock location without changes in the event address (with a matching algorithm accepting those *URIs*).
 
 ## Exercise
 
@@ -91,3 +91,35 @@ The `POST` request must be answered with status code `200`.
 The `GET` request must be answered with status code `200` and a response body which is the request body received in the previous `POST` request.
 
 The `server-matching.json` configuration is provided as a `RegexMatching` algorithm, although the order is not significant here because the `URIs` received are different. As those `URIs` transport an arbitrary identifier, this discards the `FullMatching` algorithm, and we must match them to identify the corresponding provision. This algorithm is normally used when a server manages different `URIs` which cannot be processed with a master/unique regular expression (`FullMatchingRegexReplace` algorithm).
+
+### Hints
+
+Open them one by one, only when you get stuck:
+
+<details>
+<summary>Hint 1</summary>
+
+You need two provisions (`POST` and `GET`); as `RegexMatching` is used, their `requestUri` are regular expressions.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+The `GET` must read the body of a past `POST`: look at the `serverEvent` source, which addresses stored events by method, URI and event number (`-1` is the last one), plus a json pointer inside the event (`eventPath`).
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+The `POST` URI contains the same id as the `GET` one: capture it from the `GET` URI with a `regexCapture` filter into a variable (groups are `<name>.1`, `<name>.2`...) and use `@{...}` to build the `POST` URI.
+
+</details>
+
+<details>
+<summary>Hint 4</summary>
+
+The event body is an object: write it to the response body root with the `object` cast.
+
+</details>

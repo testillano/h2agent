@@ -59,5 +59,4 @@ else
   exit 1
 fi
 
-echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff -- client-endpoint.json client-provision.json
+show_changes client-endpoint.json client-provision.json

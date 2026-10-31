@@ -75,5 +75,4 @@ title "Step 3: second GET /items/id-42 returns 404 (item forgotten)" "" "*"
 EXPECTED_STATUS_CODES=404
 test_query "Second GET (item forgotten)" GET "http://${H2AGENT_TRAFFIC_ENDPOINT}/items/id-42" || exit 1
 
-echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff -- client-provision.json server-provision.json
+show_changes client-provision.json server-provision.json

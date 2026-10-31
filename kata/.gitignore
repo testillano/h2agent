@@ -8,3 +8,6 @@
 13.client+server.The_Forgetful_Server/client-provision.json
 14.client+server.Knock_Knock/client-provision.json
 14.client+server.Knock_Knock/server-provision.json
+
+# Local evaluation results (evaluate.sh)
+.evaluation

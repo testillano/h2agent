@@ -63,6 +63,18 @@ The testing procedure is always the same: run `test.sh` inside the exercise dire
 
 You could get feedback to know if your current answers are correct just executing `./kata/evaluate.sh`.
 
+The menu lists every exercise with its last result, kept across runs: `[ NOT EVALUATED ]`, `[ PASSED ]` or `[ FAILED ]`, plus the current score. Games (`break` exercises, holding a `.game` file: *Rock Paper Scissors* and *Rate My Service*) are evaluated and counted as the others, but shown as `[ PLAY ME ]` until played and `[ PLAYED ]` once passed. With `a` and `f` they run in their automatic mode (no interaction); select their number to play them. Options:
+
+* `<number>`: evaluate one exercise.
+* `a`: evaluate all of them.
+* `f`: evaluate the ones not passed yet (failed or not evaluated).
+* `r`: reset the results.
+* `x`: exit.
+
+The results are kept in the local file `kata/.evaluation/status` (ignored by git).
+
+The evaluation prints one line per step (`ok` / `FAIL`), with the details (command, expected and received status code or body) only for the failed steps. Run `VERBOSE=true ./kata/evaluate.sh` to get the full output of every request, as `test.sh` prints when it is run alone.
+
 ## Maintenance (kata administrators)
 
 This section is for whoever maintains the exercises, not for students.

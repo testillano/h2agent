@@ -42,3 +42,27 @@ So, the response body should be something like:
 }
 ```
 
+### Hints
+
+Open them one by one, only when you get stuck:
+
+<details>
+<summary>Hint 1</summary>
+
+Mirroring the whole request body is a single rule from `{"source": "requestBody"}` to `{"target": "responseBody"}` (root), with the `object` cast.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+A request header is read with `{"source": "requestHeader", "name": "app-version"}`, and written into a body node with the target `path` (`/processed/appVersion`).
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+For the array you can build a text like `[ @{n1}, @{n2}, @{n3} ]` from variables (one rule per number into a `var`) and parse it with the `json` cast; or write each item by its json pointer (`/processed/numbers/0`, `/1`, `/2`).
+
+</details>

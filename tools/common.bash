@@ -29,6 +29,9 @@ export H2AGENT_TRAFFIC_ENDPOINT=localhost:8000
 # Avoid interactivity with 'git diff' output:
 export GIT_PAGER=cat
 
+# Compact output (one line per step, details only on failure): set a non-empty
+# COMPACT_OUTPUT (kata/evaluate.sh does it unless VERBOSE is set).
+
 # $1: title literal; $2: color code (red by default); $3: pattern character (= by default)
 title()
 {
@@ -36,11 +39,26 @@ title()
   local color=${2:-${COLOR_red}}
   local pattern=${3:-=}
 
+  if [ -n "${COMPACT_OUTPUT}" ]
+  then
+    echo -e "  ${COLOR_cyan}> ${literal}${COLOR_reset}"
+    return 0
+  fi
+
   local title="${pattern} ${literal} ${pattern}"
   local line=$(eval printf "%0.s${pattern}" {1..${#title}})
   echo -e "${color}${line}\n${title}\n${line}${COLOR_reset}"
 }
 export -f title
+
+# Shows the git changes of the given exercise files (skipped with compact output)
+# $@: files
+show_changes() {
+  [ -n "${COMPACT_OUTPUT}" ] && return 0
+  echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
+  git diff -- "$@"
+}
+export -f show_changes
 
 # Temporary for test_query():
 if [ -z "${TMPDIR}" ]
@@ -56,6 +74,8 @@ fi
 #   (*) CURL_OPTS: additional curl options
 #   (*) ASSERT_JSON_IGNORED_FIELDS: ignored nodes at json body validation
 #       NON_INTERACT: non-empty value disable interactivity
+#       COMPACT_OUTPUT: non-empty value prints one line per query (details only on failure)
+#       QUIET_OK: non-empty value prints nothing on success (compact output only)
 #       TMPDIR: temporary directory (must be defined externally)
 #
 # (*) reset applied at the end
@@ -70,9 +90,45 @@ test_query() {
   [ -z "${TMPDIR}" ] && echo "Temporary directory 'TMPDIR' must be defined !" && return 1
 
   local rc=0
+  local cmd="curl -sS -i -X${method} --http2-prior-knowledge ${CURL_OPTS} \"${url}\""
+
+  if [ -n "${COMPACT_OUTPUT}" ]
+  then
+    eval ${cmd} > ${TMPDIR}/cmd.out 2>${TMPDIR}/cmd.err
+    dos2unix ${TMPDIR}/cmd.out ${TMPDIR}/cmd.out &>/dev/null
+    local receivedStatusCode=$(grep "^HTTP/2" ${TMPDIR}/cmd.out | awk '{ print $2 }')
+    local receivedResponse=$(tail -1 ${TMPDIR}/cmd.out)
+    local why=""
+    if [ -n "${EXPECTED_STATUS_CODES}" ] && ! echo "${EXPECTED_STATUS_CODES}" | grep -qw "${receivedStatusCode:-none}"
+    then
+      rc=1; why="status code ${receivedStatusCode:-not received}, expected ${EXPECTED_STATUS_CODES}"
+    fi
+    if [ ${rc} -eq 0 -a -n "${EXPECTED_RESPONSE}" ]
+    then
+      local jq_expr="."
+      [ -n "${ASSERT_JSON_IGNORED_FIELDS}" ] && jq_expr="del(${ASSERT_JSON_IGNORED_FIELDS})"
+      local expected=$(echo ${EXPECTED_RESPONSE} | jq -c "${jq_expr}" 2>/dev/null || echo "${EXPECTED_RESPONSE}")
+      local received=$(echo ${receivedResponse} | jq -c "${jq_expr}" 2>/dev/null || echo "${receivedResponse}")
+      [ "${expected}" != "${received}" ] && rc=1 && why="response differs"$'\n'"      expected: ${expected}"$'\n'"      received: ${received}"
+    fi
+    local target="${method} /${url#http://*/}"
+    if [ ${rc} -eq 0 ]
+    then
+      [ -z "${QUIET_OK}" ] && echo -e "  ${COLOR_green}ok${COLOR_reset}    ${info} (${target} -> ${receivedStatusCode})"
+    else
+      echo -e "  ${COLOR_red}FAIL${COLOR_reset}  ${info} (${target}): ${why}"
+      echo "      command: ${cmd}"
+      [ -s ${TMPDIR}/cmd.err ] && sed -e 's/^/      /' ${TMPDIR}/cmd.err
+    fi
+    EXPECTED_STATUS_CODES=
+    EXPECTED_RESPONSE=
+    CURL_OPTS=
+    ASSERT_JSON_IGNORED_FIELDS=
+    return ${rc}
+  fi
+
   echo
   title "${info}" "" "-"
-  local cmd="curl -i -X${method} --http2-prior-knowledge ${CURL_OPTS} \"${url}\""
   echo "CURL command: ${cmd}"
   echo
   [ -n "${EXPECTED_STATUS_CODES}" ] && echo "Expected HTTP status code(s): ${EXPECTED_STATUS_CODES}"
@@ -144,10 +200,13 @@ export -f test_query
 # Performs cleanup, and server matching/provision configuration
 # server-matching.json and server-provision.json must be located at current directory
 h2agent_server_configuration() {
+  # Cleanups: silent on success with compact output
   EXPECTED_STATUS_CODES="200 204"
-  test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-data || exit 1
-  test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
-  test_query "Vault cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/vault || exit 1
+  QUIET_OK=true test_query "Server data cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-data || exit 1
+  EXPECTED_STATUS_CODES="200 204"
+  QUIET_OK=true test_query "Provision cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
+  EXPECTED_STATUS_CODES="200 204"
+  QUIET_OK=true test_query "Vault cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/vault || exit 1
 
   if [ -f "server-matching.json" ]
   then

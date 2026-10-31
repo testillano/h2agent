@@ -53,3 +53,35 @@ Complete the `server-provision.json` file, in order to receive an status code `2
 The `server-matching.json` file is already provided.
 
 Hint: the `conditionVar` transformation filter is used to condition the transfer from the source to the target depending on the provided variable boolean value (and it can be negated). Take a look to the official documentation [here](https://github.com/testillano/h2agent/blob/master/docs/api/README.md#transformation-pipeline).
+
+### Hints
+
+Open them one by one, only when you get stuck:
+
+<details>
+<summary>Hint 1</summary>
+
+Check the matching configuration first: which URI does `FullMatchingRegexReplace` leave for classification? Your provision `requestUri` must be exactly that one (look closely at what the captured group `$1` holds).
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+You need two transformations: one deciding whether the number is odd, and one writing the `400` status code (`{"target": "responseStatusCode"}`) only in that case. The `200` comes from the provision itself.
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+The decision can be a `regexCapture` filter over the received URI (`{"source": "requestUriPath"}` keeps the original one) into a variable: when the expression does not match, the rule is skipped and the variable is never created, so it is a **false** condition.
+
+</details>
+
+<details>
+<summary>Hint 4</summary>
+
+A number is odd when its last digit is one of `13579`.
+
+</details>

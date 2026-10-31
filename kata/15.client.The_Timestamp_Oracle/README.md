@@ -50,3 +50,28 @@ Complete `client-provision.json` with **two provisions**:
 The `test.sh` will trigger both provisions in sequence, then read the vault entry `elapsed` and verify it is a positive number.
 
 **Hint**: use `onResponseTransform` to extract the timestamp from the response body into a vault entry.
+
+### Hints
+
+Open them one by one, only when you get stuck:
+
+<details>
+<summary>Hint 1</summary>
+
+In `onResponseTransform`, `{"source": "responseBody", "path": "/ts"}` is the timestamp of the response received.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+Both provisions are independent flows: a `var` would not survive from the first to the second one, a vault entry does.
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+The `math` source can compute the difference; `@{name}` looks for variables first and vault entries then.
+
+</details>

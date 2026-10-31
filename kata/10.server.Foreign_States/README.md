@@ -52,3 +52,28 @@ The evaluation process will be:
 
 
 Think about possible improvements to the approach of this exercise .
+
+### Hints
+
+Open them one by one, only when you get stuck:
+
+<details>
+<summary>Hint 1</summary>
+
+The `DELETE` request must change the state of the `GET` requests of the same URI: a plain `outState` only affects later `DELETE` requests. Look at the `outState` target with a `method` field (foreign state).
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+Then add a `GET` provision for that new state (`inState`), answering `404` and no body.
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+Do not forget a provision for the `DELETE` itself (`200`).
+
+</details>

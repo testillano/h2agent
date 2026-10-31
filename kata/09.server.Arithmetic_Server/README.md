@@ -39,3 +39,35 @@ Check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for m
 ## Exercise
 
 Complete `server-matching.json` and create `server-provision.json`, in order to receive an status code `200` for a `GET` request with the `URI`: `/calculate/sdpf?a=<number>&b=<number>&c=<number>&x=<number>`, and an integer response body with the result of truncating the second-degree polynomial function for those provided values: `f(x)=ax2+bx+c`.
+
+### Hints
+
+Open them one by one, only when you get stuck:
+
+<details>
+<summary>Hint 1</summary>
+
+The query parameters values change in every request: how could the matching ignore them? Look at the `uriPathQueryParameters` options of the matching configuration.
+
+</details>
+
+<details>
+<summary>Hint 2</summary>
+
+Each query parameter is read with `{"source": "requestUriParam", "name": "a"}`; store them into variables.
+
+</details>
+
+<details>
+<summary>Hint 3</summary>
+
+The `math` source evaluates an expression which admits variables (`@{a}`...); `^` is the power operator.
+
+</details>
+
+<details>
+<summary>Hint 4</summary>
+
+Truncate the result converting it to an integer with a `cast` filter before the body target.
+
+</details>
