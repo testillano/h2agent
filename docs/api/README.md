@@ -488,8 +488,9 @@ Access: {"source": "var", "name": "uri_parts.1"} -> "foo"   (the group is a vari
 > like `uri_parts.1` is a perfectly valid variable, and `@{uri_parts.1}` substitutes
 > fine in a **value** or a `var` name. BUT a vault `key` cannot contain dots, and the
 > provision schema rejects it even inside a variable pattern, e.g.
-> `"key": "RCVD_@{uri_parts.1}"`. Workaround: copy the group to a dot-free variable
-> first and use that in the key:
+> `"key": "RCVD_@{uri_parts.1}"`. Either capture into a vault and use the pointer form
+> (`"key": "RCVD_@{uri_parts/1}"`), or copy the group to a dot-free variable first and
+> use that in the key:
 >
 > ```
 > {"from": {"source": "var", "name": "uri_parts.1"}, "to": {"target": "var", "name": "group1"}},
@@ -548,6 +549,8 @@ Let's start describing the available sources of data: regardless the native or n
 Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by scoped provision variables and vaults. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
 > **Important**: the `@{name}` pattern uses the bare variable name or vault key. For example, a value stored via `"to": {"target": "vault", "key": "mySeq"}` is referenced as `@{mySeq}`.
+>
+> A json pointer may follow the name to navigate into the stored value: `@{name/<pointer>}` (the first `/` starts the pointer). For example `@{doc/user/id}` for a stored object, `@{list/0}` for an array item, or `@{uri_parts/1}` for a capture group held in a vault. Local variables are searched before vaults, strings are inserted as they are and any other value as its compact json text; an unknown name or pointer is replaced by an empty string. The same reference is accepted by the `conditionVar` filter (`"name": "doc/enabled"`).
 
 
 

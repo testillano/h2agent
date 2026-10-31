@@ -2925,3 +2925,50 @@ TEST(Engine_test, ConditionalEraseOnBodyNode) {
     engine.evaluate(pipeline, ctx, ports);
     EXPECT_EQ(ctx.output, nlohmann::json({{"b", 2}}));
 }
+
+// @{name/pointer} navigation -----------------------------------------------
+
+TEST(Engine_test, VariableReferenceNavigatesWithPointer) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"j([
+      {"source":"value.id-42/cat-x","target":"global.caps","filter":{"RegexCapture":"id-([0-9]+)/cat-([a-z]+)"}},
+      {"source":"input","target":"local.doc"},
+      {"source":"value.@{caps/1}-@{caps/2} @{doc/a/b} @{doc/list/1} [@{doc/missing}] @{doc/a}","target":"output.string"},
+      {"source":"value.1","target":"global.RCVD_@{caps/1}"},
+      {"source":"math.@{doc/a/b} * 2","target":"local.twice"},
+      {"source":"value.yes","target":"local.cond","filter":{"ConditionVar":"doc/flag"}},
+      {"source":"value.yes","target":"local.cond2","filter":{"ConditionVar":"!doc/off"}}
+    ])j"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.input = nlohmann::json::parse(R"({"a":{"b":7},"list":["x","y"],"flag":true,"off":0})");
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "42-x 7 y [] {\"b\":7}");
+    EXPECT_EQ(store.get(Store::Scope::Global, "RCVD_42"), nlohmann::json("1"));
+    EXPECT_EQ(store.get(Store::Scope::Local, "twice"), nlohmann::json(14));
+    EXPECT_EQ(store.get(Store::Scope::Local, "cond"), nlohmann::json("yes"));
+    EXPECT_EQ(store.get(Store::Scope::Local, "cond2"), nlohmann::json("yes"));
+}
+
+TEST(Engine_test, VariableReferenceWithoutPointerIsUnchanged) {
+    // Flat names (capture groups "x.1", local before global) keep working.
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"j([
+      {"source":"value.id-42","target":"local.x","filter":{"RegexCapture":"id-([0-9]+)"}},
+      {"source":"value.@{x}:@{x.1}:@{same}","target":"output.string"}
+    ])j"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "same", "local");
+    store.set(Store::Scope::Global, "same", "global");
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "id-42:42:local");
+}

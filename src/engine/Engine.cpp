@@ -64,9 +64,24 @@ public:
 
 namespace {
 
-// Resolve @{name} substitutions against the store (local scope first, then
-// global), mirroring h2agent's local-vs-vault priority. Unknown variables are
-// replaced by an empty string. A bare value (no @{...}) is returned unchanged.
+// Value of a @{} reference: "<name>" or "<name>/<json pointer>" (the first '/'
+// starts the pointer into the stored value, e.g. "doc/a/b" or "caps/1"), looked
+// up in the local scope first, then in the global one (h2agent's local-vs-vault
+// priority). Absent when unknown or when the pointer does not exist.
+std::optional<nlohmann::json> lookupVariable(const std::string &ref, const Ports &ports) {
+    if (!ports.store) return std::nullopt;
+    const std::size_t slash = ref.find('/');
+    const std::string name = (slash == std::string::npos) ? ref : ref.substr(0, slash);
+    const std::string pointer = (slash == std::string::npos) ? std::string() : ref.substr(slash);
+    auto v = ports.store->get(Store::Scope::Local, name, pointer);
+    if (!v) v = ports.store->get(Store::Scope::Global, name, pointer);
+    return v;
+}
+
+// Resolve @{name} / @{name/pointer} substitutions (see lookupVariable). Unknown
+// variables are replaced by an empty string; strings are inserted as they are and
+// any other value as its compact json text. A bare value (no @{...}) is returned
+// unchanged.
 std::string substituteVariables(const std::string &in, const Ports &ports) {
     std::string out;
     out.reserve(in.size());
@@ -75,14 +90,8 @@ std::string substituteVariables(const std::string &in, const Ports &ports) {
         if (in[i] == '@' && i + 1 < in.size() && in[i + 1] == '{') {
             std::size_t close = in.find('}', i + 2);
             if (close != std::string::npos) {
-                std::string name = in.substr(i + 2, close - (i + 2));
-                std::string replacement;
-                if (ports.store) {
-                    auto v = ports.store->get(Store::Scope::Local, name);
-                    if (!v) v = ports.store->get(Store::Scope::Global, name);
-                    if (v) replacement = v->is_string() ? v->get<std::string>() : v->dump();
-                }
-                out += replacement;
+                auto v = lookupVariable(in.substr(i + 2, close - (i + 2)), ports);
+                if (v) out += v->is_string() ? v->get_ref<const std::string &>() : v->dump();
                 i = close + 1;
                 continue;
             }
@@ -930,18 +939,14 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     return FilterType::None;  // unknown/absent filter -> none
 }
 
-// ConditionVar test "[!]varname": true when the store variable (local first,
-// then global) is truthy -- present AND non-empty string / non-zero number /
+// ConditionVar test "[!]varname" ("varname" may be "<name>/<pointer>", as in
+// @{}): true when the store variable (local first, then global) is truthy -- present AND non-empty string / non-zero number /
 // true bool / any object or array --, inverted by a leading '!'.
 bool conditionHolds(const std::string &arg, const Ports &ports) {
     std::string varname = arg;
     bool reverse = (!varname.empty() && varname[0] == '!');
     if (reverse) varname.erase(0, 1);
-    std::optional<nlohmann::json> v;
-    if (ports.store) {
-        v = ports.store->get(Store::Scope::Local, varname);
-        if (!v) v = ports.store->get(Store::Scope::Global, varname);
-    }
+    std::optional<nlohmann::json> v = lookupVariable(varname, ports);  // admits "<name>/<pointer>"
     bool truthy = false;
     if (v) {
         const nlohmann::json &varval = *v;
@@ -1499,11 +1504,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 auto in = rule.math->acquire();
                 bool bindable = (in != nullptr);
                 for (std::size_t k = 0; bindable && k < rule.math->names.size(); ++k) {
-                    std::optional<nlohmann::json> v;
-                    if (ports.store) {
-                        v = ports.store->get(Store::Scope::Local, rule.math->names[k]);
-                        if (!v) v = ports.store->get(Store::Scope::Global, rule.math->names[k]);
-                    }
+                    std::optional<nlohmann::json> v = lookupVariable(rule.math->names[k], ports);
                     bindable = v && plainUnsignedDecimal(v->is_string() ? v->get<std::string>() : v->dump(),
                                                          in->vars[k]);
                 }
