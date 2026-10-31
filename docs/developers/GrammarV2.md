@@ -30,7 +30,7 @@ Every rule has the same three stages, executed in this order:
   | `key` | vault entry key (no dots) | `vault` |
   | `id` | identifier | `clientProvision`, `schemaId` |
   | `file` / `socket` | file or unix socket path | `txtFile`, `binFile` / `udpSocket` |
-  | `value` | literal (text, number or json depending on the kind) | `literal`, `append`, `prepend`, `equalTo`, `differentFrom`, `sum`, `multiply`, `jsonConstraint` |
+  | `value` | literal (text, number or json depending on the kind) | `literal`, `append`, `prepend`, `equalTo`, `sum`, `multiply`, `jsonConstraint` |
   | `rgx` / `fmt` | regular expression / format | regex filters / `strftime` (source), `regexReplace`, `strptime`, `strftime` (filters) |
 
 * **Filters run in list order**, each one on the output of the previous one; the first failing filter stops the chain (target untouched, `onFilterFail` runs). The cast is a filter (it can only appear in a filter list): `{"op": "cast", "type": "string|integer|unsigned|float|boolean|object|json"}`.
@@ -118,7 +118,7 @@ The state written by `outState` is still the value of `from` (as in v1), e.g. `{
 | `{"Append": "<text>"}` / `{"Prepend": "<text>"}` | `{"op": "append", "value": "<text>"}` / `{"op": "prepend", "value": "<text>"}` |
 | `{"Sum": <n>}` / `{"Multiply": <n>}` | `{"op": "sum", "value": <n>}` / `{"op": "multiply", "value": <n>}` |
 | `{"ConditionVar": "<name>"}` / `{"ConditionVar": "!<name>"}` | `{"op": "conditionVar", "name": "<name>"}` / `{..., "not": true}` |
-| `{"EqualTo": "<text>"}` / `{"DifferentFrom": "<text>"}` | `{"op": "equalTo", "value": "<text>"}` / `{"op": "differentFrom", "value": "<text>"}` |
+| `{"EqualTo": "<text>"}` / `{"DifferentFrom": "<text>"}` | `{"op": "equalTo", "value": "<text>"}` / `{"op": "equalTo", "value": "<text>", "not": true}` (one comparison filter, negated like `conditionVar`) |
 | `{"JsonConstraint": <object\|array>}` | `{"op": "jsonConstraint", "value": <object\|array>}` |
 | `{"SchemaId": "<id>"}` | `{"op": "schemaId", "id": "<id>"}` |
 | `{"Split": {<size, count, sep, filler, numeric>}}` | `{"op": "split", <size, count, sep, filler, numeric>}` |
@@ -185,7 +185,7 @@ v1 tested the text of the value (non-empty is true). With the native store value
 `{"target": "stop"}` is v1 `break` renamed: when the value reaching it (after the filters) is not empty, the remaining items of the list are not executed.
 
 ```json
-{"from": {"source": "responseStatusCode"}, "filter": [{"op": "differentFrom", "value": "200"}], "to": {"target": "stop"}}
+{"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "stop"}}
 ```
 
 ## Full example

@@ -1471,21 +1471,11 @@ components:
         type: object
       - additionalProperties: false
         properties:
+          not:
+            type: boolean
           op:
             enum:
             - equalTo
-            type: string
-          value:
-            type: string
-        required:
-        - op
-        - value
-        type: object
-      - additionalProperties: false
-        properties:
-          op:
-            enum:
-            - differentFrom
             type: string
           value:
             type: string

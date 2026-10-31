@@ -329,7 +329,7 @@ const std::vector<ScalarFilter> &scalarFilters() {
         {"RegexCapture", "regexCapture", "rgx", false}, {"RegexKey", "regexKey", "rgx", false},
         {"Append", "append", "value", false}, {"Prepend", "prepend", "value", false},
         {"Sum", "sum", "value", true}, {"Multiply", "multiply", "value", true},
-        {"EqualTo", "equalTo", "value", false}, {"DifferentFrom", "differentFrom", "value", false},
+        {"EqualTo", "equalTo", "value", false},
         {"SchemaId", "schemaId", "id", false},
     };
     return table;
@@ -818,6 +818,10 @@ Json GrammarMigrator::filterToV2(const Json &v1, const std::string &where) {
         if (negated) item["not"] = true;
         return item;
     }
+    if (name == "DifferentFrom") {  // v2 keeps one comparison filter: equalTo, negated
+        if (!arg.is_string()) fail(where, "DifferentFrom argument must be a string");
+        return Json{{"op", "equalTo"}, {"value", arg}, {"not", true}};
+    }
     if (name == "JsonConstraint") {
         if (!arg.is_object() && !arg.is_array()) fail(where, "JsonConstraint argument must be an object or an array");
         return Json{{"op", "jsonConstraint"}, {"value", arg}};
@@ -861,6 +865,12 @@ Json GrammarMigrator::filterToV1(const Json &v2, const std::string &where) {
             negated = v2["not"].get<bool>();
         }
         return Json{{"ConditionVar", (negated ? "!" : "") + name}};
+    }
+    if (op == "equalTo") {
+        checkFields(v2, "op", op, {"value", "not"}, {"value"}, where);
+        if (!v2["value"].is_string()) fail(where, "'value' must be a string");
+        if (v2.contains("not") && !v2["not"].is_boolean()) fail(where, "'not' must be a boolean");
+        return Json{{v2.value("not", false) ? "DifferentFrom" : "EqualTo", v2["value"]}};
     }
     if (op == "jsonConstraint") {
         checkFields(v2, "op", op, {"value"}, {"value"}, where);

@@ -614,7 +614,7 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
       "onResponseTransform": [
         {
           "from": {"source": "responseStatusCode"},
-          "filter": [{"op": "differentFrom", "value": "200"}],
+          "filter": [{"op": "equalTo", "value": "200", "not": true}],
           "to": {"target": "outState"}
         },
         {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}}
@@ -631,7 +631,7 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
-    EXPECT_EQ(outState, "500"); // DifferentFrom 200 passes, statusCode "500" written to outState
+    EXPECT_EQ(outState, "500"); // equalTo 200 negated passes, statusCode "500" written to outState
 }
 
 // ==================== TRIGGERING ====================

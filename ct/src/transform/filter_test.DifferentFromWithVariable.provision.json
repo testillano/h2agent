@@ -8,12 +8,12 @@
     {"from": {"source": "literal", "value": "bye"}, "to": {"target": "var", "name": "what"}},
     {
       "from": {"source": "literal", "value": "bye"},
-      "filter": [{"op": "differentFrom", "value": "@{what}"}],
+      "filter": [{"op": "equalTo", "value": "@{what}", "not": true}],
       "to": {"target": "var", "name": "falseVar"}
     },
     {
       "from": {"source": "literal", "value": "hello"},
-      "filter": [{"op": "differentFrom", "value": "@{what}"}],
+      "filter": [{"op": "equalTo", "value": "@{what}", "not": true}],
       "to": {"target": "var", "name": "trueVar"}
     },
     {

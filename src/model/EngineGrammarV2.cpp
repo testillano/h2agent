@@ -223,9 +223,10 @@ nlohmann::json lowerFilter(const nlohmann::json &f) {
     if (op == "regexCapture") return {{"RegexCapture", f["rgx"]}};
     if (op == "regexKey") return {{"RegexKey", f["rgx"]}};
     if (op == "schemaId") return {{"SchemaId", f["id"]}};
+    if (op == "equalTo") return {{f.value("not", false) ? "DifferentFrom" : "EqualTo", f["value"]}};
     static const std::vector<std::pair<std::string, std::string>> scalar = {
         {"append", "Append"}, {"prepend", "Prepend"}, {"sum", "Sum"}, {"multiply", "Multiply"},
-        {"equalTo", "EqualTo"}, {"differentFrom", "DifferentFrom"}, {"jsonConstraint", "JsonConstraint"},
+        {"jsonConstraint", "JsonConstraint"},
     };
     for (const auto &s : scalar) {
         if (op == s.first) return {{s.second, f["value"]}};

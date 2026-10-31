@@ -206,7 +206,7 @@ TEST(GrammarMigrator_test, FiltersAreFlattenedWithLowerCamelCaseOps) {
         {R"({"ConditionVar":"done"})", R"({"op":"conditionVar","name":"done"})"},
         {R"({"ConditionVar":"!done"})", R"({"op":"conditionVar","name":"done","not":true})"},
         {R"({"EqualTo":"2"})", R"({"op":"equalTo","value":"2"})"},
-        {R"({"DifferentFrom":"200"})", R"({"op":"differentFrom","value":"200"})"},
+        {R"({"DifferentFrom":"200"})", R"({"op":"equalTo","value":"200","not":true})"},
         {R"({"JsonConstraint":{"a":1}})", R"({"op":"jsonConstraint","value":{"a":1}})"},
         {R"({"JsonConstraint":[{"name":"x"}]})", R"({"op":"jsonConstraint","value":[{"name":"x"}]})"},
         {R"({"SchemaId":"mySchema"})", R"({"op":"schemaId","id":"mySchema"})"},

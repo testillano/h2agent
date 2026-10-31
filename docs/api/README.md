@@ -1358,7 +1358,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   }
   ```
 
-  The `onFilterFail` field is an optional array of **full transforms** — not just alternative values. Each fallback item goes through the complete `source → filter → target` pipeline, so you can do anything a regular transform does: write response headers, store files, send UDP datagrams, update vault entries, trigger breaks, etc. It works with any filter type (`conditionVar`, `equalTo`, `differentFrom`, etc.).
+  The `onFilterFail` field is an optional array of **full transforms** — not just alternative values. Each fallback item goes through the complete `source → filter → target` pipeline, so you can do anything a regular transform does: write response headers, store files, send UDP datagrams, update vault entries, trigger breaks, etc. It works with any filter type (`conditionVar`, `equalTo`, `equalTo` with `"not": true`, etc.).
 
   Nesting is fully recursive — each fallback transform can have its own `onFilterFail`, enabling chained if/else-if/else decision trees:
 
@@ -1430,11 +1430,11 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `conditionVar` filter. The best example are `jsonConstraint` and `schemaId` filters (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
 
-  There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *equalTo* and *differentFrom*:
+  There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *equalTo* (optionally negated):
 
 
 
-- `equalTo`: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**.
+- `equalTo`: conditional transfer from source to target based in string comparison between the source (as text) and the provided value: the filter passes when they are equal, or when they differ with `"not": true` (`{"op": "equalTo", "value": "200", "not": true}`; v1 `DifferentFrom`). Otherwise the filter fails (target untouched, `onFilterFail` runs). The value **admits variables substitution**.
 
   ```json
   {
@@ -1504,10 +1504,6 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   ```
 
   Note that `A_xor_B` could be also obtained using source `(@{A}-@{B})^2` or `(@{A}+@{B})%2`.
-
-
-
-- `differentFrom`: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**. Its use is similar to `equalTo` and complement its logic in case we need to generate the negated variable.
 
 
 

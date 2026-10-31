@@ -1739,6 +1739,13 @@ TEST_F(Transform_test, TargetClientProvisionMissingInState)
 // TEST FILTERS (source/target are not relevant) //
 ///////////////////////////////////////////////////
 
+TEST_F(Transform_test, FilterDifferentFromIsGone)
+{
+    // One comparison filter: 'equalTo' (negated with "not": true).
+    server_provision_json_["transform"].push_back(R"({ "from": {"source": "literal", "value": "a"}, "filter": [{"op": "differentFrom", "value": "b"}], "to": {"target": "responseBodyText"} })"_json);
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+}
+
 TEST_F(Transform_test, FilterIncompatibleWithEraser)
 {
     // "eraser" provides no value: only conditionVar filters (and the cast) are accepted (v1 skipped the rule silently).
@@ -1991,20 +1998,20 @@ TEST_F(Transform_test, FilterEqualTo)
     EXPECT_EQ(response_body_, "myVault_value");
 }
 
-TEST_F(Transform_test, FilterDifferentFrom)
+TEST_F(Transform_test, FilterEqualToNegated)
 {
     // Build test provision:
     const nlohmann::json item1 = R"(
     {
       "from": {"source": "literal", "value": "myVault_value"},
-      "filter": [{"op": "differentFrom", "value": "@{myVault}"}],
+      "filter": [{"op": "equalTo", "value": "@{myVault}", "not": true}],
       "to": {"target": "responseBodyText"}
     }
     )"_json;
     const nlohmann::json item2 = R"(
     {
       "from": {"source": "literal", "value": "this is different"},
-      "filter": [{"op": "differentFrom", "value": "@{myVault}"}],
+      "filter": [{"op": "equalTo", "value": "@{myVault}", "not": true}],
       "to": {"target": "responseBodyText"}
     }
     )"_json;

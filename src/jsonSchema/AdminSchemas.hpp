@@ -202,8 +202,7 @@ inline nlohmann::json filter(const nlohmann::json &conditionVarName) {
         kind("op", "sum", {{"value", {{"type", "number"}}}}, {"value"}),
         kind("op", "multiply", {{"value", {{"type", "number"}}}}, {"value"}),
         kind("op", "conditionVar", {{"name", conditionVarName}, {"not", {{"type", "boolean"}}}}, {"name"}),
-        kind("op", "equalTo", {{"value", anyText()}}, {"value"}),
-        kind("op", "differentFrom", {{"value", anyText()}}, {"value"}),
+        kind("op", "equalTo", {{"value", anyText()}, {"not", {{"type", "boolean"}}}}, {"value"}),
         kind("op", "jsonConstraint", {{"value", {{"type", {"object", "array"}}}}}, {"value"}),
         kind("op", "schemaId", {{"id", anyText()}}, {"id"}),
         kind("op", "split", {

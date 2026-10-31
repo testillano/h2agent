@@ -7,12 +7,12 @@
   "transform": [
     {
       "from": {"source": "literal", "value": "bye"},
-      "filter": [{"op": "differentFrom", "value": "bye"}],
+      "filter": [{"op": "equalTo", "value": "bye", "not": true}],
       "to": {"target": "var", "name": "falseVar"}
     },
     {
       "from": {"source": "literal", "value": "hello"},
-      "filter": [{"op": "differentFrom", "value": "bye"}],
+      "filter": [{"op": "equalTo", "value": "bye", "not": true}],
       "to": {"target": "var", "name": "trueVar"}
     },
     {
