@@ -2972,3 +2972,42 @@ TEST(Engine_test, VariableReferenceWithoutPointerIsUnchanged) {
     engine.evaluate(pipeline, ctx, ports);
     EXPECT_EQ(ctx.outBody.raw, "id-42:42:local");
 }
+
+// Eraser: removes what lives at the target location --------------------------
+
+TEST(Engine_test, EraserRemovesNodesAtPointers) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"j([
+      {"source":"eraser","target":"global.doc./a/b"},
+      {"source":"eraser","target":"local.list./1"},
+      {"source":"eraser","target":"output.json./x"},
+      {"source":"eraser","target":"output.json./items/0"},
+      {"source":"eraser","target":"output.json./missing/deep"},
+      {"source":"eraser","target":"global.doc./missing"}
+    ])j"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Global, "doc", nlohmann::json::parse(R"({"a":{"b":1,"c":2}})"));
+    store.set(Store::Scope::Local, "list", nlohmann::json::parse(R"(["x","y","z"])"));
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    ctx.output = nlohmann::json::parse(R"({"x":1,"keep":2,"items":["i0","i1"]})");
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(store.get(Store::Scope::Global, "doc"), nlohmann::json::parse(R"({"a":{"c":2}})"));
+    EXPECT_EQ(store.get(Store::Scope::Local, "list"), nlohmann::json::parse(R"(["x","z"])"));
+    EXPECT_EQ(ctx.output, nlohmann::json::parse(R"({"keep":2,"items":["i1"]})"));  // no null node created
+}
+
+TEST(Engine_test, EraserOnBodyRootWithoutCastClearsIt) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([{"source":"eraser","target":"output.json"}])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    Ports ports;
+    StandaloneContext ctx;
+    ctx.output = nlohmann::json{{"a", 1}};
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.output, nlohmann::json::object());
+}

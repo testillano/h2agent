@@ -626,11 +626,26 @@ The **source** of information is classified after parsing the following possible
 
 - `{"source": "responseHeaders"}`: all response headers as a JSON array (same format as `requestHeaders`). Only available in client provision `onResponseTransform`.
 
-- `{"source": "eraser"}`: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
-  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When erase applies to response node root, it just removes response body. **Note:** since vaults now support `json` object values, the recommended approach for shared templates is to store them as vaults (via REST API or `--vault` file) and reference them with `{"source": "vault", "key": "<key>", "path": "<path>"}` in transform sources. This avoids polluting the response body with auxiliary data and the need to erase temporary nodes.
-  - vault: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Vault are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so erase is the way to proceed when it comes to free the global list and reduce memory consumption.
-  - event: we could purge storage events, something that could be necessary to control memory growth in load testing.
-  - with other kind of targets, eraser acts like setting an empty string (it cannot feed `stop` nor `clientProvision`: such a rule would do nothing, the schema rejects it).
+- `{"source": "eraser"}`: provides no value; it **removes what lives at the location given by the target**:
+
+  | Target | Effect |
+  |---|---|
+  | `{"target": "var", "name": ...}` / `{"target": "vault", "key": ...}` | removes the entry; with `path`, only that node of the stored value |
+  | `{"target": "responseBody"}` (`requestBody` in client provisions), with or without `{"op": "cast", "type": "object"}` | removes the node at `path` (object key or array item), or clears the whole body without `path` |
+  | same body target with `{"op": "cast", "type": "string"}` | sets an empty string at `path` (v1 erase flavour of string targets) |
+  | `{"target": "responseBodyText"}`, `{"target": "outState"}` | empty string |
+  | `{"target": "txtFile", "file": ...}` / `{"target": "binFile", "file": ...}` | empties the file |
+  | `{"target": "serverEvent", <event fields>}` / `{"target": "clientEvent", <event fields>}` | purges the stored events at that address (events are read-only for transformations, so erasing them is the only write they accept, and `eraser` is the only source those targets accept) |
+
+  A missing node, entry or event is a no-op (no null node is created). Any other target ignores the eraser, and `stop` / `clientProvision` reject it (they act on a true value, see [boolean criterion](#boolean-criterion)).
+
+  **Conditional erase**: the only filters accepted with `eraser` are `conditionVar` (one or several, optionally negated with `"not": true`): the target is erased only when every condition holds, otherwise it is kept and `onFilterFail` runs. For example, purge an event once a flow is done:
+
+  ```json
+  {"from": {"source": "eraser"}, "filter": [{"op": "conditionVar", "name": "done"}], "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/item/1"}}
+  ```
+
+  Typical uses: remove the vaults of a flow after its last step (vaults are process-wide, so this avoids memory growth in load tests), purge events to control the storage growth, or remove auxiliary nodes from a response body used as a template (although storing templates in vaults and reading them with `{"source": "vault", "key": "<key>", "path": "<path>"}` is recommended: it does not pollute the response body).
 
 - `{"source": "math", "expression": "<expression>"}`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
 

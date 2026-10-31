@@ -939,6 +939,27 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     return FilterType::None;  // unknown/absent filter -> none
 }
 
+// Removes the node addressed by `pointer` from `doc` (its parent key or array
+// item); an empty pointer is the whole document, which becomes an empty object.
+// A missing node is a no-op.
+void eraseNode(nlohmann::json &doc, const std::string &pointer) {
+    if (pointer.empty()) {
+        doc = nlohmann::json::object();
+        return;
+    }
+    const std::size_t lastSlash = pointer.find_last_of('/');
+    try {
+        const nlohmann::json::json_pointer node(pointer);
+        if (!doc.contains(node)) return;
+        nlohmann::json &parent = doc[nlohmann::json::json_pointer(pointer.substr(0, lastSlash))];
+        const std::string child = node.back();
+        if (parent.is_object()) parent.erase(child);
+        else if (parent.is_array()) parent.erase(std::stoul(child));
+    } catch (const std::exception &) {
+        // malformed pointer or array index: nothing to erase
+    }
+}
+
 // Single boolean criterion of the grammar (conditionVar, stop, clientProvision):
 // null, false, numeric zero and the empty string are false; anything else (any
 // non-empty string -- "0" and "false" included --, non-zero numbers, true, any
@@ -1657,36 +1678,26 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             switch (rule.targetType) {
             case TargetType::StoreLocal:
             case TargetType::StoreGlobal: {
-                // Erase the store key entirely (parity with h2agent vault remove).
+                // Erase the store key entirely, or only the node at its pointer.
                 auto scope =
                     (rule.targetType == TargetType::StoreLocal) ? Store::Scope::Local : Store::Scope::Global;
                 std::string keyBuf;
                 const std::string &key = resolveTemplate(rule.targetKey, keyBuf, ports);
-                if (ports.store) ports.store->erase(scope, key);
-                break;
-            }
-            case TargetType::OutputJsonObject: {
-                // Remove the addressed json node; at root, clear the whole body
-                // (parity with h2agent's eraser on output.json.object).
-                if (tPath.empty()) {
-                    output = nlohmann::json::object();  // clear the whole body
-                } else {
-                    // nlohmann json_pointer erase is not supported directly, so we
-                    // navigate to the parent and erase the child key, mirroring
-                    // h2agent's parent-path + childKey.erase() approach.
-                    std::size_t lastSlash = tPath.find_last_of('/');
-                    std::string parentPath = tPath.substr(0, lastSlash);
-                    std::string childKey =
-                        (lastSlash + 1 < tPath.size()) ? tPath.substr(lastSlash + 1) : "";
-                    try {
-                        nlohmann::json &parent = output[nlohmann::json::json_pointer(parentPath)];
-                        if (parent.is_object()) parent.erase(childKey);
-                    } catch (...) {
-                        // Missing parent path: nothing to erase, neutral no-op.
-                    }
+                if (!ports.store) break;
+                if (tPtr.empty()) {
+                    ports.store->erase(scope, key);
+                } else if (auto current = ports.store->get(scope, key)) {
+                    eraseNode(*current, tPtr);
+                    ports.store->set(scope, key, *current);
                 }
                 break;
             }
+            case TargetType::OutputJson:  // grammar v2 body target without cast
+            case TargetType::OutputJsonObject:
+                // Remove the addressed json node; at root, clear the whole body
+                // (parity with h2agent's eraser on output.json.object).
+                eraseNode(output, tPath);
+                break;
             case TargetType::TxtFile:
             case TargetType::BinFile:
                 // v1 parity: eraser into a file target empties the file.

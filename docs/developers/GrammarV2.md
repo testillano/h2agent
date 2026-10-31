@@ -149,19 +149,28 @@ A final `cast` on a json body target (any type) or on a `vault` target (`object`
 
 ## Eraser
 
-`{"source": "eraser"}` provides no value: it deletes (or empties) the target. The only filters it accepts are `conditionVar` (one or several, optionally negated), so that the target is erased only when every condition holds, and the `cast`.
+`{"source": "eraser"}` provides no value: it removes what lives at the location given by the target (one meaning for every target):
 
-On a body target the cast keeps the v1 erase flavour, which depends on the v1 target type: `object` removes the node (or clears the whole body), `string` sets an empty string, any other type does nothing. The migrator always produces it for v1 typed body targets (`response.body.json.<type>`).
+| Target | Effect |
+|---|---|
+| `var` / `vault` | removes the entry, or only the node at `path` (new in v2: v1 removed the whole vault entry whatever the path) |
+| `responseBody` / `requestBody` without cast or with the `object` cast | removes the node at `path` (object key or array item; v1: object keys only), or clears the whole body |
+| same with the `string` cast | empty string at `path` (v1 erase flavour of string targets) |
+| `responseBodyText`, `outState` | empty string |
+| `txtFile` / `binFile` | empties the file |
+| `serverEvent` / `clientEvent` | purges the events at that address |
+
+A missing node is a no-op (v1 created null parents when the path did not exist). Any other target ignores it. The migrator produces the cast of v1 typed body targets (`response.body.json.<type>`), so a migrated rule keeps its v1 flavour.
+
+The only filters it accepts are `conditionVar` (one or several, optionally negated), so that the target is erased only when every condition holds, and the `cast`. v1 skipped silently any `eraser` rule carrying a filter, so conditional erase is a **new capability** (no v1 equivalent): the schema rejects any other filter with `eraser` instead of skipping the rule. When a condition does not hold, the target is kept and `onFilterFail` runs.
 
 ```json
 {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "tmp"}}
-{"from": {"source": "eraser"}, "filter": [{"op": "conditionVar", "name": "done"}], "to": {"target": "vault", "key": "tmp"}}
-{"from": {"source": "eraser"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/item/1"}}
+{"from": {"source": "eraser"}, "to": {"target": "var", "name": "doc", "path": "/a/b"}}
+{"from": {"source": "eraser"}, "filter": [{"op": "conditionVar", "name": "done"}], "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/item/1"}}
 ```
 
-`eraser` is also the only source an event purge target (`serverEvent`/`clientEvent` in `to`) accepts: v1 skipped any other source silently, the schema rejects it.
-
-v1 skipped silently any `eraser` rule carrying a filter, so conditional erase is a **new capability** (no v1 equivalent): the schema rejects any other filter with `eraser` instead of skipping the rule. When a condition does not hold, the target is kept and `onFilterFail` runs.
+Event storage is read-only for transformations: erasing is the only write `serverEvent` / `clientEvent` accept as targets, and `eraser` is the only source they accept (v1 skipped any other source silently, the schema rejects it). A dedicated purge target was considered (phase [6]) and discarded: it would only be a longer spelling of this rule.
 
 An `eraser` cannot feed `stop` nor `clientProvision`: they act on a true value, so v1 did nothing with such a rule (the documented way to "disable" a trigger). The schema rejects it, and the migrator reports it to be removed.
 
