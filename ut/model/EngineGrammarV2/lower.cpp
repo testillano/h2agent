@@ -49,7 +49,7 @@ TEST(EngineGrammarV2_test, ServerSourcesAndTargets) {
         {R"({"from":{"source":"sendseq"},"to":{"target":"responseDelayMs"}})", engineRule("n/a.sendseq", "meta.delayMs")},
         {R"({"from":{"source":"literal","value":"s"},"to":{"target":"outState","method":"GET","uri":"/x"}})", engineRule("value.s", "outState.GET./x")},
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"clientProvision","id":"flow","inState":"initial"}})", engineRule("value.1", "clientProvision.flow.initial")},
-        {R"({"from":{"source":"erase"},"to":{"target":"serverEvent","requestMethod":"GET","requestUri":"/a?b=1&c=2","eventNumber":-1}})", engineRule("eraser", "serverEvent.eventNumber=-1&requestMethod=GET&requestUri=/a?b=1%26c=2")},
+        {R"({"from":{"source":"eraser"},"to":{"target":"serverEvent","requestMethod":"GET","requestUri":"/a?b=1&c=2","eventNumber":-1}})", engineRule("eraser", "serverEvent.eventNumber=-1&requestMethod=GET&requestUri=/a?b=1%26c=2")},
         {R"({"from":{"source":"literal","value":"x"},"to":{"target":"udpSocket","socket":"/tmp/s","delayMs":"@{d}"}})", engineRule("value.x", "udpSocket./tmp/s|@{d}")},
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"stop"}})", engineRule("value.1", "break")},
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"clientEvent","clientEndpointId":"e"}})", engineRule("value.1", "n/a.clientEvent")},
@@ -156,10 +156,10 @@ TEST(EngineGrammarV2_test, FilterChainsAndCastsAreLowered) {
             engineRule("value.x", "meta.header.h", R"({"Cast":"json"})")
         },
         // conditional erase (conditions kept, the final cast on a body target types it):
-        {   R"({"from":{"source":"erase"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"var","name":"v"}})",
+        {   R"({"from":{"source":"eraser"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"var","name":"v"}})",
             engineRule("eraser", "local.v", R"({"ConditionVar":"c"})")
         },
-        {   R"({"from":{"source":"erase"},"filter":[{"op":"conditionVar","name":"c"},{"op":"conditionVar","name":"d","not":true},{"op":"cast","type":"object"}],"to":{"target":"responseBody","path":"/a"}})",
+        {   R"({"from":{"source":"eraser"},"filter":[{"op":"conditionVar","name":"c"},{"op":"conditionVar","name":"d","not":true},{"op":"cast","type":"object"}],"to":{"target":"responseBody","path":"/a"}})",
             engineRule("eraser", "output.json.object./a", R"([{"ConditionVar":"c"},{"ConditionVar":"!d"}])")
         },
     };

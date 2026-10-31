@@ -72,7 +72,7 @@ TEST(GrammarMigrator_test, SourcesMapToV2Kinds) {
         {"response.header.location", R"({"source":"responseHeader","name":"location"})"},
         {"response.headers", R"({"source":"responseHeaders"})"},
         {"response.statusCode", R"({"source":"responseStatusCode"})"},
-        {"eraser", R"({"source":"erase"})"},
+        {"eraser", R"({"source":"eraser"})"},
         {"math.2*sqrt(2)", R"j({"source":"math","expression":"2*sqrt(2)"})j"},
         {"math.", R"({"source":"math","expression":""})"},
         {"random.-3.8", R"({"source":"random","min":-3,"max":8})"},
@@ -254,9 +254,9 @@ TEST(GrammarMigrator_test, RulesKeepV1BehaviourWithFilterLists) {
                R"({"from":{"source":"recvseq"},"to":{"target":"vault","key":"__core:response-delay-ms:@{recvseq}"}})");
     // eraser on a typed body target: the cast keeps the v1 erase flavour (object removes the node):
     expectRule(R"({"source":"eraser","target":"response.body.json.object./a"})",
-               R"({"from":{"source":"erase"},"filter":[{"op":"cast","type":"object"}],"to":{"target":"responseBody","path":"/a"}})");
+               R"({"from":{"source":"eraser"},"filter":[{"op":"cast","type":"object"}],"to":{"target":"responseBody","path":"/a"}})");
     expectRule(R"({"source":"eraser","target":"serverEvent.requestMethod=GET&requestUri=/x&eventNumber=-1"})",
-               R"({"from":{"source":"erase"},"to":{"target":"serverEvent","requestMethod":"GET","requestUri":"/x","eventNumber":-1}})");
+               R"({"from":{"source":"eraser"},"to":{"target":"serverEvent","requestMethod":"GET","requestUri":"/x","eventNumber":-1}})");
     expectRule(R"({"source":"vault.doc","target":"vault.copy.json.jsonstring./a"})",
                R"({"from":{"source":"vault","key":"doc"},"filter":[{"op":"cast","type":"json"}],"to":{"target":"vault","key":"copy","path":"/a"}})");
     expectRule(R"({"source":"value.1","target":"udpSocket./tmp/udp.sock|200","filter":{"Append":"x"}})",
@@ -332,6 +332,8 @@ TEST(GrammarMigrator_test, InvalidV1IsRejectedWithLocation) {
         {R"({"transform":[{"source":"eraser","target":"serverEvent.requestMethod=GET&eventPath=/a"}]})", "unknown serverEvent address field 'eventPath'"},
         {R"({"transform":[{"source":"eraser","target":"var.x","filter":{"ConditionVar":"c"}}]})", "/transform/0/filter: v1 never applies an 'eraser' rule with a filter"},
         {R"({"transform":[{"source":"value.x","target":"serverEvent.requestMethod=GET"}]})", "/transform/0/source: v1 never applies an event purge target"},
+        {R"({"transform":[{"source":"eraser","target":"break"}]})", "/transform/0/source: v1 never fires a 'break' or 'clientProvision' target fed by 'eraser'"},
+        {R"({"transform":[{"source":"eraser","target":"clientProvision.flow.initial"}]})", "/transform/0/source: v1 never fires a 'break' or 'clientProvision' target fed by 'eraser'"},
         {R"({"transform":[{"source":"recvseq","target":"var.x","filter":"Trim"}]})", "/transform/0/filter: unknown filter 'Trim'"},
         {R"({"transform":[{"source":"recvseq","target":"var.x","filter":{"Append":"a","Prepend":"b"}}]})", "one key"},
         {R"({"transform":[{"source":"recvseq","target":"var.x","filter":{"Append":1}}]})", "Append argument must be a string"},
@@ -376,7 +378,7 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"var","name":"x"}})", "cast to 'integer' on target 'var'"},
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"vault","key":"K"}})", "on target 'vault'"},
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"date"}],"to":{"target":"responseBody"}})", "unknown cast type 'date'"},
-        {R"({"from":{"source":"erase"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"vault","key":"K"}})", "a conditional erase is not expressible in v1"},
+        {R"({"from":{"source":"eraser"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"vault","key":"K"}})", "a conditional erase is not expressible in v1"},
         {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"stop"}})", "not expressible in v1"},
         {R"({"from":{"source":"vault","key":"a.b"},"to":{"target":"stop"}})", "contain no dots"},
         {R"({"from":{"source":"random","min":1},"to":{"target":"stop"}})", "source 'random' requires 'max'"},

@@ -1723,7 +1723,7 @@ components:
         properties:
           source:
             enum:
-            - erase
+            - eraser
             type: string
         required:
         - source
@@ -2189,7 +2189,7 @@ components:
               properties:
                 source:
                   enum:
-                  - erase
+                  - eraser
               required:
               - source
           required:
@@ -2223,11 +2223,35 @@ components:
               properties:
                 source:
                   enum:
-                  - erase
+                  - eraser
               required:
               - source
           required:
           - from
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - stop
+                  - clientProvision
+              required:
+              - target
+          required:
+          - to
+        then:
+          not:
+            properties:
+              from:
+                properties:
+                  source:
+                    enum:
+                    - eraser
+                required:
+                - source
+            required:
+            - from
       properties:
         filter:
           items:
@@ -2380,7 +2404,7 @@ components:
         properties:
           source:
             enum:
-            - erase
+            - eraser
             type: string
         required:
         - source
@@ -2827,7 +2851,7 @@ components:
               properties:
                 source:
                   enum:
-                  - erase
+                  - eraser
               required:
               - source
           required:
@@ -2861,11 +2885,35 @@ components:
               properties:
                 source:
                   enum:
-                  - erase
+                  - eraser
               required:
               - source
           required:
           - from
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - stop
+                  - clientProvision
+              required:
+              - target
+          required:
+          - to
+        then:
+          not:
+            properties:
+              from:
+                properties:
+                  source:
+                    enum:
+                    - eraser
+                required:
+                - source
+            required:
+            - from
       properties:
         filter:
           items:
@@ -3001,7 +3049,7 @@ components:
         properties:
           source:
             enum:
-            - erase
+            - eraser
             type: string
         required:
         - source
@@ -3378,7 +3426,7 @@ components:
               properties:
                 source:
                   enum:
-                  - erase
+                  - eraser
               required:
               - source
           required:
@@ -3412,11 +3460,35 @@ components:
               properties:
                 source:
                   enum:
-                  - erase
+                  - eraser
               required:
               - source
           required:
           - from
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - stop
+                  - clientProvision
+              required:
+              - target
+          required:
+          - to
+        then:
+          not:
+            properties:
+              from:
+                properties:
+                  source:
+                    enum:
+                    - eraser
+                required:
+                - source
+            required:
+            - from
       properties:
         filter:
           items:

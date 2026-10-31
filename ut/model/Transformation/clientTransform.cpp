@@ -369,7 +369,7 @@ TEST_F(ClientTransform_test, SourceEraser)
       "requestMethod": "GET",
       "requestUri": "/test",
       "transform": [
-        {"from": {"source": "erase"}, "to": {"target": "vault", "key": "myVaultEntry"}},
+        {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "myVaultEntry"}},
         {"from": {"source": "vault", "key": "myVaultEntry"}, "to": {"target": "requestUri"}}
       ]
     })"_json;
@@ -531,7 +531,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseBody)
       "requestMethod": "GET",
       "requestUri": "/test",
       "onResponseTransform": [
-        {"from": {"source": "erase"}, "to": {"target": "vault", "key": "respBody"}},
+        {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "respBody"}},
         {"from": {"source": "responseBody"}, "to": {"target": "vault", "key": "respBody"}}
       ]
     })"_json;
@@ -582,7 +582,7 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeader)
       "requestMethod": "GET",
       "requestUri": "/test",
       "onResponseTransform": [
-        {"from": {"source": "erase"}, "to": {"target": "vault", "key": "location"}},
+        {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "location"}},
         {
           "from": {"source": "responseHeader", "name": "location"},
           "to": {"target": "vault", "key": "location"}
@@ -752,7 +752,7 @@ TEST_F(ClientTransform_test, NeedsStorageTrueForServerEventSource)
 
 TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventToPurgeTarget)
 {
-    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "erase"}, "to": {"target": "clientEvent", "clientEndpointId": "myServer"}}])"_json;
+    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "eraser"}, "to": {"target": "clientEvent", "clientEndpointId": "myServer"}}])"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
     ASSERT_TRUE(provision != nullptr);

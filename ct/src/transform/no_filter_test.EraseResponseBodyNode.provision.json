@@ -6,7 +6,7 @@
   "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "from": {"source": "erase"},
+      "from": {"source": "eraser"},
       "filter": [{"op": "cast", "type": "object"}],
       "to": {"target": "responseBody", "path": "/item/planet"}
     }

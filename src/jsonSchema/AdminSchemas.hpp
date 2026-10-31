@@ -131,7 +131,7 @@ inline nlohmann::json sourceKind(const std::string &name) {
         {"responseHeader", kind("source", "responseHeader", {{"name", text()}}, {"name"})},
         {"responseHeaders", kind("source", "responseHeaders")},
         {"responseStatusCode", kind("source", "responseStatusCode")},
-        {"erase", kind("source", "erase")},
+        {"eraser", kind("source", "eraser")},
         {"math", kind("source", "math", {{"expression", anyText()}}, {"expression"})},
         {"random", kind("source", "random", {{"min", {{"type", "integer"}}}, {"max", {{"type", "integer"}}}}, {"min", "max"})},
         {"randomset", kind("source", "randomset", {{"values", {{"type", "array"}, {"items", {{"type", "string"}}}, {"minItems", 1}}}}, {"values"})},
@@ -241,8 +241,9 @@ inline nlohmann::json stage(const std::string &name, const std::string &discrimi
 
 /**
  * Rule definition for one context; onFilterFail rules belong to the same
- * context. An 'erase' source provides no value (only 'conditionVar' filters and
- * the cast), and it is the only source an event purge target accepts.
+ * context. An 'eraser' source provides no value (only 'conditionVar' filters and
+ * the cast), it is the only source an event purge target accepts, and it cannot
+ * feed 'stop' nor 'clientProvision' (they act on a true value).
  */
 inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef, const std::string &selfRef) {
     return {
@@ -257,14 +258,18 @@ inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef,
             }
         },
         {   "allOf", {
-                // 'erase' provides no value: only conditionVar filters, plus the cast which keeps the
+                // 'eraser' provides no value: only conditionVar filters, plus the cast which keeps the
                 // v1 erase flavour on a body target (object: remove the node, string: empty string)
-                {   {"if", stage("from", "source", {"erase"})},
+                {   {"if", stage("from", "source", {"eraser"})},
                     {"then", {{"properties", {{"filter", {{"items", {{"required", {"op"}}, {"properties", {{"op", {{"enum", {"conditionVar", "cast"}}}}}}}}}}}}}}
                 },
-                // event purge (serverEvent/clientEvent target) is only fed by 'erase'
+                // event purge (serverEvent/clientEvent target) is only fed by 'eraser'
                 {   {"if", stage("to", "target", {"serverEvent", "clientEvent"})},
-                    {"then", stage("from", "source", {"erase"})}
+                    {"then", stage("from", "source", {"eraser"})}
+                },
+                // 'eraser' never triggers nor stops (they act on a true value): such a rule would do nothing
+                {   {"if", stage("to", "target", {"stop", "clientProvision"})},
+                    {"then", {{"not", stage("from", "source", {"eraser"})}}}
                 }
             }
         }
@@ -282,7 +287,7 @@ inline nlohmann::json rules(const std::string &ruleRef, bool nonEmpty) {
 inline const std::vector<std::string> &serverFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
-        "responseBody", "responseHeaders", "erase", "math", "random", "randomset", "timestamp", "strftime",
+        "responseBody", "responseHeaders", "eraser", "math", "random", "randomset", "timestamp", "strftime",
         "recvseq", "var", "vault", "serverEvent", "clientEvent", "literal", "inState", "txtFile", "binFile", "command"
     };
     return k;
@@ -297,7 +302,7 @@ inline const std::vector<std::string> &serverTo() {
 }
 inline const std::vector<std::string> &clientFrom() {
     static const std::vector<std::string> k = {
-        "requestUri", "requestBody", "requestHeader", "requestHeaders", "responseHeaders", "erase", "math",
+        "requestUri", "requestBody", "requestHeader", "requestHeaders", "responseHeaders", "eraser", "math",
         "random", "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent",
         "literal", "inState", "txtFile", "binFile", "command"
     };
@@ -313,7 +318,7 @@ inline const std::vector<std::string> &clientTo() {
 inline const std::vector<std::string> &clientResponseFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
-        "responseBody", "responseHeader", "responseHeaders", "responseStatusCode", "erase", "math", "random",
+        "responseBody", "responseHeader", "responseHeaders", "responseStatusCode", "eraser", "math", "random",
         "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent", "literal",
         "inState", "txtFile", "binFile", "command"
     };

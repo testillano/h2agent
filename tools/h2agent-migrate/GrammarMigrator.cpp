@@ -177,7 +177,7 @@ void checkVaultKey(const std::string &key, const std::string &where) {
 const std::vector<std::pair<std::string, std::string>> &plainSources() {
     static const std::vector<std::pair<std::string, std::string>> table = {
         {"request.uri", "requestUri"}, {"request.uri.path", "requestUriPath"}, {"request.headers", "requestHeaders"},
-        {"response.headers", "responseHeaders"}, {"response.statusCode", "responseStatusCode"}, {"eraser", "erase"},
+        {"response.headers", "responseHeaders"}, {"response.statusCode", "responseStatusCode"}, {"eraser", "eraser"},
         {"recvseq", "recvseq"}, {"sendseq", "sendseq"}, {"inState", "inState"},
     };
     return table;
@@ -902,14 +902,17 @@ Json GrammarMigrator::ruleToV2(const Json &v1Rule, const std::string &where) {
 
     // v1 skips any eraser rule carrying a filter (running onFilterFail instead): in v2 a
     // conditional erase does erase, so the behaviour cannot be kept by a syntax change.
-    if (rule["from"]["source"] == "erase" && v1Rule.contains("filter")) {
+    if (rule["from"]["source"] == "eraser" && v1Rule.contains("filter")) {
         fail(where + "/filter", "v1 never applies an 'eraser' rule with a filter (it is skipped): remove the rule, or rewrite it as a v2 conditional erase");
     }
 
     std::string castType;
     Json to = targetToV2(v1Rule["target"].get<std::string>(), castType, where + "/target");
-    if ((to["target"] == "serverEvent" || to["target"] == "clientEvent") && rule["from"]["source"] != "erase") {
+    if ((to["target"] == "serverEvent" || to["target"] == "clientEvent") && rule["from"]["source"] != "eraser") {
         fail(where + "/source", "v1 never applies an event purge target with a source other than 'eraser' (it is skipped): remove the rule");
+    }
+    if ((to["target"] == "stop" || to["target"] == "clientProvision") && rule["from"]["source"] == "eraser") {
+        fail(where + "/source", "v1 never fires a 'break' or 'clientProvision' target fed by 'eraser' (it does nothing): remove the rule");
     }
 
     if (castType == "string" && isBodyTarget(to) && contains(textSources(), rule["from"]["source"].get<std::string>())) {

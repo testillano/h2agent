@@ -939,31 +939,29 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     return FilterType::None;  // unknown/absent filter -> none
 }
 
+// Single boolean criterion of the grammar (conditionVar, stop, clientProvision):
+// null, false, numeric zero and the empty string are false; anything else (any
+// non-empty string -- "0" and "false" included --, non-zero numbers, true, any
+// object or array) is true. An absent value never reaches it (the rule is skipped).
+bool truthy(const nlohmann::json &v) {
+    if (v.is_string()) return !v.get_ref<const std::string &>().empty();
+    if (v.is_number_integer()) return v.get<std::int64_t>() != 0;
+    if (v.is_number_unsigned()) return v.get<std::uint64_t>() != 0;
+    if (v.is_number_float()) return v.get<double>() != 0.0;
+    if (v.is_boolean()) return v.get<bool>();
+    return !v.is_null();
+}
+
 // ConditionVar test "[!]varname" ("varname" may be "<name>/<pointer>", as in
-// @{}): true when the store variable (local first, then global) is truthy -- present AND non-empty string / non-zero number /
-// true bool / any object or array --, inverted by a leading '!'.
+// @{}): the store variable (local first, then global) is truthy (absent is
+// false), inverted by a leading '!'.
 bool conditionHolds(const std::string &arg, const Ports &ports) {
     std::string varname = arg;
     bool reverse = (!varname.empty() && varname[0] == '!');
     if (reverse) varname.erase(0, 1);
-    std::optional<nlohmann::json> v = lookupVariable(varname, ports);  // admits "<name>/<pointer>"
-    bool truthy = false;
-    if (v) {
-        const nlohmann::json &varval = *v;
-        if (varval.is_string())
-            truthy = !varval.get<std::string>().empty();
-        else if (varval.is_number_integer())
-            truthy = varval.get<std::int64_t>() != 0;
-        else if (varval.is_number_unsigned())
-            truthy = varval.get<std::uint64_t>() != 0;
-        else if (varval.is_number_float())
-            truthy = varval.get<double>() != 0.0;
-        else if (varval.is_boolean())
-            truthy = varval.get<bool>();
-        else
-            truthy = !varval.is_null();  // object/array present -> truthy
-    }
-    return reverse ? !truthy : truthy;
+    std::optional<nlohmann::json> v = lookupVariable(varname, ports);
+    const bool isTrue = v && truthy(*v);
+    return reverse ? !isTrue : isTrue;
 }
 
 // Cast filter: converts `value` to the type (see FilterType::Cast). False when
@@ -2000,19 +1998,19 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 break;
             }
             case TargetType::ClientProvisionTrigger: {
-                // Conditional gate: the source value must be non-empty to fire.
-                if (!asString(value).empty() && ports.trigger) {
+                // Conditional gate: fires on a true value (see truthy()).
+                if (truthy(value) && ports.trigger) {
                     std::string id = substituteVariables(rule.targetProvisionId, ports);
                     std::string inState = substituteVariables(rule.targetProvisionInState, ports);
                     ports.trigger->trigger(id, inState);
                 }
-                // empty source or null port => silently skip firing (not an error)
+                // false value or null port => silently skip firing (not an error)
                 break;
             }
             case TargetType::Break: {
-                // Stop the pipeline when the source resolves to a non-empty value.
-                // Empty/undefined source is a no-op (parity with h2agent 'break').
-                if (!asString(value).empty()) {
+                // Stop the pipeline on a true value (see truthy()); a false or
+                // undefined source is a no-op.
+                if (truthy(value)) {
                     entry.applied = true;
                     if (trace) entry.note = "break: pipeline interrupted";
                     result.broke = true;

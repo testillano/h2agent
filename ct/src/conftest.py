@@ -680,7 +680,7 @@ FILE_MANAGER_PROVISION='''
   "requestUri":"/app/v1/foo/bar",
   "responseCode": 200,
   "transform": [
-    {"from": {"source": "erase"}, "to": {"target": "txtFile", "file": "/tmp/example.txt"}},
+    {"from": {"source": "eraser"}, "to": {"target": "txtFile", "file": "/tmp/example.txt"}},
     {"from": {"source": "literal", "value": "/tmp/example.txt"}, "to": {"target": "var", "name": "file"}},
     {"from": {"source": "literal", "value": "hello"}, "to": {"target": "txtFile", "file": "@{file}"}},
     {"from": {"source": "txtFile", "file": "/tmp/example.txt"}, "to": {"target": "responseBodyText"}}
@@ -717,7 +717,7 @@ VAULT_PROVISION_TEMPLATE_GVARCREATED_GVARREMOVED_GVARANSWERED='''
   }},
   "transform": [
     {{"from": {{"source": "literal", "value": "{gvarcreated}value"}}, "to": {{"target": "vault", "key": "{gvarcreated}"}}}},
-    {{"from": {{"source": "erase"}}, "to": {{"target": "vault", "key": "{gvarremoved}"}}}},
+    {{"from": {{"source": "eraser"}}, "to": {{"target": "vault", "key": "{gvarremoved}"}}}},
     {{
       "from": {{"source": "vault", "key": "{gvaranswered}"}},
       "filter": [{{"op": "cast", "type": "string"}}],

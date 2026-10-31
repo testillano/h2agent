@@ -120,7 +120,7 @@ def test_011_provision_client_seq_addressing(h2ac_admin):
         "to": {"target": "vault", "key": "readBySeqResult"}
       },
       {
-        "from": {"source": "erase"},
+        "from": {"source": "eraser"},
         "to": {
           "target": "clientEvent",
           "clientEndpointId": "seqtest",

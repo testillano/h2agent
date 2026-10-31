@@ -35,7 +35,7 @@
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "from": {"source": "erase"},
+        "from": {"source": "eraser"},
         "to": {
           "target": "serverEvent",
           "requestMethod": "GET",

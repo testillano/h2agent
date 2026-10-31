@@ -675,7 +675,7 @@ TEST_F(Transform_test, SourceResponseBodyPathUnknown)
 TEST_F(Transform_test, SourceEraser)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "from": {"source": "erase"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody", "path": "/remove-me"} })"_json;
+    const nlohmann::json item = R"({ "from": {"source": "eraser"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody", "path": "/remove-me"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -689,7 +689,7 @@ TEST_F(Transform_test, SourceEraser)
 TEST_F(Transform_test, SourceEraserWholeJson)
 {
     // Build test provision:
-    const nlohmann::json item = R"({ "from": {"source": "erase"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody"} })"_json;
+    const nlohmann::json item = R"({ "from": {"source": "eraser"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody"} })"_json;
     server_provision_json_["transform"].push_back(item);
 
     // Run transformation:
@@ -705,7 +705,7 @@ TEST_F(Transform_test, SourceEraserVault)
     // Build test provision:
     const nlohmann::json item1 = R"({ "from": {"source": "literal", "value": "myVaultEntry_value"}, "to": {"target": "vault", "key": "myVaultEntry"} })"_json;
     const nlohmann::json item2 = R"({ "from": {"source": "vault", "key": "myVaultEntry"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody", "path": "/vaultBeforeRemoval"} })"_json;
-    const nlohmann::json item3 = R"({ "from": {"source": "erase"}, "to": {"target": "vault", "key": "myVaultEntry"} })"_json;
+    const nlohmann::json item3 = R"({ "from": {"source": "eraser"}, "to": {"target": "vault", "key": "myVaultEntry"} })"_json;
     const nlohmann::json item4 = R"({ "from": {"source": "vault", "key": "myVaultEntry"}, "filter": [{"op": "cast", "type": "object"}], "to": {"target": "responseBody", "path": "/vaultAfterRemoval"} })"_json; // will be skipped
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -1496,16 +1496,16 @@ TEST_F(Transform_test, TargetVault)
 TEST_F(Transform_test, TargetServerEvent) // 'eraser' is the only compatible source
 {
     // Build test provision:
-    // Only "erase" is a compatible source for a serverEvent target, and purge addresses take no
+    // Only "eraser" is a compatible source for a serverEvent target, and purge addresses take no
     // eventPath: v1 skipped both at runtime, the v2 schema rejects them.
     nlohmann::json invalid = server_provision_json_;
     invalid["transform"].push_back(R"({ "from": {"source": "literal", "value": "any"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/foo/bar/1", "eventNumber": -1} })"_json);
     EXPECT_EQ(adata_.loadServerProvision(invalid, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
-    invalid["transform"][0] = R"({ "from": {"source": "erase"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/foo/bar/1", "eventPath": "/requestBody/foo"} })"_json;
+    invalid["transform"][0] = R"({ "from": {"source": "eraser"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/foo/bar/1", "eventPath": "/requestBody/foo"} })"_json;
     EXPECT_EQ(adata_.loadServerProvision(invalid, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
 
-    const nlohmann::json item2 = R"({ "from": {"source": "erase"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/foo/bar/1", "eventNumber": -1} })"_json;
-    const nlohmann::json item3 = R"({ "from": {"source": "erase"}, "to": {"target": "serverEvent", "requestUri": "/app/v1/foo/bar/1", "eventNumber": -1} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"source": "eraser"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/foo/bar/1", "eventNumber": -1} })"_json;
+    const nlohmann::json item3 = R"({ "from": {"source": "eraser"}, "to": {"target": "serverEvent", "requestUri": "/app/v1/foo/bar/1", "eventNumber": -1} })"_json;
     const nlohmann::json item4 = R"({ "from": {"source": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/foo/bar/1", "eventNumber": -1, "eventPath": "/requestBody/foo"}, "to": {"target": "responseBodyText"} })"_json;
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3); // invalid: missing requestMethod
@@ -1556,7 +1556,7 @@ TEST_F(Transform_test, TargetTxtFile)
     // Build test provision:
     const nlohmann::json item1 = R"({ "from": {"source": "literal", "value": "example2"}, "to": {"target": "txtFile", "file": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"} })"_json;
     const nlohmann::json item2 = R"({ "from": {"source": "txtFile", "file": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"}, "to": {"target": "responseBodyText"} })"_json;
-    const nlohmann::json item3 = R"({ "from": {"source": "erase"}, "to": {"target": "txtFile", "file": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"} })"_json;
+    const nlohmann::json item3 = R"({ "from": {"source": "eraser"}, "to": {"target": "txtFile", "file": "/tmp/h2agent.UT.Transform_test.SourceTxtFile2.txt"} })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
     server_provision_json_["transform"].push_back(item3);
@@ -1579,7 +1579,7 @@ TEST_F(Transform_test, TargetBinFile)
 
     // Build test provision:
     const nlohmann::json item1 = R"({ "from": {"source": "binFile", "file": "/tmp/h2agent.UT.Transform_test.SourceBinFile.bin"}, "to": {"target": "binFile", "file": "/tmp/h2agent.UT.Transform_test.SourceBinFile2.bin"} })"_json;
-    const nlohmann::json item2 = R"({ "from": {"source": "erase"}, "to": {"target": "binFile", "file": "/tmp/h2agent.UT.Transform_test.SourceBinFile.bin"} })"_json;
+    const nlohmann::json item2 = R"({ "from": {"source": "eraser"}, "to": {"target": "binFile", "file": "/tmp/h2agent.UT.Transform_test.SourceBinFile.bin"} })"_json;
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
 
@@ -1680,17 +1680,37 @@ TEST_F(Transform_test, TargetClientProvision)
     EXPECT_EQ(client_provision_triggers_[1].second, "step2");
 }
 
-TEST_F(Transform_test, TargetClientProvisionWithEraser)
+TEST_F(Transform_test, EraserCannotFeedClientProvisionNorStop)
 {
-    // When eraser source is used, trigger is skipped (conditional gate):
-    const nlohmann::json item = R"({ "from": {"source": "erase"}, "to": {"target": "clientProvision", "id": "myFlow", "inState": "initial"} })"_json;
-    server_provision_json_["transform"].push_back(item);
+    // Such a rule would never do anything (they act on a true value): the schema rejects it.
+    for (const char *target : {R"({"target": "clientProvision", "id": "myFlow", "inState": "initial"})", R"({"target": "stop"})"}) {
+        SCOPED_TRACE(target);
+        nlohmann::json provision = server_provision_json_;
+        provision["transform"] = nlohmann::json::array({{{"from", {{"source", "eraser"}}}, {"to", nlohmann::json::parse(target)}}});
+        EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    }
+}
 
-    // Run transformation:
-    provisionAndTransform(request_body_.dump());
+TEST_F(Transform_test, StopAndClientProvisionActOnTrueValues)
+{
+    // Single boolean criterion: numeric 0, false and "" are false; "0" (text) is true.
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "math", "expression": "0"}, "to": {"target": "clientProvision", "id": "zero", "inState": "initial"}},
+      {"from": {"source": "requestBody", "path": "/no"}, "to": {"target": "clientProvision", "id": "false", "inState": "initial"}},
+      {"from": {"source": "literal", "value": "0"}, "to": {"target": "clientProvision", "id": "text0", "inState": "initial"}},
+      {"from": {"source": "math", "expression": "2"}, "to": {"target": "clientProvision", "id": "two", "inState": "initial"}},
+      {"from": {"source": "math", "expression": "0"}, "to": {"target": "stop"}},
+      {"from": {"source": "literal", "value": "reached"}, "to": {"target": "responseHeader", "name": "x-reached"}},
+      {"from": {"source": "requestBody", "path": "/yes"}, "to": {"target": "stop"}},
+      {"from": {"source": "literal", "value": "never"}, "to": {"target": "responseHeader", "name": "x-never"}}
+    ])"_json;
+    provisionAndTransform(R"({"no": false, "yes": true})");
 
-    // Validations: no triggers (eraser = empty = skip)
-    ASSERT_EQ(client_provision_triggers_.size(), 0);
+    ASSERT_EQ(client_provision_triggers_.size(), 2);
+    EXPECT_EQ(client_provision_triggers_[0].first, "text0");
+    EXPECT_EQ(client_provision_triggers_[1].first, "two");
+    EXPECT_EQ(response_headers_.count("x-reached"), 1u);
+    EXPECT_EQ(response_headers_.count("x-never"), 0u);
 }
 
 TEST_F(Transform_test, TargetClientProvisionSkippedOnEmptyVar)
@@ -1721,8 +1741,8 @@ TEST_F(Transform_test, TargetClientProvisionMissingInState)
 
 TEST_F(Transform_test, FilterIncompatibleWithEraser)
 {
-    // "erase" provides no value: only conditionVar filters (and the cast) are accepted (v1 skipped the rule silently).
-    const nlohmann::json item = R"j({ "from": {"source": "erase"}, "filter": [{"op": "regexCapture", "rgx": "(a)"}], "to": {"target": "responseBody", "path": "/remove-me"} })j"_json;
+    // "eraser" provides no value: only conditionVar filters (and the cast) are accepted (v1 skipped the rule silently).
+    const nlohmann::json item = R"j({ "from": {"source": "eraser"}, "filter": [{"op": "regexCapture", "rgx": "(a)"}], "to": {"target": "responseBody", "path": "/remove-me"} })j"_json;
     server_provision_json_["transform"].push_back(item);
 
     EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
@@ -2245,7 +2265,7 @@ TEST_F(Transform_test, NeedsStorageTrueForServerEventSource)
 
 TEST_F(Transform_test, NeedsStorageTrueForServerEventToPurgeTarget)
 {
-    server_provision_json_["transform"] = R"([{"from": {"source": "erase"}, "to": {"target": "serverEvent", "requestMethod": "GET", "requestUri": "/x"}}])"_json;
+    server_provision_json_["transform"] = R"([{"from": {"source": "eraser"}, "to": {"target": "serverEvent", "requestMethod": "GET", "requestUri": "/x"}}])"_json;
     EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
     auto provision = adata_.getServerProvisionData().find("initial", "GET", "/app/v1/foo/bar/1?name=test");
     ASSERT_TRUE(provision != nullptr);

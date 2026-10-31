@@ -12,7 +12,7 @@ The kind remains `var` (`{"source": "var", "name": ...}` / `{"target": "var", "n
 Before this change, `var` was provision-scoped: created and destroyed within a single provision execution. To pass data across `outState` links, the only option was `vault`, which has two problems:
 
 1. **Namespace pollution**: concurrent flows share the global namespace, requiring `sequence`-based naming (vault key `flow_@{sequence}_myData`) to avoid collisions.
-2. **Manual cleanup**: vault are never freed automatically, requiring explicit `erase` transformations at the end of every chain to prevent memory growth.
+2. **Manual cleanup**: vault are never freed automatically, requiring explicit `eraser` transformations at the end of every chain to prevent memory growth.
 
 ## Design decision: promote `var` vs new `chainVar` keyword
 

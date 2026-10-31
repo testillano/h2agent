@@ -516,6 +516,31 @@ Note that a `path` is a json pointer (`"path": "/1"`), while a dotted `var` name
 
 If the vault already existed (regardless of its previous type — string, number, or object), the `regexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `{"target": "vault", "key": "MY_OBJ", "path": "/captures"}` will only replace the `/captures` field, preserving the rest of the object.
 
+### Boolean criterion
+
+Every place where the grammar takes a decision on a value uses the same criterion:
+
+| Value | Result |
+|---|---|
+| `null`, `false`, `0` (any numeric zero: `0`, `0.0`), `""` (empty string) | **false** |
+| any non-empty string (including `"0"`, `"false"`, `" "`), any non-zero number, `true`, any object or array (including `{}` and `[]`) | **true** |
+
+Note that `"0"` and `"false"` are texts, so they are true: only their numeric (`0`) and boolean (`false`) values are false. Values keep their json type in variables and vaults (see [value types](#value-types)), so a `recvseq`, a `math` result or a body node `false` are evaluated with their type, while a `literal`, a header or a uri part are always texts.
+
+How each context applies it, and what happens with an absent value (unknown variable, source or pointer which does not resolve):
+
+| Context | True | False | Absent |
+|---|---|---|---|
+| `conditionVar` filter (`{"op": "conditionVar", "name": "<name>[/<pointer>]"}`) | the filter passes | the filter fails: target untouched, `onFilterFail` runs | false (the filter fails) |
+| `conditionVar` filter with `"not": true` | the filter fails | the filter passes | true (the filter passes) |
+| `stop` target (server, client request and client response transformations) | the transformation list is interrupted | ignored, the list goes on | the rule is skipped (the list goes on) |
+| `clientProvision` target (server transformations) | the client provision is triggered | not triggered | the rule is skipped (not triggered) |
+| `{"op": "cast", "type": "boolean"}` filter | `true` | `false` (`null`, objects and arrays fail the cast) | the rule is skipped |
+
+The `eraser` source provides no value, so it cannot feed `stop` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above.
+
+> **Changed in 5.0.0:** v1 tested the text of the value (non-empty is true) and stored numbers and booleans as texts. A numeric `0` or a boolean `false` is now false; texts behave as before.
+
 ### Transformation pipeline
 
 Sorted list of transformation items to modify incoming information and build the dynamic response to be sent.
@@ -538,7 +563,7 @@ Let's start describing the available sources of data: regardless the native or n
 
 - *number* to *string* and *boolean* (true if different than zero).
 
-- *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (only response body nodes could include a boolean).
+- *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (the `{"op": "cast", "type": "boolean"}` filter follows the [boolean criterion](#boolean-criterion) for strings and numbers; `null`, objects and arrays cannot be cast to boolean) (only response body nodes could include a boolean).
 
 - *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body json node.
 
@@ -601,11 +626,11 @@ The **source** of information is classified after parsing the following possible
 
 - `{"source": "responseHeaders"}`: all response headers as a JSON array (same format as `requestHeaders`). Only available in client provision `onResponseTransform`.
 
-- `{"source": "erase"}`: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
+- `{"source": "eraser"}`: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
   - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When erase applies to response node root, it just removes response body. **Note:** since vaults now support `json` object values, the recommended approach for shared templates is to store them as vaults (via REST API or `--vault` file) and reference them with `{"source": "vault", "key": "<key>", "path": "<path>"}` in transform sources. This avoids polluting the response body with auxiliary data and the need to erase temporary nodes.
   - vault: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Vault are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so erase is the way to proceed when it comes to free the global list and reduce memory consumption.
   - event: we could purge storage events, something that could be necessary to control memory growth in load testing.
-  - with other kind of targets, erase acts like setting an empty string.
+  - with other kind of targets, eraser acts like setting an empty string (it cannot feed `stop` nor `clientProvision`: such a rule would do nothing, the schema rejects it).
 
 - `{"source": "math", "expression": "<expression>"}`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
 
@@ -623,7 +648,7 @@ The **source** of information is classified after parsing the following possible
 
 - `{"source": "vault", "key": "<key>"[, "path": "/<path>"]}`: general purpose vault (readable from anywhere, process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. When a `path` is provided (json pointer format), the source navigates into the stored `json` value (e.g. `{"source": "vault", "key": "TPL", "path": "/request/headers/auth"}` extracts the `auth` field). Without path, the whole value is used. For string values, the behavior is backward compatible with the former string-only storage. This source variable identifier **admits variables substitution** (on the key part). Vault are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed). **Note:** key names cannot contain dots.
 
-- `{"source": "literal", "value": "<value>"}`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
+- `{"source": "literal", "value": "<value>"}`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string, see [boolean criterion](#boolean-criterion)), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
 - `{"source": "serverEvent", <event fields>}`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where event fields are:
 
@@ -809,7 +834,7 @@ The **target** of information is classified after parsing the following possible
 
   **regexCapture behavior**: when a `regexCapture` filter is used with a `vault` target, the capture groups are stored as a single `json` object with numbered keys: `{"0": "full match", "1": "group1", "2": "group2", ...}`. This differs from local variables (`var`), where separate variables are created (`name`, `name.1`, `name.2`). With vaults, the captures are accessed via path navigation: `"path": "/1"`, `"path": "/2"`, etc. If the variable already existed (string or object), it is **fully replaced** by the capture object (unless a path is specified in the target, in which case only that subtree is replaced).
 
-  **Note:** key names cannot contain dots. To reset a vault, use the `erase` source.
+  **Note:** key names cannot contain dots. To reset a vault, use the `eraser` source.
 
 - `{"target": "vault", "key": "<key>"[, "path": "/<path>"]}` + `{"op": "cast", "type": "object"}` *[json object]*: stores the source as a native `json` object in the vault. Unlike the plain `vault` target without cast (which attempts object extraction with string fallback), this target **requires** the source to be a valid `json` object — the transform is skipped if it is not. Useful when you want strict typing. The optional `path` works the same as for the plain `vault` target.
 
@@ -852,7 +877,7 @@ The **target** of information is classified after parsing the following possible
 
 - `{"target": "udpSocket", "socket": "<path>"[, "delayMs": <milliseconds>]}` *[string]*: sends source (as string) via UDP datagram through a unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
 
-- `{"target": "serverEvent", <event fields>}`: this target is always used in conjunction with the `erase` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
+- `{"target": "serverEvent", <event fields>}`: this target is always used in conjunction with the `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
 
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
@@ -875,7 +900,7 @@ The **target** of information is classified after parsing the following possible
 
 - `{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `"id": "@{flowId}", "inState": "@{myState}"`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
 
-  The source acts as a **conditional gate**: the trigger only fires when the source resolves to a non-empty value. An empty or undefined source (e.g. a variable that does not exist, or `erase`) silently skips the trigger. This follows the same convention as the `stop` target.
+  The source acts as a **conditional gate**: the trigger only fires on a **true** value (see [boolean criterion](#boolean-criterion)). A false or undefined source (e.g. a variable that does not exist) silently skips the trigger. This follows the same convention as the `stop` target and the `conditionVar` filter.
 
   ```json
   {
@@ -893,20 +918,11 @@ The **target** of information is classified after parsing the following possible
   }
   ```
 
-  Here, if the variable `triggerFlow` exists and is non-empty, the trigger fires. If the variable does not exist (resolves to empty), the trigger is skipped.
-
-  Using `erase` as source deliberately disables the trigger while keeping the provision configured — useful for temporarily deactivating a flow without removing the transformation:
-
-  ```json
-  {
-    "from": {"source": "erase"},
-    "to": {"target": "clientProvision", "id": "myNotificationFlow", "inState": "initial"}
-  }
-  ```
+  Here, if the variable `triggerFlow` exists and is true (for example `"yes"` or `1`, but not `0`, `false` or `""`), the trigger fires. If the variable does not exist, the trigger is skipped.
 
   The triggered client provision must be previously configured (via `POST /admin/v2/client-provision`) along with its associated client endpoint (via `POST /admin/v2/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
 
-- `{"target": "stop"}` *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action. Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+- `{"target": "stop"}`: when a **true** value (see [boolean criterion](#boolean-criterion)) is transferred, the transformations list is interrupted. A false value (or undefined source) ignores the action. Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
 
 
@@ -1301,7 +1317,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
 
 
-- `conditionVar`: conditional transfer from source to target based on the boolean interpretation of the value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>), which is:
+- `conditionVar`: conditional transfer from source to target based on the boolean interpretation of the value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>; the name admits a json pointer, `"name": "<name>/<pointer>"`), following the [boolean criterion](#boolean-criterion):
 
   - **False** condition for cases:
     - <u>Undefined</u> variable.
@@ -1685,7 +1701,7 @@ Be careful using this `PUT` operation in the middle of traffic load, because it 
 }
 ```
 
-The `needsStorage` field is a computed boolean: `true` when any loaded provision contains transformation items with source type `serverEvent`/`clientEvent` or target type `serverEvent`/`clientEvent` (with `erase` source, used for event deletion). This allows runners to auto-detect whether storage must be enabled for the current test scenario.
+The `needsStorage` field is a computed boolean: `true` when any loaded provision contains transformation items with source type `serverEvent`/`clientEvent` or target type `serverEvent`/`clientEvent` (with `eraser` source, used for event deletion). This allows runners to auto-detect whether storage must be enabled for the current test scenario.
 
 #### Stateful detection warnings
 
@@ -1990,7 +2006,7 @@ New **targets**:
 - `{"target": "requestTimeoutMs"}` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 - `{"target": "requestUri"}` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
 - `{"target": "requestMethod"}` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
-- `{"target": "stop"}`: this target is activated with non-empty source (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then stop the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+- `{"target": "stop"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then stop the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
 Note that the `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 
@@ -2205,7 +2221,7 @@ This pattern is useful for benchmarking scenarios where you want to measure each
 
 #### Server-triggered client flows
 
-Client provisions can also be triggered from within server provision transformations using the `clientProvision` target (`{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}`) (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source acts as a conditional gate: non-empty fires the trigger, empty or `erase` skips it.
+Client provisions can also be triggered from within server provision transformations using the `clientProvision` target (`{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}`) (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source acts as a conditional gate: a true value fires the trigger, a false or undefined one skips it (see [boolean criterion](#boolean-criterion)).
 
 ```json
 {

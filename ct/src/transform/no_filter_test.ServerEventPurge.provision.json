@@ -7,7 +7,7 @@
     "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
     "transform": [
       {
-        "from": {"source": "erase"},
+        "from": {"source": "eraser"},
         "to": {
           "target": "serverEvent",
           "requestMethod": "GET",
@@ -25,7 +25,7 @@
     "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
     "transform": [
       {
-        "from": {"source": "erase"},
+        "from": {"source": "eraser"},
         "to": {"target": "serverEvent", "requestMethod": "GET", "requestUri": "/app/v1/foo/bar"}
       }
     ]

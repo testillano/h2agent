@@ -135,11 +135,11 @@ enum class TargetType {
     BinFile,                  // binFile.<path> -> FileAccess port (binary)
     UdpSocket,                // udpSocket.<path>[|<ms>] -> SocketWriter port
     EventPurge,               // serverEvent/clientEvent (with eraser source) -> EventSource purge
-    ClientProvisionTrigger,   // clientProvision.<id>.<inState> -> Trigger port (gated by source)
+    ClientProvisionTrigger,   // clientProvision.<id>.<inState> -> Trigger port (fires on a true value)
     MetaUri,                  // meta.uri -> *Meta::uri (string; e.g. client request uri)
     MetaMethod,               // meta.method -> *Meta::method (string; e.g. client request method)
     MetaTimeoutMs,            // meta.timeoutMs -> *Meta::timeoutMs (unsigned)
-    Break,                    // break -> stop the pipeline when source is non-empty
+    Break,                    // break -> stop the pipeline on a true value
 };
 
 /** Optional filter applied over the source value before it reaches the target.

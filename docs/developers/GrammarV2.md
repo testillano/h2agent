@@ -50,7 +50,7 @@ Every rule has the same three stages, executed in this order:
 | `request.header.<name>` / `request.headers` | `{"source": "requestHeader", "name": "<name>"}` / `{"source": "requestHeaders"}` | server, client |
 | `response.header.<name>` / `response.headers` | `{"source": "responseHeader", "name": "<name>"}` / `{"source": "responseHeaders"}` | client response |
 | `response.statusCode` | `{"source": "responseStatusCode"}` | client response |
-| `eraser` | `{"source": "erase"}` (see [Erase](#erase)) | all |
+| `eraser` | `{"source": "eraser"}` (see [Eraser](#eraser)) | all |
 | `math.<expression>` | `{"source": "math", "expression": "<expression>"}` | all |
 | `random.<min>.<max>` | `{"source": "random", "min": <min>, "max": <max>}` | all |
 | `randomset.<a>\|<b>\|<c>` | `{"source": "randomset", "values": ["<a>", "<b>", "<c>"]}` | all |
@@ -147,21 +147,29 @@ The grammar accepts more than the engine runs yet. A provision using any of thes
 
 A final `cast` on a json body target (any type) or on a `vault` target (`object`/`json`) is run as the typed target of the engine (v1 typed write semantics: merge at root, erase flavours); any other `cast` runs as a chain filter.
 
-## Erase
+## Eraser
 
-`{"source": "erase"}` provides no value: it deletes (or empties) the target. The only filters it accepts are `conditionVar` (one or several, optionally negated), so that the target is erased only when every condition holds, and the `cast`.
+`{"source": "eraser"}` provides no value: it deletes (or empties) the target. The only filters it accepts are `conditionVar` (one or several, optionally negated), so that the target is erased only when every condition holds, and the `cast`.
 
 On a body target the cast keeps the v1 erase flavour, which depends on the v1 target type: `object` removes the node (or clears the whole body), `string` sets an empty string, any other type does nothing. The migrator always produces it for v1 typed body targets (`response.body.json.<type>`).
 
 ```json
-{"from": {"source": "erase"}, "to": {"target": "vault", "key": "tmp"}}
-{"from": {"source": "erase"}, "filter": [{"op": "conditionVar", "name": "done"}], "to": {"target": "vault", "key": "tmp"}}
-{"from": {"source": "erase"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/item/1"}}
+{"from": {"source": "eraser"}, "to": {"target": "vault", "key": "tmp"}}
+{"from": {"source": "eraser"}, "filter": [{"op": "conditionVar", "name": "done"}], "to": {"target": "vault", "key": "tmp"}}
+{"from": {"source": "eraser"}, "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/item/1"}}
 ```
 
-`erase` is also the only source an event purge target (`serverEvent`/`clientEvent` in `to`) accepts: v1 skipped any other source silently, the schema rejects it.
+`eraser` is also the only source an event purge target (`serverEvent`/`clientEvent` in `to`) accepts: v1 skipped any other source silently, the schema rejects it.
 
-v1 skipped silently any `eraser` rule carrying a filter, so conditional erase is a **new capability** (no v1 equivalent): the schema rejects any other filter with `erase` instead of skipping the rule. When a condition does not hold, the target is kept and `onFilterFail` runs.
+v1 skipped silently any `eraser` rule carrying a filter, so conditional erase is a **new capability** (no v1 equivalent): the schema rejects any other filter with `eraser` instead of skipping the rule. When a condition does not hold, the target is kept and `onFilterFail` runs.
+
+An `eraser` cannot feed `stop` nor `clientProvision`: they act on a true value, so v1 did nothing with such a rule (the documented way to "disable" a trigger). The schema rejects it, and the migrator reports it to be removed.
+
+## Boolean criterion
+
+`conditionVar`, `stop`, `clientProvision` and the boolean `cast` share one criterion (per-context table in [docs/api/README.md](../api/README.md#boolean-criterion)): `null`, `false`, numeric zero and the empty string are false; anything else (any non-empty string, `"0"` and `"false"` included, non-zero numbers, `true`, any object or array) is true. An absent value (unknown variable, unresolved source or pointer) is false for `conditionVar` and skips the rule for the targets.
+
+v1 tested the text of the value (non-empty is true). With the native store values, a numeric `0` or a boolean `false` is now false (they were the non-empty texts `"0"` / `"false"`); text values behave as in v1.
 
 ## Stop
 
@@ -198,6 +206,6 @@ Some v1 spellings have no direct equivalent and are normalized (same behaviour):
 2. Every kind and field in lowerCamelCase, filters included; the cast is the filter `{"op": "cast", "type": ...}`.
 3. `fmt` for every format field (`strftime` source included); `expression`, `values`, `command`, `socket` as listed.
 4. Event addressing with plain fields (no url-encoding); `outState` with optional `method`/`uri`.
-5. `erase` is a source accepting only `conditionVar` filters (conditional erase is new) and the cast, and the only source of an event purge; `stop` replaces `break`.
+5. `eraser` (a noun, like every source; decided as `erase` on 2026-10-30, renamed on 2026-10-31) is a source accepting only `conditionVar` filters (conditional erase is new) and the cast, the only source of an event purge, and it cannot feed `stop` nor `clientProvision`; `stop` replaces `break`.
 6. The v1 `value.<text>` source is the `literal` kind (`{"source": "literal", "value": ...}`): `value` stays the field of every literal operand.
 7. A json body target without `cast` writes the value with the type the source yields (text sources give a string, json sources their json). The migrator does not produce `{"op": "cast", "type": "string"}` when the source always yields text (`literal`, `requestHeader`, `requestUriParam`, `requestUri`, `requestUriPath`, `strftime`, `inState`); every other cast is kept.
