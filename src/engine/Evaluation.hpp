@@ -149,6 +149,7 @@ private:
 /** One recorded step of the pipeline, enabling dry-run and traceability. */
 struct TraceEntry {
     std::size_t index{0};  // rule position in the pipeline
+    std::string path{};    // rule position as a pointer below the pipeline: "2", "2/onFilterFail/0"
     std::string source{};
     std::string filter{};
     std::string target{};

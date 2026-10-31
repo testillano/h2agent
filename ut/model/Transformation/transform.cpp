@@ -2320,6 +2320,26 @@ TEST_F(Transform_test, ScopedVarPropagatesAcrossOutStateChain)
     EXPECT_EQ(response_body_, "hello");
 }
 
+TEST_F(Transform_test, ExecutionTraceIsAppendedWhenRequested)
+{
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "literal", "value": "a"}, "to": {"target": "var", "name": "x"}},
+      {"from": {"source": "literal", "value": "b"}, "filter": [{"op": "equalTo", "value": "c"}], "to": {"target": "var", "name": "y"},
+       "onFilterFail": [{"from": {"source": "literal", "value": "1"}, "to": {"target": "var", "name": "z"}}]}
+    ])"_json;
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    auto provision = adata_.getServerProvisionData().find(in_state_, request_method_, request_uri_);
+    ASSERT_TRUE(provision);
+
+    nlohmann::json trace = nlohmann::json::array();
+    provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_, &trace);
+    EXPECT_EQ(trace, nlohmann::json::parse(R"([
+      {"rule": "/transform/0", "applied": true},
+      {"rule": "/transform/1", "applied": false, "note": "EqualTo is false; rule skipped"},
+      {"rule": "/transform/1/onFilterFail/0", "applied": true}
+    ])"));
+}
+
 TEST_F(Transform_test, VarKeepsNativeJsonAcrossChainLinks)
 {
     // Link 1: an object and a number stored in vars, a node written by path:

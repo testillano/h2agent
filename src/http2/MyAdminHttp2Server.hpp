@@ -40,6 +40,7 @@ SOFTWARE.
 #include <memory>
 #include <map>
 #include <chrono>
+#include <atomic>
 
 #include <ert/metrics/Metrics.hpp>
 
@@ -108,6 +109,7 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     bool client_data_{};
     bool client_data_key_history_{};
     bool purge_execution_{};
+    std::atomic<bool> client_execution_trace_{false}; // store the transformation pipelines trace in client events
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning = "") const;

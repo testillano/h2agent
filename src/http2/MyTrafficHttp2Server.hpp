@@ -73,6 +73,7 @@ namespace http2
 class MyTrafficHttp2Server: public ert::http2comm::Http2Server
 {
     bool server_data_{};
+    std::atomic<bool> execution_trace_{false}; // store the transformation pipeline trace in events
     bool server_data_key_history_{};
     bool purge_execution_{};
 
@@ -178,6 +179,10 @@ public:
 
     void disablePurge(bool disable = true) {
         purge_execution_ = !disable;
+    }
+
+    void enableExecutionTrace(bool enable = true) {
+        execution_trace_.store(enable);
     }
 
     void setReceiveRequestBody(bool receive = true) {

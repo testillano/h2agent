@@ -205,6 +205,8 @@ server_data_configuration() {
     echo "                                 [--keep-all]        ; Keeps all the events processed."
     echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
     echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
+    echo "                                 [--enable-trace]    ; Stores the transformation pipeline execution trace in each event."
+    echo "                                 [--disable-trace]   ; Does not store the execution trace (default)."
     return 0
   elif [ "$1" = "--discard-all" ]
   then
@@ -221,6 +223,12 @@ server_data_configuration() {
   elif [ "$1" = "--enable-purge" ]
   then
     do_curl -XPUT "$(admin_url)/server-data/configuration?disablePurge=false"
+  elif [ "$1" = "--enable-trace" ]
+  then
+    do_curl -XPUT "$(admin_url)/server-data/configuration?executionTrace=true"
+  elif [ "$1" = "--disable-trace" ]
+  then
+    do_curl -XPUT "$(admin_url)/server-data/configuration?executionTrace=false"
   else
     do_curl $(admin_url)/server-data/configuration
   fi
@@ -500,6 +508,8 @@ client_data_configuration() {
     echo "                                 [--keep-all]        ; Keeps all the events processed."
     echo "                                 [--disable-purge]   ; Skips events post-removal when a provision on 'purge' state is reached."
     echo "                                 [--enable-purge]    ; Processes events post-removal when a provision on 'purge' state is reached."
+    echo "                                 [--enable-trace]    ; Stores the transformation pipeline execution trace in each event."
+    echo "                                 [--disable-trace]   ; Does not store the execution trace (default)."
     return 0
   elif [ "$1" = "--discard-all" ]
   then
@@ -516,6 +526,12 @@ client_data_configuration() {
   elif [ "$1" = "--enable-purge" ]
   then
     do_curl -XPUT "$(admin_url)/client-data/configuration?disablePurge=false"
+  elif [ "$1" = "--enable-trace" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?executionTrace=true"
+  elif [ "$1" = "--disable-trace" ]
+  then
+    do_curl -XPUT "$(admin_url)/client-data/configuration?executionTrace=false"
   else
     do_curl $(admin_url)/client-data/configuration
   fi

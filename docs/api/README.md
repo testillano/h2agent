@@ -1699,12 +1699,30 @@ And regardless the previous combinations, you could enable or disable the purge 
 
 The `h2agent` starts with purge stage enabled by default, but you could also disable this through command-line (`--disable-purge`).
 
+And, also regardless the storage combinations, the transformation pipeline **execution trace** can be stored within each event (disabled by default):
+
+* `executionTrace=true`: every stored event includes an `executionTrace` array, with one entry per evaluated transformation rule, in evaluation order.
+* `executionTrace=false`: no trace is built nor stored.
+
+Each entry addresses its rule with a json pointer into the provision (`/transform/<n>`, `/onResponseTransform/<n>` for client response transformations, and `.../onFilterFail/<m>` for fallbacks), tells whether it was applied, and why not:
+
+```json
+"executionTrace": [
+  {"rule": "/transform/0", "applied": true},
+  {"rule": "/transform/1", "applied": false, "note": "EqualTo is false; rule skipped"},
+  {"rule": "/transform/1/onFilterFail/0", "applied": true}
+]
+```
+
+It is the way to find out why a rule did not apply (a filter failed, a source or path did not resolve, a value could not be cast...) without debug logs. It needs the event storage (`discard=false`), and it adds a small cost per event, so it is meant for test development and troubleshooting, not for load testing.
+
 Be careful using this `PUT` operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
 
 `GET /admin/v2/server-data/configuration` retrieves the current configuration:
 
 ```json
 {
+    "executionTrace": false,
     "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
@@ -2289,6 +2307,7 @@ The same agent could manage server and client connections, so you have specific 
 
 ```json
 {
+    "executionTrace": false,
     "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,

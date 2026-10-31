@@ -165,6 +165,7 @@ public:
      * @param requestDelayMs Request delay milliseconds resulting from provision & transformation
      * @param requestTimeoutMs Request timeout milliseconds resulting from provision & transformation
      * @param error Error detail for unexpected cases
+     * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      */
     void transform( std::string &requestMethod,
                     std::string &requestUri,
@@ -175,7 +176,8 @@ public:
                     unsigned int &requestTimeoutMs,
                     std::string &error,
                     Variables &variables,
-                    std::int64_t seq = -1
+                    std::int64_t seq = -1,
+                    nlohmann::json *executionTrace = nullptr
                   );
 
     /**
@@ -186,6 +188,7 @@ public:
      * @param receivedResponse Response received from server
      * @param sendSeq Client endpoint sending sequence
      * @param outState out-state updated by reference (may change based on response)
+     * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      *
      * @return True if response validation passed (status code + schema), false otherwise (chain should break)
      */
@@ -195,7 +198,8 @@ public:
                             std::uint64_t sendSeq,
                             std::string &outState,
                             Variables &variables,
-                            std::int64_t seq = -1
+                            std::int64_t seq = -1,
+                            nlohmann::json *executionTrace = nullptr
                           );
 
     /**

@@ -162,7 +162,8 @@ void AdminClientProvision::transform( std::string &requestMethod,
                                       unsigned int &requestTimeoutMs,
                                       std::string &error,
                                       Variables &variables,
-                                      std::int64_t seq
+                                      std::int64_t seq,
+                                      nlohmann::json *executionTrace
                                     )
 {
     // Default values without transformations:
@@ -228,7 +229,10 @@ void AdminClientProvision::transform( std::string &requestMethod,
     ports.shell = &shell;
     ports.schema = &schemas;  // no trigger port: clientProvision is not applicable in client provisions
 
-    if (engine_pipeline_) h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports);
+    if (engine_pipeline_) {
+        h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
+        if (executionTrace) appendExecutionTrace(*executionTrace, result, "transform");
+    }
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)
@@ -260,7 +264,8 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         std::uint64_t sendSeq,
         std::string &outState,
         Variables &variables,
-        std::int64_t seq
+        std::int64_t seq,
+        nlohmann::json *executionTrace
                                             )
 {
     bool validationOk = true;
@@ -294,7 +299,10 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         ports.shell = &shell;
         ports.schema = &schemas;  // no trigger port: clientProvision is not applicable in client provisions
 
-        if (engine_response_pipeline_) h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports);
+        if (engine_response_pipeline_) {
+            h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports, executionTrace != nullptr);
+            if (executionTrace) appendExecutionTrace(*executionTrace, result, "onResponseTransform");
+        }
 
     } // has_response_transform_
 

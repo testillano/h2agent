@@ -121,7 +121,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       std::string &outStateMethod,
                                       std::string &outStateUri,
                                       std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                                      Variables &variables
+                                      Variables &variables,
+                                      nlohmann::json *executionTrace
                                     )
 {
     // Default values without transformations:
@@ -216,7 +217,10 @@ void AdminServerProvision::transform( const std::string &requestUri,
     ports.schema = &schemas;
     ports.trigger = &trigger;
 
-    if (engine_pipeline_) h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports);
+    if (engine_pipeline_) {
+        h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
+        if (executionTrace) appendExecutionTrace(*executionTrace, result, "transform");
+    }
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)

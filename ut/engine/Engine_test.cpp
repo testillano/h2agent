@@ -3011,3 +3011,27 @@ TEST(Engine_test, EraserOnBodyRootWithoutCastClearsIt) {
     engine.evaluate(pipeline, ctx, ports);
     EXPECT_EQ(ctx.output, nlohmann::json::object());
 }
+
+TEST(Engine_test, TraceEntriesAddressRulesWithPaths) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.a","target":"local.x"},
+      {"source":"value.b","target":"output.string","filter":{"EqualTo":"c"},
+       "onFilterFail":[{"source":"value.d","target":"output.string","filter":{"EqualTo":"e"},
+                        "onFilterFail":[{"source":"value.f","target":"output.string"}]}]}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    auto result = engine.evaluate(pipeline, ctx, ports, /*trace=*/true);
+    ASSERT_EQ(result.executionTrace.size(), 4u);
+    EXPECT_EQ(result.executionTrace[0].path, "0");
+    EXPECT_EQ(result.executionTrace[1].path, "1");
+    EXPECT_EQ(result.executionTrace[2].path, "1/onFilterFail/0");
+    EXPECT_EQ(result.executionTrace[3].path, "1/onFilterFail/0/onFilterFail/0");
+    EXPECT_TRUE(result.executionTrace[3].applied);
+    EXPECT_EQ(ctx.outBody.raw, "f");
+}

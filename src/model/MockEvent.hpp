@@ -67,6 +67,16 @@ public:
 
     MockEvent() {;}
 
+    /**
+     * Sets the transformation pipeline execution trace (stored only when enabled
+     * by the data configuration, see 'executionTrace')
+     *
+     * @param trace Json array with one entry per evaluated rule
+     */
+    void setExecutionTrace(const nlohmann::json &trace) {
+        json_["executionTrace"] = trace;
+    }
+
     // setters:
 
     /**

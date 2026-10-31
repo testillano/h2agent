@@ -150,6 +150,7 @@ public:
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
      * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
+     * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -166,7 +167,8 @@ public:
                     std::string &outStateMethod,
                     std::string &outStateUri,
                     std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                    Variables &variables
+                    Variables &variables,
+                    nlohmann::json *executionTrace = nullptr
                   );
 
     // setters:

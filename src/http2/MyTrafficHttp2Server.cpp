@@ -39,6 +39,8 @@ SOFTWARE.
 #include <errno.h>
 
 
+#include <nlohmann/json.hpp>
+
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/Http.hpp>
 #include <ert/http2comm/Http2Headers.hpp>
@@ -129,6 +131,7 @@ std::string MyTrafficHttp2Server::dataConfigurationAsJsonString() const {
     result["storeEvents"] = server_data_;
     result["storeEventsKeyHistory"] = server_data_key_history_;
     result["purgeExecution"] = purge_execution_;
+    result["executionTrace"] = execution_trace_.load();
     result["needsStorage"] = admin_data_->getServerProvisionData().needsStorage();
 
     return result.dump();
@@ -322,9 +325,12 @@ ss << "TRAFFIC REQUEST RECEIVED"
         std::string outStateUri;
         std::vector<std::pair<std::string, std::string>> clientProvisionTriggers;
 
-        // Process provision
+        // Process provision (the execution trace is only built when it will be stored):
+        const bool traced = server_data_ && execution_trace_.load();
+        nlohmann::json executionTrace = traced ? nlohmann::json::array() : nlohmann::json();
         provision->transform(normalizedUri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
-                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, chainVariables);
+                             statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, chainVariables,
+                             traced ? &executionTrace : nullptr);
 
         // Trigger client provisions (fire-and-forget):
         if (client_provision_trigger_) {
@@ -356,7 +362,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
             // Store event context information
             if (server_data_) {
                 normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
-                getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */);
+                getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr);
 
                 // Register for sendingTimestampUs capture in streamClose:
                 {

@@ -575,7 +575,8 @@ paths:
         discard=true&discardKeyHistory=true (nothing stored),
         discard=false&discardKeyHistory=true (last event per key only),
         discard=false&discardKeyHistory=false (full history).
-        disablePurge controls purge execution independently.
+        disablePurge controls purge execution independently, and executionTrace the
+        storage of the transformation pipeline trace in each event.
       parameters:
         - name: discard
           in: query
@@ -587,6 +588,11 @@ paths:
             type: boolean
         - name: disablePurge
           in: query
+          schema:
+            type: boolean
+        - name: executionTrace
+          in: query
+          description: Store the transformation pipeline execution trace in each event ('executionTrace' array)
           schema:
             type: boolean
       responses:
@@ -985,6 +991,11 @@ paths:
             type: boolean
         - name: disablePurge
           in: query
+          schema:
+            type: boolean
+        - name: executionTrace
+          in: query
+          description: Store the transformation pipeline execution trace in each event ('executionTrace' array)
           schema:
             type: boolean
       responses:
@@ -3578,6 +3589,9 @@ components:
     DataStorageConfiguration:
       type: object
       properties:
+        executionTrace:
+          type: boolean
+          description: Whether events include the transformation pipeline execution trace
         purgeExecution:
           type: boolean
           description: Whether purge state triggers event removal

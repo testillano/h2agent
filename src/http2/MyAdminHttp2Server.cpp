@@ -1155,6 +1155,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         std::string discard;
         std::string discardKeyHistory;
         std::string disablePurge;
+        std::string executionTrace;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
@@ -1164,13 +1165,17 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             if (it != qmap.end()) discardKeyHistory = it->second;
             it = qmap.find("disablePurge");
             if (it != qmap.end()) disablePurge = it->second;
+            it = qmap.find("executionTrace");
+            if (it != qmap.end()) executionTrace = it->second;
         }
 
         bool b_discard = (discard == "true");
         bool b_discardKeyHistory = (discardKeyHistory == "true");
         bool b_disablePurge = (disablePurge == "true");
+        bool b_executionTrace = (executionTrace == "true");
 
-        success = (!discard.empty() || !discardKeyHistory.empty() || !disablePurge.empty());
+        success = (!discard.empty() || !discardKeyHistory.empty() || !disablePurge.empty() || !executionTrace.empty());
+        if (!executionTrace.empty() && executionTrace != "true" && executionTrace != "false") success = false;
 
         if (success) {
             if (!discard.empty() && !discardKeyHistory.empty())
@@ -1194,6 +1199,11 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
                 if (serverMode) getHttp2Server()->discardDataKeyHistory(b_discardKeyHistory);
                 else discardClientDataKeyHistory(b_discardKeyHistory);
                 LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard %s-data key history: %s", mode, b_discardKeyHistory ? "true":"false"), ERT_FILE_LOCATION));
+            }
+            if (!executionTrace.empty()) {
+                if (serverMode) getHttp2Server()->enableExecutionTrace(b_executionTrace);
+                else client_execution_trace_.store(b_executionTrace);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Execution trace in %s-data events: %s", mode, b_executionTrace ? "true":"false"), ERT_FILE_LOCATION));
             }
             if (!disablePurge.empty()) {
                 if (serverMode) getHttp2Server()->disablePurge(b_disablePurge);
@@ -1337,7 +1347,11 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         purgeKeys = std::make_shared<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>>();
     }
 
-    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables, seq);
+    // Execution trace (request and response pipelines), only built when it will be stored:
+    std::shared_ptr<nlohmann::json> executionTrace;
+    if (client_data_ && client_execution_trace_.load()) executionTrace = std::make_shared<nlohmann::json>(nlohmann::json::array());
+
+    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables, seq, executionTrace.get());
     LOGDEBUG(
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
@@ -1359,7 +1373,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     std::string clientEndpointId = provision->getClientEndpointId();
 
     client->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
-    [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys](ert::http2comm::Http2Client::response response) {
+    [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys, executionTrace](ert::http2comm::Http2Client::response response) {
 
         // Apply on-response transformations (may update outState)
         std::string finalOutState = outState;
@@ -1367,7 +1381,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         auto provision = provisionData.find(inState, clientProvisionId);
         bool responseValidationOk = true;
         if (provision) {
-            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq);
+            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get());
         }
 
         // Provisioned request counter
@@ -1385,7 +1399,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 h2agent::model::DataPart responseBodyDataPart(response.body);
-                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get());
             }
             LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Transport error (statusCode %d) sending client provision '%s': chain interrupted", response.statusCode, clientProvisionId.c_str()), ERT_FILE_LOCATION));
             return;
@@ -1400,7 +1414,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         if (client_data_) {
             h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
             h2agent::model::DataPart responseBodyDataPart(response.body);
-            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get());
 
             // Accumulate purge key for chain-aware purge:
             if (purgeKeys) {
@@ -1621,6 +1635,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
     result["storeEvents"] = client_data_;
     result["storeEventsKeyHistory"] = client_data_key_history_;
     result["purgeExecution"] = purge_execution_;
+    result["executionTrace"] = client_execution_trace_.load();
     result["needsStorage"] = admin_data_->getClientProvisionData().needsStorage();
 
     return result.dump();

@@ -47,6 +47,7 @@ SOFTWARE.
 #include <ert/http2comm/Http2Client.hpp>
 
 #include <DataPart.hpp>
+#include <Evaluation.hpp>
 #include <Ports.hpp>
 #include <Variables.hpp>
 
@@ -144,6 +145,13 @@ public:
         triggers_.emplace_back(provisionId, inState);
     }
 };
+
+/**
+ * Appends an engine execution trace to `out` (json array), one entry per
+ * evaluated rule: {"rule": "/<pipeline>/<n>[/onFilterFail/<m>...]", "applied": bool[, "note": "why skipped"]},
+ * where <pipeline> is the provision field ("transform" / "onResponseTransform").
+ */
+void appendExecutionTrace(nlohmann::json &out, const h2agent::engine::TransformResult &result, const char *pipeline);
 
 /**
  * v1 body semantics (TypeConverter::setObject) over a referenced json: empty

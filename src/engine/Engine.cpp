@@ -1408,7 +1408,7 @@ static std::optional<nlohmann::json> metaGet(const Meta &meta, const std::string
 // Evaluate a rule list. Returns false when a break interrupted processing (it
 // propagates through onFilterFail fallbacks, as h2agent does); true otherwise.
 static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, const Ports &ports, bool trace,
-                      TransformResult &result) {
+                      TransformResult &result, const std::string &prefix = "") {
     // Host-owned output objects; when the host provides none, writes land in
     // these scratch sinks and are dropped.
     nlohmann::json outputSink;
@@ -1427,6 +1427,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
         TraceEntry entry;
         if (trace) {
             entry.index = i;
+            entry.path = prefix + std::to_string(i);
             entry.source = rule.rawSource;
             entry.target = rule.rawTarget;
             entry.filter = rule.rawFilter;
@@ -1667,7 +1668,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 entry.applied = false;
                 if (trace) entry.note = skipNote;
                 if (trace) result.executionTrace.push_back(std::move(entry));
-                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
+                if (!evalRules(rule.onFilterFail, ctx, ports, trace, result, prefix + std::to_string(i) + "/onFilterFail/")) return false;  // onFilterFail
                 continue;
             }
         }
@@ -1755,7 +1756,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             entry.applied = false;
             if (trace) entry.note = std::move(filterNote);
             if (trace) result.executionTrace.push_back(std::move(entry));
-            if (!evalRules(rule.onFilterFail, ctx, ports, trace, result)) return false;  // onFilterFail
+            if (!evalRules(rule.onFilterFail, ctx, ports, trace, result, prefix + std::to_string(i) + "/onFilterFail/")) return false;  // onFilterFail
             continue;
         }
 

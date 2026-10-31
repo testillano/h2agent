@@ -46,12 +46,12 @@ namespace h2agent
 namespace model
 {
 
-void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace) {
 
     bool maiden{};
     auto events = std::static_pointer_cast<MockServerEventsHistory>(getEvents(dataKey, maiden));
 
-    events->loadEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri);
+    events->loadEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace);
 
     if (maiden) add(dataKey.getKey(), events); // push the key in the map:
 

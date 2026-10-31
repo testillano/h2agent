@@ -205,6 +205,15 @@ void EngineStore::erase(Scope scope, const std::string &key) {
     vault_->remove(key, exists);
 }
 
+void appendExecutionTrace(nlohmann::json &out, const h2agent::engine::TransformResult &result, const char *pipeline) {
+    const std::string prefix = std::string("/") + pipeline + "/";
+    for (const auto &entry : result.executionTrace) {
+        nlohmann::json item = {{"rule", prefix + entry.path}, {"applied", entry.applied}};
+        if (!entry.note.empty()) item["note"] = entry.note;
+        out.push_back(std::move(item));
+    }
+}
+
 //////////////////
 // EVENT SOURCE //
 //////////////////
