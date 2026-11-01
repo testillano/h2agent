@@ -3,12 +3,12 @@
     "requestMethod": "POST",
     "requestUri": "/api/v1/webhook/notify",
     "responseCode": 200,
-    "responseBody": {"status":"received"},
-    "responseHeaders": {"content-type":"application/json"},
+    "responseBody": {"status": "received"},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "value.1",
-        "target": "clientProvision.forwardNotification.initial"
+        "from": {"source": "literal", "value": "1"},
+        "to": {"target": "clientProvision", "id": "forwardNotification", "inState": "initial"}
       }
     ]
   },
@@ -16,7 +16,7 @@
     "requestMethod": "POST",
     "requestUri": "/api/v1/forward",
     "responseCode": 200,
-    "responseBody": {"status":"forwarded"},
-    "responseHeaders": {"content-type":"application/json"}
+    "responseBody": {"status": "forwarded"},
+    "responseHeaders": {"content-type": "application/json"}
   }
 ]

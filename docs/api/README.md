@@ -8,12 +8,14 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 
 - [Overview](#overview)
 - [General operations](#general-operations)
+  - [API schemas](#api-schemas)
   - [Schemas](#schemas)
   - [Vault](#vaults)
     - [Blocking wait](#blocking-wait)
   - [Files](#files)
   - [Logging](#logging)
   - [Health](#health)
+  - [Capabilities](#capabilities)
   - [Configuration](#configuration)
 - [Matching algorithms](#matching-algorithms)
   - [URI path query parameters](#uri-path-query-parameters)
@@ -49,7 +51,9 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 
 ## Overview
 
-`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. All operations are served over *URI* path `/admin/v1/`.
+`h2agent` listens on a specific management port (*8074* by default) for incoming requests, implementing a *REST API* to manage the process operation. Through the *API* we could program the agent behavior. All operations are served over *URI* path `/admin/v2/`.
+
+The former `/admin/v1/` API is retired: any request to it is answered with `410 Gone` and a `cause` pointing to the same resource under `/admin/v2/` (provisions written for the v1 grammar must be migrated with the [h2agent-migrate](../../README.md#execution-of-h2agent-migrate-utility) tool).
 
 The API is organized in three groups:
 
@@ -74,9 +78,15 @@ The API is organized in three groups:
 
 ## General operations
 
+### API schemas
+
+`GET /admin/v2/api-schema` lists the administrative resources whose json schema is published, and `GET /admin/v2/api-schema/<resource>` returns that schema (`server-matching`, `server-provision`, `client-endpoint`, `client-provision`, `schema`, `vault`), with its `$id` set to the request URI. These are the schemas the agent validates admin requests against (for example, the transformation grammar of the provisions). The former `GET /admin/v2/<resource>/schema` paths are retired (`410 Gone` with a hint).
+
+Do not confuse them with the [schemas](#schemas) below, which are user schemas registered to validate traffic.
+
 ### Schemas
 
-Loads schema(s) (`POST /admin/v1/schema`) for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
+Loads schema(s) (`POST /admin/v2/schema`) for future event validation. Added schemas could be referenced within provision configurations by mean their string identifier.
 
 If you have a `json` schema (from file `schema.json`) and want to build the `h2agent` schema configuration (into file `h2agent_schema.json`), you may perform automations like this *bash script* example:
 
@@ -126,18 +136,18 @@ A schema set fails with the first failed item, giving a 'pluralized' version of 
 
 ### Vault
 
-Vault (`POST /admin/v1/vault`) can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this *REST API* operation. This operation is mainly focused on the use of vaults as constants for the whole execution (although they could be updated or reset from provisions).
+Vault (`POST /admin/v2/vault`) can be created dynamically from provisions execution (to be used there in later transformations steps or from any other different provision, due to the global scope), but they also can be loaded through this *REST API* operation. This operation is mainly focused on the use of vaults as constants for the whole execution (although they could be updated or reset from provisions).
 
 Vault are created as string-value, which will be interpreted as numbers or any other data type, depending on the transformation involved.
 
-When querying (`GET /admin/v1/vault`), without the `name` query parameter, the whole list of vaults is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
+When querying (`GET /admin/v2/vault`), without the `name` query parameter, the whole list of vaults is returned as a JSON object. With the `name` parameter, the specific variable value is returned as a plain string. A variable used as memory bucket could store even binary data and it may be obtained with this operation.
 
 #### Blocking wait
 
-The endpoint `GET /admin/v1/vault/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
+The endpoint `GET /admin/v2/vault/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
 
 - **Any change** (no `value` parameter): returns when the variable differs from its value at the time the request was received.
-- **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied.
+- **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied. Scalars are compared by their text, so the barrier does not depend on how the value was stored: `value=60` matches both `60` and `"60"`, and `value=true` matches `true` and `"true"` (text is case-sensitive). JSON objects and arrays (`value={"a":1}`, URL-encoded) are compared as JSON.
 
 Parameters: `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32).
 
@@ -146,26 +156,26 @@ Parameters: `timeoutMs` (default 30000, max 300000). Returns `200` on success, `
 Individual vault operations (`load`, `loadAtPath`, `tryGet`) are thread-safe. However, **read-modify-write patterns at the provision level are not atomic**. For example, a common pattern to count errors:
 
 ```json
-{"source": "math.@{MY_COUNTER} + 1", "target": "vault.MY_COUNTER"}
+{"from": {"source": "math", "expression": "@{MY_COUNTER} + 1"}, "to": {"target": "vault", "key": "MY_COUNTER"}}
 ```
 
-The variable read (`@{MY_COUNTER}`) and the write (`vault.MY_COUNTER`) are separate operations. When multiple worker threads execute this concurrently, increments can be lost. This only affects shared (global) vault keys accessed from multiple subscribers simultaneously.
+The variable read (`@{MY_COUNTER}`) and the write (vault key `MY_COUNTER`) are separate operations. When multiple worker threads execute this concurrently, increments can be lost. This only affects shared (global) vault keys accessed from multiple subscribers simultaneously.
 
-Per-subscriber vault keys (e.g., `vault.flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-subscriber values after the test completes instead of incrementing a shared counter during execution.
+Per-subscriber vault keys (e.g., `flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-subscriber values after the test completes instead of incrementing a shared counter during execution.
 
 #### Vault concurrency and sharding
 
-The vault is written on the traffic hot path: every `vault.X` transformation target (from both the client and server roles) takes a write lock on the vault. To keep this scalable when a provision touches **many** vault keys under **high concurrency**, the vault is backed by an **N-way sharded map** (16 shards): each key is routed to a shard by hashing, and a per-key write locks **only that shard**. Writes to independent keys from different threads therefore do not serialize against each other.
+The vault is written on the traffic hot path: every `vault` transformation target (from both the client and server roles) takes a write lock on the vault. To keep this scalable when a provision touches **many** vault keys under **high concurrency**, the vault is backed by an **N-way sharded map** (16 shards): each key is routed to a shard by hashing, and a per-key write locks **only that shard**. Writes to independent keys from different threads therefore do not serialize against each other.
 
 Notes:
 
-- The gain applies to **distinct keys** (the common per-subscriber case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `math.@{K}+1 -> vault.K` atomic).
-- Whole-vault admin operations (`GET /admin/v1/vault`, `DELETE /admin/v1/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
+- The gain applies to **distinct keys** (the common per-subscriber case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` atomic).
+- Whole-vault admin operations (`GET /admin/v2/vault`, `DELETE /admin/v2/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
 - This is transparent to provisions and to the REST API; no configuration is needed. It is an internal property of the vault store (`src/model/Map.hpp`, opt-in via the `Shards` template parameter; only the vault uses `> 1`). A native benchmark is provided at `benchmark/native/vault_sharding/`.
 
 ### Files
 
-The files operation (`GET /admin/v1/files`) retrieves the whole list of files processed and their current status. For example:
+The files operation (`GET /admin/v2/files`) retrieves the whole list of files processed and their current status. For example:
 
 ```json
 [
@@ -188,17 +198,25 @@ An already managed file could be externally removed or corrupted. In that case, 
 
 ### Logging
 
-The logging level (`GET /admin/v1/logging`) retrieves the current level: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
+The logging level (`GET /admin/v2/logging`) retrieves the current level: `Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency`.
 
-To change it (`PUT /admin/v1/logging?level=<level>`), provide any of the valid log levels as query parameter. This can be also configured on start as described in the [command line](../../README.md#command-line) section.
+To change it (`PUT /admin/v2/logging?level=<level>`), provide any of the valid log levels as query parameter. This can be also configured on start as described in the [command line](../../README.md#command-line) section.
 
 ### Health
 
-`GET /admin/v1/health` returns `{"status":"healthy"}` with HTTP 200. This endpoint is intended for Kubernetes liveness and readiness probes. It is always available as long as the admin server is running.
+`GET /admin/v2/health` returns `{"status":"healthy"}` with HTTP 200. This endpoint is intended for Kubernetes liveness and readiness probes. It is always available as long as the admin server is running.
+
+### Capabilities
+
+`GET /admin/v2/capabilities` returns diagnostics about this binary: admin API version, program version and the provision transformation grammar it accepts. It is informative only (clients use the API version they were written for):
+
+```json
+{ "apiVersion": "v2", "programVersion": "v5.0.0", "grammar": "v2" }
+```
 
 ### Configuration
 
-The general process configuration (`GET /admin/v1/configuration`) returns:
+The general process configuration (`GET /admin/v2/configuration`) returns:
 
 ```json
 {
@@ -208,7 +226,7 @@ The general process configuration (`GET /admin/v1/configuration`) returns:
 }
 ```
 
-The server configuration (`GET /admin/v1/server/configuration`) returns:
+The server configuration (`GET /admin/v2/server/configuration`) returns:
 
 ```json
 {
@@ -217,7 +235,7 @@ The server configuration (`GET /admin/v1/server/configuration`) returns:
 }
 ```
 
-Request body reception can be disabled (`PUT /admin/v1/server/configuration`). This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions:
+Request body reception can be disabled (`PUT /admin/v2/server/configuration`). This is useful to optimize the server processing in case that request body content is not actually needed by planned provisions:
 
 * `receiveRequestBody=true`: data received will be processed.
 * `receiveRequestBody=false`: data received will be ignored.
@@ -233,9 +251,9 @@ The `h2agent` starts with memory pre reservation enabled by default, but you cou
 
 ## Matching algorithms
 
-The server matching configuration (`POST /admin/v1/server-matching`) defines how incoming traffic is classified towards provisions.
+The server matching configuration (`POST /admin/v2/server-matching`) defines how incoming traffic is classified towards provisions.
 
-> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), `POST /admin/v1/server-matching` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), for the same reason as server provisions above.
+> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), `POST /admin/v2/server-matching` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), for the same reason as server provisions above.
 
 ### URI path query parameters
 
@@ -331,9 +349,9 @@ Note: in case of large provisions, this algorithm could be not recommended (sequ
 
 ## Server provisions
 
-Server provisions (`POST /admin/v1/server-provision`) define the response behavior for incoming requests. This section covers the conceptual aspects of provisioning.
+Server provisions (`POST /admin/v2/server-provision`) define the response behavior for incoming requests. This section covers the conceptual aspects of provisioning.
 
-> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), it is a pure client and its mode cannot change at runtime. In that case `POST /admin/v1/server-provision` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), consistent with `PUT /admin/v1/server-data/configuration`. Use client provisions instead.
+> **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), it is a pure client and its mode cannot change at runtime. In that case `POST /admin/v2/server-provision` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), consistent with `PUT /admin/v2/server-data/configuration`. Use client provisions instead.
 
 ### State machine (inState/outState)
 
@@ -439,79 +457,125 @@ We could optionally validate built responses against a `json` schema. When a ref
 
 ### Variable types: `var` vs `vault`
 
-There are two distinct variable systems available in transformations. Despite the similar naming, they differ not only in scope but also in storage type and behavior:
+There are two variable stores available in transformations. Both hold native `json` values (string, number, boolean, null, object, array) with the type the source (or a `cast` filter) yields, and both navigate them with a json pointer `path`; they differ in scope:
 
 | Aspect | `var` (local) | `vault` (global) |
 |--------|---------------|----------------------|
 | **Scope** | Per-provision `outState` chain. Destroyed when the chain ends. | Process-level. Persists until explicitly erased or deleted via REST API. |
-| **Storage type** | `string` only (`Map<string, string>`) | Any `json` type: string, number, boolean, object, array (`Map<string, json>`) |
-| **Key naming** | May contain dots (e.g. `var.captures.1`) | Dots forbidden in key names (reserved as separator for json pointer path) |
-| **Path navigation** | Not supported | Supported: `vault.KEY./path/to/field` (json pointer after the dot) |
-| **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v1/vault` |
+| **Storage type** | Any `json` type | Any `json` type |
+| **Name/key** | `name`, may contain dots (e.g. `captures.1`) | `key`, dots forbidden |
+| **Path navigation** | `{"source": "var", "name": "NAME", "path": "/path/to/field"}` (json pointer) | `{"source": "vault", "key": "KEY", "path": "/path/to/field"}` (json pointer) |
+| **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v2/vault` |
 | **CLI loading** | Not supported | `--vault file.json` |
-| **Blocking wait** | Not supported | `GET /admin/v1/vault/<key>/wait` |
+| **Blocking wait** | Not supported | `GET /admin/v2/vault/<key>/wait` |
 
-#### RegexCapture behavior difference
+#### regexCapture behavior difference
 
-When a `RegexCapture` filter is applied, the way capture groups are stored depends on the target variable type:
+When a `regexCapture` filter is applied, the way capture groups are stored depends on the target variable type:
 
-**`var` (local)** — creates separate flat keys with dotted suffixes:
+**`var` (local)** — creates separate flat variables with dotted suffixes:
 
 ```
-target: "var.uri_parts"
-→ var.uri_parts   = "/app/v1/foo/bar/1"   (full match)
-→ var.uri_parts.1 = "foo"                  (group 1)
-→ var.uri_parts.2 = "1"                    (group 2)
+to: {"target": "var", "name": "uri_parts"}
+-> uri_parts   = "/app/v1/foo/bar/1"   (full match)
+-> uri_parts.1 = "foo"                 (group 1)
+-> uri_parts.2 = "1"                   (group 2)
 
-Access: source "var.uri_parts.1" → "foo"   (key lookup in flat string map)
+Access: {"source": "var", "name": "uri_parts.1"} -> "foo"   (the group is a variable of its own)
 ```
 
-> **Gotcha — dotted capture variables in a vault key name.** A capture-group
-> variable like `var.uri_parts.1` is a perfectly valid variable, and `@{uri_parts.1}`
-> substitutes fine in a **value** or a `var` target. BUT it does NOT work when placed
-> in the **name of a vault key**, e.g. `target: "vault.RCVD_@{uri_parts.1}"`. The vault
-> target syntax is `vault.<key>[./<json-pointer>]`, and the key/path split is parsed on
-> the FIRST dot at provision-load time -- before variable substitution -- so the dot
-> inside `@{uri_parts.1}` is misread as the key/path separator and the substitution
-> does not happen as intended. Workaround: copy the group to a dot-free variable first
-> and use that in the key:
+> **Gotcha — dotted capture variables in a vault key.** A capture-group variable
+> like `uri_parts.1` is a perfectly valid variable, and `@{uri_parts.1}` substitutes
+> fine in a **value** or a `var` name. BUT a vault `key` cannot contain dots, and the
+> provision schema rejects it even inside a variable pattern, e.g.
+> `"key": "RCVD_@{uri_parts.1}"`. Either capture into a vault and use the pointer form
+> (`"key": "RCVD_@{uri_parts/1}"`), or copy the group to a dot-free variable first and
+> use that in the key:
 >
 > ```
-> {"source": "var.uri_parts.1", "target": "var.group1"},
-> {"source": "value.0",         "target": "vault.RCVD_@{group1}"}
+> {"from": {"source": "var", "name": "uri_parts.1"}, "to": {"target": "var", "name": "group1"}},
+> {"from": {"source": "literal", "value": "0"}, "to": {"target": "vault", "key": "RCVD_@{group1}"}}
 > ```
 
 **`vault` (global)** — stores a single JSON object with numbered keys:
 
 ```
-target: "vault.uri_parts"
-→ vault.uri_parts = {"0": "/app/v1/foo/bar/1", "1": "foo", "2": "1"}
+to: {"target": "vault", "key": "uri_parts"}
+-> uri_parts = {"0": "/app/v1/foo/bar/1", "1": "foo", "2": "1"}
 
-Access: source "vault.uri_parts./1" → "foo"   (json pointer path navigation)
+Access: {"source": "vault", "key": "uri_parts", "path": "/1"} -> "foo"   (json pointer path navigation)
 ```
 
-#### Type conversion when copying between `var` and `vault`
+#### Value types
 
-Since `var` stores strings and `vault` stores native JSON, copying between them involves implicit conversion:
+A value keeps its type when it is copied between variables and vaults (no serialization): a request body object stored in a `var` is written as an object by a `{"op": "cast", "type": "object"}` body target, and its nodes can be read with `path`. A number (`recvseq`, `math`, `timestamp`, `random`, `sum`...) is stored as a number, and a `literal` as a string. When a value is substituted in a text (`@{name}`), strings are inserted as they are and any other value as its compact json text (`60`, `true`, `{"a":1}`).
 
-| Source → Target | Conversion |
+> **Changed in 5.0.0:** a `var` held strings only, and a vault stored numbers and booleans as strings. Values now keep their type, which affects: a `var` object written to a body (now an object, formerly its json text), the vault values listed by the REST API (`2` instead of `"2"`), and the `conditionVar` filter (a numeric `0` or a boolean `false` is now a false condition, formerly a non-empty, true one). Add `{"op": "cast", "type": "string"}` before the store target to keep a string.
+
+Note that a `path` is a json pointer (`"path": "/1"`), while a dotted `var` name is a plain variable name (`"name": "uri_parts.1"`). Paths work the same way for `requestBody` and `responseBody`.
+
+If the vault already existed (regardless of its previous type — string, number, or object), the `regexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `{"target": "vault", "key": "MY_OBJ", "path": "/captures"}` will only replace the `/captures` field, preserving the rest of the object.
+
+### Provision references: `#{key}`
+
+A provision may reference vault entries that are resolved **once, when the provision is loaded** (`POST /admin/v2/server-provision`, `POST /admin/v2/client-provision`, or the startup `--traffic-server-provision` / `--traffic-client-provision` files, which are loaded after `--vault`):
+
+* `#{key}` is replaced by the vault entry, and `#{key/<json pointer>}` by a node of it (the first `/` starts the pointer, as in `@{}`). Strings are inserted as they are, any other value as its compact json text.
+* Every string value of the provision is resolved (`requestUri`, `responseBody`, headers, transformation fields...); object keys are not.
+* A reference which does not exist at load time (key or pointer) is **kept literally**, as an unknown `@{}` variable is, and reported as a warning (in the logs and in the `warning` field of the `POST` response).
+* References are consumed: the provision stored (and returned by `GET`) holds the resolved values, not the references. They are never dynamic: a later vault change is not observed until the provision is loaded again.
+
+Typical use is sharing constant values among many provisions, specially regular expressions, which are compiled at load and cannot hold runtime `@{}` variables:
+
+```bash
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
+       -d'{"patterns": {"imsi": "([0-9]{15})", "msisdn": "(34[0-9]{9})"}}'
+```
+
+```json
+{"from": {"source": "requestUriPath"}, "filter": [{"op": "regexCapture", "rgx": "/subscribers/imsi-#{patterns/imsi}"}], "to": {"target": "var", "name": "imsi"}}
+```
+
+Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
+
+### Boolean criterion
+
+Every place where the grammar takes a decision on a value uses the same criterion:
+
+| Value | Result |
 |---|---|
-| `vault` (JSON object) → `var` | Serialized via `.dump()` (e.g. `{"a":1}` becomes the string `{"a":1}`) |
-| `vault` (string) → `var` | Direct string copy (no conversion) |
-| `var` → `vault` | Stored as JSON string value |
-| `vault` → `vault` | Native JSON copy (no serialization) |
+| `null`, `false`, `0` (any numeric zero: `0`, `0.0`), `""` (empty string) | **false** |
+| any non-empty string (including `"0"`, `"false"`, `" "`), any non-zero number, `true`, any object or array (including `{}` and `[]`) | **true** |
 
-When a JSON object is stored in a `var` and later used as source for a `response.body.json.object` target, it will be stored as a JSON string value (not parsed back). To deserialize it, use `response.body.json.jsonstring` as target instead, which parses the string back into a JSON object. For structured data that needs to be passed between transforms without serialization overhead, prefer `vault` targets.
+Note that `"0"` and `"false"` are texts, so they are true: only their numeric (`0`) and boolean (`false`) values are false. Values keep their json type in variables and vaults (see [value types](#value-types)), so a `recvseq`, a `math` result or a body node `false` are evaluated with their type, while a `literal`, a header or a uri part are always texts.
 
-Note the `/` prefix in the path: `vault.uri_parts./1` uses a json pointer (`/1`), while `var.uri_parts.1` is a plain key lookup (`uri_parts.1`). This distinction is consistent with how `request.body./field` and `response.body./field` work throughout h2agent.
+How each context applies it, and what happens with an absent value (unknown variable, source or pointer which does not resolve):
 
-If the vault already existed (regardless of its previous type — string, number, or object), the `RegexCapture` result **fully replaces** it. To write captures into a subtree of an existing object, specify a path in the target: `vault.MY_OBJ./captures` will only replace the `/captures` field, preserving the rest of the object.
+| Context | True | False | Absent |
+|---|---|---|---|
+| `conditionVar` filter (`{"op": "conditionVar", "name": "<name>[/<pointer>]"}`) | the filter passes | the filter fails: target untouched, `onFilterFail` runs | false (the filter fails) |
+| `conditionVar` filter with `"not": true` | the filter fails | the filter passes | true (the filter passes) |
+| `stop` target (server, client request and client response transformations) | the transformation list is interrupted | ignored, the list goes on | the rule is skipped (the list goes on) |
+| `clientProvision` target (server transformations) | the client provision is triggered | not triggered | the rule is skipped (not triggered) |
+| `{"op": "cast", "type": "boolean"}` filter | `true` | `false` (`null`, objects and arrays fail the cast) | the rule is skipped |
+
+The `eraser` source provides no value, so it cannot feed `stop` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above.
+
+> **Changed in 5.0.0:** v1 tested the text of the value (non-empty is true) and stored numbers and booleans as texts. A numeric `0` or a boolean `false` is now false; texts behave as before.
 
 ### Transformation pipeline
 
 Sorted list of transformation items to modify incoming information and build the dynamic response to be sent.
 
-Each transformation has a `source`, a `target` and an optional `filter` algorithm. <u>The filters are applied over sources and sent to targets</u> (all the available filters at the moment act over sources in string format, so they need to be converted if they are not strings in origin).
+Each transformation has three stages, written in this order:
+
+```json
+{"from": {"source": "<kind>", ...}, "filter": [{"op": "<op>", ...}], "to": {"target": "<kind>", ...}}
+```
+
+`from` captures a value (the **source**), the optional `filter` list processes it, and `to` writes it (the **target**). `source`, `target` and `op` select the kind; every other argument is a named field (`path`, `name`, `key`, `value`...), and a missing `path` means the whole document. <u>The filters are applied over sources and sent to targets</u>. An optional `onFilterFail` list holds the transformations executed when a filter fails. The exact mapping from the former (v1) grammar is documented in [GrammarV2.md](../developers/GrammarV2.md), every change from 4.x with before/after examples in the [migration guide](../MigrationGuide.md), and the `h2agent-migrate` tool converts v1 provisions automatically.
+
+The value reaching a json body target (`responseBody`, or `requestBody` in client provisions) keeps the type the source yields; a final `{"op": "cast", "type": "string|integer|unsigned|float|boolean|object|json"}` filter converts it (`json` parses a json text). The cast may appear at any position of the filter list and with any target (see [filters](#filter-chains)).
 
 A best effort is done to transform and convert information to final target vaults, and when something wrong happens, a logging error is thrown and the transformation filter is skipped going to the next one to be processed. For example, a source detected as *json* object cannot be assigned to a number or string target, but could be set into another *json* object.
 
@@ -521,7 +585,7 @@ Let's start describing the available sources of data: regardless the native or n
 
 - *number* to *string* and *boolean* (true if different than zero).
 
-- *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (only response body nodes could include a boolean).
+- *boolean*: there is no source for boolean type, but you could create a non-empty string or non-zeroed number to represent *true* on a boolean target (the `{"op": "cast", "type": "boolean"}` filter follows the [boolean criterion](#boolean-criterion) for strings and numbers; `null`, objects and arrays cannot be cast to boolean) (only response body nodes could include a boolean).
 
 - *json object*: request body node (whole document is indeed the root node) when being an object itself (note that it may be also a number or string). This data type can only be transfered into targets which support json objects like response body json node.
 
@@ -531,19 +595,21 @@ Let's start describing the available sources of data: regardless the native or n
 
 Before describing sources and targets (and filters), just to clarify that in some situations it is allowed the insertion of variables in the form `@{var id}` which will be replaced if exist, by scoped provision variables and vaults. In that case we will add the comment "**admits variables substitution**". At certain sources and targets, substitutions are not allowed because have no sense or they are rarely needed:
 
-> **Important**: the `@{name}` pattern uses the bare variable name, without the `var.`/`vault.` prefix. Those prefixes are only used in source/target type declarations (e.g. `"target": "vault.myVar"`), not inside substitution patterns. For example, a variable stored via `"target": "vault.mySeq"` is referenced as `@{mySeq}`, not `@{vault.mySeq}`.
+> **Important**: the `@{name}` pattern uses the bare variable name or vault key. For example, a value stored via `"to": {"target": "vault", "key": "mySeq"}` is referenced as `@{mySeq}`.
+>
+> A json pointer may follow the name to navigate into the stored value: `@{name/<pointer>}` (the first `/` starts the pointer). For example `@{doc/user/id}` for a stored object, `@{list/0}` for an array item, or `@{uri_parts/1}` for a capture group held in a vault. Local variables are searched before vaults, strings are inserted as they are and any other value as its compact json text; an unknown name or pointer is kept literally (`@{name}` stays in the text, as in v1). The same reference is accepted by the `conditionVar` filter (`"name": "doc/enabled"`).
 
 
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- request.uri: whole `url-decoded` and **normalized** request *URI* (path together with possible query parameters **sorted**). Not necessarily the same as the classification *URI* (which could ignore those query parameters, or even pass them by from *URI* with no order guaranteed) and in the same way, not necessarily the same as the original *URI* due to the same reason: query parameters order. Normalization makes the source more predictable, something useful to extract specific *URI* parts. For example, consider the *URI* `/composer?city=Bonn&author=Beethoven`, which normalized would turn into `/composer?author=Beethoven&city=Bonn` (because query parameters are sorted). Assuming that source format, you may use the regular expression `(/composer\?author=)([a-zA-Z]*)(&city=)([a-zA-Z]*)`, to extract the author name or city from that predictable normalized *URI* (second or fourth capture group) . This kind of transformation is very usual regardless if query parameters are processed or not.
+- `{"source": "requestUri"}`: whole `url-decoded` and **normalized** request *URI* (path together with possible query parameters **sorted**). Not necessarily the same as the classification *URI* (which could ignore those query parameters, or even pass them by from *URI* with no order guaranteed) and in the same way, not necessarily the same as the original *URI* due to the same reason: query parameters order. Normalization makes the source more predictable, something useful to extract specific *URI* parts. For example, consider the *URI* `/composer?city=Bonn&author=Beethoven`, which normalized would turn into `/composer?author=Beethoven&city=Bonn` (because query parameters are sorted). Assuming that source format, you may use the regular expression `(/composer\?author=)([a-zA-Z]*)(&city=)([a-zA-Z]*)`, to extract the author name or city from that predictable normalized *URI* (second or fourth capture group) . This kind of transformation is very usual regardless if query parameters are processed or not.
 
-- request.uri.path: `url-decoded` request *URI* path part.
+- `{"source": "requestUriPath"}`: `url-decoded` request *URI* path part.
 
-- request.uri.param.`<name>`: request URI specific parameter `<name>`.
+- `{"source": "requestUriParam", "name": "<name>"}`: request URI specific parameter `<name>`.
 
-- request.body: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*. In case of `multipart` reception, a proprietary `json` structure is built to ease accessibility, for example:
+- `{"source": "requestBody"}`: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*. In case of `multipart` reception, a proprietary `json` structure is built to ease accessibility, for example:
 
   ```json
   {
@@ -564,86 +630,85 @@ The **source** of information is classified after parsing the following possible
   }
   ```
 
-  So, every part is labeled as `multipart.<number>` with nested `content` and `headers` (the content representation depends again on the content type received in the nested headers field). The drawback for `multipart` reception is that we cannot access the original raw data through this `request.body` source because it is transformed into `json` nature as an usability assumption. Anyway, proprietary structure is more useful and probable to be needed, so future proof for raw access is less priority.
+  So, every part is labeled as `multipart.<number>` with nested `content` and `headers` (the content representation depends again on the content type received in the nested headers field). The drawback for `multipart` reception is that we cannot access the original raw data through this `requestBody` source because it is transformed into `json` nature as an usability assumption. Anyway, proprietary structure is more useful and probable to be needed, so future proof for raw access is less priority.
 
-- request.body.`/<node1>/../<nodeN>`: request body node `json` path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` Also, `multipart` content can be accessed to retrieve any of the nested parts in the proprietary `json` representation commented above.
+- `{"source": "requestBody", "path": "/<node1>/../<nodeN>"}`: request body node `json` path. This source path **admits variables substitution**. Leading slash is needed as first node is considered the `json` Also, `multipart` content can be accessed to retrieve any of the nested parts in the proprietary `json` representation commented above.
 
-- response.body: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
-
-  As the transformation steps modify this data container, its value as a source is likewise updated.
-
-- response.body.`/<node1>/../<nodeN>`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations. Consider using vaults with `json` values (`vault.<key>`) as a cleaner alternative for shared templates, since they decouple the template data from the response being built.
+- `{"source": "responseBody"}`: response body as template. Should be interpreted depending on the response content type. The use of provisioned response as template reference is rare but could ease the build of structures for further transformations, In case of `json` it will be the document from *root*.
 
   As the transformation steps modify this data container, its value as a source is likewise updated.
 
-- request.header.`<hname>`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
+- `{"source": "responseBody", "path": "/<node1>/../<nodeN>"}`: response body node `json` path. This source path **admits variables substitution**. The use of provisioned response as template reference is rare but could ease the build of `json` structures for further transformations. Consider using vaults with `json` values (`{"source": "vault", "key": "<key>"}`) as a cleaner alternative for shared templates, since they decouple the template data from the response being built.
 
-- request.headers: all request headers as a JSON array of `{"name": "<key>", "value": "<val>"}` objects. Useful with `JsonConstraint` filter to validate a set of headers. An array is used instead of an object because HTTP headers may have duplicate keys.
+  As the transformation steps modify this data container, its value as a source is likewise updated.
 
-- response.headers: all response headers as a JSON array (same format as `request.headers`). Only available in client provision `onResponseTransform`.
+- `{"source": "requestHeader", "name": "<hname>"}`: request header component (i.e. *content-type*). Take into account that header fields values are received [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
-- eraser: this is used to indicate that the *target* specified (next section) must be removed or reset. Some of those targets are:
-  - response node: there is a twisted use of the response body as a temporary test-bed template. It consists in inserting auxiliary nodes to be used as valid sources within provision transformations, and remove them before sending the response. Note that nonexistent nodes become null nodes when removed, so take care if you don't want this. When the eraser applies to response node root, it just removes response body. **Note:** since vaults now support `json` object values, the recommended approach for shared templates is to store them as vaults (via REST API or `--vault` file) and reference them with `vault.<key>.<path>` in transform sources. This avoids polluting the response body with auxiliary data and the need to erase temporary nodes.
-  - vault: the user should remove this kind of variables after last flow usage to avoid memory growth in load testing. Vault are not confined to an specific provision context (where purge procedure is restricted to the event history server data), so the eraser is the way to proceed when it comes to free the global list and reduce memory consumption.
-  - event: we could purge storage events, something that could be necessary to control memory growth in load testing.
-  - with other kind of targets, eraser acts like setting an empty string.
+- `{"source": "requestHeaders"}`: all request headers as a JSON array of `{"name": "<key>", "value": "<val>"}` objects. Useful with `jsonConstraint` filter to validate a set of headers. An array is used instead of an object because HTTP headers may have duplicate keys.
 
-- math.`<expression>`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
+- `{"source": "responseHeaders"}`: all response headers as a JSON array (same format as `requestHeaders`). Only available in client provision `onResponseTransform`.
 
-- random.`<min>.<max>`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
+- `{"source": "eraser"}`: provides no value; it **removes what lives at the location given by the target**:
 
-- randomset.`<value1>|..|<valueN>`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**. Note that both leading and trailing pipes would add empty parts (`'|foo|bar'`, `'foo|bar|'` and `'foo||bar'` become three parts, `'foo'`, `'bar'` and empty string).
+  | Target | Effect |
+  |---|---|
+  | `{"target": "var", "name": ...}` / `{"target": "vault", "key": ...}` | removes the entry; with `path`, only that node of the stored value |
+  | `{"target": "responseBody"}` (`requestBody` in client provisions), with or without `{"op": "cast", "type": "object"}` | removes the node at `path` (object key or array item), or clears the whole body without `path` |
+  | same body target with `{"op": "cast", "type": "string"}` | sets an empty string at `path` (v1 erase flavour of string targets) |
+  | `{"target": "responseBodyText"}`, `{"target": "outState"}` | empty string |
+  | `{"target": "txtFile", "file": ...}` / `{"target": "binFile", "file": ...}` | empties the file |
+  | `{"target": "serverEvent", <event fields>}` / `{"target": "clientEvent", <event fields>}` | purges the stored events at that address (events are read-only for transformations, so erasing them is the only write they accept, and `eraser` is the only source those targets accept) |
 
-- timestamp.`<unit>`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
+  A missing node, entry or event is a no-op (no null node is created). Any other target ignores the eraser, and `stop` / `clientProvision` reject it (they act on a true value, see [boolean criterion](#boolean-criterion)).
 
-- strftime.`<format>`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
+  **Conditional erase**: the only filters accepted with `eraser` are `conditionVar` (one or several, optionally negated with `"not": true`): the target is erased only when every condition holds, otherwise it is kept and `onFilterFail` runs. For example, purge an event once a flow is done:
 
-- recvseq: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
+  ```json
+  {"from": {"source": "eraser"}, "filter": [{"op": "conditionVar", "name": "done"}], "to": {"target": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/item/1"}}
+  ```
 
-- var.`<id>`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Cannot refer json objects. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
+  Typical uses: remove the vaults of a flow after its last step (vaults are process-wide, so this avoids memory growth in load tests), purge events to control the storage growth, or remove auxiliary nodes from a response body used as a template (although storing templates in vaults and reading them with `{"source": "vault", "key": "<key>", "path": "<path>"}` is recommended: it does not pollute the response body).
 
-- vault.`<key>`[.`/<path>`]: general purpose vault (readable from anywhere, process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. When a `/<path>` is provided (json pointer format, after the dot separator), the source navigates into the stored `json` value (e.g. `vault.TPL./request/headers/auth` extracts the `auth` field). Without path, the whole value is used. For string values, the behavior is backward compatible with the former string-only storage. This source variable identifier **admits variables substitution** (on the key part). Vault are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed). **Note:** key names cannot contain dots (dots are reserved as separator between key and path).
+- `{"source": "math", "expression": "<expression>"}`: this source is based in [Arash Partow's exprtk](https://github.com/ArashPartow/exprtk) math library compilation. There are many possibilities (calculus, control and logical expressions, trigonometry, logic, string processing, etc.), so check [here](https://github.com/ArashPartow/exprtk/blob/master/readme.txt) for more information. This source specification **admits variables substitution** (third-party library variable substitutions are not needed, so they are not supported). Some simple examples could be: "2*sqrt(2)", "sin(3.141592/2)", "max(16,25)", "1 and 1", etc. You may implement a simple arithmetic server (check [this](./kata/09.Arithmetic_Server/README.md) kata exercise to deepen the topic).
 
-- value.`<value>`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
+- `{"source": "random", "min": <min>, "max": <max>}`: integer number in range `[min, max]`. Negatives allowed, i.e.: `"-3.+4"`.
 
-- serverEvent.`<server event address in query parameters format>`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where query parameters are:
+- `{"source": "randomset", "values": ["<value1>", .., "<valueN>"]}`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**. Note that both leading and trailing pipes would add empty parts (`'|foo|bar'`, `'foo|bar|'` and `'foo||bar'` become three parts, `'foo'`, `'bar'` and empty string).
+
+- `{"source": "timestamp", "unit": "<unit>"}`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
+
+- `{"source": "strftime", "fmt": "<format>"}`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.
+
+- `{"source": "recvseq"}`: sequence id number increased for every mock reception (starts on *1* when the *h2agent* is started).
+
+- `{"source": "var", "name": "<id>"[, "path": "/<path>"]}`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Values can be strings, numbers, booleans, arrays or `json` objects; a `path` (json pointer) navigates into the stored value. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
+
+- `{"source": "vault", "key": "<key>"[, "path": "/<path>"]}`: general purpose vault (readable from anywhere, process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. When a `path` is provided (json pointer format), the source navigates into the stored `json` value (e.g. `{"source": "vault", "key": "TPL", "path": "/request/headers/auth"}` extracts the `auth` field). Without path, the whole value is used. For string values, the behavior is backward compatible with the former string-only storage. This source variable identifier **admits variables substitution** (on the key part). Vault are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed). **Note:** key names cannot contain dots.
+
+- `{"source": "literal", "value": "<value>"}`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string, see [boolean criterion](#boolean-criterion)), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
+
+- `{"source": "serverEvent", <event fields>}`: access server context indexed by request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where event fields are:
 
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
-  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory unless `recvseq` is provided.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list, as a json integer (or a text holding a variable, e.g. `"@{n}"`). Mandatory unless `recvseq` is provided.
   - *eventPath*: `json` document path within selection. Optional.
   - *recvseq*: receive sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is accessed.
-  - *requestUriStartsWith*: **literal URI prefix** used instead of the exact `requestUri`. Optional, and mutually exclusive with `requestUri` (when present, it takes precedence over `requestUri`/`recvseq`). Instead of addressing one key by its exact *URI*, it selects **all** stored keys for the given `requestMethod` whose *URI* starts with this prefix, merges their events into a single list ordered by reception timestamp, and lets `eventNumber` pick within that merged set (so `eventNumber=-1` means "the most recent event whose *URI* starts with this prefix, whatever its unknown trailing part is"). The match is a **plain string comparison**, not a regular expression: characters like `|`, `.`, `{` or `[` are compared verbatim (there is nothing to escape beyond the usual URL-encoding this addressing already requires). This is designed for the case where the unknown part of the *URI* is a **trailing suffix** (e.g. a server-generated identifier appended to a known path); an unknown part in the middle is not covered by prefix mode.
+  - *requestUriStartsWith*: **literal URI prefix** used instead of the exact `requestUri`. Optional, and mutually exclusive with `requestUri` (when present, it takes precedence over `requestUri`/`recvseq`). Instead of addressing one key by its exact *URI*, it selects **all** stored keys for the given `requestMethod` whose *URI* starts with this prefix, merges their events into a single list ordered by reception timestamp, and lets `eventNumber` pick within that merged set (so `"eventNumber": -1` means "the most recent event whose *URI* starts with this prefix, whatever its unknown trailing part is"). The match is a **plain string comparison**, not a regular expression: characters like `|`, `.`, `{` or `[` are compared verbatim (there is nothing to escape). This is designed for the case where the unknown part of the *URI* is a **trailing suffix** (e.g. a server-generated identifier appended to a known path); an unknown part in the middle is not covered by prefix mode.
 
   > **Concurrency note**: `eventNumber` is a positional index into the events list. It is stable when each key (method + URI) is owned by a single flow (e.g. URIs containing unique identifiers like `/resources/{id}`). However, when multiple concurrent flows share the same key (e.g. a fixed URI like `/resources`), positions may shift unpredictably as events are inserted or deleted by other flows, making positional addressing unreliable in that scenario. Use `recvseq` for reliable event access under concurrency.
 
   Event addressing will retrieve a `json` object corresponding to a single event (given by `requestMethod`, `requestUri` and `eventNumber` or `recvseq`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
-  For example, `serverEvent.requestMethod=GET&requestUri=/foo/var&eventNumber=3&eventPath=/requestHeaders` searches the third (event number 3) `GET /foo/bar` request and `/requestHeaders` path, as part of event definition, gives the request headers that was received. The particular case of empty event path extracts the whole event structure, and in general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), which are powerful enough to cover addressing needs.
+  For example, `{"source": "serverEvent", "requestMethod": "GET", "requestUri": "/foo/bar", "eventNumber": 3, "eventPath": "/requestHeaders"}` searches the third (event number 3) `GET /foo/bar` request and `/requestHeaders` path, as part of event definition, gives the request headers that was received. The particular case of empty event path extracts the whole event structure, and in general, paths are [json pointers](https://tools.ietf.org/html/rfc6901), which are powerful enough to cover addressing needs.
 
-  **Important note**: as this source provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it is important to know that it may need to be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). So for example, in case that request *URI* contains other query parameters, you must encode it within the source definition. Consider this one: `/app/v1/stock/madrid?loc=123&id=2`. You could use `./tools/url.sh` script helper to prepare its encoded version:
+  Field values are plain json strings, so the request *URI* is written as it is, even when it holds its own query parameters (no URL-encoding is needed): for the request `/app/v1/stock/madrid?loc=123&id=2`, the source is:
 
-  ```bash
-  $ tools/url.sh --encode "/app/v1/stock/madrid?loc=123&id=2"
-
-  Encoded URL:/app/v1/stock/madrid%3Floc%3D123%26id%3D2
+  ```json
+  {"source": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/stock/madrid?loc=123&id=2", "eventNumber": -1, "eventPath": "/requestBody"}
   ```
 
-  So, for this example, a source could be the following:
-
-  `serverEvent.requestMethod=POST&requestUri=/app/v1/stock/madrid%3Floc%3D123%26id%3D2&eventNumber=-1&eventPath=/requestBody`
-
-  Once tokenized, each query parameter is decoded just in case it is needed, and that request *URI* becomes the one desired.
-
-  But there is a more intuitive way to proceed to solve this, because as this source value **admits variables substitution**, we could assign query parameters as variables in previous transformations, and then assign the following generic source: `serverEvent.requestMethod=@{requestMethod}&requestUri=@{requestUri}&eventNumber=@{eventNumber}&eventPath=@{eventPath}`
-
-  This way, user <u>does not have to be worried about encoding,</u> because query parameters are correctly interpreted ('@' and curly braces are not an issue for URL encoding) and replaced during source processing, so for example we could use that generic source definition or something more specific for request *URI* which is the problematic one:
-
-  `serverEvent.requestMethod=POST&requestUri=@{requestUri}&eventNumber=-1&eventPath=/requestBody`
-
-  where `requestUri` would be a variable defined before with the value directly decoded: `/app/v1/stock/madrid?loc=123&id=2`.
-
-  <u>Only in the case that request *URI* is simple enough</u> and does not break the whole server event query parameter list definition, we could just define this source in one line without need to encode or use auxiliary variables, being the most simplified and smart way to define event sources.
+  Every field **admits variables substitution**, so the address can also be built from previous transformations, e.g. `"requestUri": "@{requestUri}"`.
 
   **Addressing by URI prefix (`requestUriStartsWith`)**: sometimes the mock does not know the full *URI* in advance because the system under test appends a value at request time (a generated identifier, a creation timestamp, a correlation token) to a known path. In that case the exact `requestUri` cannot be built. Prefix mode solves it: provide the stable leading part of the *URI* and let `eventNumber` select across every matching key.
 
@@ -656,8 +721,15 @@ The **source** of information is classified after parsing the following possible
     "responseCode": 200,
     "transform": [
       {
-        "source": "serverEvent.requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody",
-        "target": "response.body.json.object"
+        "from": {
+          "source": "serverEvent",
+          "requestMethod": "POST",
+          "requestUriStartsWith": "/app/v1/resources/",
+          "eventNumber": -1,
+          "eventPath": "/requestBody"
+        },
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody"}
       }
     ]
   }
@@ -697,7 +769,7 @@ The **source** of information is classified after parsing the following possible
   ]
   ```
 
-  Then, the source commented above would store this `json` object, which is the request body for the last (`eventNumber=-1`) event registered:
+  Then, the source commented above would store this `json` object, which is the request body for the last (`"eventNumber": -1`) event registered:
 
   ```json
   {
@@ -707,14 +779,14 @@ The **source** of information is classified after parsing the following possible
   }
   ```
 
-- inState: current processing state.
+- `{"source": "inState"}`: current processing state.
 
-- clientEvent.`<client event address in query parameters format>`: access client context indexed by client endpoint identifier (`clientEndpointId`), request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where query parameters are:
+- `{"source": "clientEvent", <event fields>}`: access client context indexed by client endpoint identifier (`clientEndpointId`), request *method* (`requestMethod`), *URI* (`requestUri`), events *number* (`eventNumber`) and events number *path* (`eventPath`), where event fields are:
 
   - *clientEndpointId*: client endpoint identifier. Mandatory.
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
-  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list. Mandatory unless `sendseq` is provided.
+  - *eventNumber*: position selected (*1..N*; *-1 for last*) within events list, as a json integer (or a text holding a variable). Mandatory unless `sendseq` is provided.
   - *eventPath*: `json` document path within selection. Optional.
   - *sendseq*: send sequence identifier for stable event addressing. Optional: when provided, `eventNumber` is ignored and the specific event matching this sequence is accessed.
   - *requestUriStartsWith*: **literal URI prefix** used instead of the exact `requestUri` (same semantics as described for `serverEvent`): it selects all client events for the given `clientEndpointId` and `requestMethod` whose *URI* starts with this prefix, merges them ordered by sending timestamp, and `eventNumber` picks within the merged set. Optional and mutually exclusive with `requestUri`. Plain string comparison, not a regular expression.
@@ -723,17 +795,17 @@ The **source** of information is classified after parsing the following possible
 
   Event addressing will retrieve a `json` object corresponding to a single client event (given by `clientEndpointId`, `requestMethod`, `requestUri` and `eventNumber` or `sendseq`) and optionally a node within that event object (given by `eventPath` to narrow the selection).
 
-  For example, `clientEvent.clientEndpointId=myBackend&requestMethod=GET&requestUri=/api/v1/data&eventNumber=-1&eventPath=/responseBody` searches the last client event for `GET /api/v1/data` sent through the `myBackend` endpoint, and `/responseBody` path gives the response body that was received.
+  For example, `{"source": "clientEvent", "clientEndpointId": "myBackend", "requestMethod": "GET", "requestUri": "/api/v1/data", "eventNumber": -1, "eventPath": "/responseBody"}` searches the last client event for `GET /api/v1/data` sent through the `myBackend` endpoint, and `/responseBody` path gives the response body that was received.
 
-  This source **admits variables substitution** and follows the same URL-encoding considerations as `serverEvent` for the `requestUri` parameter.
+  Every field **admits variables substitution**, as for `serverEvent`.
 
   <u>Client events history</u> should be kept enabled allowing to access events. This source is available in both server and client provision transformations, enabling server provisions to read data from previous client interactions (e.g., to build responses based on data fetched from a backend).
 
-- txtFile.`<path>`: reads text content from file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing files will fail to open. This source enables the `h2agent` capability to serve files.
+- `{"source": "txtFile", "file": "<path>"}`: reads text content from file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing files will fail to open. This source enables the `h2agent` capability to serve files.
 
-- binFile.`<path>`: same as `txtFile` but reading binary data.
+- `{"source": "binFile", "file": "<path>"}`: same as `txtFile` but reading binary data.
 
-- command.`<command>`: executes command on process shell and captures the standard output/error ([popen](https://man7.org/linux/man-pages/man3/popen.3.html)() is used behind). Also, the return code is saved into scoped variable `rc`. You may call external scripts or executables, and do whatever needed as if you would be using the shell environment.
+- `{"source": "command", "command": "<command>"}`: executes command on process shell and captures the standard output/error ([popen](https://man7.org/linux/man-pages/man3/popen.3.html)() is used behind). Also, the return code is saved into scoped variable `rc`. You may call external scripts or executables, and do whatever needed as if you would be using the shell environment.
 
   - Important notes:
     - **Be aware about security problems**, as you could provision via `REST API` any instruction accessible by a running `h2agent` to extract information or break things without interface restriction (remember anyway that `h2agent` supports [secured connection](#Execution-with-TLS-support)).
@@ -751,86 +823,98 @@ The **source** of information is classified after parsing the following possible
 
 The **target** of information is classified after parsing the following possible expressions (between *[square brackets]* we denote the potential data types allowed):
 
-- response.body.string *[string]*: response body storing expected string processed.
+- `{"target": "responseBodyText"}` *[string]*: response body storing expected string processed.
 
-- response.body.hexstring *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
+- `{"target": "responseBodyHex"}` *[string]*: response body storing expected string processed from hexadecimal representation, for example `0x8001` (prefix `0x` is optional).
 
-- response.body.json.string *[string]*: response body document storing expected string at *root*.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "string"}` *[string]*: response body document storing expected string at *root*.
 
-- response.body.json.integer *[integer]*: response body document storing expected integer at *root*.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "integer"}` *[integer]*: response body document storing expected integer at *root*.
 
-- response.body.json.unsigned *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "unsigned"}` *[unsigned integer]*: response body document storing expected unsigned integer at *root*.
 
-- response.body.json.float *[float number]*: response body document storing expected float number at *root*.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "float"}` *[float number]*: response body document storing expected float number at *root*.
 
-- response.body.json.boolean *[boolean]*: response body document storing expected boolean at *root*.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "boolean"}` *[boolean]*: response body document storing expected boolean at *root*.
 
-- response.body.json.object *[json object]*: response body document storing expected object as *root* node.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "object"}` *[json object]*: response body document storing expected object as *root* node.
 
-- response.body.json.jsonstring *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
+- `{"target": "responseBody"}` + `{"op": "cast", "type": "json"}` *[json string]*: response body document storing expected object, extracted from json-parsed string, as *root* node.
 
-- response.body.json.string.`/<node1>/../<nodeN>` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "string"}` *[string]*: response body node path storing expected string. This target path **admits variables substitution**.
 
-- response.body.json.integer.`/<node1>/../<nodeN>` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "integer"}` *[integer]*: response body node path storing expected integer. This target path **admits variables substitution**.
 
-- response.body.json.unsigned.`/<node1>/../<nodeN>` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "unsigned"}` *[unsigned integer]*: response body node path storing expected unsigned integer. This target path **admits variables substitution**.
 
-- response.body.json.float.`/<node1>/../<nodeN>` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "float"}` *[float number]*: response body node path storing expected float number. This target path **admits variables substitution**.
 
-- response.body.json.boolean.`/<node1>/../<nodeN>` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "boolean"}` *[boolean]*: response body node path storing expected booblean. This target path **admits variables substitution**.
 
-- response.body.json.object.`/<node1>/../<nodeN>` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "object"}` *[json object]*: response body node path storing expected object under provided path. If source origin is not an object, there will be a best effort to convert to string, number, unsigned number, float number and boolean, in this specific priority order. This target path **admits variables substitution**.
 
-- response.body.json.jsonstring.`/<node1>/../<nodeN>` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
+- `{"target": "responseBody", "path": "/<node1>/../<nodeN>"}` + `{"op": "cast", "type": "json"}` *[json string]*: response body node path storing expected object, extracted from json-parsed string, under provided path. This target path **admits variables substitution**.
 
-- response.header.`<hname>` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**. Take into account that header fields values are sent [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
+- `{"target": "responseHeader", "name": "<hname>"}` *[string (or number as string)]*: response header component (i.e. *location*). This target name **admits variables substitution**. Take into account that header fields values are sent [lower cased](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2).
 
-- response.statusCode *[unsigned integer]*: response status code.
+- `{"target": "responseStatusCode"}` *[unsigned integer]*: response status code.
 
-- response.delayMs *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- `{"target": "responseDelayMs"}` *[unsigned integer]*: simulated delay to respond: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 
-- var.`<id>` *[string (or number as string)]*: general purpose variable (writable at transformation chain, scoped to the `outState` chain). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Variables set here are automatically available in subsequent provisions linked via `outState`. Cannot store json objects. This target variable identifier **admits variables substitution**.
+- `{"target": "var", "name": "<id>"[, "path": "/<path>"]}` *[any json type]*: general purpose variable (writable at transformation chain, scoped to the `outState` chain). The idea of *variable* vaults is to optimize transformations when multiple transfers are going to be done (for example, complex operations like regular expression filters, are dumped to a variable, and then, we drop its value over many targets without having to repeat those complex algorithms again). Variables set here are automatically available in subsequent provisions linked via `outState`. The value keeps the type the source yields; with a `path` (json pointer) only that node is written, preserving the rest of the stored object. This target variable identifier **admits variables substitution**.
 
-- vault.`<key>`[.`/<path>`] *[any json type]*: general purpose vault (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. This target variable identifier **admits variables substitution** (on the key part).
+- `{"target": "vault", "key": "<key>"[, "path": "/<path>"]}` *[any json type]*: general purpose vault (writable at transformation chain and intended to be used later, as source, from anywhere as process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. This target variable identifier **admits variables substitution** (on the key part).
 
-  When a `/<path>` is provided (json pointer format, after the dot separator), only the specified field within the stored `json` object is modified, preserving the rest of the document (e.g. `vault.TPL./status` sets only the `status` field). Without path, the entire variable value is replaced.
+  When a `path` is provided (json pointer format), only the specified field within the stored `json` object is modified, preserving the rest of the document (e.g. `{"target": "vault", "key": "TPL", "path": "/status"}` sets only the `status` field). Without path, the entire variable value is replaced.
 
-  When the source is a `json` object (e.g. from `request.body`), it is stored natively. When the source is a string, it is stored as a `json` string value (backward compatible).
+  When the source is a `json` object (e.g. from `requestBody`), it is stored natively. When the source is a string, it is stored as a `json` string value (backward compatible).
 
-  **RegexCapture behavior**: when a `RegexCapture` filter is used with a `vault` target, the capture groups are stored as a single `json` object with numbered keys: `{"0": "full match", "1": "group1", "2": "group2", ...}`. This differs from local variables (`var.`), where separate variables are created (`var.name`, `var.name.1`, `var.name.2`). With vaults, the captures are accessed via path navigation: `vault.name./1`, `vault.name./2`, etc. If the variable already existed (string or object), it is **fully replaced** by the capture object (unless a path is specified in the target, in which case only that subtree is replaced).
+  **regexCapture behavior**: when a `regexCapture` filter is used with a `vault` target, the capture groups are stored as a single `json` object with numbered keys: `{"0": "full match", "1": "group1", "2": "group2", ...}`. This differs from local variables (`var`), where separate variables are created (`name`, `name.1`, `name.2`). With vaults, the captures are accessed via path navigation: `"path": "/1"`, `"path": "/2"`, etc. If the variable already existed (string or object), it is **fully replaced** by the capture object (unless a path is specified in the target, in which case only that subtree is replaced).
 
-  **Note:** key names cannot contain dots (dots are reserved as separator between key and path). To reset a vault, use `eraser` source.
+  **Note:** key names cannot contain dots. To reset a vault, use the `eraser` source.
 
-- vault.`<key>`.json.object[.`/<path>`] *[json object]*: stores the source as a native `json` object in the vault. Unlike the plain `vault.<key>` target (which attempts object extraction with string fallback), this target **requires** the source to be a valid `json` object — the transform is skipped if it is not. Useful when you want strict typing. The optional `/<path>` works the same as for `vault.<key>`.
+- `{"target": "vault", "key": "<key>"[, "path": "/<path>"]}` + `{"op": "cast", "type": "object"}` *[json object]*: stores the source as a native `json` object in the vault. Unlike the plain `vault` target without cast (which attempts object extraction with string fallback), this target **requires** the source to be a valid `json` object — the transform is skipped if it is not. Useful when you want strict typing. The optional `path` works the same as for the plain `vault` target.
 
-- vault.`<key>`.json.jsonstring[.`/<path>`] *[json string → json object]*: parses a JSON-encoded string from the source and stores the resulting native `json` object in the vault. This is the vault equivalent of `response.body.json.jsonstring`: it takes a string like `"{\"a\":1,\"b\":2}"` and stores `{"a":1,"b":2}` as a navigable object. The transform is skipped if the string is not valid `json`. The optional `/<path>` stores the parsed object at a sub-path within the vault entry.
+- `{"target": "vault", "key": "<key>"[, "path": "/<path>"]}` + `{"op": "cast", "type": "json"}` *[json string → json object]*: parses a JSON-encoded string from the source and stores the resulting native `json` object in the vault. This is the vault equivalent of a `responseBody` target with the `json` cast: it takes a string like `"{\"a\":1,\"b\":2}"` and stores `{"a":1,"b":2}` as a navigable object. The transform is skipped if the string is not valid `json`. The optional `path` stores the parsed object at a sub-path within the vault entry.
 
   Example use case — extracting fields from an embedded JSON string:
 
   ```json
   [
-    {"source": "serverEvent.requestMethod=POST&requestUri=/api/v1/accounts&eventNumber=-1&eventPath=/requestBody/balanceDetails",
-     "target": "vault.balance.json.jsonstring"},
-    {"source": "vault.balance./currentDebt",
-     "target": "response.body.json.unsigned./debt"}
+    {
+      "from": {
+        "source": "serverEvent",
+        "requestMethod": "POST",
+        "requestUri": "/api/v1/accounts",
+        "eventNumber": -1,
+        "eventPath": "/requestBody/balanceDetails"
+      },
+      "filter": [{"op": "cast", "type": "json"}],
+      "to": {"target": "vault", "key": "balance"}
+    },
+    {
+      "from": {"source": "vault", "key": "balance", "path": "/currentDebt"},
+      "filter": [{"op": "cast", "type": "unsigned"}],
+      "to": {"target": "responseBody", "path": "/debt"}
+    }
   ]
   ```
 
-- outState *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
+- `{"target": "outState"}` *[string (or number as string)]*: next processing state. This overrides the default provisioned one.
 
-- outState.`[POST|GET|PUT|DELETE|HEAD][.<uri>]` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
+- `{"target": "outState", "method": "POST|GET|PUT|DELETE|HEAD"[, "uri": "<uri>"]}` *[string (or number as string)]*: next processing state for specific method (virtual server data will be created if needed: this way we could modify the flow for other methods different than the one which is managing the current provision). This target **admits variables substitution** in the `uri` part.
 
   You could, for example, simulate a database where a *DELETE* for an specific entry could infer through its provision an *out-state* for a foreign method like *GET*, so when getting that *URI* you could obtain a *404* (assumed this provision for the new *working-state* = *in-state* = *out-state* = "id-deleted"). By default, the same `uri` is used from the current event to the foreign method, but it could also be provided optionally giving more flexibility to generate virtual events with specific states.
 
-- txtFile.`<path>` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
+- `{"target": "txtFile", "file": "<path>"}` *[string]*: dumps source (as string) over text file with the path provided. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. Note that paths to missing directories will fail to open (the process does not create tree hierarchy). It is considered long term file (file is closed 1 second after last write, by default) when a constant path is configured, because this is normally used for specific log files. On the other hand, when any substitution may took place in the path provided (it has variables in the form `@{varname}`) it is considered as a dynamic name, so understood as short term file (file is opened, written and closed without delay, by default). **Note:** you can force short term type inserting a variable, for example with empty value: `txtFile./path/to/short-term-file.txt@{empty}`. Delays in microseconds are configurable on process startup. Check  [command line](#Command-line) for `--long-term-files-close-delay-usecs` and `--short-term-files-close-delay-usecs` options.
 
   This target can also be used to write named pipes (previously created: `mkfifo /tmp/mypipe && chmod 0666 /tmp/mypipe`), with the following restriction: writes must close the file descriptor everytime, so long/short term delays for close operations must be zero depending on which of them applies: variable paths zeroes the delay by default, but constant ones shall be zeroed too by command-line (`--long-term-files-close-delay-usecs 0`). Just like with regular UNIX pipes (`|`), when the writer closes, the pipe is torn down, so fast operations writting named pipes could provoke data looses (some writes missed). In that case, it is more recommended to use UDP through unix socket target (`udpSocket./tmp/udp.sock`).
 
-- binFile.`<path>` *[string]*: same as `txtFile` but writting binary data.
+- `{"target": "binFile", "file": "<path>"}` *[string]*: same as `txtFile` but writting binary data.
 
-- udpSocket.`<path>[|<milliseconds delay>]` *[string]*: sends source (as string) via UDP datagram through a unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
+- `{"target": "udpSocket", "socket": "<path>"[, "delayMs": <milliseconds>]}` *[string]*: sends source (as string) via UDP datagram through a unix socket with the path provided, with an optional delay in milliseconds. The path can be relative (to the execution directory) or absolute, and **admits variables substitution**. UDP is a transport layer protocol in the TCP/IP suite, which provides a simple, connectionless, and unreliable communication service. It is a lightweight protocol that does not guarantee the delivery or order of data packets. Instead, it allows applications to send individual datagrams (data packets) to other hosts over the network without establishing a connection first. UDP is often used where low latency is crucial. In `h2agent` is useful to signal external applications to do associated tasks sharing specific data for the transactions processed. Use `./tools/udp-server` program to play with it or even better `./tools/udp-server-h2client` to generate HTTP/2 requests UDP-driven (this will be covered when full `h2agent` client capabilities are ready).
 
-- serverEvent.`<server event address in query parameters format>`: this target is always used in conjunction with `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
+- `{"target": "serverEvent", <event fields>}`: this target is always used in conjunction with the `eraser` source acting as an alternative purge method to the purge `outState`. The main difference is that states-driven purge method acts over processed events key (`method` and `uri` for the provision in which the purge state is planned), so not all the test scenarios may be covered with that constraint if they need to remove events registered for different transactions. In this case, event addressing is defined by request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`): events number *path* (`eventPath`) is not accepted, as this operation just remove specific events or whole history, like REST API for server-data deletion:
 
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
   - *requestUri*: event *URI* selected. Mandatory.
@@ -841,7 +925,7 @@ The **target** of information is classified after parsing the following possible
 
   This target, as its source counterpart, **admits variables substitution**.
 
-- clientEvent.`<client event address in query parameters format>`: analogous to the `serverEvent` eraser target above, but for client events. Event addressing is defined by client endpoint identifier (`clientEndpointId`), request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`):
+- `{"target": "clientEvent", <event fields>}`: analogous to the `serverEvent` purge target above, but for client events. Event addressing is defined by client endpoint identifier (`clientEndpointId`), request *method* (`requestMethod`), *URI* (`requestUri`), and events *number* (`eventNumber`):
 
   - *clientEndpointId*: client endpoint identifier. Mandatory.
   - *requestMethod*: any supported method (*POST*, *GET*, *PUT*, *DELETE*, *HEAD*). Mandatory.
@@ -851,77 +935,81 @@ The **target** of information is classified after parsing the following possible
 
   The same concurrency considerations as `serverEvent` apply. Use `sendseq` for reliable event removal under concurrency. This target **admits variables substitution**.
 
-- clientProvision.`<clientProvisionId>`.`<inState>` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `clientProvision.@{flowId}.@{myState}`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
+- `{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `"id": "@{flowId}", "inState": "@{myState}"`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
 
-  The source acts as a **conditional gate**: the trigger only fires when the source resolves to a non-empty value. An empty or undefined source (e.g. a variable that does not exist, or `eraser`) silently skips the trigger. This follows the same convention as the `break` target.
-
-  ```json
-  {
-    "source": "value.1",
-    "target": "clientProvision.myNotificationFlow.initial"
-  }
-  ```
-
-  Conditional triggering based on a flag variable (no `ConditionVar` filter needed):
+  The source acts as a **conditional gate**: the trigger only fires on a **true** value (see [boolean criterion](#boolean-criterion)). A false or undefined source (e.g. a variable that does not exist) silently skips the trigger. This follows the same convention as the `stop` target and the `conditionVar` filter.
 
   ```json
   {
-    "source": "var.triggerFlow",
-    "target": "clientProvision.myNotificationFlow.initial"
+    "from": {"source": "literal", "value": "1"},
+    "to": {"target": "clientProvision", "id": "myNotificationFlow", "inState": "initial"}
   }
   ```
 
-  Here, if `var.triggerFlow` exists and is non-empty, the trigger fires. If the variable does not exist (resolves to empty), the trigger is skipped.
-
-  Using `eraser` as source deliberately disables the trigger while keeping the provision configured — useful for temporarily deactivating a flow without removing the transformation:
+  Conditional triggering based on a flag variable (no `conditionVar` filter needed):
 
   ```json
   {
-    "source": "eraser",
-    "target": "clientProvision.myNotificationFlow.initial"
+    "from": {"source": "var", "name": "triggerFlow"},
+    "to": {"target": "clientProvision", "id": "myNotificationFlow", "inState": "initial"}
   }
   ```
 
-  The triggered client provision must be previously configured (via `POST /admin/v1/client-provision`) along with its associated client endpoint (via `POST /admin/v1/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
+  Here, if the variable `triggerFlow` exists and is true (for example `"yes"` or `1`, but not `0`, `false` or `""`), the trigger fires. If the variable does not exist, the trigger is skipped.
 
-- break *[string]*: when non-empty string is transferred, the transformations list is interrupted. Empty string (or undefined source) ignores the action. Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+  The triggered client provision must be previously configured (via `POST /admin/v2/client-provision`) along with its associated client endpoint (via `POST /admin/v2/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
+
+- `{"target": "stop"}`: when a **true** value (see [boolean criterion](#boolean-criterion)) is transferred, the transformations list is interrupted. A false value (or undefined source) ignores the action. Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
 
 
 There are several **filter** methods, but remember that filter node is optional, so you could directly transfer source to target without modification, just omitting filter, for example:
 
 ```json
-{
-  "source": "random.25.35",
-  "target": "response.delayMs"
-}
+{"from": {"source": "random", "min": 25, "max": 35}, "to": {"target": "responseDelayMs"}}
 ```
 
 In the case above, *delay* will take the absolute value for the random generated (just in case the user configures a range with possible negative result).
 
 Filters give you the chance to make complex transformations:
 
+<a name="filter-chains"></a>The `filter` list is a **chain**: filters run in list order, each one over the output of the previous one, and the first failing filter stops the chain (the target is not touched and `onFilterFail` runs). For example, extract a number from the uri, add an offset and write it as an integer:
+
+```json
+{
+  "from": {"source": "requestUriPath"},
+  "filter": [
+    {"op": "regexReplace", "rgx": "/app/v1/id-([0-9]+)", "fmt": "$1"},
+    {"op": "cast", "type": "integer"},
+    {"op": "sum", "value": 1000}
+  ],
+  "to": {"target": "responseBody", "path": "/id"}
+}
+```
+
+The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`, `boolean`, `object` (an object or array is required) or `json` (the value text is parsed); a value which cannot be converted fails the filter. Capture groups of `regexCapture`/`regexKey` (`<id>.k` variables, vault group objects) are only published when that filter is the last one of the chain; otherwise the whole match (or the matched key value) goes on to the next filter.
 
 
-- RegexCapture: this filter provides a regular expression, including optionally capture groups which will be applied to the source and stored in the target. This filter is designed specially for general purpose variables, because each captured group *k* will be mapped to a new variable named `<id>.k` where `<id>` is the original source variable name. Also, the variable "as is" will store the entire match, same for any other type of target (used together with boolean target it is useful to write the match condition). Let's see some examples:
+
+- `regexCapture`: this filter provides a regular expression, including optionally capture groups which will be applied to the source and stored in the target. This filter is designed specially for general purpose variables, because each captured group *k* will be mapped to a new variable named `<id>.k` where `<id>` is the original source variable name. Also, the variable "as is" will store the entire match, same for any other type of target (used together with boolean target it is useful to write the match condition). Let's see some examples:
 
   ```json
   {
-    "source": "request.uri.path",
-    "target": "var.id_cat",
-    "filter": { "RegexCapture" : "\/api\/v2\/id-([0-9]+)\/category-([a-z]+)" }
+    "from": {"source": "requestUriPath"},
+    "filter": [{"op": "regexCapture", "rgx": "/api/v2/id-([0-9]+)/category-([a-z]+)"}],
+    "to": {"target": "var", "name": "id_cat"}
   }
   ```
 
-  In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have: *var.id_cat.1="28"* and *var.id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *var.id_cat="/api/v2/id-28/category-animal"*.
+  In this case, if the source received is *"/api/v2/id-28/category-animal"*, then we have 2 captured groups, so, we will have the variables *id_cat.1="28"* and *id_cat.2="animal"*. Also, the specified variable name *"as is"* will store the entire match: *id_cat="/api/v2/id-28/category-animal"*.
 
   Other example:
 
   ```json
   {
-    "source": "request.uri.path",
-    "target": "response.body.json.string./category",
-    "filter": { "RegexCapture" : "\/api\/v2\/id-[0-9]+\/category-([a-z]+)" }
+    "from": {"source": "requestUriPath"},
+    "filter": [{"op": "regexCapture", "rgx": "/api/v2/id-[0-9]+/category-([a-z]+)"}],
+    "to": {"target": "responseBody", "path": "/category"}
   }
   ```
 
@@ -931,18 +1019,16 @@ Filters give you the chance to make complex transformations:
 
 
 
-- RegexReplace: this is similar to the matching algorithm based in regular expressions and replace procedure (even the fact that it *falls back to source information when not matching is done*, something that differs from former `RegexCapture` algorithm which builds an empty string when regular expression is not fully matched). We provide `rgx` and `fmt` to transform the source into the target:
+- `regexReplace`: this is similar to the matching algorithm based in regular expressions and replace procedure (even the fact that it *falls back to source information when not matching is done*, something that differs from former `regexCapture` algorithm which builds an empty string when regular expression is not fully matched). We provide `rgx` and `fmt` to transform the source into the target:
 
   ```json
   {
-    "source": "request.uri.path",
-    "target": "response.body.json.unsigned./data/timestamp",
-    "filter": {
-      "RegexReplace" : {
-        "rgx" : "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)",
-        "fmt" : "$2"
-      }
-    }
+    "from": {"source": "requestUriPath"},
+    "filter": [
+      {"op": "regexReplace", "rgx": "(/ctrl/v2/id-[0-9]+/)ts-([0-9]+)", "fmt": "$2"},
+      {"op": "cast", "type": "unsigned"}
+    ],
+    "to": {"target": "responseBody", "path": "/data/timestamp"}
   }
   ```
 
@@ -950,7 +1036,7 @@ Filters give you the chance to make complex transformations:
 
   In this algorithm, the obtained value will be a string.
 
-- Split: splits the source string into fixed-size groups joined by a separator. The algorithm takes the last `size × count` characters from the source, pads on the left with `filler` if shorter, and optionally strips leading zeros per group when `numeric` is enabled.
+- `split`: splits the source string into fixed-size groups joined by a separator. The algorithm takes the last `size × count` characters from the source, pads on the left with `filler` if shorter, and optionally strips leading zeros per group when `numeric` is enabled.
 
   Parameters (all optional):
 
@@ -966,9 +1052,9 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.body.phone",
-    "target": "var.ipv4",
-    "filter": { "Split": { "numeric": true } }
+    "from": {"source": "requestBody", "path": "/phone"},
+    "filter": [{"op": "split", "numeric": true}],
+    "to": {"target": "var", "name": "ipv4"}
   }
   ```
 
@@ -976,18 +1062,37 @@ Filters give you the chance to make complex transformations:
 
   The `filler` parameter controls left-padding when the source is shorter than `size × count`. For example, with source `"42"` and defaults, the padded input becomes `"00000042"`, producing `0.0.0.42`. With `"filler": ""`, no padding is applied and the result depends on the actual source length.
 
-  Note: the `Split` approach produces octets in the range 0-99 (2 digits). For realistic
+  Note: the `split` approach produces octets in the range 0-99 (2 digits). For realistic
   IPv4 addresses with full 0-255 octets, use math expressions to decompose a 32-bit
   integer into its four bytes:
 
   ```json
   [
-    {"source": "var.sequence", "filter": {"Sum": 167772161}, "target": "var.ipnum"},
-    {"source": "math.floor(@{ipnum} / 16777216)", "target": "var.o1"},
-    {"source": "math.floor((@{ipnum} % 16777216) / 65536)", "target": "var.o2"},
-    {"source": "math.floor((@{ipnum} % 65536) / 256)", "target": "var.o3"},
-    {"source": "math.floor(@{ipnum} % 256)", "target": "var.o4"},
-    {"source": "value.@{o1}.@{o2}.@{o3}.@{o4}", "target": "request.body.json.string./ipv4Address"}
+    {
+      "from": {"source": "var", "name": "sequence"},
+      "filter": [{"op": "sum", "value": 167772161}],
+      "to": {"target": "var", "name": "ipnum"}
+    },
+    {
+      "from": {"source": "math", "expression": "floor(@{ipnum} / 16777216)"},
+      "to": {"target": "var", "name": "o1"}
+    },
+    {
+      "from": {"source": "math", "expression": "floor((@{ipnum} % 16777216) / 65536)"},
+      "to": {"target": "var", "name": "o2"}
+    },
+    {
+      "from": {"source": "math", "expression": "floor((@{ipnum} % 65536) / 256)"},
+      "to": {"target": "var", "name": "o3"}
+    },
+    {
+      "from": {"source": "math", "expression": "floor(@{ipnum} % 256)"},
+      "to": {"target": "var", "name": "o4"}
+    },
+    {
+      "from": {"source": "literal", "value": "@{o1}.@{o2}.@{o3}.@{o4}"},
+      "to": {"target": "requestBody", "path": "/ipv4Address"}
+    }
   ]
   ```
 
@@ -999,7 +1104,7 @@ Filters give you the chance to make complex transformations:
   - `3232235521` -> starts at 192.168.0.1 (class C private)
   - `1` -> starts at 0.0.0.1 (if range validity is irrelevant for the test)
 
-- BaseConvert: converts the source string between numeric bases (2–36). Parameters `in` and `out` are required. On conversion error, the source is returned unchanged.
+- `baseConvert`: converts the source string between numeric bases (2–36). Parameters `in` and `out` are required. On conversion error, the source is returned unchanged.
 
   | Parameter | Type | Required | Default | Description |
   |-----------|------|----------|---------|-------------|
@@ -1009,15 +1114,15 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.body.id",
-    "target": "var.hex_id",
-    "filter": { "BaseConvert": { "in": 10, "out": 16, "capital": true } }
+    "from": {"source": "requestBody", "path": "/id"},
+    "filter": [{"op": "baseConvert", "in": 10, "out": 16, "capital": true}],
+    "to": {"target": "var", "name": "hex_id"}
   }
   ```
 
   With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
-- Strptime (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `Sum`) and later formatting back with `Strftime`.
+- `strptime` (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `sum`) and later formatting back with `strftime`.
 
   | Parameter | Type | Required | Default | Description |
   |-----------|------|----------|---------|-------------|
@@ -1026,15 +1131,15 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "value.2026-03-30T16:00:00",
-    "target": "var.epoch",
-    "filter": { "Strptime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    "from": {"source": "literal", "value": "2026-03-30T16:00:00"},
+    "filter": [{"op": "strptime", "fmt": "%Y-%m-%dT%H:%M:%S"}],
+    "to": {"target": "var", "name": "epoch"}
   }
   ```
 
-  Stores `1774987200` (epoch seconds for that UTC date) in `var.epoch`. With `"unit": "ms"`, it would store `1774987200000`.
+  Stores `1774987200` (epoch seconds for that UTC date) in the variable `epoch`. With `"unit": "ms"`, it would store `1774987200000`.
 
-- Strftime (*str-f-time*: string **f**ormat time): formats a numeric epoch timestamp into a date/time string. Uses `gmtime_r` + `strftime` (UTC). The source must be numeric (integer epoch in the specified unit).
+- `strftime` (*str-f-time*: string **f**ormat time): formats a numeric epoch timestamp into a date/time string. Uses `gmtime_r` + `strftime` (UTC). The source must be numeric (integer epoch in the specified unit).
 
   | Parameter | Type | Required | Default | Description |
   |-----------|------|----------|---------|-------------|
@@ -1043,22 +1148,29 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "var.epoch",
-    "target": "response.body.json.string./date",
-    "filter": { "Strftime": { "fmt": "%Y-%m-%dT%H:%M:%S" } }
+    "from": {"source": "var", "name": "epoch"},
+    "filter": [{"op": "strftime", "fmt": "%Y-%m-%dT%H:%M:%S"}, {"op": "cast", "type": "string"}],
+    "to": {"target": "responseBody", "path": "/date"}
   }
   ```
 
-  With `var.epoch = 1774987200`, stores `"2026-03-30T16:00:00"` in the response body.
+  With `epoch = 1774987200`, stores `"2026-03-30T16:00:00"` in the response body.
 
   **Combined example — current time + 1 hour, formatted:**
 
   ```json
   [
-    {"source": "timestamp.s", "target": "var.epoch"},
-    {"source": "var.epoch", "target": "var.epoch", "filter": {"Sum": 3600}},
-    {"source": "var.epoch", "target": "response.body.json.string./expiresAt",
-     "filter": {"Strftime": {"fmt": "%Y-%m-%dT%H:%M:%SZ"}}}
+    {"from": {"source": "timestamp", "unit": "s"}, "to": {"target": "var", "name": "epoch"}},
+    {
+      "from": {"source": "var", "name": "epoch"},
+      "filter": [{"op": "sum", "value": 3600}],
+      "to": {"target": "var", "name": "epoch"}
+    },
+    {
+      "from": {"source": "var", "name": "epoch"},
+      "filter": [{"op": "strftime", "fmt": "%Y-%m-%dT%H:%M:%SZ"}, {"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/expiresAt"}
+    }
   ]
   ```
 
@@ -1066,40 +1178,50 @@ Filters give you the chance to make complex transformations:
 
   ```json
   [
-    {"source": "request.body./startDate", "target": "var.epoch",
-     "filter": {"Strptime": {"fmt": "%d/%m/%Y %H:%M"}}},
-    {"source": "var.epoch", "target": "var.epoch", "filter": {"Sum": 86400}},
-    {"source": "var.epoch", "target": "response.body.json.string./nextDay",
-     "filter": {"Strftime": {"fmt": "%Y-%m-%d"}}}
+    {
+      "from": {"source": "requestBody", "path": "/startDate"},
+      "filter": [{"op": "strptime", "fmt": "%d/%m/%Y %H:%M"}],
+      "to": {"target": "var", "name": "epoch"}
+    },
+    {
+      "from": {"source": "var", "name": "epoch"},
+      "filter": [{"op": "sum", "value": 86400}],
+      "to": {"target": "var", "name": "epoch"}
+    },
+    {
+      "from": {"source": "var", "name": "epoch"},
+      "filter": [{"op": "strftime", "fmt": "%Y-%m-%d"}, {"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/nextDay"}
+    }
   ]
   ```
 
   Parses `"30/03/2026 16:00"` from the request, adds 24 hours, and responds with `"2026-03-31"`.
 
-- RegexKey: searches the keys of a JSON object source and returns the value of the first key that matches the provided regex. The source must be a JSON object — the filter is skipped if it is not. If no key matches, the transform is skipped. This filter **does not admit variables substitution** (`@{name}` patterns are treated as literal regex text) because the regular expression is precompiled at provision time.
+- `regexKey`: searches the keys of a JSON object source and returns the value of the first key that matches the provided regex. The source must be a JSON object — the filter is skipped if it is not. If no key matches, the transform is skipped. This filter **does not admit variables substitution** (`@{name}` patterns are treated as literal regex text) because the regular expression is precompiled at provision time.
 
   This is useful when JSON keys contain dynamic parts (timestamps, unique IDs, etc.) that cannot be addressed with static json pointers.
 
   ```json
   {
-    "source": "request.body./accounts",
-    "target": "vault.matchedAccount",
-    "filter": { "RegexKey": "acct-([0-9]{10})-checking" }
+    "from": {"source": "requestBody", "path": "/accounts"},
+    "filter": [{"op": "regexKey", "rgx": "acct-([0-9]{10})-checking"}],
+    "to": {"target": "vault", "key": "matchedAccount"}
   }
   ```
 
-  Given a source object like `{"acct-1774945487-checking": {"balance": 1500, "currency": "EUR"}, "acct-1774945487-savings": {"balance": 30000, "currency": "EUR"}}`, the filter matches the key `acct-1774945487-checking` by regex and stores its value in `vault.matchedAccount`. You can then navigate it with json pointers:
+  Given a source object like `{"acct-1774945487-checking": {"balance": 1500, "currency": "EUR"}, "acct-1774945487-savings": {"balance": 30000, "currency": "EUR"}}`, the filter matches the key `acct-1774945487-checking` by regex and stores its value in the vault `matchedAccount`. You can then navigate it with json pointers:
 
   ```json
-  {"source": "vault.matchedAccount./balance", "target": "response.body.json.integer./balance"}
+  {"from": {"source": "vault", "key": "matchedAccount", "path": "/balance"}, "filter": [{"op": "cast", "type": "integer"}], "to": {"target": "responseBody", "path": "/balance"}}
   ```
 
-  **Capture groups**: when the regex contains capture groups, the matched key and its groups are stored in variables following the same `.N` convention as `RegexCapture`:
+  **Capture groups**: when the regex contains capture groups, the matched key and its groups are stored in variables following the same `.N` convention as `regexCapture`:
 
   ```
-  → vault.matchedAccount = {"balance": 1500, "currency": "EUR"}   (the value)
-  → var.matchedAccount.0 = "acct-1774945487-checking"              (matched key)
-  → var.matchedAccount.1 = "1774945487"                            (group 1)
+  -> vault matchedAccount  = {"balance": 1500, "currency": "EUR"}   (the value)
+  -> var matchedAccount.0  = "acct-1774945487-checking"              (matched key)
+  -> var matchedAccount.1  = "1774945487"                            (group 1)
   ```
 
   This works regardless of whether the target is `vault` or `var`. When the target is a `var`, the value is stored as serialized JSON in the bare target variable, and the key capture groups go to `.0`, `.1`, etc.
@@ -1108,46 +1230,63 @@ Filters give you the chance to make complex transformations:
 
   ```json
   [
-    {"source": "response.body./orders",
-     "target": "vault.order",
-     "filter": {"RegexKey": "order-(2026[0-9]{4})-.*-(express)"}},
-    {"source": "vault.order./status",
-     "target": "var.orderStatus"},
-    {"source": "var.order.1",
-     "target": "response.body.json.string./orderDate"},
-    {"source": "var.order.2",
-     "target": "response.body.json.string./shippingType"}
+    {
+      "from": {"source": "responseBody", "path": "/orders"},
+      "filter": [{"op": "regexKey", "rgx": "order-(2026[0-9]{4})-.*-(express)"}],
+      "to": {"target": "vault", "key": "order"}
+    },
+    {
+      "from": {"source": "vault", "key": "order", "path": "/status"},
+      "to": {"target": "var", "name": "orderStatus"}
+    },
+    {
+      "from": {"source": "var", "name": "order.1"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/orderDate"}
+    },
+    {
+      "from": {"source": "var", "name": "order.2"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/shippingType"}
+    }
   ]
   ```
 
-- Size: returns the number of elements in the source value as a numeric string. For JSON objects it returns the number of keys, for JSON arrays the number of elements, and for strings the number of characters. This is a parameterless filter specified as a plain string (`"filter": "Size"`), not an object.
+- `size`: returns the number of elements in the source value as a numeric string. For JSON objects it returns the number of keys, for JSON arrays the number of elements, and for strings the number of characters. This filter takes no arguments: `{"op": "size"}`.
 
   ```json
-  {"source": "response.body./items", "target": "var.itemCount", "filter": "Size"}
+  {"from": {"source": "responseBody", "path": "/items"}, "filter": [{"op": "size"}], "to": {"target": "var", "name": "itemCount"}}
   ```
 
-  If `response.body./items` is `["a", "b", "c"]`, then `var.itemCount` will be `"3"`. The result is always a string, usable in math expressions:
+  If the response body `/items` is `["a", "b", "c"]`, then the variable `itemCount` will be `"3"`. The result is always a string, usable in math expressions:
 
   ```json
   [
-    {"source": "response.body./items", "target": "var.itemCount", "filter": "Size"},
-    {"source": "math.@{itemCount} == 3", "target": "var.itemCountOK"}
+    {
+      "from": {"source": "responseBody", "path": "/items"},
+      "filter": [{"op": "size"}],
+      "to": {"target": "var", "name": "itemCount"}
+    },
+    {
+      "from": {"source": "math", "expression": "@{itemCount} == 3"},
+      "to": {"target": "var", "name": "itemCountOK"}
+    }
   ]
   ```
 
-- Append: this appends the provided information to the source. This filter, **admits variables substitution**.
+- `append`: this appends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json
   {
-    "source": "value.telegram",
-    "target": "var.site",
-    "filter": { "Append" : ".teslayout.com" }
+    "from": {"source": "literal", "value": "telegram"},
+    "filter": [{"op": "append", "value": ".teslayout.com"}],
+    "to": {"target": "var", "name": "site"}
   }
   ```
 
-  In the example above we will have *var.site="telegram.teslayout.com"*.
+  In the example above we will have the variable *site="telegram.teslayout.com"*.
 
-  This could be done also with the `RegexReplace` filter, but this has better performance.
+  This could be done also with the `regexReplace` filter, but this has better performance.
 
   In this algorithm, the obtained value will be a string.
 
@@ -1155,19 +1294,19 @@ Filters give you the chance to make complex transformations:
 
 
 
-- Prepend: this prepends the provided information to the source. This filter, **admits variables substitution**.
+- `prepend`: this prepends the provided information to the source. This filter, **admits variables substitution**.
 
   ```json
   {
-    "source": "value.teslayout.com",
-    "target": "var.site",
-    "filter": { "Prepend" : "www." }
+    "from": {"source": "literal", "value": "teslayout.com"},
+    "filter": [{"op": "prepend", "value": "www."}],
+    "to": {"target": "var", "name": "site"}
   }
   ```
 
-  In the example above we will have *var.site="telegram.teslayout.com"*.
+  In the example above we will have the variable *site="telegram.teslayout.com"*.
 
-  This could be done also with the `RegexReplace` filter, but this has better performance.
+  This could be done also with the `regexReplace` filter, but this has better performance.
 
   In this algorithm, the obtained value will be a string.
 
@@ -1175,13 +1314,13 @@ Filters give you the chance to make complex transformations:
 
 
 
-- Sum: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
+- `sum`: adds the source (if numeric conversion is possible) to the value provided (which <u>also could be negative or float</u>):
 
   ```json
   {
-    "source": "random.0.99999999",
-    "target": "var.mysum",
-    "filter": { "Sum" : 123456789012345 }
+    "from": {"source": "random", "min": 0, "max": 99999999},
+    "filter": [{"op": "sum", "value": 123456789012345}],
+    "to": {"target": "var", "name": "mysum"}
   }
   ```
 
@@ -1191,9 +1330,9 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "recvseq",
-    "target": "var.subscriber",
-    "filter": { "Sum" : 555000000 }
+    "from": {"source": "recvseq"},
+    "filter": [{"op": "sum", "value": 555000000}],
+    "to": {"target": "var", "name": "subscriber"}
   }
   ```
 
@@ -1201,13 +1340,13 @@ Filters give you the chance to make complex transformations:
 
 
 
-- Multiply: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):
+- `multiply`: multiplies the source (if numeric conversion is possible) by the value provided (which <u>also could be negative to change sign, or lesser than 1 to divide</u>):
 
   ```json
   {
-    "source": "value.-10",
-    "target": "var.value-of-one",
-    "filter": { "Multiply" : -0.1 }
+    "from": {"source": "literal", "value": "-10"},
+    "filter": [{"op": "multiply", "value": -0.1}],
+    "to": {"target": "var", "name": "value-of-one"}
   }
   ```
 
@@ -1215,79 +1354,79 @@ Filters give you the chance to make complex transformations:
 
 
 
-- ConditionVar: conditional transfer from source to target based on the boolean interpretation of the string-value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>), which is:
+- `conditionVar`: conditional transfer from source to target based on the boolean interpretation of the value stored in the variable (both local and vaults are searched, giving <u>priority to local ones</u>; the name admits a json pointer, `"name": "<name>/<pointer>"`), following the [boolean criterion](#boolean-criterion):
 
   - **False** condition for cases:
     - <u>Undefined</u> variable.
-    - Defined but <u>empty</u> string.
+    - <u>Empty</u> string, number <u>zero</u>, boolean <u>false</u> or <u>null</u>.
 
   - **True** condition for the rest of cases:
-    - Defined variable with <u>non-empty</u> value: note that "0", "false" or any other "apparently false" non-empty string could be misinterpreted: they are absolutely true condition variables.
-      Also, variable name in `ConditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>.
+    - Non-empty string, non-zero number, boolean true, any object or array: note that the strings "0", "false" or any other "apparently false" non-empty string are true condition variables (only their numeric or boolean values are false).
+      Also, variable name in `conditionVar` filter, can be preceded by <u>exclamation mark (!)</u>  in order to <u>invert the condition</u>.
 
   Transfer procedure consists in <u>source copy over target</u> only when condition is **true**. For the **false** branch, you can use `onFilterFail` to provide alternative transforms that execute when the filter condition is not met:
 
   ```json
   {
-    "source": "value.value when id is true",
-    "target": "response.body.string",
-    "filter": { "ConditionVar" : "id" },
+    "from": {"source": "literal", "value": "value when id is true"},
+    "filter": [{"op": "conditionVar", "name": "id"}],
+    "to": {"target": "responseBodyText"},
     "onFilterFail": [
       {
-        "source": "value.value when id is false",
-        "target": "response.body.string"
+        "from": {"source": "literal", "value": "value when id is false"},
+        "to": {"target": "responseBodyText"}
       }
     ]
   }
   ```
 
-  The `onFilterFail` field is an optional array of **full transforms** — not just alternative values. Each fallback item goes through the complete `source → filter → target` pipeline, so you can do anything a regular transform does: write response headers, store files, send UDP datagrams, update vault entries, trigger breaks, etc. It works with any filter type (`ConditionVar`, `EqualTo`, `DifferentFrom`, etc.).
+  The `onFilterFail` field is an optional array of **full transforms** — not just alternative values. Each fallback item goes through the complete `source → filter → target` pipeline, so you can do anything a regular transform does: write response headers, store files, send UDP datagrams, update vault entries, trigger breaks, etc. It works with any filter type (`conditionVar`, `equalTo`, `equalTo` with `"not": true`, etc.).
 
   Nesting is fully recursive — each fallback transform can have its own `onFilterFail`, enabling chained if/else-if/else decision trees:
 
   ```json
   {
-    "source": "vault.level",
-    "target": "response.body.json.string./category",
-    "filter": { "EqualTo": "critical" },
+    "from": {"source": "vault", "key": "level"},
+    "filter": [{"op": "equalTo", "value": "critical"}, {"op": "cast", "type": "string"}],
+    "to": {"target": "responseBody", "path": "/category"},
     "onFilterFail": [
       {
-        "source": "vault.level",
-        "target": "response.body.json.string./category",
-        "filter": { "EqualTo": "warning" },
+        "from": {"source": "vault", "key": "level"},
+        "filter": [{"op": "equalTo", "value": "warning"}, {"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/category"},
         "onFilterFail": [
           {
-            "source": "value.info",
-            "target": "response.body.json.string./category"
+            "from": {"source": "literal", "value": "info"},
+            "to": {"target": "responseBody", "path": "/category"}
           },
           {
-            "source": "value.level-unknown",
-            "target": "udpSocket./tmp/alerts.sock"
+            "from": {"source": "literal", "value": "level-unknown"},
+            "to": {"target": "udpSocket", "socket": "/tmp/alerts.sock"}
           }
         ]
       },
       {
-        "source": "value.warning-detected",
-        "target": "response.header.x-alert"
+        "from": {"source": "literal", "value": "warning-detected"},
+        "to": {"target": "responseHeader", "name": "x-alert"}
       }
     ]
   }
   ```
 
-  In this example: if `vault.level` is `"critical"`, the category is set directly. If not, it checks for `"warning"` — and if that matches, it also sets a response header. If neither matches, it falls through to the default `"info"` category and sends a UDP notification.
+  In this example: if the vault `level` is `"critical"`, the category is set directly. If not, it checks for `"warning"` — and if that matches, it also sets a response header. If neither matches, it falls through to the default `"info"` category and sends a UDP notification.
 
-  The legacy approach using inverted `ConditionVar` in separate items still works:
+  The legacy approach using inverted `conditionVar` in separate items still works:
 
   ```json
   {
-    "source": "value.value when id is true",
-    "target": "response.body.string",
-    "filter": { "ConditionVar" : "id" }
+    "from": {"source": "literal", "value": "value when id is true"},
+    "filter": [{"op": "conditionVar", "name": "id"}],
+    "to": {"target": "responseBodyText"}
   },
   {
-    "source": "value.value when id is false",
-    "target": "response.body.string",
-    "filter": { "ConditionVar" : "!id" }
+    "from": {"source": "literal", "value": "value when id is false"},
+    "filter": [{"op": "conditionVar", "name": "id", "not": true}],
+    "to": {"target": "responseBodyText"}
   }
   ```
 
@@ -1295,9 +1434,9 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.body./must/be/number",
-    "target": "var.isNumber",
-    "filter": { "RegexCapture" : "([0-9]+)" }
+    "from": {"source": "requestBody", "path": "/must/be/number"},
+    "filter": [{"op": "regexCapture", "rgx": "([0-9]+)"}],
+    "to": {"target": "var", "name": "isNumber"}
   }
   ```
 
@@ -1305,30 +1444,30 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "value.number received !",
-    "target": "response.body.string",
-    "filter": { "ConditionVar" : "isNumber" }
+    "from": {"source": "literal", "value": "number received !"},
+    "filter": [{"op": "conditionVar", "name": "isNumber"}],
+    "to": {"target": "responseBodyText"}
   }
   ```
 
-  Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `ConditionVar` filter. The best example are `JsonConstraint` and `SchemaId` filters (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
+  Condition variables may also be created **automatically** by some transformations into variable targets, to be used later in this `conditionVar` filter. The best example are `jsonConstraint` and `schemaId` filters (explained later) working together with variable target, as it outputs "1" when validation is successful and "" when fails.
 
-  There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *EqualTo* and *DifferenFrom*:
+  There are some other transformations that are mainly used to create condition variables to be used later. This is the case of *equalTo* (optionally negated):
 
 
 
-- EqualTo: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**.
+- `equalTo`: conditional transfer from source to target based in string comparison between the source (as text) and the provided value: the filter passes when they are equal, or when they differ with `"not": true` (`{"op": "equalTo", "value": "200", "not": true}`; v1 `DifferentFrom`). Otherwise the filter fails (target untouched, `onFilterFail` runs). The value **admits variables substitution**.
 
   ```json
   {
-    "source": "request.body",
-    "target": "var.expectedBody",
-    "filter": { "EqualTo" : "{\"foo\":1}" }
+    "from": {"source": "requestBody"},
+    "filter": [{"op": "equalTo", "value": "{\"foo\":1}"}],
+    "to": {"target": "var", "name": "expectedBody"}
   },
   {
-    "source": "value.400",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "!expectedBody" }
+    "from": {"source": "literal", "value": "400"},
+    "filter": [{"op": "conditionVar", "name": "expectedBody", "not": true}],
+    "to": {"target": "responseStatusCode"}
   }
   ```
 
@@ -1336,56 +1475,53 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "math.'@{name1}' ilike 'word'",
-    "target": "var.iequal",
-    "filter": { "EqualTo" : "1" }
+    "from": {"source": "math", "expression": "'@{name1}' ilike 'word'"},
+    "filter": [{"op": "equalTo", "value": "1"}],
+    "to": {"target": "var", "name": "iequal"}
   }
   ```
 
-  Math library also supports wild-cards for string comparisons and many advanced operations, but normally `RegexCapture` is a better alternative (for example: "`[w|W][o|O][r|R][d|D]`" matches "word" as well as "wOrD" or any other combination) because it is more efficient: math library is always used with dynamic variables, so it needs to be compiled on-the-fly, but regular expressions used in `h2agent` are always compiled at provision stage.
+  Math library also supports wild-cards for string comparisons and many advanced operations, but normally `regexCapture` is a better alternative (for example: "`[w|W][o|O][r|R][d|D]`" matches "word" as well as "wOrD" or any other combination) because it is more efficient: math library is always used with dynamic variables, so it needs to be compiled on-the-fly, but regular expressions used in `h2agent` are always compiled at provision stage.
 
   Perhaps, the only use cases that require math library are those related to numeric comparisons:
 
   In the following example, we translate a logical math expression (which results in value of `1` (true) or `0` (false)) into conditional variable, because it will hold the value "1" or nothing (remember: conditional transfer):
 
   ```json
+  {"from": {"source": "recvseq"}, "to": {"target": "var", "name": "recvseq"}},
   {
-    "source": "recvseq",
-    "target": "var.recvseq"
+    "from": {"source": "math", "expression": "@{recvseq} > 10"},
+    "filter": [{"op": "equalTo", "value": "1"}],
+    "to": {"target": "var", "name": "greater"}
   },
   {
-    "source": "math.@{recvseq} > 10",
-    "target": "var.greater",
-    "filter": { "EqualTo" : "1" }
+    "from": {"source": "literal", "value": "Sequence @{recvseq} is lesser or equal than 10"},
+    "to": {"target": "responseBodyText"}
   },
   {
-    "source": "value.Sequence @{recvseq} is lesser or equal than 10",
-    "target": "response.body.string"
-  },
-  {
-    "source": "value.Sequence @{recvseq} is greater than 10",
-    "target": "response.body.string",
-    "filter": { "ConditionVar" : "greater" }
+    "from": {"source": "literal", "value": "Sequence @{recvseq} is greater than 10"},
+    "filter": [{"op": "conditionVar", "name": "greater"}],
+    "to": {"target": "responseBodyText"}
   }
   ```
 
-  We could also generate conditional variables from logical expressions using math library and `EqualTo` filter to normalize the result into a compliant conditional variable:
+  We could also generate conditional variables from logical expressions using math library and `equalTo` filter to normalize the result into a compliant conditional variable:
 
   ```json
   {
-    "source": "math.@{A}*@{B}",
-    "filter": { "EqualTo" : "1" },
-    "target": "var.A_and_B"
+    "from": {"source": "math", "expression": "@{A}*@{B}"},
+    "filter": [{"op": "equalTo", "value": "1"}],
+    "to": {"target": "var", "name": "A_and_B"}
   },
   {
-    "source": "math.max(@{A},@{B})",
-    "filter": { "EqualTo" : "1" },
-    "target": "var.A_or_B"
+    "from": {"source": "math", "expression": "max(@{A},@{B})"},
+    "filter": [{"op": "equalTo", "value": "1"}],
+    "to": {"target": "var", "name": "A_or_B"}
   },
   {
-    "source": "math.abs(@{A}-@{B})",
-    "filter": { "EqualTo" : "1" },
-    "target": "var.A_xor_B"
+    "from": {"source": "math", "expression": "abs(@{A}-@{B})"},
+    "filter": [{"op": "equalTo", "value": "1"}],
+    "to": {"target": "var", "name": "A_xor_B"}
   }
   ```
 
@@ -1393,40 +1529,31 @@ Filters give you the chance to make complex transformations:
 
 
 
-- DifferentFrom: conditional transfer from source to target based in string comparison between the source and the provided value. This filter, **admits variables substitution**. Its use is similar to `EqualTo` and complement its logic in case we need to generate the negated variable.
-
-
-
-- JsonConstraint: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
+- `jsonConstraint`: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
 
   - If validation **succeed**, the string "1" is stored in selected target.
   - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended use), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables to detect the validation error.
 
   ```json
   {
-    "source": "request.body",
-    "target": "var.expectedBody",
-    "filter": { "JsonConstraint" : {"foo":1} }
+    "from": {"source": "requestBody"},
+    "filter": [{"op": "jsonConstraint", "value": {"foo": 1}}],
+    "to": {"target": "var", "name": "expectedBody"}
   },
   {
-    "source": "value.400",
-    "target": "response.statusCode",
-    "filter": { "ConditionVar" : "!expectedBody" }
+    "from": {"source": "literal", "value": "400"},
+    "filter": [{"op": "conditionVar", "name": "expectedBody", "not": true}],
+    "to": {"target": "responseStatusCode"}
   },
   {
-    "source": "var.expectedBody.fail",
-    "target": "response.body.string",
-    "filter": {
-      "ConditionVar": "expectedBody.fail"
-    }
+    "from": {"source": "var", "name": "expectedBody.fail"},
+    "filter": [{"op": "conditionVar", "name": "expectedBody.fail"}],
+    "to": {"target": "responseBodyText"}
   },
-  {
-    "source": "var.expectedBody.fail",
-    "target": "break"
-  }
+  {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "stop"}}
   ```
 
-  Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does. When a value within the constraint is an **array**, the same "contains" logic applies recursively: every element in the expected array must exist somewhere in the received array, order-independent and allowing extras. Use `SchemaId` for strict positional array validation if needed.
+  Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does. When a value within the constraint is an **array**, the same "contains" logic applies recursively: every element in the expected array must exist somewhere in the received array, order-independent and allowing extras. Use `schemaId` for strict positional array validation if needed.
 
   Examples for nested arrays:
 
@@ -1440,14 +1567,14 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.headers",
-    "target": "var.validatedHeaders",
-    "filter": {
-      "JsonConstraint": [
-        {"name": "x-mandatory", "value": "required-value"},
-        {"name": "content-type"}
-      ]
-    }
+    "from": {"source": "requestHeaders"},
+    "filter": [
+      {
+        "op": "jsonConstraint",
+        "value": [{"name": "x-mandatory", "value": "required-value"}, {"name": "content-type"}]
+      }
+    ],
+    "to": {"target": "var", "name": "validatedHeaders"}
   }
   ```
 
@@ -1459,28 +1586,23 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source":"request.body./here/the/id",
-    "filter": { "EqualTo": "@{id}" },
-    "target": "var.idMatches"
+    "from": {"source": "requestBody", "path": "/here/the/id"},
+    "filter": [{"op": "equalTo", "value": "@{id}"}],
+    "to": {"target": "var", "name": "idMatches"}
   }
   ```
 
   And finally, we should aggregate condition results related to the event analyzed, to compute a global validation result.
 
-  The amount of transformation items is approximately the same as if we could adapt the json constraint (as we would need items to transfer dynamic data like `id` in the example, to the corresponding object node), indeed it seems more intuitive to use `JsonConstraint` for static references:
+  The amount of transformation items is approximately the same as if we could adapt the json constraint (as we would need items to transfer dynamic data like `id` in the example, to the corresponding object node), indeed it seems more intuitive to use `jsonConstraint` for static references:
 
-  Many times, dynamic values are node keys instead of values, so we could still use `JsonConstraint` if nested information is static/predictable.
+  Many times, dynamic values are node keys instead of values, so we could still use `jsonConstraint` if nested information is static/predictable.
 
   ```json
   {
-    "source": "request.body./data/@{phone}",
-    "target": "var.expectedPhoneNodeWithinBody",
-    "filter": {
-      "JsonConstraint": {
-        "model": "samsung",
-        "color": "blue"
-      }
-    }
+    "from": {"source": "requestBody", "path": "/data/@{phone}"},
+    "filter": [{"op": "jsonConstraint", "value": {"model": "samsung", "color": "blue"}}],
+    "to": {"target": "var", "name": "expectedPhoneNodeWithinBody"}
   }
   ```
 
@@ -1505,34 +1627,20 @@ Filters give you the chance to make complex transformations:
 
   ```json
   {
-    "source": "request.body",
-    "target": "var.rootDataOK",
-    "filter": {
-      "JsonConstraint": {
-        "foo": 1
-      }
-    }
+    "from": {"source": "requestBody"},
+    "filter": [{"op": "jsonConstraint", "value": {"foo": 1}}],
+    "to": {"target": "var", "name": "rootDataOK"}
+  },
+  {"from": {"source": "requestUriParam", "name": "phone"}, "to": {"target": "var", "name": "phone"}},
+  {
+    "from": {"source": "requestBody", "path": "/data/@{phone}"},
+    "filter": [{"op": "jsonConstraint", "value": {"model": "samsung", "color": "blue"}}],
+    "to": {"target": "var", "name": "phoneDataOK"}
   },
   {
-    "source": "request.uri.param.phone",
-    "target": "var.phone"
-  },
-  {
-    "source": "request.body./data/@{phone}",
-    "target": "var.phoneDataOK",
-    "filter": {
-      "JsonConstraint": {
-        "model": "samsung",
-        "color": "blue"
-      }
-    }
-  },
-  {
-    "source": "value.@{rootDataOK}@{phoneDataOK}",
-    "filter": {
-      "EqualTo": "11"
-    },
-    "target": "var.allOK"
+    "from": {"source": "literal", "value": "@{rootDataOK}@{phoneDataOK}"},
+    "filter": [{"op": "equalTo", "value": "11"}],
+    "to": {"target": "var", "name": "allOK"}
   }
   ```
 
@@ -1540,11 +1648,11 @@ Filters give you the chance to make complex transformations:
 
   To finish, just to remark that a mock server used for functional tests can also be inspected through *REST API*, retrieving any event related data to be externally validated, so we will not need to make complicated provisions to do that internally, or at least we could make a compromise between internal and external validations. The difference is the fact that self-contained provisions could "make the day" against scattered information between those provisions and test orchestrator. Also remember that schema validation is supported, so you could provide an OpenAPI restriction for your project interfaces.
 
-  Provisions identification through method and *URI* is normally enough to decide rejecting with 501 (not implemented), although this can be enforced with `JsonConstraint` filter in order to be more accurate if needed. In the case of load testing, normally we are not so strict in favor of performance regarding flow validations. Definitely, this filter is mainly used to validate responses in client mock mode.
+  Provisions identification through method and *URI* is normally enough to decide rejecting with 501 (not implemented), although this can be enforced with `jsonConstraint` filter in order to be more accurate if needed. In the case of load testing, normally we are not so strict in favor of performance regarding flow validations. Definitely, this filter is mainly used to validate responses in client mock mode.
 
 
 
-- SchemaId: performs a `json` schema validation between the source (must be a valid document) and the provided filter which is a registered schema for the given identifier. Same logic than `JsonConstraint` is applied here:
+- `schemaId`: performs a `json` schema validation between the source (must be a valid document) and the provided filter which is a registered schema for the given identifier. Same logic than `jsonConstraint` is applied here:
 
   - If validation **succeed**, the string "1" is stored in selected target.
 
@@ -1552,7 +1660,7 @@ Filters give you the chance to make complex transformations:
 
 
 
-  Both the `JsonConstraint` and `SchemaId` filters **serve as more specific supplementary validations** to enhance event schemas (request and response validation schemas).
+  Both the `jsonConstraint` and `schemaId` filters **serve as more specific supplementary validations** to enhance event schemas (request and response validation schemas).
 
 
 
@@ -1587,14 +1695,14 @@ A provision set fails with the first failed item, giving a 'pluralized' version 
 
 ### Unused provisions
 
-`GET /admin/v1/server-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+`GET /admin/v2/server-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
 The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
 
 ## Server data
 
 ### Storage configuration
 
-Both server and client data storage share the same configuration model (`PUT /admin/v1/server-data/configuration`).
+Both server and client data storage share the same configuration model (`PUT /admin/v2/server-data/configuration`).
 
 There are three valid combinations:
 
@@ -1613,12 +1721,30 @@ And regardless the previous combinations, you could enable or disable the purge 
 
 The `h2agent` starts with purge stage enabled by default, but you could also disable this through command-line (`--disable-purge`).
 
+And, also regardless the storage combinations, the transformation pipeline **execution trace** can be stored within each event (disabled by default):
+
+* `executionTrace=true`: every stored event includes an `executionTrace` array, with one entry per evaluated transformation rule, in evaluation order.
+* `executionTrace=false`: no trace is built nor stored.
+
+Each entry addresses its rule with a json pointer into the provision (`/transform/<n>`, `/onResponseTransform/<n>` for client response transformations, and `.../onFilterFail/<m>` for fallbacks), tells whether it was applied, and why not:
+
+```json
+"executionTrace": [
+  {"rule": "/transform/0", "applied": true},
+  {"rule": "/transform/1", "applied": false, "note": "EqualTo is false; rule skipped"},
+  {"rule": "/transform/1/onFilterFail/0", "applied": true}
+]
+```
+
+It is the way to find out why a rule did not apply (a filter failed, a source or path did not resolve, a value could not be cast...) without debug logs. It needs the event storage (`discard=false`), and it adds a small cost per event, so it is meant for test development and troubleshooting, not for load testing.
+
 Be careful using this `PUT` operation in the middle of traffic load, because it could interfere and make unpredictable the server data information during tests. Indeed, some provisions with transformations based in event sources, could identify the requests within the history for an specific event assuming that a particular server data configuration is guaranteed.
 
-`GET /admin/v1/server-data/configuration` retrieves the current configuration:
+`GET /admin/v2/server-data/configuration` retrieves the current configuration:
 
 ```json
 {
+    "executionTrace": false,
     "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
@@ -1640,7 +1766,7 @@ When a provision is loaded (`POST`) that references event-dependent transformati
 }
 ```
 
-Similarly, when storage is disabled via `PUT /admin/v1/server-data/configuration?discard=true` but loaded provisions require it, the response includes a warning body:
+Similarly, when storage is disabled via `PUT /admin/v2/server-data/configuration?discard=true` but loaded provisions require it, the response includes a warning body:
 
 ```json
 {
@@ -1656,11 +1782,11 @@ By default, the `h2agent` enables both kinds of storage types (general events an
 
 ### Querying server data
 
-`GET /admin/v1/server-data` retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent answered with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the received `uri` normalized</u> (having for example, a better predictable query parameters order during server data events search), not the `classification uri` (which could dispense with query parameters or variable parts depending on the matching algorithm), and could also be slightly different in some cases (specially when query parameters are involved) than original `uri` received on HTTP/2 interface.
+`GET /admin/v2/server-data` retrieves the current server internal data (requests received, their states and other useful information like timing or global order). Events received are stored <u>even if no provisions were found</u> for them (the agent answered with `501`, not implemented), being useful to troubleshoot possible configuration mistakes in the tests design. By default, the `h2agent` stores the whole history of events (for example requests received for the same `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the received `uri` normalized</u> (having for example, a better predictable query parameters order during server data events search), not the `classification uri` (which could dispense with query parameters or variable parts depending on the matching algorithm), and could also be slightly different in some cases (specially when query parameters are involved) than original `uri` received on HTTP/2 interface.
 
-<u>Without query parameters</u> (`GET /admin/v1/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
+<u>Without query parameters</u> (`GET /admin/v2/server-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
+`/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/requestBody`
 
 The `json` document response shall contain three main nodes: `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `method/uri` combination.
 
@@ -1670,7 +1796,7 @@ This operation is useful for testing post verification stages (validate content 
 
 **Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). Use `./tools/url.sh` helper to encode:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
+`/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
 
 Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
 
@@ -1678,8 +1804,8 @@ When provided *method* and *uri*, server data will be filtered with that key. If
 
 The query also accepts the two addressing extensions of the `serverEvent` transformation source, with the same semantics, so any `serverEvent` address can be tried here before being used in a provision (and vice versa):
 
-* *requestUriStartsWith*: **literal** URI prefix instead of the exact `requestUri` (which is ignored when both are present). Selects among all the events, for the given *method*, whose *URI* starts with the prefix, merged in reception order; *requestMethod* and *eventNumber* are mandatory (`eventNumber=-1` is the most recent one). For example: `/admin/v1/server-data?requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody`.
-* *recvseq*: receive sequence for stable addressing within the *method* + *uri* key (both mandatory); *eventNumber* is ignored. For example: `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`.
+* *requestUriStartsWith*: **literal** URI prefix instead of the exact `requestUri` (which is ignored when both are present). Selects among all the events, for the given *method*, whose *URI* starts with the prefix, merged in reception order; *requestMethod* and *eventNumber* are mandatory (`eventNumber=-1` is the most recent one). For example: `/admin/v2/server-data?requestMethod=POST&requestUriStartsWith=/app/v1/resources/&eventNumber=-1&eventPath=/requestBody`.
+* *recvseq*: receive sequence for stable addressing within the *method* + *uri* key (both mandatory); *eventNumber* is ignored. For example: `/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`.
 
 Both return the single event object (or the *eventPath* node within it): 200 when found, 204 when not, 400 when the addressing is incomplete or invalid. They are also available in the helpers: `server_data --starts-with <method> <uri prefix> <[-]event number> [event path]` and `server_data --recvseq <method> <uri> <recvseq> [event path]`.
 
@@ -1702,7 +1828,7 @@ The information collected for a server event item is:
 
 ### Server data summary
 
-`GET /admin/v1/server-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
+`GET /admin/v2/server-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
 
 The summary response fields:
 
@@ -1729,17 +1855,17 @@ Example:
 
 ### Deleting server data
 
-`DELETE /admin/v1/server-data` deletes the server data given by query parameters defined in the same way as the *GET* operation. For example:
+`DELETE /admin/v2/server-data` deletes the server data given by query parameters defined in the same way as the *GET* operation. For example:
 
-`/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
+`/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
 
-The *recvseq* addressing is accepted too (same as the `serverEvent` purge target: *method* and *URI* mandatory, *eventNumber* ignored), for example `/admin/v1/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`. Deletion by *requestUriStartsWith* is **not** supported (bad request), to avoid removing more events than expected.
+The *recvseq* addressing is accepted too (same as the `serverEvent` purge target: *method* and *URI* mandatory, *eventNumber* ignored), for example `/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar/5&recvseq=27`. Deletion by *requestUriStartsWith* is **not** supported (bad request), to avoid removing more events than expected.
 
 ## Client endpoints
 
-Client endpoints (`POST /admin/v1/client-endpoint`) define remote server connection information where `h2agent` may connect during test execution.
+Client endpoints (`POST /admin/v2/client-endpoint`) define remote server connection information where `h2agent` may connect during test execution.
 
 By default, created endpoints will connect the defined remote server (except for lazy connection mode: `--remote-servers-lazy-connection`) but no reconnection procedure is implemented in case of fail. Instead, they will be reconnected on demand when a request is processed through such endpoint.
 
@@ -1760,7 +1886,7 @@ A client endpoint set fails with the first failed item, giving a 'pluralized' ve
 
 ## Client provisions
 
-Client provisions (`POST /admin/v1/client-provision`) are a fundamental part of the client mode configuration. Unlike server provisions, they are identified by the mandatory `id` identifier (in server mode, the primary identifier was the `method/uri` key) and the optional `inState` field (which defaults to "initial" when missing). In client mode, there are no classification algorithms because the provisions are actively triggered through the *REST API*.
+Client provisions (`POST /admin/v2/client-provision`) are a fundamental part of the client mode configuration. Unlike server provisions, they are identified by the mandatory `id` identifier (in server mode, the primary identifier was the `method/uri` key) and the optional `inState` field (which defaults to "initial" when missing). In client mode, there are no classification algorithms because the provisions are actively triggered through the *REST API*.
 
 ### Client state machine
 
@@ -1797,7 +1923,7 @@ Client provision chains progress automatically: when a provision completes, the 
 
 #### endpoint
 
-Optional client endpoint identifier (previously registered through `POST /admin/v1/client-endpoint`) that indicates where this provision sends its request. It is not mandatory in the schema.
+Optional client endpoint identifier (previously registered through `POST /admin/v2/client-endpoint`) that indicates where this provision sends its request. It is not mandatory in the schema.
 
 **Per-state endpoint in a chain**: each link of a chain (each provision sharing the same `id` but with a different `inState`) may declare its own `endpoint`. This means a single chained scenario can mix client endpoints across its states — for example, alternate requests towards two different remote servers within the same automatic flow. The endpoint is re-resolved on every state progression, so the link's own `endpoint` is honored when the chain advances (not only on the first, triggered link).
 
@@ -1897,43 +2023,43 @@ Most items are described in the [transformation pipeline](#transformation-pipeli
 
 New **sources**:
 
-- `sendseq`: sequence id number increased for every mock sending over specific client endpoint (starts on *1* when the *h2agent* is started).
+- `{"source": "sendseq"}`: sequence id number increased for every mock sending over specific client endpoint (starts on *1* when the *h2agent* is started).
 
 **Reserved variable `sequence`**: the current iteration number within a triggered range. This is the **fundamental variable for building dynamic client requests** — without it, every request in a range would be identical.
 
 When a provision is triggered with a range (`sequenceBegin`/`sequenceEnd`), `sequence` holds the current counter value on each execution. It is automatically injected as a scoped variable before each transform execution, so it is accessible both as:
 
-- `var.sequence` — as a source (e.g. for arithmetic with `Sum` filter)
-- `@{sequence}` — inline substitution within `value.*` sources, `Append`/`Prepend` filters, and any field that admits variables substitution
+- `{"source": "var", "name": "sequence"}` — as a source (e.g. for arithmetic with the `sum` filter)
+- `@{sequence}` — inline substitution within `literal` sources, `append`/`prepend` filters, and any field that admits variables substitution
 
 Common use cases:
 
 - **Dynamic URI** — build a unique path per request:
   ```json
-  {"source": "var.sequence", "target": "request.uri", "filter": {"Prepend": "/api/v1/sessions/"}}
+  {"from": {"source": "var", "name": "sequence"}, "filter": [{"op": "prepend", "value": "/api/v1/sessions/"}], "to": {"target": "requestUri"}}
   ```
 
 - **Dynamic body field** — inject the counter into the request body:
   ```json
-  {"source": "value.@{sequence}", "target": "request.body.json.integer./counter"}
+  {"from": {"source": "literal", "value": "@{sequence}"}, "filter": [{"op": "cast", "type": "integer"}], "to": {"target": "requestBody", "path": "/counter"}}
   ```
 
 - **Unique vault keys** — isolate concurrent flows:
   ```json
-  {"source": "var.sequence", "target": "vault.flow_@{sequence}_status"}
+  {"from": {"source": "var", "name": "sequence"}, "to": {"target": "vault", "key": "flow_@{sequence}_status"}}
   ```
 
 The value starts at `sequenceBegin` and increments by 1 on each tick. When paused (`cps=0`) and resumed (only `cps` provided), `sequence` continues from where it left off. Providing a new range resets it to the new `sequenceBegin`. For synchronous single-shot triggers (`?sequence=N`), the value is set to `N`.
 
 New **targets**:
 
-- `request.delayMs` *[unsigned integer]*: simulated delay before sending the request: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
-- `request.timeoutMs` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
-- `request.uri` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
-- `request.method` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
-- `break`: this target is activated with non-empty source (for example `value.1`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+- `{"target": "requestDelayMs"}` *[unsigned integer]*: simulated delay before sending the request: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- `{"target": "requestTimeoutMs"}` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
+- `{"target": "requestUri"}` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
+- `{"target": "requestMethod"}` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
+- `{"target": "stop"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then stop the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
-Note that `clientProvision.<id>.<inState>` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
+Note that the `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 
 ### Multiple client provisions
 
@@ -1968,12 +2094,12 @@ A provision set fails with the first failed item, giving a 'pluralized' version 
 
 ### Unused client provisions
 
-`GET /admin/v1/client-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
+`GET /admin/v2/client-provision/unused` retrieves all the provisions configured that were not used yet. This is useful for troubleshooting (during tests implementation or *SUT* updates) to filter unnecessary provisions configured: when the test is executed, just identify unused items and then remove them from test configuration.
 The 'unused' status is initialized at creation time (`POST` operation) or when the provision is overwritten.
 
 ### Triggering
 
-To trigger a client provision (`GET /admin/v1/client-provision/<id>`), we will use the *GET* method, providing its identifier in the *URI*.
+To trigger a client provision we use `POST /admin/v2/client-provision/<id>/trigger`, providing its identifier in the *URI* and the trigger options as query parameters (no request body is needed). The former `GET /admin/v2/client-provision/<id>` is retired (`410 Gone` with a hint): triggering is an action, not a read.
 
 Normally we shall trigger only provisions for `inState` = "initial" (so, it is the default value when this query parameter is missing). This is because the traffic flow will evolve activating other provision keys given by the <u>same</u> provision identifier but another `inState`. All those internal triggers are indirectly caused by the primal administrative operation which is the only one externally initiated. Although it is possible to trigger an intermediate state (via the `inState` query parameter), this is useful for debugging and also for [partial chain execution](#partial-chain-execution) scenarios.
 
@@ -1992,7 +2118,7 @@ This is useful when the provision uses `sequence` in its transformations to buil
 ```bash
 # Send three requests with sequence values 10, 20 and 30:
 for seq in 10 20 30; do
-  curl --http2-prior-knowledge "http://localhost:8074/admin/v1/client-provision/myFlow?sequence=${seq}"
+  curl --http2-prior-knowledge -XPOST "http://localhost:8074/admin/v2/client-provision/myFlow/trigger?sequence=${seq}"
 done
 ```
 
@@ -2009,12 +2135,12 @@ Each client provision can evolve the range of values independently of others, an
 * `cps`: rate in provisions per second triggered (non-negative value, '0' to stop). Each tick fires one provision execution which may send multiple requests if the flow has several steps.
 * `repeat`: range repetition once exhausted (true or false).
 
-Negative values are allowed for `sequenceBegin` and `sequenceEnd`, which is useful when a transform applies an offset (e.g. `Sum`) over a central base value:
+Negative values are allowed for `sequenceBegin` and `sequenceEnd`, which is useful when a transform applies an offset (e.g. `sum`) over a central base value:
 
 ```bash
 # Trigger 11 provision executions with sequence values from -5 to 5 at 100 cps:
-curl --http2-prior-knowledge \
-  "http://localhost:8074/admin/v1/client-provision/myFlow?sequenceBegin=-5&sequenceEnd=5&cps=100"
+curl --http2-prior-knowledge -XPOST \
+  "http://localhost:8074/admin/v2/client-provision/myFlow/trigger?sequenceBegin=-5&sequenceEnd=5&cps=100"
 ```
 
 > **Important**: `sequence` parameter (synchronous) cannot be mixed with `sequenceBegin`, `sequenceEnd`, `cps` or `repeat` (asynchronous). Providing both will result in a *400 Bad Request* error.
@@ -2059,9 +2185,9 @@ User may transform sequence value to adapt the test case taking into account tha
 
 ```json
 {
-  "source": "math.2*@{sequence} + 1",
-  "filter": { "Prepend": "/foo/bar/" },
-  "target": "request.uri"
+  "from": {"source": "math", "expression": "2*@{sequence} + 1"},
+  "filter": [{"op": "prepend", "value": "/foo/bar/"}],
+  "to": {"target": "requestUri"}
 }
 ```
 
@@ -2070,21 +2196,21 @@ Or for example, trigger all the existing values (also even numbers) from `/foo/b
 ```json
 [
   {
-    "source": "var.sequence",
-    "filter": { "Sum": 555000000 },
-    "target": "var.phone"
+    "from": {"source": "var", "name": "sequence"},
+    "filter": [{"op": "sum", "value": 555000000}],
+    "to": {"target": "var", "name": "phone"}
   },
   {
-    "source": "value./foo/bar/",
-    "filter": { "Append": "@{phone}" },
-    "target": "request.uri"
+    "from": {"source": "literal", "value": "/foo/bar/"},
+    "filter": [{"op": "append", "value": "@{phone}"}],
+    "to": {"target": "requestUri"}
   }
 ]
 ```
 
 Note that, in the first transformation item, we are creating a new variable 'phone' because <u>`sequence` variable is reserved and non-writable as target</u> (a warning log is generated when trying to do this).
 
-Also, note that final transformation item uses constant value for source, but it could also use `request.uri` as a source if client provision configures it as `/foo/bar` within provision template.
+Also, note that final transformation item uses constant value for source, but it could also use `requestUri` as a source if client provision configures it as `/foo/bar` within provision template.
 
 And finally, note that we could also solve the previous exercise just providing the real range `[555000000, 555000099]` to the operation, processing directly the last single transformation item shown before but appending variable `sequence` instead of `phone`. This is a kind of decision that implies advantages or drawbacks:
 
@@ -2094,13 +2220,13 @@ And finally, note that we could also solve the previous exercise just providing 
 
   ```bash
   for provision in script1 script2 script3; do # parallel test scripts, 5000 iterations at 200 provisions per second:
-    curl -i --http2-prior-knowledge http://localhost:8074/admin/v1/client-provision/${provision}?sequenceEnd=4999&cps=200
+    curl -i --http2-prior-knowledge -XPOST "http://localhost:8074/admin/v2/client-provision/${provision}/trigger?sequenceEnd=4999&cps=200"
   done
   ```
 
 #### Partial chain execution
 
-A common pattern is to define a full lifecycle chain (e.g., `initial` → `established` → `updated` → `terminated`) but execute it in stages. This is achieved by combining a vault with a conditional `break` in the `onResponseTransform` of an intermediate step.
+A common pattern is to define a full lifecycle chain (e.g., `initial` → `established` → `updated` → `terminated`) but execute it in stages. This is achieved by combining a vault with a conditional `stop` in the `onResponseTransform` of an intermediate step.
 
 For example, consider a 3-step session flow (create → update → delete). To execute only the establishment phase:
 
@@ -2108,21 +2234,21 @@ For example, consider a 3-step session flow (create → update → delete). To e
 
    ```bash
    curl --http2-prior-knowledge -d '{"STOP_AFTER": "establishment"}' \
-     http://localhost:8074/admin/v1/vault
+     http://localhost:8074/admin/v2/vault
    ```
 
 2. In the `onResponseTransform` of the establishment provision, add a conditional outState override:
 
    ```json
    {
-     "source": "vault.STOP_AFTER",
-     "target": "var.mustStop",
-     "filter": { "RegexCapture": "establishment" }
+     "from": {"source": "vault", "key": "STOP_AFTER"},
+     "filter": [{"op": "regexCapture", "rgx": "establishment"}],
+     "to": {"target": "var", "name": "mustStop"}
    },
    {
-     "source": "value.road-closed",
-     "target": "outState",
-     "filter": { "ConditionVar": "mustStop" }
+     "from": {"source": "literal", "value": "road-closed"},
+     "filter": [{"op": "conditionVar", "name": "mustStop"}],
+     "to": {"target": "outState"}
    }
    ```
 
@@ -2133,20 +2259,20 @@ For example, consider a 3-step session flow (create → update → delete). To e
    ```bash
    # First, clear the stop condition:
    curl --http2-prior-knowledge -d '{"STOP_AFTER": ""}' \
-     http://localhost:8074/admin/v1/vault
+     http://localhost:8074/admin/v2/vault
 
    # Then trigger from the intermediate state:
-   curl --http2-prior-knowledge \
-     "http://localhost:8074/admin/v1/client-provision/mySession?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
+   curl --http2-prior-knowledge -XPOST \
+     "http://localhost:8074/admin/v2/client-provision/mySession/trigger?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
    ```
 
-> **Note**: when triggering from an intermediate state, scoped variables (`var.*`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `vault` instead.
+> **Note**: when triggering from an intermediate state, scoped variables (`var`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `vault` instead.
 
 This pattern is useful for benchmarking scenarios where you want to measure each phase independently, or when you need to pre-populate sessions before running update/delete workloads.
 
 #### Server-triggered client flows
 
-Client provisions can also be triggered from within server provision transformations using the `clientProvision.<clientProvisionId>.<inState>` target (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source acts as a conditional gate: non-empty fires the trigger, empty or `eraser` skips it.
+Client provisions can also be triggered from within server provision transformations using the `clientProvision` target (`{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}`) (described in the [transformation pipeline](#transformation-pipeline) section). This allows the server to react to an incoming request by firing one or more outgoing client flows as a side effect. The source acts as a conditional gate: a true value fires the trigger, a false or undefined one skips it (see [boolean criterion](#boolean-criterion)).
 
 ```json
 {
@@ -2155,8 +2281,8 @@ Client provisions can also be triggered from within server provision transformat
   "responseCode": 200,
   "transform": [
     {
-      "source": "value.1",
-      "target": "clientProvision.forwardNotification.initial"
+      "from": {"source": "literal", "value": "1"},
+      "to": {"target": "clientProvision", "id": "forwardNotification", "inState": "initial"}
     }
   ]
 }
@@ -2168,7 +2294,7 @@ The triggers are executed asynchronously after the server response is fully buil
 
 ### Client dispatch latency
 
-`GET /admin/v1/client/dispatch-latency`
+`GET /admin/v2/client/dispatch-latency`
 
 Returns accumulated statistics about the worker pool dispatch latency — the time between posting work to the client worker pool (`boost::asio::post()`) and the worker thread starting to execute the lambda. This measures queue wait time plus thread wakeup overhead.
 
@@ -2195,14 +2321,15 @@ Statistics accumulate for the lifetime of the process and are not reset between 
 
 ### Client storage configuration
 
-Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v1/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure clears all events accumulated during the chain, removing everything registered across all steps (different endpoints, methods and URIs) that participated in the completed flow.
+Same explanation done for `server-data` equivalent operation, applies here (`PUT /admin/v2/client-data/configuration`). Just to know that history events here have an extended key adding `client endpoint id` to the `method` and `uri` processed. The purge procedure clears all events accumulated during the chain, removing everything registered across all steps (different endpoints, methods and URIs) that participated in the completed flow.
 
 The same agent could manage server and client connections, so you have specific configurations for internal data regarding server or client events, but normally, we shall use only one mode to better separate responsibilities within the testing ecosystem.
 
-`GET /admin/v1/client-data/configuration` retrieves the current configuration:
+`GET /admin/v2/client-data/configuration` retrieves the current configuration:
 
 ```json
 {
+    "executionTrace": false,
     "needsStorage": false,
     "purgeExecution": true,
     "storeEvents": true,
@@ -2214,11 +2341,11 @@ By default, the `h2agent` enables both kinds of storage types (general events an
 
 ### Querying client data
 
-`GET /admin/v1/client-data` retrieves the current client internal data (requests sent, their provision identifiers, states and other useful information like timing or global order). By default, the `h2agent` stores the whole history of events (for example requests sent for the same `clientEndpointId`, `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the final sent `uri` normalized</u> (having for example, a better predictable query parameters order during client data events search), not necessarily the `provisioned uri` within the provision template.
+`GET /admin/v2/client-data` retrieves the current client internal data (requests sent, their provision identifiers, states and other useful information like timing or global order). By default, the `h2agent` stores the whole history of events (for example requests sent for the same `clientEndpointId`, `method` and `uri`) to allow advanced manipulation of further responses based on that information. <u>It is important to highlight that `uri` refers to the final sent `uri` normalized</u> (having for example, a better predictable query parameters order during client data events search), not necessarily the `provisioned uri` within the provision template.
 
-<u>Without query parameters</u> (`GET /admin/v1/client-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *clientEndpointId*, *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
+<u>Without query parameters</u> (`GET /admin/v2/client-data`), you may be careful with large contexts born from long-term tests (load testing), because a huge response could collapse the receiver (terminal or piped process). With query parameters, you could filter a specific entry providing *clientEndpointId*, *requestMethod*, *requestUri* and <u>optionally</u> a *eventNumber* and *eventPath*, for example:
 
-`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/responseBody`
+`/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3&eventPath=/responseBody`
 
 The `json` document response shall contain three main nodes: `clientEndpointId`, `method`, `uri` and a `events` object with the chronologically ordered list of events processed for the given `clientEndpointId/method/uri` combination.
 
@@ -2228,7 +2355,7 @@ This operation is useful for testing post verification stages (validate content 
 
 **Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). Use `./tools/url.sh` helper to encode:
 
-`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
+`/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/responseBody`
 
 As for server data, the query accepts the addressing extensions of the `clientEvent` transformation source with the same semantics: *requestUriStartsWith* (literal prefix instead of the exact `requestUri`; *clientEndpointId*, *requestMethod* and *eventNumber* mandatory) and *sendseq* (send sequence within the *clientEndpointId* + *method* + *uri* key; *eventNumber* ignored). Both return the single event object (or its *eventPath* node), with 200, 204 or 400 as for server data. Deletion accepts *sendseq* but not *requestUriStartsWith*. Helpers: `client_data --starts-with <client endpoint id> <method> <uri prefix> <[-]event number> [event path]` and `client_data --sendseq <client endpoint id> <method> <uri> <sendseq> [event path]`.
 
@@ -2253,7 +2380,7 @@ The information collected for a client event item is:
 
 ### Client data summary
 
-`GET /admin/v1/client-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the client data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of sendings or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of client data summary operation is try to guide the user to narrow and prepare an efficient query.
+`GET /admin/v2/client-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the client data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of sendings or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of client data summary operation is try to guide the user to narrow and prepare an efficient query.
 
 The summary response fields:
 
@@ -2280,8 +2407,8 @@ Example:
 
 ### Deleting client data
 
-`DELETE /admin/v1/client-data` deletes the client data given by query parameters defined in the same way as the *GET* operation. For example:
+`DELETE /admin/v2/client-data` deletes the client data given by query parameters defined in the same way as the *GET* operation. For example:
 
-`/admin/v1/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
+`/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *clientEndpointId*, *method* and *URI* are provided together and *eventNumber* restricts optionally them.

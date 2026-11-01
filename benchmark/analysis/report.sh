@@ -70,6 +70,16 @@ LAUNCHER_OUTPUT=$3
     fi
   fi
 
+  # CPU time consumed during the run (monitor_stop)
+  if [ -s "${MONITOR_DIR}/cpu_time_ms" ]; then
+    echo
+    echo "## CPU Time"
+    echo
+    echo "| Metric | Value |"
+    echo "|---|---|"
+    echo "| CPU time (ms) | $(cat "${MONITOR_DIR}/cpu_time_ms") |"
+  fi
+
   # h2load latency (server mode)
   if [ -n "$LAUNCHER_OUTPUT" -a -f "$LAUNCHER_OUTPUT" ]; then
     h2load_latency=$(awk '/^time for request:|^time for connect:|^time to 1st byte:|^req\/s/ {

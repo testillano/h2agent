@@ -41,7 +41,7 @@ def test_002_i_want_to_identify_valid_server_provision_operation_on_admin_interf
 def test_003_i_want_to_send_get_for_unsupported_operation_on_admin_interface(h2ac_admin):
 
   # Send GET
-  response = h2ac_admin.get("/admin/v1/foo")
+  response = h2ac_admin.get("/admin/v2/foo")
 
   # Verify response
   assert response["status"] == 400
@@ -88,7 +88,7 @@ def test_006_i_want_to_send_delete_server_provision_operations_on_admin_interfac
 def test_007_i_want_to_send_delete_for_unsupported_operation_on_admin_interface(h2ac_admin):
 
   # Send DELETE
-  response = h2ac_admin.delete("/admin/v1/foo")
+  response = h2ac_admin.delete("/admin/v2/foo")
 
   # Verify response
   assert response["status"] == 400

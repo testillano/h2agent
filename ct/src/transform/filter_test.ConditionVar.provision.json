@@ -2,31 +2,20 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody":  {
-    "foo": "bar-1"
-  },
-  "responseHeaders":  {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
+    {"from": {"source": "literal", "value": ""}, "to": {"target": "var", "name": "falseVar"}},
+    {"from": {"source": "literal", "value": "xxx"}, "to": {"target": "var", "name": "trueVar"}},
     {
-      "source": "value.",
-      "target": "var.falseVar"
+      "from": {"source": "literal", "value": "foo"},
+      "filter": [{"op": "conditionVar", "name": "falseVar"}],
+      "to": {"target": "responseBody", "path": "/must-be-missing-in-response"}
     },
     {
-      "source": "value.xxx",
-      "target": "var.trueVar"
-    },
-    {
-      "source": "value.foo",
-      "target": "response.body.json.string./must-be-missing-in-response",
-      "filter": { "ConditionVar" : "falseVar" }
-    },
-    {
-      "source": "value.foo",
-      "target": "response.body.json.string./must-be-in-response",
-      "filter": { "ConditionVar" : "trueVar" }
+      "from": {"source": "literal", "value": "foo"},
+      "filter": [{"op": "conditionVar", "name": "trueVar"}],
+      "to": {"target": "responseBody", "path": "/must-be-in-response"}
     }
   ]
 }

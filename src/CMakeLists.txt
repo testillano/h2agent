@@ -1,6 +1,7 @@
 add_subdirectory(http2)
 add_subdirectory(jsonSchema)
 add_subdirectory(model)
+add_subdirectory(engine)
 
 add_executable( ${H2AGENT_TARGET_NAME}
         # Keep the list of files sorted.
@@ -39,6 +40,7 @@ ${CMAKE_EXE_LINKER_FLAGS}
         -Wl,--start-group
         h2agent-model
         h2agent-http2
+        h2agent-engine
         -Wl,--end-group
 
         ert_logger

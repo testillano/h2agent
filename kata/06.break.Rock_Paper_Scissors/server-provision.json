@@ -4,8 +4,9 @@
   "responseCode": 200,
   "transform": [
     {
-      "source": "randomset.rock|paper|scissors",
-      "target": "response.body.json.string"
+      "from": {"source": "randomset", "values": ["rock", "paper", "scissors"]},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody"}
     }
   ]
 }

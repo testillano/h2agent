@@ -11,11 +11,11 @@
 #   ./sse-vault-events.sh demo
 
 ADMIN=${H2AGENT_ADMIN_ENDPOINT:-http://localhost:8074}
-SSE_URL="${ADMIN}/admin/v1/vault/events"
-VAULT_URL="${ADMIN}/admin/v1/vault"
+SSE_URL="${ADMIN}/admin/v2/vault/events"
+VAULT_URL="${ADMIN}/admin/v2/vault"
 
 # Check h2agent is reachable
-if ! curl --http2-prior-knowledge -sf "${ADMIN}/admin/v1/configuration" -o /dev/null 2>/dev/null; then
+if ! curl --http2-prior-knowledge -sf "${ADMIN}/admin/v2/configuration" -o /dev/null 2>/dev/null; then
   echo "ERROR: h2agent admin endpoint not reachable at ${ADMIN}"
   echo "Start it with: ./run.sh (from project root)"
   exit 1

@@ -84,7 +84,7 @@ class HelpDialog(QDialog):
 
             <h3>Administrative Interface Tab:</h3>
             <ul>
-                <li><b>Base URL:</b> Enter the base URL for administrative requests (e.g., <code>http://localhost:8075/admin/v1</code>).</li>
+                <li><b>Base URL:</b> Enter the base URL for administrative requests (e.g., <code>http://localhost:8075/admin/v2</code>).</li>
                 <li><b>Select Preset:</b> Choose from predefined request configurations. Selecting a preset will automatically populate the Method, URI, Headers, and Body fields.</li>
                 <li><b>Method:</b> The HTTP method for the request (e.g., GET, POST).</li>
                 <li><b>URI:</b> The specific URI path for the request (e.g., <code>/server-provision</code>, <code>/server-data</code>).</li>
@@ -229,7 +229,7 @@ class MockClientApp(QWidget):
 
         # Row 0-3: URL, Preset, Method, URI
         form_layout.addWidget(QLabel("Base URL:"), 0, 0)
-        self.admin_base_url_input = QLineEdit("http://localhost:8075/admin/v1")
+        self.admin_base_url_input = QLineEdit("http://localhost:8075/admin/v2")
         form_layout.addWidget(self.admin_base_url_input, 0, 1)
         form_layout.addWidget(QLabel("Protocol: HTTP/2 (via Proxy)"), 0, 2)
 
@@ -297,12 +297,12 @@ class MockClientApp(QWidget):
         self.admin_presets = [
             {"name": "-- Select an option --", "method": "GET", "uri": "", "headers": {}, "body": ""},
 
-            {"name": "Show Schema for schema configuration", "method": "GET", "uri": "/schema/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for vault entries configuration", "method": "GET", "uri": "/vault/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for server matching (traffic classification) configuration", "method": "GET", "uri": "/server-matching/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for server provision configuration", "method": "GET", "uri": "/server-provision/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for client endpoints configuration", "method": "GET", "uri": "/client-endpoint/schema", "headers": {}, "body": ""},
-            {"name": "Show Schema for client provision configuration", "method": "GET", "uri": "/client-provision/schema", "headers": {}, "body": ""},
+            {"name": "Show Schema for schema configuration", "method": "GET", "uri": "/api-schema/schema", "headers": {}, "body": ""},
+            {"name": "Show Schema for vault entries configuration", "method": "GET", "uri": "/api-schema/vault", "headers": {}, "body": ""},
+            {"name": "Show Schema for server matching (traffic classification) configuration", "method": "GET", "uri": "/api-schema/server-matching", "headers": {}, "body": ""},
+            {"name": "Show Schema for server provision configuration", "method": "GET", "uri": "/api-schema/server-provision", "headers": {}, "body": ""},
+            {"name": "Show Schema for client endpoints configuration", "method": "GET", "uri": "/api-schema/client-endpoint", "headers": {}, "body": ""},
+            {"name": "Show Schema for client provision configuration", "method": "GET", "uri": "/api-schema/client-provision", "headers": {}, "body": ""},
 
             {"name": "QUERY SCHEMAS", "method": "GET", "uri": "/schema", "headers": {}, "body": ""},
             {"name": "Update Schema example", "method": "POST", "uri": "/schema", "headers": json__header, "body": json.dumps(schema__body, indent=2)},
@@ -375,7 +375,7 @@ class MockClientApp(QWidget):
             #{"name": "Update Client Provisions example", "method": "POST", "uri": "/client-provision", "headers": json__header, "body": json.dumps(client_provision__body, indent=2)},
             #{"name": "Delete Client Provisions", "method": "DELETE", "uri": "/client-provision", "headers": {}, "body": ""},
             #{"name": "Query Client Provisions not used", "method": "GET", "uri": "/client-provision/unused", "headers": {}, "body": ""},
-            #{"name": "Launch Client Provision", "method": "PUT", "uri": "/client-provision/myClientProvision", "headers": {}, "body": ""},
+            #{"name": "Launch Client Provision", "method": "POST", "uri": "/client-provision/myClientProvision/trigger", "headers": {}, "body": ""},
 
         ]
         for preset in self.admin_presets:

@@ -10,16 +10,16 @@ H2AGENT_CLIENT_ADMIN_ENDPOINT=localhost:8074
 
 h2a_curl() {
   curl -sf --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${3:+-d@$3} \
-    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/$2"
+    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/$2"
 }
 
 h2agent_server_configuration
 
 # Cleanup client state
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-provision" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-provision" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-endpoint" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-endpoint" >/dev/null
 
 # Configure client
 h2a_curl POST client-endpoint client-endpoint.json >/dev/null
@@ -32,7 +32,7 @@ wait_for_event() {
     sleep 0.3
     local count
     count=$(curl -sf --http2-prior-knowledge \
-      "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-data" 2>/dev/null | \
+      "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-data" 2>/dev/null | \
       jq --arg id "$id" '[.[] | .events[] | select(.clientProvisionId==$id)] | length' 2>/dev/null || echo 0)
     [ "${count:-0}" -ge 1 ] && return 0
     [ $(( $(date +%s) - start )) -ge $timeout ] && echo "Timeout waiting for event $id!" && return 1
@@ -40,15 +40,15 @@ wait_for_event() {
 }
 
 # Trigger store-item (POST /items/id-42)
-h2a_curl GET "client-provision/store-item?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
+h2a_curl POST "client-provision/store-item/trigger?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_event store-item || exit 1
 
 # Trigger read-item (GET /items/id-42)
-h2a_curl GET "client-provision/read-item?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
+h2a_curl POST "client-provision/read-item/trigger?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_event read-item || exit 1
 
 client_data=$(curl -sf --http2-prior-knowledge \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-data")
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-data")
 
 # Step 1: store-item event exists (expectedResponseStatusCode validates 201 inline)
 title "Step 1: store-item (POST /items/id-42) completed" "" "*"
@@ -75,5 +75,4 @@ title "Step 3: second GET /items/id-42 returns 404 (item forgotten)" "" "*"
 EXPECTED_STATUS_CODES=404
 test_query "Second GET (item forgotten)" GET "http://${H2AGENT_TRAFFIC_ENDPOINT}/items/id-42" || exit 1
 
-echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff -- client-provision.json server-provision.json
+show_changes client-provision.json server-provision.json

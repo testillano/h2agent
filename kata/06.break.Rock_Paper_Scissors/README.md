@@ -17,19 +17,14 @@ Imagine that you want to simulate server delays. You could provision the followi
 
 But in order to be more realistic, response delays should be better modeled with a random value instead of a fixed one (30 milliseconds in the former example).
 
-For that, you could generate **random** integer numbers in a specific range and transfer the value to the `response.delayMs` target type:
+For that, you could generate **random** integer numbers in a specific range and transfer the value to the `responseDelayMs` target:
 
 ```json
 {
   "requestMethod": "POST",
   "requestUri": "/one/uri/path",
   "responseCode": 200,
-  "transform": [
-    {
-      "source": "random.25.35",
-      "target": "response.delayMs"
-    }
-  ]
+  "transform": [{"from": {"source": "random", "min": 25, "max": 35}, "to": {"target": "responseDelayMs"}}]
 }
 ```
 
@@ -44,16 +39,16 @@ Filters are applied with the given order inside the `transform` node array. You 
   "responseCode": 200,
   "transform": [
     {
-      "source": "random.0.99",
-      "target": "var.integer-part"
+      "from": {"source": "random", "min": 0, "max": 99},
+      "to": {"target": "var", "name": "integer-part"}
     },
     {
-      "source": "random.000.999",
-      "target": "var.float-part"
+      "from": {"source": "random", "min": 0, "max": 999},
+      "to": {"target": "var", "name": "float-part"}
     },
     {
-      "source": "value.@{integer-part}.@{float-part}",
-      "target": "var.random-number-in-xx.yyy-format"
+      "from": {"source": "literal", "value": "@{integer-part}.@{float-part}"},
+      "to": {"target": "var", "name": "random-number-in-xx.yyy-format"}
     }
   ]
 }
@@ -67,13 +62,10 @@ Random numbers have important applications. Used in conjunction with mathematica
   "requestUri": "/one/uri/path",
   "responseCode": 200,
   "transform": [
+    {"from": {"source": "random", "min": 0, "max": 100}, "to": {"target": "var", "name": "random"}},
     {
-      "source": "random.0.100",
-      "target": "var.random"
-    },
-    {
-      "source": "math.200+(503-200)*(@{random} < 5)",
-      "target": "response.statusCode"
+      "from": {"source": "math", "expression": "200+(503-200)*(@{random} < 5)"},
+      "to": {"target": "responseStatusCode"}
     }
   ]
 }
@@ -93,7 +85,7 @@ The list input (`rock|paper|scissors`) could even be constructed from variables,
 
  `/give/me/your/choice/within?firstItem=heads&secondItem=tails`
 
-So we would transfer the query parameters (`request.uri.param.<qp key>`) into variables used to generate the random choice:
+So we would transfer the query parameters (`requestUriParam` source) into variables used to generate the random choice:
 
 ```json
 {
@@ -102,16 +94,17 @@ So we would transfer the query parameters (`request.uri.param.<qp key>`) into va
   "responseCode": 200,
   "transform": [
     {
-      "source": "request.uri.param.firstItem",
-      "target": "var.label1"
+      "from": {"source": "requestUriParam", "name": "firstItem"},
+      "to": {"target": "var", "name": "label1"}
     },
     {
-      "source": "request.uri.param.secondItem",
-      "target": "var.label2"
+      "from": {"source": "requestUriParam", "name": "secondItem"},
+      "to": {"target": "var", "name": "label2"}
     },
     {
-      "source": "randomset.@{label1}|@{label2}",
-      "target": "response.body.json.string"
+      "from": {"source": "randomset", "values": ["@{label1}", "@{label2}"]},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody"}
     }
   ]
 }
@@ -145,8 +138,9 @@ Now, returning to our `rock, paper, scissors` game, the list is static so we hav
   "responseCode": 200,
   "transform": [
     {
-      "source": "randomset.rock|paper|scissors",
-      "target": "response.body.json.string"
+      "from": {"source": "randomset", "values": ["rock", "paper", "scissors"]},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody"}
     }
   ]
 }

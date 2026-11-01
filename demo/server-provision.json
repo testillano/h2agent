@@ -3,18 +3,12 @@
     "requestMethod": "GET",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-1",
     "responseCode": 200,
-    "responseBody": {
-      "id": "id-1",
-      "phone": 66453,
-      "name": "Jess Glynne"
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseBody": {"id": "id-1", "phone": 66453, "name": "Jess Glynne"},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "strftime.%F %H:%M:%S",
-        "target": "response.body.json.string./time"
+        "from": {"source": "strftime", "fmt": "%F %H:%M:%S"},
+        "to": {"target": "responseBody", "path": "/time"}
       }
     ]
   },
@@ -22,19 +16,12 @@
     "requestMethod": "GET",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-2",
     "responseCode": 200,
-    "responseBody": {
-      "id": "id-2",
-      "phone": 55643,
-      "name": "Bryan Adams",
-      "developer": true
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseBody": {"id": "id-2", "phone": 55643, "name": "Bryan Adams", "developer": true},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "strftime.%F %H:%M:%S",
-        "target": "response.body.json.string./time"
+        "from": {"source": "strftime", "fmt": "%F %H:%M:%S"},
+        "to": {"target": "responseBody", "path": "/time"}
       }
     ]
   },
@@ -42,18 +29,12 @@
     "requestMethod": "GET",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-3",
     "responseCode": 200,
-    "responseBody": {
-      "id": "id-3",
-      "phone": 32459,
-      "name": "Phil Collins"
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseBody": {"id": "id-3", "phone": 32459, "name": "Phil Collins"},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "strftime.%F %H:%M:%S",
-        "target": "response.body.json.string./time"
+        "from": {"source": "strftime", "fmt": "%F %H:%M:%S"},
+        "to": {"target": "responseBody", "path": "/time"}
       }
     ]
   },
@@ -61,50 +42,39 @@
     "requestMethod": "GET",
     "requestUri": "\\/office\\/v2\\/workplace\\?id=id-[0-9]{1,2}",
     "responseCode": 200,
-    "responseBody": {
-      "name": "unassigned"
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseBody": {"name": "unassigned"},
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "request.uri.param.id",
-        "target": "response.body.json.string./id"
+        "from": {"source": "requestUriParam", "name": "id"},
+        "to": {"target": "responseBody", "path": "/id"}
       },
       {
-        "source": "random.30000.69999",
-        "target": "response.body.json.integer./phone"
+        "from": {"source": "random", "min": 30000, "max": 69999},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/phone"}
       },
       {
-        "source": "strftime.%F %H:%M:%S",
-        "target": "response.body.json.string./time"
+        "from": {"source": "strftime", "fmt": "%F %H:%M:%S"},
+        "to": {"target": "responseBody", "path": "/time"}
       },
       {
-        "source": "request.uri.param.id",
-        "target": "var.isDeveloper",
-        "filter": {
-          "RegexCapture": "id-[0-9]{0,1}[02468]{1}"
-        }
+        "from": {"source": "requestUriParam", "name": "id"},
+        "filter": [{"op": "regexCapture", "rgx": "id-[0-9]{0,1}[02468]{1}"}],
+        "to": {"target": "var", "name": "isDeveloper"}
       },
       {
-        "source": "value.non-empty-string-is-true",
-        "target": "response.body.json.boolean./developer",
-        "filter": {
-          "ConditionVar": "isDeveloper"
-        }
+        "from": {"source": "literal", "value": "non-empty-string-is-true"},
+        "filter": [{"op": "conditionVar", "name": "isDeveloper"}, {"op": "cast", "type": "boolean"}],
+        "to": {"target": "responseBody", "path": "/developer"}
       }
     ]
   },
   {
     "requestMethod": "GET",
     "responseCode": 400,
-    "responseBody": {
-      "cause": "invalid workplace id provided, must be in format id-<2-digit number>"
-    },
-    "responseHeaders": {
-      "content-type": "application/json"
-    }
+    "responseBody": {"cause": "invalid workplace id provided, must be in format id-<2-digit number>"},
+    "responseHeaders": {"content-type": "application/json"}
   },
   {
     "requestMethod": "DELETE",
@@ -112,8 +82,8 @@
     "responseCode": 204,
     "transform": [
       {
-        "source": "value.get-obtains-not-found",
-        "target": "outState.GET"
+        "from": {"source": "literal", "value": "get-obtains-not-found"},
+        "to": {"target": "outState", "method": "GET"}
       }
     ],
     "outState": "delete-not-found"

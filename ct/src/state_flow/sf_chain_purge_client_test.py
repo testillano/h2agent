@@ -71,7 +71,7 @@ def test_001_provision_client_chain_purge(h2ac_admin):
 def test_002_client_chain_purge_clears_all_steps(h2ac_admin):
 
   # Trigger the chain
-  response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/chainPurgeFlow")
+  response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/chainPurgeFlow/trigger")
   assert response["status"] == 200
 
   # Wait for async chain completion

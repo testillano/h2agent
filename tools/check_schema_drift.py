@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Schema drift detector for openapi.yaml.
 
-Fetches the JSON Schemas exposed by a RUNNING h2agent (its /admin/v1/*/schema
+Fetches the JSON Schemas exposed by a RUNNING h2agent (its /admin/v2/api-schema/*
 endpoints), normalizes them to OpenAPI 3.1 components, and prints them as YAML so
 they can be diffed against the committed openapi.yaml 'components/schemas' section.
 
@@ -18,12 +18,12 @@ import json, subprocess, sys, yaml
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8074"
 
 SCHEMA_ENDPOINTS = {
-    "/admin/v1/schema/schema":           "SchemaConfig",
-    "/admin/v1/vault/schema":  "VaultMap",
-    "/admin/v1/server-matching/schema":  "ServerMatching",
-    "/admin/v1/server-provision/schema": "ServerProvision",
-    "/admin/v1/client-endpoint/schema":  "ClientEndpoint",
-    "/admin/v1/client-provision/schema": "ClientProvision",
+    "/admin/v2/api-schema/schema":           "SchemaConfig",
+    "/admin/v2/api-schema/vault":  "VaultMap",
+    "/admin/v2/api-schema/server-matching":  "ServerMatching",
+    "/admin/v2/api-schema/server-provision": "ServerProvision",
+    "/admin/v2/api-schema/client-endpoint":  "ClientEndpoint",
+    "/admin/v2/api-schema/client-provision": "ClientProvision",
 }
 
 def fetch(path):

@@ -18,10 +18,10 @@ DELAY_MS=100  # 100ms delay per response
 
 provision() {
     for i in $(seq 1 30); do
-        curl -sf --http2-prior-knowledge "${ADMIN}/admin/v1/logging" >/dev/null 2>&1 && break
+        curl -sf --http2-prior-knowledge "${ADMIN}/admin/v2/logging" >/dev/null 2>&1 && break
         sleep 0.2
     done
-    curl -sf --http2-prior-knowledge -XPOST "${ADMIN}/admin/v1/server-provision" \
+    curl -sf --http2-prior-knowledge -XPOST "${ADMIN}/admin/v2/server-provision" \
         -H'content-type:application/json' -d'{
         "requestMethod": "GET",
         "requestUri": "/test",

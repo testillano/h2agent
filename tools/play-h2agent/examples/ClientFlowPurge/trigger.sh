@@ -26,7 +26,7 @@ curl -s --http2-prior-knowledge -XPUT "$(admin_url)/client-data/configuration?di
 echo
 
 echo "Triggering client provision 'purgeFlow' (POST /api/v1/order -> GET /api/v1/order/A-100 -> purge) ..."
-do_curl $(admin_url)/client-provision/purgeFlow
+do_curl -XPOST $(admin_url)/client-provision/purgeFlow/trigger
 
 # Wait for the asynchronous chain to complete and purge to run. Poll client-data
 # until it is empty (HTTP 204 -> body "[]"/empty) instead of a blind sleep.

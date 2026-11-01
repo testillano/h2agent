@@ -10,20 +10,20 @@ H2AGENT_CLIENT_ADMIN_ENDPOINT=localhost:8074
 
 h2a_curl() {
   curl -sf --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${3:+-d@$3} \
-    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/$2"
+    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/$2"
 }
 
 h2agent_server_configuration
 
 # Cleanup client state
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-provision" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-provision" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-endpoint" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-endpoint" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/client-data" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/client-data" >/dev/null
 curl -sf --http2-prior-knowledge -XDELETE \
-  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/vault" >/dev/null
+  "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/vault" >/dev/null
 
 # Configure client
 h2a_curl POST client-endpoint client-endpoint.json >/dev/null
@@ -43,12 +43,12 @@ wait_for_gvar() {
 
 # Trigger first-tick
 title "Step 1: first-tick (GET /time, store t1)" "" "*"
-h2a_curl GET "client-provision/first-tick?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
+h2a_curl POST "client-provision/first-tick/trigger?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_gvar t1 || exit 1
 
 # Trigger second-tick
 title "Step 2: second-tick (GET /time, store t2, compute elapsed)" "" "*"
-h2a_curl GET "client-provision/second-tick?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
+h2a_curl POST "client-provision/second-tick/trigger?sequenceBegin=1&sequenceEnd=1&cps=1" >/dev/null
 wait_for_gvar elapsed || exit 1
 
 # Read vault.elapsed
@@ -68,5 +68,4 @@ else
   exit 1
 fi
 
-echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff -- client-provision.json
+show_changes client-provision.json

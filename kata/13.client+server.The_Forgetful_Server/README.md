@@ -42,4 +42,4 @@ Complete `server-provision.json` so that:
 
 The `test.sh` verifies the full flow: `POST` → first `GET` (200) → second `GET` (404).
 
-**Hint**: `POST` and `GET` have **separate state machines** (keyed by method + URI). A plain `outState` on the `POST` only affects future `POST` requests to the same URI — it does not change the `GET` state. To cross the boundary, use a *foreign state* target: `outState.GET.<uri>`. Since the URI contains a dynamic number, capture it first with `RegexCapture` into a variable and use substitution: `outState.GET.@{item-uri}`. To return the stored body in the `GET`, use a `serverEvent` source referencing the previous `POST` event for that same URI.
+**Hint**: `POST` and `GET` have **separate state machines** (keyed by method + URI). A plain `outState` on the `POST` only affects future `POST` requests to the same URI — it does not change the `GET` state. Remember the *foreign states* (exercise 10) and think about how to address a URI that carries a dynamic number. To return the stored body in the `GET`, look for a source that reads past server events.

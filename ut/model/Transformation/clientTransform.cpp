@@ -55,7 +55,7 @@ public:
     unsigned int request_delay_ms_{};
     unsigned int request_timeout_ms_{};
     std::string error_{};
-    std::map<std::string, std::string> variables_{};
+    h2agent::model::Variables variables_{};
 
     ClientTransform_test() {
         client_provision_json_ = ClientProvision_POST;
@@ -133,8 +133,11 @@ TEST_F(ClientTransform_test, TransformNoTransformations)
 TEST_F(ClientTransform_test, TargetRequestUri)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/original",
-        "transform": [{"source": "value./api/v1/replaced", "target": "request.uri"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/original",
+      "transform": [{"from": {"source": "literal", "value": "/api/v1/replaced"}, "to": {"target": "requestUri"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -144,8 +147,11 @@ TEST_F(ClientTransform_test, TargetRequestUri)
 TEST_F(ClientTransform_test, TargetRequestMethod)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value.PUT", "target": "request.method"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "literal", "value": "PUT"}, "to": {"target": "requestMethod"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -155,8 +161,16 @@ TEST_F(ClientTransform_test, TargetRequestMethod)
 TEST_F(ClientTransform_test, TargetRequestHeader)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value.bearer-token-123", "target": "request.header.authorization"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "bearer-token-123"},
+          "to": {"target": "requestHeader", "name": "authorization"}
+        }
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -168,9 +182,12 @@ TEST_F(ClientTransform_test, TargetRequestHeader)
 TEST_F(ClientTransform_test, TargetRequestDelayMs)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "requestDelayMs": 10,
-        "transform": [{"source": "value.500", "target": "request.delayMs"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "requestDelayMs": 10,
+      "transform": [{"from": {"source": "literal", "value": "500"}, "to": {"target": "requestDelayMs"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -180,9 +197,12 @@ TEST_F(ClientTransform_test, TargetRequestDelayMs)
 TEST_F(ClientTransform_test, TargetRequestTimeoutMs)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "timeoutMs": 1000,
-        "transform": [{"source": "value.5000", "target": "request.timeoutMs"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "timeoutMs": 1000,
+      "transform": [{"from": {"source": "literal", "value": "5000"}, "to": {"target": "requestTimeoutMs"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -192,9 +212,17 @@ TEST_F(ClientTransform_test, TargetRequestTimeoutMs)
 TEST_F(ClientTransform_test, TargetRequestBodyJsonString)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "POST", "requestUri": "/test",
-        "requestBody": {"original":"data"},
-        "transform": [{"source": "value.replaced", "target": "request.body.json.string./original"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "POST",
+      "requestUri": "/test",
+      "requestBody": {"original": "data"},
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "replaced"},
+          "to": {"target": "requestBody", "path": "/original"}
+        }
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -205,9 +233,18 @@ TEST_F(ClientTransform_test, TargetRequestBodyJsonString)
 TEST_F(ClientTransform_test, TargetRequestBodyJsonInteger)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "POST", "requestUri": "/test",
-        "requestBody": {"count":0},
-        "transform": [{"source": "value.42", "target": "request.body.json.integer./count"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "POST",
+      "requestUri": "/test",
+      "requestBody": {"count": 0},
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "42"},
+          "filter": [{"op": "cast", "type": "integer"}],
+          "to": {"target": "requestBody", "path": "/count"}
+        }
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -218,8 +255,11 @@ TEST_F(ClientTransform_test, TargetRequestBodyJsonInteger)
 TEST_F(ClientTransform_test, TargetOutState)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value.step2", "target": "outState"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "literal", "value": "step2"}, "to": {"target": "outState"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -229,11 +269,14 @@ TEST_F(ClientTransform_test, TargetOutState)
 TEST_F(ClientTransform_test, TargetVariable)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [
-            {"source": "value.hello", "target": "var.myVar"},
-            {"source": "var.myVar", "target": "request.uri"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {"from": {"source": "literal", "value": "hello"}, "to": {"target": "var", "name": "myVar"}},
+        {"from": {"source": "var", "name": "myVar"}, "to": {"target": "requestUri"}}
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -243,11 +286,17 @@ TEST_F(ClientTransform_test, TargetVariable)
 TEST_F(ClientTransform_test, TargetVault)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [
-            {"source": "value.newValue", "target": "vault.testGVar"},
-            {"source": "vault.testGVar", "target": "request.uri"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "newValue"},
+          "to": {"target": "vault", "key": "testGVar"}
+        },
+        {"from": {"source": "vault", "key": "testGVar"}, "to": {"target": "requestUri"}}
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -258,12 +307,15 @@ TEST_F(ClientTransform_test, TargetBreak)
 {
     // break is only available in onResponseTransform (not in pre-send transform)
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [
-            {"source": "value.stopped", "target": "outState"},
-            {"source": "value.1", "target": "break"},
-            {"source": "value.should-not-reach", "target": "outState"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [
+        {"from": {"source": "literal", "value": "stopped"}, "to": {"target": "outState"}},
+        {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}},
+        {"from": {"source": "literal", "value": "should-not-reach"}, "to": {"target": "outState"}}
+      ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -284,8 +336,11 @@ TEST_F(ClientTransform_test, TargetBreak)
 TEST_F(ClientTransform_test, SourceValue)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value./api/v1/new", "target": "request.uri"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "literal", "value": "/api/v1/new"}, "to": {"target": "requestUri"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -295,8 +350,11 @@ TEST_F(ClientTransform_test, SourceValue)
 TEST_F(ClientTransform_test, SourceVault)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "vault.myVaultEntry", "target": "request.uri"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "vault", "key": "myVaultEntry"}, "to": {"target": "requestUri"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -306,11 +364,14 @@ TEST_F(ClientTransform_test, SourceVault)
 TEST_F(ClientTransform_test, SourceEraser)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [
-            {"source": "eraser", "target": "vault.myVaultEntry"},
-            {"source": "vault.myVaultEntry", "target": "request.uri"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "myVaultEntry"}},
+        {"from": {"source": "vault", "key": "myVaultEntry"}, "to": {"target": "requestUri"}}
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -320,8 +381,11 @@ TEST_F(ClientTransform_test, SourceEraser)
 TEST_F(ClientTransform_test, SourceInState)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "inState", "target": "request.uri"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "inState"}, "to": {"target": "requestUri"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -331,8 +395,11 @@ TEST_F(ClientTransform_test, SourceInState)
 TEST_F(ClientTransform_test, SourceMath)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "math.2+3", "target": "request.delayMs"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "math", "expression": "2+3"}, "to": {"target": "requestDelayMs"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -342,8 +409,11 @@ TEST_F(ClientTransform_test, SourceMath)
 TEST_F(ClientTransform_test, SourceRandom)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "random.10.20", "target": "request.delayMs"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "random", "min": 10, "max": 20}, "to": {"target": "requestDelayMs"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -354,8 +424,11 @@ TEST_F(ClientTransform_test, SourceRandom)
 TEST_F(ClientTransform_test, SourceTimestamp)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "timestamp.ms", "target": "var.ts"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [{"from": {"source": "timestamp", "unit": "ms"}, "to": {"target": "var", "name": "ts"}}]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -367,8 +440,17 @@ TEST_F(ClientTransform_test, SourceTimestamp)
 TEST_F(ClientTransform_test, FilterAppend)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value./api/v1/", "filter": {"Append": "resource"}, "target": "request.uri"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "/api/v1/"},
+          "filter": [{"op": "append", "value": "resource"}],
+          "to": {"target": "requestUri"}
+        }
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -378,8 +460,17 @@ TEST_F(ClientTransform_test, FilterAppend)
 TEST_F(ClientTransform_test, FilterPrepend)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value.resource", "filter": {"Prepend": "/api/v1/"}, "target": "request.uri"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "resource"},
+          "filter": [{"op": "prepend", "value": "/api/v1/"}],
+          "to": {"target": "requestUri"}
+        }
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -389,8 +480,17 @@ TEST_F(ClientTransform_test, FilterPrepend)
 TEST_F(ClientTransform_test, FilterSum)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "transform": [{"source": "value.100", "filter": {"Sum": 50}, "target": "request.delayMs"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "100"},
+          "filter": [{"op": "sum", "value": 50}],
+          "to": {"target": "requestDelayMs"}
+        }
+      ]
     })"_json;
     auto provision = provisionAndTransform();
     ASSERT_TRUE(provision);
@@ -402,8 +502,11 @@ TEST_F(ClientTransform_test, FilterSum)
 TEST_F(ClientTransform_test, TransformResponseSetsOutState)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [{"source": "value.step2", "target": "outState"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [{"from": {"source": "literal", "value": "step2"}, "to": {"target": "outState"}}]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -423,11 +526,14 @@ TEST_F(ClientTransform_test, TransformResponseSetsOutState)
 TEST_F(ClientTransform_test, TransformResponseSourceResponseBody)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [
-            {"source": "eraser", "target": "vault.respBody"},
-            {"source": "response.body", "target": "vault.respBody"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [
+        {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "respBody"}},
+        {"from": {"source": "responseBody"}, "to": {"target": "vault", "key": "respBody"}}
+      ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -448,8 +554,11 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseBody)
 TEST_F(ClientTransform_test, TransformResponseSourceResponseStatusCode)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [{"source": "response.statusCode", "target": "var.code"}]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [{"from": {"source": "responseStatusCode"}, "to": {"target": "var", "name": "code"}}]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -468,11 +577,17 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseStatusCode)
 TEST_F(ClientTransform_test, TransformResponseSourceResponseHeader)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [
-            {"source": "eraser", "target": "vault.location"},
-            {"source": "response.header.location", "target": "vault.location"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [
+        {"from": {"source": "eraser"}, "to": {"target": "vault", "key": "location"}},
+        {
+          "from": {"source": "responseHeader", "name": "location"},
+          "to": {"target": "vault", "key": "location"}
+        }
+      ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -492,11 +607,18 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeader)
 TEST_F(ClientTransform_test, TransformResponseBreakOnError)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [
-            {"source": "response.statusCode", "filter": {"DifferentFrom": "200"}, "target": "outState"},
-            {"source": "value.1", "target": "break"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [
+        {
+          "from": {"source": "responseStatusCode"},
+          "filter": [{"op": "equalTo", "value": "200", "not": true}],
+          "to": {"target": "outState"}
+        },
+        {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}}
+      ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -509,7 +631,7 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
     std::string outState = "initial";
     nghttp2::asio_http2::header_map reqHeaders;
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
-    EXPECT_EQ(outState, "500"); // DifferentFrom 200 passes, statusCode "500" written to outState
+    EXPECT_EQ(outState, "500"); // equalTo 200 negated passes, statusCode "500" written to outState
 }
 
 // ==================== TRIGGERING ====================
@@ -611,7 +733,7 @@ TEST_F(ClientTransform_test, NeedsStorageFalseForBasicProvision)
 
 TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventSource)
 {
-    client_provision_json_["transform"] = R"([{"source":"clientEvent.requestMethod","target":"request.uri"}])"_json;
+    client_provision_json_["transform"] = R"([{"from": {"source": "clientEvent", "clientEndpointId": "myServer", "requestMethod": "GET", "requestUri": "/x", "eventNumber": -1}, "to": {"target": "requestUri"}}])"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
     ASSERT_TRUE(provision != nullptr);
@@ -621,7 +743,7 @@ TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventSource)
 
 TEST_F(ClientTransform_test, NeedsStorageTrueForServerEventSource)
 {
-    client_provision_json_["transform"] = R"([{"source":"serverEvent.requestMethod","target":"request.uri"}])"_json;
+    client_provision_json_["transform"] = R"([{"from": {"source": "serverEvent", "requestMethod": "GET", "requestUri": "/x", "eventNumber": -1}, "to": {"target": "requestUri"}}])"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
     ASSERT_TRUE(provision != nullptr);
@@ -630,7 +752,7 @@ TEST_F(ClientTransform_test, NeedsStorageTrueForServerEventSource)
 
 TEST_F(ClientTransform_test, NeedsStorageTrueForClientEventToPurgeTarget)
 {
-    client_provision_json_["onResponseTransform"] = R"([{"source":"eraser","target":"clientEvent.purge"}])"_json;
+    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "eraser"}, "to": {"target": "clientEvent", "clientEndpointId": "myServer"}}])"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
     ASSERT_TRUE(provision != nullptr);
@@ -746,11 +868,12 @@ TEST_F(ClientTransform_test, ScopedVarPropagatesFromTransformToTransformResponse
 {
     // Provision sets var.marker in pre-send transform, reads it in onResponseTransform
     client_provision_json_["transform"] = R"([
-        {"source": "value.pre-send-marker", "target": "var.marker"}
+      {
+        "from": {"source": "literal", "value": "pre-send-marker"},
+        "to": {"target": "var", "name": "marker"}
+      }
     ])"_json;
-    client_provision_json_["onResponseTransform"] = R"([
-        {"source": "var.marker", "target": "var.result"}
-    ])"_json;
+    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "var", "name": "marker"}, "to": {"target": "var", "name": "result"}}])"_json;
 
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -773,7 +896,10 @@ TEST_F(ClientTransform_test, ScopedVarPropagatesAcrossOutStateChain)
     // Link 1: set var.token in onResponseTransform, outState -> "authenticated"
     client_provision_json_["outState"] = "authenticated";
     client_provision_json_["onResponseTransform"] = R"([
-        {"source": "value.my-secret-token", "target": "var.token"}
+      {
+        "from": {"source": "literal", "value": "my-secret-token"},
+        "to": {"target": "var", "name": "token"}
+      }
     ])"_json;
 
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
@@ -792,14 +918,17 @@ TEST_F(ClientTransform_test, ScopedVarPropagatesAcrossOutStateChain)
 
     // Link 2: read var.token into request header (same variables_ map = chain propagation)
     nlohmann::json link2 = R"({
-        "id": "myFlow",
-        "endpoint": "myServer",
-        "inState": "authenticated",
-        "requestMethod": "GET",
-        "requestUri": "/api/v1/data",
-        "transform": [
-            {"source": "var.token", "target": "request.header.x-auth"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "inState": "authenticated",
+      "requestMethod": "GET",
+      "requestUri": "/api/v1/data",
+      "transform": [
+        {
+          "from": {"source": "var", "name": "token"},
+          "to": {"target": "requestHeader", "name": "x-auth"}
+        }
+      ]
     })"_json;
 
     EXPECT_EQ(adata_.loadClientProvision(link2, common_resources_), h2agent::model::AdminClientProvisionData::Success);
@@ -819,10 +948,11 @@ TEST_F(ClientTransform_test, ScopedVarPropagatesAcrossOutStateChain)
 TEST_F(ClientTransform_test, TransformResponseSourceResponseHeaders)
 {
     client_provision_json_ = R"({
-        "id": "myFlow", "endpoint": "myServer", "requestMethod": "GET", "requestUri": "/test",
-        "onResponseTransform": [
-            {"source": "response.headers", "target": "vault.resp_hdrs"}
-        ]
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [{"from": {"source": "responseHeaders"}, "to": {"target": "vault", "key": "resp_hdrs"}}]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
     auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
@@ -935,4 +1065,138 @@ TEST_F(ClientTransform_test, DynamicsNextSequenceWrapsWithRepeat)
     EXPECT_EQ(dyn["sequence"], 10);
     EXPECT_EQ(dyn["state"], "paused");
     EXPECT_EQ(dyn["nextSequence"], 0);           // wraps to begin because repeat is enabled
+}
+
+// Regression (CT filter_test test_023, client side): empty header arrays are
+// values (v1 RequestHeaders/ResponseHeaders never fail), so JsonConstraint runs.
+TEST_F(ClientTransform_test, SourceRequestHeadersEmptyJsonConstraintFails)
+{
+    client_provision_json_ = R"({
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "transform": [
+        {
+          "from": {"source": "requestHeaders"},
+          "filter": [{"op": "jsonConstraint", "value": [{"name": "x-mandatory"}]}],
+          "to": {"target": "var", "name": "h"}
+        },
+        {
+          "from": {"source": "var", "name": "h.fail"},
+          "filter": [{"op": "conditionVar", "name": "h", "not": true}],
+          "to": {"target": "vault", "key": "requestHeadersFail"}
+        }
+      ]
+    })"_json;
+    variables_["h"] = "1";  // stale chain value must be overwritten
+    provisionAndTransform();
+
+    EXPECT_EQ(variables_["h"], "");
+    nlohmann::json stored;
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("requestHeadersFail", stored));
+    EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
+}
+
+TEST_F(ClientTransform_test, TransformResponseSourceResponseHeadersEmptyJsonConstraintFails)
+{
+    client_provision_json_ = R"({
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [
+        {
+          "from": {"source": "responseHeaders"},
+          "filter": [{"op": "jsonConstraint", "value": [{"name": "x-mandatory"}]}],
+          "to": {"target": "var", "name": "r"}
+        },
+        {
+          "from": {"source": "var", "name": "r.fail"},
+          "filter": [{"op": "conditionVar", "name": "r", "not": true}],
+          "to": {"target": "vault", "key": "responseHeadersFail"}
+        }
+      ]
+    })"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision);
+
+    ert::http2comm::Http2Client::response fakeResponse;
+    fakeResponse.statusCode = 200;
+    fakeResponse.body = R"({"result":"ok"})";  // no response headers at all
+
+    std::string outState = "initial";
+    nghttp2::asio_http2::header_map reqHeaders;
+    variables_["r"] = "1";
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
+
+    EXPECT_EQ(variables_["r"], "");
+    nlohmann::json stored;
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("responseHeadersFail", stored));
+    EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
+}
+
+// v1 parity: request header writes are visible to later header reads in the same
+// pipeline (v1 emplaced them into the live header map).
+TEST_F(ClientTransform_test, RequestHeaderWrittenThenReadInSamePipeline)
+{
+    client_provision_json_ = R"({
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "POST",
+      "requestUri": "/test",
+      "requestBody": {},
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "abc"},
+          "to": {"target": "requestHeader", "name": "x-a"}
+        },
+        {
+          "from": {"source": "requestHeader", "name": "x-a"},
+          "to": {"target": "requestBody", "path": "/h"}
+        },
+        {
+          "from": {"source": "requestHeaders"},
+          "filter": [{"op": "cast", "type": "object"}],
+          "to": {"target": "requestBody", "path": "/all"}
+        }
+      ]
+    })"_json;
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision);
+    nlohmann::json body = nlohmann::json::parse(request_body_);
+    EXPECT_EQ(body["h"], "abc");
+    bool listed = false;
+    for (const auto &h : body["all"]) if (h["name"] == "x-a" && h["value"] == "abc") listed = true;
+    EXPECT_TRUE(listed);
+}
+
+TEST_F(ClientTransform_test, RequestHeaderRewriteKeepsFirstValueOnRead)
+{
+    // header_map is a multimap: a write adds a value and find() keeps returning the
+    // first one (the provisioned value), exactly as v1 did; both are finally sent.
+    client_provision_json_ = R"({
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "POST",
+      "requestUri": "/test",
+      "requestBody": {},
+      "requestHeaders": {"x-a": "orig"},
+      "transform": [
+        {
+          "from": {"source": "literal", "value": "new"},
+          "to": {"target": "requestHeader", "name": "x-a"}
+        },
+        {
+          "from": {"source": "requestHeader", "name": "x-a"},
+          "to": {"target": "requestBody", "path": "/h"}
+        }
+      ]
+    })"_json;
+    auto provision = provisionAndTransform();
+    ASSERT_TRUE(provision);
+    nlohmann::json body = nlohmann::json::parse(request_body_);
+    EXPECT_EQ(body["h"], "orig");
+    EXPECT_EQ(request_headers_.count("x-a"), 2u);
 }

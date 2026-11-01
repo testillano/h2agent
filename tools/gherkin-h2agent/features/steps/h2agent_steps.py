@@ -32,7 +32,7 @@ def _dump_or_exec(context, label, method, path, body=None, params=None,
 
     url = context.h2.admin_url(path)
     if method == "POST":
-        r = context.h2.post_json(url, body)
+        r = context.h2.post_json(url, body) if body is not None else context.h2.post(url, params=params)
     elif method == "PUT":
         r = context.h2.put_json(url, body) if body else context.h2.put(url, params=params)
     elif method == "GET":
@@ -142,23 +142,10 @@ def step_provision_response_schema(context, schema_id):
     context.provision["responseSchemaId"] = schema_id
 
 
-@step(f'with transform from {Q} to {Q} and filter {Q}')
-def step_provision_transform_string_filter(context, source, target, filt):
-    item = {"source": source, "target": target, "filter": filt}
-    context.provision.setdefault("transform", []).append(item)
-
-
-@step(f'with transform from {Q} to {Q} and filter')
-def step_provision_transform_filter(context, source, target):
-    item = {"source": source, "target": target, "filter": _parse_json(context.text)}
-    context.provision.setdefault("transform", []).append(item)
-
-
-@step(f'with transform from {Q} to {Q}')
-def step_provision_transform(context, source, target):
-    context.provision.setdefault("transform", []).append(
-        {"source": source, "target": target}
-    )
+@step('with transform')
+def step_provision_transform(context):
+    """One grammar v2 rule (from/filter/to) in the doc string."""
+    context.provision.setdefault("transform", []).append(_parse_json(context.text))
 
 
 @step('with transforms')
@@ -316,23 +303,10 @@ def step_provision_timeout(context, ms):
     context.provision["timeoutMs"] = int(ms)
 
 
-@step(f'with on-response transform from {Q} to {Q} and filter {Q}')
-def step_provision_on_response_transform_string_filter(context, source, target, filt):
-    item = {"source": source, "target": target, "filter": filt}
-    context.provision.setdefault("onResponseTransform", []).append(item)
-
-
-@step(f'with on-response transform from {Q} to {Q} and filter')
-def step_provision_on_response_transform_filter(context, source, target):
-    item = {"source": source, "target": target, "filter": _parse_json(context.text)}
-    context.provision.setdefault("onResponseTransform", []).append(item)
-
-
-@step(f'with on-response transform from {Q} to {Q}')
-def step_provision_on_response_transform(context, source, target):
-    context.provision.setdefault("onResponseTransform", []).append(
-        {"source": source, "target": target}
-    )
+@step('with on-response transform')
+def step_provision_on_response_transform(context):
+    """One grammar v2 rule (from/filter/to) in the doc string."""
+    context.provision.setdefault("onResponseTransform", []).append(_parse_json(context.text))
 
 
 @step('with on-response transforms')
@@ -359,15 +333,15 @@ def step_client_provision_json(context):
 
 @when(f'client provision {Q} is triggered with sequence {D}')
 def step_trigger_client_provision_seq(context, prov_id, seq):
-    _dump_or_exec(context, f"trigger-{prov_id}", "GET",
-                  f"client-provision/{prov_id}",
+    _dump_or_exec(context, f"trigger-{prov_id}", "POST",
+                  f"client-provision/{prov_id}/trigger",
                   params={"sequence": int(seq)}, expected_codes=None)
 
 
 @when(f'client provision {Q} is triggered from {D} to {D} at {D} cps')
 def step_trigger_client_provision_range(context, prov_id, begin, end, cps):
-    _dump_or_exec(context, f"trigger-{prov_id}", "GET",
-                  f"client-provision/{prov_id}",
+    _dump_or_exec(context, f"trigger-{prov_id}", "POST",
+                  f"client-provision/{prov_id}/trigger",
                   params={"sequenceBegin": int(begin), "sequenceEnd": int(end),
                           "cps": int(cps)},
                   expected_codes=None)
@@ -375,15 +349,15 @@ def step_trigger_client_provision_range(context, prov_id, begin, end, cps):
 
 @when(f'client provision {Q} cps is set to {D}')
 def step_trigger_client_provision_cps_only(context, prov_id, cps):
-    _dump_or_exec(context, f"trigger-{prov_id}", "GET",
-                  f"client-provision/{prov_id}",
+    _dump_or_exec(context, f"trigger-{prov_id}", "POST",
+                  f"client-provision/{prov_id}/trigger",
                   params={"cps": int(cps)}, expected_codes=None)
 
 
 @when(f'client provision {Q} is triggered')
 def step_trigger_client_provision(context, prov_id):
-    _dump_or_exec(context, f"trigger-{prov_id}", "GET",
-                  f"client-provision/{prov_id}", expected_codes=None)
+    _dump_or_exec(context, f"trigger-{prov_id}", "POST",
+                  f"client-provision/{prov_id}/trigger", expected_codes=None)
 
 
 # ---------------------------------------------------------------------------

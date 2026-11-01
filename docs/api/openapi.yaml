@@ -3,7 +3,7 @@ info:
   title: h2agent Management API
   description: |
     REST API to manage h2agent mock behavior for HTTP/2 traffic testing.
-    All operations are served under the `/admin/v1/` base path on the
+    All operations are served under the `/admin/v2/` base path on the
     management port (default 8074).
   version: "1.0"
   license:
@@ -18,6 +18,8 @@ servers:
     description: Default management endpoint
 
 tags:
+  - name: api-schema
+    description: Json schemas of the admin resources
   - name: schema
     description: Validation schemas management
   - name: vault
@@ -44,7 +46,51 @@ tags:
 paths:
   # ===== GENERAL =====
 
-  /admin/v1/schema:
+  /admin/v2/api-schema:
+    get:
+      tags: [api-schema]
+      summary: List the admin resources with a published json schema
+      responses:
+        '200':
+          description: Resource names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  enum: [server-matching, server-provision, client-endpoint, client-provision, schema, vault]
+
+  /admin/v2/api-schema/{resource}:
+    get:
+      tags: [api-schema]
+      summary: Retrieve the json schema of an admin resource
+      description: >
+        Json schema the agent validates the resource admin requests against (the
+        provision schemas include the transformation grammar). '$id' is set to the
+        request URI. The former /admin/v2/<resource>/schema paths answer 410 Gone.
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [server-matching, server-provision, client-endpoint, client-provision, schema, vault]
+      responses:
+        '200':
+          description: Schema definition retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Unknown resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+
+  /admin/v2/schema:
     post:
       tags: [schema]
       summary: Load validation schema(s)
@@ -98,19 +144,7 @@ paths:
         '204':
           description: No schemas to delete
 
-  /admin/v1/schema/schema:
-    get:
-      tags: [schema]
-      summary: Retrieve the schema operation schema
-      responses:
-        '200':
-          description: Schema definition retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /admin/v1/vault:
+  /admin/v2/vault:
     post:
       tags: [vault]
       summary: Load vaults
@@ -185,19 +219,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/vault/schema:
-    get:
-      tags: [vault]
-      summary: Retrieve the vaults schema
-      responses:
-        '200':
-          description: Schema retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /admin/v1/vault/{key}/wait:
+  /admin/v2/vault/{key}/wait:
     get:
       tags: [vault]
       summary: Block until a vault changes
@@ -216,7 +238,8 @@ paths:
           in: query
           description: >
             Target value to wait for. When omitted, any change from the
-            current value triggers return.
+            current value triggers return. Scalars are compared by their
+            text (60 matches "60"); JSON objects/arrays are compared as JSON.
           schema:
             type: string
         - name: timeoutMs
@@ -241,7 +264,7 @@ paths:
         '429':
           description: Too many concurrent waiters (max 32)
 
-  /admin/v1/files:
+  /admin/v2/files:
     get:
       tags: [files]
       summary: Retrieve processed files list
@@ -257,7 +280,7 @@ paths:
         '204':
           description: No files processed
 
-  /admin/v1/files/configuration:
+  /admin/v2/files/configuration:
     get:
       tags: [files]
       summary: Retrieve files read-cache configuration
@@ -285,7 +308,7 @@ paths:
         '400':
           description: Missing or invalid readCache value
 
-  /admin/v1/udp-sockets:
+  /admin/v2/udp-sockets:
     get:
       tags: [data]
       summary: Retrieve the list of managed UDP write sockets
@@ -301,7 +324,7 @@ paths:
         '204':
           description: No UDP sockets managed
 
-  /admin/v1/malloc-trim:
+  /admin/v2/malloc-trim:
     get:
       tags: [general]
       summary: Release free heap memory back to the system (malloc_trim)
@@ -320,7 +343,7 @@ paths:
                     type: string
                     enum: [memory released, nothing to release]
 
-  /admin/v1/logging:
+  /admin/v2/logging:
     get:
       tags: [logging]
       summary: Retrieve current logging level
@@ -346,7 +369,7 @@ paths:
         '400':
           description: Invalid log level
 
-  /admin/v1/health:
+  /admin/v2/health:
     get:
       tags: [health]
       summary: Health check for liveness and readiness probes
@@ -362,7 +385,7 @@ paths:
                     type: string
                     example: healthy
 
-  /admin/v1/configuration:
+  /admin/v2/configuration:
     get:
       tags: [configuration]
       summary: Retrieve general process configuration
@@ -374,7 +397,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/GeneralConfiguration'
 
-  /admin/v1/server/configuration:
+  /admin/v2/capabilities:
+    get:
+      tags: [configuration]
+      summary: Retrieve capabilities (diagnostics)
+      description: >
+        Admin API version, program version and provision transformation grammar
+        accepted by this binary. Diagnostics only: clients use the admin API
+        version they were written for. Retired versions (e.g. /admin/v1/...)
+        are answered with 410 Gone and a hint to the current one.
+      responses:
+        '200':
+          description: Capabilities retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiVersion: { type: string, example: v2 }
+                  programVersion: { type: string, example: v5.0.0 }
+                  grammar: { type: string, example: v1 }
+
+  /admin/v2/server/configuration:
     put:
       tags: [configuration]
       summary: Update server configuration
@@ -409,7 +453,7 @@ paths:
 
   # ===== SERVER MOCK =====
 
-  /admin/v1/server-matching:
+  /admin/v2/server-matching:
     post:
       tags: [server-matching]
       summary: Configure server matching algorithm
@@ -448,19 +492,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerMatching'
 
-  /admin/v1/server-matching/schema:
-    get:
-      tags: [server-matching]
-      summary: Retrieve the server matching schema
-      responses:
-        '200':
-          description: Schema retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /admin/v1/server-provision:
+  /admin/v2/server-provision:
     post:
       tags: [server-provision]
       summary: Configure server provision(s)
@@ -515,19 +547,7 @@ paths:
         '204':
           description: No provisions to delete
 
-  /admin/v1/server-provision/schema:
-    get:
-      tags: [server-provision]
-      summary: Retrieve the server provision schema
-      responses:
-        '200':
-          description: Schema retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /admin/v1/server-provision/unused:
+  /admin/v2/server-provision/unused:
     get:
       tags: [server-provision]
       summary: Retrieve unused server provisions
@@ -546,7 +566,7 @@ paths:
         '204':
           description: No unused provisions
 
-  /admin/v1/server-data/configuration:
+  /admin/v2/server-data/configuration:
     put:
       tags: [server-data]
       summary: Update server data storage configuration
@@ -555,7 +575,8 @@ paths:
         discard=true&discardKeyHistory=true (nothing stored),
         discard=false&discardKeyHistory=true (last event per key only),
         discard=false&discardKeyHistory=false (full history).
-        disablePurge controls purge execution independently.
+        disablePurge controls purge execution independently, and executionTrace the
+        storage of the transformation pipeline trace in each event.
       parameters:
         - name: discard
           in: query
@@ -567,6 +588,11 @@ paths:
             type: boolean
         - name: disablePurge
           in: query
+          schema:
+            type: boolean
+        - name: executionTrace
+          in: query
+          description: Store the transformation pipeline execution trace in each event ('executionTrace' array)
           schema:
             type: boolean
       responses:
@@ -585,7 +611,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataStorageConfiguration'
 
-  /admin/v1/server-data:
+  /admin/v2/server-data:
     get:
       tags: [server-data]
       summary: Retrieve server data events
@@ -674,7 +700,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/server-data/summary:
+  /admin/v2/server-data/summary:
     get:
       tags: [server-data]
       summary: Retrieve server data summary
@@ -695,7 +721,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServerDataSummary'
 
-  /admin/v1/server-data/sequence:
+  /admin/v2/server-data/sequence:
     get:
       tags: [data]
       summary: Retrieve server event sequence (time-ordered)
@@ -733,7 +759,7 @@ paths:
 
   # ===== CLIENT MOCK =====
 
-  /admin/v1/client-endpoint:
+  /admin/v2/client-endpoint:
     post:
       tags: [client-endpoint]
       summary: Define client endpoint(s)
@@ -798,19 +824,7 @@ paths:
         '204':
           description: No endpoints to delete
 
-  /admin/v1/client-endpoint/schema:
-    get:
-      tags: [client-endpoint]
-      summary: Retrieve the client endpoint schema
-      responses:
-        '200':
-          description: Schema retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /admin/v1/client-provision:
+  /admin/v2/client-provision:
     post:
       tags: [client-provision]
       summary: Configure client provision(s)
@@ -867,19 +881,7 @@ paths:
         '204':
           description: No provisions to delete
 
-  /admin/v1/client-provision/schema:
-    get:
-      tags: [client-provision]
-      summary: Retrieve the client provision schema
-      responses:
-        '200':
-          description: Schema retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-
-  /admin/v1/client-provision/unused:
+  /admin/v2/client-provision/unused:
     get:
       tags: [client-provision]
       summary: Retrieve unused client provisions
@@ -897,12 +899,14 @@ paths:
         '204':
           description: No unused provisions
 
-  /admin/v1/client-provision/{id}:
-    get:
+  /admin/v2/client-provision/{id}/trigger:
+    post:
       tags: [client-provision]
       summary: Trigger client provision
       description: >
-        Triggers a client provision by its identifier. Without extra
+        Triggers a client provision by its identifier (no request body: options go
+        in the query). The former GET /admin/v2/client-provision/{id} answers 410
+        Gone. Without extra
         query parameters, sends a single request with sequence=0.
         With sequenceBegin/sequenceEnd/cps, triggers multiple requests
         at the specified rate for load testing.
@@ -968,7 +972,7 @@ paths:
         '404':
           description: Provision not found
 
-  /admin/v1/client-data/configuration:
+  /admin/v2/client-data/configuration:
     put:
       tags: [client-data]
       summary: Update client data storage configuration
@@ -989,6 +993,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: executionTrace
+          in: query
+          description: Store the transformation pipeline execution trace in each event ('executionTrace' array)
+          schema:
+            type: boolean
       responses:
         '200':
           description: Configuration updated
@@ -1005,7 +1014,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataStorageConfiguration'
 
-  /admin/v1/client/dispatch-latency:
+  /admin/v2/client/dispatch-latency:
     get:
       tags: [client]
       summary: Retrieve worker pool dispatch latency statistics
@@ -1049,7 +1058,7 @@ paths:
                     type: integer
                     description: Total ticks discarded due to pool congestion (--traffic-client-pool-max-pending)
 
-  /admin/v1/client-data:
+  /admin/v2/client-data:
     get:
       tags: [client-data]
       summary: Retrieve client data events
@@ -1147,7 +1156,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v1/client-data/summary:
+  /admin/v2/client-data/summary:
     get:
       tags: [client-data]
       summary: Retrieve client data summary
@@ -1168,7 +1177,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClientDataSummary'
 
-  /admin/v1/client-data/sequence:
+  /admin/v2/client-data/sequence:
     get:
       tags: [data]
       summary: Retrieve client event sequence (time-ordered)
@@ -1368,183 +1377,902 @@ components:
 
     TransformFilter:
       oneOf:
-        - type: string
-          enum: [Size]
-          description: >
-            Parameterless filter. Size returns the number of elements
-            (object keys, array items) or string length.
-        - type: object
-          additionalProperties: false
-          description: >
-            Optional filter applied over source before storing in target.
-            Exactly one filter type must be specified.
-          properties:
-            RegexCapture:
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - regexCapture
+            type: string
+          rgx:
+            type: string
+        required:
+        - op
+        - rgx
+        type: object
+      - additionalProperties: false
+        properties:
+          fmt:
+            type: string
+          op:
+            enum:
+            - regexReplace
+            type: string
+          rgx:
+            type: string
+        required:
+        - op
+        - rgx
+        - fmt
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - regexKey
+            type: string
+          rgx:
+            type: string
+        required:
+        - op
+        - rgx
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - append
+            type: string
+          value:
+            type: string
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - prepend
+            type: string
+          value:
+            type: string
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - sum
+            type: string
+          value:
+            type: number
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - multiply
+            type: string
+          value:
+            type: number
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            pattern: ^[^!]
+            type: string
+          not:
+            type: boolean
+          op:
+            enum:
+            - conditionVar
+            type: string
+        required:
+        - op
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          not:
+            type: boolean
+          op:
+            enum:
+            - equalTo
+            type: string
+          value:
+            type: string
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - jsonConstraint
+            type: string
+          value:
+            type:
+            - object
+            - array
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          id:
+            type: string
+          op:
+            enum:
+            - schemaId
+            type: string
+        required:
+        - op
+        - id
+        type: object
+      - additionalProperties: false
+        properties:
+          count:
+            minimum: 1
+            type: integer
+          filler:
+            type: string
+          numeric:
+            type: boolean
+          op:
+            enum:
+            - split
+            type: string
+          sep:
+            type: string
+          size:
+            minimum: 1
+            type: integer
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          capital:
+            type: boolean
+          in:
+            maximum: 36
+            minimum: 2
+            type: integer
+          op:
+            enum:
+            - baseConvert
+            type: string
+          out:
+            maximum: 36
+            minimum: 2
+            type: integer
+        required:
+        - op
+        - in
+        - out
+        type: object
+      - additionalProperties: false
+        properties:
+          fmt:
+            type: string
+          op:
+            enum:
+            - strptime
+            type: string
+          unit:
+            enum:
+            - s
+            - ms
+            - us
+            - ns
+            type: string
+        required:
+        - op
+        - fmt
+        type: object
+      - additionalProperties: false
+        properties:
+          fmt:
+            type: string
+          op:
+            enum:
+            - strftime
+            type: string
+          unit:
+            enum:
+            - s
+            - ms
+            - us
+            - ns
+            type: string
+        required:
+        - op
+        - fmt
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - size
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - cast
+            type: string
+          type:
+            enum:
+            - string
+            - integer
+            - unsigned
+            - float
+            - boolean
+            - object
+            - json
+            type: string
+        required:
+        - op
+        - type
+        type: object
+      description: 'Filter item: {"op": <op>, ...fields}. Filters run in list order; a final cast converts the value
+        for json body / vault targets.'
+
+    ServerTransformSource:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestUri
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestUriPath
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - requestUriParam
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          source:
+            enum:
+            - requestBody
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - requestHeader
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestHeaders
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          source:
+            enum:
+            - responseBody
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - responseHeaders
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - eraser
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          expression:
+            type: string
+          source:
+            enum:
+            - math
+            type: string
+        required:
+        - source
+        - expression
+        type: object
+      - additionalProperties: false
+        properties:
+          max:
+            type: integer
+          min:
+            type: integer
+          source:
+            enum:
+            - random
+            type: string
+        required:
+        - source
+        - min
+        - max
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - randomset
+            type: string
+          values:
+            items:
               type: string
-              description: Regex with optional capture groups applied to source
-            RegexReplace:
-              type: object
-              additionalProperties: false
-              required: [rgx, fmt]
-              properties:
-                rgx:
-                  type: string
-                fmt:
-                  type: string
-            Append:
+            minItems: 1
+            type: array
+        required:
+        - source
+        - values
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - timestamp
+            type: string
+          unit:
+            enum:
+            - s
+            - ms
+            - us
+            - ns
+            type: string
+        required:
+        - source
+        - unit
+        type: object
+      - additionalProperties: false
+        properties:
+          fmt:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - strftime
+            type: string
+        required:
+        - source
+        - fmt
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - recvseq
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          source:
+            enum:
+            - var
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          key:
+            pattern: ^[^.]+$
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          source:
+            enum:
+            - vault
+            type: string
+        required:
+        - source
+        - key
+        type: object
+      - additionalProperties: false
+        properties:
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
               type: string
-              description: String appended to source (admits variable substitution)
-            Prepend:
+          eventPath:
+            type: string
+          recvseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
               type: string
-              description: String prepended to source (admits variable substitution)
-            Sum:
-              type: number
-              description: Added to numeric source (negative/float allowed)
-            Multiply:
-              type: number
-              description: Multiplied with numeric source (negative/<1 allowed)
-            ConditionVar:
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          requestUriStartsWith:
+            type: string
+          source:
+            enum:
+            - serverEvent
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          clientEndpointId:
+            minLength: 1
+            type: string
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
               type: string
-              pattern: '^!?.*$'
-              description: >
-                Conditional transfer based on variable boolean interpretation.
-                Prefix with ! to invert condition.
-            EqualTo:
+          eventPath:
+            type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          requestUriStartsWith:
+            type: string
+          sendseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
               type: string
-              description: Conditional transfer if source equals value (admits variable substitution)
-            DifferentFrom:
+          source:
+            enum:
+            - clientEvent
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - literal
+            type: string
+          value:
+            type: string
+        required:
+        - source
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - inState
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - txtFile
+            type: string
+        required:
+        - source
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - binFile
+            type: string
+        required:
+        - source
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          command:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - command
+            type: string
+        required:
+        - source
+        - command
+        type: object
+      description: 'Server ''from'' stage: {"source": <kind>, ...fields}.'
+
+    ServerTransformTarget:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - responseBodyText
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - responseBodyHex
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          target:
+            enum:
+            - responseBody
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - responseHeader
+            type: string
+        required:
+        - target
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - responseStatusCode
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - responseDelayMs
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          target:
+            enum:
+            - var
+            type: string
+        required:
+        - target
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          key:
+            pattern: ^[^.]+$
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          target:
+            enum:
+            - vault
+            type: string
+        required:
+        - target
+        - key
+        type: object
+      - additionalProperties: false
+        properties:
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
               type: string
-              description: Conditional transfer if source differs from value (admits variable substitution)
-            JsonConstraint:
-              type: [object, array]
-              description: >
-                JSON subset validation against source. For an object, every key/value
-                must exist in the source. For an array, every element must exist
-                somewhere in the source array (object elements use partial, recursive
-                matching). Useful with request.headers source to validate mandatory
-                headers.
-            SchemaId:
+          recvseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
               type: string
-              description: Registered schema identifier for JSON schema validation
-            Split:
-              type: object
-              additionalProperties: false
-              description: >
-                Splits source string into fixed-size groups joined by a separator.
-                Takes the last (size×count) characters, pads on the left with filler
-                if shorter, and optionally strips leading zeros per group.
-              properties:
-                size:
-                  type: integer
-                  minimum: 1
-                  default: 2
-                  description: Characters per group
-                count:
-                  type: integer
-                  minimum: 1
-                  default: 4
-                  description: Number of groups
-                sep:
-                  type: string
-                  default: '.'
-                  description: Separator between groups
-                filler:
-                  type: string
-                  default: '0'
-                  description: Left-padding string repeated to reach size×count length (empty to disable padding)
-                numeric:
-                  type: boolean
-                  default: false
-                  description: Strip leading zeros in each group (stoull conversion)
-            BaseConvert:
-              type: object
-              additionalProperties: false
-              required: [in, out]
-              description: >
-                Converts source between numeric bases (2–36).
-                Falls back to source unchanged on conversion error.
-              properties:
-                in:
-                  type: integer
-                  minimum: 2
-                  maximum: 36
-                  description: Input base
-                out:
-                  type: integer
-                  minimum: 2
-                  maximum: 36
-                  description: Output base
-                capital:
-                  type: boolean
-                  default: false
-                  description: Use uppercase letters for digits above 9
-            Strptime:
-              type: object
-              additionalProperties: false
-              required: [fmt]
-              description: >
-                Parses a date/time string into a numeric epoch timestamp (UTC).
-                Uses POSIX strptime + timegm.
-              properties:
-                fmt:
-                  type: string
-                  description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
-                unit:
-                  type: string
-                  enum: [s, ms, us, ns]
-                  default: s
-                  description: "Output unit for the epoch value"
-            Strftime:
-              type: object
-              additionalProperties: false
-              required: [fmt]
-              description: >
-                Formats a numeric epoch timestamp into a date/time string (UTC).
-                Source must be numeric. Uses gmtime_r + strftime.
-              properties:
-                fmt:
-                  type: string
-                  description: "Format string (e.g. %Y-%m-%dT%H:%M:%S)"
-                unit:
-                  type: string
-                  enum: [s, ms, us, ns]
-                  default: s
-                  description: "Input unit of the epoch value"
-            RegexKey:
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          target:
+            enum:
+            - serverEvent
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        dependentRequired:
+          uri:
+          - method
+        properties:
+          method:
+            enum:
+            - POST
+            - GET
+            - PUT
+            - DELETE
+            - HEAD
+            type: string
+          target:
+            enum:
+            - outState
+            type: string
+          uri:
+            minLength: 1
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - txtFile
+            type: string
+        required:
+        - target
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - binFile
+            type: string
+        required:
+        - target
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          delayMs:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - minLength: 1
               type: string
-              description: >
-                Regex pattern matched against JSON object keys. Returns the value
-                of the first matching key. Source must be a JSON object.
+          socket:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - udpSocket
+            type: string
+        required:
+        - target
+        - socket
+        type: object
+      - additionalProperties: false
+        properties:
+          id:
+            pattern: ^[^.]+$
+            type: string
+          inState:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - clientProvision
+            type: string
+        required:
+        - target
+        - id
+        - inState
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - stop
+            type: string
+        required:
+        - target
+        type: object
+      description: 'Server ''to'' stage: {"target": <kind>, ...fields}.'
 
     ServerTransformItem:
-      type: object
-      required: [source, target]
-      minProperties: 2
-      maxProperties: 3
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            from:
+              properties:
+                source:
+                  enum:
+                  - eraser
+              required:
+              - source
+          required:
+          - from
+        then:
+          properties:
+            filter:
+              items:
+                properties:
+                  op:
+                    enum:
+                    - conditionVar
+                    - cast
+                required:
+                - op
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - serverEvent
+                  - clientEvent
+              required:
+              - target
+          required:
+          - to
+        then:
+          properties:
+            from:
+              properties:
+                source:
+                  enum:
+                  - eraser
+              required:
+              - source
+          required:
+          - from
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - stop
+                  - clientProvision
+              required:
+              - target
+          required:
+          - to
+        then:
+          not:
+            properties:
+              from:
+                properties:
+                  source:
+                    enum:
+                    - eraser
+                required:
+                - source
+            required:
+            - from
       properties:
-        source:
-          type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|headers)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^recvseq$|^(var|vault|serverEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
-          description: >
-            Data source expression. Examples: request.uri, request.body,
-            request.body./path, request.header.<name>, request.headers,
-            response.body, response.headers, eraser, math.<expr>,
-            random.<min>.<max>, randomset.<values>, timestamp.<unit>,
-            strftime.<fmt>, recvseq, var.<id>, vault.<id>,
-            value.<val>, serverEvent.<params>, inState, txtFile.<path>,
-            binFile.<path>, command.<cmd>
-        target:
-          type: string
-          pattern: '^response\.body\.(string$|hexstring$)|^response\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^response\.(header\..+|statusCode|delayMs)$|^(var|vault|serverEvent)\..+|^outState(\.(POST|GET|PUT|DELETE|HEAD)(\..+)?)?$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
-          description: >
-            Data target expression. Examples: response.body.string,
-            response.body.json.object./path, response.header.<name>,
-            response.statusCode, response.delayMs, var.<id>,
-            vault.<id>, vault.<id>.json.object, vault.<id>.json.jsonstring,
-            outState, txtFile.<path>, binFile.<path>,
-            udpSocket.<path>, serverEvent.<params>, break
-      additionalProperties:
-        $ref: '#/components/schemas/TransformFilter'
+        filter:
+          items:
+            $ref: '#/components/schemas/TransformFilter'
+          minItems: 1
+          type: array
+        from:
+          $ref: '#/components/schemas/ServerTransformSource'
+        onFilterFail:
+          items:
+            $ref: '#/components/schemas/ServerTransformItem'
+          minItems: 1
+          type: array
+        to:
+          $ref: '#/components/schemas/ServerTransformTarget'
+      required:
+      - from
+      - to
+      type: object
+      description: 'Server transformation rule: from -> [filter] -> to. Grammar v2 (docs/developers/GrammarV2.md).'
 
     ServerProvision:
       type: object
@@ -1619,59 +2347,1169 @@ components:
           type: boolean
           description: "Process requests through this endpoint (default: true)"
 
+    ClientRequestTransformSource:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestUri
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          source:
+            enum:
+            - requestBody
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - requestHeader
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestHeaders
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - responseHeaders
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - eraser
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          expression:
+            type: string
+          source:
+            enum:
+            - math
+            type: string
+        required:
+        - source
+        - expression
+        type: object
+      - additionalProperties: false
+        properties:
+          max:
+            type: integer
+          min:
+            type: integer
+          source:
+            enum:
+            - random
+            type: string
+        required:
+        - source
+        - min
+        - max
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - randomset
+            type: string
+          values:
+            items:
+              type: string
+            minItems: 1
+            type: array
+        required:
+        - source
+        - values
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - timestamp
+            type: string
+          unit:
+            enum:
+            - s
+            - ms
+            - us
+            - ns
+            type: string
+        required:
+        - source
+        - unit
+        type: object
+      - additionalProperties: false
+        properties:
+          fmt:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - strftime
+            type: string
+        required:
+        - source
+        - fmt
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - sendseq
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          source:
+            enum:
+            - var
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          key:
+            pattern: ^[^.]+$
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          source:
+            enum:
+            - vault
+            type: string
+        required:
+        - source
+        - key
+        type: object
+      - additionalProperties: false
+        properties:
+          clientEndpointId:
+            minLength: 1
+            type: string
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          eventPath:
+            type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          requestUriStartsWith:
+            type: string
+          sendseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
+              type: string
+          source:
+            enum:
+            - clientEvent
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          eventPath:
+            type: string
+          recvseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
+              type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          requestUriStartsWith:
+            type: string
+          source:
+            enum:
+            - serverEvent
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - literal
+            type: string
+          value:
+            type: string
+        required:
+        - source
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - inState
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - txtFile
+            type: string
+        required:
+        - source
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - binFile
+            type: string
+        required:
+        - source
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          command:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - command
+            type: string
+        required:
+        - source
+        - command
+        type: object
+      description: Client 'transform' 'from' stage.
+
+    ClientRequestTransformTarget:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - requestBodyText
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - requestBodyHex
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          target:
+            enum:
+            - requestBody
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - requestHeader
+            type: string
+        required:
+        - target
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - requestDelayMs
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - requestTimeoutMs
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - requestUri
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - requestMethod
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          target:
+            enum:
+            - var
+            type: string
+        required:
+        - target
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          key:
+            pattern: ^[^.]+$
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          target:
+            enum:
+            - vault
+            type: string
+        required:
+        - target
+        - key
+        type: object
+      - additionalProperties: false
+        properties:
+          clientEndpointId:
+            minLength: 1
+            type: string
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          sendseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
+              type: string
+          target:
+            enum:
+            - clientEvent
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - outState
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - txtFile
+            type: string
+        required:
+        - target
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - binFile
+            type: string
+        required:
+        - target
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          delayMs:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - minLength: 1
+              type: string
+          socket:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - udpSocket
+            type: string
+        required:
+        - target
+        - socket
+        type: object
+      description: Client 'transform' 'to' stage.
+
     ClientRequestTransformItem:
-      type: object
-      required: [source, target]
-      minProperties: 2
-      maxProperties: 3
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            from:
+              properties:
+                source:
+                  enum:
+                  - eraser
+              required:
+              - source
+          required:
+          - from
+        then:
+          properties:
+            filter:
+              items:
+                properties:
+                  op:
+                    enum:
+                    - conditionVar
+                    - cast
+                required:
+                - op
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - serverEvent
+                  - clientEvent
+              required:
+              - target
+          required:
+          - to
+        then:
+          properties:
+            from:
+              properties:
+                source:
+                  enum:
+                  - eraser
+              required:
+              - source
+          required:
+          - from
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - stop
+                  - clientProvision
+              required:
+              - target
+          required:
+          - to
+        then:
+          not:
+            properties:
+              from:
+                properties:
+                  source:
+                    enum:
+                    - eraser
+                required:
+                - source
+            required:
+            - from
       properties:
-        source:
-          type: string
-          pattern: '^request\.(uri|body(\..+)?|header\..+|headers)$|^response\.headers$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
-          description: >
-            Data source for request transformation. Examples: request.uri,
-            request.body, request.headers, response.headers, eraser,
-            math.<expr>, random.<min>.<max>, randomset.<values>,
-            timestamp.<unit>, strftime.<fmt>, sendseq, var.<id>,
-            vault.<id>, clientEvent.<params>, value.<val>, inState,
-            txtFile.<path>, binFile.<path>, command.<cmd>
-        target:
-          type: string
-          pattern: '^request\.body\.(string$|hexstring$)|^request\.body\.json\.(object$|object\..+|jsonstring$|jsonstring\..+|string$|string\..+|integer$|integer\..+|unsigned$|unsigned\..+|float$|float\..+|boolean$|boolean\..+)|^request\.(header\..+|delayMs|timeoutMs)$|^(var|vault|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+'
-          description: >
-            Data target for request transformation. Examples:
-            request.body.string, request.body.json.object./path,
-            request.header.<name>, request.delayMs, request.timeoutMs,
-            var.<id>, vault.<id>, vault.<id>.json.object,
-            vault.<id>.json.jsonstring, clientEvent.<params>, outState,
-            txtFile.<path>, binFile.<path>, udpSocket.<path>
-      additionalProperties:
-        $ref: '#/components/schemas/TransformFilter'
+        filter:
+          items:
+            $ref: '#/components/schemas/TransformFilter'
+          minItems: 1
+          type: array
+        from:
+          $ref: '#/components/schemas/ClientRequestTransformSource'
+        onFilterFail:
+          items:
+            $ref: '#/components/schemas/ClientRequestTransformItem'
+          minItems: 1
+          type: array
+        to:
+          $ref: '#/components/schemas/ClientRequestTransformTarget'
+      required:
+      - from
+      - to
+      type: object
+      description: Client request transformation rule. Grammar v2 (docs/developers/GrammarV2.md).
+
+    ClientResponseTransformSource:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestUri
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestUriPath
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - requestUriParam
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          source:
+            enum:
+            - requestBody
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - requestHeader
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - requestHeaders
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          path:
+            pattern: ^/
+            type: string
+          source:
+            enum:
+            - responseBody
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - responseHeader
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - responseHeaders
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - responseStatusCode
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - eraser
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          expression:
+            type: string
+          source:
+            enum:
+            - math
+            type: string
+        required:
+        - source
+        - expression
+        type: object
+      - additionalProperties: false
+        properties:
+          max:
+            type: integer
+          min:
+            type: integer
+          source:
+            enum:
+            - random
+            type: string
+        required:
+        - source
+        - min
+        - max
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - randomset
+            type: string
+          values:
+            items:
+              type: string
+            minItems: 1
+            type: array
+        required:
+        - source
+        - values
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - timestamp
+            type: string
+          unit:
+            enum:
+            - s
+            - ms
+            - us
+            - ns
+            type: string
+        required:
+        - source
+        - unit
+        type: object
+      - additionalProperties: false
+        properties:
+          fmt:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - strftime
+            type: string
+        required:
+        - source
+        - fmt
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - sendseq
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          source:
+            enum:
+            - var
+            type: string
+        required:
+        - source
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          key:
+            pattern: ^[^.]+$
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          source:
+            enum:
+            - vault
+            type: string
+        required:
+        - source
+        - key
+        type: object
+      - additionalProperties: false
+        properties:
+          clientEndpointId:
+            minLength: 1
+            type: string
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          eventPath:
+            type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          requestUriStartsWith:
+            type: string
+          sendseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
+              type: string
+          source:
+            enum:
+            - clientEvent
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          eventPath:
+            type: string
+          recvseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
+              type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          requestUriStartsWith:
+            type: string
+          source:
+            enum:
+            - serverEvent
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - literal
+            type: string
+          value:
+            type: string
+        required:
+        - source
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - inState
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - txtFile
+            type: string
+        required:
+        - source
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - binFile
+            type: string
+        required:
+        - source
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          command:
+            minLength: 1
+            type: string
+          source:
+            enum:
+            - command
+            type: string
+        required:
+        - source
+        - command
+        type: object
+      description: Client 'onResponseTransform' 'from' stage.
+
+    ClientResponseTransformTarget:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          name:
+            minLength: 1
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          target:
+            enum:
+            - var
+            type: string
+        required:
+        - target
+        - name
+        type: object
+      - additionalProperties: false
+        properties:
+          key:
+            pattern: ^[^.]+$
+            type: string
+          path:
+            pattern: ^/.+$
+            type: string
+          target:
+            enum:
+            - vault
+            type: string
+        required:
+        - target
+        - key
+        type: object
+      - additionalProperties: false
+        properties:
+          clientEndpointId:
+            minLength: 1
+            type: string
+          eventNumber:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          requestMethod:
+            minLength: 1
+            type: string
+          requestUri:
+            type: string
+          sendseq:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - pattern: '@\{'
+              type: string
+          target:
+            enum:
+            - clientEvent
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - outState
+            type: string
+        required:
+        - target
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - txtFile
+            type: string
+        required:
+        - target
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          file:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - binFile
+            type: string
+        required:
+        - target
+        - file
+        type: object
+      - additionalProperties: false
+        properties:
+          delayMs:
+            oneOf:
+            - minimum: 0
+              type: integer
+            - minLength: 1
+              type: string
+          socket:
+            minLength: 1
+            type: string
+          target:
+            enum:
+            - udpSocket
+            type: string
+        required:
+        - target
+        - socket
+        type: object
+      - additionalProperties: false
+        properties:
+          target:
+            enum:
+            - stop
+            type: string
+        required:
+        - target
+        type: object
+      description: Client 'onResponseTransform' 'to' stage.
 
     ClientResponseTransformItem:
-      type: object
-      required: [source, target]
-      minProperties: 2
-      maxProperties: 3
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            from:
+              properties:
+                source:
+                  enum:
+                  - eraser
+              required:
+              - source
+          required:
+          - from
+        then:
+          properties:
+            filter:
+              items:
+                properties:
+                  op:
+                    enum:
+                    - conditionVar
+                    - cast
+                required:
+                - op
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - serverEvent
+                  - clientEvent
+              required:
+              - target
+          required:
+          - to
+        then:
+          properties:
+            from:
+              properties:
+                source:
+                  enum:
+                  - eraser
+              required:
+              - source
+          required:
+          - from
+      - if:
+          properties:
+            to:
+              properties:
+                target:
+                  enum:
+                  - stop
+                  - clientProvision
+              required:
+              - target
+          required:
+          - to
+        then:
+          not:
+            properties:
+              from:
+                properties:
+                  source:
+                    enum:
+                    - eraser
+                required:
+                - source
+            required:
+            - from
       properties:
-        source:
-          type: string
-          pattern: '^request\.(uri(\.(path$|param\..+))?|body(\..+)?|header\..+|headers)$|^response\.(body(\..+)?|header\..+|headers|statusCode)$|^eraser$|^math\..*|^random\.[-+]{0,1}[0-9]+\.[-+]{0,1}[0-9]+$|^randomset\..+|^timestamp\.[m|u|n]{0,1}s$|^strftime\..+|^sendseq$|^(var|vault|clientEvent)\..+|^(value)\..*|^inState$|^txtFile\..+|^binFile\..+|^command\..+'
-          description: >
-            Data source for response transformation. Includes all
-            request transform sources plus: response.body, response.body./path,
-            response.header.<name>, response.statusCode, request.uri.path,
-            request.uri.param.<name>
-        target:
-          type: string
-          pattern: '^(var|vault|clientEvent)\..+|^outState$|^txtFile\..+|^binFile\..+|^udpSocket\..+|^break$'
-          description: >
-            Data target for response transformation. Examples:
-            var.<id>, vault.<id>, vault.<id>.json.object,
-            vault.<id>.json.jsonstring, clientEvent.<params>, outState,
-            txtFile.<path>, binFile.<path>, udpSocket.<path>, break
-      additionalProperties:
-        $ref: '#/components/schemas/TransformFilter'
+        filter:
+          items:
+            $ref: '#/components/schemas/TransformFilter'
+          minItems: 1
+          type: array
+        from:
+          $ref: '#/components/schemas/ClientResponseTransformSource'
+        onFilterFail:
+          items:
+            $ref: '#/components/schemas/ClientResponseTransformItem'
+          minItems: 1
+          type: array
+        to:
+          $ref: '#/components/schemas/ClientResponseTransformTarget'
+      required:
+      - from
+      - to
+      type: object
+      description: Client response transformation rule. Grammar v2 (docs/developers/GrammarV2.md).
 
     ClientProvision:
       type: object
@@ -1751,6 +3589,9 @@ components:
     DataStorageConfiguration:
       type: object
       properties:
+        executionTrace:
+          type: boolean
+          description: Whether events include the transformation pipeline execution trace
         purgeExecution:
           type: boolean
           description: Whether purge state triggers event removal

@@ -2,33 +2,29 @@
   "requestMethod": "POST",
   "requestUri": "/app/v1/foo/bar/1?name=test&val=2",
   "responseCode": 200,
-  "responseBody":  {
-    "foo": "bar-1"
-  },
-  "responseHeaders":  {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
+    {"from": {"source": "literal", "value": "POST"}, "to": {"target": "var", "name": "requestMethod"}},
     {
-      "source": "value.POST",
-      "target": "var.requestMethod"
+      "from": {"source": "literal", "value": "/app/v1/foo/bar/1?name=test&val=2"},
+      "to": {"target": "var", "name": "requestUri"}
+    },
+    {"from": {"source": "literal", "value": "1"}, "to": {"target": "var", "name": "eventNumber"}},
+    {
+      "from": {"source": "literal", "value": "/requestBody"},
+      "to": {"target": "var", "name": "eventPath"}
     },
     {
-      "source": "value./app/v1/foo/bar/1?name=test&val=2",
-      "target": "var.requestUri"
-    },
-    {
-      "source": "value.1",
-      "target": "var.eventNumber"
-    },
-    {
-      "source": "value./requestBody",
-      "target": "var.eventPath"
-    },
-    {
-      "source": "serverEvent.requestMethod=@{requestMethod}&requestUri=@{requestUri}&eventNumber=@{eventNumber}&eventPath=@{eventPath}",
-      "target": "response.body.json.object./firstRequestBody"
+      "from": {
+        "source": "serverEvent",
+        "requestMethod": "@{requestMethod}",
+        "requestUri": "@{requestUri}",
+        "eventNumber": "@{eventNumber}",
+        "eventPath": "@{eventPath}"
+      },
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "responseBody", "path": "/firstRequestBody"}
     }
   ]
 }

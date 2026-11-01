@@ -38,6 +38,8 @@ SOFTWARE.
 
 #include <vector>
 #include <map>
+
+#include <Variables.hpp>
 #include <memory>
 
 #include <MockEvent.hpp>
@@ -52,7 +54,7 @@ namespace model
 
 class MockEventsHistory
 {
-    std::map<std::string, std::string> chain_variables_{}; // scoped variables propagated across outState chain
+    Variables chain_variables_{}; // scoped variables propagated across outState chain
 
 protected:
     std::vector<std::shared_ptr<MockEvent>> events_{};
@@ -155,7 +157,7 @@ public:
     *
     * @param vars Variables map to store
     */
-    void setChainVariables(const std::map<std::string, std::string> &vars) {
+    void setChainVariables(const Variables &vars) {
         write_guard_t guard(rw_mutex_);
         chain_variables_ = vars;
     }
@@ -164,7 +166,7 @@ public:
     *
     * @return Chain variables map
     */
-    std::map<std::string, std::string> getChainVariables() const {
+    Variables getChainVariables() const {
         read_guard_t guard(rw_mutex_);
         return chain_variables_;
     }

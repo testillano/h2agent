@@ -2,33 +2,28 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody":  {
-    "foo": "bar-1"
-  },
-  "responseHeaders":  {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "value.bye",
-      "target": "var.falseVar",
-      "filter": { "EqualTo" : "hello" }
+      "from": {"source": "literal", "value": "bye"},
+      "filter": [{"op": "equalTo", "value": "hello"}],
+      "to": {"target": "var", "name": "falseVar"}
     },
     {
-      "source": "value.hello",
-      "target": "var.trueVar",
-      "filter": { "EqualTo" : "hello" }
+      "from": {"source": "literal", "value": "hello"},
+      "filter": [{"op": "equalTo", "value": "hello"}],
+      "to": {"target": "var", "name": "trueVar"}
     },
     {
-      "source": "value.foo",
-      "target": "response.body.json.string./must-be-missing-in-response",
-      "filter": { "ConditionVar" : "falseVar" }
+      "from": {"source": "literal", "value": "foo"},
+      "filter": [{"op": "conditionVar", "name": "falseVar"}],
+      "to": {"target": "responseBody", "path": "/must-be-missing-in-response"}
     },
     {
-      "source": "value.@{trueVar}",
-      "target": "response.body.json.string./must-be-in-response",
-      "filter": { "ConditionVar" : "trueVar" }
+      "from": {"source": "literal", "value": "@{trueVar}"},
+      "filter": [{"op": "conditionVar", "name": "trueVar"}],
+      "to": {"target": "responseBody", "path": "/must-be-in-response"}
     }
   ]
 }

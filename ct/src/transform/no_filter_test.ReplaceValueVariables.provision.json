@@ -2,25 +2,14 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
+    {"from": {"source": "literal", "value": "Phil"}, "to": {"target": "var", "name": "name"}},
+    {"from": {"source": "literal", "value": "Collins"}, "to": {"target": "var", "name": "surname"}},
     {
-      "source": "value.Phil",
-      "target": "var.name"
-    },
-    {
-      "source": "value.Collins",
-      "target": "var.surname"
-    },
-    {
-      "source": "value.My name is @{name} @{surname}",
-      "target": "response.body.json.string./whoAreYou"
+      "from": {"source": "literal", "value": "My name is @{name} @{surname}"},
+      "to": {"target": "responseBody", "path": "/whoAreYou"}
     }
   ]
 }

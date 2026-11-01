@@ -2,25 +2,17 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "value.response-body-string",
-      "target": "response.body.string"
+      "from": {"source": "literal", "value": "response-body-string"},
+      "to": {"target": "responseBodyText"}
     },
+    {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}},
     {
-      "source": "value.1",
-      "target": "break"
-    },
-    {
-      "source": "value.this-wont-be-processed",
-      "target": "response.body.string"
+      "from": {"source": "literal", "value": "this-wont-be-processed"},
+      "to": {"target": "responseBodyText"}
     }
   ]
 }

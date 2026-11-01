@@ -49,11 +49,13 @@ void MockServerEventsHistory::loadEvent(const std::string &previousState, const 
                                         const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders,
                                         DataPart &requestBodyDataPart, const std::string &responseBody,
                                         std::uint64_t serverSequence, unsigned int responseDelayMs,
-                                        bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri) {
+                                        bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri,
+                                        const nlohmann::json *executionTrace) {
 
 
     auto event = std::make_shared<MockServerEvent>();
     event->load(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
+    if (executionTrace) event->setExecutionTrace(*executionTrace);  // before publishing the event
 
     MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
 }

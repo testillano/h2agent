@@ -2,31 +2,22 @@
   "requestMethod": "POST",
   "requestUri": "/app/v1/foo/bar",
   "responseCode": 200,
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "request.body",
-      "target": "var.expectedBody",
-      "filter": {
-        "JsonConstraint": {
-          "pi": 3.141,
-          "name": "Niels",
-          "object": {
-            "value": 42.99
-          }
+      "from": {"source": "requestBody"},
+      "filter": [
+        {
+          "op": "jsonConstraint",
+          "value": {"pi": 3.141, "name": "Niels", "object": {"value": 42.99}}
         }
-      }
+      ],
+      "to": {"target": "var", "name": "expectedBody"}
     },
     {
-      "source": "value.400",
-      "target": "response.statusCode",
-      "filter": {
-        "ConditionVar": "!expectedBody"
-      }
+      "from": {"source": "literal", "value": "400"},
+      "filter": [{"op": "conditionVar", "name": "expectedBody", "not": true}],
+      "to": {"target": "responseStatusCode"}
     }
   ]
 }
-

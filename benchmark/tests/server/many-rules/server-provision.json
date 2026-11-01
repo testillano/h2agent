@@ -1,0 +1,93 @@
+[
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/many-rules/user",
+    "responseCode": 200,
+    "responseBody": {"status": "ok", "user": {}},
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"from": {"source": "requestBody", "path": "/id"}, "to": {"target": "var", "name": "id"}},
+      {
+        "from": {"source": "requestBody", "path": "/name"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/user/name"}
+      },
+      {"from": {"source": "requestBody", "path": "/age"}, "to": {"target": "var", "name": "age"}},
+      {
+        "from": {"source": "var", "name": "age"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/user/age"}
+      },
+      {
+        "from": {"source": "var", "name": "age"},
+        "filter": [{"op": "sum", "value": 1}],
+        "to": {"target": "var", "name": "agePlus"}
+      },
+      {
+        "from": {"source": "var", "name": "agePlus"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/user/agePlus"}
+      },
+      {
+        "from": {"source": "requestBody", "path": "/address"},
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody", "path": "/user/address"}
+      },
+      {
+        "from": {"source": "requestBody", "path": "/address/city"},
+        "filter": [{"op": "append", "value": "-UK"}],
+        "to": {"target": "var", "name": "city"}
+      },
+      {
+        "from": {"source": "var", "name": "city"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/user/city"}
+      },
+      {
+        "from": {"source": "requestHeader", "name": "x-correlation"},
+        "to": {"target": "responseHeader", "name": "x-correlation"}
+      },
+      {
+        "from": {"source": "requestHeader", "name": "x-correlation"},
+        "to": {"target": "responseBody", "path": "/trace/correlation"}
+      },
+      {
+        "from": {"source": "vault", "key": "company"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/company"}
+      },
+      {
+        "from": {"source": "literal", "value": "@{id}-@{city}"},
+        "to": {"target": "responseBody", "path": "/key"}
+      },
+      {"from": {"source": "literal", "value": "ok"}, "to": {"target": "var", "name": "flag"}},
+      {
+        "from": {"source": "literal", "value": "premium"},
+        "filter": [{"op": "conditionVar", "name": "flag"}],
+        "to": {"target": "responseBody", "path": "/tier"}
+      },
+      {
+        "from": {"source": "requestBody", "path": "/tags"},
+        "filter": [{"op": "cast", "type": "object"}],
+        "to": {"target": "responseBody", "path": "/tags"}
+      },
+      {
+        "from": {"source": "literal", "value": "@{id}"},
+        "filter": [{"op": "prepend", "value": "user-"}],
+        "to": {"target": "var", "name": "idCopy"}
+      },
+      {
+        "from": {"source": "var", "name": "idCopy"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/user/ref"}
+      },
+      {
+        "from": {"source": "timestamp", "unit": "ms"},
+        "filter": [{"op": "cast", "type": "unsigned"}],
+        "to": {"target": "responseBody", "path": "/ts"}
+      },
+      {"from": {"source": "inState"}, "to": {"target": "responseBody", "path": "/state"}},
+      {"from": {"source": "literal", "value": "201"}, "to": {"target": "responseStatusCode"}}
+    ]
+  }
+]

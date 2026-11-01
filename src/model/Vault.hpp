@@ -68,7 +68,7 @@ inline std::string jsonToString(const nlohmann::json &j) {
  * global mutex. It is therefore backed by an N-way SHARDED Map (see Map.hpp):
  * per-key writes lock only their shard, so independent keys do not contend.
  * Whole-map operations (getJson/asJsonString/clear) lock all shards, but those
- * are administrative paths (GET/DELETE /admin/v1/vault), not the hot path.
+ * are administrative paths (GET/DELETE /admin/v2/vault), not the hot path.
  */
 class Vault : public Map<std::string, nlohmann::json, VAULT_MUTEX_SHARDS>
 {

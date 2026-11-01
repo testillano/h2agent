@@ -10,7 +10,7 @@ H2AGENT_CLIENT_ADMIN_ENDPOINT=localhost:8074
 
 h2a_curl() {
   curl -sf --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${3:+-d@$3} \
-    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/$2"
+    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/$2"
 }
 
 h2agent_server_configuration
@@ -34,5 +34,4 @@ title "Step 3: GET /enter after knocking (expect 200)" "" "*"
 EXPECTED_STATUS_CODES=200
 test_query "GET /enter (after knock)" GET "http://${H2AGENT_TRAFFIC_ENDPOINT}/enter" || exit 1
 
-echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff -- server-provision.json client-endpoint.json client-provision.json
+show_changes server-provision.json client-endpoint.json client-provision.json

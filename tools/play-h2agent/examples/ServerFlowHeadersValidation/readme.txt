@@ -5,12 +5,12 @@ mandatory headers (403 with failure detail if not):
   x-api-key: my-secret-key
   x-client-id: service-a
 
-This example demonstrates the use of 'request.headers' source
-combined with 'JsonConstraint' array filter to validate that
+This example demonstrates the use of 'requestHeaders' source
+combined with 'jsonConstraint' array filter to validate that
 specific headers are present in the request.
 
-The 'request.headers' source produces a JSON array of
-{"name": "<key>", "value": "<val>"} objects. The JsonConstraint
+The 'requestHeaders' source produces a JSON array of
+{"name": "<key>", "value": "<val>"} objects. The jsonConstraint
 array filter checks that every element in the expected array
 exists somewhere in the received array, using partial object
 matching.

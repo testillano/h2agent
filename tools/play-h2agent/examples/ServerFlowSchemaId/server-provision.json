@@ -5,22 +5,19 @@
   "responseCode": 200,
   "transform": [
     {
-      "source": "request.body",
-      "target": "var.expectedBody",
-      "filter": {
-        "SchemaId": "myFilterSchema"
-      }
+      "from": {"source": "requestBody"},
+      "filter": [{"op": "schemaId", "id": "myFilterSchema"}],
+      "to": {"target": "var", "name": "expectedBody"}
     },
     {
-      "source": "value.417",
-      "target": "response.statusCode",
-      "filter": {
-        "ConditionVar": "!expectedBody"
-      }
+      "from": {"source": "literal", "value": "417"},
+      "filter": [{"op": "conditionVar", "name": "expectedBody", "not": true}],
+      "to": {"target": "responseStatusCode"}
     },
     {
-      "source": "var.expectedBody.fail",
-      "target": "response.body.json.string./failReport"
+      "from": {"source": "var", "name": "expectedBody.fail"},
+      "filter": [{"op": "cast", "type": "string"}],
+      "to": {"target": "responseBody", "path": "/failReport"}
     }
   ]
 }

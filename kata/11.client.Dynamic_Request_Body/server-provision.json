@@ -4,6 +4,10 @@
   "responseCode": 200,
   "responseHeaders": {"content-type": "application/json"},
   "transform": [
-    {"source": "request.body", "target": "response.body.json.object"}
+    {
+      "from": {"source": "requestBody"},
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "responseBody"}
+    }
   ]
 }

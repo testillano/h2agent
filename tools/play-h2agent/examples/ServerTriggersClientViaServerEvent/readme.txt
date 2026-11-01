@@ -12,8 +12,8 @@ server request data without copying fields to intermediate variables.
 Flow:
   external POST /api/v1/webhook/notify {"event":"login","userId":"u42"}
     → server responds 200 {"status":"received"}
-    → triggers clientProvision.forwardNotification
-      → client reads serverEvent.POST./api/v1/webhook/notify.0.body
+    → triggers client provision forwardNotification (clientProvision target)
+      → client reads the last POST /api/v1/webhook/notify request body (serverEvent source)
       → client POSTs /api/v1/forward {"event":"login","userId":"u42"}
         → server responds 200 {"status":"forwarded"}
 

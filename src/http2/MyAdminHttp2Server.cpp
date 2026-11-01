@@ -60,11 +60,14 @@ SOFTWARE.
 #include <MockClientData.hpp>
 #include <Configuration.hpp>
 #include <Vault.hpp>
+#include <ProvisionReferences.hpp>
 #include <WaitManager.hpp>
 #include <SseManager.hpp>
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <functions.hpp>
+#include <GrammarMigrator.hpp>
+#include <JsonSchema.hpp>
 
 
 namespace h2agent
@@ -146,6 +149,13 @@ bool MyAdminHttp2Server::checkHeaders(const
         return true;
     }
 
+    // Client provision trigger: an action without request body (parameters go in the query):
+    static const std::string triggerSuffix = "/trigger";
+    const std::string &path = req.uri().path;
+    if (path.size() > triggerSuffix.size() && path.compare(path.size() - triggerSuffix.size(), triggerSuffix.size(), triggerSuffix) == 0) {
+        return true;
+    }
+
     auto ctype     = req.header().find("content-type");
     auto clength   = req.header().find("content-length");
     auto ctype_end = req.header().end();
@@ -166,12 +176,53 @@ bool MyAdminHttp2Server::checkHeaders(const
 }
 
 
+void MyAdminHttp2Server::receiveError(const nghttp2::asio_http2::server::request& req,
+                                      const std::string &requestBody,
+                                      unsigned int& statusCode,
+                                      nghttp2::asio_http2::header_map& headers,
+                                      std::string& responseBody,
+                                      const std::pair<int, const std::string>& error,
+                                      const std::string &location,
+                                      const std::vector<std::string>& allowedMethods)
+{
+    // Retired admin API versions: explicit 410 with migration hint (no transition period, no aliases).
+    static const std::vector<std::string> retiredVersions = {"v1"};
+    if (error.first == ert::http2comm::WRONG_API_NAME_OR_VERSION.first &&
+            error.second == ert::http2comm::WRONG_API_NAME_OR_VERSION.second) {
+        const std::string &path = req.uri().path;
+        for (const auto &v : retiredVersions) {
+            const std::string retired = "/" + getApiName() + "/" + v;
+            if (path == retired || path.rfind(retired + "/", 0) == 0) {
+                const std::string current = getApiPath();
+                const std::pair<int, const std::string> gone(
+                    ert::http2comm::ResponseCode::GONE,
+                    "API '" + retired + "' is retired: use '" + current + path.substr(retired.size()) +
+                    "'. Migrate provisions with the h2agent-migrate tool (see docs/api/README.md).");
+                ert::http2comm::Http2Server::receiveError(req, requestBody, statusCode, headers, responseBody, gone, location, allowedMethods);
+                return;
+            }
+        }
+    }
+    ert::http2comm::Http2Server::receiveError(req, requestBody, statusCode, headers, responseBody, error, location, allowedMethods);
+}
+
+std::string MyAdminHttp2Server::capabilitiesAsJsonString() const
+{
+    // Diagnostics only: clients hardcode the admin API version (no negotiation).
+    // 'grammar' is the provision transformation grammar accepted by this binary.
+    nlohmann::json result;
+    result["apiVersion"] = getApiVersion();
+    result["programVersion"] = program_version_.empty() ? "unknown" : program_version_;
+    result["grammar"] = "v2";
+    return result.dump();
+}
+
 std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
 {
     std::string result;
 
-    size_t apiPathSize = getApiPath().size(); // /admin/v1
-    size_t uriPathSize = uriPath.size(); // /admin/v1<suffix>
+    size_t apiPathSize = getApiPath().size(); // /admin/v2
+    size_t uriPathSize = uriPath.size(); // /admin/v2<suffix>
     //LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("apiPathSize %d uriPathSize %d", apiPathSize, uriPathSize),  ERT_FILE_LOCATION));
 
     // Special case
@@ -231,6 +282,23 @@ void MyAdminHttp2Server::receiveNOOP(unsigned int& statusCode, nghttp2::asio_htt
     statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
 }
 
+const std::vector<std::string> &MyAdminHttp2Server::apiSchemaResources() {
+    static const std::vector<std::string> resources = {
+        "server-matching", "server-provision", "client-endpoint", "client-provision", "schema", "vault"
+    };
+    return resources;
+}
+
+const h2agent::jsonschema::JsonSchema *MyAdminHttp2Server::apiSchemaOf(const std::string &resource) const {
+    if (resource == "server-matching") return &getAdminData()->getServerMatchingData().getSchema();
+    if (resource == "server-provision") return &getAdminData()->getServerProvisionData().getSchema();
+    if (resource == "client-endpoint") return &getAdminData()->getClientEndpointData().getSchema();
+    if (resource == "client-provision") return &getAdminData()->getClientProvisionData().getSchema();
+    if (resource == "schema") return &getAdminData()->getSchemaData().getSchema();
+    if (resource == "vault") return &getVault()->getSchema();
+    return nullptr;
+}
+
 int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "server-matching operation; ";
@@ -268,6 +336,18 @@ int MyAdminHttp2Server::serverMatching(const nlohmann::json &configurationObject
     return result;
 }
 
+namespace {
+
+/** Hint appended to a rejected provision written in the retired transformation grammar v1. */
+std::string retiredGrammarHint(const nlohmann::json &provisions) {
+    using Grammar = h2agent::migrate::GrammarMigrator::Grammar;
+    const auto grammar = h2agent::migrate::GrammarMigrator::detect(h2agent::migrate::Json::parse(provisions.dump()));
+    if (grammar != Grammar::V1 && grammar != Grammar::Mixed) return "";
+    return ": transformation grammar v1 ('source'/'target') is retired, migrate provisions with the h2agent-migrate tool (see docs/developers/GrammarV2.md)";
+}
+
+}
+
 int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const
 {
     log = "server-provision operation; ";
@@ -281,19 +361,30 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
         return ert::http2comm::ResponseCode::NOT_FOUND; // 404
     }
 
-    h2agent::model::AdminServerProvisionData::LoadResult loadResult = getAdminData()->loadServerProvision(configurationObject, common_resources_);
+    // Provision references (#{...}) are resolved once, here, against the vault
+    // (an unresolved one is kept literally and warned):
+    nlohmann::json resolved = configurationObject;
+    std::string referencesWarning;
+    if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {
+        LOGWARNING(ert::tracing::Logger::warning(referencesWarning, ERT_FILE_LOCATION));
+        warning = referencesWarning;  // also reported in the response
+    }
+
+    h2agent::model::AdminServerProvisionData::LoadResult loadResult = getAdminData()->loadServerProvision(resolved, common_resources_);
     int result = ((loadResult == h2agent::model::AdminServerProvisionData::Success) ? ert::http2comm::ResponseCode::CREATED:ert::http2comm::ResponseCode::BAD_REQUEST); // 201 or 400
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminServerProvisionData::Success) {
         log += (isArray ? "valid schemas and server provisions data received":"valid schema and server provision data received");
         if (getAdminData()->getServerProvisionData().needsStorage() && getHttp2Server() && !getHttp2Server()->isDataStored()) {
-            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
-            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+            const std::string storageWarning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(storageWarning, ERT_FILE_LOCATION));
+            warning += (warning.empty() ? "" : "; ") + storageWarning;
         }
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
+        log += retiredGrammarHint(configurationObject);
     }
     else if (loadResult == h2agent::model::AdminServerProvisionData::BadContent) {
         log += (isArray ? "detected one invalid server provision data received":"invalid server provision data received");
@@ -333,19 +424,30 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
 {
     log = "client-provision operation; ";
 
-    h2agent::model::AdminClientProvisionData::LoadResult loadResult = getAdminData()->loadClientProvision(configurationObject, common_resources_);
+    // Provision references (#{...}) are resolved once, here, against the vault
+    // (an unresolved one is kept literally and warned):
+    nlohmann::json resolved = configurationObject;
+    std::string referencesWarning;
+    if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {
+        LOGWARNING(ert::tracing::Logger::warning(referencesWarning, ERT_FILE_LOCATION));
+        warning = referencesWarning;  // also reported in the response
+    }
+
+    h2agent::model::AdminClientProvisionData::LoadResult loadResult = getAdminData()->loadClientProvision(resolved, common_resources_);
     int result = ((loadResult == h2agent::model::AdminClientProvisionData::Success) ? 201:400);
 
     bool isArray = configurationObject.is_array();
     if (loadResult == h2agent::model::AdminClientProvisionData::Success) {
         log += (isArray ? "valid schemas and client provisions data received":"valid schema and client provision data received");
         if (getAdminData()->getClientProvisionData().needsStorage() && !client_data_) {
-            warning = "provision references serverEvent/clientEvent but storeEvents is disabled";
-            LOGWARNING(ert::tracing::Logger::warning(warning, ERT_FILE_LOCATION));
+            const std::string storageWarning = "provision references serverEvent/clientEvent but storeEvents is disabled";
+            LOGWARNING(ert::tracing::Logger::warning(storageWarning, ERT_FILE_LOCATION));
+            warning += (warning.empty() ? "" : "; ") + storageWarning;
         }
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadSchema) {
         log += (isArray ? "detected one invalid schema":"invalid schema");
+        log += retiredGrammarHint(configurationObject);
     }
     else if (loadResult == h2agent::model::AdminClientProvisionData::BadContent) {
         log += (isArray ? "detected one invalid client provision data received":"invalid client provision data received");
@@ -385,16 +487,27 @@ int MyAdminHttp2Server::schema(const nlohmann::json &configurationObject, std::s
     return result;
 }
 
-void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
+void MyAdminHttp2Server::receivePOST(const std::string &pathSuffix, const std::string &queryParams, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const
 {
     LOGDEBUG(ert::tracing::Logger::debug("receivePOST()",  ERT_FILE_LOCATION));
-    LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     std::string jsonResponse_response;
     std::string warning;
 
     // All responses are json content:
     headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+
+    // Client provision trigger (action: no request body, parameters in the query):
+    static const std::regex clientProvisionTrigger("^client-provision/([^/]+)/trigger$", std::regex::optimize);
+    std::smatch matches;
+    if (std::regex_match(pathSuffix, matches, clientProvisionTrigger)) {
+        triggerClientOperation(matches.str(1), queryParams, statusCode);
+        bool result = statusCodeOK(statusCode);
+        responseBody = buildJsonResponse(result, (result ? "operation processed":"operation failed"));
+        return;
+    }
+
+    LOGDEBUG(ert::tracing::Logger::debug("Json body received (admin interface)", ERT_FILE_LOCATION));
 
     // Admin schema validation:
     nlohmann::json requestJson;
@@ -444,44 +557,35 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
 
     // composed path suffixes
     std::smatch matches;
-    static std::regex clientProvisionId("^client-provision/(.*)", std::regex::optimize);
+    static std::regex clientProvisionId("^client-provision/([^/]+)(/trigger)?$", std::regex::optimize);
     static std::regex vaultWait("^vault/([^/]+)/wait$", std::regex::optimize);
+    static std::regex apiSchema("^api-schema/([^/]+)$", std::regex::optimize);
+    static std::regex retiredSchema("^(server-matching|server-provision|client-endpoint|client-provision|schema|vault)/schema$", std::regex::optimize);
 
 
-    if (pathSuffix == "server-matching/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getServerMatchingData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
+    if (pathSuffix == "api-schema") {
+        nlohmann::json resources = nlohmann::json::array();
+        for (const auto &r : apiSchemaResources()) resources.push_back(r);
+        responseBody = resources.dump();
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
-    else if (pathSuffix == "server-provision/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getServerProvisionData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    else if (std::regex_match(pathSuffix, matches, apiSchema)) { // api-schema/<resource>
+        const h2agent::jsonschema::JsonSchema *schema = apiSchemaOf(matches.str(1));
+        if (schema) {
+            // Add the $id field dynamically (full URI including scheme/host)
+            nlohmann::json jsonSchema = schema->getJson();
+            jsonSchema["$id"] = uri;
+            responseBody = jsonSchema.dump();
+            statusCode = ert::http2comm::ResponseCode::OK; // 200
+        }
+        else {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND; // 404
+            responseBody = buildJsonResponse(false, std::string("unknown api-schema resource '") + matches.str(1) + "' (GET api-schema lists them)");
+        }
     }
-    else if (pathSuffix == "client-endpoint/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getClientEndpointData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
-    }
-    else if (pathSuffix == "client-provision/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getClientProvisionData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
-    }
-    else if (pathSuffix == "schema/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getAdminData()->getSchemaData().getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
+    else if (std::regex_match(pathSuffix, matches, retiredSchema)) { // <resource>/schema (retired)
+        statusCode = ert::http2comm::ResponseCode::GONE; // 410
+        responseBody = buildJsonResponse(false, std::string("retired: use GET ") + getApiPath() + "/api-schema/" + matches.str(1));
     }
     else if (pathSuffix == "server-data/summary") {
         std::string maxKeys = "";
@@ -589,13 +693,6 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             }
         }
     }
-    else if (pathSuffix == "vault/schema") {
-        // Add the $id field dynamically (full URI including scheme/host)
-        nlohmann::json jsonSchema = getVault()->getSchema().getJson();
-        jsonSchema["$id"] = uri;
-        responseBody = jsonSchema.dump();
-        statusCode = ert::http2comm::ResponseCode::OK; // 200
-    }
     else if (std::regex_match(pathSuffix, matches, vaultWait)) { // vault/<key>/wait
         if (!wait_manager_) {
             statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
@@ -670,10 +767,9 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         responseBody = getAdminData()->getClientProvisionData().asJsonString(true /*unused*/);
         statusCode = ((responseBody == "[]") ? 204:200); // response body will be emptied by nghttp2 when status code is 204 (No Content)
     }
-    else if (std::regex_match(pathSuffix, matches, clientProvisionId)) { // client-provision/<client provision id>
-        triggerClientOperation(matches.str(1), queryParams, statusCode);
-        bool result = statusCodeOK(statusCode);
-        responseBody = buildJsonResponse(result, (result ? "operation processed":"operation failed"));
+    else if (std::regex_match(pathSuffix, matches, clientProvisionId)) { // client-provision/<id>[/trigger]: retired GET trigger
+        statusCode = ert::http2comm::ResponseCode::GONE; // 410
+        responseBody = buildJsonResponse(false, std::string("retired: trigger with POST ") + getApiPath() + "/client-provision/" + matches.str(1) + "/trigger");
     }
     else if (pathSuffix == "schema") {
         responseBody = getAdminData()->getSchemaData().asJsonString();
@@ -817,6 +913,10 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             }
             statusCode = validQuery ? ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK):ert::http2comm::ResponseCode::BAD_REQUEST; // response body will be emptied by nghttp2 when status code is 204 (No Content)
         }
+    }
+    else if (pathSuffix == "capabilities") {
+        responseBody = capabilitiesAsJsonString();
+        statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "configuration") {
         responseBody = getConfiguration()->asJsonString();
@@ -1076,6 +1176,7 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
         std::string discard;
         std::string discardKeyHistory;
         std::string disablePurge;
+        std::string executionTrace;
 
         if (!queryParams.empty()) { // https://stackoverflow.com/questions/978061/http-get-with-request-body#:~:text=Yes.,semantic%20meaning%20to%20the%20request.
             std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
@@ -1085,13 +1186,17 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
             if (it != qmap.end()) discardKeyHistory = it->second;
             it = qmap.find("disablePurge");
             if (it != qmap.end()) disablePurge = it->second;
+            it = qmap.find("executionTrace");
+            if (it != qmap.end()) executionTrace = it->second;
         }
 
         bool b_discard = (discard == "true");
         bool b_discardKeyHistory = (discardKeyHistory == "true");
         bool b_disablePurge = (disablePurge == "true");
+        bool b_executionTrace = (executionTrace == "true");
 
-        success = (!discard.empty() || !discardKeyHistory.empty() || !disablePurge.empty());
+        success = (!discard.empty() || !discardKeyHistory.empty() || !disablePurge.empty() || !executionTrace.empty());
+        if (!executionTrace.empty() && executionTrace != "true" && executionTrace != "false") success = false;
 
         if (success) {
             if (!discard.empty() && !discardKeyHistory.empty())
@@ -1115,6 +1220,11 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
                 if (serverMode) getHttp2Server()->discardDataKeyHistory(b_discardKeyHistory);
                 else discardClientDataKeyHistory(b_discardKeyHistory);
                 LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Discard %s-data key history: %s", mode, b_discardKeyHistory ? "true":"false"), ERT_FILE_LOCATION));
+            }
+            if (!executionTrace.empty()) {
+                if (serverMode) getHttp2Server()->enableExecutionTrace(b_executionTrace);
+                else client_execution_trace_.store(b_executionTrace);
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Execution trace in %s-data events: %s", mode, b_executionTrace ? "true":"false"), ERT_FILE_LOCATION));
             }
             if (!disablePurge.empty()) {
                 if (serverMode) getHttp2Server()->disablePurge(b_disablePurge);
@@ -1226,7 +1336,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
         return;
     }
     else if (method == "POST") {
-        receivePOST(pathSuffix, requestBody, statusCode, headers, responseBody);
+        receivePOST(pathSuffix, uriQuery, requestBody, statusCode, headers, responseBody);
         return;
     }
     else if (method == "PUT") {
@@ -1236,7 +1346,7 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     }
 }
 
-void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, std::string inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<std::map<std::string, std::string>> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
+void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::AdminClientProvision> provision, std::string inState, std::shared_ptr<h2agent::model::AdminClientEndpoint> clientEndpoint, std::int64_t seq, std::shared_ptr<h2agent::model::Variables> chainVariables, std::shared_ptr<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>> purgeKeys) const {
 
     provision->employ();
     std::string requestMethod{};
@@ -1250,7 +1360,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
 
     // Initialize chain variables on first call:
     if (!chainVariables) {
-        chainVariables = std::make_shared<std::map<std::string, std::string>>();
+        chainVariables = std::make_shared<h2agent::model::Variables>();
     }
 
     // Initialize purge keys on first call (only if purge is enabled):
@@ -1258,7 +1368,11 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         purgeKeys = std::make_shared<std::vector<std::pair<h2agent::model::DataKey, std::uint64_t>>>();
     }
 
-    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables, seq);
+    // Execution trace (request and response pipelines), only built when it will be stored:
+    std::shared_ptr<nlohmann::json> executionTrace;
+    if (client_data_ && client_execution_trace_.load()) executionTrace = std::make_shared<nlohmann::json>(nlohmann::json::array());
+
+    provision->transform(requestMethod, requestUri, requestBody, requestHeaders, outState, requestDelayMs, requestTimeoutMs, error, *chainVariables, seq, executionTrace.get());
     LOGDEBUG(
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request method: %s", requestMethod.c_str()), ERT_FILE_LOCATION);
         ert::tracing::Logger::debug(ert::tracing::Logger::asString("Request uri: %s", requestUri.c_str()), ERT_FILE_LOCATION);
@@ -1280,7 +1394,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     std::string clientEndpointId = provision->getClientEndpointId();
 
     client->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
-    [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys](ert::http2comm::Http2Client::response response) {
+    [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys, executionTrace](ert::http2comm::Http2Client::response response) {
 
         // Apply on-response transformations (may update outState)
         std::string finalOutState = outState;
@@ -1288,7 +1402,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         auto provision = provisionData.find(inState, clientProvisionId);
         bool responseValidationOk = true;
         if (provision) {
-            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq);
+            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get());
         }
 
         // Provisioned request counter
@@ -1306,7 +1420,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             if (client_data_) {
                 h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
                 h2agent::model::DataPart responseBodyDataPart(response.body);
-                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get());
             }
             LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Transport error (statusCode %d) sending client provision '%s': chain interrupted", response.statusCode, clientProvisionId.c_str()), ERT_FILE_LOCATION));
             return;
@@ -1321,7 +1435,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         if (client_data_) {
             h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
             h2agent::model::DataPart responseBodyDataPart(response.body);
-            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_);
+            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get());
 
             // Accumulate purge key for chain-aware purge:
             if (purgeKeys) {
@@ -1542,6 +1656,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
     result["storeEvents"] = client_data_;
     result["storeEventsKeyHistory"] = client_data_key_history_;
     result["purgeExecution"] = purge_execution_;
+    result["executionTrace"] = client_execution_trace_.load();
     result["needsStorage"] = admin_data_->getClientProvisionData().needsStorage();
 
     return result.dump();
@@ -1550,7 +1665,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
 void MyAdminHttp2Server::registerHandlers() {
     if (!sse_manager_) return;
 
-    std::string apiPath = getApiPath(); // e.g. "/admin/v1"
+    std::string apiPath = getApiPath(); // e.g. "/admin/v2"
 
     server_.handle(apiPath + "/vault/events", [this](const nghttp2::asio_http2::server::request &req,
     const nghttp2::asio_http2::server::response &res) {

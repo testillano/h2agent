@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <nghttp2/asio_http2_server.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -46,10 +47,18 @@ SOFTWARE.
 #include <nlohmann/json.hpp>
 
 #include <AdminSchema.hpp>
-#include <Transformation.hpp>
 #include <TypeConverter.hpp>
 #include <DataPart.hpp>
+#include <Variables.hpp>
 
+
+namespace h2agent
+{
+namespace engine
+{
+class Pipeline;
+}
+}
 
 namespace h2agent
 {
@@ -111,61 +120,10 @@ class AdminServerProvision
     model::FileManager *file_manager_{}; // just in case it is used
     model::SocketManager *socket_manager_{}; // just in case it is used
 
-    void loadTransformation(const nlohmann::json &j);
-
-    std::vector<std::shared_ptr<Transformation>> transformations_{};
-
-    // Three processing stages: get sources, apply filters and store targets:
-    bool processSources(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        std::map<std::string, std::string>& variables,
-                        const std::string &requestUri,
-                        const std::string &requestUriPath,
-                        const std::map<std::string, std::string> &requestQueryParametersMap,
-                        const DataPart &requestBodyDataPart,
-                        const nghttp2::asio_http2::header_map &requestHeaders,
-                        bool &eraser,
-                        std::uint64_t generalUniqueServerSequence,
-                        bool usesResponseBodyAsTransformationJsonTarget, const nlohmann::json &responseBodyJson) const; // these two last parameters are used to
-    // know if original response body provision
-    // or the one dynamically modified, must be
-    // used as source
-
-    bool processFilters(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        const std::map<std::string, std::string>& variables,
-                        std::smatch &matches,
-                        std::string &source) const;
-
-    bool processTargets(std::shared_ptr<Transformation> transformation,
-                        TypeConverter& sourceVault,
-                        std::map<std::string, std::string>& variables,
-                        const std::smatch &matches,
-                        bool eraser,
-                        bool hasFilter,
-                        unsigned int &responseStatusCode,
-                        nlohmann::json &responseBodyJson, // to manipulate json
-                        std::string &responseBodyAsString, // to set native data (readable or not)
-                        nghttp2::asio_http2::header_map &responseHeaders,
-                        unsigned int &responseDelayMs,
-                        std::string &outState,
-                        std::string &outStateMethod,
-                        std::string &outStateUri,
-                        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                        bool &breakCondition) const;
-
-    void executeOnFilterFail(
-        const std::vector<std::shared_ptr<Transformation>> &fallbacks,
-        const std::string &requestUri, const std::string &requestUriPath,
-        const std::map<std::string, std::string> &requestQueryParametersMap,
-        const DataPart &requestBodyDataPart, const nghttp2::asio_http2::header_map &requestHeaders,
-        std::uint64_t generalUniqueServerSequence, TypeConverter &sourceVault,
-        std::map<std::string, std::string> &variables,
-        bool usesResponseBodyAsTransformationJsonTarget,
-        unsigned int &responseStatusCode, nlohmann::json &responseBodyJson, std::string &responseBody,
-        nghttp2::asio_http2::header_map &responseHeaders, unsigned int &responseDelayMs,
-        std::string &outState, std::string &outStateMethod, std::string &outStateUri,
-        std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers, bool &breakCondition) const;
+    std::shared_ptr<h2agent::engine::Pipeline> engine_pipeline_{};  // 'transform' lowered + parsed once at load
+    bool uses_request_body_source_{};  // some rule reads the request body (it must be decoded)
+    bool uses_json_body_target_{};     // some rule writes the response json body (it is cloned)
+    bool needs_storage_{};             // some rule reads or purges stored events
 
 
 public:
@@ -192,6 +150,7 @@ public:
      * @param outState out-state for request context created, filled by reference (if any transformation applies)
      * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
+     * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -208,7 +167,8 @@ public:
                     std::string &outStateMethod,
                     std::string &outStateUri,
                     std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
-                    std::map<std::string, std::string> &variables
+                    Variables &variables,
+                    nlohmann::json *executionTrace = nullptr
                   );
 
     // setters:
@@ -414,14 +374,7 @@ public:
      * @return True if any transformation requires stored events
      */
     bool needsStorage() const {
-        for (const auto& t : transformations_) {
-            auto st = t->getSourceType();
-            auto tt = t->getTargetType();
-            if (st == Transformation::ServerEvent || st == Transformation::ClientEvent ||
-                    tt == Transformation::ServerEventToPurge || tt == Transformation::ClientEventToPurge)
-                return true;
-        }
-        return false;
+        return needs_storage_;
     }
 };
 

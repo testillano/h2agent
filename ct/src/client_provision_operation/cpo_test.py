@@ -73,7 +73,7 @@ def test_003_configure_basic_client_provision(h2ac_admin, admin_client_provision
 @pytest.mark.client
 def test_004_trigger_basic_client_provision_and_verify(h2ac_admin):
     # Trigger
-    response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/basicFlow")
+    response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/basicFlow/trigger")
     assert response["status"] == 200
 
     time.sleep(0.5)
@@ -95,6 +95,20 @@ def test_004_trigger_basic_client_provision_and_verify(h2ac_admin):
     server_events = response["body"]
     hello_events = [e for e in server_events if e["uri"] == "/app/v1/hello"]
     assert len(hello_events) == 1
+
+
+@pytest.mark.admin
+def test_004a_trigger_with_get_is_retired_and_unknown_id_fails(h2ac_admin):
+    # The trigger is an action: POST .../trigger. The former GET answers 410 with a hint:
+    response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/basicFlow")
+    assert response["status"] == 410
+    assert "/admin/v2/client-provision/basicFlow/trigger" in response["body"]["response"]
+    response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/basicFlow/trigger")
+    assert response["status"] == 410
+
+    # Unknown provision (POST without body nor content-type is accepted for the trigger):
+    response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/unknownFlow/trigger", requestHeaders={})
+    assert response["status"] == 404
 
 
 @pytest.mark.admin
@@ -162,7 +176,7 @@ def test_006_configure_chained_flow(h2ac_admin, admin_client_endpoint, admin_cli
 @pytest.mark.client
 def test_007_trigger_chained_flow_and_verify(h2ac_admin):
     # Trigger
-    response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/chainedFlow")
+    response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/chainedFlow/trigger")
     assert response["status"] == 200
 
     time.sleep(0.5)
@@ -205,7 +219,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
         "requestHeaders": {"content-type": "application/json"},
         "outState": "step2",
         "onResponseTransform": [
-            {"source": "response.body", "target": "vault.helloResponse"}
+            {"from": {"source": "responseBody"}, "to": {"target": "vault", "key": "helloResponse"}}
         ]
     }
     step2 = {
@@ -217,7 +231,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
         "requestUri": "/app/v1/goodbye",
         "requestHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "vault.helloResponse", "target": "request.body.json.jsonstring"}
+            {"from": {"source": "vault", "key": "helloResponse"}, "filter": [{"op": "cast", "type": "json"}], "to": {"target": "requestBody"}}
         ]
     }
     response = h2ac_admin.postDict(ADMIN_CLIENT_PROVISION_URI, [step1, step2])
@@ -226,7 +240,7 @@ def test_009_configure_transform_flow(h2ac_admin, admin_client_endpoint, admin_c
 
 @pytest.mark.client
 def test_010_trigger_transform_flow_and_verify_body_propagation(h2ac_admin):
-    response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/transformFlow")
+    response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/transformFlow/trigger")
     assert response["status"] == 200
 
     time.sleep(0.5)
@@ -259,8 +273,8 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
         "responseBody": {"status": "received"},
         "responseHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "request.body", "target": "vault.webhookBody"},
-            {"source": "value.1", "target": "clientProvision.forwardFlow.initial"}
+            {"from": {"source": "requestBody"}, "to": {"target": "vault", "key": "webhookBody"}},
+            {"from": {"source": "literal", "value": "1"}, "to": {"target": "clientProvision", "id": "forwardFlow", "inState": "initial"}}
         ]
     }
     # Server provision: receives forwarded request
@@ -283,7 +297,7 @@ def test_012_configure_server_triggered_flow(h2ac_admin, admin_client_endpoint, 
         "requestUri": "/app/v1/forward",
         "requestHeaders": {"content-type": "application/json"},
         "transform": [
-            {"source": "vault.webhookBody", "target": "request.body.json.jsonstring"}
+            {"from": {"source": "vault", "key": "webhookBody"}, "filter": [{"op": "cast", "type": "json"}], "to": {"target": "requestBody"}}
         ]
     }
     admin_client_provision(forward_provision)

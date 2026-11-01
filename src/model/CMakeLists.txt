@@ -1,7 +1,8 @@
 add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/functions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/TypeConverter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Transformation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/EngineGrammarV2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/EngineHost.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockEvent.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockEventsHistory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MockData.cpp
@@ -29,6 +30,7 @@ add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/SocketManager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/SafeSocket.cpp
     ${CMAKE_CURRENT_LIST_DIR}/DataPart.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ProvisionReferences.cpp
 )
 
 target_include_directories (h2agent-model
@@ -36,8 +38,10 @@ PRIVATE
     ${CMAKE_SOURCE_DIR}/src/model
     ${CMAKE_SOURCE_DIR}/src/jsonSchema
     ${CMAKE_SOURCE_DIR}/src/http2
+    ${CMAKE_SOURCE_DIR}/src/engine
 
 INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
 

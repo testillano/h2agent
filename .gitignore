@@ -31,6 +31,7 @@ src/version.cpp
 # Test temporary files
 tools/play-h2agent/*/.*
 benchmark/tests/**/reports/
+benchmark/compare-reports/
 
 # Coverage report
 coverage

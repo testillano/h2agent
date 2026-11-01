@@ -27,29 +27,29 @@ h2agent_check ${H2AGENT_ADMIN_ENDPOINT} ${H2AGENT_TRAFFIC_ENDPOINT} || exit 1
 
 # Initial cleanup
 EXPECTED_STATUS_CODES="200 204"
-test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data || { echo -e "\nCheck that the h2agent application is started" ; exit 1 ; }
+test_query "Initial cleanup" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-data || { echo -e "\nCheck that the h2agent application is started" ; exit 1 ; }
 
 EXPECTED_STATUS_CODES="200"
-test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-data/configuration?discard=false&discardKeyHistory=false" || exit 1
+test_query "Enable events" PUT "http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-data/configuration?discard=false&discardKeyHistory=false" || exit 1
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-matching operation; valid schema and matching data received\" }"
 EXPECTED_STATUS_CODES=201
 CURL_OPTS="-d'{ \"algorithm\":\"RegexMatching\" }' -H \"content-type: application/json\""
-test_query "Step 1. Server matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
+test_query "Step 1. Server matching configuration" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-matching || exit 1
 
 EXPECTED_RESPONSE="{\"algorithm\":\"RegexMatching\"}"
 EXPECTED_STATUS_CODES=200
-test_query "Step 2. Check server matching configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-matching || exit 1
+test_query "Step 2. Check server matching configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-matching || exit 1
 
-test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
+test_query "Step 3. Clear possible previous provisions" DELETE http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
 
 EXPECTED_RESPONSE="{ \"result\":\"true\", \"response\": \"server-provision operation; valid schemas and server provisions data received\" }"
 EXPECTED_STATUS_CODES=201
 CURL_OPTS="-d@./server-provision.json -H \"content-type: application/json\""
-test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
+test_query "Step 4. Configure demo provisions" POST http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
 
 EXPECTED_STATUS_CODES=200
-test_query "Step 5. Check server provisions configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v1/server-provision || exit 1
+test_query "Step 5. Check server provisions configuration" GET http://${H2AGENT_ADMIN_ENDPOINT}/admin/v2/server-provision || exit 1
 
 KNOWN_RESPONSE_REGISTERS=()
 KNOWN_RESPONSE_REGISTERS+=( "{\"id\":\"id-1\",\"name\":\"Jess Glynne\",\"phone\":66453}" )

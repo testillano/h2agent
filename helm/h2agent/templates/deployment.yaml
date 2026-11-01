@@ -148,7 +148,7 @@ spec:
                 - curl
                 - -sf
                 - --http2-prior-knowledge
-                - http://localhost:{{ .Values.service.admin_port }}/admin/v1/health
+                - http://localhost:{{ .Values.service.admin_port }}/admin/v2/health
             initialDelaySeconds: 10
             periodSeconds: 5
           readinessProbe:
@@ -157,7 +157,7 @@ spec:
                 - curl
                 - -sf
                 - --http2-prior-knowledge
-                - http://localhost:{{ .Values.service.admin_port }}/admin/v1/health
+                - http://localhost:{{ .Values.service.admin_port }}/admin/v2/health
             initialDelaySeconds: 10
             periodSeconds: 5
           {{- end }}

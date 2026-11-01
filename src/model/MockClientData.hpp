@@ -89,7 +89,7 @@ public:
      *
      * @param historyEnabled Events complete history storage
      */
-    void loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled);
+    void loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled, const nlohmann::json *executionTrace = nullptr);
 
     /**
      * Removes a specific event identified by send sequence

@@ -6,7 +6,7 @@ import time
 import os
 from conftest import ADMIN_VAULT_URI, RestClient, H2AGENT_ENDPOINT__admin
 
-SSE_URI = "/admin/v1/vault/events"
+SSE_URI = "/admin/v2/vault/events"
 ADMIN_URL = "http://" + H2AGENT_ENDPOINT__admin
 
 

@@ -4,14 +4,9 @@
   "responseCode": 200,
   "transform": [
     {
-      "source": "request.uri",
-      "target": "response.body.json.string./capturedValue",
-      "filter": {
-        "RegexReplace": {
-          "rgx": "/app/v1/foo/bar/([0-9]*)",
-          "fmt": "$1"
-        }
-      }
+      "from": {"source": "requestUri"},
+      "filter": [{"op": "regexReplace", "rgx": "/app/v1/foo/bar/([0-9]*)", "fmt": "$1"}],
+      "to": {"target": "responseBody", "path": "/capturedValue"}
     }
   ]
 }

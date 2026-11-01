@@ -40,11 +40,13 @@ SOFTWARE.
 #include <memory>
 #include <map>
 #include <chrono>
+#include <atomic>
 
 #include <ert/metrics/Metrics.hpp>
 
 #include <ert/http2comm/Http2Server.hpp>
 #include <common.hpp>
+#include <Variables.hpp>
 
 #include <boost/asio.hpp>
 
@@ -67,6 +69,10 @@ class DataKey;
 class WaitManager;
 class SseManager;
 }
+namespace jsonschema
+{
+class JsonSchema;
+}
 
 namespace http2
 {
@@ -78,6 +84,7 @@ class MyTrafficHttp2Server;
 class MyAdminHttp2Server: public ert::http2comm::Http2Server
 {
     model::AdminData *admin_data_{};
+    std::string program_version_{};
     model::common_resources_t common_resources_{}; // general configuration, vault, file manager and mock server events data
     model::WaitManager *wait_manager_{};
     model::SseManager *sse_manager_{};
@@ -102,18 +109,23 @@ class MyAdminHttp2Server: public ert::http2comm::Http2Server
     bool client_data_{};
     bool client_data_key_history_{};
     bool purge_execution_{};
+    std::atomic<bool> client_execution_trace_{false}; // store the transformation pipelines trace in client events
 
     std::string getPathSuffix(const std::string &uriPath) const; // important: leading slash is omitted on extraction
     std::string buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning = "") const;
 
     void receiveNOOP(unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
-    void receivePOST(const std::string &pathSuffix, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
+    void receivePOST(const std::string &pathSuffix, const std::string &queryParams, const std::string& requestBody, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
+
+    // Admin API json schemas (GET api-schema[/<resource>]):
+    static const std::vector<std::string> &apiSchemaResources();
+    const h2agent::jsonschema::JsonSchema *apiSchemaOf(const std::string &resource) const;
     void receiveGET(const std::string &uri, const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody) const;
     void receiveDELETE(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode) const;
     void receivePUT(const std::string &pathSuffix, const std::string &queryParams, unsigned int& statusCode, nghttp2::asio_http2::header_map& headers, std::string &responseBody);
 
     void triggerClientOperation(const std::string &clientProvisionId, const std::string &queryParams, unsigned int& statusCode) const;
-    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, std::string inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint, std::int64_t seq = -1, std::shared_ptr<std::map<std::string, std::string>> chainVariables = nullptr, std::shared_ptr<std::vector<std::pair<model::DataKey, std::uint64_t>>> purgeKeys = nullptr) const;
+    void sendClientRequest(std::shared_ptr<model::AdminClientProvision> provision, std::string inState, std::shared_ptr<model::AdminClientEndpoint> clientEndpoint, std::int64_t seq = -1, std::shared_ptr<model::Variables> chainVariables = nullptr, std::shared_ptr<std::vector<std::pair<model::DataKey, std::uint64_t>>> purgeKeys = nullptr) const;
 
 public:
     MyAdminHttp2Server(const std::string &name, size_t workerThreads);
@@ -135,12 +147,33 @@ public:
                  unsigned int& statusCode, nghttp2::asio_http2::header_map& headers,
                  std::string& responseBody, unsigned int &responseDelayMs);
 
+    /**
+     * Retired API versions (e.g. '/admin/v1') get '410 Gone' with a hint to the current version
+     * and the migration tool, instead of the generic '400 INVALID_API'. Other errors: base behavior.
+     */
+    void receiveError(const nghttp2::asio_http2::server::request& req,
+                      const std::string &requestBody,
+                      unsigned int& statusCode,
+                      nghttp2::asio_http2::header_map& headers,
+                      std::string& responseBody,
+                      const std::pair<int, const std::string>& error,
+                      const std::string &location = "",
+                      const std::vector<std::string>& allowedMethods = std::vector<std::string>()) override;
+
     //bool receiveDataLen(const nghttp2::asio_http2::server::request& req); // virtual: default implementation (true) is required (request bodies are present in many operations).
     //bool preReserveRequestBody(); //virtual: default implementation (true) is acceptable for us (really, it does not matter).
 
     void setConfiguration(model::Configuration *p) {
         common_resources_.ConfigurationPtr = p;
     }
+
+    /** Program version shown by 'GET capabilities' (diagnostics). */
+    void setProgramVersion(const std::string &version) {
+        program_version_ = version;
+    }
+
+    /** Diagnostics document for 'GET capabilities': admin API, program and grammar versions. */
+    std::string capabilitiesAsJsonString() const;
     model::Configuration *getConfiguration() const {
         return common_resources_.ConfigurationPtr;
     }
@@ -205,7 +238,7 @@ public:
     }
 
     /**
-     * Registers the SSE handler for /admin/v1/vault/events on the nghttp2 server.
+     * Registers the SSE handler for /admin/v2/vault/events on the nghttp2 server.
      * Called automatically via registerHandlers() (after generic handler registration).
      */
     void registerHandlers() override;

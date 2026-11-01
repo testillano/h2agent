@@ -126,7 +126,7 @@ def test_001_provision_chain_with_dead_second_endpoint(h2ac_admin):
 def test_002_second_link_honors_its_own_dead_endpoint(h2ac_admin):
 
   # Trigger the chain.
-  response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/perStateDead")
+  response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/perStateDead/trigger")
   assert response["status"] == 200
 
   # Poll until the first link has produced its client event (chain started).
@@ -286,7 +286,7 @@ def test_011_provision_chain_across_two_instances(h2ac_admin, h2ac_admin_b):
 def test_012_second_link_lands_on_instance_b(h2ac_admin, h2ac_admin_b):
 
   # Trigger from instance A.
-  response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/multiEndpoint")
+  response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/multiEndpoint/trigger")
   assert response["status"] == 200
 
   time.sleep(2)

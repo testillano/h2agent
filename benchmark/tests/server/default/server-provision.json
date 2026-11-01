@@ -11,39 +11,36 @@
       "requestAge": 0,
       "doubleAge": 0
     },
-    "responseHeaders": {
-      "content-type": "application/json"
-    },
+    "responseHeaders": {"content-type": "application/json"},
     "transform": [
       {
-        "source": "vault.company",
-        "target": "response.body.json.string./company"
+        "from": {"source": "vault", "key": "company"},
+        "filter": [{"op": "cast", "type": "string"}],
+        "to": {"target": "responseBody", "path": "/company"}
       },
       {
-        "source": "request.uri.path",
-        "target": "response.body.json.unsigned./uriId",
-        "filter": {
-          "RegexReplace": {
-            "rgx": "/app/v1/load-test/id-([0-9]+)",
-            "fmt": "$1"
-          }
-        }
+        "from": {"source": "requestUriPath"},
+        "filter": [
+          {"op": "regexReplace", "rgx": "/app/v1/load-test/id-([0-9]+)", "fmt": "$1"},
+          {"op": "cast", "type": "unsigned"}
+        ],
+        "to": {"target": "responseBody", "path": "/uriId"}
       },
       {
-        "source": "timestamp.us",
-        "target": "response.body.json.unsigned./timestampUs"
+        "from": {"source": "timestamp", "unit": "us"},
+        "filter": [{"op": "cast", "type": "unsigned"}],
+        "to": {"target": "responseBody", "path": "/timestampUs"}
+      },
+      {"from": {"source": "requestBody", "path": "/age"}, "to": {"target": "var", "name": "age"}},
+      {
+        "from": {"source": "var", "name": "age"},
+        "filter": [{"op": "cast", "type": "unsigned"}],
+        "to": {"target": "responseBody", "path": "/requestAge"}
       },
       {
-        "source": "request.body./age",
-        "target": "var.age"
-      },
-      {
-        "source": "var.age",
-        "target": "response.body.json.unsigned./requestAge"
-      },
-      {
-        "source": "math.@{age} * 2",
-        "target": "response.body.json.unsigned./doubleAge"
+        "from": {"source": "math", "expression": "@{age} * 2"},
+        "filter": [{"op": "cast", "type": "unsigned"}],
+        "to": {"target": "responseBody", "path": "/doubleAge"}
       }
     ]
   }

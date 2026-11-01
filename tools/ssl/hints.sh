@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage: $0 <url> <server key> <server crt> <server password> <client key> <client crt> <client password> <cacert>
-# For example: ./hints.sh https://localhost:8074/admin/v1/server-matching
+# For example: ./hints.sh https://localhost:8074/admin/v2/server-matching
 url=$1
 skey=$2
 scrt=$3

@@ -2,36 +2,31 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
+    {"from": {"source": "literal", "value": ""}, "to": {"target": "var", "name": "falseVar"}},
+    {"from": {"source": "literal", "value": "xxx"}, "to": {"target": "var", "name": "trueVar"}},
     {
-      "source": "value.",
-      "target": "var.falseVar"
-    },
-    {
-      "source": "value.xxx",
-      "target": "var.trueVar"
-    },
-    {
-      "source": "value.true-branch",
-      "target": "response.body.json.string./condition-true",
-      "filter": { "ConditionVar": "trueVar" },
+      "from": {"source": "literal", "value": "true-branch"},
+      "filter": [{"op": "conditionVar", "name": "trueVar"}],
+      "to": {"target": "responseBody", "path": "/condition-true"},
       "onFilterFail": [
-        { "source": "value.false-branch", "target": "response.body.json.string./condition-true" }
+        {
+          "from": {"source": "literal", "value": "false-branch"},
+          "to": {"target": "responseBody", "path": "/condition-true"}
+        }
       ]
     },
     {
-      "source": "value.true-branch",
-      "target": "response.body.json.string./condition-false",
-      "filter": { "ConditionVar": "falseVar" },
+      "from": {"source": "literal", "value": "true-branch"},
+      "filter": [{"op": "conditionVar", "name": "falseVar"}],
+      "to": {"target": "responseBody", "path": "/condition-false"},
       "onFilterFail": [
-        { "source": "value.false-branch", "target": "response.body.json.string./condition-false" }
+        {
+          "from": {"source": "literal", "value": "false-branch"},
+          "to": {"target": "responseBody", "path": "/condition-false"}
+        }
       ]
     }
   ]

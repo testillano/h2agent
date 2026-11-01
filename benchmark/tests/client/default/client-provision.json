@@ -6,18 +6,14 @@
     "outState": "created",
     "requestMethod": "POST",
     "requestUri": "/api/v1/session",
-    "requestHeaders": {
-      "content-type": "application/json"
-    },
-    "requestBody": {
-      "action": "create",
-      "seq": 0
-    },
+    "requestHeaders": {"content-type": "application/json"},
+    "requestBody": {"action": "create", "seq": 0},
     "expectedResponseStatusCode": 201,
     "transform": [
       {
-        "source": "value.@{sequence}",
-        "target": "request.body.json.integer./seq"
+        "from": {"source": "literal", "value": "@{sequence}"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "requestBody", "path": "/seq"}
       }
     ]
   },
@@ -28,18 +24,14 @@
     "outState": "updated",
     "requestMethod": "PUT",
     "requestUri": "/api/v1/session",
-    "requestHeaders": {
-      "content-type": "application/json"
-    },
-    "requestBody": {
-      "action": "update",
-      "seq": 0
-    },
+    "requestHeaders": {"content-type": "application/json"},
+    "requestBody": {"action": "update", "seq": 0},
     "expectedResponseStatusCode": 200,
     "transform": [
       {
-        "source": "value.@{sequence}",
-        "target": "request.body.json.integer./seq"
+        "from": {"source": "literal", "value": "@{sequence}"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "requestBody", "path": "/seq"}
       }
     ]
   },

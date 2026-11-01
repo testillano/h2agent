@@ -92,8 +92,8 @@ def test_004_wait_specific_value_via_traffic(h2ac_admin, h2ac_traffic, admin_ser
         "responseCode": 200,
         "transform": [
             {
-                "source": "value.ready",
-                "target": "vault.TRAFFIC_SIGNAL"
+              "from": {"source": "literal", "value": "ready"},
+              "to": {"target": "vault", "key": "TRAFFIC_SIGNAL"}
             }
         ]
     }

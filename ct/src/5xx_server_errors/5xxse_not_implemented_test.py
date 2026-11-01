@@ -7,7 +7,7 @@ from conftest import ADMIN_SERVER_PROVISION_URI
 
 
 @pytest.mark.admin
-@pytest.mark.skip(reason="DELETE /admin/v1/server-provision is already implemented")
+@pytest.mark.skip(reason="DELETE /admin/v2/server-provision is already implemented")
 def test_001_i_want_to_force_not_implemented_error_towards_h2agent_admin_api(h2ac_admin):
 
   # Send POST

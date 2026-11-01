@@ -2,21 +2,18 @@
   "requestMethod": "POST",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "request.body./cart",
-      "target": "vault.item",
-      "filter": { "RegexKey": "order-[0-9]*-express" }
+      "from": {"source": "requestBody", "path": "/cart"},
+      "filter": [{"op": "regexKey", "rgx": "order-[0-9]*-express"}],
+      "to": {"target": "vault", "key": "item"}
     },
     {
-      "source": "vault.item./price",
-      "target": "response.body.json.integer./price"
+      "from": {"source": "vault", "key": "item", "path": "/price"},
+      "filter": [{"op": "cast", "type": "integer"}],
+      "to": {"target": "responseBody", "path": "/price"}
     }
   ]
 }

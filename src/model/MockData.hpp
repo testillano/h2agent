@@ -167,7 +167,7 @@ public:
      *
      * @return Boolean about if the request is found or not
      */
-    bool findLastRegisteredRequestState(const DataKey &key, std::string &state, std::map<std::string, std::string> &chainVariables) const;
+    bool findLastRegisteredRequestState(const DataKey &key, std::string &state, Variables &chainVariables) const;
 
     /**
      * Stores chain variables for a given data key.
@@ -175,7 +175,7 @@ public:
      * @param key Data key.
      * @param chainVariables Chain variables to store.
      */
-    void storeChainVariables(const DataKey &key, const std::map<std::string, std::string> &chainVariables);
+    void storeChainVariables(const DataKey &key, const Variables &chainVariables);
 };
 
 }

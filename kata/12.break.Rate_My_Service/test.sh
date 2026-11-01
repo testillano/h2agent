@@ -10,7 +10,7 @@ H2AGENT_CLIENT_ADMIN_ENDPOINT=localhost:8074
 
 h2a_curl() {
   curl -sf --http2-prior-knowledge -H 'content-type: application/json' -X$1 ${3:+-d@$3} \
-    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v1/$2"
+    "http://${H2AGENT_CLIENT_ADMIN_ENDPOINT}/admin/v2/$2"
 }
 
 h2agent_server_configuration
@@ -26,7 +26,7 @@ TIMEOUT=$(( EXPECTED_SECS * 3 + 5 ))
 
 title "Triggering ${ITERATIONS} provisions at ${CPS} cps (~${EXPECTED_SECS}s expected)" "" "*"
 START_NS=$(date +%s%N)
-h2a_curl GET "client-provision/rater?sequenceBegin=1&sequenceEnd=${ITERATIONS}&cps=${CPS}" >/dev/null
+h2a_curl POST "client-provision/rater/trigger?sequenceBegin=1&sequenceEnd=${ITERATIONS}&cps=${CPS}" >/dev/null
 
 echo "Waiting for completion (timeout ${TIMEOUT}s)..."
 while true; do
@@ -52,5 +52,4 @@ else
   exit 1
 fi
 
-echo -e "\n\n\n=====================\nTHESE ARE THE CHANGES \n=====================\n"
-git diff -- client-endpoint.json client-provision.json
+show_changes client-endpoint.json client-provision.json

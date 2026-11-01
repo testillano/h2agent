@@ -20,7 +20,7 @@ CLIENT_PROVISION = {
     "requestUri": "/app/v1/range",
     "requestHeaders": {"content-type": "application/json"},
     "transform": [
-        {"source": "var.sequence", "target": "request.body.json.integer./seq"}
+        {"from": {"source": "var", "name": "sequence"}, "filter": [{"op": "cast", "type": "integer"}], "to": {"target": "requestBody", "path": "/seq"}}
     ]
 }
 
@@ -38,7 +38,7 @@ def test_001_timer_trigger_sends_exactly_the_range(admin_cleanup, h2ac_admin, ad
     assert h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, SERVER_PROVISION)["status"] == 201
     assert h2ac_admin.postDict(ADMIN_CLIENT_PROVISION_URI, CLIENT_PROVISION)["status"] == 201
 
-    response = h2ac_admin.get(ADMIN_CLIENT_PROVISION_URI + "/rangeFlow?sequenceBegin=3&sequenceEnd=6&cps=20")
+    response = h2ac_admin.post(ADMIN_CLIENT_PROVISION_URI + "/rangeFlow/trigger?sequenceBegin=3&sequenceEnd=6&cps=20")
     assert response["status"] == 202
 
     deadline = time.time() + 5

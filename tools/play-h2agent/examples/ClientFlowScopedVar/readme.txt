@@ -1,16 +1,16 @@
 2-step client flow using scoped variables instead of vault.
 
-Demonstrates var.* propagation across outState links in client mode.
-Link 1 captures a token from the server response into var.token.
-Link 2 uses var.token in the request body — no vault, no cleanup.
+Demonstrates scoped variable (var) propagation across outState links in client mode.
+Link 1 captures a token from the server response into the variable token.
+Link 2 uses that variable in the request body — no vault, no cleanup.
 
 Flow:
   1. Trigger fires provision (initial, authFlow) -> GET /api/v1/auth
   2. Server responds with {"token":"abc-123"}
-     - onResponseTransform: captures response.body./token -> var.token
+     - onResponseTransform: captures responseBody /token -> var token
   3. State progression: initial -> authenticated
   4. Provision (authenticated, authFlow) fires -> POST /api/v1/data
-     - Pre-send transform: injects var.token into request body
+     - Pre-send transform: injects var token into request body
   5. Server responds with {"status":"ok"}
 
 After execution, verify:
@@ -18,4 +18,4 @@ After execution, verify:
   - Server-data: POST /data received {"auth":"abc-123"} as body
 
 Compare with ClientFlowTransform which uses vault for the same pattern.
-Scoped var is simpler: no eraser needed, no namespace pollution.
+Scoped var is simpler: no erase needed, no namespace pollution.

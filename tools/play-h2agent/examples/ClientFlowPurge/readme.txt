@@ -30,7 +30,7 @@ Prerequisite handled by the example itself:
   at runtime. So that the result does not depend on how the agent was launched, this
   example's trigger.sh makes itself self-contained by issuing the REST PUT first:
 
-    PUT /admin/v1/client-data/configuration?disablePurge=false
+    PUT /admin/v2/client-data/configuration?disablePurge=false
 
   If purge were DISABLED instead, the chain would still run but the two client events
   would REMAIN (that is exactly what --disable-purge is for: keeping events for

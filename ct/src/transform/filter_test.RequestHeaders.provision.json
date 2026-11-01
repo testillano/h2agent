@@ -2,17 +2,13 @@
   "requestMethod": "GET",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "text/html",
-    "x-version": "1.0.0"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
   "transform": [
     {
-      "source": "request.headers",
-      "target": "response.body.json.object./hdrs"
+      "from": {"source": "requestHeaders"},
+      "filter": [{"op": "cast", "type": "object"}],
+      "to": {"target": "responseBody", "path": "/hdrs"}
     }
   ]
 }

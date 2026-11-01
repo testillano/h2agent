@@ -3,7 +3,7 @@ a status code 200 if response is validated against a request schema (400
 if not): "myRequestSchema".
 
 We additionally will validate with more precission by mean a second schema
-using a transformation filter (SchemaId): "myFilterSchema". In this case,
+using a transformation filter (schemaId): "myFilterSchema". In this case,
 validation error sets the status code 417.
 
 The first schema check fields 'num' and 'name' to be a number and a string

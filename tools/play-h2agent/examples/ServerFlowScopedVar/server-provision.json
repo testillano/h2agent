@@ -8,8 +8,15 @@
     "responseBody": {"step": "first"},
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
-      {"source": "request.body./price", "target": "var.total"},
-      {"source": "var.total", "target": "response.body.json.integer./running"}
+      {
+        "from": {"source": "requestBody", "path": "/price"},
+        "to": {"target": "var", "name": "total"}
+      },
+      {
+        "from": {"source": "var", "name": "total"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/running"}
+      }
     ]
   },
   {
@@ -21,10 +28,20 @@
     "responseBody": {"step": "added"},
     "responseHeaders": {"content-type": "application/json"},
     "transform": [
-      {"source": "var.total", "target": "var.accumulated"},
-      {"source": "request.body./price", "target": "var.newPrice"},
-      {"source": "math.@{accumulated}+@{newPrice}", "target": "var.total"},
-      {"source": "var.total", "target": "response.body.json.integer./running"}
+      {"from": {"source": "var", "name": "total"}, "to": {"target": "var", "name": "accumulated"}},
+      {
+        "from": {"source": "requestBody", "path": "/price"},
+        "to": {"target": "var", "name": "newPrice"}
+      },
+      {
+        "from": {"source": "math", "expression": "@{accumulated}+@{newPrice}"},
+        "to": {"target": "var", "name": "total"}
+      },
+      {
+        "from": {"source": "var", "name": "total"},
+        "filter": [{"op": "cast", "type": "integer"}],
+        "to": {"target": "responseBody", "path": "/running"}
+      }
     ]
   }
 ]

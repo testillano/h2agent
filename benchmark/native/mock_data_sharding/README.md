@@ -7,7 +7,7 @@ server/client event store), before touching any code.
 ## Why MockData is NOT the same case as Vault
 
 The Vault hot path is **write-per-key**: a provision loads many distinct
-`vault.X` keys, and those writes serialize on a single mutex. Sharding disperses
+vault keys (`X`), and those writes serialize on a single mutex. Sharding disperses
 them -> big win.
 
 `MockData` has a different, **read-heavy** mix:

@@ -29,7 +29,10 @@ Feature: h2agent Gherkin driver examples
         {"id": 1}
         """
       And with response header "content-type" as "application/json"
-      And with transform from "request.body./name" to "response.body.json.string./name"
+      And with transform
+        """
+        {"from": {"source": "requestBody", "path": "/name"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/name"}}
+        """
     When the server provision is committed
       And I send "POST" to "/api/v1/users" with body
         """
@@ -71,8 +74,16 @@ Feature: h2agent Gherkin driver examples
         "responseCode": 200,
         "responseBody": {"data": "complex"},
         "transform": [
-          {"source": "timestamp.ms", "target": "response.body.json.unsigned./ts"},
-          {"source": "recvseq", "target": "response.body.json.unsigned./seq"}
+          {
+            "from": {"source": "timestamp", "unit": "ms"},
+            "filter": [{"op": "cast", "type": "unsigned"}],
+            "to": {"target": "responseBody", "path": "/ts"}
+          },
+          {
+            "from": {"source": "recvseq"},
+            "filter": [{"op": "cast", "type": "unsigned"}],
+            "to": {"target": "responseBody", "path": "/seq"}
+          }
         ]
       }
       """

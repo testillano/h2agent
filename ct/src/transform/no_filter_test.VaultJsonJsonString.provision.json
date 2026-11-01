@@ -2,28 +2,27 @@
   "requestMethod": "POST",
   "requestUri": "/app/v1/foo/bar/1",
   "responseCode": 200,
-  "responseBody": {
-    "foo": "bar-1"
-  },
-  "responseHeaders": {
-    "content-type": "application/json"
-  },
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "source": "request.body./embedded",
-      "target": "var.rawJson"
+      "from": {"source": "requestBody", "path": "/embedded"},
+      "to": {"target": "var", "name": "rawJson"}
     },
     {
-      "source": "var.rawJson",
-      "target": "vault.parsed.json.jsonstring"
+      "from": {"source": "var", "name": "rawJson"},
+      "filter": [{"op": "cast", "type": "json"}],
+      "to": {"target": "vault", "key": "parsed"}
     },
     {
-      "source": "vault.parsed./volume",
-      "target": "response.body.json.unsigned./volume"
+      "from": {"source": "vault", "key": "parsed", "path": "/volume"},
+      "filter": [{"op": "cast", "type": "unsigned"}],
+      "to": {"target": "responseBody", "path": "/volume"}
     },
     {
-      "source": "vault.parsed./time",
-      "target": "response.body.json.unsigned./time"
+      "from": {"source": "vault", "key": "parsed", "path": "/time"},
+      "filter": [{"op": "cast", "type": "unsigned"}],
+      "to": {"target": "responseBody", "path": "/time"}
     }
   ]
 }

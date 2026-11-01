@@ -93,7 +93,7 @@ h2agent::model::SseManager* mySseManager = nullptr;
 ert::metrics::Metrics *myMetrics = nullptr;
 
 const char* AdminApiName = "admin";
-const char* AdminApiVersion = "v1";
+const char* AdminApiVersion = "v2";
 }
 
 /////////////////////////
@@ -487,7 +487,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "  Maximum pending dispatches in the worker pool; defaults to 0 (unlimited).\n"
        << "  When the pool queue exceeds this limit, new ticks are discarded to\n"
        << "  prevent unbounded memory growth. Lower values control memory better\n"
-       << "  but reduce effective CPS. Monitor via GET /admin/v1/client/dispatch-latency.\n\n"
+       << "  but reduce effective CPS. Monitor via GET /admin/v2/client/dispatch-latency.\n\n"
 
        << "[-V|--version]\n"
        << "  Program version.\n\n"
@@ -1098,6 +1098,7 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
     myAdminHttp2Server->enableMetrics(myMetrics, {}, {}, application_name/*source label*/);
     myAdminHttp2Server->setApiName(AdminApiName);
     myAdminHttp2Server->setApiVersion(AdminApiVersion);
+    myAdminHttp2Server->setProgramVersion(h2agent::GIT_VERSION);
     myAdminHttp2Server->setConfiguration(myConfiguration);
     myAdminHttp2Server->setVault(myVault);
     myAdminHttp2Server->setFileManager(myFileManager);
@@ -1198,6 +1199,25 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
         }
     }
 
+    // Vault: loaded BEFORE the provisions, which may hold load-time references to
+    // its entries (#{key}). myTrafficHttp2Server is already referenced in the admin
+    // server (set within the traffic server creation block above):
+    if (vault_file != "") {
+    success = h2agent::model::getFileContent(vault_file, fileContent);
+        std::string log = "Vault configuration load failed and will be ignored";
+        if (success)
+            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
+
+        if (success) {
+            log += ": ";
+            success = myAdminHttp2Server->vault(jsonObject, log);
+        }
+
+        if (!success) {
+            std::cerr << currentDateTime() << ": " << log << std::endl;
+        }
+    }
+
     // Traffic configuration
     if (traffic_server_enabled) {
 
@@ -1283,25 +1303,6 @@ ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#ques
             log += ": ";
             std::string warning;
             success = myAdminHttp2Server->clientProvision(jsonObject, log, warning);
-        }
-
-        if (!success) {
-            std::cerr << currentDateTime() << ": " << log << std::endl;
-        }
-    }
-
-    // Vault
-    // myTrafficHttp2Server is already referenced in the admin server (set within the
-    // traffic server creation block above), so the vault object is accessible here:
-    if (vault_file != "") {
-    success = h2agent::model::getFileContent(vault_file, fileContent);
-        std::string log = "Vault configuration load failed and will be ignored";
-        if (success)
-            success = h2agent::model::parseJsonContent(fileContent, jsonObject);
-
-        if (success) {
-            log += ": ";
-            success = myAdminHttp2Server->vault(jsonObject, log);
         }
 
         if (!success) {
