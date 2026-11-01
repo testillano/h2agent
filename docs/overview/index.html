@@ -56,7 +56,8 @@
   .taas .t2 { font-size: 2.6em; font-weight: 800; line-height: 1.1; }
   .taas .t2 span { color: var(--blue); }
   .taas .t3 { font-size: .7em; }
-  .rocket { position: absolute; right: 18px; bottom: 14px; font-size: 1.6em; animation: float 3s ease-in-out infinite; }
+  .rocket { position: absolute; right: -26px; top: -34px; font-size: 1.6em; animation: float 3s ease-in-out infinite; }
+  .reveal .taas .logo { position: absolute; right: 0; bottom: 0; width: 150px; margin: 0; border: 0; box-shadow: none; }
   @keyframes float { 0%,100% { transform: translateY(0) rotate(-20deg); } 50% { transform: translateY(-10px) rotate(-12deg); } }
 
   /* Road map */
@@ -67,6 +68,10 @@
   .road .tile.on { background: var(--orange); transform: scale(1.35); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
   .road .cap { position: absolute; color: #fff; font-weight: 700; font-size: .62em; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
   .road .cap.on { color: var(--purple); text-shadow: none; }
+  .reveal .road a { text-decoration: none; cursor: pointer; transition: transform .2s; }
+  .reveal .road a.tile { color: var(--dark); }
+  .reveal .road a:hover { transform: scale(1.15); }
+  .reveal .road a.tile.on:hover { transform: scale(1.45); }
 
   /* Flow model */
   .flow { display: flex; align-items: center; gap: .5em; font-size: 1.1em; }
@@ -89,7 +94,8 @@
   .kinds div { display: flex; align-items: baseline; gap: .4em; }
   .kinds .sw { width: .9em; height: .9em; flex: none; display: inline-block; align-self: center; }
   .kinds code { font-weight: 700; font-size: 1.05em; color: var(--dark); background: none; }
-  .fbox { background: rgba(255,255,255,.55); padding: .45em .6em; font-size: .5em; }
+  .fbox { background: rgba(255,255,255,.55); padding: .35em .55em; font-size: .46em; min-width: 0; }
+  .fbox code { overflow-wrap: anywhere; }
   .fbox h4 { margin: 0 0 .2em; font-size: 1.35em; text-transform: none; }
 
   .star { font-size: 7em; display: inline-block; animation: spin 6s ease-in-out infinite; }
@@ -97,37 +103,42 @@
   .pulse { animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
   .big { font-size: 2.2em; font-weight: 300; }
+  /* Link to the index, on every slide */
+  .reveal .home { position: absolute; left: 14px; bottom: 10px; z-index: 30; font-size: 13px; color: var(--dark);
+                  background: rgba(255,255,255,.55); padding: 2px 8px; border-radius: 10px; text-decoration: none; opacity: .7; }
+  .reveal .home:hover { opacity: 1; }
 </style>
 </head>
 <body>
 <div class="reveal"><div class="slides">
 
 <!-- =============================== ROAD MAP (title) -->
-<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+<section id="index" data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
   <div class="road" data-id="road">
     <div class="lane" style="left:0;top:0;width:640px"></div>
     <div class="lane" style="left:120px;top:200px;width:520px"></div>
     <div class="lane" style="left:0;top:400px;width:820px"></div>
     <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
     <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
-    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
-    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
-    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
-    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
-    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
-    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+    <a class="tile" data-id="t1" href="#/introduction" style="left:60px;top:0">1</a><a class="cap" data-id="c1" href="#/introduction" style="left:30px;top:90px">INTRODUCTION</a>
+    <a class="tile" data-id="t2" href="#/interfaces" style="left:320px;top:0">2</a><a class="cap" data-id="c2" href="#/interfaces" style="left:290px;top:90px">INTERFACES</a>
+    <a class="tile" data-id="t3" href="#/transformation-model" style="left:360px;top:200px">3</a><a class="cap" data-id="c3" href="#/transformation-model" style="left:260px;top:290px">TRANSFORMATION MODEL</a>
+    <a class="tile" data-id="t4" href="#/quick-start" style="left:150px;top:400px">4</a><a class="cap" data-id="c4" href="#/quick-start" style="left:120px;top:490px">QUICK START</a>
+    <a class="tile" data-id="t5" href="#/whats-next" style="left:420px;top:400px">5</a><a class="cap" data-id="c5" href="#/whats-next" style="left:395px;top:490px">WHAT'S NEXT</a>
+    <a class="tile" data-id="t6" href="#/contribute" style="left:680px;top:400px">6</a><a class="cap" data-id="c6" href="#/contribute" style="left:650px;top:490px">CONTRIBUTE</a>
   </div>
   <div class="taas" data-id="taas">
     <div class="t1">TaaS<small>testing<br>as a<br>service</small></div>
     <div class="t2"><span>H2A</span>gent</div>
-    <div class="t3">HTTP/2 mock (server &amp; client) &middot; 5.0.0</div>
+    <div class="t3" style="max-width:240px;min-height:70px;display:flex;align-items:flex-end">HTTP/2 mock (server &amp; client) &middot; 5.0.0</div>
+    <img class="logo" alt="h2agent logo: a rocket on an h-shaped launch tower" src="data:image/jpeg;base64,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">
     <div class="rocket">&#128640;</div>
   </div>
   <aside class="notes">Overview of h2agent 5.0.0: admin API v2 and transformation grammar v2.</aside>
 </section>
 
 <!-- =============================== 1. INTRODUCTION -->
-<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+<section id="introduction" data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
   <div class="card" style="width:560px;font-size:.78em">
     <h2 style="margin-top:0">INTRODUCTION</h2>
     <p><b>H2agent</b> is an agent-oriented process which mocks <b>HTTP/2</b> (and HTTP/1 via proxy) applications.</p>
@@ -198,12 +209,12 @@
     <div class="lane" style="left:0;top:400px;width:820px"></div>
     <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
     <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
-    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
-    <div class="tile on" data-id="t2" style="left:320px;top:0">2</div><div class="cap on" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
-    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
-    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
-    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
-    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+    <a class="tile" data-id="t1" href="#/introduction" style="left:60px;top:0">1</a><a class="cap" data-id="c1" href="#/introduction" style="left:30px;top:90px">INTRODUCTION</a>
+    <a class="tile on" data-id="t2" href="#/interfaces" style="left:320px;top:0">2</a><a class="cap on" data-id="c2" href="#/interfaces" style="left:290px;top:90px">INTERFACES</a>
+    <a class="tile" data-id="t3" href="#/transformation-model" style="left:360px;top:200px">3</a><a class="cap" data-id="c3" href="#/transformation-model" style="left:260px;top:290px">TRANSFORMATION MODEL</a>
+    <a class="tile" data-id="t4" href="#/quick-start" style="left:150px;top:400px">4</a><a class="cap" data-id="c4" href="#/quick-start" style="left:120px;top:490px">QUICK START</a>
+    <a class="tile" data-id="t5" href="#/whats-next" style="left:420px;top:400px">5</a><a class="cap" data-id="c5" href="#/whats-next" style="left:395px;top:490px">WHAT'S NEXT</a>
+    <a class="tile" data-id="t6" href="#/contribute" style="left:680px;top:400px">6</a><a class="cap" data-id="c6" href="#/contribute" style="left:650px;top:490px">CONTRIBUTE</a>
   </div>
   <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
     <div class="t2"><span>H2A</span>gent</div><div class="t3">2 &middot; interfaces</div>
@@ -211,7 +222,7 @@
 </section>
 
 <!-- =============================== 2. INTERFACES -->
-<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+<section id="interfaces" data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
   <div class="card" style="width:580px;font-size:.74em">
     <h2 style="margin-top:0">INTERFACES</h2>
     <p class="fragment"><b>Management</b> port (8074 by default) serves the <i>REST API</i> <code>/admin/v2</code> which programs the agent behavior.</p>
@@ -553,12 +564,12 @@ curl --http2-prior-knowledge -XPOST \
     <div class="lane" style="left:0;top:400px;width:820px"></div>
     <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
     <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
-    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
-    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
-    <div class="tile on" data-id="t3" style="left:360px;top:200px">3</div><div class="cap on" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
-    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
-    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
-    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+    <a class="tile" data-id="t1" href="#/introduction" style="left:60px;top:0">1</a><a class="cap" data-id="c1" href="#/introduction" style="left:30px;top:90px">INTRODUCTION</a>
+    <a class="tile" data-id="t2" href="#/interfaces" style="left:320px;top:0">2</a><a class="cap" data-id="c2" href="#/interfaces" style="left:290px;top:90px">INTERFACES</a>
+    <a class="tile on" data-id="t3" href="#/transformation-model" style="left:360px;top:200px">3</a><a class="cap on" data-id="c3" href="#/transformation-model" style="left:260px;top:290px">TRANSFORMATION MODEL</a>
+    <a class="tile" data-id="t4" href="#/quick-start" style="left:150px;top:400px">4</a><a class="cap" data-id="c4" href="#/quick-start" style="left:120px;top:490px">QUICK START</a>
+    <a class="tile" data-id="t5" href="#/whats-next" style="left:420px;top:400px">5</a><a class="cap" data-id="c5" href="#/whats-next" style="left:395px;top:490px">WHAT'S NEXT</a>
+    <a class="tile" data-id="t6" href="#/contribute" style="left:680px;top:400px">6</a><a class="cap" data-id="c6" href="#/contribute" style="left:650px;top:490px">CONTRIBUTE</a>
   </div>
   <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
     <div class="t2"><span>H2A</span>gent</div><div class="t3">3 &middot; grammar v2</div>
@@ -566,7 +577,7 @@ curl --http2-prior-knowledge -XPOST \
 </section>
 
 <!-- =============================== 3. TRANSFORMATION MODEL -->
-<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+<section id="transformation-model" data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
   <div class="card" style="width:600px;font-size:.7em">
     <h2 style="margin-top:0;text-align:center">Flow model</h2>
     <p style="text-align:center" class="small">server and client modes &middot; transformation rule</p>
@@ -638,7 +649,7 @@ curl --http2-prior-knowledge -XPOST \
 
 <section data-background-color="#f9f871">
   <h2>Filters <small>(filter[ ], same for server and client)</small></h2>
-  <div class="cols c4">
+  <div class="cols c3" style="gap:.35em .6em">
     <div class="fbox fragment fade-up"><h4>regexCapture</h4><code>{"op":"regexCapture","rgx":"api/v2/id-([0-9]+)/cat-([a-z]+)"}</code><br>groups: <code>var.1</code>, <code>var.2</code></div>
     <div class="fbox fragment fade-up"><h4>regexReplace</h4><code>{"op":"regexReplace","rgx":"...","fmt":"$1"}</code></div>
     <div class="fbox fragment fade-up"><h4>regexKey</h4><code>{"op":"regexKey","rgx":"acct-[0-9]{10}"}</code> on object keys</div>
@@ -817,12 +828,12 @@ curl --http2-prior-knowledge -XPOST \
     <div class="lane" style="left:0;top:400px;width:820px"></div>
     <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
     <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
-    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
-    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
-    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
-    <div class="tile on" data-id="t4" style="left:150px;top:400px">4</div><div class="cap on" data-id="c4" style="left:120px;top:490px">QUICK START</div>
-    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
-    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+    <a class="tile" data-id="t1" href="#/introduction" style="left:60px;top:0">1</a><a class="cap" data-id="c1" href="#/introduction" style="left:30px;top:90px">INTRODUCTION</a>
+    <a class="tile" data-id="t2" href="#/interfaces" style="left:320px;top:0">2</a><a class="cap" data-id="c2" href="#/interfaces" style="left:290px;top:90px">INTERFACES</a>
+    <a class="tile" data-id="t3" href="#/transformation-model" style="left:360px;top:200px">3</a><a class="cap" data-id="c3" href="#/transformation-model" style="left:260px;top:290px">TRANSFORMATION MODEL</a>
+    <a class="tile on" data-id="t4" href="#/quick-start" style="left:150px;top:400px">4</a><a class="cap on" data-id="c4" href="#/quick-start" style="left:120px;top:490px">QUICK START</a>
+    <a class="tile" data-id="t5" href="#/whats-next" style="left:420px;top:400px">5</a><a class="cap" data-id="c5" href="#/whats-next" style="left:395px;top:490px">WHAT'S NEXT</a>
+    <a class="tile" data-id="t6" href="#/contribute" style="left:680px;top:400px">6</a><a class="cap" data-id="c6" href="#/contribute" style="left:650px;top:490px">CONTRIBUTE</a>
   </div>
   <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
     <div class="t2"><span>H2A</span>gent</div><div class="t3">4 &middot; quick start</div>
@@ -830,7 +841,7 @@ curl --http2-prior-knowledge -XPOST \
 </section>
 
 <!-- =============================== 4. QUICK START -->
-<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+<section id="quick-start" data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
   <h2>Quick start</h2>
   <pre><code class="language-bash" data-trim data-line-numbers="1-2|4-8|10-11|13-14">
 # Run the agent (traffic 8000, admin 8074, metrics 8080):
@@ -873,12 +884,12 @@ curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=
     <div class="lane" style="left:0;top:400px;width:820px"></div>
     <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
     <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
-    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
-    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
-    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
-    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
-    <div class="tile on" data-id="t5" style="left:420px;top:400px">5</div><div class="cap on" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
-    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+    <a class="tile" data-id="t1" href="#/introduction" style="left:60px;top:0">1</a><a class="cap" data-id="c1" href="#/introduction" style="left:30px;top:90px">INTRODUCTION</a>
+    <a class="tile" data-id="t2" href="#/interfaces" style="left:320px;top:0">2</a><a class="cap" data-id="c2" href="#/interfaces" style="left:290px;top:90px">INTERFACES</a>
+    <a class="tile" data-id="t3" href="#/transformation-model" style="left:360px;top:200px">3</a><a class="cap" data-id="c3" href="#/transformation-model" style="left:260px;top:290px">TRANSFORMATION MODEL</a>
+    <a class="tile" data-id="t4" href="#/quick-start" style="left:150px;top:400px">4</a><a class="cap" data-id="c4" href="#/quick-start" style="left:120px;top:490px">QUICK START</a>
+    <a class="tile on" data-id="t5" href="#/whats-next" style="left:420px;top:400px">5</a><a class="cap on" data-id="c5" href="#/whats-next" style="left:395px;top:490px">WHAT'S NEXT</a>
+    <a class="tile" data-id="t6" href="#/contribute" style="left:680px;top:400px">6</a><a class="cap" data-id="c6" href="#/contribute" style="left:650px;top:490px">CONTRIBUTE</a>
   </div>
   <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
     <div class="t2"><span>H2A</span>gent</div><div class="t3">5 &middot; what's next</div>
@@ -886,7 +897,7 @@ curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=
 </section>
 
 <!-- =============================== 5. WHAT'S NEXT -->
-<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+<section id="whats-next" data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
   <div class="card" style="width:640px">
     <h2 style="margin-top:0">WHAT'S NEXT</h2>
     <p class="fragment"><b>5.0.0 delivered</b>: admin API v2 and transformation grammar v2, with migrator and migration guide.</p>
@@ -904,12 +915,12 @@ curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=
     <div class="lane" style="left:0;top:400px;width:820px"></div>
     <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
     <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
-    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
-    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
-    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
-    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
-    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
-    <div class="tile on" data-id="t6" style="left:680px;top:400px">6</div><div class="cap on" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+    <a class="tile" data-id="t1" href="#/introduction" style="left:60px;top:0">1</a><a class="cap" data-id="c1" href="#/introduction" style="left:30px;top:90px">INTRODUCTION</a>
+    <a class="tile" data-id="t2" href="#/interfaces" style="left:320px;top:0">2</a><a class="cap" data-id="c2" href="#/interfaces" style="left:290px;top:90px">INTERFACES</a>
+    <a class="tile" data-id="t3" href="#/transformation-model" style="left:360px;top:200px">3</a><a class="cap" data-id="c3" href="#/transformation-model" style="left:260px;top:290px">TRANSFORMATION MODEL</a>
+    <a class="tile" data-id="t4" href="#/quick-start" style="left:150px;top:400px">4</a><a class="cap" data-id="c4" href="#/quick-start" style="left:120px;top:490px">QUICK START</a>
+    <a class="tile" data-id="t5" href="#/whats-next" style="left:420px;top:400px">5</a><a class="cap" data-id="c5" href="#/whats-next" style="left:395px;top:490px">WHAT'S NEXT</a>
+    <a class="tile on" data-id="t6" href="#/contribute" style="left:680px;top:400px">6</a><a class="cap on" data-id="c6" href="#/contribute" style="left:650px;top:490px">CONTRIBUTE</a>
   </div>
   <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
     <div class="t2"><span>H2A</span>gent</div><div class="t3">6 &middot; contribute</div>
@@ -917,7 +928,7 @@ curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=
 </section>
 
 <!-- =============================== 6. CONTRIBUTE -->
-<section data-background-color="#21d4d6">
+<section id="contribute" data-background-color="#21d4d6">
   <div class="cols c2">
     <div style="font-size:.6em">
       <h3>Main project</h3>
@@ -937,7 +948,7 @@ curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=
       </p>
       <p>Check the <a href="https://github.com/testillano/h2agent/blob/master/CONTRIBUTING.md">contributing guidelines</a>.</p>
     </div>
-    <div style="text-align:center"><div class="star fragment zoom-in">&#11088;</div><p class="fragment small">Give it a star!</p></div>
+    <div style="text-align:center"><a href="https://github.com/testillano/h2agent" title="Star h2agent on GitHub (button at the top right)"><div class="star fragment zoom-in">&#11088;</div></a><p class="fragment small"><a href="https://github.com/testillano/h2agent">Give it a star!</a></p></div>
   </div>
 </section>
 
@@ -946,7 +957,9 @@ curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=
   <div style="text-align:center"><span class="star">&#11088;</span></div>
 </section>
 
-</div></div>
+</div>
+<a class="home" href="#/index" title="Back to the index">&#8962; index</a>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
