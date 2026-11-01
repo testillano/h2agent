@@ -145,7 +145,10 @@ public:
         std::shared_lock<std::shared_mutex> lock(json_mutex_);
         if (path.empty()) return json_;
 
+        // const operator[] on a missing node is undefined behavior (JSON_ASSERT is
+        // disabled on release builds): check existence first, null means not found.
         nlohmann::json::json_pointer p(path);
+        if (!json_.contains(p)) return nlohmann::json();
         return json_[p];
     }
 };
