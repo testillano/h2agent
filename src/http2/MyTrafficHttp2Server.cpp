@@ -362,12 +362,12 @@ ss << "TRAFFIC REQUEST RECEIVED"
             // Store event context information
             if (server_data_) {
                 normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
-                getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr);
+                auto loadedEvent = getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr);
 
                 // Register for sendingTimestampUs capture in streamClose:
                 {
                     std::lock_guard<std::mutex> guard(pending_events_mutex_);
-                    pending_events_[receptionId] = getMockServerData()->getLastLoadedEvent();
+                    pending_events_[receptionId] = loadedEvent;
                 }
 
                 // Store chain variables for next outState link:
@@ -403,12 +403,12 @@ ss << "TRAFFIC REQUEST RECEIVED"
         statusCode = ert::http2comm::ResponseCode::NOT_IMPLEMENTED; // 501
         // Store even if not provision was identified (helps to troubleshoot design problems in test configuration):
         if (server_data_) {
-            getMockServerData()->loadEvent(normalizedKey, ""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
+            auto loadedEvent = getMockServerData()->loadEvent(normalizedKey, ""/* empty inState, which will be omitted in server data register */, ""/*outState (same as before)*/, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, true /* history enabled ALWAYS FOR UNKNOWN EVENTS */);
 
             // Register for sendingTimestampUs capture in streamClose:
             {
                 std::lock_guard<std::mutex> guard(pending_events_mutex_);
-                pending_events_[receptionId] = getMockServerData()->getLastLoadedEvent();
+                pending_events_[receptionId] = loadedEvent;
             }
         }
         // metrics

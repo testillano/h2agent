@@ -36,6 +36,7 @@ SOFTWARE.
 #pragma once
 
 #include <MockEventsHistory.hpp>
+#include <MockServerEvent.hpp>
 
 
 namespace h2agent
@@ -76,7 +77,12 @@ public:
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      */
-    void loadEvent(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr);
+    /**
+     * Builds a server event (not stored): see loadEvent() parameters
+     */
+    static std::shared_ptr<MockServerEvent> buildEvent(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr);
+
+    std::shared_ptr<MockServerEvent> loadEvent(const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr);
 
     /**
      * Removes event matching a given receive sequence

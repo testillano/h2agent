@@ -100,6 +100,14 @@ public:
     const nlohmann::json &getResponseBody() const {
         return response_body_;
     }
+
+    /** Sending timestamp
+     *
+     * @return Sending timestamp in microseconds
+     */
+    std::uint64_t getSendingTimestampUs() const {
+        return sending_timestamp_us_;
+    }
 };
 
 }

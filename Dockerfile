@@ -242,6 +242,7 @@ ARG STATIC_LINKING=FALSE
 ARG H2COMM_MAX_CONCURRENT_STREAMS=ON
 ARG sanitizer_flags=""
 ARG sanitizer_extra=""
+ARG sanitizer_warn=""
 ARG sanitizer_link=""
 
 COPY . /code
@@ -249,7 +250,7 @@ WORKDIR /code
 
 RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=${STATIC_LINKING} \
     -DH2COMM_MAX_CONCURRENT_STREAMS=${H2COMM_MAX_CONCURRENT_STREAMS} \
-    ${sanitizer_flags:+-DCMAKE_CXX_FLAGS="${sanitizer_flags} ${sanitizer_extra}"} \
+    ${sanitizer_flags:+-DCMAKE_CXX_FLAGS="${sanitizer_flags} ${sanitizer_extra} ${sanitizer_warn}"} \
     ${sanitizer_link:+-DCMAKE_EXE_LINKER_FLAGS="${sanitizer_link}"} \
     . && make -j${make_procs}
 

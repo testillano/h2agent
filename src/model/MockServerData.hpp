@@ -62,7 +62,6 @@ namespace model
  */
 class MockServerData : public MockData
 {
-    std::shared_ptr<MockServerEvent> last_loaded_event_{};
 
 public:
     MockServerData() {};
@@ -88,8 +87,11 @@ public:
      * @param historyEnabled Events complete history storage
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
+     * @param executionTrace Optional transformation pipeline execution trace stored in the event
+     *
+     * @return The event loaded (thread-safe handle for the caller, e.g. to set its sending timestamp)
      */
-    void loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr);
+    std::shared_ptr<MockServerEvent> loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr);
 
     /**
      * Removes event matching a given receive sequence within a data key
@@ -110,15 +112,6 @@ public:
      * @return Mock event or nullptr if not found
      */
     std::shared_ptr<MockEvent> getEventByRecvSeq(const DataKey &dataKey, std::uint64_t recvSeq);
-
-    /**
-     * Gets the last loaded event (from the most recent loadEvent call)
-     *
-     * @return Last loaded server event
-     */
-    std::shared_ptr<MockServerEvent> getLastLoadedEvent() const {
-        return last_loaded_event_;
-    }
 
     /**
      * Gets an event addressed by a URI prefix (literal 'startsWith') instead of an exact URI key.

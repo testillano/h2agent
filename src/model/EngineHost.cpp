@@ -249,7 +249,16 @@ std::optional<nlohmann::json> EngineEventSource::resolve(const std::string &doma
         return std::nullopt;  // e.g. non numeric sequence (v1 returns false)
     }
     if (!event) return std::nullopt;
-    auto v = extract(event->getJson(), field(address, "eventPath"));
+    // Only the addressed node is copied, under the event lock (v1 extract semantics:
+    // empty path = whole event; a missing or empty node is not found).
+    std::optional<nlohmann::json> v;
+    const std::string eventPath = field(address, "eventPath");
+    try {
+        nlohmann::json node = event->getJson(eventPath);
+        if (eventPath.empty() || !node.empty()) v = std::move(node);
+    } catch (const std::exception &) {
+        // missing path: not found
+    }
     if (!v) {
         ert::tracing::Logger::warning(ert::tracing::Logger::asString("Cannot extract path '%s' from %s for address '%s'",
                                       field(address, "eventPath").c_str(), domain.c_str(),

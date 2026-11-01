@@ -83,7 +83,7 @@ class SocketManager;
 
 class AdminClientProvision
 {
-    bool employed_{};
+    std::atomic<bool> employed_{}; // set by traffic workers, read by admin (unused provisions)
 
     mutable nlohmann::json json_{}; // provision reference (mutable for lazy dynamics update)
     mutable std::mutex json_mutex_{}; // protects json_ (timer thread + admin API thread)

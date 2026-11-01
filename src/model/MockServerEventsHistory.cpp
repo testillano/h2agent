@@ -44,20 +44,32 @@ namespace h2agent
 namespace model
 {
 
-void MockServerEventsHistory::loadEvent(const std::string &previousState, const std::string &state,
-                                        const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode,
-                                        const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders,
-                                        DataPart &requestBodyDataPart, const std::string &responseBody,
-                                        std::uint64_t serverSequence, unsigned int responseDelayMs,
-                                        bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri,
-                                        const nlohmann::json *executionTrace) {
+std::shared_ptr<MockServerEvent> MockServerEventsHistory::loadEvent(const std::string &previousState, const std::string &state,
+        const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode,
+        const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders,
+        DataPart &requestBodyDataPart, const std::string &responseBody,
+        std::uint64_t serverSequence, unsigned int responseDelayMs,
+        bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri,
+        const nlohmann::json *executionTrace) {
 
+
+    auto event = buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace);
+    MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
+    return event;
+}
+
+std::shared_ptr<MockServerEvent> MockServerEventsHistory::buildEvent(const std::string &previousState, const std::string &state,
+        const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode,
+        const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders,
+        DataPart &requestBodyDataPart, const std::string &responseBody,
+        std::uint64_t serverSequence, unsigned int responseDelayMs,
+        const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri,
+        const nlohmann::json *executionTrace) {
 
     auto event = std::make_shared<MockServerEvent>();
     event->load(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
     if (executionTrace) event->setExecutionTrace(*executionTrace);  // before publishing the event
-
-    MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
+    return event;
 }
 
 bool MockServerEventsHistory::removeEventByRecvSeq(std::uint64_t recvSeq) {

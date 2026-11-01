@@ -54,8 +54,10 @@ launch_proxy /tmp/nghttpx-admin.conf &
 
 # jemalloc: configure aggressive memory decay for multi-threaded workloads.
 # Without this, glibc malloc fragments heavily with the worker pool.
-# Skip if ASAN/TSAN is active (incompatible with jemalloc).
-if [ -z "${LD_PRELOAD}" ] && [ -f /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 ]; then
+# Skip if ASAN/TSAN is active (incompatible with jemalloc): either preloaded, or
+# linked into the binary (SANITIZER builds), where preloading jemalloc crashes at start.
+if [ -z "${LD_PRELOAD}" ] && ! ldd /opt/h2agent 2>/dev/null | grep -qE 'lib(a|t)san' \
+   && [ -f /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 ]; then
   export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
   #export MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:-1,muzzy_decay_ms:-1}" # disabled decay
   export MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:5000,muzzy_decay_ms:10000}" # softer decay

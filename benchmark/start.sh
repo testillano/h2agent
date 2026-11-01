@@ -403,6 +403,12 @@ elif [ "${BENCH_MODE}" = "client" ]; then
   read_value "Number of iterations" H2CLIENT__ITERATIONS
 
   # Start dedicated client h2agent (no traffic server, just client + admin + prometheus)
+  for port in ${CLIENT_ADMIN_PORT} ${CLIENT_PROMETHEUS_PORT}; do
+    if ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE ":${port}\$"; then
+      echo "ERROR: port ${port} (client h2agent: admin/prometheus port + 1) is busy; use other H2AGENT__ADMIN_PORT/H2AGENT__PROMETHEUS_PORT"
+      exit 1
+    fi
+  done
   echo -e "\nStarting client h2agent (admin=${CLIENT_ADMIN_PORT}, prometheus=${CLIENT_PROMETHEUS_PORT})..."
   docker run --rm -d --network=host --name ${CLIENT_DCK_NAME} -u $(id -u) \
     ${H2A_DOCKER_IMAGE_BN}:${H2A_DOCKER_IMAGE_TAG} \
@@ -420,6 +426,10 @@ elif [ "${BENCH_MODE}" = "client" ]; then
     sleep 0.1
   done
   CLIENT_H2AGENT_PID=$(docker inspect -f '{{.State.Pid}}' ${CLIENT_DCK_NAME} 2>/dev/null)
+  if [ -z "${CLIENT_H2AGENT_PID}" -o "${CLIENT_H2AGENT_PID}" = "0" ]; then
+    echo "ERROR: client h2agent container '${CLIENT_DCK_NAME}' is not running (it exited at startup: busy port?)"
+    exit 1
+  fi
   echo "Client h2agent ready (container=${CLIENT_DCK_NAME}, PID=${CLIENT_H2AGENT_PID})"
 
   # Helper: admin curl targeting the CLIENT h2agent

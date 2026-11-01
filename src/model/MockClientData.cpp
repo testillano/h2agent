@@ -109,7 +109,7 @@ std::shared_ptr<MockEvent> MockClientData::getEventByUriStartsWith(const std::st
 
         read_guard_t guard(history->getMutex());
         for (const auto &ev : history->getEvents()) {
-            std::uint64_t sendTs = std::static_pointer_cast<MockClientEvent>(ev)->getJson()["sendingTimestampUs"].get<std::uint64_t>();
+            std::uint64_t sendTs = std::static_pointer_cast<MockClientEvent>(ev)->getSendingTimestampUs();
             entries.push_back({sendTs, ev});
         }
     });
@@ -146,7 +146,7 @@ std::string MockClientData::getSequence(std::uint64_t fromTimestampUs, std::uint
         read_guard_t guard(history->getMutex());
         for (const auto &ev : history->getEvents()) {
             auto clientEv = std::static_pointer_cast<MockClientEvent>(ev);
-            const auto &json = clientEv->getJson();
+            const nlohmann::json json = clientEv->getJson(); // copy (see MockEvent::json_mutex_)
             std::uint64_t sendTs = json["sendingTimestampUs"].get<std::uint64_t>();
             std::uint64_t recvTs = json.contains("receptionTimestampUs") ? json["receptionTimestampUs"].get<std::uint64_t>() : 0;
             std::string provId = json.contains("clientProvisionId") ? json["clientProvisionId"].get<std::string>() : "";

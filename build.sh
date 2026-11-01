@@ -183,7 +183,10 @@ build_image() {
           bargs+=" --build-arg sanitizer=asan"
           [ "${bt}" = "Release" ] && echo "WARNING: SANITIZER=asan works best with build_type=Debug" ;;
     tsan) bargs+=" --build-arg sanitizer_flags=-fsanitize=thread"
+          # GCC >= 12 warns (-Wtsan) about the std::atomic_thread_fence used by boost
+          # asio, which -Werror turns into an error: keep it a warning
           bargs+=" --build-arg sanitizer_extra=-fno-omit-frame-pointer"
+          bargs+=" --build-arg sanitizer_warn=-Wno-error=tsan"
           bargs+=" --build-arg sanitizer_link=-fsanitize=thread"
           bargs+=" --build-arg sanitizer=tsan"
           [ "${bt}" = "Release" ] && echo "WARNING: SANITIZER=tsan works best with build_type=Debug" ;;

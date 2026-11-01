@@ -53,7 +53,7 @@ class MockServerEvent : public MockEvent
     unsigned int response_delay_ms_{};
     std::string virtual_origin_coming_from_method_{};
     std::string virtual_origin_coming_from_uri_{};
-    std::uint64_t sending_timestamp_us_{};
+    std::atomic<std::uint64_t> sending_timestamp_us_{}; // set when the response stream closes (after publication)
 
 public:
 
@@ -106,7 +106,8 @@ public:
      */
     void setSendingTimestampUs(const std::chrono::microseconds &sendingTimestampUs) {
         sending_timestamp_us_ = sendingTimestampUs.count();
-        json_["sendingTimestampUs"] = sending_timestamp_us_;
+        std::unique_lock<std::shared_mutex> lock(json_mutex_);
+        json_["sendingTimestampUs"] = sending_timestamp_us_.load();
     }
 
     /** Sending timestamp (response out)
@@ -114,7 +115,7 @@ public:
      * @return Sending timestamp in microseconds (0 if not yet sent)
      */
     std::uint64_t getSendingTimestampUs() const {
-        return sending_timestamp_us_;
+        return sending_timestamp_us_.load();
     }
 };
 

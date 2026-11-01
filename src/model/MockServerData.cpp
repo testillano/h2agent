@@ -46,16 +46,24 @@ namespace h2agent
 namespace model
 {
 
-void MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace) {
+std::shared_ptr<MockServerEvent> MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace) {
 
-    bool maiden{};
-    auto events = std::static_pointer_cast<MockServerEventsHistory>(getEvents(dataKey, maiden));
+    // The event is built outside any lock (the costly part)...
+    auto event = MockServerEventsHistory::buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace);
 
-    events->loadEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, historyEnabled, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace);
+    // ... and stored with an atomic get-or-create of the key history (as MockClientData
+    // does), so a key is never published without events: the former get + add was not
+    // atomic, and concurrent first receptions of a key could load events into a
+    // history that was then replaced.
+    modifyOrInsert(dataKey.getKey(), [&](std::shared_ptr<MockEventsHistory> &entry) {
+        if (!entry) entry = std::make_shared<MockServerEventsHistory>(dataKey);
+        entry->loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
+    });
 
-    if (maiden) add(dataKey.getKey(), events); // push the key in the map:
-
-    last_loaded_event_ = std::static_pointer_cast<MockServerEvent>(events->getEvent(1, true /* reverse: last */));
+    // The event is returned to the caller (it was published through a shared member
+    // written by every worker thread without synchronization: a data race corrupting
+    // the heap under concurrent receptions).
+    return event;
 }
 
 bool MockServerData::removeEventByRecvSeq(const DataKey &dataKey, std::uint64_t recvSeq) {
@@ -110,7 +118,7 @@ std::shared_ptr<MockEvent> MockServerData::getEventByUriStartsWith(const std::st
 
         read_guard_t guard(history->getMutex());
         for (const auto &ev : history->getEvents()) {
-            std::uint64_t recTs = std::static_pointer_cast<MockServerEvent>(ev)->getJson()["receptionTimestampUs"].get<std::uint64_t>();
+            std::uint64_t recTs = ev->getReceptionTimestampUs();
             entries.push_back({recTs, ev});
         }
     });
@@ -146,7 +154,7 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
         read_guard_t guard(history->getMutex());
         for (const auto &ev : history->getEvents()) {
             auto serverEv = std::static_pointer_cast<MockServerEvent>(ev);
-            std::uint64_t recTs = serverEv->getJson()["receptionTimestampUs"].get<std::uint64_t>();
+            std::uint64_t recTs = serverEv->getReceptionTimestampUs();
             std::uint64_t sendTs = serverEv->getSendingTimestampUs();
 
             // Recv entry:

@@ -37,6 +37,8 @@ SOFTWARE.
 
 #include <string>
 #include <chrono>
+#include <mutex>
+#include <shared_mutex>
 
 #include <nghttp2/asio_http2_server.h>
 #include <nlohmann/json.hpp>
@@ -63,6 +65,12 @@ protected:
 
     nlohmann::json json_{}; // kept synchronized on load()
 
+    // An event is published (stored, readable by other threads: serverEvent sources,
+    // admin inspection) right after load(), but it can still be written afterwards
+    // (the sending timestamp is set when the response stream closes). Every access to
+    // json_ after load() takes this lock; readers get copies.
+    mutable std::shared_mutex json_mutex_{};
+
 public:
 
     MockEvent() {;}
@@ -74,6 +82,7 @@ public:
      * @param trace Json array with one entry per evaluated rule
      */
     void setExecutionTrace(const nlohmann::json &trace) {
+        std::unique_lock<std::shared_mutex> lock(json_mutex_);
         json_["executionTrace"] = trace;
     }
 
@@ -117,14 +126,23 @@ public:
         return response_headers_;
     }
 
+    /** Reception timestamp
+     *
+     * @return Reception timestamp in microseconds
+     */
+    std::uint64_t getReceptionTimestampUs() const {
+        return reception_timestamp_us_;
+    }
+
     /**
-     * Gets json document
+     * Gets json document (a copy: the event may be written concurrently, see json_mutex_)
      *
      * @param path within the object to restrict selection (empty by default).
      *
      * @return Json object
      */
-    const nlohmann::json &getJson(const std::string &path = "") const {
+    nlohmann::json getJson(const std::string &path = "") const {
+        std::shared_lock<std::shared_mutex> lock(json_mutex_);
         if (path.empty()) return json_;
 
         nlohmann::json::json_pointer p(path);

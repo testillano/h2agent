@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <nghttp2/asio_http2_server.h>
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -79,7 +80,7 @@ class SocketManager;
 
 class AdminServerProvision
 {
-    bool employed_{};
+    std::atomic<bool> employed_{}; // set by traffic workers, read by admin (unused provisions)
 
     nlohmann::json json_{}; // provision reference
 

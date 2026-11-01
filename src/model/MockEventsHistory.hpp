@@ -151,7 +151,7 @@ public:
     *
     * @return Last registered request state
     */
-    const std::string &getLastRegisteredRequestState() const;
+    std::string getLastRegisteredRequestState() const;
 
     /** Sets chain variables (scoped variables propagated across outState chain)
     *
