@@ -68,14 +68,47 @@ namespace {
 // starts the pointer into the stored value, e.g. "doc/a/b" or "caps/1"), looked
 // up in the local scope first, then in the global one (h2agent's local-vs-vault
 // priority). Absent when unknown or when the pointer does not exist.
-std::optional<nlohmann::json> lookupVariable(const std::string &ref, const Ports &ports) {
+std::optional<nlohmann::json> lookupVariable(const std::string &name, const std::string &pointer, const Ports &ports) {
     if (!ports.store) return std::nullopt;
-    const std::size_t slash = ref.find('/');
-    const std::string name = (slash == std::string::npos) ? ref : ref.substr(0, slash);
-    const std::string pointer = (slash == std::string::npos) ? std::string() : ref.substr(slash);
     auto v = ports.store->get(Store::Scope::Local, name, pointer);
     if (!v) v = ports.store->get(Store::Scope::Global, name, pointer);
     return v;
+}
+
+std::optional<nlohmann::json> lookupVariable(const std::string &ref, const Ports &ports) {
+    const std::size_t slash = ref.find('/');
+    if (slash == std::string::npos) return lookupVariable(ref, std::string(), ports);
+    return lookupVariable(ref.substr(0, slash), ref.substr(slash), ports);
+}
+
+// Appends the text of a template rendered against the store (see Template).
+void appendRendered(const Template &t, std::string &out, const Ports &ports) {
+    for (const auto &p : t.parts) {
+        if (!p.ref) {
+            out += p.text;
+            continue;
+        }
+        auto v = lookupVariable(p.name, p.pointer, ports);
+        if (v) out += v->is_string() ? v->get_ref<const std::string &>() : v->dump();
+        else out += p.text;  // unknown: kept literally (v1)
+    }
+}
+
+// Rendered text of a field: `original` itself when static (no allocation), or the
+// rendered template held in `scratch`.
+const std::string &render(const Template &t, const std::string &original, std::string &scratch, const Ports &ports) {
+    if (!t.dynamic()) return original;
+    scratch.clear();
+    appendRendered(t, scratch, ports);
+    return scratch;
+}
+
+// Rendered text of a field, as a copy.
+std::string rendered(const Template &t, const std::string &original, const Ports &ports) {
+    if (!t.dynamic()) return original;
+    std::string out;
+    appendRendered(t, out, ports);
+    return out;
 }
 
 // Resolve @{name} / @{name/pointer} substitutions (see lookupVariable): strings
@@ -101,15 +134,6 @@ std::string substituteVariables(const std::string &in, const Ports &ports) {
         ++i;
     }
     return out;
-}
-
-// @{} template resolution without allocating when there is nothing to
-// substitute (the common case): returns `in` itself, or the substituted text
-// held in `scratch`.
-const std::string &resolveTemplate(const std::string &in, std::string &scratch, const Ports &ports) {
-    if (in.find("@{") == std::string::npos) return in;
-    scratch = substituteVariables(in, ports);
-    return scratch;
 }
 
 // Coerce a json value to its string representation (string verbatim, others
@@ -376,10 +400,16 @@ std::map<std::string, std::string> parseEventAddress(const std::string &query) {
 // Build the address object handed to the EventSource port: @{var} substituted
 // PER VALUE at evaluation time (after parse-time tokenization), so variable
 // values containing '&' or '=' cannot corrupt the address (h2agent parity).
-nlohmann::json eventAddressJson(const std::map<std::string, std::string> &params, const Ports &ports) {
+nlohmann::json eventAddressJson(const std::vector<EventParam> &params, const Ports &ports) {
     nlohmann::json addr = nlohmann::json::object();
-    for (const auto &kv : params) addr[kv.first] = substituteVariables(kv.second, ports);
+    for (const auto &p : params) addr[p.key] = rendered(p.tpl, p.value, ports);
     return addr;
+}
+
+std::vector<EventParam> eventParamTemplates(const std::map<std::string, std::string> &params) {
+    std::vector<EventParam> out;
+    for (const auto &kv : params) out.push_back(EventParam{kv.first, kv.second, Template::compile(kv.second)});
+    return out;
 }
 
 }  // namespace
@@ -1035,10 +1065,10 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
                  std::vector<std::string> &localGroups, std::size_t &firstGroup, std::string &note) {
     if (f.type == FilterType::Append) {
         std::string argBuf;
-        value = asString(value) + resolveTemplate(f.arg, argBuf, ports);
+        value = asString(value) + render(f.argTpl, f.arg, argBuf, ports);
     } else if (f.type == FilterType::Prepend) {
         std::string argBuf;
-        value = resolveTemplate(f.arg, argBuf, ports) + asString(value);
+        value = render(f.argTpl, f.arg, argBuf, ports) + asString(value);
     } else if (f.type == FilterType::Sum || f.type == FilterType::Multiply) {
         // Coerce source to a number (string numbers accepted), operate, keep
         // numeric.
@@ -1109,7 +1139,8 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
         }
         // Pass: value stays as the resolved source (string parity with h2agent).
     } else if (f.type == FilterType::EqualTo || f.type == FilterType::DifferentFrom) {
-        std::string cmp = substituteVariables(f.arg, ports);  // admits @{var}
+        std::string cmpBuf;
+        const std::string &cmp = render(f.argTpl, f.arg, cmpBuf, ports);  // admits @{var}
         bool equal = (asString(value) == cmp);
         bool pass = (f.type == FilterType::EqualTo) ? equal : !equal;
         if (!pass) {
@@ -1341,6 +1372,24 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
             rule.filters.push_back(std::move(filter));
         }
     }
+    // @{} fields split once (see Template):
+    rule.sourceArgTpl = Template::compile(rule.sourceArg);
+    rule.sourceKeyTpl = Template::compile(rule.sourceKey);
+    rule.sourcePtrTpl = Template::compile(rule.sourcePtr);
+    rule.targetPathTpl = Template::compile(rule.targetPath);
+    rule.targetKeyTpl = Template::compile(rule.targetKey);
+    rule.targetPtrTpl = Template::compile(rule.targetPtr);
+    rule.targetNameTpl = Template::compile(rule.targetName);
+    rule.targetUriTpl = Template::compile(rule.targetUri);
+    rule.targetFilePathTpl = Template::compile(rule.targetFilePath);
+    rule.targetSocketPathTpl = Template::compile(rule.targetSocketPath);
+    rule.targetProvisionIdTpl = Template::compile(rule.targetProvisionId);
+    rule.targetProvisionInStateTpl = Template::compile(rule.targetProvisionInState);
+    for (const auto &token : rule.sourceTokens) rule.sourceTokenTpls.push_back(Template::compile(token));
+    rule.sourceEventTpls = eventParamTemplates(rule.sourceEventParams);
+    rule.targetEventTpls = eventParamTemplates(rule.targetEventParams);
+    for (auto &f : rule.filters) f.argTpl = Template::compile(f.arg);
+
     auto off = item.find("onFilterFail");
     if (off != item.end()) {
         if (!off->is_array()) {
@@ -1436,9 +1485,9 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
 
         // json paths admit @{var} substitution (h2agent parity), resolved per event.
         std::string sPtrBuf, tPathBuf, tPtrBuf;
-        const std::string &sPtr = resolveTemplate(rule.sourcePtr, sPtrBuf, ports);
-        const std::string &tPath = resolveTemplate(rule.targetPath, tPathBuf, ports);
-        const std::string &tPtr = resolveTemplate(rule.targetPtr, tPtrBuf, ports);
+        const std::string &sPtr = render(rule.sourcePtrTpl, rule.sourcePtr, sPtrBuf, ports);
+        const std::string &tPath = render(rule.targetPathTpl, rule.targetPath, tPathBuf, ports);
+        const std::string &tPtr = render(rule.targetPtrTpl, rule.targetPtr, tPtrBuf, ports);
         // Target json pointer: the one compiled at parse, or built for this event.
         nlohmann::json::json_pointer dynamicTargetPtr;
         auto targetPointer = [&]() -> const nlohmann::json::json_pointer & {
@@ -1465,7 +1514,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
         case SourceType::Value:
         {
             std::string buf;
-            value = resolveTemplate(rule.sourceArg, buf, ports);
+            value = render(rule.sourceArgTpl, rule.sourceArg, buf, ports);
         }
         break;
         case SourceType::Sequence:
@@ -1498,8 +1547,8 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             // Pick one token uniformly at random; the chosen token admits
             // @{var} substitution. sourceTokens always has >=1 element (parse
             // keeps empty parts), so the modulo is safe. Result is a string.
-            const std::string &chosen = rule.sourceTokens[std::rand() % rule.sourceTokens.size()];
-            value = substituteVariables(chosen, ports);
+            const std::size_t chosen = std::rand() % rule.sourceTokens.size();
+            value = rendered(rule.sourceTokenTpls[chosen], rule.sourceTokens[chosen], ports);
             break;
         }
         case SourceType::Eraser:
@@ -1537,7 +1586,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             }
             if (!done) {
                 // v1 path: textual @{} substitution, compiled for this event.
-                std::string expr = substituteVariables(rule.sourceArg, ports);
+                std::string expr = rendered(rule.sourceArgTpl, rule.sourceArg, ports);
                 exprtk::expression<double> expression;
                 exprtk::parser<double> parser;
                 if (!parser.compile(expr, expression)) {
@@ -1557,7 +1606,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
         case SourceType::StoreGlobal: {
             auto scope = (rule.sourceType == SourceType::StoreLocal) ? Store::Scope::Local : Store::Scope::Global;
             std::string keyBuf;
-            const std::string &key = resolveTemplate(rule.sourceKey, keyBuf, ports);
+            const std::string &key = render(rule.sourceKeyTpl, rule.sourceKey, keyBuf, ports);
             std::optional<nlohmann::json> v;
             if (ports.store) v = ports.store->get(scope, key, sPtr);
             // v1 TypeConverter::setObject parity: a path that extracts an empty
@@ -1603,7 +1652,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             // query-param form (method/uri/eventNumber/path/seq/prefix/endpoint).
             std::optional<nlohmann::json> v;
             if (ports.events)
-                v = ports.events->resolve(rule.sourceEventDomain, eventAddressJson(rule.sourceEventParams, ports));
+                v = ports.events->resolve(rule.sourceEventDomain, eventAddressJson(rule.sourceEventTpls, ports));
             if (v)
                 value = *v;
             else
@@ -1620,7 +1669,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 if (trace) entry.note = "file source: no FileAccess port; rule skipped";
                 break;
             }
-            std::string path = substituteVariables(rule.sourceArg, ports);
+            std::string path = rendered(rule.sourceArgTpl, rule.sourceArg, ports);
             auto content = ports.files->read(path, rule.sourceType == SourceType::BinFile);
             value = content ? *content : std::string{};  // missing file => "" (v1 parity)
             break;
@@ -1631,7 +1680,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 if (trace) entry.note = "command source: no Shell port; rule skipped";
                 break;
             }
-            auto res = ports.shell->run(substituteVariables(rule.sourceArg, ports));
+            auto res = ports.shell->run(rendered(rule.sourceArgTpl, rule.sourceArg, ports));
             value = res.output;
             // v1 parity: exit code published as local variable "rc".
             if (ports.store) ports.store->set(Store::Scope::Local, "rc", std::to_string(res.returnCode));
@@ -1684,7 +1733,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 auto scope =
                     (rule.targetType == TargetType::StoreLocal) ? Store::Scope::Local : Store::Scope::Global;
                 std::string keyBuf;
-                const std::string &key = resolveTemplate(rule.targetKey, keyBuf, ports);
+                const std::string &key = render(rule.targetKeyTpl, rule.targetKey, keyBuf, ports);
                 if (!ports.store) break;
                 if (tPtr.empty()) {
                     ports.store->erase(scope, key);
@@ -1703,12 +1752,12 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             case TargetType::TxtFile:
             case TargetType::BinFile:
                 // v1 parity: eraser into a file target empties the file.
-                if (ports.files) ports.files->truncate(substituteVariables(rule.targetFilePath, ports));
+                if (ports.files) ports.files->truncate(rendered(rule.targetFilePathTpl, rule.targetFilePath, ports));
                 break;
             case TargetType::EventPurge: {
                 // eraser + serverEvent/clientEvent target -> purge via the port.
                 if (ports.events) {
-                    ports.events->purge(rule.targetEventDomain, eventAddressJson(rule.targetEventParams, ports));
+                    ports.events->purge(rule.targetEventDomain, eventAddressJson(rule.targetEventTpls, ports));
                 }
                 break;
             }
@@ -1867,7 +1916,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             case TargetType::StoreGlobal: {
                 auto scope = (rule.targetType == TargetType::StoreLocal) ? Store::Scope::Local : Store::Scope::Global;
                 std::string keyBuf;
-                const std::string &key = resolveTemplate(rule.targetKey, keyBuf, ports);
+                const std::string &key = render(rule.targetKeyTpl, rule.targetKey, keyBuf, ports);
                 // v1 parity for validation filters on var targets: a non-"1"
                 // result is a fail report -> "<key>.fail" = report, key = "".
                 if (rule.targetType == TargetType::StoreLocal &&
@@ -1902,7 +1951,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 auto scope = (rule.targetType == TargetType::StoreLocalJsonObject) ? Store::Scope::Local
                              : Store::Scope::Global;
                 std::string keyBuf;
-                const std::string &key = resolveTemplate(rule.targetKey, keyBuf, ports);
+                const std::string &key = render(rule.targetKeyTpl, rule.targetKey, keyBuf, ports);
                 if (ports.store) ports.store->set(scope, key, value, tPtr);
                 break;
             }
@@ -1919,7 +1968,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 auto scope = (rule.targetType == TargetType::StoreLocalJsonString) ? Store::Scope::Local
                              : Store::Scope::Global;
                 std::string keyBuf;
-                const std::string &key = resolveTemplate(rule.targetKey, keyBuf, ports);
+                const std::string &key = render(rule.targetKeyTpl, rule.targetKey, keyBuf, ports);
                 if (ports.store) ports.store->set(scope, key, parsed, tPtr);
                 break;
             }
@@ -1933,11 +1982,11 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 // method/uri so the host can create a virtual event.
                 outState = asString(value);
                 outStateMethod = rule.targetMethod;
-                outStateUri = substituteVariables(rule.targetUri, ports);
+                outStateUri = rendered(rule.targetUriTpl, rule.targetUri, ports);
                 break;
             case TargetType::MetaHeader: {
                 // Appended in order: the host emplaces every write (v1 multimap semantics).
-                std::string name = substituteVariables(rule.targetName, ports);
+                std::string name = rendered(rule.targetNameTpl, rule.targetName, ports);
                 if (ctx.meta.headers)
                     ctx.meta.headers->emplace_back(std::move(name), asString(value));
                 else
@@ -1984,9 +2033,9 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             case TargetType::BinFile: {
                 // Side effect via the FileAccess port; skip if the port is absent.
                 if (ports.files) {
-                    std::string path = substituteVariables(rule.targetFilePath, ports);
+                    std::string path = rendered(rule.targetFilePathTpl, rule.targetFilePath, ports);
                     ports.files->write(path, asString(value), rule.targetType == TargetType::BinFile,
-                                       rule.targetFilePath.find("@{") != std::string::npos);
+                                       rule.targetFilePathTpl.dynamic());
                 } else {
                     coerced = false;
                 }
@@ -1994,7 +2043,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             }
             case TargetType::UdpSocket: {
                 if (ports.sockets) {
-                    std::string path = substituteVariables(rule.targetSocketPath, ports);
+                    std::string path = rendered(rule.targetSocketPathTpl, rule.targetSocketPath, ports);
                     ports.sockets->write(path, asString(value), rule.targetSocketDelayMs);
                 } else {
                     coerced = false;
@@ -2004,7 +2053,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             case TargetType::EventPurge: {
                 // Used with eraser source: purge events at the given address.
                 if (ports.events) {
-                    ports.events->purge(rule.targetEventDomain, eventAddressJson(rule.targetEventParams, ports));
+                    ports.events->purge(rule.targetEventDomain, eventAddressJson(rule.targetEventTpls, ports));
                 } else {
                     coerced = false;
                 }
@@ -2013,8 +2062,8 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             case TargetType::ClientProvisionTrigger: {
                 // Conditional gate: fires on a true value (see truthy()).
                 if (truthy(value) && ports.trigger) {
-                    std::string id = substituteVariables(rule.targetProvisionId, ports);
-                    std::string inState = substituteVariables(rule.targetProvisionInState, ports);
+                    std::string id = rendered(rule.targetProvisionIdTpl, rule.targetProvisionId, ports);
+                    std::string inState = rendered(rule.targetProvisionInStateTpl, rule.targetProvisionInState, ports);
                     ports.trigger->trigger(id, inState);
                 }
                 // false value or null port => silently skip firing (not an error)

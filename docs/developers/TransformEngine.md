@@ -29,7 +29,7 @@ The engine knows nothing about HTTP/2, nghttp2 or the h2agent model: it reads an
   * regex filters (`std::regex`);
   * `math` expressions: compiled once with `@{var}` bound as exprtk variables (constant expressions are folded). Values that would not behave identically to textual substitution (signed, non-numeric, glued to a token) fall back to the v1 textual path;
   * static target json pointers and source pointers (`CompiledPointer`: head field + rest);
-  * `@{}` templates: no allocation when there is nothing to substitute.
+  * `@{}` templates (`Template`): every field admitting `@{}` (values, keys, paths, event addresses, filter operands...) is split into literal and reference parts, references already split into name and pointer; evaluation only looks them up and concatenates, and a field without references is used as it is (no allocation).
 * **By reference, no per-event copies.** The context points to the host objects: input/output are lazy `Document` ports, `output`/`outBody`/state/`Meta` point to the response (server) or request (client) variables, written in place. A value is only copied when a rule reads it.
 * **Thread safety.** A `Pipeline` is immutable and shared by all workers; `evaluate()` is const and keeps per-event state in the caller context. Shared state lives behind the ports (sharded `Vault`/`Map`). The only mutable piece in a pipeline is the per-rule pool of compiled `math` instances (locked acquire/release).
 * **Grammar semantics belong to the host.** E.g. "an empty node read by path is absent" is a v1 rule (kept in v2) for body paths only; it is applied by `V1BodyDocument`, not by the engine (`request.headers` with no headers is an empty array, as in v1).

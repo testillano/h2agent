@@ -200,6 +200,66 @@ enum class FilterType {
 };
 
 /**
+ * A text admitting @{name} / @{name/<json pointer>} references, split ONCE at
+ * parse time (provision load) into literal and reference parts, so evaluation
+ * never scans the text: it only looks the references up and concatenates.
+ * A text without references has no parts (static: used as it is). The split
+ * mirrors the textual rule: '@{' up to the next '}' is a reference (the first '/'
+ * starts the pointer), an unclosed '@{' is literal text.
+ */
+struct Template {
+    struct Part {
+        std::string text{};     // literal text, or the whole '@{...}' (kept when the reference is unknown)
+        bool ref{false};
+        std::string name{};     // reference: variable/vault name
+        std::string pointer{};  // reference: json pointer into the stored value ("" = whole value)
+    };
+    std::vector<Part> parts{};  // empty: static text
+
+    bool dynamic() const {
+        return !parts.empty();
+    }
+
+    static Template compile(const std::string &in) {
+        Template t;
+        if (in.find("@{") == std::string::npos) return t;
+        std::string literal;
+        for (std::size_t i = 0; i < in.size();) {
+            if (in[i] == '@' && i + 1 < in.size() && in[i + 1] == '{') {
+                const std::size_t close = in.find('}', i + 2);
+                if (close != std::string::npos) {
+                    if (!literal.empty()) t.parts.push_back(Part{std::move(literal)});
+                    literal.clear();
+                    const std::string ref = in.substr(i + 2, close - (i + 2));
+                    const std::size_t slash = ref.find('/');
+                    Part p;
+                    p.text = in.substr(i, close + 1 - i);
+                    p.ref = true;
+                    p.name = (slash == std::string::npos) ? ref : ref.substr(0, slash);
+                    p.pointer = (slash == std::string::npos) ? std::string() : ref.substr(slash);
+                    t.parts.push_back(std::move(p));
+                    i = close + 1;
+                    continue;
+                }
+            }
+            literal += in[i++];
+        }
+        if (!literal.empty()) t.parts.push_back(Part{std::move(literal)});
+        bool hasRef = false;
+        for (const auto &p : t.parts) hasRef = hasRef || p.ref;
+        if (!hasRef) t.parts.clear();  // only an unclosed '@{': static text
+        return t;
+    }
+};
+
+/** Event address field whose value admits @{} (see Template). */
+struct EventParam {
+    std::string key{};
+    std::string value{};
+    Template tpl{};
+};
+
+/**
  * One parsed filter of a rule chain (filters run in list order, each one on the
  * output of the previous one).
  */
@@ -210,6 +270,7 @@ struct Filter {
     std::string arg{};         // Append/Prepend affix, EqualTo/DifferentFrom value,
     // ConditionVar varname, SchemaId id, Split sep,
     // Strptime/Strftime fmt, Cast type (admits @{var} where noted)
+    Template argTpl{};         // `arg` split at parse (Append/Prepend/EqualTo/DifferentFrom)
     double number{0.0};        // Sum/Multiply operand
     long long i1{0};           // Split size / BaseConvert in-base
     long long i2{0};           // Split count / BaseConvert out-base
@@ -288,6 +349,14 @@ struct Rule {
 
     // Filter chain (empty: no filter):
     std::vector<Filter> filters{};
+
+    // Fields admitting @{} split ONCE at parse (see Template); evaluation renders
+    // them, or uses the plain field when static:
+    Template sourceArgTpl{}, sourceKeyTpl{}, sourcePtrTpl{};
+    Template targetPathTpl{}, targetKeyTpl{}, targetPtrTpl{}, targetNameTpl{}, targetUriTpl{};
+    Template targetFilePathTpl{}, targetSocketPathTpl{}, targetProvisionIdTpl{}, targetProvisionInStateTpl{};
+    std::vector<Template> sourceTokenTpls{};  // per randomset token
+    std::vector<EventParam> sourceEventTpls{}, targetEventTpls{};  // event addresses
 
     // Precompiled math source (compiled ONCE at parse time, like the regex
     // above): @{var} are bound as exprtk variables instead of being substituted

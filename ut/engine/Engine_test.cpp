@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <Engine.hpp>
+#include <Rule.hpp>
 #include <atomic>
 #include <map>
 #include <set>
@@ -3034,4 +3035,61 @@ TEST(Engine_test, TraceEntriesAddressRulesWithPaths) {
     EXPECT_EQ(result.executionTrace[3].path, "1/onFilterFail/0/onFilterFail/0");
     EXPECT_TRUE(result.executionTrace[3].applied);
     EXPECT_EQ(ctx.outBody.raw, "f");
+}
+
+// Templates (@{} fields split at parse) -------------------------------------
+
+TEST(Engine_test, TemplateSplitsLiteralsAndReferences) {
+    EXPECT_FALSE(Template::compile("plain text").dynamic());
+    EXPECT_FALSE(Template::compile("unclosed @{x").dynamic());
+
+    const Template t = Template::compile("a@{x}b@{doc/a/b}@{y}@{unclosed");
+    ASSERT_EQ(t.parts.size(), 6u);
+    EXPECT_FALSE(t.parts[0].ref);
+    EXPECT_EQ(t.parts[0].text, "a");
+    EXPECT_TRUE(t.parts[1].ref);
+    EXPECT_EQ(t.parts[1].name, "x");
+    EXPECT_EQ(t.parts[1].pointer, "");
+    EXPECT_EQ(t.parts[1].text, "@{x}");
+    EXPECT_EQ(t.parts[2].text, "b");
+    EXPECT_EQ(t.parts[3].name, "doc");
+    EXPECT_EQ(t.parts[3].pointer, "/a/b");
+    EXPECT_EQ(t.parts[4].name, "y");
+    EXPECT_FALSE(t.parts[5].ref);
+    EXPECT_EQ(t.parts[5].text, "@{unclosed");
+}
+
+TEST(Engine_test, TemplatesRenderEveryFieldKind) {
+    // Same results as the textual substitution, for each kind of templated field.
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"j([
+      {"source":"value.@{id}-@{missing}-@{doc/a}","target":"output.string"},
+      {"source":"value.x","target":"local.k_@{id}"},
+      {"source":"local.k_@{id}","target":"output.json./@{id}","filter":[{"Append":"@{id}"},{"EqualTo":"x7"}]},
+      {"source":"randomset.@{id}","target":"local.r"},
+      {"source":"value.v","target":"meta.header.h-@{id}"},
+      {"source":"value.s","target":"outState.GET./items/@{id}"},
+      {"source":"serverEvent.requestMethod=GET&requestUri=/e/@{id}&eventNumber=-1","target":"local.ev"}
+    ])j"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "id", "7");
+    store.set(Store::Scope::Global, "doc", nlohmann::json::parse(R"({"a":"A"})"));
+    FakeEventSource events;
+    events.set("serverEvent", nlohmann::json{{"eventNumber", "-1"}, {"requestMethod", "GET"}, {"requestUri", "/e/7"}}, "found");
+    Ports ports;
+    ports.store = &store;
+    ports.events = &events;
+    StandaloneContext ctx;
+    ctx.output = nlohmann::json::object();  // a body document ("/7" is then a key, not an array index)
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "7-@{missing}-A");
+    EXPECT_EQ(store.get(Store::Scope::Local, "k_7"), nlohmann::json("x"));
+    EXPECT_EQ(ctx.output["7"], "x7");
+    EXPECT_EQ(store.get(Store::Scope::Local, "r"), nlohmann::json("7"));
+    ASSERT_EQ(ctx.headers.size(), 1u);
+    EXPECT_EQ(ctx.headers[0].first, "h-7");
+    EXPECT_EQ(ctx.outStateUri, "/items/7");
+    EXPECT_EQ(store.get(Store::Scope::Local, "ev"), nlohmann::json("found"));
 }
