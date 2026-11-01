@@ -205,6 +205,7 @@ jobs:
         mkdir -p /code/site
         cp -r /code/coverage /code/site/coverage
         cp -r /code/docs/api /code/site/api
+        cp -r /code/docs/overview /code/site/overview
     -
       name: Upload artifact
       uses: actions/upload-pages-artifact@v3

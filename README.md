@@ -176,7 +176,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
 **Theory**
 
-* A ***[prezi](https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/)*** presentation to show a complete and useful overview of the `h2agent` component architecture.
+* An ***[overview](https://testillano.github.io/h2agent/overview/)*** presentation ([source](./docs/overview/index.html)) to show a complete and useful overview of the `h2agent` component architecture.
 * A conversational bot for [***questions & answers***](./README.md#questions-and-answers) based in *Open AI*.
 
 **Practice**
@@ -1650,7 +1650,7 @@ $ ./h2agent --verbose &
 https://github.com/testillano/h2agent
 
 Quick Start:    https://github.com/testillano/h2agent#quick-start
-Prezi overview: https://prezi.com/view/RFaiKzv6K6GGoFq3tpui/
+Overview:       https://testillano.github.io/h2agent/overview/
 ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#questions-and-answers
 
 

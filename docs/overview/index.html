@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>H2Agent overview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="h2agent overview: HTTP/2 mock server and client (testing as a service), admin API v2 and transformation grammar v2">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+<style>
+  :root {
+    --cyan: #21d4d6; --orange: #fbad26; --purple: #3c2a86; --lavender: #aab4fb;
+    --yellow: #f9f871; --dark: #22223a; --blue: #2d8cf0; --concrete: #d9d6d1;
+  }
+  .reveal { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 28px; color: var(--dark); }
+  .reveal h1, .reveal h2, .reveal h3 { font-family: inherit; text-transform: none; color: var(--dark); letter-spacing: 0; }
+  .reveal h2 { font-size: 1.6em; font-weight: 500; margin-bottom: .4em; }
+  .reveal h3 { font-size: 1em; font-weight: 700; }
+  .reveal .slides section { text-align: left; }
+  .reveal small, .reveal .small { font-size: .62em; }
+  .reveal .muted { color: #555; }
+  .reveal code { font-size: .85em; }
+  .reveal pre { width: 100%; box-shadow: none; font-size: .5em; margin: .3em 0; }
+  .reveal pre code { max-height: 560px; border-radius: 6px; padding: .6em .8em; }
+  .reveal ul { margin-left: 1em; }
+  .reveal li { margin: .15em 0; }
+
+  /* Backgrounds (set with data-background-color/gradient) */
+  .concrete { --bg: linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #bdb9b2 100%); }
+
+  /* Blocks */
+  .card { background: var(--cyan); padding: .7em .9em; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .card.dark { background: var(--dark); color: #fff; }
+  .card.orange { background: var(--orange); }
+  .card.lav { background: var(--lavender); }
+  .card.yellow { background: var(--yellow); }
+  .note { background: var(--orange); display: flex; align-items: center; justify-content: center;
+          text-align: center; box-shadow: 0 6px 16px rgba(0,0,0,.2); font-size: .8em; }
+  .label { background: var(--purple); color: #fff; padding: .35em .7em; display: inline-block; }
+  .label.hot { color: var(--orange); font-weight: 700; }
+  .box { background: var(--lavender); padding: .6em .8em; }
+  .path { font-size: .5em; font-style: italic; margin-top: .3em; }
+  .path b { font-style: normal; }
+  .cols { display: grid; gap: .6em; }
+  .c2 { grid-template-columns: 1fr 1fr; } .c3 { grid-template-columns: 1fr 1fr 1fr; }
+  .c4 { grid-template-columns: repeat(4, 1fr); }
+  .chip { display: inline-block; font-size: .5em; padding: .1em .5em; border-radius: 1em; background: var(--purple);
+          color: #fff; margin-left: .3em; vertical-align: middle; }
+  .chip.s { background: #2e8b57; } .chip.c { background: #c2410c; } .chip.new { background: #e11d48; }
+
+  /* Title card */
+  .taas { position: absolute; right: 0; top: 60px; width: 420px; padding: .5em .7em; background: var(--dark); color: #fff; }
+  .taas .t1 { font-size: 2.6em; font-weight: 800; line-height: 1; }
+  .taas .t1 small { font-size: .2em; font-weight: 400; display: inline-block; vertical-align: top; margin-left: .6em; line-height: 1.2; }
+  .taas .t2 { font-size: 2.6em; font-weight: 800; line-height: 1.1; }
+  .taas .t2 span { color: var(--blue); }
+  .taas .t3 { font-size: .7em; }
+  .rocket { position: absolute; right: 18px; bottom: 14px; font-size: 1.6em; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0) rotate(-20deg); } 50% { transform: translateY(-10px) rotate(-12deg); } }
+
+  /* Road map */
+  .road { position: relative; width: 820px; height: 560px; margin-top: 30px; }
+  .road .lane { position: absolute; height: 70px; background: rgba(255,255,255,.9); border-radius: 35px; }
+  .road .tile { position: absolute; width: 70px; height: 70px; background: var(--cyan); color: var(--dark);
+                font-size: 1.6em; display: flex; align-items: center; justify-content: center; }
+  .road .tile.on { background: var(--orange); transform: scale(1.35); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  .road .cap { position: absolute; color: #fff; font-weight: 700; font-size: .62em; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+  .road .cap.on { color: var(--purple); text-shadow: none; }
+
+  /* Flow model */
+  .flow { display: flex; align-items: center; gap: .5em; font-size: 1.1em; }
+  .flow .st { padding: .4em .8em; border-radius: 6px; }
+  .flow .arrow { font-size: 1.2em; }
+  .lane-car { position: relative; height: 60px; margin-top: .4em; background: repeating-linear-gradient(90deg, #555 0 30px, transparent 30px 50px) 0 50%/100% 4px no-repeat, #888; border-radius: 6px; }
+  .lane-car .car { position: absolute; top: 4px; font-size: 1.6em; animation: drive 6s linear infinite; }
+  @keyframes drive { 0% { left: -5%; } 100% { left: 100%; } }
+  .stations { display: flex; justify-content: space-between; margin-top: .3em; font-size: .7em; }
+
+  /* Radial (provision anatomy) */
+  .radial { position: relative; width: 760px; height: 470px; margin: 0 auto; }
+  .radial .hub { position: absolute; left: 300px; top: 165px; width: 160px; height: 160px; border-radius: 50%;
+                 background: var(--lavender); display: flex; align-items: center; justify-content: center; text-align: center; font-size: .8em; }
+  .radial .sat { position: absolute; background: var(--purple); color: #fff; font-size: .55em; padding: .45em .8em; white-space: nowrap; }
+  .radial svg { position: absolute; inset: 0; }
+
+  /* Grids of kinds */
+  .kinds { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .25em .8em; font-size: .52em; }
+  .kinds div { display: flex; align-items: baseline; gap: .4em; }
+  .kinds .sw { width: .9em; height: .9em; flex: none; display: inline-block; align-self: center; }
+  .kinds code { font-weight: 700; font-size: 1.05em; color: var(--dark); background: none; }
+  .fbox { background: rgba(255,255,255,.55); padding: .45em .6em; font-size: .5em; }
+  .fbox h4 { margin: 0 0 .2em; font-size: 1.35em; text-transform: none; }
+
+  .star { font-size: 7em; display: inline-block; animation: spin 6s ease-in-out infinite; }
+  @keyframes spin { 0%,100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(8deg) scale(1.08); } }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+  .big { font-size: 2.2em; font-weight: 300; }
+</style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- =============================== ROAD MAP (title) -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+  <div class="road" data-id="road">
+    <div class="lane" style="left:0;top:0;width:640px"></div>
+    <div class="lane" style="left:120px;top:200px;width:520px"></div>
+    <div class="lane" style="left:0;top:400px;width:820px"></div>
+    <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
+    <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
+    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
+    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
+    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
+    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
+    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
+    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+  </div>
+  <div class="taas" data-id="taas">
+    <div class="t1">TaaS<small>testing<br>as a<br>service</small></div>
+    <div class="t2"><span>H2A</span>gent</div>
+    <div class="t3">HTTP/2 mock (server &amp; client) &middot; 5.0.0</div>
+    <div class="rocket">&#128640;</div>
+  </div>
+  <aside class="notes">Overview of h2agent 5.0.0: admin API v2 and transformation grammar v2.</aside>
+</section>
+
+<!-- =============================== 1. INTRODUCTION -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card" style="width:560px;font-size:.78em">
+    <h2 style="margin-top:0">INTRODUCTION</h2>
+    <p><b>H2agent</b> is an agent-oriented process which mocks <b>HTTP/2</b> (and HTTP/1 via proxy) applications.</p>
+    <p>It is capable to mock:</p>
+    <ul><li>a <b>server</b></li><li><b>clients</b> (multiple endpoints, load generation)</li></ul>
+    <p>It covers all testing needs:</p>
+    <ul>
+      <li>Functional test (sequential / parallel)</li>
+      <li>System test (stateless / stateful): KPI, high load, robustness, congestion control</li>
+    </ul>
+  </div>
+  <div class="note fragment fade-left" style="position:absolute;left:640px;top:0;width:200px;height:200px;font-size:1em"><b>Standards</b></div>
+  <div class="note fragment fade-up" style="position:absolute;left:790px;top:240px;width:220px;height:220px;font-size:1em">Development</div>
+  <div class="note fragment fade-down" style="position:absolute;left:640px;top:380px;width:140px;height:140px">Testing</div>
+</section>
+
+<section data-background-color="#fbad26">
+  <h2>Standards</h2>
+  <div style="margin-left:3em;font-size:1.05em">
+    <p class="fragment fade-right"><span class="label">1</span> HTTP/2 &middot; HTTP/1 (nghttpx proxy) &middot; TLS</p>
+    <p class="fragment fade-right"><span class="label">2</span> JSON interchange &middot; JSON Schema &middot; JSON Pointer</p>
+    <p class="fragment fade-right"><span class="label">3</span> REST API described with OpenAPI 3.1</p>
+    <p class="fragment fade-right"><span class="label">4</span> Prometheus metrics</p>
+    <p class="fragment fade-right"><span class="label">5</span> Gherkin (BDD)</p>
+  </div>
+</section>
+
+<section data-background-color="#fbad26">
+  <h2>Development</h2>
+  <div class="cols c2" style="font-size:.8em">
+    <div class="fragment fade-up">
+      <h3>Languages &amp; tooling</h3>
+      <p><i>C++17, cmake, docker (multi-stage, self-contained build), helm, python, bash</i></p>
+      <h3>License</h3>
+      <p><b>MIT</b>, hosted in GitHub</p>
+    </div>
+    <div class="fragment fade-up">
+      <h3>Open source libraries</h3>
+      <p><i>tatsuhiro nghttp2 (asio), nlohmann json, pboettch json-schema-validator, jupp0r prometheus-cpp,
+        ArashPartow exprtk, testillano http2comm / logger / metrics / multipart / queuedispatcher, jemalloc</i></p>
+    </div>
+  </div>
+</section>
+
+<section data-background-color="#fbad26">
+  <h2>Testing</h2>
+  <div class="cols c2" style="font-size:.66em">
+    <div class="fragment fade-up">
+      <h3>Unit tests</h3><p>gtest, coverage report with lcov</p>
+      <h3>Component tests</h3><p>pytest over a helm chart (kubernetes)</p>
+      <h3>Sanitizers</h3><p>ASAN / TSAN builds: <code>SANITIZER=tsan build_type=Debug ./build.sh --image</code></p>
+    </div>
+    <div class="fragment fade-up">
+      <h3>Benchmarks</h3><p>profiles under <code>benchmark/tests/{server,client}</code>, h2load or the h2agent client itself, markdown reports from prometheus deltas, A/B comparison (<code>compare.sh</code>)</p>
+      <h3>GitHub</h3>
+      <p>Actions: docker images and helm charts<br>
+        Pages: <a href="https://testillano.github.io/h2agent/api/">REST API</a>,
+        <a href="https://testillano.github.io/h2agent/coverage/">coverage</a> and this overview</p>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== ROAD MAP 2 -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+  <div class="road" data-id="road">
+    <div class="lane" style="left:0;top:0;width:640px"></div>
+    <div class="lane" style="left:120px;top:200px;width:520px"></div>
+    <div class="lane" style="left:0;top:400px;width:820px"></div>
+    <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
+    <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
+    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
+    <div class="tile on" data-id="t2" style="left:320px;top:0">2</div><div class="cap on" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
+    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
+    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
+    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
+    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+  </div>
+  <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
+    <div class="t2"><span>H2A</span>gent</div><div class="t3">2 &middot; interfaces</div>
+  </div>
+</section>
+
+<!-- =============================== 2. INTERFACES -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card" style="width:580px;font-size:.74em">
+    <h2 style="margin-top:0">INTERFACES</h2>
+    <p class="fragment"><b>Management</b> port (8074 by default) serves the <i>REST API</i> <code>/admin/v2</code> which programs the agent behavior.</p>
+    <p class="fragment"><b>Traffic server</b> port (8000 by default) serves the HTTP/2 mock (an optional nghttpx front-end adds HTTP/1).</p>
+    <p class="fragment"><b>Traffic client</b> endpoints are created on demand (<i>REST API</i>).</p>
+    <p class="fragment"><b>Scrape</b> port (8080 by default) serves Prometheus metrics.</p>
+  </div>
+  <div class="note fragment zoom-in" style="position:absolute;left:700px;top:20px;width:180px;height:110px">Server / client configuration &#9881;</div>
+  <div class="note fragment zoom-in" style="position:absolute;left:720px;top:170px;width:140px;height:110px">Command line &#128187;</div>
+  <div class="note fragment zoom-in" style="position:absolute;left:640px;top:320px;width:140px;height:130px">Metrics &#128200;</div>
+  <div class="note fragment zoom-in" style="position:absolute;left:810px;top:320px;width:140px;height:130px">Traffic &#128678;</div>
+</section>
+
+<section data-background-color="#f5b54a"><h2 class="big" style="text-align:center;margin-top:4em">GENERAL</h2></section>
+
+<section data-background-color="#f5b54a">
+  <h2>Management interface</h2>
+  <p class="small">General resources, shared by server and client modes:</p>
+  <div class="cols c3" style="font-size:.6em">
+    <div class="fragment fade-up"><div class="label">Schema data</div><div class="box">JSON schemas referenced by provisions to validate incoming / outgoing traffic.</div>
+      <div class="path"><b>/admin/v2/schema</b> POST, GET, DELETE</div></div>
+    <div class="fragment fade-up"><div class="label">Vault</div><div class="box">Global storage shared between provisions (native json values). <b>Blocking wait</b> (long-poll) and <b>SSE</b> stream of mutations.</div>
+      <div class="path"><b>/admin/v2/vault</b>, <b>/vault/&lt;key&gt;/wait</b>, <b>/vault/events</b></div></div>
+    <div class="fragment fade-up"><div class="label">Process</div><div class="box">Logging level, files, general configuration, health probe and capabilities (API version, program version, grammar).</div>
+      <div class="path"><b>/admin/v2/logging</b>, <b>/files</b>, <b>/configuration</b>, <b>/health</b>, <b>/capabilities</b></div></div>
+  </div>
+  <div class="fragment fade-up box" style="margin-top:.8em;font-size:.6em;background:var(--yellow)">
+    <b>New in v2:</b> <code>GET /admin/v2/api-schema[/&lt;resource&gt;]</code> returns the json schema of every admin resource, the provision grammar included.
+  </div>
+</section>
+
+<section data-background-color="#f5b54a"><h2 class="big" style="text-align:center;margin-top:4em">SERVER MOCK</h2></section>
+
+<section data-background-color="#f5b54a" data-auto-animate>
+  <h2>Management interface</h2>
+  <p class="small">Three <i>server mock</i> administrative categories:</p>
+  <div class="cols c3" style="font-size:.62em">
+    <div><div class="label hot" data-id="sm1">Server matching</div><div class="box">Algorithm to classify the incoming requests and get a specific <b>provision</b> for the matched key.</div><div class="path"><b>/admin/v2/server-matching</b> POST, GET</div></div>
+    <div><div class="label" data-id="sm2">Server provision</div><div class="box">Defines the agent <b>behavior</b>: how to answer incoming requests.</div><div class="path"><b>/admin/v2/server-provision</b> POST, GET, DELETE</div></div>
+    <div><div class="label" data-id="sm3">Server data</div><div class="box">Stores the events <b>history</b> (receptions, answers) for verification and debugging.</div><div class="path"><b>/admin/v2/server-data</b> GET, PUT, DELETE</div></div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Matching algorithms (I)</h2>
+  <div class="cols c3" style="font-size:.55em">
+    <div class="box fragment fade-down"><h3>FullMatching &#128269;</h3>Search static / predictable URIs within the provision list.</div>
+    <div class="box fragment fade-down"><h3>FullMatchingRegexReplace &#128300;</h3>Translate dynamic URIs into static ones, then apply <i>full matching</i>.</div>
+    <div class="box fragment fade-down"><h3>RegexMatching &#127942;</h3>Search the first matching regular expression within the ordered provision list.</div>
+  </div>
+  <div class="fragment" style="font-size:.5em;margin-top:1em">
+    <div class="cols c3">
+      <div><code>ctrl/v2/foo</code> &#10140; key list<br><code>ctrl/v2/bar</code><br><b><code>ctrl/v2/foo</code></b> &#10004;</div>
+      <div><code>ctrl/v2/foo/ts-1615562841</code><br><span class="label" style="background:var(--cyan);color:var(--dark)">rgx = (ctrl/v2/foo/)(ts-[0-9]+), fmt = $1</span><br>&#10140; <b><code>ctrl/v2/foo/</code></b></div>
+      <div><code>ctrl/v2/foo/ts-1615562841</code><br><code>ctrl/v2/bar/ts-[0-9]{10}</code><br><b><code>ctrl/v2/[a-z]{3}/ts-[0-9]{10}</code></b> &#10004;<br><code>ctrl/v2/foo/ts-[0-9]{10}</code> <small>(also matches, the previous wins)</small></div>
+    </div>
+  </div>
+  <pre class="fragment"><code class="language-bash" data-trim>
+curl --http2-prior-knowledge -XPOST localhost:8074/admin/v2/server-matching \
+  -H 'content-type: application/json' -d '{"algorithm": "RegexMatching"}'
+  </code></pre>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Matching algorithms (II)</h2>
+  <p class="small">Query parameters configuration:</p>
+  <div class="cols c2" style="font-size:.75em">
+    <div><h3>Filters</h3>
+      <p class="fragment fade-left"><span class="label">1</span> Sort <small>(default)</small></p>
+      <p class="fragment fade-left"><span class="label">2</span> PassBy</p>
+      <p class="fragment fade-left"><span class="label">3</span> Ignore</p></div>
+    <div><h3>Delimiters</h3>
+      <p class="fragment fade-left"><span class="label">1</span> Ampersand <small>(default)</small></p>
+      <p class="fragment fade-left"><span class="label">2</span> Semicolon <small>(obsoleted by W3C 2014)</small></p></div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a" data-auto-animate>
+  <h2>Management interface</h2>
+  <p class="small">Three <i>server mock</i> administrative categories:</p>
+  <div class="cols c3" style="font-size:.62em">
+    <div><div class="label" data-id="sm1">Server matching</div><div class="box">Algorithm to classify the incoming requests and get a specific <b>provision</b> for the matched key.</div><div class="path"><b>/admin/v2/server-matching</b> POST, GET</div></div>
+    <div><div class="label hot" data-id="sm2">Server provision</div><div class="box">Defines the agent <b>behavior</b>: how to answer incoming requests.</div><div class="path"><b>/admin/v2/server-provision</b> POST, GET, DELETE</div></div>
+    <div><div class="label" data-id="sm3">Server data</div><div class="box">Stores the events <b>history</b> (receptions, answers) for verification and debugging.</div><div class="path"><b>/admin/v2/server-data</b> GET, PUT, DELETE</div></div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <div class="label" style="font-size:.8em">matched key</div>
+  <div style="color:#fff;font-size:.5em">key = &lt;requestMethod, requestUri, inState&gt;</div>
+  <div class="radial">
+    <svg viewBox="0 0 760 470"><g stroke="#aab4fb" stroke-width="3" fill="none">
+      <path d="M380 245 L380 60"/><path d="M380 245 L170 95"/><path d="M380 245 L600 95"/>
+      <path d="M380 245 L110 245"/><path d="M380 245 L650 245"/><path d="M380 245 L190 410"/><path d="M380 245 L570 410"/></g></svg>
+    <div class="hub">specific<br>provision</div>
+    <div class="sat fragment zoom-in" style="left:300px;top:40px">responseHeaders</div>
+    <div class="sat fragment zoom-in" style="left:90px;top:75px">responseBody</div>
+    <div class="sat fragment zoom-in" style="left:540px;top:75px">responseDelayMs</div>
+    <div class="sat fragment zoom-in" style="left:10px;top:225px">responseCode</div>
+    <div class="sat fragment zoom-in" style="left:600px;top:225px;background:var(--orange);color:var(--dark)">transform &#128640;</div>
+    <div class="sat fragment zoom-in" style="left:130px;top:395px">inState</div>
+    <div class="sat fragment zoom-in" style="left:520px;top:395px">outState</div>
+    <div class="sat fragment zoom-in" style="left:300px;top:430px;background:#2e8b57">request/responseSchemaId</div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Optional provision fall back</h2>
+  <p class="small">A default provision handles unmatched requests, or acts as a simplified provision that ignores the URI received.</p>
+  <div class="cols c2">
+    <div style="font-size:.65em">
+      <p><span class="label">requestMethod</span> <b>GET</b>, PUT, POST, DELETE, HEAD</p>
+      <p><span class="label">requestUri</span> empty string or <b>missing</b> field</p>
+    </div>
+    <pre class="fragment fade-left"><code class="language-json" data-trim>
+{
+  "requestMethod": "GET",
+  "responseCode": 200,
+  "responseBody": { "foo": "default", "bar": "default" },
+  "responseHeaders": {
+    "content-type": "application/json",
+    "x-version": "1.0.0"
+  }
+}
+    </code></pre>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>FSM provision example</h2>
+  <p class="small">Successive POSTs on the same URI alternate the answer: the context state points to the next <code>inState</code> provision.</p>
+  <div class="cols c2">
+    <div style="font-size:.6em">
+      <table>
+        <tr><th>current state</th><th>response body</th></tr>
+        <tr class="fragment highlight-blue"><td><b>initial</b></td><td><code>{"foo":"bar-state-initial"}</code></td></tr>
+        <tr class="fragment highlight-blue"><td><b>another</b></td><td><code>{"foo":"bar-state-another"}</code></td></tr>
+      </table>
+      <p class="fragment">Every new context starts at <code>"initial"</code>: at least one provision must have that <code>inState</code> (it is the default for <code>inState</code> / <code>outState</code>).</p>
+      <p class="fragment">Special <code>outState</code> <b>purge</b> removes the events of the key.</p>
+    </div>
+    <pre><code class="language-json" data-trim data-line-numbers="2-3|11-12">
+[{
+  "inState": "initial",
+  "outState": "another",
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-state-initial"}
+},
+{
+  "inState": "another",
+  "outState": "initial",
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-state-another"}
+}]
+    </code></pre>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a" data-auto-animate>
+  <h2>Management interface</h2>
+  <p class="small">Three <i>server mock</i> administrative categories:</p>
+  <div class="cols c3" style="font-size:.62em">
+    <div><div class="label" data-id="sm1">Server matching</div><div class="box">Algorithm to classify the incoming requests and get a specific <b>provision</b> for the matched key.</div><div class="path"><b>/admin/v2/server-matching</b> POST, GET</div></div>
+    <div><div class="label" data-id="sm2">Server provision</div><div class="box">Defines the agent <b>behavior</b>: how to answer incoming requests.</div><div class="path"><b>/admin/v2/server-provision</b> POST, GET, DELETE</div></div>
+    <div><div class="label hot" data-id="sm3">Server data</div><div class="box">Stores the events <b>history</b> (receptions, answers) for verification and debugging.</div><div class="path"><b>/admin/v2/server-data</b> GET, PUT, DELETE</div></div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Server data</h2>
+  <div class="cols c3" style="font-size:.5em">
+    <div class="card dark fragment fade-up" style="min-height:260px"><h3 style="color:#fff">method + uri 1</h3><div class="pulse">&#9644;&#9644;&#9644;&#9644;&#9644;<br>&#9644;&#9644;&#9644;&#9644;<br>&#9644;&#9644;&#9644;&#9644;&#9644;</div></div>
+    <div class="card dark fragment fade-up" style="min-height:260px"><h3 style="color:#fff">method + uri 2</h3><div class="pulse">&#9644;&#9644;&#9644;&#9644;<br>&#9644;&#9644;&#9644;&#9644;&#9644;<br>&#9644;&#9644;&#9644;</div></div>
+    <div class="card dark fragment fade-up" style="min-height:260px"><h3 style="color:#fff">method + uri 3 &#128269;</h3>event number 1<br>event number 2<br>&hellip;<br>event number N (or -1: the last)</div>
+  </div>
+  <ul style="font-size:.55em;margin-top:.6em">
+    <li class="fragment">Query by <code>requestMethod</code>, <code>requestUri</code>, <code>eventNumber</code>, <code>eventPath</code> (json pointer), or a <b>summary</b>.</li>
+    <li class="fragment">Storage: <code>PUT /admin/v2/server-data/configuration?discard=false&amp;discardKeyHistory=false</code>, <code>disablePurge</code>.</li>
+    <li class="fragment"><span class="chip new">new</span> <code>executionTrace=true</code>: every event stores why each rule applied or not:
+      <code>{"rule": "/transform/1", "applied": false, "note": "EqualTo is false; rule skipped"}</code></li>
+  </ul>
+</section>
+
+<section data-background-color="#f5b54a"><h2 class="big" style="text-align:center;margin-top:4em">CLIENT MOCK</h2></section>
+
+<section data-background-color="#f5b54a" data-auto-animate>
+  <h2>Management interface</h2>
+  <p class="small">Three <i>client mock</i> administrative categories:</p>
+  <div class="cols c3" style="font-size:.6em">
+    <div><div class="label hot" data-id="cm1">Client endpoint</div><div class="box">Definitions of the remote servers, <b>connected</b> from the provisions that refer to them.</div><div class="path"><b>/admin/v2/client-endpoint</b> POST, GET, DELETE</div></div>
+    <div><div class="label" data-id="cm2">Client provision</div><div class="box">Defines the agent <b>behavior</b>: how to send requests and handle responses. Triggered through the API.</div><div class="path"><b>/admin/v2/client-provision</b> POST, GET, DELETE<br><b>/admin/v2/client-provision/&lt;id&gt;/trigger</b> POST</div></div>
+    <div><div class="label" data-id="cm3">Client data</div><div class="box">Stores the events <b>history</b> (sendings, receptions) for verification and debugging.</div><div class="path"><b>/admin/v2/client-data</b> GET, PUT, DELETE</div></div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Client endpoint</h2>
+  <div class="cols c2">
+    <div style="font-size:.7em">
+      <p class="fragment fade-right"><span class="label">1</span> <b>id</b> <small>(referred by provisions)</small></p>
+      <p class="fragment fade-right"><span class="label">2</span> <b>host</b> <small>(remote host)</small></p>
+      <p class="fragment fade-right"><span class="label">3</span> <b>port</b> <small>(remote port)</small></p>
+      <p class="fragment fade-right"><span class="label">4</span> <b>secure</b> <small>(TLS)</small></p>
+      <p class="fragment fade-right"><span class="label">5</span> <b>permit</b> <small>(administrative enable / disable)</small></p>
+    </div>
+    <pre class="fragment fade-left"><code class="language-json" data-trim>
+{
+  "id": "myBackend",
+  "host": "backend.ns.svc",
+  "port": 8000,
+  "secure": false,
+  "permit": true
+}
+    </code></pre>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a" data-auto-animate>
+  <h2>Management interface</h2>
+  <p class="small">Three <i>client mock</i> administrative categories:</p>
+  <div class="cols c3" style="font-size:.6em">
+    <div><div class="label" data-id="cm1">Client endpoint</div><div class="box">Definitions of the remote servers, <b>connected</b> from the provisions that refer to them.</div><div class="path"><b>/admin/v2/client-endpoint</b> POST, GET, DELETE</div></div>
+    <div><div class="label hot" data-id="cm2">Client provision</div><div class="box">Defines the agent <b>behavior</b>: how to send requests and handle responses. Triggered through the API.</div><div class="path"><b>/admin/v2/client-provision</b> POST, GET, DELETE<br><b>/admin/v2/client-provision/&lt;id&gt;/trigger</b> POST</div></div>
+    <div><div class="label" data-id="cm3">Client data</div><div class="box">Stores the events <b>history</b> (sendings, receptions) for verification and debugging.</div><div class="path"><b>/admin/v2/client-data</b> GET, PUT, DELETE</div></div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <div class="label" style="font-size:.8em">triggered provision</div>
+  <div style="color:#fff;font-size:.5em">key = &lt;id, inState&gt; &middot; dynamics = &lt;sequenceBegin, sequenceEnd, cps, repeat&gt;</div>
+  <div class="radial">
+    <svg viewBox="0 0 760 470"><g stroke="#aab4fb" stroke-width="3" fill="none">
+      <path d="M380 245 L380 60"/><path d="M380 245 L170 95"/><path d="M380 245 L600 95"/>
+      <path d="M380 245 L110 245"/><path d="M380 245 L650 245"/><path d="M380 245 L190 410"/><path d="M380 245 L570 410"/></g></svg>
+    <div class="hub">specific<br>provision</div>
+    <div class="sat fragment zoom-in" style="left:200px;top:30px">endpoint &middot; requestMethod, requestUri, headers, body</div>
+    <div class="sat fragment zoom-in" style="left:110px;top:100px">timeoutMs</div>
+    <div class="sat fragment zoom-in" style="left:540px;top:85px">requestDelayMs</div>
+    <div class="sat fragment zoom-in" style="left:0;top:225px">expectedResponseStatusCode</div>
+    <div class="sat fragment zoom-in" style="left:560px;top:215px;background:var(--orange);color:var(--dark)">transform &#128640;<br>onResponseTransform</div>
+    <div class="sat fragment zoom-in" style="left:130px;top:395px">inState</div>
+    <div class="sat fragment zoom-in" style="left:520px;top:395px">outState</div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Triggering</h2>
+  <div class="cols c2" style="font-size:.6em">
+    <div class="fragment fade-right">
+      <h3>Synchronous (200)</h3>
+      <p>One request, optionally with a given <code>sequence</code>:</p>
+      <pre><code class="language-bash" data-trim>
+curl --http2-prior-knowledge -XPOST \
+  "localhost:8074/admin/v2/client-provision/myFlow/trigger?sequence=10"
+      </code></pre>
+      <h3>Asynchronous (202)</h3>
+      <p>Range at a rate, optionally repeated (cps 0 stops, a positive one resumes):</p>
+      <pre><code class="language-bash" data-trim>
+curl --http2-prior-knowledge -XPOST \
+  "localhost:8074/admin/v2/client-provision/myFlow/trigger?sequenceBegin=0&sequenceEnd=9999&cps=1500"
+      </code></pre>
+    </div>
+    <div class="fragment fade-left">
+      <h3>Chains</h3>
+      <p><code>outState</code> selects the next stage (<code>id</code> + <code>inState</code>) when the response arrives: a scenario is a state machine, each stage may target another endpoint. <b>purge</b> clears the events of the whole chain.</p>
+      <h3>Load</h3>
+      <p>Worker pool for request preparation, pool congestion control (<code>--traffic-client-pool-max-pending</code>) and dispatch latency diagnostics (<code>GET /admin/v2/client/dispatch-latency</code>).</p>
+      <h3>From the server</h3>
+      <p>The <code>clientProvision</code> target triggers a client flow from a server provision.</p>
+    </div>
+  </div>
+</section>
+
+<section data-background-color="#f5b54a">
+  <h2>Client data</h2>
+  <div class="cols c3" style="font-size:.5em">
+    <div class="card dark fragment fade-up" style="min-height:240px"><h3 style="color:#fff">endpoint + method + uri 1</h3><div class="pulse">&#9644;&#9644;&#9644;&#9644;&#9644;<br>&#9644;&#9644;&#9644;&#9644;</div></div>
+    <div class="card dark fragment fade-up" style="min-height:240px"><h3 style="color:#fff">endpoint + method + uri 2</h3><div class="pulse">&#9644;&#9644;&#9644;<br>&#9644;&#9644;&#9644;&#9644;&#9644;</div></div>
+    <div class="card dark fragment fade-up" style="min-height:240px"><h3 style="color:#fff">endpoint + method + uri 3 &#128269;</h3>event number 1<br>&hellip;<br>event number N</div>
+  </div>
+  <p class="fragment" style="font-size:.55em">Same query and storage model as the server data, keyed by <code>clientEndpointId</code> + <code>requestMethod</code> + <code>requestUri</code> (sending and reception timestamps, send sequence, provision id).</p>
+</section>
+
+<section data-background-color="#fbad26">
+  <h2>Command line</h2>
+  <div style="font-size:.5em;columns:2;column-gap:2em">
+    <p><b>admin port</b> 8074 / <b>traffic server port</b> 8000 (0 disables the server mock) / <b>prometheus port</b> 8080</p>
+    <p><b>IPv4 / IPv6</b>, bind address, API name and version</p>
+    <p><b>traffic server worker threads</b> (1: inline; more: queue dispatcher) / max workers / I/O threads</p>
+    <p><b>congestion control</b>: queue dispatcher max size (503)</p>
+    <p><b>TLS</b>: traffic server key, crt and password; secured admin</p>
+    <p><b>startup files</b>: schema, vault, server matching and provision, client endpoint and provision</p>
+    <p><b>data storage</b>: discard data / key history, disable purge</p>
+    <p><b>request body</b>: ignore it, dynamic allocation</p>
+    <p><b>client</b>: connections per endpoint, worker threads, pool max pending, lazy connection</p>
+    <p><b>files</b>: long / short term close delays</p>
+    <p><b>metrics</b>: histogram boundaries (delays, sizes), disable metrics</p>
+  </div>
+</section>
+
+<section data-background-color="#fbad26">
+  <div class="cols c2">
+    <div class="fragment fade-right">
+      <h2>Metrics <b>server</b></h2>
+      <p class="small"><i>Counters</i></p>
+      <ul class="small"><li>Processed requests (accepted / errored)</li><li>Processed responses</li><li>Provisioned requests (successful / failed)</li><li>Purged contexts</li><li>File system and unix socket operations</li></ul>
+      <p class="small"><i>Gauges &amp; histograms</i></p>
+      <ul class="small"><li>Response delay seconds</li><li>Message size bytes (receptions, sendings)</li></ul>
+    </div>
+    <div class="fragment fade-left">
+      <h2>Metrics <b>client</b></h2>
+      <p class="small"><i>Counters</i></p>
+      <ul class="small"><li>Sent requests (sent / unsent)</li><li>Received responses (received / timed-out)</li><li>Provisioned requests, unexpected status codes</li><li>Purged contexts, discarded dispatches</li></ul>
+      <p class="small"><i>Gauges &amp; histograms</i></p>
+      <ul class="small"><li>Response delay seconds</li><li>Message size bytes (sendings, receptions)</li></ul>
+    </div>
+  </div>
+</section>
+
+<section data-background-color="#fbad26">
+  <h2>Traffic</h2>
+  <ul style="font-size:.8em">
+    <li class="fragment">Any server endpoint can be simulated: HTTP/2 natively, HTTP/1 through the integrated nghttpx proxy.</li>
+    <li class="fragment">Client endpoints (HTTP/2), several connections per endpoint.</li>
+    <li class="fragment">TLS for server and client (also for the management interface, disabled by default).</li>
+    <li class="fragment">UDP through unix sockets (<code>udpSocket</code> target) and UDP utilities to bridge external systems.</li>
+  </ul>
+</section>
+
+<!-- =============================== ROAD MAP 3 -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+  <div class="road" data-id="road">
+    <div class="lane" style="left:0;top:0;width:640px"></div>
+    <div class="lane" style="left:120px;top:200px;width:520px"></div>
+    <div class="lane" style="left:0;top:400px;width:820px"></div>
+    <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
+    <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
+    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
+    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
+    <div class="tile on" data-id="t3" style="left:360px;top:200px">3</div><div class="cap on" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
+    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
+    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
+    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+  </div>
+  <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
+    <div class="t2"><span>H2A</span>gent</div><div class="t3">3 &middot; grammar v2</div>
+  </div>
+</section>
+
+<!-- =============================== 3. TRANSFORMATION MODEL -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card" style="width:600px;font-size:.7em">
+    <h2 style="margin-top:0;text-align:center">Flow model</h2>
+    <p style="text-align:center" class="small">server and client modes &middot; transformation rule</p>
+    <div class="flow" style="justify-content:center">
+      <span class="st" style="background:var(--orange)">from</span><span class="arrow">&#10230;</span>
+      <span class="st" style="background:var(--yellow)">filter[ ]</span><span class="arrow">&#10230;</span>
+      <span class="st" style="background:var(--lavender)">to</span>
+    </div>
+    <div class="lane-car"><span class="car">&#128663;</span></div>
+    <div class="stations"><span>&#128295; capture</span><span>&#127981; transform (in list order)</span><span>&#127937; write / act</span></div>
+    <p class="small" style="margin-top:.6em">An ordered list of rules; the first failing filter stops the chain and runs <code>onFilterFail</code>. Every kind is a discriminator (<code>source</code>, <code>op</code>, <code>target</code>) plus named fields.</p>
+  </div>
+  <div class="note fragment fade-left" style="position:absolute;left:680px;top:0;width:170px;height:170px;font-size:1em">sources</div>
+  <div class="note fragment fade-left" style="position:absolute;left:870px;top:0;width:170px;height:170px;font-size:1em;background:var(--lavender)">targets</div>
+  <div class="note fragment fade-up" style="position:absolute;left:770px;top:200px;width:170px;height:170px;font-size:1em;background:var(--yellow)">filters</div>
+  <div class="note fragment zoom-in" style="position:absolute;left:740px;top:410px;width:110px;height:80px;background:#eee;font-size:.5em">Example for server mode</div>
+  <div class="note fragment zoom-in" style="position:absolute;left:870px;top:410px;width:110px;height:80px;background:#eee;font-size:.5em">Example for client mode</div>
+</section>
+
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <h2>Rule shape</h2>
+  <div class="cols c2">
+    <pre><code class="language-json" data-trim data-line-numbers="2|3-6|7|8-10">
+{
+  "from":   {"source": "requestUriPath"},
+  "filter": [
+    {"op": "regexReplace", "rgx": "/app/v1/item/id-([0-9]+)", "fmt": "$1"},
+    {"op": "cast", "type": "unsigned"}
+  ],
+  "to":     {"target": "responseBody", "path": "/id"},
+  "onFilterFail": [
+    {"from": {"source": "literal", "value": "404"}, "to": {"target": "responseStatusCode"}}
+  ]
+}
+    </code></pre>
+    <ul style="font-size:.55em">
+      <li class="fragment"><b>lowerCamelCase</b> everywhere, one form per kind, no string shortcuts.</li>
+      <li class="fragment">Fields named after their role: <code>path</code> (json pointer, absent = whole document), <code>name</code>, <code>key</code>, <code>id</code>, <code>file</code>, <code>value</code>, <code>rgx</code> / <code>fmt</code>.</li>
+      <li class="fragment">Filters run <b>in list order</b>; typing is a filter: <code>{"op": "cast", "type": "string|integer|unsigned|float|boolean|object|json"}</code>.</li>
+      <li class="fragment">Nothing is dot separated nor url-encoded any more.</li>
+      <li class="fragment">Every rule is validated at load: <code>GET /admin/v2/api-schema/server-provision</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<section data-background-color="#fbad26">
+  <h2>Sources <small>(from)</small></h2>
+  <div class="kinds">
+    <div class="fragment fade-in"><span class="sw" style="background:#3c2a86"></span><code>requestUri</code> &middot; <code>requestUriPath</code><span class="chip s">S</span> &middot; <code>requestUriParam</code><span class="chip s">S</span></div>
+    <div class="fragment fade-in"><span class="sw" style="background:#a7f3d0"></span><code>requestBody</code> / <code>responseBody</code> (+ <code>path</code>)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#2d8cf0"></span><code>requestHeader(s)</code> &middot; <code>responseHeader(s)</code><span class="chip c">C</span></div>
+    <div class="fragment fade-in"><span class="sw" style="background:#21d4d6"></span><code>responseStatusCode</code><span class="chip c">C</span></div>
+    <div class="fragment fade-in"><span class="sw" style="background:#fff"></span><code>eraser</code> (removes what the target points to)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#ff5cb4"></span><code>math</code> (<code>expression</code>, exprtk)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#facc15"></span><code>random</code> (<code>min</code>, <code>max</code>) &middot; <code>randomset</code> (<code>values</code>)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#5a2a0a"></span><code>timestamp</code> (<code>unit</code>: s, ms, us, ns)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#8b4513"></span><code>strftime</code> (<code>fmt</code>)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#ef4444"></span><code>recvseq</code><span class="chip s">S</span> &middot; <code>sendseq</code><span class="chip c">C</span></div>
+    <div class="fragment fade-in"><span class="sw" style="background:#2e8b57"></span><code>var</code> (<code>name</code>, <code>path</code>)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#8bd450"></span><code>vault</code> (<code>key</code>, <code>path</code>)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#fb923c"></span><code>literal</code> (<code>value</code>: text, number or json)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#e5e5e5"></span><code>inState</code> (working state)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#aab4fb"></span><code>serverEvent</code> / <code>clientEvent</code> (event fields)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#c084fc"></span><code>txtFile</code> / <code>binFile</code> (<code>file</code>)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#dc2626"></span><code>command</code> (shell)</div>
+  </div>
+  <p class="fragment small" style="margin-top:.8em"><span class="chip s">S</span> server only &nbsp; <span class="chip c">C</span> client only (responses in <code>onResponseTransform</code>) &nbsp;&middot; <code>@{name}</code> variables are substituted in text fields</p>
+</section>
+
+<section data-background-color="#f9f871">
+  <h2>Filters <small>(filter[ ], same for server and client)</small></h2>
+  <div class="cols c4">
+    <div class="fbox fragment fade-up"><h4>regexCapture</h4><code>{"op":"regexCapture","rgx":"api/v2/id-([0-9]+)/cat-([a-z]+)"}</code><br>groups: <code>var.1</code>, <code>var.2</code></div>
+    <div class="fbox fragment fade-up"><h4>regexReplace</h4><code>{"op":"regexReplace","rgx":"...","fmt":"$1"}</code></div>
+    <div class="fbox fragment fade-up"><h4>regexKey</h4><code>{"op":"regexKey","rgx":"acct-[0-9]{10}"}</code> on object keys</div>
+    <div class="fbox fragment fade-up"><h4>append / prepend</h4><code>{"op":"append","value":".teslayout.com"}</code></div>
+    <div class="fbox fragment fade-up"><h4>sum / multiply</h4><code>{"op":"sum","value":0.618033}</code></div>
+    <div class="fbox fragment fade-up"><h4>equalTo</h4><code>{"op":"equalTo","value":"200","not":true}</code> <small>(v1 DifferentFrom)</small></div>
+    <div class="fbox fragment fade-up"><h4>conditionVar</h4><code>{"op":"conditionVar","name":"ok","not":true}</code></div>
+    <div class="fbox fragment fade-up"><h4>jsonConstraint</h4><code>{"op":"jsonConstraint","value":{...}}</code></div>
+    <div class="fbox fragment fade-up"><h4>schemaId</h4><code>{"op":"schemaId","id":"mySchema"}</code></div>
+    <div class="fbox fragment fade-up"><h4>split</h4>IPv4 from an id: <code>{"op":"split","size":2,"count":4,"sep":".","filler":"0","numeric":true}</code></div>
+    <div class="fbox fragment fade-up"><h4>baseConvert</h4><code>{"op":"baseConvert","in":10,"out":16,"capital":true}</code></div>
+    <div class="fbox fragment fade-up"><h4>strptime / strftime</h4><code>{"op":"strftime","fmt":"%Y-%m-%dT%H:%M:%S"}</code></div>
+    <div class="fbox fragment fade-up"><h4>size</h4><code>{"op":"size"}</code> of arrays and objects</div>
+    <div class="fbox fragment fade-up" style="background:var(--orange)"><h4>cast</h4><code>{"op":"cast","type":"unsigned"}</code> anywhere in the chain</div>
+  </div>
+</section>
+
+<section data-background-color="#aab4fb">
+  <h2>Targets <small>(to)</small></h2>
+  <div class="cols c2" style="font-size:.55em">
+    <div class="fragment fade-right">
+      <h3>Server</h3>
+      <p><code>responseBody</code> (+ <code>path</code>) &middot; <code>responseBodyText</code> &middot; <code>responseBodyHex</code></p>
+      <p><code>responseHeader</code> &middot; <code>responseStatusCode</code> &middot; <code>responseDelayMs</code></p>
+      <p><code>outState</code> (+ foreign <code>method</code> / <code>uri</code>)</p>
+      <p><code>clientProvision</code> (<code>id</code>, <code>inState</code>): triggers a client flow</p>
+    </div>
+    <div class="fragment fade-left">
+      <h3>Client</h3>
+      <p><code>requestBody</code> (+ <code>path</code>) &middot; <code>requestBodyText</code> &middot; <code>requestBodyHex</code></p>
+      <p><code>requestUri</code> &middot; <code>requestMethod</code> &middot; <code>requestHeader</code></p>
+      <p><code>requestDelayMs</code> &middot; <code>requestTimeoutMs</code> &middot; <code>outState</code></p>
+    </div>
+  </div>
+  <div class="fragment fade-up" style="font-size:.55em;margin-top:.4em">
+    <h3>Both</h3>
+    <p><code>var</code> &middot; <code>vault</code> (<code>key</code>, <code>path</code>) &middot; <code>txtFile</code> / <code>binFile</code> &middot; <code>udpSocket</code> (<code>socket</code>, <code>delayMs</code>)
+      &middot; <code>serverEvent</code> / <code>clientEvent</code> (with <code>eraser</code>: purge) &middot; <code>stop</code> (v1 <code>break</code>)</p>
+  </div>
+</section>
+
+<section data-background-color="#aab4fb">
+  <h2>Values, variables and references</h2>
+  <div class="cols c3" style="font-size:.52em">
+    <div class="card fragment fade-up"><h3>Native json store</h3><code>var</code> and <code>vault</code> keep the json type of their values (an object stays an object, <code>2</code> is not <code>"2"</code>). Both admit a json pointer <code>path</code>.</div>
+    <div class="card fragment fade-up"><h3>@{name/&lt;pointer&gt;}</h3>Runtime substitution of variables, also navigating into them: <code>@{doc/a/b}</code>, <code>@{caps/1}</code>. Templates are precompiled at load.</div>
+    <div class="card fragment fade-up"><h3>#{key[/pointer]}</h3>Provision references resolved <b>once at load</b> against the vault: shared regular expressions, constants&hellip;</div>
+  </div>
+  <div class="cols c2" style="font-size:.52em;margin-top:.6em">
+    <div class="card orange fragment fade-up"><h3>Boolean criterion</h3><code>null</code>, <code>false</code>, numeric zero and <code>""</code> are false; anything else is true. Shared by <code>conditionVar</code>, <code>stop</code>, <code>clientProvision</code> and the boolean cast.</div>
+    <div class="card orange fragment fade-up"><h3>Eraser</h3>One meaning per target: removes the variable, the vault entry or node, the body node, empties a file, purges events. Conditional with <code>conditionVar</code>.</div>
+  </div>
+</section>
+
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card lav" style="font-size:.85em">
+    <h2 style="margin-top:0">Server mode example <small class="muted">(regex matching)</small></h2>
+    <div class="cols c2">
+      <pre><code class="language-json" data-trim data-line-numbers="1-7|9-10|11-12|13-15|16-18">
+{
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/([0-9]*)",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "text/html", "x-version": "1.0.0"},
+  "transform": [
+    {"from": {"source": "random", "min": 10, "max": 30},
+     "to": {"target": "responseDelayMs"}},
+    {"from": {"source": "strftime", "fmt": "Now it's %I:%M%p."},
+     "to": {"target": "responseBody", "path": "/queryTime"}},
+    {"from": {"source": "literal", "value": "[{\"id\":\"2000\"},{\"id\":\"2001\"}]"},
+     "filter": [{"op": "cast", "type": "json"}],
+     "to": {"target": "responseBody", "path": "/array"}},
+    {"from": {"source": "requestUriPath"},
+     "filter": [{"op": "regexCapture", "rgx": "/app/v1/foo/bar/([0-9]*)"}],
+     "to": {"target": "responseBody", "path": "/capturedBarIdFromURI"}}
+  ]
+}
+      </code></pre>
+      <div style="font-size:.5em">
+        <p><b>Behavior</b></p>
+        <p>A GET to <code>/app/v1/foo/bar/56</code> is answered after a random delay in [10, 30] ms, with status 200, the headers given and this body:</p>
+        <pre class="fragment"><code class="language-json" data-trim>
+{
+  "foo": "bar-1",
+  "queryTime": "Now it's 08:35PM.",
+  "array": [{"id": "2000"}, {"id": "2001"}],
+  "capturedBarIdFromURI": "56"
+}
+        </code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card lav" style="font-size:.85em">
+    <h2 style="margin-top:0">Client mode example <small class="muted">(pre-send and post-response)</small></h2>
+    <div class="cols c2">
+      <pre><code class="language-json" data-trim data-line-numbers="1-9|10-18|19-24">
+{
+  "id": "get-foo-bar-items",
+  "endpoint": "myBackend",
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/foo/bar/items",
+  "requestHeaders": {"content-type": "application/json", "x-version": "1.0.0"},
+  "requestBody": {"query": "default"},
+  "timeoutMs": 3000,
+  "expectedResponseStatusCode": 200,
+  "transform": [
+    {"from": {"source": "random", "min": 10, "max": 30},
+     "to": {"target": "requestDelayMs"}},
+    {"from": {"source": "strftime", "fmt": "Now it's %I:%M%p."},
+     "to": {"target": "requestBody", "path": "/queryTime"}},
+    {"from": {"source": "literal", "value": "[{\"id\":\"2000\"},{\"id\":\"2001\"}]"},
+     "filter": [{"op": "cast", "type": "json"}],
+     "to": {"target": "requestBody", "path": "/items"}}
+  ],
+  "onResponseTransform": [
+    {"from": {"source": "responseBody", "path": "/data/id"},
+     "to": {"target": "vault", "key": "lastDataId"}},
+    {"from": {"source": "responseHeader", "name": "x-trace-id"},
+     "to": {"target": "vault", "key": "lastTraceId"}}
+  ]
+}
+      </code></pre>
+      <div style="font-size:.5em">
+        <p><b>Behavior</b></p>
+        <p>When triggered, it sends a GET to <code>myBackend</code> after a random delay in [10, 30] ms, with a 3 s timeout and this body:</p>
+        <pre class="fragment"><code class="language-json" data-trim>
+{
+  "query": "default",
+  "queryTime": "Now it's 08:35PM.",
+  "items": [{"id": "2000"}, {"id": "2001"}]
+}
+        </code></pre>
+        <p class="fragment">On a 200 response, the body field <code>/data/id</code> and the header <code>x-trace-id</code> are kept in the vault (<code>lastDataId</code>, <code>lastTraceId</code>) for the next steps of the chain. Another status code is counted as unexpected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-background-color="#f9f871">
+  <h2>From grammar v1 to v2</h2>
+  <div class="cols c2">
+    <div>
+      <pre class="fragment fade-right"><code class="language-json" data-trim>
+{"source": "request.uri.path",
+ "target": "response.body.json.unsigned./uriId",
+ "filter": {"RegexReplace": {"rgx": "/app/v1/load-test/id-([0-9]+)", "fmt": "$1"}}}
+      </code></pre>
+      <div class="fragment" style="text-align:center;font-size:1.4em">&#11015;&#65039; <code style="font-size:.6em">h2agent-migrate</code></div>
+      <pre class="fragment fade-up"><code class="language-json" data-trim>
+{"from": {"source": "requestUriPath"},
+ "filter": [{"op": "regexReplace", "rgx": "/app/v1/load-test/id-([0-9]+)", "fmt": "$1"},
+            {"op": "cast", "type": "unsigned"}],
+ "to": {"target": "responseBody", "path": "/uriId"}}
+      </code></pre>
+    </div>
+    <div style="font-size:.52em">
+      <ul>
+        <li class="fragment">Syntax-only conversion: each v2 rule behaves as its v1 origin (stores keep their json type).</li>
+        <li class="fragment"><code>h2agent-migrate --in v1.json --out v2.json</code>, <code>--reverse</code> for diagnostics.</li>
+        <li class="fragment"><code>h2agent-migrate --scan ./tests</code> finds <code>/admin/v1</code> references and v1 rules in files, scripts and tests (exit code 1).</li>
+        <li class="fragment">Admin API moves to <code>/admin/v2</code>; every change is listed with before / after examples in the <a href="https://github.com/testillano/h2agent/blob/master/docs/MigrationGuide.md">migration guide</a>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== ROAD MAP 4 -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+  <div class="road" data-id="road">
+    <div class="lane" style="left:0;top:0;width:640px"></div>
+    <div class="lane" style="left:120px;top:200px;width:520px"></div>
+    <div class="lane" style="left:0;top:400px;width:820px"></div>
+    <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
+    <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
+    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
+    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
+    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
+    <div class="tile on" data-id="t4" style="left:150px;top:400px">4</div><div class="cap on" data-id="c4" style="left:120px;top:490px">QUICK START</div>
+    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
+    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+  </div>
+  <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
+    <div class="t2"><span>H2A</span>gent</div><div class="t3">4 &middot; quick start</div>
+  </div>
+</section>
+
+<!-- =============================== 4. QUICK START -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <h2>Quick start</h2>
+  <pre><code class="language-bash" data-trim data-line-numbers="1-2|4-8|10-11|13-14">
+# Run the agent (traffic 8000, admin 8074, metrics 8080):
+docker run --rm -d --network=host --name h2agent ghcr.io/testillano/h2agent:latest
+
+# Provision a server answer:
+curl --http2-prior-knowledge -XPOST localhost:8074/admin/v2/server-provision \
+  -H 'content-type: application/json' \
+  -d '{"requestMethod": "GET", "requestUri": "/hello", "responseCode": 200,
+       "responseBody": {"hello": "world"}}'
+
+# Send traffic:
+curl --http2-prior-knowledge localhost:8000/hello   # {"hello":"world"}
+
+# Inspect what was received:
+curl --http2-prior-knowledge "localhost:8074/admin/v2/server-data?requestMethod=GET&requestUri=/hello&eventNumber=-1"
+  </code></pre>
+  <p class="fragment small">Helm chart for kubernetes, native build (<code>./build-native.sh</code>) and helper functions (<code>source tools/helpers.bash</code>) are also available.</p>
+</section>
+
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card" style="width:640px;margin:0 auto">
+    <h2 style="margin-top:0">Training</h2>
+    <div class="cols c2" style="font-size:.85em">
+      <div class="fragment zoom-in"><b>PLAY</b><br><a class="small" href="https://github.com/testillano/h2agent/tree/master/tools/play-h2agent">easy guided examples</a></div>
+      <div class="fragment zoom-in"><b>TEST</b><br><a class="small" href="https://github.com/testillano/h2agent/tree/master/tools/test-h2agent">GUI tester</a></div>
+      <div class="fragment zoom-in"><b>DEMO</b><br><a class="small" href="https://github.com/testillano/h2agent/tree/master/demo">a basic use case</a></div>
+      <div class="fragment zoom-in"><b>KATA</b><br><a class="small" href="https://github.com/testillano/h2agent/tree/master/kata">exercises with increasing complexity</a></div>
+      <div class="fragment zoom-in"><b>GHERKIN</b><br><a class="small" href="https://github.com/testillano/h2agent/tree/master/tools/gherkin-h2agent">Given / When / Then scenarios</a></div>
+      <div class="fragment zoom-in"><b>Q&amp;A bot</b><br><a class="small" href="https://github.com/testillano/h2agent/tree/master/tools/questions-and-answers">documentation questions (LLM)</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- =============================== ROAD MAP 5 -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+  <div class="road" data-id="road">
+    <div class="lane" style="left:0;top:0;width:640px"></div>
+    <div class="lane" style="left:120px;top:200px;width:520px"></div>
+    <div class="lane" style="left:0;top:400px;width:820px"></div>
+    <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
+    <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
+    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
+    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
+    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
+    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
+    <div class="tile on" data-id="t5" style="left:420px;top:400px">5</div><div class="cap on" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
+    <div class="tile" data-id="t6" style="left:680px;top:400px">6</div><div class="cap" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+  </div>
+  <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
+    <div class="t2"><span>H2A</span>gent</div><div class="t3">5 &middot; what's next</div>
+  </div>
+</section>
+
+<!-- =============================== 5. WHAT'S NEXT -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)">
+  <div class="card" style="width:640px">
+    <h2 style="margin-top:0">WHAT'S NEXT</h2>
+    <p class="fragment"><b>5.0.0 delivered</b>: admin API v2 and transformation grammar v2, with migrator and migration guide.</p>
+    <p class="fragment">Further grammar phases (semantic changes, each one with its own migrator rule).</p>
+    <p class="fragment">Provision dry run: validate and explain a provision without loading it.</p>
+    <p class="fragment"><i>Ideas and issues are welcome!</i></p>
+  </div>
+</section>
+
+<!-- =============================== ROAD MAP 6 -->
+<section data-background-gradient="linear-gradient(135deg, #e6e3de 0%, #cfccc6 45%, #b7b2aa 100%)" data-auto-animate>
+  <div class="road" data-id="road">
+    <div class="lane" style="left:0;top:0;width:640px"></div>
+    <div class="lane" style="left:120px;top:200px;width:520px"></div>
+    <div class="lane" style="left:0;top:400px;width:820px"></div>
+    <div class="lane" style="left:570px;top:0;width:70px;height:270px"></div>
+    <div class="lane" style="left:120px;top:200px;width:70px;height:270px"></div>
+    <div class="tile" data-id="t1" style="left:60px;top:0">1</div><div class="cap" data-id="c1" style="left:30px;top:90px">INTRODUCTION</div>
+    <div class="tile" data-id="t2" style="left:320px;top:0">2</div><div class="cap" data-id="c2" style="left:290px;top:90px">INTERFACES</div>
+    <div class="tile" data-id="t3" style="left:360px;top:200px">3</div><div class="cap" data-id="c3" style="left:260px;top:290px">TRANSFORMATION MODEL</div>
+    <div class="tile" data-id="t4" style="left:150px;top:400px">4</div><div class="cap" data-id="c4" style="left:120px;top:490px">QUICK START</div>
+    <div class="tile" data-id="t5" style="left:420px;top:400px">5</div><div class="cap" data-id="c5" style="left:395px;top:490px">WHAT'S NEXT</div>
+    <div class="tile on" data-id="t6" style="left:680px;top:400px">6</div><div class="cap on" data-id="c6" style="left:650px;top:490px">CONTRIBUTE</div>
+  </div>
+  <div class="taas" data-id="taas" style="top:auto;bottom:40px;width:300px;font-size:.6em">
+    <div class="t2"><span>H2A</span>gent</div><div class="t3">6 &middot; contribute</div>
+  </div>
+</section>
+
+<!-- =============================== 6. CONTRIBUTE -->
+<section data-background-color="#21d4d6">
+  <div class="cols c2">
+    <div style="font-size:.6em">
+      <h3>Main project</h3>
+      <p><a href="https://github.com/testillano/h2agent">github.com/testillano/h2agent</a></p>
+      <h3>Main libraries</h3>
+      <p>
+        <a href="https://github.com/testillano/nghttp2">testillano/nghttp2</a><br>
+        <a href="https://github.com/testillano/http2comm">testillano/http2comm</a><br>
+        <a href="https://github.com/testillano/metrics">testillano/metrics</a><br>
+        <a href="https://github.com/testillano/logger">testillano/logger</a><br>
+        <a href="https://github.com/testillano/multipart">testillano/multipart</a><br>
+        <a href="https://github.com/testillano/queuedispatcher">testillano/queuedispatcher</a><br>
+        <a href="https://github.com/jupp0r/prometheus-cpp">jupp0r/prometheus-cpp</a><br>
+        <a href="https://github.com/ArashPartow/exprtk">ArashPartow/exprtk</a><br>
+        <a href="https://github.com/pboettch/json-schema-validator">pboettch/json-schema-validator</a><br>
+        <a href="https://github.com/nlohmann/json">nlohmann/json</a>
+      </p>
+      <p>Check the <a href="https://github.com/testillano/h2agent/blob/master/CONTRIBUTING.md">contributing guidelines</a>.</p>
+    </div>
+    <div style="text-align:center"><div class="star fragment zoom-in">&#11088;</div><p class="fragment small">Give it a star!</p></div>
+  </div>
+</section>
+
+<section data-background-color="#21d4d6">
+  <h2 style="color:#7c3aed;margin-top:1.5em">Thank you for attending!</h2>
+  <div style="text-align:center"><span class="star">&#11088;</span></div>
+</section>
+
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true, slideNumber: 'c/t', transition: 'convex', backgroundTransition: 'zoom',
+    autoAnimateDuration: 0.8, width: 1100, height: 680, margin: 0.04,
+    plugins: [RevealNotes, RevealHighlight]
+  });
+</script>
+</body>
+</html>
