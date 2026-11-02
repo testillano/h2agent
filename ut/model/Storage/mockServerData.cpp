@@ -321,6 +321,36 @@ TEST_F(MockServerData_test, FindLastRegisteredRequestState)
     EXPECT_EQ(latestState, "state");
 }
 
+TEST_F(MockServerData_test, ChainVariablesOnlyAlongTheChain)
+{
+    h2agent::model::Variables vars{{"total", 100}, {"check.fail", "report"}};
+    std::string state;
+    h2agent::model::Variables found{{"garbage", 1}};
+
+    // Mid chain: the next request gets the variables of the previous link
+    h2agent::model::DataKey chained("POST", "/chain");
+    data_.loadEvent(chained, "initial", "step2", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 111, 0, true);
+    data_.storeChainVariables(chained, vars);
+    EXPECT_TRUE(data_.findLastRegisteredRequestState(chained, state, found));
+    EXPECT_EQ(state, "step2");
+    EXPECT_EQ(found, vars);
+
+    // Back to 'initial' (no outState, or the chain ended): a new chain starts empty
+    h2agent::model::DataKey stateless("POST", "/validate");
+    data_.loadEvent(stateless, "initial", "initial", reception_timestamp_us_, 200, request_headers_, response_headers_, request_body_data_part_, response_body_, 112, 0, true);
+    data_.storeChainVariables(stateless, vars);
+    found = vars;
+    EXPECT_TRUE(data_.findLastRegisteredRequestState(stateless, state, found));
+    EXPECT_EQ(state, "initial");
+    EXPECT_TRUE(found.empty());
+
+    // Unknown key: initial and empty
+    found = vars;
+    EXPECT_FALSE(data_.findLastRegisteredRequestState(h2agent::model::DataKey("GET", "/none"), state, found));
+    EXPECT_EQ(state, "initial");
+    EXPECT_TRUE(found.empty());
+}
+
 TEST_F(MockServerData_test, OverwriteLastEvent)
 {
     h2agent::model::DataKey key("PUT", "/the/put/uri");

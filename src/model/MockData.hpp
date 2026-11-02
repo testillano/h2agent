@@ -163,7 +163,9 @@ public:
      * @param key Data key triggered.
      * @param state Request current state filled by reference.
      * @param chainVariables Chain variables filled by reference.
-     * If nothing found or no state (unprovisioned events), 'initial' will be set and variables will be empty.
+     * If nothing found or no state (unprovisioned events), 'initial' will be set. Variables are empty
+     * whenever the state is 'initial' (a new chain starts), otherwise they are the ones stored by the
+     * previous link of the chain.
      *
      * @return Boolean about if the request is found or not
      */

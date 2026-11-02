@@ -1760,7 +1760,7 @@ A conversational bot is available in `./tools/questions-and-answers` directory. 
 
 #### Play
 
-A playground is available at `./tools/play-h2agent` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/play-h2agent/README.md) file to learn more about.
+A playground is available at `./tools/playground` directory. It is designed to guide through a set of easy examples. Check its [README.md](./tools/playground/README.md) file to learn more about.
 
 #### Test
 
@@ -1852,7 +1852,7 @@ When a server provision triggers a client provision (via the `clientProvision` t
 }
 ```
 
-The client provision reads the last received body at `POST /api/v1/webhook/notify` and uses it as the outgoing request body — no `vault` needed. A full runnable example is available at `tools/play-h2agent/examples/ServerTriggersClientViaServerEvent`.
+The client provision reads the last received body at `POST /api/v1/webhook/notify` and uses it as the outgoing request body — no `vault` needed. A full runnable example is available at `tools/playground/examples/ServerTriggersClientViaServerEvent`.
 
 > **Note:** `serverEvent` requires server-data storage to be enabled (default). If `--discard-data` is set, the source will fail and the transformation is skipped.
 

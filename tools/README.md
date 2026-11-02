@@ -23,7 +23,7 @@
 │   ├── prometheus
 │   │   └── prometheus.yaml
 │   └── use-case.bash
-├── play-h2agent
+├── playground
 │   ├── examples
 │   │   ├── Evolution
 │   │   │   ├── readme.txt
@@ -73,10 +73,10 @@
 ## Description
 
 * README.md: this readme file
-* common.bash: common functions used in `./demo`, `tools/play-h2agent` and `./kata`.
+* common.bash: common functions used in `./demo`, `tools/playground` and `./kata`.
 * coverage.sh: automated coverage report based in unit tests.
 * helpers.bash: helper functions to administrate and inspect the `h2agent` application.
-* play-h2agent: examples and a guide through them (`run.sh`).
+* playground: examples and a guide through them (`run.sh`).
 * test-h2agent: graphical interaction with `h2agent` (`run.py`).
 * matching-helper: c++ utility to test regular expressions as a configuration helper.
 * arashpartow-helper: c++ utility to test Arash-Partow math expressions.

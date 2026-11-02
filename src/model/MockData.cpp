@@ -222,11 +222,15 @@ bool MockData::findLastRegisteredRequestState(const DataKey &key, std::string &s
 
     if (exists) {
         state = result->getLastRegisteredRequestState();
-        chainVariables = result->getChainVariables();
         if (state.empty()) {
             state = DEFAULT_ADMIN_PROVISION_STATE;
-            chainVariables.clear();
         }
+        // Scoped variables live along an outState chain: back in the initial state
+        // the chain has ended (or never started), so a new one starts empty. Without
+        // this, every request to a key inherited the variables of the previous one
+        // (e.g. a stale '<var>.fail' validation report).
+        if (state == DEFAULT_ADMIN_PROVISION_STATE) chainVariables.clear();
+        else chainVariables = result->getChainVariables();
 
         return true;
     }

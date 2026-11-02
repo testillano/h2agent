@@ -996,3 +996,32 @@ def test_059_vaultJsonJsonString(admin_server_provision, h2ac_admin, h2ac_traffi
   response = h2ac_admin.get(ADMIN_VAULT_URI + "?name=parsed")
   assert response["status"] == 200
   assert response["body"] == {"volume": 100, "time": 30}
+
+
+@pytest.mark.transform
+def test_060_scopedVarNotInheritedWithoutChain(admin_cleanup, h2ac_admin, h2ac_traffic):
+  """Server mode: without an outState chain, a request does not inherit the variables of the previous one"""
+
+  admin_cleanup()
+
+  provision = {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/foo/bar/scoped-var-reset",
+    "responseCode": 200,
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"from": {"source": "requestBody", "path": "/value"}, "to": {"target": "var", "name": "v"}},
+      {"from": {"source": "var", "name": "v"}, "to": {"target": "responseBody", "path": "/v"}}
+    ]
+  }
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, provision)
+  assert response["status"] == 201
+
+  # First request sets the variable:
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/scoped-var-reset", {"value": "first"})
+  h2ac_traffic.assert_response__status_body_headers(response, 200, {"v": "first"})
+
+  # Second one does not set it, and must not see the previous value:
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/scoped-var-reset", {"other": 1})
+  assert response["status"] == 200
+  assert "v" not in (response["body"] or {})

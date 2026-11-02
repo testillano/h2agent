@@ -29,15 +29,15 @@ src/version.cpp
 *.swp
 
 # Test temporary files
-tools/play-h2agent/*/.*
+tools/playground/*/.*
 benchmark/tests/**/reports/
 benchmark/compare-reports/
 
 # Coverage report
 coverage
 
-# play-h2agent
-tools/play-h2agent/examples/*/snapshot
+# playground
+tools/playground/examples/*/snapshot
 .run.py-chat-history
 
 # Temporary test files
