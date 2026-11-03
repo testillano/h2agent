@@ -771,7 +771,7 @@ client_provision_cps() {
       [ ${elapsed_ns} -ge ${ramp_ns} ] && break
       local cps_now=$(echo "${from_cps} + (${cps} - ${from_cps}) * ${elapsed_ns} / ${ramp_ns}" | bc)
       if [ "${cps_now}" != "${prev_cps}" ]; then
-        do_curl -XGET "$(_cps_url ${cps_now})" >/dev/null
+        do_curl -XPOST "$(_cps_url ${cps_now})" >/dev/null
         prev_cps=${cps_now}
         local elapsed_s=$(echo "scale=1; ${elapsed_ns} / 1000000000" | bc)
         echo -ne "\r  ${direction}: ${cps_now} -> ${cps} cps (${elapsed_s}s/${rampUp}s)"
@@ -780,10 +780,10 @@ client_provision_cps() {
       local sleep_ns=$((target_ns - ($(date +%s%N) - start_ns)))
       [ ${sleep_ns} -gt 0 ] && sleep $(echo "scale=6; ${sleep_ns} / 1000000000" | bc)
     done
-    do_curl -XGET "$(_cps_url ${cps})" >/dev/null
+    do_curl -XPOST "$(_cps_url ${cps})" >/dev/null
     echo -e "\r  ${direction}: ${cps}/${cps} cps (${rampUp}s/${rampUp}s) - done    "
   else
-    do_curl -XGET "$(_cps_url ${cps})"
+    do_curl -XPOST "$(_cps_url ${cps})"
   fi
 }
 
