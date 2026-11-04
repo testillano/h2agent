@@ -18,6 +18,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
   - [Capabilities](#capabilities)
   - [Configuration](#configuration)
 - [Matching algorithms](#matching-algorithms)
+  - [Classification pipeline](#classification-pipeline)
   - [URI path query parameters](#uri-path-query-parameters)
   - [Regex configuration (rgx & fmt)](#regex-configuration-rgx--fmt)
   - [Algorithm selection](#algorithm-selection)
@@ -255,6 +256,41 @@ The server matching configuration (`POST /admin/v2/server-matching`) defines how
 
 > **Client-only processes.** When the process is started without a traffic server (`--traffic-server-port 0`), `POST /admin/v2/server-matching` is rejected with `404 Not Found` (`"server is disabled (process started without a traffic server)"`), for the same reason as server provisions above.
 
+### Classification pipeline
+
+Every request received goes through the same steps, whatever the algorithm. Two different *URIs* are built from it, and it is important not to confuse them:
+
+| URI | Built as | Used for |
+|-----|----------|----------|
+| **normalized URI** | decoded path + `?` + query parameters <u>sorted</u> (always, whatever the filter) | server data key (`method` + `uri`): events history, <u>state machine</u> (`inState`/`outState`), `purge`, admin queries |
+| **classification URI** | decoded path + query parameters according to the `uriPathQueryParameters` filter, then the algorithm step | provision selection only |
+
+Steps:
+
+1. **Split** the received *URI* into the path (percent-decoded, `%2F` becomes `/`) and the raw query (values kept as received, percent-encoded). The query is tokenized with the configured `separator`.
+2. **Current state**: the last state registered for `method` + **normalized URI** is looked up (`initial` for a maiden event). So the state machine is per real received *URI*, never per classification *URI*.
+3. **Query parameters filter** (`uriPathQueryParameters.filter`), applied for <u>the three algorithms</u>:
+   * `Sort` (default): path + `?` + query sorted by key.
+   * `PassBy`: path + `?` + query as received.
+   * `Ignore`: path only.
+
+   In all cases query parameter values stay percent-encoded as received, so provisions must write them in that form.
+4. **Algorithm step** over the classification URI from step 3:
+   * `FullMatching`: none.
+   * `FullMatchingRegexReplace`: `regex_replace(classificationUri, rgx, fmt)`. The regular expression therefore sees the <u>whole</u> classification URI, <u>query parameters included</u> (unless the filter is `Ignore`). Take it into account when writing `rgx`: a trailing `.*` also consumes the query, and an anchor `$` placed after the path does not match when a query is present.
+   * `RegexMatching`: no transformation; each provision `requestUri` regular expression is fully matched (`regex_match`) against it, in provision order.
+5. **Lookup** of `inState` + `method` + resulting classification URI (exact for the `FullMatching*` algorithms, first regex match for `RegexMatching`).
+6. **Fall back** to the default provision of the method (empty `requestUri`) when nothing matched.
+
+Example, received `POST /app/v1/id-55%2F5/ts-1615562841?b=2&a=1`, with `FullMatchingRegexReplace` (`rgx: "(/app/v1/id-[^/]+)/ts-[0-9]+"`, `fmt: "$1"`):
+
+| filter | classification URI after step 3 | after regex-replace (provision key) |
+|--------|----------------------------------|-------------------------------------|
+| `Sort` | `/app/v1/id-55/5/ts-1615562841?a=1&b=2` | no match (`id-55/5` has a `/`): unchanged |
+| `Ignore` | `/app/v1/id-55/5/ts-1615562841` | no match: unchanged |
+
+The decoded `/` breaks the `[^/]+` assumption; with `rgx: "(/app/v1/id-.+)/ts-[0-9]+"` the results would be `/app/v1/id-55/5?a=1&b=2` (`Sort`: the unmatched query suffix is kept) and `/app/v1/id-55/5` (`Ignore`). In every case the normalized URI (state and server data key) is `/app/v1/id-55/5/ts-1615562841?a=1&b=2`.
+
 ### URI path query parameters
 
 Optional object used to specify the transformation used for traffic classification, of query parameters received in the *URI* path. It contains two fields, a mandatory _filter_ and an optional _separator_:
@@ -328,7 +364,7 @@ rgx = "(/ctrl/v2/id-[0-9]+/ts-[0-9]+)[0-9]{4}"
 fmt = "$1"
 ```
 
-So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters, because <u>the whole received `uri` is processed</u>, including that part). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
+So, this `regex-replace` algorithm is flexible enough to cover many possibilities (even *tokenize* path query parameters, because <u>the whole classification `uri` is processed</u>, including that part unless the query parameters filter is `Ignore`; see [classification pipeline](#classification-pipeline)). As future proof, other fields could be added, like algorithm flags defined in underlying C++ `regex` standard library used.
 
 Also, `regex-replace` could act as a virtual *full matching* algorithm when the transformation fails (the result will be the original tested key), because it can be used as a <u>fall back to cover non-strictly matched receptions</u>. The limitation here is when those unmatched receptions have variable parts (it is impossible/unpractical to provision all the possibilities). So, this fall back has sense to provision constant reception keys (fixed and predictable *URIs*), and of course, strict provision keys matching the result of `regex-replace` transformation on their reception keys which does not fit the other fall back ones.
 
