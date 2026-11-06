@@ -35,6 +35,7 @@ SOFTWARE.
 
 
 #include <set>
+#include <vector>
 
 #include <ProvisionReferences.hpp>
 #include <TypeConverter.hpp>
@@ -52,7 +53,10 @@ struct Missing {
     std::set<std::string> references;  ///< no vault entry (key or pointer)
     std::set<std::string> notWhole;    ///< typed reference inside a longer text
     std::set<std::string> notCastable; ///< value the cast type cannot convert
+    std::set<std::string> notPresettable;///< '#preset' piece not an object:-typed object
 };
+
+const std::string PRESET_KEY = "#preset";
 
 const std::set<std::string> CAST_TYPES = {"string", "integer", "unsigned", "float", "boolean", "object", "json"};
 
@@ -157,12 +161,75 @@ void resolveString(std::string &s, const Vault *vault, Missing &missing) {
     s = std::move(out);
 }
 
+/** Contents of a string which is, as a whole, one reference "#{...}". */
+bool wholeReference(const nlohmann::json &node, std::string &ref) {
+    if (!node.is_string()) return false;
+    const std::string &s = node.get_ref<const std::string &>();
+    if (s.size() < 3 || s.compare(0, 2, "#{") != 0 || s.find('}') != s.size() - 1) return false;
+    ref = s.substr(2, s.size() - 3);
+    return true;
+}
+
+/** A '#preset' value is a directive only when it is one whole reference or a
+ *  non-empty array of them; anything else is plain data. */
+bool presetPieces(const nlohmann::json &value, std::vector<std::string> &refs) {
+    std::string ref;
+    if (wholeReference(value, ref)) {
+        refs.push_back(ref);
+        return true;
+    }
+    if (!value.is_array() || value.empty()) return false;
+    for (const auto &item : value) {
+        if (!wholeReference(item, ref)) return false;
+        refs.push_back(ref);
+    }
+    return true;
+}
+
+void resolveNode(nlohmann::json &node, const Vault *vault, Missing &missing);
+
+/** '#preset' directive. Precedence, lowest to highest: the pieces in their
+ *  array order, then the object's own keys (wherever '#preset' is written:
+ *  json object keys have no order). Applied as json merge patches (RFC 7386).
+ *  Nothing is applied when a piece fails (kept literally). */
+void resolvePreset(nlohmann::json &node, const std::vector<std::string> &refs, const Vault *vault, Missing &missing) {
+    std::vector<nlohmann::json> pieces;
+    bool ok = true;
+    for (const auto &ref : refs) {
+        std::string key;
+        nlohmann::json value;
+        if (castTypeOf(ref, key) != "object") {
+            missing.notPresettable.insert(ref);
+            ok = false;
+        } else if (!lookupValue(key, vault, value)) {
+            missing.references.insert(ref);
+            ok = false;
+        } else if (!value.is_object()) {
+            missing.notPresettable.insert(ref);
+            ok = false;
+        } else {
+            pieces.push_back(std::move(value));
+        }
+    }
+    nlohmann::json own = node;
+    own.erase(PRESET_KEY);
+    resolveNode(own, vault, missing);  // own keys resolve as usual (nested presets too)
+    if (!ok) {
+        own[PRESET_KEY] = node[PRESET_KEY];  // the directive is kept as it is
+        node = std::move(own);
+        return;
+    }
+    nlohmann::json result = std::move(pieces.front());
+    for (std::size_t i = 1; i < pieces.size(); i++) result.merge_patch(pieces[i]);
+    result.merge_patch(own);  // single pass: pieces are not scanned
+    node = std::move(result);
+}
+
 void resolveNode(nlohmann::json &node, const Vault *vault, Missing &missing) {
     if (node.is_string()) {
-        const std::string &s = node.get_ref<const std::string &>();
+        std::string ref;
         // whole-string typed reference: "#{<cast type>:<key>}"
-        if (s.size() > 3 && s.compare(0, 2, "#{") == 0 && s.back() == '}' && s.find('}') == s.size() - 1) {
-            const std::string ref = s.substr(2, s.size() - 3);
+        if (wholeReference(node, ref)) {
             std::string key;
             const std::string type = castTypeOf(ref, key);
             if (!type.empty()) {
@@ -175,6 +242,14 @@ void resolveNode(nlohmann::json &node, const Vault *vault, Missing &missing) {
         }
         resolveString(node.get_ref<std::string &>(), vault, missing);
         return;
+    }
+    if (node.is_object()) {
+        const auto it = node.find(PRESET_KEY);
+        std::vector<std::string> refs;
+        if (it != node.end() && presetPieces(*it, refs)) {
+            resolvePreset(node, refs, vault, missing);
+            return;
+        }
     }
     if (node.is_structured()) {
         for (auto &child : node) resolveNode(child, vault, missing);
@@ -196,6 +271,7 @@ bool resolveProvisionReferences(nlohmann::json &doc, const Vault *vault, std::st
     section(missing.references, "unresolved provision references kept literally (missing vault entries at provision time)");
     section(missing.notWhole, "typed provision references kept literally (they must be the whole string value)");
     section(missing.notCastable, "typed provision references kept literally (vault value not convertible to the cast type)");
+    section(missing.notPresettable, "provision presets kept literally (each piece must be a #{object:} reference to an object)");
     return warning.empty();
 }
 
