@@ -65,11 +65,22 @@ class Vault;
  *
  * The first '/' of the key starts the pointer into the stored value.
  *
+ * - An object holding '"#preset": "#{object:<vault key>}"' (or an array of
+ *   such references) is built from those vault objects and its own keys.
+ *   Precedence, lowest to highest: the pieces in their array order, then the
+ *   object's own keys, which always win (wherever '#preset' is written: json
+ *   object keys have no order). Each layer is applied as a json merge patch
+ *   (RFC 7386: objects merge recursively, other values replace, null removes
+ *   the key). Any other '#preset' value is plain data, kept silently. When a
+ *   piece is missing, not 'object:' typed or not an object, nothing is
+ *   applied: '#preset' is kept literally (its own keys are still resolved).
+ *
  * Kept literally and reported: a missing key or pointer (like an unknown @{}
- * variable), a typed reference which is not the whole string, and a value the
- * cast cannot convert. Single pass: a resolved text or an inserted value is not
- * scanned again. Object keys are not scanned. References are never dynamic:
- * later vault changes need the provision to be loaded again.
+ * variable), a typed reference which is not the whole string, a value the
+ * cast cannot convert, and a preset piece which is not an object. Single pass: a
+ * resolved text, an inserted value or a preset piece is not scanned again.
+ * Object keys are not scanned. References are never dynamic: later vault
+ * changes need the provision to be loaded again.
  *
  * @param doc Provision document, resolved in place
  * @param vault Vault to resolve against (null: everything is unresolved)

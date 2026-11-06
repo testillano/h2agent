@@ -519,6 +519,11 @@ with a cast type, as the whole string value: `"book": "#{object:books/humanActio
 "#{integer:codes/ok}"` (same addressing and rules; see "Typed provision references" in
 [docs/api/README.md](./api/README.md)).
 
+To build an object from vault objects plus a few own keys, add `"#preset": "#{object:<key>}"` (or an array of
+them). Precedence: the pieces in their array order, then the object's own keys, which always win (wherever
+`#preset` is written: json keys have no order); each layer as a json merge patch (`null` removes a key). See
+"Provision presets" in [docs/api/README.md](./api/README.md).
+
 ---
 
 ## 12. Boolean criterion

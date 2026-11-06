@@ -113,3 +113,55 @@ def test_004_i_want_invalid_typed_references_kept_literally_with_a_warning(admin
   # A typed value of the wrong type for the provision schema is rejected:
   response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, dict(TYPED_PROVISION, requestUri="#{object:typedCodes}"))
   assert response["status"] == 400
+
+
+PRESET_PROVISION = {
+  "requestMethod": "GET",
+  "requestUri": "/app/v1/preset",
+  "responseCode": 200,
+  "responseHeaders": {"content-type": "application/json"},
+  "responseBody": {"#preset": "#{object:presetSessions/default}", "supi": "imsi-214010000000001",
+                   "qos": {"qci": 5}, "version": None, "plain": {"#preset": "hello"}}
+}
+
+
+@pytest.mark.admin
+def test_005_i_want_objects_built_from_vault_presets_and_own_keys(admin_cleanup, h2ac_admin, h2ac_traffic):
+
+  admin_cleanup()
+  base = {"dnn": "internet", "qos": {"qci": 9, "arp": 8}, "rules": ["r1", "r2"], "version": 1}
+  response = h2ac_admin.postDict(ADMIN_VAULT_URI, {"presetSessions": {"default": base}})
+  assert response["status"] == 201
+
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, PRESET_PROVISION)
+  assert response["status"] == 201
+  assert "warning" not in response["body"]
+
+  # Own keys win over the preset (qos merged, version removed by null); a non-reference '#preset' is data:
+  expected = {"dnn": "internet", "qos": {"qci": 5, "arp": 8}, "rules": ["r1", "r2"], "supi": "imsi-214010000000001",
+              "plain": {"#preset": "hello"}}
+  response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI)
+  assert response["body"][0]["responseBody"] == expected
+
+  response = h2ac_traffic.get("/app/v1/preset")
+  assert response["status"] == 200
+  assert response["body"] == expected
+
+
+@pytest.mark.admin
+def test_006_i_want_invalid_presets_kept_literally_with_a_warning(admin_cleanup, h2ac_admin):
+
+  admin_cleanup()
+  response = h2ac_admin.postDict(ADMIN_VAULT_URI, {"presetSessions": {"list": [1, 2]}})
+  assert response["status"] == 201
+
+  body = {"missing": {"#preset": "#{object:presetSessions/default}", "a": 1},
+          "notObject": {"#preset": "#{object:presetSessions/list}", "a": 1}}
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, dict(PRESET_PROVISION, responseBody=body))
+  assert response["status"] == 201
+  warning = response["body"]["warning"]
+  assert "unresolved provision references kept literally (missing vault entries at provision time): #{object:presetSessions/default}" in warning
+  assert "provision presets kept literally (each piece must be a #{object:} reference to an object): #{object:presetSessions/list}" in warning
+
+  response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI)
+  assert response["body"][0]["responseBody"] == body  # nothing applied

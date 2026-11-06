@@ -610,6 +610,38 @@ The cast types are those of the `cast` filter, with the same conversions:
 * Same load-time rules as `#{key}`: vaults only, resolved once, single pass (an inserted value is never scanned again), later vault changes are not observed. The value is validated afterwards as any other provision content: an object in `requestUri` makes the provision invalid.
 * Without a prefix nothing changes: `#{key}` on an object still inserts its compact json text (useful when a field must carry a json document as a string).
 
+### Provision presets: `#preset`
+
+A typed reference replaces a node by a vault value. To **build an object from vault objects plus its own keys** (e.g. many similar objects which only differ in a few fields), add the key `"#preset"` with one typed object reference, or an array of them:
+
+```bash
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
+       -d'{"sessions": {"default": {"dnn": "internet", "qos": {"qci": 9, "arp": 8}, "rules": ["r1", "r2"], "version": 1}}}'
+```
+
+```json
+{
+  "requestMethod": "GET",
+  "requestUri": "/sessions/imsi-214010000000001",
+  "responseCode": 200,
+  "responseBody": {"#preset": "#{object:sessions/default}", "supi": "imsi-214010000000001", "qos": {"qci": 5}, "version": null}
+}
+```
+
+The provision is stored (and answered) with `"responseBody": {"dnn": "internet", "qos": {"qci": 5, "arp": 8}, "rules": ["r1", "r2"], "supi": "imsi-214010000000001"}`.
+
+**Precedence** (lowest to highest), always the same:
+
+1. the preset pieces, in their array order (a later piece wins over an earlier one);
+2. the object's own keys, which **always win** over the presets.
+
+The position of `"#preset"` among the object keys does not matter: json object keys have no order (and are not kept in order), so the precedence is fixed by this rule, and only the array orders the pieces. A preset is the starting point, whatever its size (a whole object with a few own changes, or a small block configured apart); what the object writes is applied on top.
+
+* Each layer is applied as a [json merge patch](https://www.rfc-editor.org/rfc/rfc7386) (RFC 7386): objects merge recursively, any other value (arrays included) replaces, and `null` **removes** the key (so an own key cannot set a preset field to `null`).
+* `"#preset"` is a directive only when its value is, as a whole, one provision reference (`"#{...}"`) or a non-empty array of them. Any other value (`"hello"`, `3`, `{}`, `["a"]`) is plain data, answered as it is.
+* Each piece must be a `#{object:...}` reference to an **object**. When a piece is missing (warned as any missing reference), not `object:` typed, or not an object (warned), **nothing is applied**: the `"#preset"` key is kept as it is, while the own keys are still resolved.
+* Same load-time rules as the references: resolved once, single pass (the preset pieces are never scanned again, so a `#preset` or `#{}` inside a vault piece is answered literally), any place of the provision, validated afterwards.
+
 ### Boolean criterion
 
 Every place where the grammar takes a decision on a value uses the same criterion:

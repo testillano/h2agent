@@ -28,6 +28,8 @@ public:
         vault_.load("object:a", nlohmann::json("colon key"));
         vault_.load("flag", nlohmann::json(false));
         vault_.load("nothing", nlohmann::json(nullptr));
+        vault_.load("sessions", nlohmann::json::parse(R"({"n7": {"supi": "imsi-0", "version": 1, "qos": {"qci": 9, "arp": 8}, "rules": ["a", "b"], "inner": {"#preset": "#{object:qos}"}},
+                                                             "qos": {"qos": {"arp": 1}, "extra": true}, "tpl": "#{code}"})"));
     }
 };
 
@@ -161,4 +163,59 @@ TEST_F(ProvisionReferences_test, InvalidTypedReferencesAreKeptLiterallyAndReport
     nlohmann::json plain = nlohmann::json::parse(R"({"a": "#{object:block}"})");
     EXPECT_FALSE(resolveProvisionReferences(plain, nullptr, warning));  // no vault
     EXPECT_EQ(plain["a"], "#{object:block}");
+}
+
+TEST_F(ProvisionReferences_test, PresetAppliesPiecesInOrderThenOwnKeysWin) {
+    nlohmann::json doc = nlohmann::json::parse(R"j({"smSession": {
+        "#preset": ["#{object:sessions/n7}", "#{object:sessions/qos}"],
+        "supi": "imsi-001", "version": null, "rules": ["c"], "qos": {"qci": 5}, "code": "#{integer:code}", "text": "c=#{code}",
+        "nested": {"#preset": "#{object:sessions/qos}", "extra": false}}})j");
+    std::string error;
+    ASSERT_TRUE(resolveProvisionReferences(doc, &vault_, error)) << error;
+    EXPECT_EQ(doc["smSession"], nlohmann::json::parse(R"j({
+        "supi": "imsi-001", "qos": {"qci": 5, "arp": 1}, "rules": ["c"], "extra": true,
+        "inner": {"#preset": "#{object:qos}"},
+        "code": 201, "text": "c=201", "nested": {"qos": {"arp": 1}, "extra": false}})j"));
+    // own keys win, null removes ('version'), arrays replace, objects merge recursively;
+    // the pieces are not scanned again ('inner' keeps its '#preset' literally)
+}
+
+TEST_F(ProvisionReferences_test, PresetAtRootBuildsTheWholeDocument) {
+    nlohmann::json doc = nlohmann::json::parse(R"({"#preset": "#{object:sessions/qos}", "extra": 0})");
+    std::string error;
+    ASSERT_TRUE(resolveProvisionReferences(doc, &vault_, error)) << error;
+    EXPECT_EQ(doc, nlohmann::json::parse(R"({"qos": {"arp": 1}, "extra": 0})"));
+}
+
+TEST_F(ProvisionReferences_test, PresetWithoutReferencesIsPlainData) {
+    const nlohmann::json original = nlohmann::json::parse(R"j([{"#preset": "hola", "a": 1}, {"#preset": 3}, {"#preset": {}}, {"#preset": []},
+        {"#preset": ["a"]}, {"#preset": ["#{object:sessions/qos}", "a"]}, {"#preset": "x#{nope}"}])j");
+    nlohmann::json doc = original;
+    std::string warning;
+    resolveProvisionReferences(doc, &vault_, warning);
+    EXPECT_EQ(doc[0], original[0]);
+    EXPECT_EQ(doc[1], original[1]);
+    EXPECT_EQ(doc[2], original[2]);
+    EXPECT_EQ(doc[3], original[3]);
+    EXPECT_EQ(doc[4], original[4]);
+    EXPECT_EQ(doc[5]["#preset"][0], nlohmann::json::parse(R"({"qos": {"arp": 1}, "extra": true})"));  // data: its values resolve as usual
+    EXPECT_EQ(doc[6]["#preset"], "x#{nope}");
+    EXPECT_EQ(warning, "unresolved provision references kept literally (missing vault entries at provision time): #{nope}");
+}
+
+TEST_F(ProvisionReferences_test, InvalidPresetsAreKeptLiterallyAndReported) {
+    const nlohmann::json original = nlohmann::json::parse(R"j([
+        {"#preset": "#{object:sessions/none}", "a": "#{code}"},
+        {"#preset": ["#{object:sessions/qos}", "#{sessions/qos}"]},
+        {"#preset": "#{integer:code}"},
+        {"#preset": "#{object:patterns/list}"},
+        {"#preset": "#{object:imsiPattern}"}])j");
+    nlohmann::json doc = original;
+    std::string warning;
+    EXPECT_FALSE(resolveProvisionReferences(doc, &vault_, warning));
+    EXPECT_EQ(doc[0], nlohmann::json::parse(R"({"#preset": "#{object:sessions/none}", "a": "201"})"));  // own keys still resolved
+    for (std::size_t i = 1; i < original.size(); i++) EXPECT_EQ(doc[i], original[i]) << i;  // nothing applied
+    EXPECT_EQ(warning, "unresolved provision references kept literally (missing vault entries at provision time): #{object:sessions/none}; "
+              "provision presets kept literally (each piece must be a #{object:} reference to an object): "
+              "#{integer:code} #{object:imsiPattern} #{object:patterns/list} #{sessions/qos}");
 }
