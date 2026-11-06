@@ -153,11 +153,11 @@ curl -i --http2-prior-knowledge -XPOST -d@/tmp/provision.json -H content-type:ap
 # Customer:
 # 1. udp-server-h2client start:
 opts=(--udp-socket-path /tmp/udp.sock --name customer --print-each 1 --method "@{udp.1}" --uri "http://0.0.0.0:8000/@{udp.2}" --body '{"foo":"bar"}')
-docker run --name customer-h2-container -t -d --network=host -v BookStoreVol:/tmp --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest "${opts[@]}" "${histogram_latency_opts[@]}" "${histogram_size_opts[@]}"
+docker run --name customer-h2-container -t -d --network=host -v BookStoreVol:/tmp --entrypoint "/bin/udp-server-h2client" ghcr.io/testillano/h2agent:latest "${opts[@]}" "${histogram_latency_opts[@]}" "${histogram_size_opts[@]}"
 
 # 2. udp-client start:
 opts=(--udp-socket-path /tmp/udp.sock --print-each 1 --eps 10 --template "GET|buy/book/@{seq}")
-docker run --name customer-udp-container -t -d --network=host -v BookStoreVol:/tmp --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest "${opts[@]}"
+docker run --name customer-udp-container -t -d --network=host -v BookStoreVol:/tmp --entrypoint "/bin/udp-client" ghcr.io/testillano/h2agent:latest "${opts[@]}"
 
 # Blocking log:
 docker logs -f customer-h2-container

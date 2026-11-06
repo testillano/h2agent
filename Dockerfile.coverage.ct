@@ -16,7 +16,7 @@ ARG make_procs=4
 RUN cmake -DCMAKE_BUILD_TYPE=Debug . && make -j${make_procs} h2agent
 
 # Reuse starter.sh but point to Debug binary
-RUN sed 's|/opt/h2agent|/code/build/Debug/bin/h2agent|g' deps/starter.sh > /var/starter.sh && chmod a+x /var/starter.sh
+RUN sed 's|/bin/h2agent|/code/build/Debug/bin/h2agent|g' deps/starter.sh > /var/starter.sh && chmod a+x /var/starter.sh
 
 # Entrypoint script:
 COPY deps/starter-coverage-ct.sh /var

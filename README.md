@@ -227,28 +227,28 @@ This builds the <u>runtime image</u> and the <u>component test image</u>. Then y
   ```
 
   Exported ports correspond to server defaults: traffic(8000), administrative(8074) and metrics(8080), but of course you could configure your own externals.
-  You may override default entrypoint (`/opt/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
+  You may override default entrypoint (`/bin/h2agent`) to run another binary packaged (check project `Dockerfile`), for example the simple client utility:
 
   ```bash
-  $ docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
+  $ docker run --rm -it --network=host --entrypoint "/bin/h2client" ghcr.io/testillano/h2agent:latest --uri http://localhost:8000/unprovisioned # run in another shell to get response from h2agent server launched above
   ```
 
   Or any other packaged utility (if you want to lighten the image size, write your own Dockerfile and get what you need):
 
   ```bash
-  $ docker run --rm -it --network=host --entrypoint "/opt/matching-helper" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/matching-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $ docker run --rm -it --network=host --entrypoint "/opt/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/arashpartow-helper" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $ docker run --rm -it --network=host --entrypoint "/opt/h2client" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/h2client" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $ docker run --rm -it --network=host --entrypoint "/opt/udp-server" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/udp-server" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $ docker run --rm -it --network=host --entrypoint "/opt/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/udp-server-h2client" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $ docker run --rm -it --network=host --entrypoint "/opt/udp-client" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/udp-client" ghcr.io/testillano/h2agent:latest --help
   -or-
-  $ docker run --rm -it --network=host --entrypoint "/opt/h2agent-migrate" ghcr.io/testillano/h2agent:latest --help
+  $ docker run --rm -it --network=host --entrypoint "/bin/h2agent-migrate" ghcr.io/testillano/h2agent:latest --help
   ```
 
 * HTTP/x proxy supporting HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/2 without HTTP/1.1 Upgrade (prior knowledge as `h2agent` provides), with docker (`./run.sh` script at root directory can also be used with some prepends):
@@ -300,7 +300,7 @@ This builds the <u>runtime image</u> and the <u>component test image</u>. Then y
   $ # helm dependency update helm/h2agent # no dependencies at the moment
   $ helm install h2agent-example helm/h2agent --wait
   $ pod=$(kubectl get pod -l app.kubernetes.io/name=h2agent --no-headers -o name)
-  $ kubectl exec ${pod} -c h2agent -- /opt/h2agent --help # run, for example, h2agent help
+  $ kubectl exec ${pod} -c h2agent -- /bin/h2agent --help # run, for example, h2agent help
   ```
 
   You may enter the pod and play with helpers functions and examples (deployed with the chart under `/opt/utils`) which are anyway, automatically sourced on `bash` shell:
@@ -465,10 +465,10 @@ $ tree -L 1
 $ sudo make install
 ```
 
-Optionally you could specify another prefix for installation:
+Binaries are installed under `/usr/local/bin` by default. Optionally you could specify another prefix for installation:
 
 ```bash
-$ cmake -DMY_OWN_INSTALL_PREFIX=$HOME/applications/http2
+$ cmake -DCMAKE_INSTALL_PREFIX=$HOME/applications/http2
 $ make install
 ```
 
@@ -1551,8 +1551,8 @@ Taking `udp-server` and `udp-client` as example:
 In the **first case**, we will launch the second one (client) in foreground using `docker exec`:
 
 ```bash
-$ docker run -d --rm -it --name udp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
-$ docker exec -it udp /opt/udp-client -k /tmp/udp.sock # in foreground will throw client output
+$ docker run -d --rm -it --name udp --entrypoint /bin/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker exec -it udp /bin/udp-client -k /tmp/udp.sock # in foreground will throw client output
 ```
 
 If the client is launched in background (-d) you won't be able to follow process output (`docker logs -f udp` shows server output because it was launched in first place).
@@ -1566,11 +1566,11 @@ $ docker volume create --name=socketVolume
 And then, we can run the containers in separated shells (or both in background with '-d' because know they have independent docker logs):
 
 ```bash
-$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /bin/udp-server ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
 ```
 
 ```bash
-$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /bin/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock
 ```
 
 This can also be done with `docker-compose`:
@@ -1587,7 +1587,7 @@ services:
     image: ghcr.io/testillano/h2agent:latest
     volumes:
       - socketVolume:/tmp
-    entrypoint: ["/opt/udp-server"]
+    entrypoint: ["/bin/udp-server"]
     command: ["-k", "/tmp/udp.sock"]
 
   udpClient:
@@ -1598,7 +1598,7 @@ services:
       - socketVolume:/tmp
     entrypoint: ["/bin/bash", "-c"] # we can also use bash entrypoint to ease command:
     command: >
-      "/opt/udp-client -k /tmp/udp.sock"
+      "/bin/udp-client -k /tmp/udp.sock"
 ```
 
 
@@ -1748,7 +1748,7 @@ total 12
 drwxr-xr-x    5 root     root          4096 Dec 16 20:29 tools
 drwxr-xr-x   12 root     root          4096 Dec 16 20:29 kata
 drwxr-xr-x    2 root     root          4096 Dec 16 20:29 demo
-lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /opt/h2agent
+lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /bin/h2agent
 bash-5.1# ./h2agent --verbose &
 ```
 
@@ -2046,7 +2046,7 @@ This convention avoids dots (`.`), which are not allowed in vault keys (the form
 ## How it is delivered
 
 `h2agent` is delivered in a `helm` chart called `h2agent` (`./helm/h2agent`) so you may integrate it in your regular `helm` chart deployments by just adding a few artifacts.
-This chart deploys the `h2agent` pod based on the docker image with the executable under `./opt` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.bash` (default directory path can be modified through `utilsMountPath` helm chart value).
+This chart deploys the `h2agent` pod based on the docker image with the executables under `/bin` together with some helper functions to be sourced on docker shell: `/opt/utils/helpers.bash` (default directory path can be modified through `utilsMountPath` helm chart value).
 Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), where the main chart is added as a file requirement but could also be added from helm repository:
 
 ## How it integrates in a service
