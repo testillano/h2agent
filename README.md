@@ -107,6 +107,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search, size.
     * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, stop conditions.
   * Provision references (`#{key}`): vault values resolved once at provision load (shared regular expressions, constants).
+  * Provision includes (`{"#include": "key"}`): vault json values (objects, arrays...) inserted once at provision load (shared blocks).
   * Multipart support.
   * Pseudo-notification mechanism (response delayed by vault condition).
 

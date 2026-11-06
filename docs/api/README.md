@@ -572,7 +572,33 @@ $ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'co
 {"from": {"source": "requestUriPath"}, "filter": [{"op": "regexCapture", "rgx": "/subscribers/imsi-#{patterns/imsi}"}], "to": {"target": "var", "name": "imsi"}}
 ```
 
-Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
+Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). To insert a vault value with its json type instead of text, see [provision includes](#provision-includes-include-key). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
+
+### Provision includes: `{"#include": "key"}`
+
+`#{}` always inserts text. To share a whole **json value** (typically an object block) among provisions, write an object whose only key is `#include`:
+
+```bash
+$ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
+       -d'{"books": {"humanAction": {"title": "Human Action", "author": "Ludwig von Mises", "tags": ["economics", "praxeology"]}}, "codes": {"ok": 200}}'
+```
+
+```json
+{
+  "requestMethod": "GET",
+  "requestUri": "/library/books/human-action",
+  "responseCode": {"#include": "codes/ok"},
+  "responseBody": {"book": {"#include": "books/humanAction"}, "tags": {"#include": "books/humanAction/tags"}}
+}
+```
+
+The provision is stored (and answered) as `"responseCode": 200` and `"responseBody": {"book": {"title": "Human Action", "author": "Ludwig von Mises", "tags": ["economics", "praxeology"]}, "tags": ["economics", "praxeology"]}`.
+
+* The node is replaced by the vault entry `key`, or by a node of it (`key/<json pointer>`, as in `#{}`), **keeping its json type** (object, array, string, number, boolean or null). An included array is a single node (no spread into the enclosing array).
+* Same rules as `#{}`: resolved once at load, in any place of the provision (also as a whole provision); a missing entry or pointer keeps the include object literally and is warned; single pass, so an included value is never scanned again (neither for `#{}` nor for `#include`); later vault changes are not observed.
+* The value is validated afterwards as any other provision content: an object included in `requestUri` makes the provision invalid.
+* An object holding `#include` together with other keys, or with a non-string value, is not an include: it is kept as a regular object (its children are resolved as usual) and warned (`reserved key '#include' ignored, not the only key or not a string`). An undefined entry is warned as `reserved key '#include' ignored, undefined vault entry`.
+* So a body which really holds a `{"#include": "<name>"}` object is answered as it is as long as no vault entry `<name>` is defined (only a warning is reported).
 
 ### Boolean criterion
 

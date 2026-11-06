@@ -251,17 +251,15 @@ THIS WAS REPLACED TEMPORARILY BY A SLIGHTLY LESS EFFICIENT VERSION, TO AVOID VAL
 
 std::string MyAdminHttp2Server::buildJsonResponse(bool responseResult, const std::string &responseBody, const std::string &warning) const
 {
+    // Texts are json-escaped: they may quote provision content (e.g. '"', '\'):
     std::string result;
     result = R"({ "result":")";
     result += (responseResult ? "true":"false");
     result += R"(", "response": )";
-    result += R"(")";
-    result += responseBody;
-    result += R"(")";
+    result += nlohmann::json(responseBody).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!warning.empty()) {
-        result += R"(, "warning": ")";
-        result += warning;
-        result += R"(")";
+        result += R"(, "warning": )";
+        result += nlohmann::json(warning).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     result += R"( })";
     LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Json Response %s", result.c_str()), ERT_FILE_LOCATION));
@@ -361,8 +359,8 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
         return ert::http2comm::ResponseCode::NOT_FOUND; // 404
     }
 
-    // Provision references (#{...}) are resolved once, here, against the vault
-    // (an unresolved one is kept literally and warned):
+    // Provision references (#{...}) and includes ({"#include": ...}) are resolved
+    // once, here, against the vault (what is kept literally is warned):
     nlohmann::json resolved = configurationObject;
     std::string referencesWarning;
     if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {
@@ -424,8 +422,8 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
 {
     log = "client-provision operation; ";
 
-    // Provision references (#{...}) are resolved once, here, against the vault
-    // (an unresolved one is kept literally and warned):
+    // Provision references (#{...}) and includes ({"#include": ...}) are resolved
+    // once, here, against the vault (what is kept literally is warned):
     nlohmann::json resolved = configurationObject;
     std::string referencesWarning;
     if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {

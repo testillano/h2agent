@@ -47,23 +47,34 @@ namespace model
 
 class Vault;
 
+/** Key of a provision include object: {"#include": "<key>[/<json pointer>]"} */
+constexpr const char *PROVISION_INCLUDE_KEY = "#include";
+
 /**
- * Resolves the provision references '#{key}' / '#{key/<json pointer>}' ONCE, at
- * provision load: every string value of the document (provision or array of
- * provisions) is scanned and each reference is replaced by the vault value
- * (strings as they are, any other value as its compact json text, like @{}).
- * The first '/' starts the pointer into the stored value.
+ * Resolves the provision references ONCE, at provision load, against the vault:
  *
- * A reference which does not exist (key or pointer) is kept literally, like an
- * unknown @{} variable, and reported in `warning`. Single pass: a resolved text
- * is not scanned again. Object keys are not scanned. References are never
- * dynamic: later vault changes need the provision to be loaded again.
+ * - '#{key}' / '#{key/<json pointer>}' inside every string value of the document
+ *   (provision or array of provisions) is replaced by the vault value as text
+ *   (strings as they are, any other value as its compact json text, like @{}).
+ * - An object whose only key is '#include' ({"#include": "key[/<json pointer>]"})
+ *   is replaced by the vault value itself, keeping its json type (object, array,
+ *   string, number, boolean or null).
+ *
+ * In both cases the first '/' starts the pointer into the stored value.
+ *
+ * A reference or include which does not exist (key or pointer) is kept
+ * literally, like an unknown @{} variable, and reported. Single pass: a resolved
+ * text or an included value is not scanned again. Object keys are not scanned.
+ * They are never dynamic: later vault changes need the provision to be loaded
+ * again. An object holding '#include' together with other keys, or with a
+ * non-string value, is not an include: it is kept as a regular object (its
+ * children are resolved) and reported.
  *
  * @param doc Provision document, resolved in place
- * @param vault Vault to resolve against (null: every reference is unresolved)
- * @param warning Filled with the unresolved references when false is returned
+ * @param vault Vault to resolve against (null: everything is unresolved)
+ * @param warning Filled with what was kept literally when false is returned
  *
- * @return False when any reference was left unresolved (the document is still valid)
+ * @return False when anything was kept literally (the document is still valid)
  */
 bool resolveProvisionReferences(nlohmann::json &doc, const Vault *vault, std::string &warning);
 

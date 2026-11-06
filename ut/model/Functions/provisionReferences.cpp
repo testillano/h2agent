@@ -18,6 +18,9 @@ public:
         vault_.load("patterns", nlohmann::json::parse(R"({"msisdn": "34[0-9]{9}", "list": ["a", "b"]})"));
         vault_.load("code", nlohmann::json(201));
         vault_.load("tpl", nlohmann::json("#{imsiPattern}"));
+        vault_.load("block", nlohmann::json::parse(R"({"book": {"title": "Human Action", "tags": ["economics", "praxeology"]}, "nested": {"#include": "code"}, "text": "#{code}"})"));
+        vault_.load("flag", nlohmann::json(false));
+        vault_.load("nothing", nlohmann::json(nullptr));
     }
 };
 
@@ -55,5 +58,83 @@ TEST_F(ProvisionReferences_test, DocumentWithoutReferencesIsUnchanged) {
     nlohmann::json doc = original;
     std::string error;
     EXPECT_TRUE(resolveProvisionReferences(doc, &vault_, error));
+    EXPECT_EQ(doc, original);
+}
+
+TEST_F(ProvisionReferences_test, IncludesKeepTheJsonTypeOfTheVaultValue) {
+    nlohmann::json doc = nlohmann::json::parse(R"j({
+      "responseCode": {"#include": "code"},
+      "responseBody": {
+        "object": {"#include": "block"}, "pointer": {"#include": "block/book"},
+        "array": {"#include": "patterns/list"}, "string": {"#include": "imsiPattern"},
+        "boolean": {"#include": "flag"}, "null": {"#include": "nothing"},
+        "elements": [{"#include": "code"}, 1, {"#include": "patterns/list/0"}],
+        "text": "c=#{code}"
+      }
+    })j");
+    std::string warning;
+    ASSERT_TRUE(resolveProvisionReferences(doc, &vault_, warning)) << warning;
+    EXPECT_EQ(doc["responseCode"], 201);
+    const nlohmann::json &body = doc["responseBody"];
+    nlohmann::json block;
+    ASSERT_TRUE(vault_.tryGet("block", block));
+    EXPECT_EQ(body["object"], block);
+    EXPECT_EQ(body["pointer"], nlohmann::json::parse(R"({"title": "Human Action", "tags": ["economics", "praxeology"]})"));
+    EXPECT_EQ(body["array"], nlohmann::json::parse(R"(["a", "b"])"));  // no spread
+    EXPECT_EQ(body["string"], "([0-9]{15})");
+    EXPECT_EQ(body["boolean"], false);
+    EXPECT_TRUE(body["null"].is_null());
+    EXPECT_EQ(body["elements"], nlohmann::json::parse(R"([201, 1, "a"])"));
+    EXPECT_EQ(body["text"], "c=201");  // #{} unchanged
+}
+
+TEST_F(ProvisionReferences_test, IncludedValuesAreNotScannedAgain) {
+    nlohmann::json doc = nlohmann::json::parse(R"({"a": {"#include": "block"}, "b": {"#include": "tpl"}})");
+    std::string warning;
+    ASSERT_TRUE(resolveProvisionReferences(doc, &vault_, warning)) << warning;
+    EXPECT_EQ(doc["a"]["nested"], nlohmann::json::parse(R"({"#include": "code"})"));
+    EXPECT_EQ(doc["a"]["text"], "#{code}");
+    EXPECT_EQ(doc["b"], "#{imsiPattern}");
+}
+
+TEST_F(ProvisionReferences_test, IncludeAtRootReplacesTheWholeDocument) {
+    nlohmann::json doc = nlohmann::json::parse(R"({"#include": "patterns"})");
+    std::string warning;
+    ASSERT_TRUE(resolveProvisionReferences(doc, &vault_, warning)) << warning;
+    EXPECT_EQ(doc["msisdn"], "34[0-9]{9}");
+}
+
+TEST_F(ProvisionReferences_test, UndefinedIncludesAreKeptLiterallyAndReported) {
+    nlohmann::json doc = nlohmann::json::parse(R"([{"a": {"#include": "nope"}, "b": {"#include": "block/missing"}, "c": "#{nope}"},
+                                                  {"d": {"#include": ""}, "e": {"#include": "code"}}])");
+    std::string warning;
+    EXPECT_FALSE(resolveProvisionReferences(doc, &vault_, warning));
+    EXPECT_EQ(warning, "unresolved provision references kept literally (missing vault entries at provision time): #{nope}; "
+              R"(reserved key '#include' ignored, undefined vault entry (kept literally): {"#include":""} {"#include":"block/missing"} {"#include":"nope"})");
+    EXPECT_EQ(doc, nlohmann::json::parse(R"([{"a": {"#include": "nope"}, "b": {"#include": "block/missing"}, "c": "#{nope}"},
+                                            {"d": {"#include": ""}, "e": 201}])"));
+
+    nlohmann::json plain = nlohmann::json::parse(R"({"a": {"#include": "code"}})");
+    EXPECT_FALSE(resolveProvisionReferences(plain, nullptr, warning));  // no vault
+    EXPECT_EQ(plain["a"], nlohmann::json::parse(R"({"#include": "code"})"));
+}
+
+TEST_F(ProvisionReferences_test, ObjectsWhichAreNotIncludesAreKeptAsRegularObjectsAndReported) {
+    nlohmann::json doc = nlohmann::json::parse(R"({"x": {"#include": "code", "other": "#{code}"}, "y": [{"#include": 5}],
+                                                  "z": {"#include": {"inner": {"#include": "code"}}}})");
+    std::string warning;
+    EXPECT_FALSE(resolveProvisionReferences(doc, &vault_, warning));
+    EXPECT_EQ(warning, "reserved key '#include' ignored, not the only key or not a string (kept literally): "
+              R"({"#include":"code","other":"#{code}"} {"#include":5} {"#include":{"inner":{"#include":"code"}}})");
+    // Regular objects: their children are still resolved
+    EXPECT_EQ(doc, nlohmann::json::parse(R"({"x": {"#include": "code", "other": "201"}, "y": [{"#include": 5}],
+                                            "z": {"#include": {"inner": 201}}})"));
+}
+
+TEST_F(ProvisionReferences_test, IncludeKeyOnlyMattersAsObjectKey) {
+    const nlohmann::json original = nlohmann::json::parse(R"({"a": "#include", "b": ["#include", "code"], "c": {"#includes": "code"}, "d": {"#Include": "code"}})");
+    nlohmann::json doc = original;
+    std::string warning;
+    EXPECT_TRUE(resolveProvisionReferences(doc, &vault_, warning));
     EXPECT_EQ(doc, original);
 }

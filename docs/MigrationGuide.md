@@ -514,6 +514,10 @@ Rules:
   again.
 * Object keys are not scanned; resolution is a single pass (a resolved text is not scanned again).
 
+To share a json value with its type (an object block, an array, a number...) instead of text, use a
+provision include: an object whose only key is `#include`, i.e. `"book": {"#include": "books/humanAction"}`
+(same addressing and rules; see "Provision includes" in [docs/api/README.md](./api/README.md)).
+
 ---
 
 ## 12. Boolean criterion
