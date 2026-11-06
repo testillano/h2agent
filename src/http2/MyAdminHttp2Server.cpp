@@ -359,8 +359,8 @@ int MyAdminHttp2Server::serverProvision(const nlohmann::json &configurationObjec
         return ert::http2comm::ResponseCode::NOT_FOUND; // 404
     }
 
-    // Provision references (#{...}) and includes ({"#include": ...}) are resolved
-    // once, here, against the vault (what is kept literally is warned):
+    // Provision references (#{...}, typed #{<cast type>:...}) are resolved once,
+    // here, against the vault (what is kept literally is warned):
     nlohmann::json resolved = configurationObject;
     std::string referencesWarning;
     if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {
@@ -422,8 +422,8 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
 {
     log = "client-provision operation; ";
 
-    // Provision references (#{...}) and includes ({"#include": ...}) are resolved
-    // once, here, against the vault (what is kept literally is warned):
+    // Provision references (#{...}, typed #{<cast type>:...}) are resolved once,
+    // here, against the vault (what is kept literally is warned):
     nlohmann::json resolved = configurationObject;
     std::string referencesWarning;
     if (!h2agent::model::resolveProvisionReferences(resolved, getVault(), referencesWarning)) {

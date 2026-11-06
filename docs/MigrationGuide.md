@@ -514,9 +514,10 @@ Rules:
   again.
 * Object keys are not scanned; resolution is a single pass (a resolved text is not scanned again).
 
-To share a json value with its type (an object block, an array, a number...) instead of text, use a
-provision include: an object whose only key is `#include`, i.e. `"book": {"#include": "books/humanAction"}`
-(same addressing and rules; see "Provision includes" in [docs/api/README.md](./api/README.md)).
+To insert a json value with its type (an object block, an array, a number...) instead of text, prefix the key
+with a cast type, as the whole string value: `"book": "#{object:books/humanAction}"`, `"responseCode":
+"#{integer:codes/ok}"` (same addressing and rules; see "Typed provision references" in
+[docs/api/README.md](./api/README.md)).
 
 ---
 

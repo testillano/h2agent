@@ -57,57 +57,59 @@ def test_002_i_want_missing_references_kept_literally_with_a_warning(admin_clean
   assert provision["responseBody"] == {"version": "#{refConfig/version}"}
 
 
-INCLUDED_PROVISION = {
+TYPED_PROVISION = {
   "requestMethod": "GET",
-  "requestUri": "/app/v1/include",
-  "responseCode": {"#include": "incCodes/ok"},
+  "requestUri": "/app/v1/typed",
+  "responseCode": "#{integer:typedCodes/ok}",
   "responseHeaders": {"content-type": "application/json"},
-  "responseBody": {"book": {"#include": "incBlock"}, "tags": {"#include": "incBlock/tags"}}
+  "responseBody": {"book": "#{object:typedBlock}", "tags": "#{object:typedBlock/tags}",
+                   "title": "#{typedBlock/title}", "asText": "#{typedCodes}"}
 }
 
 
 @pytest.mark.admin
-def test_003_i_want_to_include_vault_values_keeping_their_json_type(admin_cleanup, h2ac_admin, h2ac_traffic):
+def test_003_i_want_typed_references_keeping_or_converting_the_json_type(admin_cleanup, h2ac_admin, h2ac_traffic):
 
   admin_cleanup()
   block = {"title": "Human Action", "author": "Ludwig von Mises", "tags": ["economics", "praxeology"]}
-  response = h2ac_admin.postDict(ADMIN_VAULT_URI, {"incBlock": block, "incCodes": {"ok": 200}})
+  response = h2ac_admin.postDict(ADMIN_VAULT_URI, {"typedBlock": block, "typedCodes": {"ok": "200"}})
   assert response["status"] == 201
 
-  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, INCLUDED_PROVISION)
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, TYPED_PROVISION)
   assert response["status"] == 201
+  assert "warning" not in response["body"]
 
-  # The provision holds the included values (consumed at load):
+  # The provision holds the typed values (consumed at load):
+  expected = {"book": block, "tags": ["economics", "praxeology"], "title": "Human Action", "asText": '{"ok":"200"}'}
   response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI)
   provision = response["body"][0]
-  assert provision["responseCode"] == 200
-  assert provision["responseBody"] == {"book": block, "tags": ["economics", "praxeology"]}
+  assert provision["responseCode"] == 200          # text "200" cast to integer
+  assert provision["responseBody"] == expected      # no prefix: compact json text
 
-  response = h2ac_traffic.get("/app/v1/include")
+  response = h2ac_traffic.get("/app/v1/typed")
   assert response["status"] == 200
-  assert response["body"] == {"book": block, "tags": ["economics", "praxeology"]}
+  assert response["body"] == expected
 
 
 @pytest.mark.admin
-def test_004_i_want_undefined_or_malformed_includes_kept_literally_with_a_warning(admin_cleanup, h2ac_admin):
+def test_004_i_want_invalid_typed_references_kept_literally_with_a_warning(admin_cleanup, h2ac_admin):
 
   admin_cleanup()
-  response = h2ac_admin.postDict(ADMIN_VAULT_URI, {"incCodes": {"ok": 200}})
+  response = h2ac_admin.postDict(ADMIN_VAULT_URI, {"typedCodes": {"ok": 200}, "__app_barrier:1:x": "done"})
   assert response["status"] == 201
 
-  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, INCLUDED_PROVISION)
+  body = {"missing": "#{object:typedBlock}", "notWhole": "x#{object:typedCodes}", "notCastable": "#{integer:typedCodes}",
+          "barrier": "#{__app_barrier:1:x}"}
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, dict(TYPED_PROVISION, responseCode=200, responseBody=body))
   assert response["status"] == 201
-  assert "reserved key '#include' ignored, undefined vault entry" in response["body"]["warning"]
-  assert '{"#include":"incBlock"}' in response["body"]["warning"]
+  warning = response["body"]["warning"]
+  assert "unresolved provision references kept literally (missing vault entries at provision time): #{object:typedBlock}" in warning
+  assert "typed provision references kept literally (they must be the whole string value): #{object:typedCodes}" in warning
+  assert "typed provision references kept literally (vault value not convertible to the cast type): #{integer:typedCodes}" in warning
 
   response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI)
-  assert response["body"][0]["responseBody"]["book"] == {"#include": "incBlock"}
+  assert response["body"][0]["responseBody"] == dict(body, barrier="done")  # a key with ':' is not a cast prefix
 
-  # Not an include (other keys): a regular object, answered as it is:
-  body = {"book": {"#include": "incCodes", "extra": 1}}
-  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, dict(INCLUDED_PROVISION, responseBody=body))
-  assert response["status"] == 201
-  assert "reserved key '#include' ignored, not the only key or not a string" in response["body"]["warning"]
-
-  response = h2ac_admin.get(ADMIN_SERVER_PROVISION_URI)
-  assert response["body"][0]["responseBody"] == body
+  # A typed value of the wrong type for the provision schema is rejected:
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, dict(TYPED_PROVISION, requestUri="#{object:typedCodes}"))
+  assert response["status"] == 400

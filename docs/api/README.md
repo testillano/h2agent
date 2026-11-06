@@ -572,11 +572,11 @@ $ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'co
 {"from": {"source": "requestUriPath"}, "filter": [{"op": "regexCapture", "rgx": "/subscribers/imsi-#{patterns/imsi}"}], "to": {"target": "var", "name": "imsi"}}
 ```
 
-Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). To insert a vault value with its json type instead of text, see [provision includes](#provision-includes-include-key). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
+Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). To insert a vault value with its json type instead of text, see [typed provision references](#typed-provision-references-cast-typekey). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
 
-### Provision includes: `{"#include": "key"}`
+### Typed provision references: `#{<cast type>:key}`
 
-`#{}` always inserts text. To share a whole **json value** (typically an object block) among provisions, write an object whose only key is `#include`:
+`#{key}` inserts text. To insert a vault value **with a json type** (typically an object block shared among provisions), prefix the key with a cast type, `#{<cast type>:<vault key>[/<json pointer>]}`, as the **whole string value**:
 
 ```bash
 $ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
@@ -587,18 +587,28 @@ $ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'co
 {
   "requestMethod": "GET",
   "requestUri": "/library/books/human-action",
-  "responseCode": {"#include": "codes/ok"},
-  "responseBody": {"book": {"#include": "books/humanAction"}, "tags": {"#include": "books/humanAction/tags"}}
+  "responseCode": "#{integer:codes/ok}",
+  "responseBody": {"book": "#{object:books/humanAction}", "tags": "#{object:books/humanAction/tags}", "title": "#{books/humanAction/title}"}
 }
 ```
 
-The provision is stored (and answered) as `"responseCode": 200` and `"responseBody": {"book": {"title": "Human Action", "author": "Ludwig von Mises", "tags": ["economics", "praxeology"]}, "tags": ["economics", "praxeology"]}`.
+The provision is stored (and answered) as `"responseCode": 200` and `"responseBody": {"book": {"title": "Human Action", "author": "Ludwig von Mises", "tags": ["economics", "praxeology"]}, "tags": ["economics", "praxeology"], "title": "Human Action"}`.
 
-* The node is replaced by the vault entry `key`, or by a node of it (`key/<json pointer>`, as in `#{}`), **keeping its json type** (object, array, string, number, boolean or null). An included array is a single node (no spread into the enclosing array).
-* Same rules as `#{}`: resolved once at load, in any place of the provision (also as a whole provision); a missing entry or pointer keeps the include object literally and is warned; single pass, so an included value is never scanned again (neither for `#{}` nor for `#include`); later vault changes are not observed.
-* The value is validated afterwards as any other provision content: an object included in `requestUri` makes the provision invalid.
-* An object holding `#include` together with other keys, or with a non-string value, is not an include: it is kept as a regular object (its children are resolved as usual) and warned (`reserved key '#include' ignored, not the only key or not a string`). An undefined entry is warned as `reserved key '#include' ignored, undefined vault entry`.
-* So a body which really holds a `{"#include": "<name>"}` object is answered as it is as long as no vault entry `<name>` is defined (only a warning is reported).
+The cast types are those of the `cast` filter, with the same conversions:
+
+| Cast type | Vault value accepted | Node becomes |
+|---|---|---|
+| `object` | object or array | that json value |
+| `json` | text holding json (parsed), or any json value | the parsed / same value |
+| `integer`, `unsigned`, `float` | number, or numeric text | number |
+| `boolean` | boolean, number, or text (non empty is true) | boolean |
+| `string` | any | text (as `#{key}`) |
+
+* A typed reference must be the **whole** string value (`"#{object:k}"`); inside a longer text (`"x#{object:k}"`) it is kept literally and warned. `string:` is text, so it may also appear inside a text.
+* A prefix is only recognised for those seven cast types followed by `:`. Any other `<x>:` is part of the key (`#{__app_barrier:a:b}` reads the key `__app_barrier:a:b`); a key which itself starts with a cast type and `:` (e.g. `object:a`) is read as text with `#{string:object:a}`.
+* A value the cast cannot convert (e.g. `#{integer:k}` on an object) is kept literally and warned. A missing key or pointer, as for `#{key}`.
+* Same load-time rules as `#{key}`: vaults only, resolved once, single pass (an inserted value is never scanned again), later vault changes are not observed. The value is validated afterwards as any other provision content: an object in `requestUri` makes the provision invalid.
+* Without a prefix nothing changes: `#{key}` on an object still inserts its compact json text (useful when a field must carry a json document as a string).
 
 ### Boolean criterion
 
