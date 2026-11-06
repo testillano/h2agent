@@ -47,28 +47,29 @@ namespace model
 
 class Vault;
 
-/** Key of a provision include object: {"#include": "<key>[/<json pointer>]"} */
-constexpr const char *PROVISION_INCLUDE_KEY = "#include";
-
 /**
- * Resolves the provision references ONCE, at provision load, against the vault:
+ * Resolves the provision references ONCE, at provision load, against the vault
+ * (the only data available at load time):
  *
- * - '#{key}' / '#{key/<json pointer>}' inside every string value of the document
+ * - '#{<vault key>[/<json pointer>]}' inside every string value of the document
  *   (provision or array of provisions) is replaced by the vault value as text
  *   (strings as they are, any other value as its compact json text, like @{}).
- * - An object whose only key is '#include' ({"#include": "key[/<json pointer>]"})
- *   is replaced by the vault value itself, keeping its json type (object, array,
- *   string, number, boolean or null).
+ * - '#{<cast type>:<vault key>[/<json pointer>]}', with <cast type> one of
+ *   string|integer|unsigned|float|boolean|object|json (the cast filter types),
+ *   written as the WHOLE string value, replaces that node by the vault value
+ *   converted as the cast filter does (object: an object or array; json: a json
+ *   text parsed, or any json value; integer/unsigned/float/boolean: a number or
+ *   boolean). 'string:' is plain text and may also appear inside a longer text.
+ *   A prefix is only recognised for those types; any other '<x>:' belongs to
+ *   the key (e.g. '#{__app_barrier:a:b}').
  *
- * In both cases the first '/' starts the pointer into the stored value.
+ * The first '/' of the key starts the pointer into the stored value.
  *
- * A reference or include which does not exist (key or pointer) is kept
- * literally, like an unknown @{} variable, and reported. Single pass: a resolved
- * text or an included value is not scanned again. Object keys are not scanned.
- * They are never dynamic: later vault changes need the provision to be loaded
- * again. An object holding '#include' together with other keys, or with a
- * non-string value, is not an include: it is kept as a regular object (its
- * children are resolved) and reported.
+ * Kept literally and reported: a missing key or pointer (like an unknown @{}
+ * variable), a typed reference which is not the whole string, and a value the
+ * cast cannot convert. Single pass: a resolved text or an inserted value is not
+ * scanned again. Object keys are not scanned. References are never dynamic:
+ * later vault changes need the provision to be loaded again.
  *
  * @param doc Provision document, resolved in place
  * @param vault Vault to resolve against (null: everything is unresolved)
