@@ -291,15 +291,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN if [ "${sanitizer}" = "asan" ] ; then apt-get update && apt-get install -y libasan8 && apt-get clean && rm -rf /var/lib/apt/lists/* ; \
     elif [ "${sanitizer}" = "tsan" ] ; then apt-get update && apt-get install -y libtsan2 && apt-get clean && rm -rf /var/lib/apt/lists/* ; fi
 
-# Copy all project binaries
-COPY --from=build /code/build/${build_type}/bin/h2agent /opt/
-COPY --from=build /code/build/${build_type}/bin/h2client /opt/
-COPY --from=build /code/build/${build_type}/bin/matching-helper /opt/
-COPY --from=build /code/build/${build_type}/bin/arashpartow-helper /opt/
-COPY --from=build /code/build/${build_type}/bin/udp-server /opt/
-COPY --from=build /code/build/${build_type}/bin/udp-server-h2client /opt/
-COPY --from=build /code/build/${build_type}/bin/udp-client /opt/
-COPY --from=build /code/build/${build_type}/bin/h2agent-migrate /opt/
+# Copy all project binaries (in the PATH, same place as the downstream images)
+COPY --from=build /code/build/${build_type}/bin/h2agent /bin/
+COPY --from=build /code/build/${build_type}/bin/h2client /bin/
+COPY --from=build /code/build/${build_type}/bin/matching-helper /bin/
+COPY --from=build /code/build/${build_type}/bin/arashpartow-helper /bin/
+COPY --from=build /code/build/${build_type}/bin/udp-server /bin/
+COPY --from=build /code/build/${build_type}/bin/udp-server-h2client /bin/
+COPY --from=build /code/build/${build_type}/bin/udp-client /bin/
+COPY --from=build /code/build/${build_type}/bin/h2agent-migrate /bin/
+
+# Compatibility: binaries were under /opt up to 5.0.x
+RUN for b in h2agent h2client matching-helper arashpartow-helper udp-server udp-server-h2client udp-client h2agent-migrate; do ln -s /bin/${b} /opt/${b}; done
 
 # Entrypoint (nghttpx proxy + jemalloc + h2agent)
 COPY --from=build /code/deps/starter.sh /var/starter.sh

@@ -44,13 +44,13 @@ Changes are tagged by how much attention they need:
 
 ## 1. The migration tool
 
-`h2agent-migrate` is shipped in the image (`/opt/h2agent-migrate`) and converts v1 provisions (server or
+`h2agent-migrate` is shipped in the image (`/bin/h2agent-migrate`) and converts v1 provisions (server or
 client, single object or array) into v2. Only `transform` and `onResponseTransform` are rewritten; any other
 field is kept untouched and in order.
 
 ```bash
 # Convert a provisions file (in place is allowed):
-docker run --rm -v $PWD:$PWD -w $PWD --entrypoint /opt/h2agent-migrate ghcr.io/testillano/h2agent:5.0.0 \
+docker run --rm -v $PWD:$PWD -w $PWD --entrypoint /bin/h2agent-migrate ghcr.io/testillano/h2agent:5.0.0 \
        --in server-provision.json --out server-provision.json
 
 # From standard input:

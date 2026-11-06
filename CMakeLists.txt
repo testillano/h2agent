@@ -109,8 +109,11 @@ add_subdirectory( tools )
 ###########
 # Install #
 ###########
-#SET(MY_OWN_INSTALL_PREFIX "/opt/h2agent" CACHE PATH "Prefix prepended to install directories")
-SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
+# Default prefix is the CMake one (/usr/local); select another one with
+# -DCMAKE_INSTALL_PREFIX=<dir> (-DMY_OWN_INSTALL_PREFIX=<dir> still accepted).
+if(MY_OWN_INSTALL_PREFIX)
+  SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE PATH "Prefix prepended to install directories" FORCE)
+endif()
 
 include(GNUInstallDirs)
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")

@@ -11,7 +11,7 @@
 #                    Examples:
 #                      --network=back_tier -p 8000:8000 -p 8001:8001
 #                      --cap-add=SYS_PTRACE
-#                      --entrypoint /opt/udp-server-h2client
+#                      --entrypoint /bin/udp-server-h2client
 #                      -e LD_PRELOAD=  (disable jemalloc)
 #                      -e MALLOC_CONF=dirty_decay_ms:-1,muzzy_decay_ms:-1
 #                      -e H2AGENT_TRAFFIC_PROXY_PORT=8000 (nghttpx proxy)
