@@ -67,7 +67,8 @@
 # TSV columns (tab-separated): ts actor dir method uri status file seqkind seq origin
 #
 # Default: print the timeline then navigate (Enter/p=step, l=list, <N>=jump,
-# q=quit). --list just prints and exits.
+# x=exit). --list just prints and exits. Exit is 'x', not 'q', on purpose: 'q'
+# is the reflex key to leave 'less', and a fast double tap would kill the session.
 #
 # Usage:  browse-snapshots.sh <artifacts-run-dir> [--list]
 
@@ -265,10 +266,10 @@ show_full_list() {
 pos=0
 while :; do
   echo "----------------------------------------------------------------------------"
-  echo -n " [Enter]=next  p=prev  l=list  <N>=go to  q=quit > "
+  echo -n " [Enter]=next  p=prev  l=list  <N>=go to  x=exit > "
   read -r key </dev/tty || break
   case "${key}" in
-    q|Q) break ;;
+    x|X) break ;;
     l|L) show_full_list ;;
     p|P) if [ "${pos}" -gt 1 ]; then pos=$((pos - 1)) ; fi ; show_event ;;
     ''|n|N) if [ "${pos}" -ge "${TOTAL}" ]; then echo ; echo "No more sequences !" ; break ; fi ; pos=$((pos + 1)) ; show_event ;;
