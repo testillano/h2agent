@@ -1238,9 +1238,9 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   ```json
   {
-    "from": {"source": "requestBody", "path": "/Called-Station-Id"},
+    "from": {"source": "requestBody", "path": "/AF-Application-Identifier"},
     "filter": [{"op": "hexToText"}],
-    "to": {"target": "var", "name": "dnn"}
+    "to": {"target": "var", "name": "afAppId"}
   }
   ```
 
@@ -1266,6 +1266,8 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   * a text request/response body: the `requestBodyText` / `responseBodyText` targets, rather than a hex body target fed by `textToHex`.
 
   It remains useful when exact bytes matter, e.g. building a raw message from text pieces for negative testing.
+
+  Through the Diameter gateway, an alternative is to have `h2diagent` decode the AVP in readable form (`--decode-as <AVP>=<form>`, see its README): better for the structured values a suite reads often (a location, a time zone), so the transformation just reads a path. These filters fit a field read once, or hex which does not come through a gateway.
 
 - `strptime` (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `sum`) and later formatting back with `strftime`.
 
