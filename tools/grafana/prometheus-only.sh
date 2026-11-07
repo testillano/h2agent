@@ -9,6 +9,9 @@ set -euo pipefail
 PROM_IMAGE=${PROMETHEUS_IMAGE:-prom/prometheus:latest}
 PROM_PORT=${PROMETHEUS_PORT:-9090}
 PROM_NAME=${PROMETHEUS_NAME:-prom-standalone}
+# TSDB volume per container name: two instances sharing one volume collide on the
+# storage lock ("lock DB directory: resource temporarily unavailable").
+PROM_VOLUME="${PROM_NAME//-/_}_data"
 # Per-user/per-process temp config: a fixed /tmp/prometheus-only.yaml is shared
 # across users on a multi-user host -> the first writer owns it and others hit
 # "permission denied". Use a unique name (mktemp, honouring $TMPDIR) so each user
@@ -37,7 +40,8 @@ Options:
 Environment:
   PROMETHEUS_IMAGE   Docker image (default: prom/prometheus:latest)
   PROMETHEUS_PORT    Prometheus listen port (default: 9090)
-  PROMETHEUS_NAME:   Docker container name (default: prom-standalone)
+  PROMETHEUS_NAME:   Docker container name (default: prom-standalone); also names
+                     its data volume (<name>_data), so instances do not collide
 
 Examples:
   $(basename "$0") 8081              # scrape h2agent client instance
@@ -107,7 +111,7 @@ echo
 docker rm -f ${PROM_NAME} &>/dev/null || true
 docker run --name ${PROM_NAME} -d --network=host \
   -v "${PROM_YAML}:/etc/prometheus/prometheus.yml:ro" \
-  -v prom_standalone_data:/prometheus \
+  -v ${PROM_VOLUME}:/prometheus \
   ${PROM_IMAGE} \
   --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.path=/prometheus \

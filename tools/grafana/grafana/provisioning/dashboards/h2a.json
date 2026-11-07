@@ -1024,7 +1024,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 33
       },
@@ -1099,8 +1099,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 100
+        "x": 12,
+        "y": 33
       },
       "options": {
         "legend": {
@@ -1131,7 +1131,8 @@
         }
       ],
       "title": "Discarded dispatches (pool congestion) [traffic client]",
-      "type": "timeseries"
+      "type": "timeseries",
+      "id": 36
     },
     {
       "datasource": {
@@ -2778,8 +2779,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "process_resident_memory_bytes{source=~\"$source\"}",
-          "legendFormat": "RSS",
+          "expr": "process_resident_memory_bytes{source=~\"$source\"} and on(instance) group by (instance) ({__name__=~\"h2agent_.+\"})",
+          "legendFormat": "{{source}} RSS ({{instance}})",
           "range": true,
           "refId": "A"
         },
@@ -2789,8 +2790,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "process_virtual_memory_bytes{source=~\"$source\"}",
-          "legendFormat": "Virtual",
+          "expr": "process_virtual_memory_bytes{source=~\"$source\"} and on(instance) group by (instance) ({__name__=~\"h2agent_.+\"})",
+          "legendFormat": "{{source}} virtual ({{instance}})",
           "range": true,
           "refId": "B"
         }
@@ -2890,8 +2891,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(process_cpu_seconds_total{source=~\"$source\"}[$rate_interval])",
-          "legendFormat": "CPU usage",
+          "expr": "rate(process_cpu_seconds_total{source=~\"$source\"}[$rate_interval]) and on(instance) group by (instance) ({__name__=~\"h2agent_.+\"})",
+          "legendFormat": "{{source}} CPU ({{instance}})",
           "range": true,
           "refId": "A"
         }
@@ -2991,8 +2992,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "process_open_fds{source=~\"$source\"}",
-          "legendFormat": "Open FDs",
+          "expr": "process_open_fds{source=~\"$source\"} and on(instance) group by (instance) ({__name__=~\"h2agent_.+\"})",
+          "legendFormat": "{{source}} open ({{instance}})",
           "range": true,
           "refId": "A"
         },
@@ -3002,8 +3003,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "process_max_fds{source=~\"$source\"}",
-          "legendFormat": "Max FDs",
+          "expr": "process_max_fds{source=~\"$source\"} and on(instance) group by (instance) ({__name__=~\"h2agent_.+\"})",
+          "legendFormat": "{{source}} max ({{instance}})",
           "range": true,
           "refId": "B"
         }
@@ -3103,8 +3104,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "process_threads{source=~\"$source\"}",
-          "legendFormat": "Threads",
+          "expr": "process_threads{source=~\"$source\"} and on(instance) group by (instance) ({__name__=~\"h2agent_.+\"})",
+          "legendFormat": "{{source}} threads ({{instance}})",
           "range": true,
           "refId": "A"
         }
@@ -3157,11 +3158,12 @@
           "qryType": 1,
           "query": "label_values({__name__=~\"h2agent_.+\"}, source)"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "type": "query"
+        "type": "query",
+        "allValue": ".+"
       },
       {
         "auto": false,
