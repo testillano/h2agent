@@ -187,6 +187,16 @@ TEST_F(functions_test, ValidHexStringToOctetStreamWith0xPrefix)
     EXPECT_EQ(input, hexIP);
 }
 
+TEST_F(functions_test, UpperCaseHexStringToOctetStream)
+{
+    std::string output;
+
+    EXPECT_TRUE(h2agent::model::fromHexString("C0A8000F", output)); // i.e.: 192.168.0.15
+    EXPECT_EQ(output, std::string("\xc0\xa8\x00\x0f", 4));
+    EXPECT_TRUE(h2agent::model::fromHexString("0xAbCd", output)); // mixed case
+    EXPECT_EQ(output, std::string("\xab\xcd", 2));
+}
+
 TEST_F(functions_test, InvalidHexStringToOctetStreamError1)
 {
     std::string output;

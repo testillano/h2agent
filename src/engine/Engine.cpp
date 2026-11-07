@@ -45,6 +45,8 @@ SOFTWARE.
 #include <regex>
 #include <set>
 
+#include <arpa/inet.h>
+
 #include <arashpartow/exprtk.hpp>
 
 #include "Engine.hpp"
@@ -280,6 +282,40 @@ bool toFloat(const nlohmann::json &v, double &out) {
         }
     }
     return false;  // object/array/null
+}
+
+// Strict UTF-8 check (RFC 3629): no overlongs, no surrogates, <= U+10FFFF.
+// A json string holding invalid UTF-8 makes nlohmann::json::dump() throw.
+bool isValidUtf8(const std::string &s) {
+    const auto *p = reinterpret_cast<const unsigned char *>(s.data());
+    const std::size_t n = s.size();
+    std::size_t i = 0;
+    while (i < n) {
+        unsigned char c = p[i];
+        if (c < 0x80) {
+            ++i;
+            continue;
+        }
+        std::size_t len = 0;
+        unsigned int cp = 0, min = 0;
+        if ((c & 0xE0) == 0xC0) {
+            len = 2, cp = c & 0x1F, min = 0x80;
+        } else if ((c & 0xF0) == 0xE0) {
+            len = 3, cp = c & 0x0F, min = 0x800;
+        } else if ((c & 0xF8) == 0xF0) {
+            len = 4, cp = c & 0x07, min = 0x10000;
+        } else {
+            return false;
+        }
+        if (i + len > n) return false;
+        for (std::size_t k = 1; k < len; ++k) {
+            if ((p[i + k] & 0xC0) != 0x80) return false;
+            cp = (cp << 6) | (p[i + k] & 0x3F);
+        }
+        if (cp < min || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) return false;
+        i += len;
+    }
+    return true;
 }
 
 bool toBoolean(const nlohmann::json &v, bool &out) {
@@ -824,6 +860,16 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
         filter.raw = "Size";
         return FilterType::Size;
     }
+    // Parameterless byte filters (grammar v2 only, no v1 counterpart).
+    if (filterNode.is_string()) {
+        const std::string &name = filterNode.get_ref<const std::string &>();
+        if (name == "HexToText" || name == "TextToHex" || name == "HexToIp") {
+            filter.raw = name;
+            return (name == "HexToText")   ? FilterType::HexToText
+                   : (name == "TextToHex") ? FilterType::TextToHex
+                   : FilterType::HexToIp;
+        }
+    }
     if (!filterNode.is_object()) return FilterType::None;
     if (filterNode.contains("Append") && filterNode["Append"].is_string()) {
         filter.arg = filterNode["Append"].get<std::string>();
@@ -1328,6 +1374,45 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
             note = "value could not be cast to '" + f.arg + "'; rule skipped";
             return false;
         }
+    } else if (f.type == FilterType::HexToText) {
+        std::string bytes;
+        if (!value.is_string() || !fromHexString(value.get<std::string>(), bytes)) {
+            note = "HexToText filter requires an even-length hex string; rule skipped";
+            return false;
+        }
+        if (bytes.find('\0') != std::string::npos || !isValidUtf8(bytes)) {
+            note = "HexToText filter: bytes are not UTF-8 text (or hold NUL); rule skipped";
+            return false;
+        }
+        value = bytes;
+    } else if (f.type == FilterType::TextToHex) {
+        if (value.is_object() || value.is_array() || value.is_null()) {
+            note = "TextToHex filter requires a scalar source; rule skipped";
+            return false;
+        }
+        static const char digits[] = "0123456789abcdef";
+        const std::string text = asString(value);
+        std::string out;
+        out.reserve(text.size() * 2);
+        for (unsigned char c : text) {
+            out += digits[c >> 4];
+            out += digits[c & 0x0F];
+        }
+        value = out;
+    } else if (f.type == FilterType::HexToIp) {
+        std::string bytes;
+        if (!value.is_string() || !fromHexString(value.get<std::string>(), bytes) ||
+                (bytes.size() != 4 && bytes.size() != 16)) {
+            note = "HexToIp filter requires the hex of 4 (IPv4) or 16 (IPv6) bytes; rule skipped";
+            return false;
+        }
+        char buf[INET6_ADDRSTRLEN];
+        const int family = (bytes.size() == 4) ? AF_INET : AF_INET6;
+        if (inet_ntop(family, bytes.data(), buf, sizeof(buf)) == nullptr) {
+            note = "HexToIp filter: address could not be formatted; rule skipped";
+            return false;
+        }
+        value = std::string(buf);
     }
     return true;
 }

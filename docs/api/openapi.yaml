@@ -1613,6 +1613,33 @@ components:
         properties:
           op:
             enum:
+            - hexToText
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - textToHex
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - hexToIp
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
             - cast
             type: string
           type:

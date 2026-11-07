@@ -1,0 +1,37 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "from": {"source": "requestBody", "path": "/Called-Station-Id"},
+      "filter": [{"op": "hexToText"}],
+      "to": {"target": "responseBody", "path": "/dnn"}
+    },
+    {
+      "from": {"source": "requestBody", "path": "/Framed-IP-Address"},
+      "filter": [{"op": "hexToIp"}],
+      "to": {"target": "responseBody", "path": "/ipv4"}
+    },
+    {
+      "from": {"source": "requestBody", "path": "/Framed-IPv6-Address"},
+      "filter": [{"op": "hexToIp"}],
+      "to": {"target": "responseBody", "path": "/ipv6"}
+    },
+    {
+      "from": {"source": "literal", "value": "dnn_mbb.com"},
+      "filter": [{"op": "textToHex"}],
+      "to": {"target": "responseBody", "path": "/dnnHex"}
+    },
+    {
+      "from": {"source": "requestBody", "path": "/Bad-Text"},
+      "filter": [{"op": "hexToText"}],
+      "to": {"target": "responseBody", "path": "/bad"},
+      "onFilterFail": [
+        {"from": {"source": "literal", "value": "not text"}, "to": {"target": "responseBody", "path": "/bad"}}
+      ]
+    }
+  ]
+}

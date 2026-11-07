@@ -219,6 +219,9 @@ std::string lowerTarget(const nlohmann::json &to, const std::string &castType, M
 nlohmann::json lowerFilter(const nlohmann::json &f) {
     const std::string op = text(f, "op");
     if (op == "size") return "Size";
+    if (op == "hexToText") return "HexToText";
+    if (op == "textToHex") return "TextToHex";
+    if (op == "hexToIp") return "HexToIp";
     if (op == "conditionVar") return {{"ConditionVar", (f.value("not", false) ? "!" : "") + text(f, "name")}};
     if (op == "regexCapture") return {{"RegexCapture", f["rgx"]}};
     if (op == "regexKey") return {{"RegexKey", f["rgx"]}};

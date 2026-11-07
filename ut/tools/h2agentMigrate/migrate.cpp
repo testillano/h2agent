@@ -382,6 +382,9 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"stop"}})", "not expressible in v1"},
         {R"({"from":{"source":"vault","key":"a.b"},"to":{"target":"stop"}})", "contain no dots"},
         {R"({"from":{"source":"random","min":1},"to":{"target":"stop"}})", "source 'random' requires 'max'"},
+        {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToText"}],"to":{"target":"var","name":"x"}})", "filter 'hexToText' has no v1 equivalent"},
+        {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"textToHex"}],"to":{"target":"var","name":"x"}})", "filter 'textToHex' has no v1 equivalent"},
+        {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToIp"}],"to":{"target":"var","name":"x"}})", "filter 'hexToIp' has no v1 equivalent"},
         {R"({"source":"recvseq","target":"var.x"})", "rule is already v1"},
     };
     for (const auto &row : table) {

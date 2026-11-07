@@ -352,3 +352,22 @@ def test_026_regexKey(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
   responseBodyRef = {"foo": "bar-1", "price": 25}
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_027_byteFilters(admin_server_provision, h2ac_traffic):
+
+  # Provision: decode hex fields (as Diameter OctetString AVPs reach h2agent)
+  admin_server_provision("filter_test.ByteFilters.provision.json")
+
+  # Traffic: text, IPv4 and IPv6 in hex (upper case accepted), plus invalid UTF-8
+  requestBody = {
+    "Called-Station-Id": "646e6e5f6d62622e636f6d",
+    "Framed-IP-Address": "0A8136A5",
+    "Framed-IPv6-Address": "20010db8000000000000000000000001",
+    "Bad-Text": "ff00"
+  }
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
+  responseBodyRef = {"foo": "bar-1", "dnn": "dnn_mbb.com", "ipv4": "10.129.54.165", "ipv6": "2001:db8::1",
+                     "dnnHex": "646e6e5f6d62622e636f6d", "bad": "not text"}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

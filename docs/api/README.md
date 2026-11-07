@@ -1226,6 +1226,47 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
+- `hexToText`, `textToHex`, `hexToIp`: convert values holding bytes in hex (for example Diameter OctetString AVPs, which reach h2agent in hex). They take no arguments and know nothing about Diameter: they read bytes. Combined with `regexCapture` / `regexReplace` (cut a byte range, swap BCD nibbles) and `baseConvert` (numbers), any binary content in hex can be decoded piece by piece.
+
+  | Filter | Source | Result | Example |
+  |--------|--------|--------|---------|
+  | `{"op": "hexToText"}` | even-length hex (upper or lower case, optional `0x`) | the text of its bytes | `"646e6e5f6d62622e636f6d"` -> `"dnn_mbb.com"` |
+  | `{"op": "textToHex"}` | text (numbers and booleans as their text) | lower-case hex of its bytes (inverse of `hexToText`) | `"dnn_mbb.com"` -> `"646e6e5f6d62622e636f6d"` |
+  | `{"op": "hexToIp"}` | hex of 4 or 16 bytes | IPv4 / IPv6 text (RFC 5952) | `"0a8136a5"` -> `"10.129.54.165"`, `"20010db8000000000000000000000001"` -> `"2001:db8::1"` |
+
+  A value they cannot convert **fails the filter** (the rule is skipped and `onFilterFail` runs), as `cast`, `strptime` or `regexKey` do (`baseConvert`, instead, keeps the source): invalid or odd-length hex, bytes which are not UTF-8 text or hold a NUL (`hexToText`), a length other than 4 or 16 bytes (`hexToIp`), an object, array or null source. An IPv4-mapped IPv6 address is written `::ffff:a.b.c.d`.
+
+  ```json
+  {
+    "from": {"source": "requestBody", "path": "/Called-Station-Id"},
+    "filter": [{"op": "hexToText"}],
+    "to": {"target": "var", "name": "dnn"}
+  }
+  ```
+
+  A field of a structured value: the TAC of a 3GPP-User-Location-Info `8064f0000065` (type, PLMN, then the 2-byte TAC) is the hex after the first 4 bytes, as a number:
+
+  ```json
+  {
+    "from": {"source": "requestBody", "path": "/3GPP-User-Location-Info"},
+    "filter": [
+      {"op": "regexReplace", "rgx": "^[0-9a-fA-F]{8}([0-9a-fA-F]{4})$", "fmt": "$1"},
+      {"op": "baseConvert", "in": 16, "out": 10}
+    ],
+    "to": {"target": "var", "name": "tac"}
+  }
+  ```
+
+  Stores `"101"` (`0x0065`).
+
+  `textToHex` is there as the inverse of `hexToText` (filters can be chained both ways), but most needs have a more readable form:
+
+  * comparing an inbound hex field with a known text: decode the field and compare the text (`[{"op": "hexToText"}, {"op": "equalTo", "value": "dnn_mbb.com"}]`), rather than encoding the constant and comparing hex;
+  * outbound Diameter AVPs: the gateway (h2diagent) already accepts their readable forms, no hex is needed;
+  * a text request/response body: the `requestBodyText` / `responseBodyText` targets, rather than a hex body target fed by `textToHex`.
+
+  It remains useful when exact bytes matter, e.g. building a raw message from text pieces for negative testing.
+
 - `strptime` (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `sum`) and later formatting back with `strftime`.
 
   | Parameter | Type | Required | Default | Description |

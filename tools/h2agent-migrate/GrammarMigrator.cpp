@@ -894,6 +894,7 @@ Json GrammarMigrator::filterToV1(const Json &v2, const std::string &where) {
         return Json{{f.v1, arg}};
     }
     if (op == "cast") fail(where, "a cast is only expressible in v1 as the last filter");
+    if (op == "hexToText" || op == "textToHex" || op == "hexToIp") fail(where, "filter '" + op + "' has no v1 equivalent");
     fail(where, "unknown filter op '" + op + "'");
 }
 

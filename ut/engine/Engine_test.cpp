@@ -1866,6 +1866,107 @@ TEST(Engine_test, BaseConvertErrorFallsBackToSource) {
     EXPECT_EQ(ctx.outBody.raw, "zzz");  // unparseable -> fallback to source
 }
 
+// HexToText / TextToHex / HexToIp (byte filters) ---------------------------
+
+namespace {
+// Runs '<source> -> filter -> output.string' with an onFilterFail fallback that
+// writes "FAILED", so a failed filter is told apart from an empty result.
+std::string runByteFilter(const std::string &source, const std::string &filter) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", source},
+            {"target", "output.string"},
+            {"filter", filter},
+            {"onFilterFail", nlohmann::json::array({{{"source", "value.FAILED"}, {"target", "output.string"}}})}
+        }}),
+    err);
+    EXPECT_NE(pipeline, nullptr) << err;
+    if (!pipeline) return "<parse error>";
+    StandaloneContext ctx;
+    Ports ports;
+    engine.evaluate(pipeline, ctx, ports);
+    return ctx.outBody.raw;
+}
+}  // namespace
+
+TEST(Engine_test, HexToTextDecodesUtf8Bytes) {
+    const std::vector<std::pair<std::string, std::string>> table = {
+        {"value.646e6e5f6d62622e636f6d", "dnn_mbb.com"},
+        {"value.646E6E5F6D62622E636F6D", "dnn_mbb.com"},  // upper case digits
+        {"value.0x646e6e", "dnn"},                        // 0x prefix
+        {"value.c3b1", "\xc3\xb1"},                       // multi-byte UTF-8 (n tilde)
+        {"value.f09f9880", "\xf0\x9f\x98\x80"},           // 4-byte UTF-8
+    };
+    for (const auto &row : table) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(runByteFilter(row.first, "HexToText"), row.second);
+    }
+}
+
+TEST(Engine_test, HexToTextFailsOnInvalidInput) {
+    for (const std::string source : {
+                "value.646e6",     // odd length
+                "value.64zz",      // not hex
+                "value.ff",        // invalid UTF-8 lead byte
+                "value.c3",        // truncated sequence
+                "value.c0af",      // overlong encoding
+                "value.eda080",    // UTF-16 surrogate
+                "value.616200",    // NUL byte
+                "input"            // not a string (null input)
+            }) {
+        SCOPED_TRACE(source);
+        EXPECT_EQ(runByteFilter(source, "HexToText"), "FAILED");
+    }
+}
+
+TEST(Engine_test, TextToHexEncodesBytesLowerCase) {
+    EXPECT_EQ(runByteFilter("value.dnn_mbb.com", "TextToHex"), "646e6e5f6d62622e636f6d");
+    EXPECT_EQ(runByteFilter("value.\xc3\xb1", "TextToHex"), "c3b1");
+    EXPECT_EQ(runByteFilter("input", "TextToHex"), "FAILED");  // null input
+}
+
+TEST(Engine_test, HexToTextAndTextToHexRoundTrip) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "value.dnn_mbb.com"},
+            {"target", "output.string"},
+            {"filter", nlohmann::json::array({"TextToHex", "HexToText"})}
+        }}),
+    err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    StandaloneContext ctx;
+    Ports ports;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "dnn_mbb.com");
+}
+
+TEST(Engine_test, HexToIpFormatsIpv4AndIpv6) {
+    const std::vector<std::pair<std::string, std::string>> table = {
+        {"value.0a8136a5", "10.129.54.165"},
+        {"value.0A8136A5", "10.129.54.165"},
+        {"value.0x0a8136a5", "10.129.54.165"},
+        {"value.20010db8000000000000000000000001", "2001:db8::1"},
+        {"value.00000000000000000000ffff0a010203", "::ffff:10.1.2.3"},  // IPv4-mapped
+    };
+    for (const auto &row : table) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(runByteFilter(row.first, "HexToIp"), row.second);
+    }
+}
+
+TEST(Engine_test, HexToIpFailsOnWrongLengthOrInvalidHex) {
+    for (const std::string source : {
+                "value.0a8136", "value.0a8136a5ff", "value.0a81zza5", "value.0a8136a", "input"
+            }) {
+        SCOPED_TRACE(source);
+        EXPECT_EQ(runByteFilter(source, "HexToIp"), "FAILED");
+    }
+}
+
+TEST(Engine_test, ByteFilterSuccessDoesNotRunOnFilterFail) {
+    EXPECT_EQ(runByteFilter("value.6f6b", "HexToText"), "ok");
+}
+
 // Strptime / Strftime filters --------------------------------------------
 
 TEST(Engine_test, StrptimeParsesDateToEpochSeconds) {

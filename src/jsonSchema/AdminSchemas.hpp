@@ -216,6 +216,9 @@ inline nlohmann::json filter(const nlohmann::json &conditionVarName) {
         kind("op", "strptime", {{"fmt", anyText()}, {"unit", unit}}, {"fmt"}),
         kind("op", "strftime", {{"fmt", anyText()}, {"unit", unit}}, {"fmt"}),
         kind("op", "size"),
+        kind("op", "hexToText"),
+        kind("op", "textToHex"),
+        kind("op", "hexToIp"),
         kind("op", "cast", {{"type", enumOf({"string", "integer", "unsigned", "float", "boolean", "object", "json"})}}, {"type"}),
     });
     return {{"oneOf", ops}};

@@ -197,6 +197,14 @@ enum class FilterType {
     Cast,          // Cast: {"Cast":"string|integer|unsigned|float|boolean|object|json"}.
     // Convert the value to the type (object: object or array required; json:
     // parse the value text). A failed conversion fails the filter.
+    HexToText,     // HexToText: plain string "HexToText" (v2 only). Decode an even-length
+    // hex string (optional "0x") into its bytes as text; the bytes must be
+    // UTF-8 without NUL. Otherwise the filter fails.
+    TextToHex,     // TextToHex: plain string "TextToHex" (v2 only). Lower-case hex of
+    // the UTF-8 bytes of the value text (scalars as their text); objects,
+    // arrays and null fail the filter.
+    HexToIp,       // HexToIp: plain string "HexToIp" (v2 only). Hex of 4 / 16 bytes into
+    // dotted IPv4 / RFC 5952 IPv6 text (inet_ntop); other lengths fail.
 };
 
 /**

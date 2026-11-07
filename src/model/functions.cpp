@@ -33,6 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <cctype>
 #include <fstream>
 #include <regex>
 #include <ctype.h>
@@ -263,14 +264,14 @@ bool fromHexString(const std::string &input, std::string &output) {
             return false;
         }
 
-        hex = ((aux >= '0' && aux <= '9') ? (aux - '0') : ((aux - 'a') + 0x0a)) << 4;
+        hex = ((aux >= '0' && aux <= '9') ? (aux - '0') : ((std::tolower(aux) - 'a') + 0x0a)) << 4;
 
         if(isxdigit(aux = src[ii]) == 0) {
             LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Invalid hexadecimal string: %s", input.c_str()), ERT_FILE_LOCATION));
             return false;
         }
 
-        hex |= (aux >= '0' && aux <= '9') ? (aux - '0') : ((aux - 'a') + 0x0a);
+        hex |= (aux >= '0' && aux <= '9') ? (aux - '0') : ((std::tolower(aux) - 'a') + 0x0a);  // isxdigit accepts upper case
         output += hex;
     }
 
