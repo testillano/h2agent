@@ -88,10 +88,10 @@ echo "   Test A (max=1):   ${REQ_S_1} req/s"
 echo "   Test B (max=100): ${REQ_S_100} req/s"
 echo ""
 
-if command -v bc >/dev/null 2>&1 && [ -n "${REQ_S_1}" ] && [ -n "${REQ_S_100}" ]; then
-    RATIO=$(echo "scale=1; ${REQ_S_100} / ${REQ_S_1}" | bc 2>/dev/null)
+if [ -n "${REQ_S_1}" ] && [ -n "${REQ_S_100}" ]; then
+    RATIO=$(awk -v b="${REQ_S_100}" -v a="${REQ_S_1}" 'BEGIN { printf "%.1f", (a > 0) ? int(b * 10 / a) / 10 : 0 }')
     echo "   Ratio B/A: ${RATIO}x (expected ~50x)"
-    if [ "$(echo "${RATIO} > 10" | bc)" -eq 1 ]; then
+    if awk -v r="${RATIO}" 'BEGIN { exit !(r > 10) }'; then
         echo ""
         echo " PASS: max_concurrent_streams is working correctly."
     else
@@ -100,6 +100,6 @@ if command -v bc >/dev/null 2>&1 && [ -n "${REQ_S_1}" ] && [ -n "${REQ_S_100}" ]
         exit 1
     fi
 else
-    echo "   (Install 'bc' for automatic ratio check)"
+    echo "   (req/s not found in the h2load output: no automatic ratio check)"
 fi
 echo "============================================================"

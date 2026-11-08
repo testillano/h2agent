@@ -130,21 +130,6 @@ jobs:
     -
       name: Image3 digest
       run: echo ${{ steps.docker_build3.outputs.digest }}
-    -
-      name: Build local project training image
-      id: docker_build4
-      uses: docker/build-push-action@v2
-      with:
-        tags: ghcr.io/testillano/h2agent_training:local
-        file: Dockerfile.training
-        build-args: |
-          base_tag=local
-        context: .
-        platforms: linux/amd64
-        push: true
-    -
-      name: Image4 digest
-      run: echo ${{ steps.docker_build4.outputs.digest }}
 
   build_coverage:
     needs: build_and_push_docker_images_as_local
@@ -301,7 +286,7 @@ jobs:
           docker buildx imagetools create -t ghcr.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local
         done
 
-        for imgbn in h2agent h2agent_training
+        for imgbn in h2agent
         do
           echo "Creating tag ${image_tag} for ${imgbn} in ghcr.io and docker.io"
           docker buildx imagetools create -t ghcr.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local

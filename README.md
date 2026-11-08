@@ -392,8 +392,8 @@ $ docker run --rm -it -v $(pwd):/cores --entrypoint gdb ghcr.io/testillano/h2age
 ```
 
 The tags must match (`readelf -n /bin/h2agent` shows the build-id in both
-images). The editor and `h2load`/`nghttp` are not in the runtime images either:
-they are in the training image.
+images). The editor and `h2load`/`nghttp` are in neither image: use the host
+ones (as `benchmark/start.sh` does).
 
 ### Pulling pre-built images
 
@@ -1719,9 +1719,10 @@ $ kill $!
 
 ### Prepare the environment
 
-#### Working in project checkout
+Training works on the project checkout (or on `deps/testillano/h2agent` in a
+downstream fork); the former training image was retired.
 
-##### Requirements
+#### Requirements
 
 Some utilities may be required, so please try to install them on your system. For example:
 
@@ -1732,7 +1733,7 @@ $ sudo apt-get install jq
 $ sudo apt-get install dos2unix
 ```
 
-##### Starting agent
+#### Starting agent
 
 Then you may build project images and start the `h2agent` with its docker image:
 
@@ -1746,28 +1747,6 @@ Or build native executable and run it from shell:
 ```bash
 $ ./build-native.sh # builds executable
 $ build/Release/bin/h2agent --verbose # starts executable
-```
-
-#### Working in training container
-
-The training image is already available at `github container registry` and `docker hub` for every repository `tag`, and also for master as `latest`:
-
-```bash
-$ docker pull ghcr.io/testillano/h2agent_training:<tag>
-```
-
-You may also find useful run the training image by mean the helper script `./tools/training.sh`. This script builds and runs an image based in `./Dockerfile.training` which adds the needed resources to run training resources. The image working directory is `/home/h2agent` making the experience like working natively over the git checkout and providing by mean symbolic links, main project executables.
-
-If your are working in the training container, there is no need to build the project neither install requirements commented in previous section, just execute the process in background:
-
-```bash
-bash-5.1# ls -lrt
-total 12
-drwxr-xr-x    5 root     root          4096 Dec 16 20:29 tools
-drwxr-xr-x   12 root     root          4096 Dec 16 20:29 kata
-drwxr-xr-x    2 root     root          4096 Dec 16 20:29 demo
-lrwxrwxrwx    1 root     root            12 Dec 16 20:29 h2agent -> /bin/h2agent
-bash-5.1# ./h2agent --verbose &
 ```
 
 ### Training resources

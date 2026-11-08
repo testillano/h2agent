@@ -16,13 +16,14 @@ Please note that the conversational bot has certain limitations and although it 
 
 There is also a migration script to export `Chroma` vectorstore into `QDrant` compatible one: `convert-vectorstore-to-qdrant.py`.
 
-## Using training image
+## Example session
 
-You may use this python script within the training docker image, but all the dependencies must be installed there (a prompt when executing `./tools/training.sh` script will ask for it because those dependencies are quite big and the user could prefer to run natively if those requirements are already installed in the host). Remember that you will need to activate the virtual python environment inside the training image to use `run.py` python script:
+A virtual environment keeps those (big) requirements apart from the host:
 
 ````bash
-root@998063cf6a4f:/home/h2agent# source /opt/venv/bin/activate
-(venv) root@998063cf6a4f:/home/h2agent# python3 tools/questions-and-answers/run.py
+$ python3 -m venv /tmp/qa-venv && source /tmp/qa-venv/bin/activate
+(venv) $ pip3 install -r tools/questions-and-answers/requirements.txt
+(venv) $ python3 tools/questions-and-answers/run.py
 Initiating RAG Chatbot in console mode (CLI)...
 --- Inicializando RAG Service ---
 Creating vectorstore ...
@@ -52,7 +53,7 @@ Transformation items are specified in the `transform` array of a provision confi
 Ask me anything (0 = quit):
 ````
 
-Also remember that **environment variables** `OPENAI_API_KEY` and/or `GROQ_API_KEY` must be defined (the `openai api key` is mandatory as it is used at least the first time to create the vector store for embeddings. After that, if `groq api key` is defined, it will be used for querying the model because it is free/cheaper compared to `openAI`). Those variables are exported from calling shell when running the training docker image.
+Also remember that **environment variables** `OPENAI_API_KEY` and/or `GROQ_API_KEY` must be defined (the `openai api key` is mandatory as it is used at least the first time to create the vector store for embeddings. After that, if `groq api key` is defined, it will be used for querying the model because it is free/cheaper compared to `openAI`).
 
 Ask me anything (0 = quit): I want to configure a classification algorithm for RegexMatching, ignoring query parameters
 

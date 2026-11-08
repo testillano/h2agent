@@ -303,7 +303,7 @@ while [ -n "$remaining" ]; do
 done
 
 echo
-if [ $(echo "${start_at} > 0" | bc 2>/dev/null) = "1" ]; then
+if awk -v s="${start_at}" 'BEGIN { exit !(s > 0) }'; then
   echo "Resuming from timeline ${start_at}s (skipping earlier events)"
 fi
 [ "${dry_run}" = true ] && echo "DRY RUN mode (no actions will be executed)"
@@ -340,12 +340,12 @@ while IFS= read -r -u "${drvfd}" line; do
   [[ "$timeline" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
 
   # Skip events before --from point
-  if [ $(echo "${timeline} < ${start_at}" | bc) -eq 1 ]; then
+  if awk -v t="${timeline}" -v s="${start_at}" 'BEGIN { exit !(t < s) }'; then
     continue
   fi
 
   # Effective wait time adjusted by --from offset
-  effective_timeline=$(echo "${timeline} - ${start_at}" | bc)
+  effective_timeline=$(awk -v t="${timeline}" -v s="${start_at}" 'BEGIN { print t - s }')
 
   # Wait until execution time (skip waiting in dry-run mode)
   if [ "${dry_run}" != true ]; then

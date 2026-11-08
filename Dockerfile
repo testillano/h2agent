@@ -302,8 +302,8 @@ ARG sanitizer=""
 #                 all-in-one package before the multi-stage refactor.
 # curl: probes (HTTP/2 prior knowledge) and helpers; jq: helpers.
 # No editor nor h2load/nghttp (nghttp2-client pulls libxml2 and libicu, ~39 MB;
-# vim and its runtime ~42 MB): they are in the training image. python3 (~22 MB)
-# stays: nghttp2-proxy depends on it.
+# vim and its runtime ~42 MB). python3 (~22 MB) stays: nghttp2-proxy depends on
+# it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl jq nghttp2-proxy netcat-openbsd socat libjemalloc2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

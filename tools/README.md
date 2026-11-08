@@ -65,7 +65,6 @@
 ├── ssl
 │   ├── create_ca-signed-certificates.sh
 │   └── create_self-signed_certificates.sh
-├── training.sh
 ├── url.sh
 └── valgrind.sh
 ```
@@ -86,7 +85,6 @@
 * grafana: docker-compose setup for grafana monitoring. Check `PLAY_GRAFANA.md` as an example to play with it.
 * schemas.sh: shows all the schemas available (also requests schema if configured).
 * ssl: utilities to create keys/certificates and test the server with tls/ssl enabled.
-* training.sh: helper to run training docker image.
 * url.sh: helper to encode/decode URLs.
 * valgrind.sh: helper to launch the application using valgrind.
 * events-schedule.sh: timeline-driven event scheduler using h2agent helpers as built-in actions. Supports rate control, delay injection, vault operations, and snapshots via driver file labels.
