@@ -972,7 +972,6 @@ https://github.com/testillano/h2agent
 
 Quick Start:    https://github.com/testillano/h2agent#quick-start
 Overview:       https://testillano.github.io/h2agent/overview/
-ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#questions-and-answers
 
 
 )";

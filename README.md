@@ -118,7 +118,6 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
 * Training:
 
-  * Questions and answers for project documentation using **openai** (ChatGPT-based).
   * Playground.
   * Demo.
   * Tester.
@@ -177,7 +176,6 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 **Theory**
 
 * An ***[overview](https://testillano.github.io/h2agent/overview/)*** presentation ([source](./docs/overview/index.html)) to show a complete and useful overview of the `h2agent` component architecture.
-* A conversational bot for [***questions & answers***](./README.md#questions-and-answers) based in *Open AI*.
 
 **Practice**
 
@@ -1669,7 +1667,6 @@ https://github.com/testillano/h2agent
 
 Quick Start:    https://github.com/testillano/h2agent#quick-start
 Overview:       https://testillano.github.io/h2agent/overview/
-ChatGPT:        https://github.com/testillano/h2agent/blob/master/README.md#questions-and-answers
 
 
 20/11/22 20:53:33 CET: Starting h2agent
@@ -1751,9 +1748,7 @@ $ build/Release/bin/h2agent --verbose # starts executable
 
 ### Training resources
 
-#### Questions and answers
-
-A conversational bot is available in `./tools/questions-and-answers` directory. It is implemented in python using *langchain* and *OpenAI* (ChatGPT) technology. Also *Groq* model can be used if the proper key is detected. Check its [README.md](./tools/questions-and-answers/README.md) file to learn more about.
+For questions about the project, point an AI coding assistant to the repository: [docs/api/README.md](./docs/api/README.md) and [docs/developers](./docs/developers) are the reference.
 
 #### Play
 
