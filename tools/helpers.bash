@@ -753,7 +753,7 @@ client_provision_cps() {
   # Build URL with cps: base_q may be empty
   _cps_url() { local c=$1; local q="${base_q:+${base_q}&}cps=${c}"; echo "$(admin_url)/client-provision/${id}/trigger?${q}"; }
 
-  if [ "$(echo "${rampUp} > 0" | bc)" = "1" ]; then
+  if awk -v r="${rampUp}" 'BEGIN { exit !(r > 0) }'; then
     # Read current cps from provision dynamics
     do_curl -XGET "$(admin_url)/client-provision" >/dev/null 2>&1
     local from_cps=$(pretty "[.[] | select(.id==\"${id}\" and .inState==\"initial\")] | .[0].dynamics.cps // 0" 2>/dev/null || echo 0)
@@ -761,7 +761,7 @@ client_provision_cps() {
 
     local step_ns=100000000 # 0.1s fixed
     local start_ns=$(date +%s%N)
-    local ramp_ns=$(echo "${rampUp} * 1000000000 / 1" | bc)
+    local ramp_ns=$(awk -v r="${rampUp}" 'BEGIN { printf "%.0f", int(r * 1000000000) }')
     local prev_cps=-1
     local direction="ramp-up"
     [ "${cps}" -lt "${from_cps}" ] 2>/dev/null && direction="ramp-down"
@@ -769,16 +769,16 @@ client_provision_cps() {
       local now_ns=$(date +%s%N)
       local elapsed_ns=$((now_ns - start_ns))
       [ ${elapsed_ns} -ge ${ramp_ns} ] && break
-      local cps_now=$(echo "${from_cps} + (${cps} - ${from_cps}) * ${elapsed_ns} / ${ramp_ns}" | bc)
+      local cps_now=$(awk -v f="${from_cps}" -v c="${cps}" -v e="${elapsed_ns}" -v r="${ramp_ns}" 'BEGIN { printf "%.0f", f + int((c - f) * e / r) }')
       if [ "${cps_now}" != "${prev_cps}" ]; then
         do_curl -XPOST "$(_cps_url ${cps_now})" >/dev/null
         prev_cps=${cps_now}
-        local elapsed_s=$(echo "scale=1; ${elapsed_ns} / 1000000000" | bc)
+        local elapsed_s=$(awk -v e="${elapsed_ns}" 'BEGIN { printf "%.1f", int(e / 100000000) / 10 }')
         echo -ne "\r  ${direction}: ${cps_now} -> ${cps} cps (${elapsed_s}s/${rampUp}s)"
       fi
       local target_ns=$(( (elapsed_ns / step_ns + 1) * step_ns ))
       local sleep_ns=$((target_ns - ($(date +%s%N) - start_ns)))
-      [ ${sleep_ns} -gt 0 ] && sleep $(echo "scale=6; ${sleep_ns} / 1000000000" | bc)
+      [ ${sleep_ns} -gt 0 ] && sleep $(awk -v s="${sleep_ns}" 'BEGIN { printf "%.6f", int(s / 1000) / 1000000 }')
     done
     do_curl -XPOST "$(_cps_url ${cps})" >/dev/null
     echo -e "\r  ${direction}: ${cps}/${cps} cps (${rampUp}s/${rampUp}s) - done    "
@@ -1926,9 +1926,9 @@ help() {
 # anyway. So we just warn (to stderr) and keep the library sourceable.
 # We check the non-trivial tools actually used by the functions above:
 #   curl (all admin/traffic calls), jq (pretty/raw/parsing, URI urlencode in
-#   server_data/client_data), bc (ramp maths in client_provision_cps).
+#   server_data/client_data), awk (maths in client_provision_cps).
 # Ubiquitous coreutils (awk/sed/grep/sort/date/...) are assumed present.
-for _dep in curl jq bc; do
+for _dep in curl jq awk; do
   type "${_dep}" &>/dev/null || echo "WARNING: missing dependency '${_dep}' -- some helper functions will fail until it is installed." >&2
 done
 unset _dep
