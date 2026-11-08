@@ -295,7 +295,7 @@ server_data() {
     while [ $# -gt 0 ]; do
       case "$1" in
         --method) queryParams+="${sep}requestMethod=$2"; sep="&"; shift 2 ;;
-        --uri-regex) queryParams+="${sep}uriRegex=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$2'))")"; sep="&"; shift 2 ;;
+        --uri-regex) queryParams+="${sep}uriRegex=$(jq -rn --arg s "$2" '$s|@uri')"; sep="&"; shift 2 ;;
         --from) queryParams+="${sep}fromTimestampUs=$2"; sep="&"; shift 2 ;;
         --to) queryParams+="${sep}toTimestampUs=$2"; sep="&"; shift 2 ;;
         *) echo "Unknown option: $1"; return 1 ;;
@@ -894,7 +894,7 @@ client_data() {
     while [ $# -gt 0 ]; do
       case "$1" in
         --method) queryParams+="${sep}requestMethod=$2"; sep="&"; shift 2 ;;
-        --uri-regex) queryParams+="${sep}uriRegex=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$2'))")"; sep="&"; shift 2 ;;
+        --uri-regex) queryParams+="${sep}uriRegex=$(jq -rn --arg s "$2" '$s|@uri')"; sep="&"; shift 2 ;;
         --from) queryParams+="${sep}fromTimestampUs=$2"; sep="&"; shift 2 ;;
         --to) queryParams+="${sep}toTimestampUs=$2"; sep="&"; shift 2 ;;
         *) echo "Unknown option: $1"; return 1 ;;
@@ -1602,7 +1602,7 @@ metrics_summary() {
 
     # Remove trailing comma and close
     j="${j%,}}"
-    echo "$j" | python3 -m json.tool 2>/dev/null || echo "$j"
+    echo "$j" | jq . 2>/dev/null || echo "$j"
     unset -f _tc _tf _gauge_stats _hpct _latency_by_label _resolve_ref _label_for_ts _fmt_ref
     return 0
   fi
@@ -1925,10 +1925,10 @@ help() {
 # giving no real protection: a function needing a missing tool fails on use
 # anyway. So we just warn (to stderr) and keep the library sourceable.
 # We check the non-trivial tools actually used by the functions above:
-#   curl (all admin/traffic calls), jq (pretty/raw/parsing), python3 (URI
-#   urlencode in server_data/client_data), bc (ramp maths in client_provision_cps).
+#   curl (all admin/traffic calls), jq (pretty/raw/parsing, URI urlencode in
+#   server_data/client_data), bc (ramp maths in client_provision_cps).
 # Ubiquitous coreutils (awk/sed/grep/sort/date/...) are assumed present.
-for _dep in curl jq python3 bc; do
+for _dep in curl jq bc; do
   type "${_dep}" &>/dev/null || echo "WARNING: missing dependency '${_dep}' -- some helper functions will fail until it is installed." >&2
 done
 unset _dep

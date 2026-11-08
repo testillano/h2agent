@@ -118,6 +118,7 @@ endif()
 include(GNUInstallDirs)
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 file(GLOB_RECURSE BINARIES ${CMAKE_CURRENT_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}/bin/*)
+list(FILTER BINARIES EXCLUDE REGEX "/unit-test$")  # a build artifact, not a product
 install(PROGRAMS ${BINARIES} DESTINATION bin)
 
 ###########

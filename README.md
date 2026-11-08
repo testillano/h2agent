@@ -360,7 +360,8 @@ The project uses a single multi-stage `Dockerfile` with all dependencies built f
 | `deps` | `h2agent_builder` | Toolchain + all libraries installed. Useful for debugging. |
 | `build` | (intermediate) | deps + compiled project. Not published. |
 | `unit-test` | `h2agent_ut` | Minimal image with only the unit-test binary. |
-| `runtime` | `h2agent` | Production image: only binaries + runtime deps. |
+| `runtime` | `h2agent` | Production image: only binaries (stripped) + runtime deps. |
+| `runtime-debug` | `h2agent:<tag>-debug` | Same build as `runtime`, plus the debug info of its binaries and `gdb`. |
 
 ### Quick build
 
@@ -376,6 +377,23 @@ $ docker build --target runtime -t h2agent .           # production image
 $ docker build --target deps -t h2agent_builder .      # builder image
 $ docker build --target unit-test -t h2agent_ut .      # unit test image
 ```
+
+### Debug image (core analysis)
+
+Release images ship stripped binaries, so a core dump of them gives bare
+addresses. Each runtime tag has a `<tag>-debug` companion (e.g. `latest-debug`,
+`5.2.0-debug`) built from the same build: identical binaries plus their debug
+info (`/usr/lib/debug/.build-id`, matched by build-id) and `gdb`. Either deploy
+it in place of the runtime image to reproduce a crash with symbols, or analyze a
+core of the runtime image there:
+
+```bash
+$ docker run --rm -it -v $(pwd):/cores --entrypoint gdb ghcr.io/testillano/h2agent:5.2.0-debug /bin/h2agent /cores/core
+```
+
+The tags must match (`readelf -n /bin/h2agent` shows the build-id in both
+images). The editor and `h2load`/`nghttp` are not in the runtime images either:
+they are in the training image.
 
 ### Pulling pre-built images
 

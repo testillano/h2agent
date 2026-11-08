@@ -105,6 +105,19 @@ jobs:
       name: Image2 digest
       run: echo ${{ steps.docker_build2.outputs.digest }}
     -
+      # Same build as the runtime image above (build stage from the cache), so
+      # its debug info matches the cores of the runtime binaries (build-id)
+      name: Build local project debug image (runtime + debug info + gdb)
+      id: docker_build2_debug
+      uses: docker/build-push-action@v2
+      with:
+        tags: ghcr.io/testillano/h2agent:local-debug
+        file: Dockerfile
+        target: runtime-debug
+        context: .
+        platforms: linux/amd64
+        push: true
+    -
       name: Build local ct image
       id: docker_build3
       uses: docker/build-push-action@v2
@@ -294,6 +307,10 @@ jobs:
           docker buildx imagetools create -t ghcr.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local
           docker buildx imagetools create -t docker.io/testillano/${imgbn}:${image_tag} ghcr.io/testillano/${imgbn}:local
         done
+
+        echo "Creating tag ${image_tag}-debug for h2agent in ghcr.io and docker.io"
+        docker buildx imagetools create -t ghcr.io/testillano/h2agent:${image_tag}-debug ghcr.io/testillano/h2agent:local-debug
+        docker buildx imagetools create -t docker.io/testillano/h2agent:${image_tag}-debug ghcr.io/testillano/h2agent:local-debug
 
   helm_publish:
     needs: push_docker_images_as_latest

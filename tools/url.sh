@@ -1,5 +1,5 @@
 #!/bin/bash
-# requires python module 'parse' (pip3 install parse)
+# requires jq (encode)
 
 #############
 # FUNCTIONS #
@@ -10,11 +10,12 @@ usage() {
 }
 
 urlencode() {
-  python3 -c "import urllib.parse as ul; print(ul.quote('$1'))"
+  jq -rn --arg s "$1" '$s|@uri'
 }
 
 urldecode() {
-  python3 -c "import urllib.parse as ul; print(ul.unquote('$1'))"
+  # Only valid %XX sequences are decoded; backslashes stay literal
+  printf '%b\n' "$(sed -E 's/\\/\\\\/g; s/%([0-9A-Fa-f]{2})/\\x\1/g' <<< "$1")"
 }
 
 #############

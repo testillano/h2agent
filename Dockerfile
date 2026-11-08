@@ -7,12 +7,14 @@
 # Stages:
 #   deps    - All third-party libraries compiled and installed
 #   build   - Project compilation (uses deps stage)
-#   runtime - Minimal production image with only binaries
+#   runtime - Minimal production image with only binaries (stripped)
+#   runtime-debug - runtime + debug info + gdb (same build), for core analysis
 #
-# Usage:
+# Usage (always give --target: the last stage is runtime-debug):
 #   docker build --target deps    -t h2agent_builder .
 #   docker build --target build   -t h2agent_build .
 #   docker build --target runtime -t h2agent .
+#   docker build --target runtime-debug -t h2agent:latest-debug .
 #
 # The build.sh script handles all of this automatically.
 # =============================================================================
@@ -254,6 +256,22 @@ RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=${STATIC_LINKING} \
     ${sanitizer_link:+-DCMAKE_EXE_LINKER_FLAGS="${sanitizer_link}"} \
     . && make -j${make_procs}
 
+# Release: strip the binaries and keep their debug info apart, under
+# /code/debug/.build-id/<xx>/<rest>.debug, for the runtime-debug image (a core
+# of the stripped runtime is symbolized by the files of the SAME build: gdb
+# matches them by build-id). Debug and sanitizer builds keep their symbols.
+RUN mkdir -p /code/debug && \
+    if [ "${build_type}" = "Release" ] && [ -z "${sanitizer_flags}" ] ; then \
+      for b in /code/build/${build_type}/bin/* ; do \
+        [ "$(basename ${b})" = "unit-test" ] && continue ; \
+        id=$(readelf -n ${b} | awk '/Build ID/ { print $3 }') ; \
+        [ -n "${id}" ] || { echo "No build-id in ${b}" ; exit 1 ; } ; \
+        d=/code/debug/.build-id/$(echo ${id} | cut -c1-2) ; mkdir -p ${d} ; \
+        objcopy --only-keep-debug ${b} ${d}/$(echo ${id} | cut -c3-).debug && \
+        strip --strip-debug --strip-unneeded ${b} || exit 1 ; \
+      done ; \
+    fi
+
 # =============================================================================
 # Stage: unit-test (lightweight image for running tests)
 # =============================================================================
@@ -279,12 +297,15 @@ ARG build_type=Release
 ARG sanitizer=""
 
 # Runtime dependencies
-# nghttp2-client: h2load / nghttp CLI (probes, benchmarking)
 # nghttp2-proxy:  nghttpx reverse proxy (HTTP/1.x access, activated by starter.sh
 #                 when H2AGENT_*_PROXY_PORT is set). Was provided by the "nghttp2"
 #                 all-in-one package before the multi-stage refactor.
+# curl: probes (HTTP/2 prior knowledge) and helpers; jq: helpers.
+# No editor nor h2load/nghttp (nghttp2-client pulls libxml2 and libicu, ~39 MB;
+# vim and its runtime ~42 MB): they are in the training image. python3 (~22 MB)
+# stays: nghttp2-proxy depends on it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    vim curl jq nghttp2-client nghttp2-proxy netcat-openbsd socat libjemalloc2 \
+    curl jq nghttp2-proxy netcat-openbsd socat libjemalloc2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Sanitizer runtime libraries (only when needed)
@@ -309,3 +330,15 @@ COPY --from=build /code/deps/starter.sh /var/starter.sh
 
 ENTRYPOINT ["sh", "/var/starter.sh"]
 CMD []
+
+# =============================================================================
+# Stage: runtime-debug (runtime + debug info + gdb; tag '<tag>-debug')
+# =============================================================================
+# Same binaries as the runtime image (same build), plus their debug info and
+# gdb: run it instead of the runtime to analyze a crash in place, or load a
+# core of the runtime image (gdb /bin/h2agent <core>) to get symbolized stacks.
+FROM runtime AS runtime-debug
+
+RUN apt-get update && apt-get install -y --no-install-recommends gdb \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY --from=build /code/debug/ /usr/lib/debug/
