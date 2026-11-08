@@ -63,7 +63,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Health check endpoint.
     * Memory management (malloc-trim).
     * Client dispatch latency diagnostics (pool saturation monitoring).
-  * [Gherkin (BDD)](tools/gherkin-h2agent): Given/When/Then driver for the REST API.
+  * [Gherkin (BDD)](tools/gherkin): Given/When/Then driver for the REST API.
     * Write mock scenarios in plain English.
     * Dump mode: generate JSON provisions from `.feature` files without a running instance.
   * Prometheus metrics (HTTP/1):
@@ -656,7 +656,7 @@ Available test profiles:
     light                        Minimal echo: server returns a static JSON body with no transforms.
 
   [client]
-    default                      3-step session flow (create, update, delete) against a server mock.
+    default                      3-step order flow (create, update, delete) against a server mock.
 
 $ benchmark/start.sh -y
 

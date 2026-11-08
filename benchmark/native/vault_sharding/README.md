@@ -66,6 +66,6 @@ clean run of this micro-benchmark as a race-freedom guarantee for h2agent.
   single hot key shared across threads still serializes on its one shard (by
   design) -- and note that a shared counter incremented via
   `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` also has a read-modify-write race that sharding does
-  not fix (see `docs/api` on per-subscriber vs global counters).
+  not fix (see `docs/api` on per-user vs global counters).
 - The admin `getJson()` probe is a correctness/no-deadlock check, not a speed
   target: whole-map operations lock all shards on purpose (admin path).

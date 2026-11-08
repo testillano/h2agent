@@ -1,11 +1,11 @@
 [
   {
-    "id": "session",
+    "id": "order",
     "endpoint": "server",
     "inState": "initial",
     "outState": "created",
     "requestMethod": "POST",
-    "requestUri": "/api/v1/session",
+    "requestUri": "/api/v1/order",
     "requestHeaders": {"content-type": "application/json"},
     "requestBody": {"action": "create", "seq": 0},
     "expectedResponseStatusCode": 201,
@@ -18,12 +18,12 @@
     ]
   },
   {
-    "id": "session",
+    "id": "order",
     "endpoint": "server",
     "inState": "created",
     "outState": "updated",
     "requestMethod": "PUT",
-    "requestUri": "/api/v1/session",
+    "requestUri": "/api/v1/order",
     "requestHeaders": {"content-type": "application/json"},
     "requestBody": {"action": "update", "seq": 0},
     "expectedResponseStatusCode": 200,
@@ -36,12 +36,12 @@
     ]
   },
   {
-    "id": "session",
+    "id": "order",
     "endpoint": "server",
     "inState": "updated",
     "outState": "road-closed",
     "requestMethod": "DELETE",
-    "requestUri": "/api/v1/session",
+    "requestUri": "/api/v1/order",
     "expectedResponseStatusCode": 204
   }
 ]

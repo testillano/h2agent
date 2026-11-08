@@ -214,7 +214,7 @@ TEST(Map, ConcurrentSameKeyIncrementsAreAtomic) {
 }
 
 // Concurrency: models the MockData traffic pattern under sharding -- MANY
-// distinct keys (subscribers, each its own URI) written and read concurrently,
+// distinct keys (users, each its own URI) written and read concurrently,
 // PLUS repeated writes to a few "same" keys (FSM state updates on one URI).
 // Readers hammer per-key tryGet (transformations reading past events) and the
 // whole-map getJson (admin) at the same time. Asserts no crash/deadlock and
@@ -243,7 +243,7 @@ TEST(Map, ConcurrentMockDataPattern_MixedReadWrite) {
     for (int t = 0; t < kWriters; ++t) {
         writers.emplace_back([&, t]() {
             for (int i = 0; i < kPerThread; ++i) {
-                // Distinct per-subscriber key (millions-of-URIs case).
+                // Distinct per-user key (millions-of-URIs case).
                 std::string uniq = "sub_" + std::to_string(t) + "_" + std::to_string(i);
                 m.modifyOrInsert(uniq, [](int &v) {
                     v += 1;
@@ -260,7 +260,7 @@ TEST(Map, ConcurrentMockDataPattern_MixedReadWrite) {
     stop.store(true);
     reader.join();
 
-    // Distinct subscriber keys: one write each -> value 1.
+    // Distinct user keys: one write each -> value 1.
     bool exists = false;
     EXPECT_EQ(m.get("sub_2_100", exists), 1);
     EXPECT_TRUE(exists);
@@ -273,6 +273,6 @@ TEST(Map, ConcurrentMockDataPattern_MixedReadWrite) {
     }
     EXPECT_EQ(fsmTotal, static_cast<long long>(kWriters) * kPerThread);
 
-    // Total keys = distinct subscriber keys + the FSM keys.
+    // Total keys = distinct user keys + the FSM keys.
     EXPECT_EQ(m.size(), static_cast<std::size_t>(kWriters * kPerThread + kFsmKeys));
 }

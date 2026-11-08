@@ -495,13 +495,13 @@ cannot hold runtime `@{}` variables; `#{}` is resolved before that compilation:
 
 ```bash
 curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
-     -d'{"patterns": {"imsi": "([0-9]{15})", "msisdn": "(34[0-9]{9})"}}'
+     -d'{"patterns": {"isbn": "([0-9]{13})", "phone": "(34[0-9]{9})"}}'
 ```
 
 ```json
 {"from": {"source": "requestUriPath"},
- "filter": [{"op": "regexCapture", "rgx": "/subscribers/imsi-#{patterns/imsi}"}],
- "to": {"target": "var", "name": "imsi"}}
+ "filter": [{"op": "regexCapture", "rgx": "/books/isbn-#{patterns/isbn}"}],
+ "to": {"target": "var", "name": "isbn"}}
 ```
 
 Rules:

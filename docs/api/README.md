@@ -160,9 +160,9 @@ Individual vault operations (`load`, `loadAtPath`, `tryGet`) are thread-safe. Ho
 {"from": {"source": "math", "expression": "@{MY_COUNTER} + 1"}, "to": {"target": "vault", "key": "MY_COUNTER"}}
 ```
 
-The variable read (`@{MY_COUNTER}`) and the write (vault key `MY_COUNTER`) are separate operations. When multiple worker threads execute this concurrently, increments can be lost. This only affects shared (global) vault keys accessed from multiple subscribers simultaneously.
+The variable read (`@{MY_COUNTER}`) and the write (vault key `MY_COUNTER`) are separate operations. When multiple worker threads execute this concurrently, increments can be lost. This only affects shared (global) vault keys accessed from multiple users simultaneously.
 
-Per-subscriber vault keys (e.g., `flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-subscriber values after the test completes instead of incrementing a shared counter during execution.
+Per-user vault keys (e.g., `flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-user values after the test completes instead of incrementing a shared counter during execution.
 
 #### Vault concurrency and sharding
 
@@ -170,7 +170,7 @@ The vault is written on the traffic hot path: every `vault` transformation targe
 
 Notes:
 
-- The gain applies to **distinct keys** (the common per-subscriber case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` atomic).
+- The gain applies to **distinct keys** (the common per-user case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` atomic).
 - Whole-vault admin operations (`GET /admin/v2/vault`, `DELETE /admin/v2/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
 - This is transparent to provisions and to the REST API; no configuration is needed. It is an internal property of the vault store (`src/model/Map.hpp`, opt-in via the `Shards` template parameter; only the vault uses `> 1`). A native benchmark is provided at `benchmark/native/vault_sharding/`.
 
@@ -420,11 +420,11 @@ Provision objects accept an optional `description` field to annotate the purpose
 
 ```json
 {
-  "description": "Returns 200 with session token for POST /api/v1/sessions",
+  "description": "Returns 201 with the order id for POST /api/v1/orders",
   "requestMethod": "POST",
-  "requestUri": "/api/v1/sessions",
-  "responseCode": 200,
-  "responseBody": { "token": "abc123" }
+  "requestUri": "/api/v1/orders",
+  "responseCode": 201,
+  "responseBody": { "id": "abc123" }
 }
 ```
 
@@ -565,11 +565,11 @@ Typical use is sharing constant values among many provisions, specially regular 
 
 ```bash
 $ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
-       -d'{"patterns": {"imsi": "([0-9]{15})", "msisdn": "(34[0-9]{9})"}}'
+       -d'{"patterns": {"isbn": "([0-9]{13})", "phone": "(34[0-9]{9})"}}'
 ```
 
 ```json
-{"from": {"source": "requestUriPath"}, "filter": [{"op": "regexCapture", "rgx": "/subscribers/imsi-#{patterns/imsi}"}], "to": {"target": "var", "name": "imsi"}}
+{"from": {"source": "requestUriPath"}, "filter": [{"op": "regexCapture", "rgx": "/books/isbn-#{patterns/isbn}"}], "to": {"target": "var", "name": "isbn"}}
 ```
 
 Compared with `@{}`: `@{name}` is a **runtime** substitution (variables and vaults, every event, the provision keeps the template), while `#{key}` is a **load-time** one (vaults only, once). To insert a vault value with its json type instead of text, see [typed provision references](#typed-provision-references-cast-typekey). Both can coexist in a provision. There is no escape syntax: a `#{...}` (or `@{...}`) text which does not match any vault entry (or variable) is left as it is, and the resolution is a single pass, so a resolved text is never scanned again.
@@ -616,19 +616,19 @@ A typed reference replaces a node by a vault value. To **build an object from va
 
 ```bash
 $ curl --http2-prior-knowledge -XPOST http://localhost:8074/admin/v2/vault -H'content-type:application/json' \
-       -d'{"sessions": {"default": {"dnn": "internet", "qos": {"qci": 9, "arp": 8}, "rules": ["r1", "r2"], "version": 1}}}'
+       -d'{"pizzas": {"default": {"dough": "thin", "toppings": {"cheese": "mozzarella", "basil": true}, "extras": ["olives", "oregano"], "version": 1}}}'
 ```
 
 ```json
 {
   "requestMethod": "GET",
-  "requestUri": "/sessions/imsi-214010000000001",
+  "requestUri": "/orders/7",
   "responseCode": 200,
-  "responseBody": {"#preset": "#{object:sessions/default}", "supi": "imsi-214010000000001", "qos": {"qci": 5}, "version": null}
+  "responseBody": {"#preset": "#{object:pizzas/default}", "customer": "Ada Lovelace", "toppings": {"cheese": "gorgonzola"}, "version": null}
 }
 ```
 
-The provision is stored (and answered) with `"responseBody": {"dnn": "internet", "qos": {"qci": 5, "arp": 8}, "rules": ["r1", "r2"], "supi": "imsi-214010000000001"}`.
+The provision is stored (and answered) with `"responseBody": {"dough": "thin", "toppings": {"cheese": "gorgonzola", "basil": true}, "extras": ["olives", "oregano"], "customer": "Ada Lovelace"}`.
 
 **Precedence** (lowest to highest), always the same:
 
@@ -1226,34 +1226,34 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
-- `hexToText`, `textToHex`, `hexToIp`: convert values holding bytes in hex (for example Diameter OctetString AVPs, which reach h2agent in hex). They take no arguments and know nothing about Diameter: they read bytes. Combined with `regexCapture` / `regexReplace` (cut a byte range, swap BCD nibbles) and `baseConvert` (numbers), any binary content in hex can be decoded piece by piece.
+- `hexToText`, `textToHex`, `hexToIp`: convert values holding bytes in hex (for example binary fields, as Diameter OctetString AVPs reach h2agent through its gateway). They take no arguments and know nothing about Diameter: they read bytes. Combined with `regexCapture` / `regexReplace` (cut a byte range, swap BCD nibbles) and `baseConvert` (numbers), any binary content in hex can be decoded piece by piece.
 
   | Filter | Source | Result | Example |
   |--------|--------|--------|---------|
-  | `{"op": "hexToText"}` | even-length hex (upper or lower case, optional `0x`) | the text of its bytes | `"646e6e5f6d62622e636f6d"` -> `"dnn_mbb.com"` |
-  | `{"op": "textToHex"}` | text (numbers and booleans as their text) | lower-case hex of its bytes (inverse of `hexToText`) | `"dnn_mbb.com"` -> `"646e6e5f6d62622e636f6d"` |
+  | `{"op": "hexToText"}` | even-length hex (upper or lower case, optional `0x`) | the text of its bytes | `"6c6962726172792e6578616d706c65"` -> `"library.example"` |
+  | `{"op": "textToHex"}` | text (numbers and booleans as their text) | lower-case hex of its bytes (inverse of `hexToText`) | `"library.example"` -> `"6c6962726172792e6578616d706c65"` |
   | `{"op": "hexToIp"}` | hex of 4 or 16 bytes | IPv4 / IPv6 text (RFC 5952) | `"0a8136a5"` -> `"10.129.54.165"`, `"20010db8000000000000000000000001"` -> `"2001:db8::1"` |
 
   A value they cannot convert **fails the filter** (the rule is skipped and `onFilterFail` runs), as `cast`, `strptime` or `regexKey` do (`baseConvert`, instead, keeps the source): invalid or odd-length hex, bytes which are not UTF-8 text or hold a NUL (`hexToText`), a length other than 4 or 16 bytes (`hexToIp`), an object, array or null source. An IPv4-mapped IPv6 address is written `::ffff:a.b.c.d`.
 
   ```json
   {
-    "from": {"source": "requestBody", "path": "/AF-Application-Identifier"},
+    "from": {"source": "requestBody", "path": "/title"},
     "filter": [{"op": "hexToText"}],
-    "to": {"target": "var", "name": "afAppId"}
+    "to": {"target": "var", "name": "title"}
   }
   ```
 
-  A field of a structured value: the TAC of a 3GPP-User-Location-Info `8064f0000065` (type, PLMN, then the 2-byte TAC) is the hex after the first 4 bytes, as a number:
+  A field of a structured value: the reading of a thermostat frame `a1b2c3d40065` (a 4-byte header, then the 2-byte reading) is the hex after the first 4 bytes, as a number:
 
   ```json
   {
-    "from": {"source": "requestBody", "path": "/3GPP-User-Location-Info"},
+    "from": {"source": "requestBody", "path": "/frame"},
     "filter": [
       {"op": "regexReplace", "rgx": "^[0-9a-fA-F]{8}([0-9a-fA-F]{4})$", "fmt": "$1"},
       {"op": "baseConvert", "in": 16, "out": 10}
     ],
-    "to": {"target": "var", "name": "tac"}
+    "to": {"target": "var", "name": "reading"}
   }
   ```
 
@@ -1261,7 +1261,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   `textToHex` is there as the inverse of `hexToText` (filters can be chained both ways), but most needs have a more readable form:
 
-  * comparing an inbound hex field with a known text: decode the field and compare the text (`[{"op": "hexToText"}, {"op": "equalTo", "value": "dnn_mbb.com"}]`), rather than encoding the constant and comparing hex;
+  * comparing an inbound hex field with a known text: decode the field and compare the text (`[{"op": "hexToText"}, {"op": "equalTo", "value": "library.example"}]`), rather than encoding the constant and comparing hex;
   * outbound Diameter AVPs: the gateway (h2diagent) already accepts their readable forms, no hex is needed;
   * a text request/response body: the `requestBodyText` / `responseBodyText` targets, rather than a hex body target fed by `textToHex`.
 
@@ -1473,13 +1473,13 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   In this example, the random range limitation (integer numbers) is uncaged through the addition operation. Using this together with other filter algorithms should complete most of the needs. For more complex operations, you may use the `math` source.
 
-  This filter is also useful to sequence a subscriber number:
+  This filter is also useful to build a sequence of phone numbers:
 
   ```json
   {
     "from": {"source": "recvseq"},
     "filter": [{"op": "sum", "value": 555000000}],
-    "to": {"target": "var", "name": "subscriber"}
+    "to": {"target": "var", "name": "phone"}
   }
   ```
 
@@ -2183,7 +2183,7 @@ Common use cases:
 
 - **Dynamic URI** — build a unique path per request:
   ```json
-  {"from": {"source": "var", "name": "sequence"}, "filter": [{"op": "prepend", "value": "/api/v1/sessions/"}], "to": {"target": "requestUri"}}
+  {"from": {"source": "var", "name": "sequence"}, "filter": [{"op": "prepend", "value": "/api/v1/orders/"}], "to": {"target": "requestUri"}}
   ```
 
 - **Dynamic body field** — inject the counter into the request body:
@@ -2373,23 +2373,23 @@ And finally, note that we could also solve the previous exercise just providing 
 
 #### Partial chain execution
 
-A common pattern is to define a full lifecycle chain (e.g., `initial` → `established` → `updated` → `terminated`) but execute it in stages. This is achieved by combining a vault with a conditional `stop` in the `onResponseTransform` of an intermediate step.
+A common pattern is to define a full lifecycle chain (e.g., `initial` → `paid` → `shipped` → `delivered`) but execute it in stages. This is achieved by combining a vault with a conditional `stop` in the `onResponseTransform` of an intermediate step.
 
-For example, consider a 3-step session flow (create → update → delete). To execute only the establishment phase:
+For example, consider a 3-step order flow (pay → ship → deliver). To execute only the payment phase:
 
 1. Set a vault to control the chain depth:
 
    ```bash
-   curl --http2-prior-knowledge -d '{"STOP_AFTER": "establishment"}' \
+   curl --http2-prior-knowledge -d '{"STOP_AFTER": "payment"}' \
      http://localhost:8074/admin/v2/vault
    ```
 
-2. In the `onResponseTransform` of the establishment provision, add a conditional outState override:
+2. In the `onResponseTransform` of the payment provision, add a conditional outState override:
 
    ```json
    {
      "from": {"source": "vault", "key": "STOP_AFTER"},
-     "filter": [{"op": "regexCapture", "rgx": "establishment"}],
+     "filter": [{"op": "regexCapture", "rgx": "payment"}],
      "to": {"target": "var", "name": "mustStop"}
    },
    {
@@ -2399,9 +2399,9 @@ For example, consider a 3-step session flow (create → update → delete). To e
    }
    ```
 
-   When `STOP_AFTER` matches `"establishment"`, the `outState` is overridden to an unprovisioned state (`road-closed`), preventing automatic state progression. The chain simply stops because no provision exists for `(mySession, road-closed)`.
+   When `STOP_AFTER` matches `"payment"`, the `outState` is overridden to an unprovisioned state (`road-closed`), preventing automatic state progression. The chain simply stops because no provision exists for `(myOrder, road-closed)`.
 
-3. Later, to complete the remaining steps (update + delete), trigger from the intermediate state:
+3. Later, to complete the remaining steps (ship + deliver), trigger from the intermediate state:
 
    ```bash
    # First, clear the stop condition:
@@ -2410,12 +2410,12 @@ For example, consider a 3-step session flow (create → update → delete). To e
 
    # Then trigger from the intermediate state:
    curl --http2-prior-knowledge -XPOST \
-     "http://localhost:8074/admin/v2/client-provision/mySession/trigger?inState=established&sequenceBegin=0&sequenceEnd=999&cps=500"
+     "http://localhost:8074/admin/v2/client-provision/myOrder/trigger?inState=paid&sequenceBegin=0&sequenceEnd=999&cps=500"
    ```
 
 > **Note**: when triggering from an intermediate state, scoped variables (`var`) captured in earlier steps are only available if the chain was previously executed through those steps (variables propagate along `outState` links). If you trigger an intermediate state directly, ensure the provision does not depend on variables from prior steps — or use `vault` instead.
 
-This pattern is useful for benchmarking scenarios where you want to measure each phase independently, or when you need to pre-populate sessions before running update/delete workloads.
+This pattern is useful for benchmarking scenarios where you want to measure each phase independently, or when you need to pre-populate paid orders before running the shipping and delivery workloads.
 
 #### Server-triggered client flows
 

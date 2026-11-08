@@ -61,7 +61,7 @@ namespace model
  * The event store is accessed on the TRAFFIC hot path: every request writes its
  * event (loadEvent -> per-key get + add / modifyOrInsert) and transformations
  * read past events (getEvent -> per-key get). Under high concurrency with MANY
- * DISTINCT keys (e.g. millions of subscribers, each with its own URI, plus FSM
+ * DISTINCT keys (e.g. millions of users, each with its own URI, plus FSM
  * state updates on that URI) a single global mutex would serialize all of them.
  * It is therefore backed by an N-way SHARDED Map (see Map.hpp): per-key access
  * locks only its shard, so independent keys do not contend. Whole-map ops
@@ -72,7 +72,7 @@ namespace model
  * NOTE: this disperses contention on the MAP's mutex only. The per-entry
  * MockEventsHistory has its own mutex; deep history on the SAME key still
  * serializes there (orthogonal to Map sharding), but that is the natural
- * per-subscriber ordering and does not block other keys.
+ * per-user ordering and does not block other keys.
  */
 class MockData : public Map<mock_events_key_t, std::shared_ptr<MockEventsHistory>, MOCK_DATA_MUTEX_SHARDS>
 {

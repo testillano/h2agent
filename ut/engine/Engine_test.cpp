@@ -1891,9 +1891,9 @@ std::string runByteFilter(const std::string &source, const std::string &filter) 
 
 TEST(Engine_test, HexToTextDecodesUtf8Bytes) {
     const std::vector<std::pair<std::string, std::string>> table = {
-        {"value.646e6e5f6d62622e636f6d", "dnn_mbb.com"},
-        {"value.646E6E5F6D62622E636F6D", "dnn_mbb.com"},  // upper case digits
-        {"value.0x646e6e", "dnn"},                        // 0x prefix
+        {"value.6c6962726172792e6578616d706c65", "library.example"},
+        {"value.6C6962726172792E6578616D706C65", "library.example"},  // upper case digits
+        {"value.0x6c6962", "lib"},                        // 0x prefix
         {"value.c3b1", "\xc3\xb1"},                       // multi-byte UTF-8 (n tilde)
         {"value.f09f9880", "\xf0\x9f\x98\x80"},           // 4-byte UTF-8
     };
@@ -1920,7 +1920,7 @@ TEST(Engine_test, HexToTextFailsOnInvalidInput) {
 }
 
 TEST(Engine_test, TextToHexEncodesBytesLowerCase) {
-    EXPECT_EQ(runByteFilter("value.dnn_mbb.com", "TextToHex"), "646e6e5f6d62622e636f6d");
+    EXPECT_EQ(runByteFilter("value.library.example", "TextToHex"), "6c6962726172792e6578616d706c65");
     EXPECT_EQ(runByteFilter("value.\xc3\xb1", "TextToHex"), "c3b1");
     EXPECT_EQ(runByteFilter("input", "TextToHex"), "FAILED");  // null input
 }
@@ -1928,7 +1928,7 @@ TEST(Engine_test, TextToHexEncodesBytesLowerCase) {
 TEST(Engine_test, HexToTextAndTextToHexRoundTrip) {
     Engine engine;
     std::string err;
-    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "value.dnn_mbb.com"},
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "value.library.example"},
             {"target", "output.string"},
             {"filter", nlohmann::json::array({"TextToHex", "HexToText"})}
         }}),
@@ -1937,7 +1937,7 @@ TEST(Engine_test, HexToTextAndTextToHexRoundTrip) {
     StandaloneContext ctx;
     Ports ports;
     engine.evaluate(pipeline, ctx, ports);
-    EXPECT_EQ(ctx.outBody.raw, "dnn_mbb.com");
+    EXPECT_EQ(ctx.outBody.raw, "library.example");
 }
 
 TEST(Engine_test, HexToIpFormatsIpv4AndIpv6) {

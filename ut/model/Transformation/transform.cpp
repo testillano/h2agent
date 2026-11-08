@@ -3052,18 +3052,18 @@ TEST_F(Transform_test, FilterRegexKeyCaptureGroupsVault)
 {
     // RegexKey with capture groups: value goes to vault, key+groups go to variables
     common_resources_.VaultPtr->load("data", nlohmann::json({
-        {"imsi-5550110000000:rule1", nlohmann::json({{"qos", 15}})},
-        {"imsi-5550220000000:rule2", nlohmann::json({{"qos", 9}})}
+        {"user-5550110000000:rule1", nlohmann::json({{"score", 15}})},
+        {"user-5550220000000:rule2", nlohmann::json({{"score", 9}})}
     }));
 
     const nlohmann::json item1 = R"delim({
       "from": {"source": "vault", "key": "data"},
-      "filter": [{"op": "regexKey", "rgx": "imsi-([0-9]+):(rule1)"}],
+      "filter": [{"op": "regexKey", "rgx": "user-([0-9]+):(rule1)"}],
       "to": {"target": "vault", "key": "matched"}
     })delim"_json;
-const nlohmann::json item2 = R"({ "from": {"source": "vault", "key": "matched", "path": "/qos"}, "filter": [{"op": "cast", "type": "integer"}], "to": {"target": "responseBody", "path": "/qos"} })"_json;
+const nlohmann::json item2 = R"({ "from": {"source": "vault", "key": "matched", "path": "/score"}, "filter": [{"op": "cast", "type": "integer"}], "to": {"target": "responseBody", "path": "/score"} })"_json;
 const nlohmann::json item3 = R"({ "from": {"source": "var", "name": "matched.0"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/key"} })"_json;
-const nlohmann::json item4 = R"({ "from": {"source": "var", "name": "matched.1"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/imsi"} })"_json;
+const nlohmann::json item4 = R"({ "from": {"source": "var", "name": "matched.1"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/user"} })"_json;
 const nlohmann::json item5 = R"({ "from": {"source": "var", "name": "matched.2"}, "filter": [{"op": "cast", "type": "string"}], "to": {"target": "responseBody", "path": "/rule"} })"_json;
 server_provision_json_["transform"].push_back(item1);
 server_provision_json_["transform"].push_back(item2);
@@ -3075,9 +3075,9 @@ provisionAndTransform(request_body_.dump());
 
 EXPECT_EQ(status_code_, 200);
 nlohmann::json body = nlohmann::json::parse(response_body_);
-EXPECT_EQ(body["qos"], 15);
-EXPECT_EQ(body["key"], "imsi-5550110000000:rule1");
-EXPECT_EQ(body["imsi"], "5550110000000");
+EXPECT_EQ(body["score"], 15);
+EXPECT_EQ(body["key"], "user-5550110000000:rule1");
+EXPECT_EQ(body["user"], "5550110000000");
 EXPECT_EQ(body["rule"], "rule1");
 }
 

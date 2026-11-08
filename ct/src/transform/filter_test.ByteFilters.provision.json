@@ -6,24 +6,24 @@
   "responseHeaders": {"content-type": "application/json"},
   "transform": [
     {
-      "from": {"source": "requestBody", "path": "/Called-Station-Id"},
+      "from": {"source": "requestBody", "path": "/Title"},
       "filter": [{"op": "hexToText"}],
-      "to": {"target": "responseBody", "path": "/dnn"}
+      "to": {"target": "responseBody", "path": "/title"}
     },
     {
-      "from": {"source": "requestBody", "path": "/Framed-IP-Address"},
+      "from": {"source": "requestBody", "path": "/Address"},
       "filter": [{"op": "hexToIp"}],
       "to": {"target": "responseBody", "path": "/ipv4"}
     },
     {
-      "from": {"source": "requestBody", "path": "/Framed-IPv6-Address"},
+      "from": {"source": "requestBody", "path": "/Address6"},
       "filter": [{"op": "hexToIp"}],
       "to": {"target": "responseBody", "path": "/ipv6"}
     },
     {
-      "from": {"source": "literal", "value": "dnn_mbb.com"},
+      "from": {"source": "literal", "value": "library.example"},
       "filter": [{"op": "textToHex"}],
-      "to": {"target": "responseBody", "path": "/dnnHex"}
+      "to": {"target": "responseBody", "path": "/titleHex"}
     },
     {
       "from": {"source": "requestBody", "path": "/Bad-Text"},

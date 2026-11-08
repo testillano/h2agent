@@ -222,7 +222,7 @@ Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
 
        Example driver file:
 
-         Timeline(s)   cps:my_session   vault:RESPONSE_DELAY_MS   metrics-snapshot
+         Timeline(s)   cps:my_order     vault:RESPONSE_DELAY_MS   metrics-snapshot
          0             100              0                         before
          300           500 60           0                         -
          600           1000             200                       -

@@ -59,7 +59,7 @@ using Clock = std::chrono::steady_clock;
 
 // One benchmark run over a given Map instance. Each thread writes KEYS distinct
 // keys per round (namespaced by thread so keys are independent, the common
-// per-subscriber case), for ROUNDS rounds. Returns elapsed seconds.
+// per-user case), for ROUNDS rounds. Returns elapsed seconds.
 template <typename MapT>
 double runWriteWorkload(MapT& map, std::size_t threads, std::size_t keys, std::size_t rounds) {
     std::atomic<bool> go{false};
@@ -71,7 +71,7 @@ double runWriteWorkload(MapT& map, std::size_t threads, std::size_t keys, std::s
             while (!go.load(std::memory_order_acquire)) { /* spin to start together */ }
             for (std::size_t r = 0; r < rounds; ++r) {
                 for (std::size_t k = 0; k < keys; ++k) {
-                    // Distinct key per (thread,key): the per-subscriber pattern.
+                    // Distinct key per (thread,key): the per-user pattern.
                     std::string key = "t" + std::to_string(t) + "_k" + std::to_string(k);
                     map.modifyOrInsert(key, [](nlohmann::json& v) {
                         if (!v.is_number_integer()) v = 0;
@@ -126,7 +126,7 @@ void sweep(std::size_t rounds, std::size_t repeats) {
 
     std::cout << "SWEEP (ROUNDS/thread=" << rounds << ", SHARDS=" << SHARDS
               << ", REPEATS=" << repeats << " median + warm-up)\n"
-              << "distinct per-subscriber keys; ops/s in millions; speedup = Nshard / 1shard\n\n";
+              << "distinct per-user keys; ops/s in millions; speedup = Nshard / 1shard\n\n";
     std::cout << "  THREADS  KEYS   1shard(M/s)   " << SHARDS << "shard(M/s)   speedup\n";
     std::cout << "  -------  ----   -----------   -----------   -------\n";
     for (std::size_t th : threadsList) {
@@ -166,7 +166,7 @@ int main() {
               << " ROUNDS/thread=" << ROUNDS << " SHARDS=" << SHARDS << "\n"
               << "  total writes = " << (THREADS * KEYS * ROUNDS) << "\n\n";
 
-    std::cout << "Write workload (distinct per-subscriber keys, median of " << REPEATS
+    std::cout << "Write workload (distinct per-user keys, median of " << REPEATS
               << " runs + warm-up):\n";
     {
         double one = medianOpsPerSec<1>(THREADS, KEYS, ROUNDS, REPEATS);

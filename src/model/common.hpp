@@ -92,7 +92,7 @@ using write_guard_t = std::unique_lock<mutex_t>;
 // many-distinct-key load, ~1x (no regression) with a single thread.
 //
 // Sharding pays off ONLY with many DISTINCT keys written/read concurrently
-// (e.g. Vault: many vault.X per provision; MockData: millions of subscribers
+// (e.g. Vault: many vault.X per provision; MockData: millions of users
 // each with its own URI plus FSM state updates). It does NOT help when traffic
 // concentrates on one key (that lands on a single shard).
 constexpr std::size_t VAULT_MUTEX_SHARDS = 16;

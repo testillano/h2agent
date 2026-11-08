@@ -1,7 +1,7 @@
 [
   {
     "requestMethod": "POST",
-    "requestUri": "/api/v1/session",
+    "requestUri": "/api/v1/order",
     "responseCode": 201,
     "responseBody": {
       "status": "created"
@@ -12,7 +12,7 @@
   },
   {
     "requestMethod": "PUT",
-    "requestUri": "/api/v1/session",
+    "requestUri": "/api/v1/order",
     "responseCode": 200,
     "responseBody": {
       "status": "updated"
@@ -23,7 +23,7 @@
   },
   {
     "requestMethod": "DELETE",
-    "requestUri": "/api/v1/session",
+    "requestUri": "/api/v1/order",
     "responseCode": 204
   }
 ]
