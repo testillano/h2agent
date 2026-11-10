@@ -1442,8 +1442,21 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             }
         }
 
-        // The chain ends on a failure (no purge):
-        if (failed) return;
+        // Error branch: after a failure, the next step is the provision with the
+        // same id and that exact failure state as inState, else the one with the
+        // generic '__core:failed'; with none the chain ends (no purge). A failure
+        // within an error branch also ends it: nested branches could loop forever
+        // (the generic branch would catch its own failures).
+        std::shared_ptr<h2agent::model::AdminClientProvision> nextProvision;
+        if (failed) {
+            if (h2agent::model::isFailedState(inState)) {
+                LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Client provision '%s' failed within its error branch (inState '%s'): chain ends", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION));
+                return;
+            }
+            nextProvision = provisionData.find(finalOutState, clientProvisionId);
+            if (!nextProvision) nextProvision = provisionData.find(h2agent::model::FAILED_STATE, clientProvisionId);
+            if (!nextProvision) return;
+        }
 
         // Purge
         if (purge_execution_ && finalOutState == "purge") {
@@ -1466,9 +1479,12 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         }
         // State progression
         else if (!finalOutState.empty() && finalOutState != inState) {
-            auto nextProvision = provisionData.find(finalOutState, clientProvisionId);
+            if (!nextProvision) nextProvision = provisionData.find(finalOutState, clientProvisionId);
             if (nextProvision) {
-                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s", inState.c_str(), finalOutState.c_str()), ERT_FILE_LOCATION));
+                // The next step runs with its provision inState (the generic error
+                // branch is reached from any failure state):
+                const std::string nextInState = nextProvision->getInState();
+                LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("State progression: %s -> %s (provision inState '%s')", inState.c_str(), finalOutState.c_str(), nextInState.c_str()), ERT_FILE_LOCATION));
                 nextProvision->setSeq(provisionSeq); // propagate sequence through chain
 
                 // Honor the next link's own client-endpoint (routing is driven by
@@ -1504,12 +1520,12 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 // thread instead. Falls back to inline only when no pool is
                 // configured (single-threaded client mode).
                 if (client_worker_io_context_) {
-                    postToPool([this, nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys]() {
-                        sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
+                    postToPool([this, nextProvision, nextInState, nextEndpoint, provisionSeq, chainVariables, purgeKeys]() {
+                        sendClientRequest(nextProvision, nextInState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
                     });
                 }
                 else {
-                    sendClientRequest(nextProvision, finalOutState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
+                    sendClientRequest(nextProvision, nextInState, nextEndpoint, provisionSeq, chainVariables, purgeKeys);
                 }
             }
         }

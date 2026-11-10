@@ -616,7 +616,7 @@ When using h2agent as a traffic client against a server under congestion, 503 re
 
 **Breaking the chain on rejection** (detecting the problem):
 
-* **`expectedResponseStatusCode`**: set the expected value (e.g., `201`). If the actual response differs, the chain breaks immediately. Simple and deterministic.
+* **`expectedResponseStatusCode`**: set the expected value (e.g., `201`). If the actual response differs, the step fails (`__core:failed:expectedResponseStatusCode`) and the chain ends, unless an [error branch](./docs/api/README.md#error-branch) handles it. Simple and deterministic.
 * **`onResponseTransform` with filters**: read `responseStatusCode` as source, apply conditional logic via filters. On mismatch, use `onFilterFail` to set an error `outState`, write diagnostic vaults, or trigger alternative flows. More flexible than the binary kill-switch above.
 * **Omit `expectedResponseStatusCode`**: the chain continues regardless of status code. Useful when you want to collect all events for post-hoc analysis without interrupting the flow.
 

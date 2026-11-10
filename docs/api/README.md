@@ -38,6 +38,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 - [Client endpoints](#client-endpoints)
 - [Client provisions](#client-provisions)
   - [Client state machine](#client-state-machine)
+    - [Error branch](#error-branch)
   - [Client provision fields](#client-provision-fields)
   - [Client transformation differences](#client-transformation-differences)
   - [Multiple client provisions](#multiple-client-provisions)
@@ -454,8 +455,8 @@ The server response schema (`responseSchemaId` of a server provision) checks the
 | `__core:failed...` as | Client provision | Server provision |
 |---|---|---|
 | `outState` | rejected | rejected |
-| `inState` | accepted (`__core:failed` or `__core:failed:<reason>`) | rejected: a server `inState` is only used by the next request on that key, so it cannot react to a failure |
-| no provision for that state | the chain ends (no purge) | the key stays in that state: the next requests on it find no provision (`501`) until its events are removed |
+| `inState` | accepted (`__core:failed` or `__core:failed:<reason>`): the [error branch](#error-branch) | rejected: a server `inState` is only used by the next request on that key, so it cannot react to a failure |
+| no provision for that state (nor `__core:failed` on the client) | the chain ends (no purge) | the key stays in that state: the next requests on it find no provision (`501`) until its events are removed |
 
 Any other `__core:` state is rejected in a provision, and a transformation writing a `__core:` `outState` is ignored (the provision `outState` is kept, with a warning).
 
@@ -1125,7 +1126,7 @@ The **target** of information is classified after parsing the following possible
 
   In server provisions, the key stays in the failure state and the answer is sent as built so far, so set `responseStatusCode` / body before `fail` when the peer must see the error. A server cannot react to its own failure through `inState`: an immediate reaction is a foreign `outState` (another key) or a `clientProvision` target placed before `fail`, with the same condition. In client provisions (`onResponseTransform` only), it is the first failure of the event (before `expectedResponseStatusCode` and `responseSchemaId`).
 
-  In short: `break` leaves the transformation list (the provision `outState` applies), `fail` also marks a failure and stops the chain, and the client `outState` `road-closed` ends the chain without failure.
+  In short: `break` leaves the transformation list (the provision `outState` applies), `fail` also marks a failure (the client chain goes on only through an [error branch](#error-branch)), and the client `outState` `road-closed` ends the chain without failure.
 
 
 
@@ -2150,7 +2151,24 @@ When *scenario1* is triggered, its current state is searched assuming "initial" 
 
 Each stage (chain link) may target a **different client endpoint** through its own [`endpoint`](#endpoint) field, so a single scenario can mix remote servers across its states (see the fallback rules and example there).
 
-The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning. A failed step stores its event with the state `__core:failed:<reason>` and ends the chain (see [reserved states and failures](#reserved-states-and-failures)).
+The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning. A failed step stores its event with the state `__core:failed:<reason>` and the chain goes on only through an [error branch](#error-branch).
+
+#### Error branch
+
+A failed step (see [reserved states and failures](#reserved-states-and-failures)) stores its event with the state `__core:failed:<reason>`, and the chain goes on from that state as from any `outState`. The next step is looked up with the same `id`:
+
+1. `inState` = the exact failure state (e.g. `__core:failed:expectedResponseStatusCode`);
+2. else `inState` = `__core:failed` (any failure);
+3. else the chain ends (no purge).
+
+The branch is sent at once, as any chain step, and its events keep the provision `inState` as `previousState` (`__core:failed` for the generic branch). For example, a cleanup after any failure of the scenario:
+
+```json
+{"id": "myFlow", "inState": "__core:failed", "outState": "done",
+ "requestMethod": "DELETE", "requestUri": "/app/v1/resource/1"}
+```
+
+A failure **within** an error branch (a step whose `inState` is a failure state) ends the chain: it is stored with its own failure state, but no further branch is looked up (the generic branch would otherwise catch its own failures forever). A branch ending in `purge` purges the whole chain, failed step included.
 
 #### Chain cycle prevention
 
@@ -2261,7 +2279,7 @@ When either `expectedResponseStatusCode` or `responseSchemaId` validation fails 
 - The failure is logged
 - The `h2agent_traffic_client_unexpected_response_status_code_counter` prometheus metric is incremented (not on transport errors)
 - The event is stored (if storage is enabled) with the state `__core:failed:<reason>` (instead of the intended `outState`) and its `failures`
-- The state progression chain is interrupted (no purge, no next provision)
+- The chain goes on only through an [error branch](#error-branch) (otherwise it ends: no purge, no next provision)
 
 ### Client transformation differences
 
