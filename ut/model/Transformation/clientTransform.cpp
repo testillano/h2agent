@@ -1144,6 +1144,48 @@ TEST_F(ClientTransform_test, TransformResponseSourceResponseHeadersEmptyJsonCons
     EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
 }
 
+// Negated validation ('not') on the response: one rule replaces the var + conditionVar gate
+TEST_F(ClientTransform_test, TransformResponseJsonConstraintNot)
+{
+    client_provision_json_ = R"({
+      "id": "myFlow",
+      "endpoint": "myServer",
+      "requestMethod": "GET",
+      "requestUri": "/test",
+      "onResponseTransform": [
+        {
+          "from": {"source": "responseBody"},
+          "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_NF_FAILURE"}, "not": true}],
+          "to": {"target": "vault", "key": "createReport"},
+          "onFilterFail": [{"from": {"source": "literal", "value": "ok"}, "to": {"target": "var", "name": "createChecked"}}]
+        }
+      ]
+    })"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision);
+
+    ert::http2comm::Http2Client::response fakeResponse;
+    fakeResponse.statusCode = 200;
+    std::string outState = "initial";
+    nghttp2::asio_http2::header_map reqHeaders;
+    nlohmann::json stored;
+
+    // Valid document: the filter fails, onFilterFail runs, no report
+    fakeResponse.body = R"({"cause":"UNSPECIFIED_NF_FAILURE"})";
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
+    EXPECT_EQ(variables_["createChecked"], "ok");
+    EXPECT_FALSE(common_resources_.VaultPtr->tryGet("createReport", stored));
+
+    // Invalid document: the report reaches the target
+    variables_.clear();
+    fakeResponse.body = R"({"cause":"OTHER"})";
+    provision->transformResponse("/test", reqHeaders, fakeResponse, 2, outState, variables_);
+    EXPECT_EQ(variables_.count("createChecked"), 0u);
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("createReport", stored));
+    EXPECT_NE(stored.get<std::string>().find("JsonConstraint FAILED"), std::string::npos);
+}
+
 // v1 parity: request header writes are visible to later header reads in the same
 // pipeline (v1 emplaced them into the live header map).
 TEST_F(ClientTransform_test, RequestHeaderWrittenThenReadInSamePipeline)

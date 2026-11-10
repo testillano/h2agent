@@ -167,13 +167,16 @@ enum class FilterType {
     EqualTo,       // EqualTo: {"EqualTo":"<val>"} (admits @{var}). Transfer only if
     // source string == val, else skip the rule.
     DifferentFrom,  // DifferentFrom: inverse of EqualTo (transfer if source != val).
-    JsonConstraint,  // JsonConstraint: {"JsonConstraint":<obj|array>}. Validate that
-    // the (json) source contains the given subset; on success the
+    JsonConstraint,  // JsonConstraint: {"JsonConstraint":<obj|array>[,"Not":true]}. Validate
+    // that the (json) source contains the given subset; on success the
     // value becomes "1", otherwise it becomes a fail-report string
     // (parity with h2agent jsonConstraint; the rule still applies).
-    SchemaId,      // SchemaId: {"SchemaId":"<id>"}. Validate the (json) source via the
-    // SchemaValidator port; value becomes "1" on success else "".
-    // When the port is null the rule is skipped (validation ignored).
+    // Negated: success fails the filter, failure yields the report.
+    SchemaId,      // SchemaId: {"SchemaId":"<id>"[,"Not":true]}. Validate the (json) source
+    // via the SchemaValidator port; value becomes "1" on success, else
+    // the fail report. Unknown schema (or null port): validation ignored
+    // (value unchanged; negated: the filter fails).
+    // Negated: success fails the filter, failure yields the report.
     Split,         // Split: {"Split":{size,count,sep,filler,numeric}}. Take the last
     // size*count chars (left-pad with filler when shorter), split into
     // count groups of 'size', joined by 'sep'; when numeric, strip
@@ -286,6 +289,7 @@ struct Filter {
     std::string filler{};      // Split filler
     int unit{0};               // Strptime/Strftime unit (0:s, 1:ms, 2:us, 3:ns)
     nlohmann::json object{};   // JsonConstraint expected subset
+    bool negated{false};       // JsonConstraint/SchemaId "Not": only an invalid document passes
 
     // Precompiled filter regex (RegexReplace/RegexCapture/RegexKey). Compiled
     // ONCE at parse time (never in evaluate, per the performance rule).

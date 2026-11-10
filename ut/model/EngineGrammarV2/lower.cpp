@@ -120,7 +120,10 @@ TEST(EngineGrammarV2_test, FiltersUseTheEngineShape) {
         {R"({"op":"equalTo","value":"x","not":true})", R"({"DifferentFrom":"x"})"},
         {R"({"op":"equalTo","value":"x","not":false})", R"({"EqualTo":"x"})"},
         {R"({"op":"jsonConstraint","value":{"a":1}})", R"({"JsonConstraint":{"a":1}})"},
+        {R"({"op":"jsonConstraint","value":{"a":1},"not":true})", R"({"JsonConstraint":{"a":1},"Not":true})"},
+        {R"({"op":"jsonConstraint","value":{"a":1},"not":false})", R"({"JsonConstraint":{"a":1}})"},
         {R"({"op":"schemaId","id":"s"})", R"({"SchemaId":"s"})"},
+        {R"({"op":"schemaId","id":"s","not":true})", R"({"Not":true,"SchemaId":"s"})"},
         {R"({"op":"split","size":2})", R"({"Split":{"size":2}})"},
     };
     for (const auto &row : table) {

@@ -215,6 +215,12 @@ std::string lowerTarget(const nlohmann::json &to, const std::string &castType, M
     return na(kind);  // response.*, serverEvent, clientProvision (and request.* in the response phase)
 }
 
+/** Validation filters: v2 'not' -> engine sibling "Not" (no v1 counterpart). */
+nlohmann::json withNot(nlohmann::json engineFilter, const nlohmann::json &f) {
+    if (f.value("not", false)) engineFilter["Not"] = true;
+    return engineFilter;
+}
+
 /** v2 filter item -> engine filter (the v1 filter shape). */
 nlohmann::json lowerFilter(const nlohmann::json &f) {
     const std::string op = text(f, "op");
@@ -225,12 +231,12 @@ nlohmann::json lowerFilter(const nlohmann::json &f) {
     if (op == "conditionVar") return {{"ConditionVar", (f.value("not", false) ? "!" : "") + text(f, "name")}};
     if (op == "regexCapture") return {{"RegexCapture", f["rgx"]}};
     if (op == "regexKey") return {{"RegexKey", f["rgx"]}};
-    if (op == "schemaId") return {{"SchemaId", f["id"]}};
+    if (op == "schemaId") return withNot({{"SchemaId", f["id"]}}, f);
     if (op == "equalTo") return {{f.value("not", false) ? "DifferentFrom" : "EqualTo", f["value"]}};
     static const std::vector<std::pair<std::string, std::string>> scalar = {
         {"append", "Append"}, {"prepend", "Prepend"}, {"sum", "Sum"}, {"multiply", "Multiply"},
-        {"jsonConstraint", "JsonConstraint"},
     };
+    if (op == "jsonConstraint") return withNot({{"JsonConstraint", f["value"]}}, f);
     for (const auto &s : scalar) {
         if (op == s.first) return {{s.second, f["value"]}};
     }

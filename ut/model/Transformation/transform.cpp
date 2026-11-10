@@ -2256,6 +2256,96 @@ TEST_F(Transform_test, FilterSchemaId)
     EXPECT_EQ(response_body_, "At  of {\"node1\":{\"delaymilliseconds\":25,\"node2\":\"value-of-node1-node2\"}} - required property 'foo' not found in object\n");
 }
 
+// Negated validation ('not'): a valid document fails the filter (rule skipped, onFilterFail runs)
+TEST_F(Transform_test, FilterJsonConstraintNotOnValidDocumentRunsOnFilterFail)
+{
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "filter": [{"op": "jsonConstraint", "value": {"foo": 1}, "not": true}],
+       "to": {"target": "var", "name": "badBody"},
+       "onFilterFail": [{"from": {"source": "literal", "value": "valid"}, "to": {"target": "responseBodyText"}}]},
+      {"from": {"source": "literal", "value": "400"}, "filter": [{"op": "conditionVar", "name": "badBody"}], "to": {"target": "responseStatusCode"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 200);
+    EXPECT_EQ(response_body_, "valid");
+    EXPECT_EQ(variables_.count("badBody"), 0u);
+    EXPECT_EQ(variables_.count("badBody.fail"), 0u);
+}
+
+// Negated validation ('not'): an invalid document passes with its report, whatever the target
+TEST_F(Transform_test, FilterJsonConstraintNotOnInvalidDocumentDeliversReport)
+{
+    const std::string report = "JsonConstraint FAILED: expected value for key 'foo' differs regarding validated source";
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "filter": [{"op": "jsonConstraint", "value": {"foo": 2}, "not": true}], "to": {"target": "var", "name": "badBody"}},
+      {"from": {"source": "requestBody"}, "filter": [{"op": "jsonConstraint", "value": {"foo": 2}, "not": true}], "to": {"target": "vault", "key": "badBodyReport"}},
+      {"from": {"source": "requestBody"}, "filter": [{"op": "jsonConstraint", "value": {"foo": 2}, "not": true}], "to": {"target": "responseBodyText"}},
+      {"from": {"source": "literal", "value": "400"}, "filter": [{"op": "conditionVar", "name": "badBody"}], "to": {"target": "responseStatusCode"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 400);
+    EXPECT_EQ(response_body_, report);
+    EXPECT_EQ(variables_["badBody"], report);              // the report is the value itself ...
+    EXPECT_EQ(variables_.count("badBody.fail"), 0u);       // ... so no '<var>.fail' is built
+    nlohmann::json stored;
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("badBodyReport", stored));
+    EXPECT_EQ(stored, report);
+}
+
+TEST_F(Transform_test, FilterJsonConstraintWithNotFalseIsUnchanged)
+{
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "filter": [{"op": "jsonConstraint", "value": {"foo": 2}, "not": false}], "to": {"target": "var", "name": "expectedBody"}},
+      {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "responseBodyText"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(variables_["expectedBody"], "");
+    EXPECT_EQ(response_body_, "JsonConstraint FAILED: expected value for key 'foo' differs regarding validated source");
+}
+
+TEST_F(Transform_test, FilterSchemaIdNot)
+{
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "filter": [{"op": "schemaId", "id": "SchemaExample", "not": true}], "to": {"target": "responseBodyText"},
+       "onFilterFail": [{"from": {"source": "literal", "value": "valid"}, "to": {"target": "responseBodyText"}}]}
+    ])"_json;
+
+    // Valid document: the filter fails, onFilterFail runs
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(response_body_, "valid");
+
+    // Invalid document (mandatory "foo" removed): the report reaches the target
+    nlohmann::json badDocument = request_body_;
+    badDocument.erase("foo");
+    adata_.clearServerProvisions();
+    provisionAndTransform(badDocument.dump());
+    EXPECT_EQ(response_body_, "At  of {\"node1\":{\"delaymilliseconds\":25,\"node2\":\"value-of-node1-node2\"}} - required property 'foo' not found in object\n");
+}
+
+TEST_F(Transform_test, FilterSchemaIdNotWithUnknownSchemaIsIgnored)
+{
+    // Ignored validation (unknown schema id) counts as valid: no report, the filter fails
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "filter": [{"op": "schemaId", "id": "Unknown", "not": true}], "to": {"target": "responseBodyText"},
+       "onFilterFail": [{"from": {"source": "literal", "value": "ignored"}, "to": {"target": "responseBodyText"}}]}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(response_body_, "ignored");
+}
+
+TEST_F(Transform_test, FilterValidationNotMustBeBoolean)
+{
+    for (const char *filter : {R"({"op": "jsonConstraint", "value": {"foo": 1}, "not": "yes"})", R"({"op": "schemaId", "id": "SchemaExample", "not": 1})"}) {
+        SCOPED_TRACE(filter);
+        nlohmann::json provision = server_provision_json_;
+        provision["transform"] = nlohmann::json::array({{{"from", {{"source", "requestBody"}}}, {"filter", {nlohmann::json::parse(filter)}}, {"to", {{"target", "responseBodyText"}}}}});
+        EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    }
+}
+
 // ==================== NEEDS STORAGE ====================
 
 TEST_F(Transform_test, NeedsStorageFalseForBasicProvision)

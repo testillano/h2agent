@@ -1496,6 +1496,8 @@ components:
         type: object
       - additionalProperties: false
         properties:
+          not:
+            type: boolean
           op:
             enum:
             - jsonConstraint
@@ -1512,6 +1514,8 @@ components:
         properties:
           id:
             type: string
+          not:
+            type: boolean
           op:
             enum:
             - schemaId

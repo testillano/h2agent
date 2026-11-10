@@ -221,6 +221,9 @@ TEST(GrammarMigrator_test, FiltersAreFlattenedWithLowerCamelCaseOps) {
         EXPECT_EQ(GrammarMigrator::filterToV2(Json::parse(row.first)).dump(), Json::parse(row.second).dump());
         EXPECT_EQ(GrammarMigrator::filterToV1(Json::parse(row.second)).dump(), Json::parse(row.first).dump());
     }
+    // validation filters: only a non-negated one is expressible in v1
+    EXPECT_EQ(GrammarMigrator::filterToV1(Json::parse(R"({"op":"jsonConstraint","value":{"a":1},"not":false})")).dump(), R"({"JsonConstraint":{"a":1}})");
+    EXPECT_EQ(GrammarMigrator::filterToV1(Json::parse(R"({"op":"schemaId","id":"s","not":false})")).dump(), R"({"SchemaId":"s"})");
 }
 
 ///////////
@@ -398,6 +401,9 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"date"}],"to":{"target":"responseBody"}})", "unknown cast type 'date'"},
         {R"({"from":{"source":"eraser"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"vault","key":"K"}})", "a conditional erase is not expressible in v1"},
         {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"break"}})", "not expressible in v1"},
+        {R"({"from":{"source":"requestBody"},"filter":[{"op":"jsonConstraint","value":{"a":1},"not":true}],"to":{"target":"var","name":"x"}})", "negated 'jsonConstraint' is not expressible in v1"},
+        {R"({"from":{"source":"requestBody"},"filter":[{"op":"schemaId","id":"s","not":true}],"to":{"target":"var","name":"x"}})", "negated 'schemaId' is not expressible in v1"},
+        {R"({"from":{"source":"requestBody"},"filter":[{"op":"schemaId","id":"s","not":"yes"}],"to":{"target":"var","name":"x"}})", "'not' must be a boolean"},
         {R"({"from":{"source":"vault","key":"a.b"},"to":{"target":"break"}})", "contain no dots"},
         {R"({"from":{"source":"random","min":1},"to":{"target":"break"}})", "source 'random' requires 'max'"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToText"}],"to":{"target":"var","name":"x"}})", "filter 'hexToText' has no v1 equivalent"},

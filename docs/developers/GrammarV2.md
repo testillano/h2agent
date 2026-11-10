@@ -120,8 +120,8 @@ The state written by `outState` is still the value of `from` (as in v1), e.g. `{
 | `{"Sum": <n>}` / `{"Multiply": <n>}` | `{"op": "sum", "value": <n>}` / `{"op": "multiply", "value": <n>}` |
 | `{"ConditionVar": "<name>"}` / `{"ConditionVar": "!<name>"}` | `{"op": "conditionVar", "name": "<name>"}` / `{..., "not": true}` |
 | `{"EqualTo": "<text>"}` / `{"DifferentFrom": "<text>"}` | `{"op": "equalTo", "value": "<text>"}` / `{"op": "equalTo", "value": "<text>", "not": true}` (one comparison filter, negated like `conditionVar`) |
-| `{"JsonConstraint": <object\|array>}` | `{"op": "jsonConstraint", "value": <object\|array>}` |
-| `{"SchemaId": "<id>"}` | `{"op": "schemaId", "id": "<id>"}` |
+| `{"JsonConstraint": <object\|array>}` | `{"op": "jsonConstraint", "value": <object\|array>}` (v2 only: `"not": true`, `--reverse` rejects it) |
+| `{"SchemaId": "<id>"}` | `{"op": "schemaId", "id": "<id>"}` (v2 only: `"not": true`, `--reverse` rejects it) |
 | `{"Split": {<size, count, sep, filler, numeric>}}` | `{"op": "split", <size, count, sep, filler, numeric>}` |
 | `{"BaseConvert": {"in": <b>, "out": <b>[, "capital": <bool>]}}` | `{"op": "baseConvert", "in": <b>, "out": <b>[, "capital": <bool>]}` |
 | `{"Strptime": {"fmt": ..., "unit": ...}}` / `{"Strftime": {...}}` | `{"op": "strptime", "fmt": ..., "unit": ...}` / `{"op": "strftime", ...}` |

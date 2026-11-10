@@ -883,14 +883,21 @@ Json GrammarMigrator::filterToV1(const Json &v2, const std::string &where) {
         if (v2.contains("not") && !v2["not"].is_boolean()) fail(where, "'not' must be a boolean");
         return Json{{v2.value("not", false) ? "DifferentFrom" : "EqualTo", v2["value"]}};
     }
+    if (op == "jsonConstraint" || op == "schemaId") {
+        // v1 validation filters have no negation: only 'not': false is expressible.
+        if (v2.contains("not")) {
+            if (!v2["not"].is_boolean()) fail(where, "'not' must be a boolean");
+            if (v2["not"].get<bool>()) fail(where, "negated '" + op + "' is not expressible in v1");
+        }
+    }
     if (op == "jsonConstraint") {
-        checkFields(v2, "op", op, {"value"}, {"value"}, where);
+        checkFields(v2, "op", op, {"value", "not"}, {"value"}, where);
         if (!v2["value"].is_object() && !v2["value"].is_array()) fail(where, "'value' must be an object or an array");
         return Json{{"JsonConstraint", v2["value"]}};
     }
     for (const auto &f : scalarFilters()) {
         if (op != f.op) continue;
-        checkFields(v2, "op", op, {f.field}, {f.field}, where);
+        checkFields(v2, "op", op, op == "schemaId" ? std::vector<std::string> {f.field, "not"} : std::vector<std::string> {f.field}, {f.field}, where);
         const Json &arg = v2[f.field];
         if (f.numeric ? !arg.is_number() : !arg.is_string()) fail(where, std::string("'") + f.field + "' must be " + (f.numeric ? "a number" : "a string"));
         return Json{{f.v1, arg}};

@@ -1761,6 +1761,44 @@ TEST(Engine_test, SchemaIdUnknownOrNoValidatorKeepsSource) {
     EXPECT_TRUE(result.executionTrace[0].applied);
 }
 
+// Negated validation filters (sibling "Not"): a valid document fails the filter
+// (rule skipped), an invalid one passes with the report.
+TEST(Engine_test, NegatedValidationFilters) {
+    FakeSchema schema;
+    schema.acceptExact("mySchema", nlohmann::json{{"id", 7}});
+    const auto run = [&](const nlohmann::json &filter, const nlohmann::json &input, bool withSchemaPort, bool &applied) {
+        Engine engine;
+        std::string err;
+        auto pipeline = engine.parse(nlohmann::json::array({{{"source", "input"}, {"target", "output.string"}, {"filter", filter}}}), err);
+        EXPECT_NE(pipeline, nullptr) << err;
+        StandaloneContext ctx;
+        ctx.input = input;
+        Ports ports;
+        if (withSchemaPort) ports.schema = &schema;
+        auto result = engine.evaluate(pipeline, ctx, ports, /*trace=*/true);
+        applied = !result.executionTrace.empty() && result.executionTrace[0].applied;
+        return ctx.outBody.raw;
+    };
+    const nlohmann::json constraint = {{"JsonConstraint", {{"id", 7}}}, {"Not", true}};
+    const nlohmann::json schemaId = {{"SchemaId", "mySchema"}, {"Not", true}};
+    bool applied = true;
+
+    EXPECT_EQ(run(constraint, {{"id", 7}}, false, applied), "");
+    EXPECT_FALSE(applied);
+    EXPECT_NE(run(constraint, {{"id", 8}}, false, applied).find("JsonConstraint FAILED"), std::string::npos);
+    EXPECT_TRUE(applied);
+
+    EXPECT_EQ(run(schemaId, {{"id", 7}}, true, applied), "");
+    EXPECT_FALSE(applied);
+    EXPECT_EQ(run(schemaId, {{"id", 8}}, true, applied), "schema 'mySchema' validation failed");
+    EXPECT_TRUE(applied);
+    EXPECT_EQ(run(schemaId, {{"id", 8}}, false, applied), "");  // no validator: ignored validation counts as valid
+    EXPECT_FALSE(applied);
+
+    // "Not": false behaves as the plain filter
+    EXPECT_EQ(run({{"JsonConstraint", {{"id", 7}}}, {"Not", false}}, {{"id", 7}}, false, applied), "1");
+}
+
 // Split -------------------------------------------------------------------
 
 TEST(Engine_test, SplitDefaultsBuildIpv4Style) {

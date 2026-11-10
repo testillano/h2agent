@@ -937,16 +937,20 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
         filter.arg = filterNode["DifferentFrom"].get<std::string>();  // admits @{var}
         return FilterType::DifferentFrom;
     }
-    // JsonConstraint: {"JsonConstraint":<obj|array>}. Keep the expected subset.
+    // JsonConstraint: {"JsonConstraint":<obj|array>[,"Not":true]}. Keep the expected subset.
+    // Validation filters accept a sibling "Not" (grammar v2 'not', no v1 counterpart).
+    const bool negated = filterNode.is_object() && filterNode.value("Not", false);
     if (filterNode.contains("JsonConstraint") &&
             (filterNode["JsonConstraint"].is_object() || filterNode["JsonConstraint"].is_array())) {
-        filter.raw = "JsonConstraint";
+        filter.raw = negated ? "JsonConstraint(not)" : "JsonConstraint";
         filter.object = filterNode["JsonConstraint"];
+        filter.negated = negated;
         return FilterType::JsonConstraint;
     }
     if (filterNode.contains("SchemaId") && filterNode["SchemaId"].is_string()) {
-        filter.raw = "SchemaId";
+        filter.raw = negated ? "SchemaId(not)" : "SchemaId";
         filter.arg = filterNode["SchemaId"].get<std::string>();  // schema id
+        filter.negated = negated;
         return FilterType::SchemaId;
     }
     // Split: {"Split":{size,count,sep,filler,numeric}} with defaults 2/4/'.'/'0'/false.
@@ -1198,23 +1202,30 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
         // Validate the json source contains the expected subset. On success
         // value becomes "1"; otherwise it becomes the fail-report string
         // (parity with h2agent: the rule still applies, carrying the report).
+        // Negated: a valid document fails the filter (rule skipped,
+        // onFilterFail runs) and an invalid one passes with the report.
         std::string failReport;
-        if (jsonConstraint(value, f.object, failReport))
-            value = std::string("1");
-        else
-            value = failReport;
+        const bool valid = jsonConstraint(value, f.object, failReport);
+        if (f.negated && valid) {
+            note = "JsonConstraint passed (negated); rule skipped";
+            return false;
+        }
+        value = valid ? nlohmann::json(std::string("1")) : nlohmann::json(failReport);
     } else if (f.type == FilterType::SchemaId) {
         // Validate the json source against a registered schema id via the
-        // SchemaValidator port. '1' on success else ''. If the port is null
-        // the rule is skipped (validation ignored, parity with h2agent's
-        // "missing schema -> validation ignored").
-        // v1 parity: "1" when valid, the fail report when invalid; an unknown
-        // schema id (or no validator) leaves the source value unchanged.
-        if (ports.schema) {
-            std::string failReport;
-            std::optional<bool> ok = ports.schema->validate(f.arg, value, failReport);
-            if (ok) value = *ok ? std::string("1") : failReport;
+        // SchemaValidator port. v1 parity: "1" when valid, the fail report when
+        // invalid; an unknown schema id (or no validator) means "validation
+        // ignored": the source value goes on unchanged.
+        // Negated: a valid document fails the filter and an invalid one passes
+        // with the report; an ignored validation counts as valid (no report).
+        std::optional<bool> ok;
+        std::string failReport;
+        if (ports.schema) ok = ports.schema->validate(f.arg, value, failReport);
+        if (f.negated && (!ok || *ok)) {
+            note = ok ? "SchemaId passed (negated); rule skipped" : "SchemaId validation ignored (negated); rule skipped";
+            return false;
         }
+        if (ok) value = *ok ? std::string("1") : failReport;
     } else if (f.type == FilterType::Split) {
         // Take the last size*count chars (left-pad with filler when shorter),
         // split into 'count' groups of 'size', joined by 'sep'; when numeric,
@@ -2004,10 +2015,13 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 const std::string &key = render(rule.targetKeyTpl, rule.targetKey, keyBuf, ports);
                 // v1 parity for validation filters on var targets: a non-"1"
                 // result is a fail report -> "<key>.fail" = report, key = "".
+                // Not for a negated one: the report only arrives on failure, so
+                // it is the value itself.
                 if (rule.targetType == TargetType::StoreLocal &&
                         !rule.filters.empty() &&
                         (rule.filters.back().type == FilterType::JsonConstraint ||
                          rule.filters.back().type == FilterType::SchemaId) &&
+                        !rule.filters.back().negated &&
                         asString(value) != "1") {
                     if (ports.store) ports.store->set(Store::Scope::Local, key + ".fail", asString(value));
                     value = std::string();

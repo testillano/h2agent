@@ -663,7 +663,7 @@ How each context applies it, and what happens with an absent value (unknown vari
 | `clientProvision` target (server transformations) | the client provision is triggered | not triggered | the rule is skipped (not triggered) |
 | `{"op": "cast", "type": "boolean"}` filter | `true` | `false` (`null`, objects and arrays fail the cast) | the rule is skipped |
 
-The `eraser` source provides no value, so it cannot feed `break` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above.
+The `eraser` source provides no value, so it cannot feed `break` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above. With `"not": true` they decide by themselves: a valid document fails the filter (the rule is skipped, `onFilterFail` runs) and an invalid one passes with its report (a non-empty text: true), see [validation with `not`](#validation-with-not).
 
 > **Changed in 5.0.0:** v1 tested the text of the value (non-empty is true) and stored numbers and booleans as texts. A numeric `0` or a boolean `false` is now false; texts behave as before.
 
@@ -1700,6 +1700,8 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "break"}}
   ```
 
+  Both validation filters accept `"not": true` (see [validation with `not`](#validation-with-not)), which turns "if the document is not valid, do X" into a single rule.
+
   Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does. When a value within the constraint is an **array**, the same "contains" logic applies recursively: every element in the expected array must exist somewhere in the received array, order-independent and allowing extras. Use `schemaId` for strict positional array validation if needed.
 
   Examples for nested arrays:
@@ -1808,6 +1810,42 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
 
   Both the `jsonConstraint` and `schemaId` filters **serve as more specific supplementary validations** to enhance event schemas (request and response validation schemas).
+
+  <a name="validation-with-not"></a>**Validation with `not`**: `jsonConstraint` and `schemaId` accept `"not": true`, as `conditionVar` and `equalTo` do. Without `not` (or with `"not": false`) nothing changes. With it, the filter passes only when the document is **not** valid:
+
+  | Validation | Without `not` | With `"not": true` |
+  |---|---|---|
+  | passes | `"1"` reaches the target | the filter **fails**: the rule is skipped, `onFilterFail` runs |
+  | fails | the report reaches the target (a variable target is emptied and the report goes to `<varname>.fail`) | the **report** reaches the target, whatever it is (a variable holds the report itself: no `<varname>.fail` is created) |
+  | ignored (`schemaId` with an unknown schema id) | the source passes unchanged | counts as valid: the filter fails |
+
+  So the report only arrives on failure, and it is the value itself. The `expectedBody` example above becomes:
+
+  ```json
+  {
+    "from": {"source": "requestBody"},
+    "filter": [{"op": "jsonConstraint", "value": {"foo": 1}, "not": true}],
+    "to": {"target": "var", "name": "badBody"}
+  },
+  {"from": {"source": "var", "name": "badBody"}, "to": {"target": "responseBodyText"}},
+  {
+    "from": {"source": "literal", "value": "400"},
+    "filter": [{"op": "conditionVar", "name": "badBody"}],
+    "to": {"target": "responseStatusCode"}
+  },
+  {"from": {"source": "var", "name": "badBody"}, "to": {"target": "break"}}
+  ```
+
+  And a branch for the valid case goes to `onFilterFail`:
+
+  ```json
+  {
+    "from": {"source": "responseBody"},
+    "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_NF_FAILURE"}, "not": true}],
+    "to": {"target": "vault", "key": "createReport"},
+    "onFilterFail": [{"from": {"source": "literal", "value": "ok"}, "to": {"target": "var", "name": "createChecked"}}]
+  }
+  ```
 
 
 
