@@ -36,6 +36,7 @@ SOFTWARE.
 #pragma once
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -109,6 +110,19 @@ inline std::string sanitizedReason(std::string reason) {
 /** 'failures' entry of a 'fail' target: the detail is the value which reached it */
 inline nlohmann::json targetFailure(const std::string &reason, const nlohmann::json &detail) {
     return {{"reason", sanitizedReason(reason)}, {"detail", detail}};
+}
+
+/**
+ * Metric label of a failed event: the reason of its state (first failure) as
+ * written in the provision, so that the cardinality is bounded by the loaded
+ * provisions and not by the traffic.
+ *
+ * @param failures Failures of the event (non-empty)
+ * @param failReasonTemplate Unsubstituted reason of the 'fail' target, when it is the first failure
+ */
+inline std::string metricReason(const nlohmann::json &failures, const std::optional<std::string> &failReasonTemplate) {
+    if (failReasonTemplate) return failReasonTemplate->empty() ? std::string(FAILURE_TRANSFORM) : *failReasonTemplate;
+    return failures[0].value("reason", std::string(""));
 }
 
 /** Human readable detail of a 'failures' entry (log) */

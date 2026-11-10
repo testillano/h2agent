@@ -80,8 +80,8 @@ void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const
         purged_contexts_successful_counter_ = &(cf2.Add({{"source", src}, {"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"source", src}, {"result", "failed"}}));
 
-        ert::metrics::counter_family_t& cf3 = metrics->addCounterFamily("h2agent_traffic_client_unexpected_response_status_code_counter", "Unexpected response status code counter in h2agent_traffic_client", familyLabels);
-        unexpected_response_status_code_counter_ = &(cf3.Add({{"source", src}}));
+        failed_counter_family_ = &(metrics->addCounterFamily("h2agent_traffic_client_failed_counter", "Failed events counter in h2agent_traffic_client, by failure reason", familyLabels));
+        metrics_source_ = src;
     }
 }
 

@@ -40,6 +40,7 @@ SOFTWARE.
 #include <atomic>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <regex>
@@ -157,6 +158,8 @@ public:
      * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      * @param failures when given, one entry is appended per failure, in evaluation order
      *        ({"reason": ..., <detail fields>}); then 'outState' is '__core:failed:<reason>' (first one)
+     * @param failReasonTemplate when given and a 'fail' target fires, its reason as written in the
+     *        provision (unsubstituted, "" when none) is set there (failure metric label)
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -175,7 +178,8 @@ public:
                     std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
                     Variables &variables,
                     nlohmann::json *executionTrace = nullptr,
-                    nlohmann::json *failures = nullptr
+                    nlohmann::json *failures = nullptr,
+                    std::optional<std::string> *failReasonTemplate = nullptr
                   );
 
     // setters:

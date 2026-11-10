@@ -460,6 +460,22 @@ The server response schema (`responseSchemaId` of a server provision) checks the
 
 Any other `__core:` state is rejected in a provision, and a transformation writing a `__core:` `outState` is ignored (the provision `outState` is kept, with a warning).
 
+<a name="failure-metrics"></a>**Failure metrics**: every failed event increments one counter, with the reason of its state (the first failure), also when event storage is disabled (load tests), where they are the cheap verdict:
+
+```
+h2agent_traffic_client_failed_counter{source="...", reason="..."}
+h2agent_traffic_server_failed_counter{source="...", reason="..."}
+```
+
+The `reason` label is the reason **as written in the provision**, not substituted, so its cardinality is bounded by the loaded provisions and not by the traffic (the substituted value lives in the event state):
+
+| `reason` in the provision | Event state | Label `reason` |
+|---|---|---|
+| `"create-not-terminated"` | `__core:failed:create-not-terminated` | `create-not-terminated` |
+| `"notify-@{uid}-missing"` | `__core:failed:notify-001019000040000-missing` | `notify-@{uid}-missing` |
+| none | `__core:failed:transform` | `transform` |
+| built-in | `__core:failed:expectedResponseStatusCode` | `expectedResponseStatusCode` |
+
 ### Extra fields (description)
 
 Provision objects accept an optional `description` field to annotate the purpose of each entry. This is useful because JSON does not support comments:
@@ -2277,7 +2293,7 @@ Optional expected HTTP status code for the response (integer, 100-599). When con
 
 When either `expectedResponseStatusCode` or `responseSchemaId` validation fails (and also on a transport error, with no answer):
 - The failure is logged
-- The `h2agent_traffic_client_unexpected_response_status_code_counter` prometheus metric is incremented (not on transport errors)
+- The `h2agent_traffic_client_failed_counter{reason}` prometheus metric is incremented (see [failure metrics](#failure-metrics))
 - The event is stored (if storage is enabled) with the state `__core:failed:<reason>` (instead of the intended `outState`) and its `failures`
 - The chain goes on only through an [error branch](#error-branch) (otherwise it ends: no purge, no next provision)
 

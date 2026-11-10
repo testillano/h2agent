@@ -78,7 +78,8 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
     ert::metrics::counter_t *provisioned_requests_failed_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
-    ert::metrics::counter_t *unexpected_response_status_code_counter_{};
+    ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure reason
+    std::string metrics_source_{};
 
 public:
 
@@ -114,8 +115,13 @@ public:
     void incrementPurgedContextsFailed()          {
         if (purged_contexts_failed_counter_)          purged_contexts_failed_counter_->Increment();
     }
-    void incrementUnexpectedResponseStatusCode()    {
-        if (unexpected_response_status_code_counter_)    unexpected_response_status_code_counter_->Increment();
+    /**
+     * Counts a failed event (one per event, with the reason of its state)
+     *
+     * @param reason Reason as written in the provision (bounded cardinality)
+     */
+    void incrementFailed(const std::string &reason) {
+        if (failed_counter_family_) failed_counter_family_->Add({{"source", metrics_source_}, {"reason", reason}}).Increment();  // Add() is thread-safe and returns the existing counter
     }
 
     //void responseTimeout();

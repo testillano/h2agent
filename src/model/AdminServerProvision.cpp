@@ -124,7 +124,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
                                       Variables &variables,
                                       nlohmann::json *executionTrace,
-                                      nlohmann::json *failures
+                                      nlohmann::json *failures,
+                                      std::optional<std::string> *failReasonTemplate
                                     )
 {
     // Default values without transformations:
@@ -234,6 +235,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
             const nlohmann::json failure = targetFailure(result.failure->reason, result.failure->detail);
             if (outStateMethod.empty()) outState = failedState(failure["reason"].get<std::string>());
             if (failures) failures->push_back(failure);
+            if (failReasonTemplate) *failReasonTemplate = result.failure->reasonTemplate;
         }
     }
 

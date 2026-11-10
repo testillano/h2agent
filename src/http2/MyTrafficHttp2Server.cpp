@@ -93,6 +93,9 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const
 
         purged_contexts_successful_counter_ = &(cf2.Add({{"source", src}, {"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"source", src}, {"result", "failed"}}));
+
+        failed_counter_family_ = &(metrics->addCounterFamily("h2agent_traffic_server_failed_counter", "Failed events counter in h2agent_traffic_server, by failure reason", familyLabels));
+        metrics_source_ = src;
     }
 }
 
@@ -330,9 +333,13 @@ ss << "TRAFFIC REQUEST RECEIVED"
         const bool traced = server_data_ && execution_trace_.load();
         nlohmann::json executionTrace = traced ? nlohmann::json::array() : nlohmann::json();
         nlohmann::json failures = nlohmann::json::array();
+        std::optional<std::string> failReasonTemplate;  // set when a 'fail' target fired
         provision->transform(normalizedUri, uriPath, qmap, requestBodyDataPart, req.header(), receptionId,
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, chainVariables,
-                             traced ? &executionTrace : nullptr, &failures);
+                             traced ? &executionTrace : nullptr, &failures, &failReasonTemplate);
+        if (!failures.empty() && failed_counter_family_) {
+            failed_counter_family_->Add({{"source", metrics_source_}, {"reason", h2agent::model::metricReason(failures, failReasonTemplate)}}).Increment();
+        }
 
         // Failures (the event state is the first one, already set by the provision):
         LOGWARNING(

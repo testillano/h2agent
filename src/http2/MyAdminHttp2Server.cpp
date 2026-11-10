@@ -1400,9 +1400,9 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
         auto provision = provisionData.find(inState, clientProvisionId);
         nlohmann::json failures = nlohmann::json::array();
-        bool responseValidationOk = true;  // built-in checks (expectedResponseStatusCode, responseSchemaId)
+        std::optional<std::string> failReasonTemplate;  // set when a 'fail' target fired (first failure)
         if (provision) {
-            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures);
+            provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures, &failReasonTemplate);
         }
 
         // Provisioned request counter
@@ -1413,6 +1413,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         // statusCode <= 0): there is no answer, so nothing else applies.
         if (response.statusCode <= 0) {
             failures = nlohmann::json::array({{{"reason", h2agent::model::FAILURE_TRANSPORT}, {"statusCode", response.statusCode}}});
+            failReasonTemplate.reset();
         }
 
         // A failure is a state of the chain: the event is stored with it (instead
@@ -1427,7 +1428,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed client provision '%s' (inState '%s') -> '%s': %s", clientProvisionId.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
             }
             );
-            if (response.statusCode > 0 && !responseValidationOk) client->incrementUnexpectedResponseStatusCode();
+            client->incrementFailed(h2agent::model::metricReason(failures, failReasonTemplate));
         }
 
         // Store event

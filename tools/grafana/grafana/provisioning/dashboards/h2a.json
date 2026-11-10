@@ -1054,14 +1054,14 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(h2agent_traffic_client_unexpected_response_status_code_counter{source=~\"$source\"}[$rate_interval]) > 0) by (source)",
+          "expr": "sum(rate(h2agent_traffic_client_failed_counter{source=~\"$source\"}[$rate_interval]) > 0) by (source, reason)",
           "instant": false,
-          "legendFormat": "{{source}} unexpected status code",
+          "legendFormat": "{{source}} {{reason}}",
           "range": true,
           "refId": "failures"
         }
       ],
-      "title": "Unexpected response status code [traffic client]",
+      "title": "Failures by reason [traffic client]",
       "type": "timeseries"
     },
     {

@@ -2157,7 +2157,7 @@ Counters provided by http2comm library and h2agent itself(*):
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
    h2agent_traffic_client_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_client_purged_contexts_counter (*) [source] [result: successful/failed]
-   h2agent_traffic_client_unexpected_response_status_code_counter (*) [source]
+   h2agent_traffic_client_failed_counter (*) [source] [reason]
 
 Gauges provided by http2comm library:
 
@@ -2229,6 +2229,7 @@ Counters provided by http2comm library and h2agent itself(*):
    h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
+   h2agent_traffic_server_failed_counter (*) [source] [reason]
 
 Gauges provided by http2comm library:
 

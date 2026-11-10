@@ -37,6 +37,7 @@ SOFTWARE.
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <chrono>
@@ -192,8 +193,10 @@ public:
      * @param sendSeq Client endpoint sending sequence
      * @param outState out-state updated by reference (may change based on response)
      * @param executionTrace when given, the pipeline execution trace is appended there (json array)
-     * @param failures when given, one entry is appended per failed built-in check, in evaluation
-     *        order (expectedResponseStatusCode, responseSchemaId): {"reason": ..., <detail fields>}
+     * @param failures when given, one entry is appended per failure, in evaluation order
+     *        ('fail' target, expectedResponseStatusCode, responseSchemaId): {"reason": ..., <detail fields>}
+     * @param failReasonTemplate when given and a 'fail' target fires, its reason as written in the
+     *        provision (unsubstituted, "" when none) is set there (failure metric label)
      *
      * @return True if the built-in response validation passed (status code + schema), false otherwise
      *         (a 'fail' target is only reported through 'failures')
@@ -206,7 +209,8 @@ public:
                             Variables &variables,
                             std::int64_t seq = -1,
                             nlohmann::json *executionTrace = nullptr,
-                            nlohmann::json *failures = nullptr
+                            nlohmann::json *failures = nullptr,
+                            std::optional<std::string> *failReasonTemplate = nullptr
                           );
 
     /**

@@ -9,6 +9,9 @@
 #include <MockServerData.hpp>
 #include <FailureStates.hpp>
 
+#include <optional>
+#include <tuple>
+
 #include <ert/http2comm/Http2Client.hpp>
 
 #include <nlohmann/json.hpp>
@@ -957,6 +960,38 @@ TEST_F(ClientTransform_test, TargetFailIsTheFirstFailure)
     EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 2, outState, variables_, -1, nullptr, &failures));
     ASSERT_EQ(failures.size(), 1u);
     EXPECT_EQ(failures[0]["reason"], "create-not-terminated");
+}
+
+// Metric label: the reason as written in the provision (unsubstituted), bounded by the provisions
+TEST_F(ClientTransform_test, FailureMetricReasonIsUnsubstituted)
+{
+    client_provision_json_["expectedResponseStatusCode"] = 201;
+    client_provision_json_["onResponseTransform"] = R"([
+      {"from": {"source": "literal", "value": "0010"}, "to": {"target": "var", "name": "uid"}},
+      {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "500"}], "to": {"target": "fail", "reason": "notify-@{uid}-missing"}},
+      {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "404"}], "to": {"target": "fail"}}
+    ])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    const std::vector<std::tuple<int, std::string, std::string>> table = {
+        {500, "__core:failed:notify-0010-missing", "notify-@{uid}-missing"},
+        {404, "__core:failed:transform", "transform"},
+        {200, "__core:failed:expectedResponseStatusCode", "expectedResponseStatusCode"},  // built-in: no template
+    };
+    for (const auto &[code, state, label] : table) {
+        SCOPED_TRACE(code);
+        ert::http2comm::Http2Client::response resp;
+        resp.statusCode = code;
+        std::string outState = "next";
+        nlohmann::json failures = nlohmann::json::array();
+        std::optional<std::string> failReasonTemplate;
+        provision->transformResponse("/test", {}, resp, 1, outState, variables_, -1, nullptr, &failures, &failReasonTemplate);
+        ASSERT_FALSE(failures.empty());
+        EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), state);
+        EXPECT_EQ(h2agent::model::metricReason(failures, failReasonTemplate), label);
+    }
 }
 
 TEST_F(ClientTransform_test, TargetFailOnlyInResponseContext)

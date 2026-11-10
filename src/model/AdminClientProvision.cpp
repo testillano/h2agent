@@ -268,7 +268,8 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         Variables &variables,
         std::int64_t seq,
         nlohmann::json *executionTrace,
-        nlohmann::json *failures
+        nlohmann::json *failures,
+        std::optional<std::string> *failReasonTemplate
                                             )
 {
     bool validationOk = true;
@@ -308,6 +309,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
             // Target 'fail': first in the evaluation order (before the built-in checks)
             if (result.failure) {
                 if (failures) failures->push_back(targetFailure(result.failure->reason, result.failure->detail));
+                if (failReasonTemplate) *failReasonTemplate = result.failure->reasonTemplate;
             }
         }
         keepReservedStatesUnwritten(outState);
