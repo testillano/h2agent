@@ -140,6 +140,8 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
         std::string direction;
         std::string method;
         std::string uri;
+        std::string state;       // event state (both entries of the event; empty for unprovisioned ones)
+        nlohmann::json failures; // null unless the event failed
     };
     std::vector<Entry> entries;
 
@@ -156,14 +158,16 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
             auto serverEv = std::static_pointer_cast<MockServerEvent>(ev);
             std::uint64_t recTs = serverEv->getReceptionTimestampUs();
             std::uint64_t sendTs = serverEv->getSendingTimestampUs();
+            const std::string &state = serverEv->getState();
+            nlohmann::json failures = serverEv->getJson("/failures");  // null when absent
 
             // Recv entry:
             if ((!fromTimestampUs || recTs >= fromTimestampUs) && (!toTimestampUs || recTs <= toTimestampUs)) {
-                entries.push_back({recTs, "recv", method, uri});
+                entries.push_back({recTs, "recv", method, uri, state, failures});
             }
             // Send entry:
             if (sendTs && (!fromTimestampUs || sendTs >= fromTimestampUs) && (!toTimestampUs || sendTs <= toTimestampUs)) {
-                entries.push_back({sendTs, "send", method, uri});
+                entries.push_back({sendTs, "send", method, uri, state, failures});
             }
         }
     });
@@ -179,6 +183,8 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
         obj["method"] = e.method;
         obj["uri"] = e.uri;
         obj["timestampUs"] = e.timestampUs;
+        if (!e.state.empty()) obj["state"] = e.state;
+        if (!e.failures.is_null()) obj["failures"] = e.failures;
         result.push_back(std::move(obj));
     }
 

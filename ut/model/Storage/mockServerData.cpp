@@ -409,6 +409,33 @@ TEST_F(MockServerData_test, SequenceChronologicalOrder)
     }
 }
 
+TEST_F(MockServerData_test, SequenceEntriesCarryStateAndFailures)
+{
+    h2agent::model::MockServerData data;
+    const nlohmann::json failures = R"([{"reason": "requestSchemaId", "id": "s", "error": "bad"}])"_json;
+    data.loadEvent(h2agent::model::DataKey("POST", "/seq/ok"), previous_state_, "reauth", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 1, 0, true);
+    data.loadEvent(h2agent::model::DataKey("POST", "/seq/failed"), previous_state_, "__core:failed:requestSchemaId", reception_timestamp_us_, 400, request_headers_, response_headers_, request_body_data_part_, response_body_, 2, 0, true, "", "", nullptr, &failures);
+    data.loadEvent(h2agent::model::DataKey("POST", "/seq/unprovisioned"), "", "", reception_timestamp_us_, 501, request_headers_, response_headers_, request_body_data_part_, response_body_, 3, 0, true);
+
+    auto json = nlohmann::json::parse(data.getSequence(0, 0, "", nullptr));
+    ASSERT_EQ(json.size(), 3u);  // recv only (no sending timestamp in UT)
+    for (const auto &e : json) {
+        SCOPED_TRACE(e.dump());
+        if (e["uri"] == "/seq/ok") {
+            EXPECT_EQ(e["state"], "reauth");
+            EXPECT_FALSE(e.contains("failures"));
+        }
+        else if (e["uri"] == "/seq/failed") {
+            EXPECT_EQ(e["state"], "__core:failed:requestSchemaId");
+            EXPECT_EQ(e["failures"], failures);
+        }
+        else {
+            EXPECT_FALSE(e.contains("state"));  // unprovisioned: no state
+            EXPECT_FALSE(e.contains("failures"));
+        }
+    }
+}
+
 TEST_F(MockServerData_test, SequenceFilterByMethod)
 {
     std::string result = data_.getSequence(0, 0, "POST", nullptr);

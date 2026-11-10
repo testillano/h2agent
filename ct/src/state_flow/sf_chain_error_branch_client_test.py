@@ -98,6 +98,18 @@ def test_002_exact_branch_is_preferred(h2ac_admin):
 
   assert clientEvents(h2ac_admin, "GET", "/app/v1/err-branch/generic") == []
 
+  # Sequence entries carry the state of their event and, when it failed, its failures:
+  response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "/sequence")
+  assert response["status"] == 200
+  entries = response["body"]
+  assert [(e["direction"], e["method"]) for e in entries] == [("send", "POST"), ("recv", "POST"), ("send", "DELETE"), ("recv", "DELETE")]
+  for e in entries[:2]:
+    assert e["state"] == "__core:failed:expectedResponseStatusCode"
+    assert e["failures"] == [{"reason": "expectedResponseStatusCode", "expected": 201, "got": 500}]
+  for e in entries[2:]:
+    assert e["state"] == "road-closed"
+    assert "failures" not in e
+
 
 @pytest.mark.client
 def test_003_generic_branch_catches_any_failure(h2ac_admin):

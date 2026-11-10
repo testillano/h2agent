@@ -460,6 +460,16 @@ The server response schema (`responseSchemaId` of a server provision) checks the
 
 Any other `__core:` state is rejected in a provision, and a transformation writing a `__core:` `outState` is ignored (the provision `outState` is kept, with a warning).
 
+Where to read a failure:
+
+| Where | How |
+|---|---|
+| Inspection | `GET /admin/v2/client-data?...` / `GET /admin/v2/server-data?...`: every event carries `state`, `previousState` and, when it failed, `failures` |
+| Sequences | `GET /admin/v2/{client,server}-data/sequence`: every entry carries the `state` of its event and, when it failed, its `failures` (entries stay light: no bodies nor headers), so the order of the messages and the verdict come in one call |
+| Another provision | the `serverEvent` / `clientEvent` sources with a path, e.g. `"eventPath": "/failures/0/detail"` |
+| Log | one warning per failure (see above) |
+| Metrics | `*_failed_counter{reason}` (see below): the count, without details |
+
 <a name="failure-metrics"></a>**Failure metrics**: every failed event increments one counter, with the reason of its state (the first failure), also when event storage is disabled (load tests), where they are the cheap verdict:
 
 ```

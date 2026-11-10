@@ -1309,6 +1309,23 @@ components:
           clientProvisionId:
             type: string
             description: Present on client events triggered by a client provision
+          state:
+            type: string
+            description: >
+              State of the event (both entries of an event carry it); a failure
+              is '__core:failed:<reason>'. Absent for unprovisioned server events.
+          failures:
+            type: array
+            description: >
+              Present only when the event failed: one entry per failure, in
+              evaluation order (the first one gives the state).
+            items:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
 
     LogLevel:
       type: string

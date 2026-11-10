@@ -132,6 +132,8 @@ std::string MockClientData::getSequence(std::uint64_t fromTimestampUs, std::uint
         std::string method;
         std::string uri;
         std::string clientProvisionId;
+        std::string state;       // event state (both entries of the event)
+        nlohmann::json failures; // null unless the event failed
     };
     std::vector<Entry> entries;
 
@@ -150,14 +152,16 @@ std::string MockClientData::getSequence(std::uint64_t fromTimestampUs, std::uint
             std::uint64_t sendTs = json["sendingTimestampUs"].get<std::uint64_t>();
             std::uint64_t recvTs = json.contains("receptionTimestampUs") ? json["receptionTimestampUs"].get<std::uint64_t>() : 0;
             std::string provId = json.contains("clientProvisionId") ? json["clientProvisionId"].get<std::string>() : "";
+            std::string state = json.value("state", std::string(""));
+            nlohmann::json failures = json.contains("failures") ? json["failures"] : nlohmann::json();
 
             // Send entry:
             if ((!fromTimestampUs || sendTs >= fromTimestampUs) && (!toTimestampUs || sendTs <= toTimestampUs)) {
-                entries.push_back({sendTs, "send", method, uri, provId});
+                entries.push_back({sendTs, "send", method, uri, provId, state, failures});
             }
             // Recv entry:
             if (recvTs && (!fromTimestampUs || recvTs >= fromTimestampUs) && (!toTimestampUs || recvTs <= toTimestampUs)) {
-                entries.push_back({recvTs, "recv", method, uri, provId});
+                entries.push_back({recvTs, "recv", method, uri, provId, state, failures});
             }
         }
     });
@@ -174,6 +178,8 @@ std::string MockClientData::getSequence(std::uint64_t fromTimestampUs, std::uint
         obj["uri"] = e.uri;
         obj["timestampUs"] = e.timestampUs;
         if (!e.clientProvisionId.empty()) obj["clientProvisionId"] = e.clientProvisionId;
+        if (!e.state.empty()) obj["state"] = e.state;
+        if (!e.failures.is_null()) obj["failures"] = e.failures;
         result.push_back(std::move(obj));
     }
 

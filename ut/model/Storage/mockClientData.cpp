@@ -387,6 +387,31 @@ TEST_F(MockClientData_test, SequenceInterleaved)
     EXPECT_TRUE(hasRecv);
 }
 
+TEST_F(MockClientData_test, SequenceEntriesCarryStateAndFailures)
+{
+    h2agent::model::MockClientData data;
+    h2agent::model::DataKey okKey("myClientEndpointId", "POST", "/seq/ok");
+    h2agent::model::DataKey failedKey("myClientEndpointId", "POST", "/seq/failed");
+    const nlohmann::json failures = R"([{"reason": "expectedResponseStatusCode", "expected": 204, "got": 500}])"_json;
+    data.loadEvent(okKey, client_provision_id_, previous_state_, "done", sending_timestamp_us_, reception_timestamp_us_, 204, request_headers_, response_headers_, request_body_, response_body_data_part_, 1, 1, 0, 1000, true);
+    data.loadEvent(failedKey, client_provision_id_, previous_state_, "__core:failed:expectedResponseStatusCode", sending_timestamp_us_, reception_timestamp_us_, 500, request_headers_, response_headers_, request_body_, response_body_data_part_, 2, 1, 0, 1000, true, nullptr, &failures);
+
+    auto json = nlohmann::json::parse(data.getSequence(0, 0, "", nullptr));
+    ASSERT_EQ(json.size(), 4u);  // send + recv per event
+    for (const auto &e : json) {
+        SCOPED_TRACE(e.dump());
+        if (e["uri"] == "/seq/ok") {
+            EXPECT_EQ(e["state"], "done");
+            EXPECT_FALSE(e.contains("failures"));
+        }
+        else {
+            EXPECT_EQ(e["state"], "__core:failed:expectedResponseStatusCode");
+            EXPECT_EQ(e["failures"], failures);
+        }
+        EXPECT_FALSE(e.contains("requestBody"));  // entries stay light
+    }
+}
+
 TEST_F(MockClientData_test, SequenceFilterByMethod)
 {
     std::string result = data_.getSequence(0, 0, "POST", nullptr);
