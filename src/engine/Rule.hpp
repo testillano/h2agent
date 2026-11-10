@@ -140,6 +140,8 @@ enum class TargetType {
     MetaMethod,               // meta.method -> *Meta::method (string; e.g. client request method)
     MetaTimeoutMs,            // meta.timeoutMs -> *Meta::timeoutMs (unsigned)
     Break,                    // break -> leave the pipeline on a true value
+    Fail,                     // fail[.<reason>] -> on a true value, leave the pipeline and report
+    // a failure (reason admits @{var}; the value reaching it is the detail)
 };
 
 /** Optional filter applied over the source value before it reaches the target.
@@ -347,6 +349,7 @@ struct Rule {
     std::map<std::string, std::string> targetEventParams{};  // tokenized+decoded address
     std::string targetProvisionId{};   // clientProvision id (admits @{var})
     std::string targetProvisionInState{};  // clientProvision inState (admits @{var})
+    std::string targetFailReason{};    // fail reason ("" = none given; admits @{var})
 
     // Event addressing for serverEvent/clientEvent SOURCES. Parity with h2agent:
     // the query-param address is tokenized and URL-decoded ONCE at parse; @{var}
@@ -367,6 +370,7 @@ struct Rule {
     Template sourceArgTpl{}, sourceKeyTpl{}, sourcePtrTpl{};
     Template targetPathTpl{}, targetKeyTpl{}, targetPtrTpl{}, targetNameTpl{}, targetUriTpl{};
     Template targetFilePathTpl{}, targetSocketPathTpl{}, targetProvisionIdTpl{}, targetProvisionInStateTpl{};
+    Template targetFailReasonTpl{};
     std::vector<Template> sourceTokenTpls{};  // per randomset token
     std::vector<EventParam> sourceEventTpls{}, targetEventTpls{};  // event addresses
 

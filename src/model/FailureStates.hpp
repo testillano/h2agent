@@ -35,6 +35,7 @@ SOFTWARE.
 
 #pragma once
 
+#include <algorithm>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -62,6 +63,7 @@ constexpr const char *FAILURE_TRANSPORT = "transport";
 constexpr const char *FAILURE_EXPECTED_RESPONSE_STATUS_CODE = "expectedResponseStatusCode";
 constexpr const char *FAILURE_RESPONSE_SCHEMA_ID = "responseSchemaId";
 constexpr const char *FAILURE_REQUEST_SCHEMA_ID = "requestSchemaId";
+constexpr const char *FAILURE_TRANSFORM = "transform";  // target 'fail' without reason
 
 inline bool hasStatePrefix(const std::string &s, const char *prefix) {
     return s.rfind(prefix, 0) == 0;
@@ -92,6 +94,21 @@ inline std::string failedState(const std::string &reason) {
 inline std::string stateAfterFailures(const nlohmann::json &failures, const std::string &state) {
     if (!failures.is_array() || failures.empty()) return state;
     return failedState(failures[0].value("reason", std::string("")));
+}
+
+/**
+ * Reason of a 'fail' target once its variables are substituted: ':' (a state
+ * level separator) becomes '_', and an empty one is 'transform'.
+ */
+inline std::string sanitizedReason(std::string reason) {
+    if (reason.empty()) return FAILURE_TRANSFORM;
+    std::replace(reason.begin(), reason.end(), ':', '_');
+    return reason;
+}
+
+/** 'failures' entry of a 'fail' target: the detail is the value which reached it */
+inline nlohmann::json targetFailure(const std::string &reason, const nlohmann::json &detail) {
+    return {{"reason", sanitizedReason(reason)}, {"detail", detail}};
 }
 
 /** Human readable detail of a 'failures' entry (log) */

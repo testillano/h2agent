@@ -225,8 +225,17 @@ void AdminServerProvision::transform( const std::string &requestUri,
     if (engine_pipeline_) {
         h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
         if (executionTrace) appendExecutionTrace(*executionTrace, result, "transform");
+        keepReservedStatesUnwritten(outState);
+
+        // Target 'fail': the key state is the failure instead of the provision
+        // outState (a foreign outState keeps its own key state: the host applies
+        // the failure to the current key), and the answer is sent as built so far.
+        if (result.failure) {
+            const nlohmann::json failure = targetFailure(result.failure->reason, result.failure->detail);
+            if (outStateMethod.empty()) outState = failedState(failure["reason"].get<std::string>());
+            if (failures) failures->push_back(failure);
+        }
     }
-    keepReservedStatesUnwritten(outState);
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)

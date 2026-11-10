@@ -926,6 +926,45 @@ TEST_F(ClientTransform_test, ReservedStates)
     }
 }
 
+TEST_F(ClientTransform_test, TargetFailIsTheFirstFailure)
+{
+    client_provision_json_["expectedResponseStatusCode"] = 201;
+    client_provision_json_["onResponseTransform"] = R"([
+      {"from": {"source": "responseBody", "path": "/cause"}, "to": {"target": "fail", "reason": "create-not-terminated"}},
+      {"from": {"source": "literal", "value": "never"}, "to": {"target": "var", "name": "after"}}
+    ])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 500;
+    resp.body = R"({"cause":"OTHER"})";
+    std::string outState = "next";
+    nlohmann::json failures = nlohmann::json::array();
+    // the return value only reflects the built-in checks:
+    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState, variables_, -1, nullptr, &failures));
+
+    EXPECT_EQ(variables_.count("after"), 0u);  // the list was left
+    ASSERT_EQ(failures.size(), 2u);
+    EXPECT_EQ(failures[0], nlohmann::json::parse(R"({"reason": "create-not-terminated", "detail": "OTHER"})"));
+    EXPECT_EQ(failures[1]["reason"], "expectedResponseStatusCode");
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), "__core:failed:create-not-terminated");
+
+    // only the target: built-in checks pass
+    resp.statusCode = 201;
+    failures = nlohmann::json::array();
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 2, outState, variables_, -1, nullptr, &failures));
+    ASSERT_EQ(failures.size(), 1u);
+    EXPECT_EQ(failures[0]["reason"], "create-not-terminated");
+}
+
+TEST_F(ClientTransform_test, TargetFailOnlyInResponseContext)
+{
+    client_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "1"}, "to": {"target": "fail"}}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::BadSchema);
+}
+
 TEST_F(ClientTransform_test, ReservedOutStateWrittenByTransformationIsIgnored)
 {
     client_provision_json_["outState"] = "next";

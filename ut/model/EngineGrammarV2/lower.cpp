@@ -52,6 +52,8 @@ TEST(EngineGrammarV2_test, ServerSourcesAndTargets) {
         {R"({"from":{"source":"eraser"},"to":{"target":"serverEvent","requestMethod":"GET","requestUri":"/a?b=1&c=2","eventNumber":-1}})", engineRule("eraser", "serverEvent.eventNumber=-1&requestMethod=GET&requestUri=/a?b=1%26c=2")},
         {R"({"from":{"source":"literal","value":"x"},"to":{"target":"udpSocket","socket":"/tmp/s","delayMs":"@{d}"}})", engineRule("value.x", "udpSocket./tmp/s|@{d}")},
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"break"}})", engineRule("value.1", "break")},
+        {R"({"from":{"source":"literal","value":"1"},"to":{"target":"fail"}})", engineRule("value.1", "fail")},
+        {R"({"from":{"source":"literal","value":"1"},"to":{"target":"fail","reason":"notify-@{uid}-missing"}})", engineRule("value.1", "fail.notify-@{uid}-missing")},
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"clientEvent","clientEndpointId":"e"}})", engineRule("value.1", "n/a.clientEvent")},
     };
     for (const auto &row : table) {
@@ -103,6 +105,8 @@ TEST(EngineGrammarV2_test, ClientRequestAndResponseContexts) {
               engineRule("input./response/headerMap/location", "outState"));
     EXPECT_EQ(lowered(R"({"from":{"source":"responseStatusCode"},"to":{"target":"break"}})", Mode::ClientResponse),
               engineRule("input./response/statusCode", "break"));
+    EXPECT_EQ(lowered(R"({"from":{"source":"responseStatusCode"},"to":{"target":"fail","reason":"r"}})", Mode::ClientResponse),
+              engineRule("input./response/statusCode", "fail.r"));
     EXPECT_EQ(lowered(R"({"from":{"source":"requestBody"},"to":{"target":"var","name":"b"}})", Mode::ClientResponse),
               engineRule("input./requestBodyString", "local.b"));
     EXPECT_EQ(lowered(R"({"from":{"source":"literal","value":"x"},"to":{"target":"requestUri"}})", Mode::ClientResponse), engineRule("value.x", "n/a.requestUri"));

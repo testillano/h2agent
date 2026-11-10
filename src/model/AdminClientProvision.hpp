@@ -195,7 +195,8 @@ public:
      * @param failures when given, one entry is appended per failed built-in check, in evaluation
      *        order (expectedResponseStatusCode, responseSchemaId): {"reason": ..., <detail fields>}
      *
-     * @return True if response validation passed (status code + schema), false otherwise (chain should break)
+     * @return True if the built-in response validation passed (status code + schema), false otherwise
+     *         (a 'fail' target is only reported through 'failures')
      */
     bool transformResponse( const std::string &requestUri,
                             const nghttp2::asio_http2::header_map &requestHeaders,

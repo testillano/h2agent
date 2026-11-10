@@ -438,12 +438,14 @@ Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<reas
 | client transport error (no answer: `statusCode <= 0`, i.e. timeout, connection error, unsent request) | `__core:failed:transport` | `{"reason": "transport", "statusCode": <n>}` |
 | client [`expectedResponseStatusCode`](#expectedresponsestatuscode) not met | `__core:failed:expectedResponseStatusCode` | `{"reason": "expectedResponseStatusCode", "expected": <n>, "got": <n>}` |
 | client [`responseSchemaId`](#responseschemaid-1) not met | `__core:failed:responseSchemaId` | `{"reason": "responseSchemaId", "id": "<schema id>", "error": "<report>"}` |
+| target `fail` without `reason` (server and client response transformations) | `__core:failed:transform` | `{"reason": "transform", "detail": <value>}` |
+| target `fail` with `reason` | `__core:failed:<reason>` | `{"reason": "<reason>", "detail": <value>}` |
 | server [`requestSchemaId`](#requestschemaid) not met | `__core:failed:requestSchemaId` | `{"reason": "requestSchemaId", "id": "<schema id>", "error": "<report>"}` |
 
 The event state is the **first** failure in this order (the later ones are still recorded in `failures`, which is present only when the event failed):
 
-- Client: 1. `transport` (no answer: nothing else applies), 2. `expectedResponseStatusCode`, 3. `responseSchemaId`.
-- Server: 1. `requestSchemaId` (before the transformations, which do not run).
+- Client: 1. `transport` (no answer: nothing else applies), 2. target `fail` in `onResponseTransform`, 3. `expectedResponseStatusCode`, 4. `responseSchemaId`.
+- Server: 1. `requestSchemaId` (before the transformations, which do not run), 2. target `fail`.
 
 The server response schema (`responseSchemaId` of a server provision) checks the mock itself, not the peer: it answers `500` and is not a failure.
 
@@ -705,10 +707,11 @@ How each context applies it, and what happens with an absent value (unknown vari
 | `conditionVar` filter (`{"op": "conditionVar", "name": "<name>[/<pointer>]"}`) | the filter passes | the filter fails: target untouched, `onFilterFail` runs | false (the filter fails) |
 | `conditionVar` filter with `"not": true` | the filter fails | the filter passes | true (the filter passes) |
 | `break` target (server and client response transformations) | the transformation list is left | ignored, the list goes on | the rule is skipped (the list goes on) |
+| `fail` target (server and client response transformations) | the list is left and the event fails (`__core:failed:<reason>`) | ignored, the list goes on | the rule is skipped (the list goes on) |
 | `clientProvision` target (server transformations) | the client provision is triggered | not triggered | the rule is skipped (not triggered) |
 | `{"op": "cast", "type": "boolean"}` filter | `true` | `false` (`null`, objects and arrays fail the cast) | the rule is skipped |
 
-The `eraser` source provides no value, so it cannot feed `break` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above. With `"not": true` they decide by themselves: a valid document fails the filter (the rule is skipped, `onFilterFail` runs) and an invalid one passes with its report (a non-empty text: true), see [validation with `not`](#validation-with-not).
+The `eraser` source provides no value, so it cannot feed `break`, `fail` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above. With `"not": true` they decide by themselves: a valid document fails the filter (the rule is skipped, `onFilterFail` runs) and an invalid one passes with its report (a non-empty text: true), see [validation with `not`](#validation-with-not).
 
 > **Changed in 5.0.0:** v1 tested the text of the value (non-empty is true) and stored numbers and booleans as texts. A numeric `0` or a boolean `false` is now false; texts behave as before.
 
@@ -808,7 +811,7 @@ The **source** of information is classified after parsing the following possible
   | `{"target": "txtFile", "file": ...}` / `{"target": "binFile", "file": ...}` | empties the file |
   | `{"target": "serverEvent", <event fields>}` / `{"target": "clientEvent", <event fields>}` | purges the stored events at that address (events are read-only for transformations, so erasing them is the only write they accept, and `eraser` is the only source those targets accept) |
 
-  A missing node, entry or event is a no-op (no null node is created). Any other target ignores the eraser, and `break` / `clientProvision` reject it (they act on a true value, see [boolean criterion](#boolean-criterion)).
+  A missing node, entry or event is a no-op (no null node is created). Any other target ignores the eraser, and `break` / `fail` / `clientProvision` reject it (they act on a true value, see [boolean criterion](#boolean-criterion)).
 
   **Conditional erase**: the only filters accepted with `eraser` are `conditionVar` (one or several, optionally negated with `"not": true`): the target is erased only when every condition holds, otherwise it is kept and `onFilterFail` runs. For example, purge an event once a flow is done:
 
@@ -1109,6 +1112,20 @@ The **target** of information is classified after parsing the following possible
   The triggered client provision must be previously configured (via `POST /admin/v2/client-provision`) along with its associated client endpoint (via `POST /admin/v2/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
 
 - `{"target": "break"}`: when a **true** value (see [boolean criterion](#boolean-criterion)) is transferred, the transformations list is left (the remaining items are not executed, and the provision `outState` still applies). A false value (or undefined source) ignores the action. Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+
+- `{"target": "fail"[, "reason": "<reason>"]}`: same trigger as `break` (a **true** value, see [boolean criterion](#boolean-criterion); a false value or an undefined source skips the rule), but it also **marks a failure**: the transformation list is left and the event state is `__core:failed:<reason>` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)). The value reaching the target (after the filters) is the failure `detail`, so a validation filter with `"not": true` delivers its report there:
+
+  ```json
+  {"from": {"source": "responseBody"},
+   "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_NF_FAILURE"}, "not": true}],
+   "to": {"target": "fail", "reason": "create-not-terminated"}}
+  ```
+
+  `reason` is a short stable name to react to (`inState`), wait for and count: it admits variables (`@{...}`) but not `:` (rejected at provision time; a substituted `:` becomes `_`). Without it (or when it is empty once substituted), the reason is `transform`. Use `detail` for what changes on every run (a report, a status code, a body node), never the reason.
+
+  In server provisions, the key stays in the failure state and the answer is sent as built so far, so set `responseStatusCode` / body before `fail` when the peer must see the error. A server cannot react to its own failure through `inState`: an immediate reaction is a foreign `outState` (another key) or a `clientProvision` target placed before `fail`, with the same condition. In client provisions (`onResponseTransform` only), it is the first failure of the event (before `expectedResponseStatusCode` and `responseSchemaId`).
+
+  In short: `break` leaves the transformation list (the provision `outState` applies), `fail` also marks a failure and stops the chain, and the client `outState` `road-closed` ends the chain without failure.
 
 
 
@@ -1742,7 +1759,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
     "filter": [{"op": "conditionVar", "name": "expectedBody.fail"}],
     "to": {"target": "responseBodyText"}
   },
-  {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "break"}}
+  {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "fail", "reason": "unexpected-body"}}
   ```
 
   Both validation filters accept `"not": true` (see [validation with `not`](#validation-with-not)), which turns "if the document is not valid, do X" into a single rule.
@@ -1878,7 +1895,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
     "filter": [{"op": "conditionVar", "name": "badBody"}],
     "to": {"target": "responseStatusCode"}
   },
-  {"from": {"source": "var", "name": "badBody"}, "to": {"target": "break"}}
+  {"from": {"source": "var", "name": "badBody"}, "to": {"target": "fail", "reason": "unexpected-body"}}
   ```
 
   And a branch for the valid case goes to `onFilterFail`:
@@ -2288,7 +2305,8 @@ New **targets**:
 - `{"target": "requestTimeoutMs"}` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 - `{"target": "requestUri"}` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
 - `{"target": "requestMethod"}` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
-- `{"target": "break"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation list (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+- `{"target": "break"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation list (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected. To mark the step as failed (and end the chain), use `fail` instead.
+- `{"target": "fail"[, "reason": "<reason>"]}`: as in server provisions (see [transformation pipeline](#transformation-pipeline)): on a true value the list is left and the event state is `__core:failed:<reason>`, with the value as `detail`. It is the first failure of the event, before the built-in checks.
 
 Note that the `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 

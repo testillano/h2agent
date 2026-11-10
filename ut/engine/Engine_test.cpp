@@ -2524,6 +2524,77 @@ TEST(Engine_test, BreakInsideOnFilterFailStopsPipeline) {
     EXPECT_EQ(ctx.outBody.raw, "");  // the rule after the fallback break never ran
 }
 
+// fail: same trigger as break, plus the failure (rendered reason, template, detail)
+TEST(Engine_test, FailReportsFailureAndLeavesPipeline) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.","target":"fail.never"},
+      {"source":"local.report","target":"fail.notify-@{uid}-missing"},
+      {"source":"value.after","target":"output.string"}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "uid", "0010");
+    store.set(Store::Scope::Local, "report", nlohmann::json{{"why", "missing"}});
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    auto result = engine.evaluate(pipeline, ctx, ports);
+    EXPECT_TRUE(result.broke);
+    ASSERT_TRUE(result.failure.has_value());
+    EXPECT_EQ(result.failure->reason, "notify-0010-missing");
+    EXPECT_EQ(result.failure->reasonTemplate, "notify-@{uid}-missing");
+    EXPECT_EQ(result.failure->detail, (nlohmann::json{{"why", "missing"}}));
+    EXPECT_EQ(ctx.outBody.raw, "");  // the list was left
+}
+
+TEST(Engine_test, FailWithoutReasonAndFalseValues) {
+    Engine engine;
+    std::string err;
+    // false / absent values skip the rule (no failure), the list goes on:
+    auto pipeline = engine.parse(R"([
+      {"source":"local.missing","target":"fail"},
+      {"source":"value.","target":"fail"},
+      {"source":"value.after","target":"output.string"}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    auto result = engine.evaluate(pipeline, ctx, ports);
+    EXPECT_FALSE(result.broke);
+    EXPECT_FALSE(result.failure.has_value());
+    EXPECT_EQ(ctx.outBody.raw, "after");
+
+    // no reason: empty (the host names it 'transform'), detail is the literal:
+    pipeline = engine.parse(R"([{"source":"value.boom","target":"fail"}])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    result = engine.evaluate(pipeline, ctx, ports);
+    ASSERT_TRUE(result.failure.has_value());
+    EXPECT_EQ(result.failure->reason, "");
+    EXPECT_EQ(result.failure->detail, "boom");
+}
+
+TEST(Engine_test, FailInsideOnFilterFailIsReported) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(R"([
+      {"source":"value.x","target":"output.string","filter":{"EqualTo":"y"},
+       "onFilterFail":[{"source":"value.not-y","target":"fail.wrong-x"}]},
+      {"source":"value.after","target":"output.string"}
+    ])"_json, err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    StandaloneContext ctx;
+    Ports ports;
+    auto result = engine.evaluate(pipeline, ctx, ports);
+    ASSERT_TRUE(result.failure.has_value());
+    EXPECT_EQ(result.failure->reason, "wrong-x");
+    EXPECT_EQ(result.failure->detail, "not-y");
+    EXPECT_EQ(ctx.outBody.raw, "");
+}
+
 TEST(Engine_test, EraserWithFilterRunsOnFilterFail) {
     Engine engine;
     std::string err;

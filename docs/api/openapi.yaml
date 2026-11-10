@@ -2210,6 +2210,19 @@ components:
         required:
         - target
         type: object
+      - additionalProperties: false
+        properties:
+          reason:
+            minLength: 1
+            pattern: ^[^:]+$
+            type: string
+          target:
+            enum:
+            - fail
+            type: string
+        required:
+        - target
+        type: object
       description: 'Server ''to'' stage: {"target": <kind>, ...fields}.'
 
     ServerTransformItem:
@@ -2267,6 +2280,7 @@ components:
                 target:
                   enum:
                   - break
+                  - fail
                   - clientProvision
               required:
               - target
@@ -2929,6 +2943,7 @@ components:
                 target:
                   enum:
                   - break
+                  - fail
                   - clientProvision
               required:
               - target
@@ -3447,6 +3462,19 @@ components:
         required:
         - target
         type: object
+      - additionalProperties: false
+        properties:
+          reason:
+            minLength: 1
+            pattern: ^[^:]+$
+            type: string
+          target:
+            enum:
+            - fail
+            type: string
+        required:
+        - target
+        type: object
       description: Client 'onResponseTransform' 'to' stage.
 
     ClientResponseTransformItem:
@@ -3504,6 +3532,7 @@ components:
                 target:
                   enum:
                   - break
+                  - fail
                   - clientProvision
               required:
               - target

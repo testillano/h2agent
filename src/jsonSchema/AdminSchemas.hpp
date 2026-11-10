@@ -186,6 +186,8 @@ inline nlohmann::json targetKind(const std::string &name) {
         {"clientEvent", kind("target", "clientEvent", eventFields(true, false))},
         {"clientProvision", kind("target", "clientProvision", {{"id", dotless()}, {"inState", text()}}, {"id", "inState"})},
         {"break", kind("target", "break")},
+        // failure reason: a short stable name, '@{}' allowed, ':' not (it is a state level)
+        {"fail", kind("target", "fail", {{"reason", {{"type", "string"}, {"minLength", 1}, {"pattern", "^[^:]+$"}}}})},
     };
     return kinds.at(name);
 }
@@ -245,7 +247,7 @@ inline nlohmann::json stage(const std::string &name, const std::string &discrimi
  * Rule definition for one context; onFilterFail rules belong to the same
  * context. An 'eraser' source provides no value (only 'conditionVar' filters and
  * the cast), it is the only source an event purge target accepts, and it cannot
- * feed 'break' nor 'clientProvision' (they act on a true value).
+ * feed 'break', 'fail' nor 'clientProvision' (they act on a true value).
  */
 inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef, const std::string &selfRef) {
     return {
@@ -270,7 +272,7 @@ inline nlohmann::json rule(const std::string &fromRef, const std::string &toRef,
                     {"then", stage("from", "source", {"eraser"})}
                 },
                 // 'eraser' never triggers nor breaks (they act on a true value): such a rule would do nothing
-                {   {"if", stage("to", "target", {"break", "clientProvision"})},
+                {   {"if", stage("to", "target", {"break", "fail", "clientProvision"})},
                     {"then", {{"not", stage("from", "source", {"eraser"})}}}
                 }
             }
@@ -298,7 +300,7 @@ inline const std::vector<std::string> &serverTo() {
     static const std::vector<std::string> k = {
         "responseBodyText", "responseBodyHex", "responseBody", "responseHeader", "responseStatusCode",
         "responseDelayMs", "var", "vault", "serverEvent", "outState", "txtFile", "binFile", "udpSocket",
-        "clientProvision", "break"
+        "clientProvision", "break", "fail"
     };
     return k;
 }
@@ -327,7 +329,7 @@ inline const std::vector<std::string> &clientResponseFrom() {
     return k;
 }
 inline const std::vector<std::string> &clientResponseTo() {
-    static const std::vector<std::string> k = {"var", "vault", "clientEvent", "outStatePlain", "txtFile", "binFile", "udpSocket", "break"};
+    static const std::vector<std::string> k = {"var", "vault", "clientEvent", "outStatePlain", "txtFile", "binFile", "udpSocket", "break", "fail"};
     return k;
 }
 

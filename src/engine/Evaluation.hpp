@@ -39,6 +39,7 @@ SOFTWARE.
 #include "Ports.hpp"
 #include "Types.hpp"
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -158,9 +159,17 @@ struct TraceEntry {
 };
 
 /** Outcome of evaluating a pipeline over a context. */
+/** Failure reported by a 'fail' rule (the pipeline is left, as with break). */
+struct Failure {
+    std::string reason{};          // rendered reason ("" when the rule gives none)
+    std::string reasonTemplate{};  // reason as written in the rule (unsubstituted)
+    nlohmann::json detail{};       // value which reached the target (after the filters)
+};
+
 struct TransformResult {
     bool ok{true};
-    bool broke{false};                         // a break rule interrupted the pipeline
+    bool broke{false};                         // a break (or fail) rule interrupted the pipeline
+    std::optional<Failure> failure{};          // set when a fail rule fired
     std::vector<TraceEntry> executionTrace{};  // populated when tracing is enabled
 };
 

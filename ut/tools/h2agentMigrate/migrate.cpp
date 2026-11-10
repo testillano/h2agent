@@ -401,6 +401,7 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"date"}],"to":{"target":"responseBody"}})", "unknown cast type 'date'"},
         {R"({"from":{"source":"eraser"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"vault","key":"K"}})", "a conditional erase is not expressible in v1"},
         {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"break"}})", "not expressible in v1"},
+        {R"({"from":{"source":"literal","value":"1"},"to":{"target":"fail","reason":"r"}})", "target 'fail' has no v1 equivalent"},
         {R"({"from":{"source":"requestBody"},"filter":[{"op":"jsonConstraint","value":{"a":1},"not":true}],"to":{"target":"var","name":"x"}})", "negated 'jsonConstraint' is not expressible in v1"},
         {R"({"from":{"source":"requestBody"},"filter":[{"op":"schemaId","id":"s","not":true}],"to":{"target":"var","name":"x"}})", "negated 'schemaId' is not expressible in v1"},
         {R"({"from":{"source":"requestBody"},"filter":[{"op":"schemaId","id":"s","not":"yes"}],"to":{"target":"var","name":"x"}})", "'not' must be a boolean"},

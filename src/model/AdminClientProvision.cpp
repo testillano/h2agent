@@ -305,6 +305,10 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         if (engine_response_pipeline_) {
             h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports, executionTrace != nullptr);
             if (executionTrace) appendExecutionTrace(*executionTrace, result, "onResponseTransform");
+            // Target 'fail': first in the evaluation order (before the built-in checks)
+            if (result.failure) {
+                if (failures) failures->push_back(targetFailure(result.failure->reason, result.failure->detail));
+            }
         }
         keepReservedStatesUnwritten(outState);
 

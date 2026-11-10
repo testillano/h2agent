@@ -1400,8 +1400,9 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
         auto provision = provisionData.find(inState, clientProvisionId);
         nlohmann::json failures = nlohmann::json::array();
+        bool responseValidationOk = true;  // built-in checks (expectedResponseStatusCode, responseSchemaId)
         if (provision) {
-            provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures);
+            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures);
         }
 
         // Provisioned request counter
@@ -1426,7 +1427,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
                 ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed client provision '%s' (inState '%s') -> '%s': %s", clientProvisionId.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
             }
             );
-            if (response.statusCode > 0) client->incrementUnexpectedResponseStatusCode();
+            if (response.statusCode > 0 && !responseValidationOk) client->incrementUnexpectedResponseStatusCode();
         }
 
         // Store event

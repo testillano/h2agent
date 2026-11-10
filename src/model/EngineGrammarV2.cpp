@@ -184,6 +184,7 @@ std::string lowerTarget(const nlohmann::json &to, const std::string &castType, M
     if (kind == "txtFile" || kind == "binFile") return kind + "." + text(to, "file");
     if (kind == "udpSocket") return "udpSocket." + text(to, "socket") + (to.contains("delayMs") ? "|" + number(to["delayMs"]) : "");
     if (kind == "break") return "break";
+    if (kind == "fail") return to.contains("reason") ? "fail." + text(to, "reason") : "fail";
 
     if (mode == Mode::Server) {
         if (kind == "responseBodyText") return "output.string";

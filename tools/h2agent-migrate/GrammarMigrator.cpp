@@ -728,9 +728,10 @@ std::string GrammarMigrator::targetToV1(const Json &v2, const std::string &castT
     if (kind == "stop") {
         checkFields(v2, "target", kind, {}, {}, where);
         noCast();
-        std::cerr << "Warning: " << where << ": target 'stop' (h2agent 5.0-5.2) read as 'break'; review it if it marks a failure" << std::endl;
+        std::cerr << "Warning: " << where << ": target 'stop' (h2agent 5.0-5.2) read as 'break'; if it marks a failure, use 'fail' instead" << std::endl;
         return "break";
     }
+    if (kind == "fail") fail(where, "target 'fail' has no v1 equivalent");
 
     for (const auto &entry : plainTargets()) {
         if (kind != entry.second) continue;

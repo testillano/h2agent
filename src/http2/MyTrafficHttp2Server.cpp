@@ -349,8 +349,9 @@ ss << "TRAFFIC REQUEST RECEIVED"
             }
         }
 
-        // Special out-states:
-        if (purge_execution_ && outState == "purge") {
+        // Special out-states (a failed event never purges):
+        const bool failed = !failures.empty();
+        if (purge_execution_ && outState == "purge" && !failed) {
             bool somethingDeleted = false;
 
             // Purge current key:
@@ -368,11 +369,13 @@ ss << "TRAFFIC REQUEST RECEIVED"
         }
         else {
             bool hasVirtualMethod = !outStateMethod.empty();
+            // A failure is the state of the current key (a foreign outState keeps its own):
+            const std::string currentState = failed ? h2agent::model::stateAfterFailures(failures, outState) : (hasVirtualMethod ? provision->getOutState() : outState);
 
             // Store event context information
             if (server_data_) {
                 normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
-                auto loadedEvent = getMockServerData()->loadEvent(normalizedKey, inState, (hasVirtualMethod ? provision->getOutState():outState), receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr, &failures);
+                auto loadedEvent = getMockServerData()->loadEvent(normalizedKey, inState, currentState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr, &failures);
 
                 // Register for sendingTimestampUs capture in streamClose:
                 {

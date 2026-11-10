@@ -104,6 +104,7 @@ Numeric fields also accept a string holding a variable (`"@{seq}"`). A v1 query 
 | `serverEvent.<query>` / `clientEvent.<query>` (with `eraser`) | `{"target": "serverEvent", <event fields>}` / `{"target": "clientEvent", <event fields>}` | server / client |
 | `clientProvision.<id>.<inState>` | `{"target": "clientProvision", "id": "<id>", "inState": "<inState>"}` | server |
 | `break` | `{"target": "break"}` (see [Break](#break)) | server, client response |
+| (none: v2 only) | `{"target": "fail"[, "reason": "<reason>"]}`: as `break`, and the event fails (`--reverse` rejects it) | server, client response |
 
 `<type'>`: `string`, `integer`, `unsigned`, `float`, `boolean`, `object` (v1 `object` best-effort typing, kept as is: a non-object is converted from its text to integer, unsigned, float or boolean, in that order), `json` (v1 `jsonstring`: parse the text as json).
 
@@ -174,11 +175,11 @@ The only filters it accepts are `conditionVar` (one or several, optionally negat
 
 Event storage is read-only for transformations: erasing is the only write `serverEvent` / `clientEvent` accept as targets, and `eraser` is the only source they accept (v1 skipped any other source silently, the schema rejects it). A dedicated purge target was considered (phase [6]) and discarded: it would only be a longer spelling of this rule.
 
-An `eraser` cannot feed `break` nor `clientProvision`: they act on a true value, so v1 did nothing with such a rule (the documented way to "disable" a trigger). The schema rejects it, and the migrator reports it to be removed.
+An `eraser` cannot feed `break`, `fail` nor `clientProvision`: they act on a true value, so v1 did nothing with such a rule (the documented way to "disable" a trigger). The schema rejects it, and the migrator reports it to be removed.
 
 ## Boolean criterion
 
-`conditionVar`, `break`, `clientProvision` and the boolean `cast` share one criterion (per-context table in [docs/api/README.md](../api/README.md#boolean-criterion)): `null`, `false`, numeric zero and the empty string are false; anything else (any non-empty string, `"0"` and `"false"` included, non-zero numbers, `true`, any object or array) is true. An absent value (unknown variable, unresolved source or pointer) is false for `conditionVar` and skips the rule for the targets.
+`conditionVar`, `break`, `fail`, `clientProvision` and the boolean `cast` share one criterion (per-context table in [docs/api/README.md](../api/README.md#boolean-criterion)): `null`, `false`, numeric zero and the empty string are false; anything else (any non-empty string, `"0"` and `"false"` included, non-zero numbers, `true`, any object or array) is true. An absent value (unknown variable, unresolved source or pointer) is false for `conditionVar` and skips the rule for the targets.
 
 v1 tested the text of the value (non-empty is true). With the native store values, a numeric `0` or a boolean `false` is now false (they were the non-empty texts `"0"` / `"false"`); text values behave as in v1.
 

@@ -620,7 +620,7 @@ v2: {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "val
 **[removed]** h2agent 5.0-5.2 named this target `stop`. From 6.0.0 `stop` is rejected (no alias): use `break`.
 `h2agent-migrate --reverse` still reads `stop`, so a 5.x provision is upgraded by `v2 -> v1 -> v2`
 (`h2agent-migrate -r -i p.json | h2agent-migrate -i - -o p.json`), with a warning per `stop` found: a `stop`
-which actually marks a failure deserves a review instead of a plain rename. This only works for provisions
+which actually marks a failure is better written as the `fail` target (it records the failure in the event state). This only works for provisions
 whose rules all have a v1 equivalent (the tool rejects the rest, e.g. filter chains); otherwise rename the
 target by hand (`"target": "stop"` -> `"target": "break"`).
 

@@ -23,6 +23,7 @@
 #include <FileManager.hpp>
 #include <SocketManager.hpp>
 #include <DataPart.hpp>
+#include <FailureStates.hpp>
 
 #include <ert/http2comm/Http2Headers.hpp>
 
@@ -499,6 +500,112 @@ TEST_F(Transform_test, ReservedOutStateWrittenByTransformationIsIgnored)
 
     EXPECT_EQ(out_state_, "next");
     EXPECT_TRUE(failures_.empty());
+}
+
+////////////////
+// TARGET FAIL //
+////////////////
+TEST_F(Transform_test, TargetFailSetsStateAndKeepsTheBuiltAnswer)
+{
+    server_provision_json_["outState"] = "next";
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "literal", "value": "400"}, "to": {"target": "responseStatusCode"}},
+      {"from": {"source": "literal", "value": "bad request"}, "to": {"target": "responseBodyText"}},
+      {"from": {"source": "requestBody", "path": "/foo"}, "to": {"target": "fail", "reason": "wrong-foo"}},
+      {"from": {"source": "literal", "value": "never"}, "to": {"target": "responseBodyText"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 400);
+    EXPECT_EQ(response_body_, "bad request");  // the list was left: the answer is sent as built so far
+    EXPECT_EQ(out_state_, "__core:failed:wrong-foo");  // not the provision outState
+    ASSERT_EQ(failures_.size(), 1u);
+    EXPECT_EQ(failures_[0], nlohmann::json::parse(R"({"reason": "wrong-foo", "detail": 1})"));
+}
+
+TEST_F(Transform_test, TargetFailOnFalseValueIsSkipped)
+{
+    server_provision_json_["outState"] = "next";
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "var", "name": "undefined"}, "to": {"target": "fail", "reason": "r"}},
+      {"from": {"source": "literal", "value": ""}, "to": {"target": "fail", "reason": "r"}},
+      {"from": {"source": "literal", "value": "reached"}, "to": {"target": "responseBodyText"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(response_body_, "reached");
+    EXPECT_EQ(out_state_, "next");
+    EXPECT_TRUE(failures_.empty());
+}
+
+TEST_F(Transform_test, TargetFailReasonDefaultSubstitutionAndSanitisation)
+{
+    const std::vector<std::pair<nlohmann::json, std::string>> table = {
+        {R"({"target": "fail"})"_json, "transform"},
+        {R"({"target": "fail", "reason": "seq-@{recvseq}"})"_json, "seq-74"},
+        {R"({"target": "fail", "reason": "@{colon}"})"_json, "a_b"},    // substituted ':' -> '_'
+        {R"({"target": "fail", "reason": "@{empty}"})"_json, "transform"},  // empty once substituted
+    };
+    for (const auto &row : table) {
+        SCOPED_TRACE(row.first.dump());
+        adata_.clearServerProvisions();
+        failures_ = nlohmann::json::array();
+        server_provision_json_["transform"] = nlohmann::json::array({
+            R"({"from": {"source": "recvseq"}, "to": {"target": "var", "name": "recvseq"}})"_json,
+            R"({"from": {"source": "literal", "value": "a:b"}, "to": {"target": "var", "name": "colon"}})"_json,
+            R"({"from": {"source": "literal", "value": ""}, "to": {"target": "var", "name": "empty"}})"_json,
+            {{"from", {{"source", "literal"}, {"value", "x"}}}, {"to", row.first}}
+        });
+        provisionAndTransform(request_body_.dump());
+        EXPECT_EQ(out_state_, "__core:failed:" + row.second);
+        ASSERT_EQ(failures_.size(), 1u);
+        EXPECT_EQ(failures_[0]["reason"], row.second);
+        EXPECT_EQ(failures_[0]["detail"], "x");
+    }
+}
+
+TEST_F(Transform_test, TargetFailWithValidationNotCarriesTheReport)
+{
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "filter": [{"op": "jsonConstraint", "value": {"foo": 2}, "not": true}],
+       "to": {"target": "fail", "reason": "wrong-body"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(out_state_, "__core:failed:wrong-body");
+    ASSERT_EQ(failures_.size(), 1u);
+    EXPECT_EQ(failures_[0]["detail"], "JsonConstraint FAILED: expected value for key 'foo' differs regarding validated source");
+}
+
+TEST_F(Transform_test, TargetFailKeepsForeignOutState)
+{
+    // A foreign outState placed before 'fail' keeps its own state (the host applies the failure to the current key):
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "literal", "value": "cleanup"}, "to": {"target": "outState", "method": "DELETE", "uri": "/other"}},
+      {"from": {"source": "literal", "value": "1"}, "to": {"target": "fail", "reason": "r"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(out_state_, "cleanup");
+    EXPECT_EQ(out_state_method_, "DELETE");
+    ASSERT_EQ(failures_.size(), 1u);
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures_, out_state_), "__core:failed:r");
+}
+
+TEST_F(Transform_test, TargetFailSchema)
+{
+    const std::vector<std::string> rejected = {
+        R"({"from": {"source": "literal", "value": "1"}, "to": {"target": "fail", "reason": "a:b"}})",
+        R"({"from": {"source": "literal", "value": "1"}, "to": {"target": "fail", "reason": ""}})",
+        R"({"from": {"source": "literal", "value": "1"}, "to": {"target": "fail", "why": "x"}})",
+        R"({"from": {"source": "eraser"}, "to": {"target": "fail"}})",
+    };
+    for (const auto &rule : rejected) {
+        SCOPED_TRACE(rule);
+        nlohmann::json provision = server_provision_json_;
+        provision["transform"] = nlohmann::json::array({nlohmann::json::parse(rule)});
+        EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    }
 }
 
 TEST_F(Transform_test, ResponseNotValidated)

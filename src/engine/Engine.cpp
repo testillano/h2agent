@@ -851,6 +851,12 @@ TargetType classifyTarget(const std::string &expr, Rule &rule) {
         return TargetType::ClientProvisionTrigger;
     }
     if (expr == "break") return TargetType::Break;
+    // fail[.<reason>]: the reason is everything after the first dot (it admits @{var})
+    if (expr == "fail") return TargetType::Fail;
+    if (startsWith(expr, "fail.")) {
+        rule.targetFailReason = expr.substr(5);
+        return TargetType::Fail;
+    }
     return TargetType::Unsupported;
 }
 
@@ -1481,6 +1487,7 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
     rule.targetSocketPathTpl = Template::compile(rule.targetSocketPath);
     rule.targetProvisionIdTpl = Template::compile(rule.targetProvisionId);
     rule.targetProvisionInStateTpl = Template::compile(rule.targetProvisionInState);
+    rule.targetFailReasonTpl = Template::compile(rule.targetFailReason);
     for (const auto &token : rule.sourceTokens) rule.sourceTokenTpls.push_back(Template::compile(token));
     rule.sourceEventTpls = eventParamTemplates(rule.sourceEventParams);
     rule.targetEventTpls = eventParamTemplates(rule.targetEventParams);
@@ -2177,6 +2184,23 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                     result.broke = true;
                     if (trace) result.executionTrace.push_back(std::move(entry));
                     return false;  // break propagates to callers (incl. onFilterFail)
+                }
+                break;
+            }
+            case TargetType::Fail: {
+                // Same trigger as break (true value); it also reports the failure
+                // to the host, which turns it into the event state.
+                if (truthy(value)) {
+                    entry.applied = true;
+                    Failure failure;
+                    failure.reasonTemplate = rule.targetFailReason;
+                    failure.reason = rendered(rule.targetFailReasonTpl, rule.targetFailReason, ports);
+                    failure.detail = value;
+                    if (trace) entry.note = "fail: pipeline interrupted (reason '" + failure.reason + "')";
+                    result.broke = true;
+                    result.failure = std::move(failure);
+                    if (trace) result.executionTrace.push_back(std::move(entry));
+                    return false;  // propagates to callers (incl. onFilterFail), as break
                 }
                 break;
             }
