@@ -345,8 +345,8 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
         uses_request_body_source_ = summary.usesRequestBody;
         uses_json_body_target_ = summary.usesJsonBodyTarget;
         needs_storage_ = summary.needsStorage;
-        if (summary.endsWithStop) {
-            LOGWARNING(ert::tracing::Logger::warning("Stop as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
+        if (summary.endsWithBreak) {
+            LOGWARNING(ert::tracing::Logger::warning("Break as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
         }
 
         std::string error;

@@ -51,7 +51,7 @@ TEST(EngineGrammarV2_test, ServerSourcesAndTargets) {
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"clientProvision","id":"flow","inState":"initial"}})", engineRule("value.1", "clientProvision.flow.initial")},
         {R"({"from":{"source":"eraser"},"to":{"target":"serverEvent","requestMethod":"GET","requestUri":"/a?b=1&c=2","eventNumber":-1}})", engineRule("eraser", "serverEvent.eventNumber=-1&requestMethod=GET&requestUri=/a?b=1%26c=2")},
         {R"({"from":{"source":"literal","value":"x"},"to":{"target":"udpSocket","socket":"/tmp/s","delayMs":"@{d}"}})", engineRule("value.x", "udpSocket./tmp/s|@{d}")},
-        {R"({"from":{"source":"literal","value":"1"},"to":{"target":"stop"}})", engineRule("value.1", "break")},
+        {R"({"from":{"source":"literal","value":"1"},"to":{"target":"break"}})", engineRule("value.1", "break")},
         {R"({"from":{"source":"literal","value":"1"},"to":{"target":"clientEvent","clientEndpointId":"e"}})", engineRule("value.1", "n/a.clientEvent")},
     };
     for (const auto &row : table) {
@@ -101,7 +101,7 @@ TEST(EngineGrammarV2_test, ClientRequestAndResponseContexts) {
               engineRule("input./response/body/t", "local.t"));
     EXPECT_EQ(lowered(R"({"from":{"source":"responseHeader","name":"location"},"to":{"target":"outState"}})", Mode::ClientResponse),
               engineRule("input./response/headerMap/location", "outState"));
-    EXPECT_EQ(lowered(R"({"from":{"source":"responseStatusCode"},"to":{"target":"stop"}})", Mode::ClientResponse),
+    EXPECT_EQ(lowered(R"({"from":{"source":"responseStatusCode"},"to":{"target":"break"}})", Mode::ClientResponse),
               engineRule("input./response/statusCode", "break"));
     EXPECT_EQ(lowered(R"({"from":{"source":"requestBody"},"to":{"target":"var","name":"b"}})", Mode::ClientResponse),
               engineRule("input./requestBodyString", "local.b"));
@@ -130,7 +130,7 @@ TEST(EngineGrammarV2_test, FiltersUseTheEngineShape) {
     }
     // onFilterFail is lowered recursively:
     EXPECT_EQ(lowered(R"({"from":{"source":"literal","value":"x"},"filter":[{"op":"equalTo","value":"y"}],"to":{"target":"var","name":"v"},
-                        "onFilterFail":[{"from":{"source":"literal","value":"1"},"to":{"target":"stop"}}]})", Mode::Server),
+                        "onFilterFail":[{"from":{"source":"literal","value":"1"},"to":{"target":"break"}}]})", Mode::Server),
               R"({"filter":{"EqualTo":"y"},"onFilterFail":[{"source":"value.1","target":"break"}],"source":"value.x","target":"local.v"})");
 }
 
@@ -186,13 +186,13 @@ TEST(EngineGrammarV2_test, SummaryAndEngineParsing) {
     const nlohmann::json rules = nlohmann::json::parse(R"([
       {"from":{"source":"requestBody","path":"/a"},"to":{"target":"responseBody","path":"/a"}},
       {"from":{"source":"serverEvent","requestMethod":"GET","requestUri":"/x"},"to":{"target":"var","name":"e"}},
-      {"from":{"source":"literal","value":"1"},"to":{"target":"stop"}}
+      {"from":{"source":"literal","value":"1"},"to":{"target":"break"}}
     ])");
     const auto s = EngineGrammarV2::summarize(rules, Mode::Server);
     EXPECT_TRUE(s.usesRequestBody);
     EXPECT_TRUE(s.usesJsonBodyTarget);
     EXPECT_TRUE(s.needsStorage);
-    EXPECT_TRUE(s.endsWithStop);
+    EXPECT_TRUE(s.endsWithBreak);
     const auto c = EngineGrammarV2::summarize(rules, Mode::ClientRequest);
     EXPECT_FALSE(c.usesJsonBodyTarget);  // responseBody is not the client request body
 

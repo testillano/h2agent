@@ -139,7 +139,7 @@ enum class TargetType {
     MetaUri,                  // meta.uri -> *Meta::uri (string; e.g. client request uri)
     MetaMethod,               // meta.method -> *Meta::method (string; e.g. client request method)
     MetaTimeoutMs,            // meta.timeoutMs -> *Meta::timeoutMs (unsigned)
-    Break,                    // break -> stop the pipeline on a true value
+    Break,                    // break -> leave the pipeline on a true value
 };
 
 /** Optional filter applied over the source value before it reaches the target.

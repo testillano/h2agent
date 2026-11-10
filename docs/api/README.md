@@ -477,7 +477,7 @@ Those values are also defined in `nghttp2_error_code` enum type within `https://
 
 Any value lesser than 100 will cancel the ongoing stream with the corresponding error value. For values greater or equal than 100, it will be interpreted as `HTTP Status Codes`.
 
-Error codes are registered as vaults with key `'__core:stream-error-traffic-server:<recvseq>-<method>-<uri>'` and value `'<error code>'`.
+Error codes are registered as vaults with key `'__core:stream-error-traffic-server:<recvseq>:<method>:<uri>'` and value `'<error code>'`.
 
 #### responseBody
 
@@ -659,11 +659,11 @@ How each context applies it, and what happens with an absent value (unknown vari
 |---|---|---|---|
 | `conditionVar` filter (`{"op": "conditionVar", "name": "<name>[/<pointer>]"}`) | the filter passes | the filter fails: target untouched, `onFilterFail` runs | false (the filter fails) |
 | `conditionVar` filter with `"not": true` | the filter fails | the filter passes | true (the filter passes) |
-| `stop` target (server, client request and client response transformations) | the transformation list is interrupted | ignored, the list goes on | the rule is skipped (the list goes on) |
+| `break` target (server and client response transformations) | the transformation list is left | ignored, the list goes on | the rule is skipped (the list goes on) |
 | `clientProvision` target (server transformations) | the client provision is triggered | not triggered | the rule is skipped (not triggered) |
 | `{"op": "cast", "type": "boolean"}` filter | `true` | `false` (`null`, objects and arrays fail the cast) | the rule is skipped |
 
-The `eraser` source provides no value, so it cannot feed `stop` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above.
+The `eraser` source provides no value, so it cannot feed `break` nor `clientProvision` (the schema rejects it). The validation filters `jsonConstraint` and `schemaId` produce `"1"` on success (true) and, on a variable target, an empty string (false) plus the `<name>.fail` report, so their result can drive any of the contexts above.
 
 > **Changed in 5.0.0:** v1 tested the text of the value (non-empty is true) and stored numbers and booleans as texts. A numeric `0` or a boolean `false` is now false; texts behave as before.
 
@@ -763,7 +763,7 @@ The **source** of information is classified after parsing the following possible
   | `{"target": "txtFile", "file": ...}` / `{"target": "binFile", "file": ...}` | empties the file |
   | `{"target": "serverEvent", <event fields>}` / `{"target": "clientEvent", <event fields>}` | purges the stored events at that address (events are read-only for transformations, so erasing them is the only write they accept, and `eraser` is the only source those targets accept) |
 
-  A missing node, entry or event is a no-op (no null node is created). Any other target ignores the eraser, and `stop` / `clientProvision` reject it (they act on a true value, see [boolean criterion](#boolean-criterion)).
+  A missing node, entry or event is a no-op (no null node is created). Any other target ignores the eraser, and `break` / `clientProvision` reject it (they act on a true value, see [boolean criterion](#boolean-criterion)).
 
   **Conditional erase**: the only filters accepted with `eraser` are `conditionVar` (one or several, optionally negated with `"not": true`): the target is erased only when every condition holds, otherwise it is kept and `onFilterFail` runs. For example, purge an event once a flow is done:
 
@@ -1041,7 +1041,7 @@ The **target** of information is classified after parsing the following possible
 
 - `{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `"id": "@{flowId}", "inState": "@{myState}"`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
 
-  The source acts as a **conditional gate**: the trigger only fires on a **true** value (see [boolean criterion](#boolean-criterion)). A false or undefined source (e.g. a variable that does not exist) silently skips the trigger. This follows the same convention as the `stop` target and the `conditionVar` filter.
+  The source acts as a **conditional gate**: the trigger only fires on a **true** value (see [boolean criterion](#boolean-criterion)). A false or undefined source (e.g. a variable that does not exist) silently skips the trigger. This follows the same convention as the `break` target and the `conditionVar` filter.
 
   ```json
   {
@@ -1063,7 +1063,7 @@ The **target** of information is classified after parsing the following possible
 
   The triggered client provision must be previously configured (via `POST /admin/v2/client-provision`) along with its associated client endpoint (via `POST /admin/v2/client-endpoint`). If the provision or endpoint is not found, or the endpoint is disabled, an error is logged and the trigger is silently skipped.
 
-- `{"target": "stop"}`: when a **true** value (see [boolean criterion](#boolean-criterion)) is transferred, the transformations list is interrupted. A false value (or undefined source) ignores the action. Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+- `{"target": "break"}`: when a **true** value (see [boolean criterion](#boolean-criterion)) is transferred, the transformations list is left (the remaining items are not executed, and the provision `outState` still applies). A false value (or undefined source) ignores the action. Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
 
 
@@ -1697,7 +1697,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
     "filter": [{"op": "conditionVar", "name": "expectedBody.fail"}],
     "to": {"target": "responseBodyText"}
   },
-  {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "stop"}}
+  {"from": {"source": "var", "name": "expectedBody.fail"}, "to": {"target": "break"}}
   ```
 
   Validation algorithm consists in object reference restriction over source (which must be an object or an array). For **objects**, everything included in the filter must exist and be equal to source, but could miss information (for which it would be non-restrictive). So, an empty object '{}' always matches (although it has no sense to be used). In the example above, `{"foo":1}` is validated, but also `{"foo":1,"bar":2}` does. When a value within the constraint is an **array**, the same "contains" logic applies recursively: every element in the expected array must exist somewhere in the received array, order-independent and allowing extras. Use `schemaId` for strict positional array validation if needed.
@@ -2204,7 +2204,7 @@ New **targets**:
 - `{"target": "requestTimeoutMs"}` *[unsigned integer]*: timeout to wait for the response: although you can configure a fixed value for this property on provision document, this transformation target overrides it.
 - `{"target": "requestUri"}` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
 - `{"target": "requestMethod"}` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
-- `{"target": "stop"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then stop the transformation procedure (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `stop` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
+- `{"target": "break"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation list (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
 Note that the `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 
@@ -2373,7 +2373,7 @@ And finally, note that we could also solve the previous exercise just providing 
 
 #### Partial chain execution
 
-A common pattern is to define a full lifecycle chain (e.g., `initial` → `paid` → `shipped` → `delivered`) but execute it in stages. This is achieved by combining a vault with a conditional `stop` in the `onResponseTransform` of an intermediate step.
+A common pattern is to define a full lifecycle chain (e.g., `initial` → `paid` → `shipped` → `delivered`) but execute it in stages. This is achieved by combining a vault with a conditional `outState` override in the `onResponseTransform` of an intermediate step.
 
 For example, consider a 3-step order flow (pay → ship → deliver). To execute only the payment phase:
 

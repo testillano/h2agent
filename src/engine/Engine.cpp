@@ -1037,7 +1037,7 @@ void eraseNode(nlohmann::json &doc, const std::string &pointer) {
     }
 }
 
-// Single boolean criterion of the grammar (conditionVar, stop, clientProvision):
+// Single boolean criterion of the grammar (conditionVar, break, clientProvision):
 // null, false, numeric zero and the empty string are false; anything else (any
 // non-empty string -- "0" and "false" included --, non-zero numbers, true, any
 // object or array) is true. An absent value never reaches it (the rule is skipped).
@@ -2155,7 +2155,7 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 break;
             }
             case TargetType::Break: {
-                // Stop the pipeline on a true value (see truthy()); a false or
+                // Leave the pipeline on a true value (see truthy()); a false or
                 // undefined source is a no-op.
                 if (truthy(value)) {
                     entry.applied = true;

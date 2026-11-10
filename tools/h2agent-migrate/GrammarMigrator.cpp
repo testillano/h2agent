@@ -40,6 +40,7 @@ SOFTWARE.
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <regex>
 #include <sstream>
@@ -189,7 +190,7 @@ const std::vector<std::pair<std::string, std::string>> &plainTargets() {
         {"request.body.string", "requestBodyText"}, {"request.body.hexstring", "requestBodyHex"},
         {"response.statusCode", "responseStatusCode"}, {"response.delayMs", "responseDelayMs"},
         {"request.uri", "requestUri"}, {"request.method", "requestMethod"}, {"request.delayMs", "requestDelayMs"},
-        {"request.timeoutMs", "requestTimeoutMs"}, {"break", "stop"},
+        {"request.timeoutMs", "requestTimeoutMs"}, {"break", "break"},
     };
     return table;
 }
@@ -721,6 +722,16 @@ std::string GrammarMigrator::targetToV1(const Json &v2, const std::string &castT
         if (!castType.empty()) fail(where, "cast to '" + castType + "' on target '" + kind + "' is not expressible in v1");
     };
 
+    // 'stop' was the name of 'break' in h2agent 5.0-5.2: still read here, so that
+    // v2 -> v1 -> v2 upgrades those provisions. A 'stop' marking a failure deserves
+    // a different target, which cannot be told from the syntax: hence the warning.
+    if (kind == "stop") {
+        checkFields(v2, "target", kind, {}, {}, where);
+        noCast();
+        std::cerr << "Warning: " << where << ": target 'stop' (h2agent 5.0-5.2) read as 'break'; review it if it marks a failure" << std::endl;
+        return "break";
+    }
+
     for (const auto &entry : plainTargets()) {
         if (kind != entry.second) continue;
         checkFields(v2, "target", kind, {}, {}, where);
@@ -922,7 +933,7 @@ Json GrammarMigrator::ruleToV2(const Json &v1Rule, const std::string &where) {
     if ((to["target"] == "serverEvent" || to["target"] == "clientEvent") && rule["from"]["source"] != "eraser") {
         fail(where + "/source", "v1 never applies an event purge target with a source other than 'eraser' (it is skipped): remove the rule");
     }
-    if ((to["target"] == "stop" || to["target"] == "clientProvision") && rule["from"]["source"] == "eraser") {
+    if ((to["target"] == "break" || to["target"] == "clientProvision") && rule["from"]["source"] == "eraser") {
         fail(where + "/source", "v1 never fires a 'break' or 'clientProvision' target fed by 'eraser' (it does nothing): remove the rule");
     }
 

@@ -313,7 +313,7 @@ TEST_F(ClientTransform_test, TargetBreak)
       "requestUri": "/test",
       "onResponseTransform": [
         {"from": {"source": "literal", "value": "stopped"}, "to": {"target": "outState"}},
-        {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}},
+        {"from": {"source": "literal", "value": "1"}, "to": {"target": "break"}},
         {"from": {"source": "literal", "value": "should-not-reach"}, "to": {"target": "outState"}}
       ]
     })"_json;
@@ -617,7 +617,7 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
           "filter": [{"op": "equalTo", "value": "200", "not": true}],
           "to": {"target": "outState"}
         },
-        {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}}
+        {"from": {"source": "literal", "value": "1"}, "to": {"target": "break"}}
       ]
     })"_json;
     EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
@@ -632,6 +632,13 @@ TEST_F(ClientTransform_test, TransformResponseBreakOnError)
     nghttp2::asio_http2::header_map reqHeaders;
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     EXPECT_EQ(outState, "500"); // equalTo 200 negated passes, statusCode "500" written to outState
+}
+
+TEST_F(ClientTransform_test, TargetStopIsRejected)
+{
+    // 'stop' was the name of 'break' in h2agent 5.0-5.2: no alias is kept.
+    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::BadSchema);
 }
 
 // ==================== TRIGGERING ====================

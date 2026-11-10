@@ -32,7 +32,7 @@ Changes are tagged by how much attention they need:
 11. [Provision references `#{}`](#11-provision-references-)
 12. [Boolean criterion](#12-boolean-criterion)
 13. [Eraser](#13-eraser)
-14. [Stop (former break)](#14-stop-former-break)
+14. [Break](#14-break)
 15. [Events addressing](#15-events-addressing)
 16. [Execution trace](#16-execution-trace)
 17. [Stricter validation](#17-stricter-validation)
@@ -266,7 +266,7 @@ All **[auto]**:
 | `"target": "udpSocket./tmp/udp.sock\|200"` | `"to": {"target": "udpSocket", "socket": "/tmp/udp.sock", "delayMs": 200}` |
 | `"target": "serverEvent.requestMethod=GET&requestUri=/x"` (with eraser) | `"to": {"target": "serverEvent", "requestMethod": "GET", "requestUri": "/x"}` |
 | `"target": "clientProvision.myFlow.initial"` | `"to": {"target": "clientProvision", "id": "myFlow", "inState": "initial"}` |
-| `"target": "break"` | `"to": {"target": "stop"}` |
+| `"target": "break"` | `"to": {"target": "break"}` |
 
 Foreign out-state example (the state is still the value of `from`):
 
@@ -528,7 +528,7 @@ them). Precedence: the pieces in their array order, then the object's own keys, 
 
 ## 12. Boolean criterion
 
-**[behaviour]** Every decision on a value (`conditionVar`, `stop`, `clientProvision`, boolean cast) uses one
+**[behaviour]** Every decision on a value (`conditionVar`, `break`, `clientProvision`, boolean cast) uses one
 criterion:
 
 | Value | Result |
@@ -554,11 +554,11 @@ Per context:
 |---|---|---|---|
 | `conditionVar` | passes | fails (`onFilterFail` runs) | fails |
 | `conditionVar` + `"not": true` | fails | passes | passes |
-| `stop` | interrupts the list | ignored | rule skipped |
+| `break` | leaves the list | ignored | rule skipped |
 | `clientProvision` | triggers | not triggered | rule skipped |
 | `cast` boolean | `true` | `false` | rule skipped |
 
-So `stop` and `clientProvision` fed by a numeric `0` or a boolean `false` no longer stop / trigger (v1: the
+So `break` and `clientProvision` fed by a numeric `0` or a boolean `false` no longer break / trigger (v1: the
 texts `"0"` / `"false"` did).
 
 ---
@@ -600,22 +600,29 @@ several, optionally negated): the target is erased only when every condition hol
 ### 13.3 What is rejected **[removed]**
 
 * `eraser` with any filter other than `conditionVar` (and the cast): v1 skipped the rule, v2 rejects it.
-* `eraser` feeding `stop` or `clientProvision`: v1 documented it as a way to "disable" a trigger, but such a
+* `eraser` feeding `break` or `clientProvision`: v1 documented it as a way to "disable" a trigger, but such a
   rule does nothing. Remove the rule (or the trigger).
 * An event purge target (`serverEvent` / `clientEvent` in `to`) fed by a source other than `eraser`: v1
   skipped it.
 
 ---
 
-## 14. Stop (former break)
+## 14. Break
 
-**[auto]** `"target": "break"` is `{"target": "stop"}`. **[behaviour]** It now acts on a true value (see
-[12](#12-boolean-criterion)) instead of a non-empty text:
+**[auto]** `"target": "break"` is `{"target": "break"}` (no rename). **[behaviour]** It now acts on a true
+value (see [12](#12-boolean-criterion)) instead of a non-empty text:
 
 ```json
 v1: {"source": "response.statusCode", "target": "break", "filter": {"DifferentFrom": "200"}}
-v2: {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "stop"}}
+v2: {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "break"}}
 ```
+
+**[removed]** h2agent 5.0-5.2 named this target `stop`. From 6.0.0 `stop` is rejected (no alias): use `break`.
+`h2agent-migrate --reverse` still reads `stop`, so a 5.x provision is upgraded by `v2 -> v1 -> v2`
+(`h2agent-migrate -r -i p.json | h2agent-migrate -i - -o p.json`), with a warning per `stop` found: a `stop`
+which actually marks a failure deserves a review instead of a plain rename. This only works for provisions
+whose rules all have a v1 equivalent (the tool rejects the rest, e.g. filter chains); otherwise rename the
+target by hand (`"target": "stop"` -> `"target": "break"`).
 
 ---
 
@@ -678,7 +685,7 @@ testing.
 them at load (`400`), and the tool reports them so they can be removed:
 
 * `eraser` with a filter other than `conditionVar` / cast.
-* `eraser` feeding `stop` / `clientProvision`.
+* `eraser` feeding `break` / `clientProvision`.
 * Event purge target with a source other than `eraser`.
 * Unknown fields in any stage (the v2 schema is closed: a typo such as `"delay"` instead of `"delayMs"` is an
   error, not an ignored field).
@@ -718,7 +725,7 @@ references. Nothing else depends on that order.
 5. Remove the rules the tool rejects as "v1 never applies ..." (they did nothing).
 6. Review the **[behaviour]** items against your provisions:
    * objects stored in a `var` and written to a body ([9](#9-variables-and-vaults-hold-native-json));
-   * `conditionVar` / `stop` / `clientProvision` fed by numbers or booleans ([12](#12-boolean-criterion));
+   * `conditionVar` / `break` / `clientProvision` fed by numbers or booleans ([12](#12-boolean-criterion));
    * vault values compared as texts in tests (`GET /admin/v2/vault`);
    * eraser on paths that may not exist, or on vault paths ([13](#13-eraser));
    * `math` expressions that did not compile ([18](#18-math-source-fixes)).

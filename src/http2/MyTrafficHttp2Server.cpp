@@ -461,7 +461,7 @@ void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &se
 
 
     // Update data map (mark response as incompleted) is costly: sequential search for receptionId, and we don't have here normalized URI to narrow the search
-    // So, we will create a vault entry with key "__core:stream-error-traffic-server:<recvseq>-<method>-<uri>" and value "<error code>"
+    // So, we will create a vault entry with key "__core:stream-error-traffic-server:<recvseq>:<method>:<uri>" and value "<error code>"
     // These variables are useful to inspect errors and discard server data (response sections), or at least interpret them as "intention to send".
     // We also have error logs for this kind of events.
     if (vault_ptr_) {

@@ -595,11 +595,11 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         uses_json_body_target_ = summary.usesJsonBodyTarget;
         needs_storage_ = summary.needsStorage || responseSummary.needsStorage;
         has_response_transform_ = !responseRules.empty();
-        if (summary.endsWithStop) {
-            LOGWARNING(ert::tracing::Logger::warning("Stop as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
+        if (summary.endsWithBreak) {
+            LOGWARNING(ert::tracing::Logger::warning("Break as last 'transform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
         }
-        if (responseSummary.endsWithStop) {
-            LOGWARNING(ert::tracing::Logger::warning("Stop as last 'onResponseTransform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
+        if (responseSummary.endsWithBreak) {
+            LOGWARNING(ert::tracing::Logger::warning("Break as last 'onResponseTransform' item is illogical (no further items to interrupt)", ERT_FILE_LOCATION));
         }
 
         std::string error;

@@ -2023,7 +2023,7 @@ This convention avoids dots (`.`), which are not allowed in vault keys (the form
 
 | Variable | Description |
 | :--- | :--- |
-| `__core:stream-error-traffic-server:<recvseq>-<method>-<uri>` | Stores an [error code](https://datatracker.ietf.org/doc/html/rfc7540#section-7) indicating a stream or connection error detected from traffic server. Used to notify external failure conditions that must be reflected in the response. <u>This is an "output" variable</u> as it is dumped automatically on errors. |
+| `__core:stream-error-traffic-server:<recvseq>:<method>:<uri>` | Stores an [error code](https://datatracker.ietf.org/doc/html/rfc7540#section-7) indicating a stream or connection error detected from traffic server. Used to notify external failure conditions that must be reflected in the response. <u>This is an "output" variable</u> as it is dumped automatically on errors. |
 
 #### Components
 

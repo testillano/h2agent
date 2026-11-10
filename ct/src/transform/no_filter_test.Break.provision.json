@@ -9,7 +9,7 @@
       "from": {"source": "literal", "value": "response-body-string"},
       "to": {"target": "responseBodyText"}
     },
-    {"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}},
+    {"from": {"source": "literal", "value": "1"}, "to": {"target": "break"}},
     {
       "from": {"source": "literal", "value": "this-wont-be-processed"},
       "to": {"target": "responseBodyText"}

@@ -1644,9 +1644,9 @@ TEST_F(Transform_test, TargetUDPSocket)
 TEST_F(Transform_test, TargetBreak)
 {
     // Build test provision:
-    const nlohmann::json item1 = R"({ "from": {"source": "literal", "value": ""}, "to": {"target": "stop"} })"_json; // this break is not triggered (empty value)
+    const nlohmann::json item1 = R"({ "from": {"source": "literal", "value": ""}, "to": {"target": "break"} })"_json; // this break is not triggered (empty value)
     const nlohmann::json item2 = R"({ "from": {"source": "literal", "value": "hello"}, "to": {"target": "responseBodyText"} })"_json;
-    const nlohmann::json item3 = R"({ "from": {"source": "literal", "value": "non-empty"}, "to": {"target": "stop"} })"_json;
+    const nlohmann::json item3 = R"({ "from": {"source": "literal", "value": "non-empty"}, "to": {"target": "break"} })"_json;
     const nlohmann::json item4 = R"({ "from": {"source": "literal", "value": "201"}, "to": {"target": "responseStatusCode"} })"_json; // not reached (previous break is non-empty-triggered)
     server_provision_json_["transform"].push_back(item1);
     server_provision_json_["transform"].push_back(item2);
@@ -1680,10 +1680,10 @@ TEST_F(Transform_test, TargetClientProvision)
     EXPECT_EQ(client_provision_triggers_[1].second, "step2");
 }
 
-TEST_F(Transform_test, EraserCannotFeedClientProvisionNorStop)
+TEST_F(Transform_test, EraserCannotFeedClientProvisionNorBreak)
 {
     // Such a rule would never do anything (they act on a true value): the schema rejects it.
-    for (const char *target : {R"({"target": "clientProvision", "id": "myFlow", "inState": "initial"})", R"({"target": "stop"})"}) {
+    for (const char *target : {R"({"target": "clientProvision", "id": "myFlow", "inState": "initial"})", R"({"target": "break"})"}) {
         SCOPED_TRACE(target);
         nlohmann::json provision = server_provision_json_;
         provision["transform"] = nlohmann::json::array({{{"from", {{"source", "eraser"}}}, {"to", nlohmann::json::parse(target)}}});
@@ -1691,7 +1691,14 @@ TEST_F(Transform_test, EraserCannotFeedClientProvisionNorStop)
     }
 }
 
-TEST_F(Transform_test, StopAndClientProvisionActOnTrueValues)
+TEST_F(Transform_test, TargetStopIsRejected)
+{
+    // 'stop' was the name of 'break' in h2agent 5.0-5.2: no alias is kept.
+    server_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "1"}, "to": {"target": "stop"}}])"_json;
+    EXPECT_EQ(adata_.loadServerProvision(server_provision_json_, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+}
+
+TEST_F(Transform_test, BreakAndClientProvisionActOnTrueValues)
 {
     // Single boolean criterion: numeric 0, false and "" are false; "0" (text) is true.
     server_provision_json_["transform"] = R"([
@@ -1699,9 +1706,9 @@ TEST_F(Transform_test, StopAndClientProvisionActOnTrueValues)
       {"from": {"source": "requestBody", "path": "/no"}, "to": {"target": "clientProvision", "id": "false", "inState": "initial"}},
       {"from": {"source": "literal", "value": "0"}, "to": {"target": "clientProvision", "id": "text0", "inState": "initial"}},
       {"from": {"source": "math", "expression": "2"}, "to": {"target": "clientProvision", "id": "two", "inState": "initial"}},
-      {"from": {"source": "math", "expression": "0"}, "to": {"target": "stop"}},
+      {"from": {"source": "math", "expression": "0"}, "to": {"target": "break"}},
       {"from": {"source": "literal", "value": "reached"}, "to": {"target": "responseHeader", "name": "x-reached"}},
-      {"from": {"source": "requestBody", "path": "/yes"}, "to": {"target": "stop"}},
+      {"from": {"source": "requestBody", "path": "/yes"}, "to": {"target": "break"}},
       {"from": {"source": "literal", "value": "never"}, "to": {"target": "responseHeader", "name": "x-never"}}
     ])"_json;
     provisionAndTransform(R"({"no": false, "yes": true})");

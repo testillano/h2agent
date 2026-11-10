@@ -178,7 +178,7 @@ TEST(GrammarMigrator_test, TargetsMapToV2KindsAndCasts) {
         {"clientEvent.clientEndpointId=e&sendseq=3", R"({"target":"clientEvent","clientEndpointId":"e","sendseq":3})", ""},
         {"clientProvision.flow.initial", R"({"target":"clientProvision","id":"flow","inState":"initial"})", ""},
         {"clientProvision.flow.step.2", R"({"target":"clientProvision","id":"flow","inState":"step.2"})", ""},
-        {"break", R"({"target":"stop"})", ""},
+        {"break", R"({"target":"break"})", ""},
     };
     for (const auto &row : table) {
         SCOPED_TRACE(row.v1);
@@ -262,7 +262,7 @@ TEST(GrammarMigrator_test, RulesKeepV1BehaviourWithFilterLists) {
     expectRule(R"({"source":"value.1","target":"udpSocket./tmp/udp.sock|200","filter":{"Append":"x"}})",
                R"({"from":{"source":"literal","value":"1"},"filter":[{"op":"append","value":"x"}],"to":{"target":"udpSocket","socket":"/tmp/udp.sock","delayMs":200}})");
     expectRule(R"({"source":"value.1","target":"break","filter":{"ConditionVar":"!ok"}})",
-               R"({"from":{"source":"literal","value":"1"},"filter":[{"op":"conditionVar","name":"ok","not":true}],"to":{"target":"stop"}})");
+               R"({"from":{"source":"literal","value":"1"},"filter":[{"op":"conditionVar","name":"ok","not":true}],"to":{"target":"break"}})");
 }
 
 TEST(GrammarMigrator_test, OnFilterFailIsConvertedRecursively) {
@@ -273,7 +273,7 @@ TEST(GrammarMigrator_test, OnFilterFailIsConvertedRecursively) {
                R"({"from":{"source":"requestHeader","name":"x-version"},"filter":[{"op":"equalTo","value":"2"}],"to":{"target":"var","name":"v"},
                    "onFilterFail":[{"from":{"source":"literal","value":"400"},"to":{"target":"responseStatusCode"}},
                                    {"from":{"source":"literal","value":"bad"},"filter":[{"op":"prepend","value":"x"}],"to":{"target":"var","name":"e"},
-                                    "onFilterFail":[{"from":{"source":"literal","value":"1"},"to":{"target":"stop"}}]}]})");
+                                    "onFilterFail":[{"from":{"source":"literal","value":"1"},"to":{"target":"break"}}]}]})");
 }
 
 ////////////////
@@ -296,6 +296,24 @@ TEST(GrammarMigrator_test, ProvisionsKeepEveryOtherFieldInOrder) {
     EXPECT_EQ(clientV2["transform"][0].dump(), R"({"from":{"source":"sendseq"},"filter":[{"op":"cast","type":"unsigned"}],"to":{"target":"requestBody","path":"/seq"}})");
     EXPECT_EQ(clientV2["onResponseTransform"][0].dump(), R"({"from":{"source":"responseStatusCode"},"to":{"target":"var","name":"code"}})");
     EXPECT_EQ(GrammarMigrator::provisionsToV1(clientV2).dump(), client.dump());
+}
+
+TEST(GrammarMigrator_test, LegacyStopIsUpgradedToBreakWithWarning) {
+    // h2agent 5.0-5.2 named the 'break' target 'stop': v2 -> v1 -> v2 upgrades it.
+    const Json legacy = Json::parse(R"({"id":"flow","endpoint":"e","requestMethod":"POST",
+      "onResponseTransform":[{"from":{"source":"responseStatusCode"},"filter":[{"op":"equalTo","value":"201","not":true}],"to":{"target":"stop"}}]})");
+    testing::internal::CaptureStderr();
+    const Json v1 = GrammarMigrator::provisionsToV1(legacy);
+    const std::string warning = testing::internal::GetCapturedStderr();
+    EXPECT_NE(warning.find("/onResponseTransform/0"), std::string::npos) << warning;
+    EXPECT_NE(warning.find("target 'stop' (h2agent 5.0-5.2) read as 'break'"), std::string::npos) << warning;
+    EXPECT_EQ(v1["onResponseTransform"][0]["target"], "break");
+    EXPECT_EQ(GrammarMigrator::provisionsToV2(v1)["onResponseTransform"][0]["to"].dump(), R"({"target":"break"})");
+
+    // 'break' itself converts silently both ways:
+    testing::internal::CaptureStderr();
+    EXPECT_EQ(GrammarMigrator::targetToV1(Json::parse(R"({"target":"break"})"), ""), "break");
+    EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
 }
 
 TEST(GrammarMigrator_test, DetectsGrammar) {
@@ -356,32 +374,32 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
     const std::vector<std::pair<std::string, std::string>> table = {
         // one valid form per kind:
         {R"({"from":"recvseq","to":{"target":"var","name":"x"}})", "/r/from: must be an object with a 'source' kind"},
-        {R"({"from":{"source":"vault"},"to":{"target":"stop"}})", "source 'vault' requires 'key'"},
+        {R"({"from":{"source":"vault"},"to":{"target":"break"}})", "source 'vault' requires 'key'"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"var"}})", "target 'var' requires 'name'"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"nope"}})", "unknown target 'nope'"},
-        {R"({"from":{"source":"nope"},"to":{"target":"stop"}})", "unknown source 'nope'"},
-        {R"({"from":{"source":"recvseq","name":"x"},"to":{"target":"stop"}})", "unknown field 'name' for source 'recvseq' (valid: none)"},
-        {R"({"from":{"source":"vault","key":"K","extra":1},"to":{"target":"stop"}})", "unknown field 'extra' for source 'vault' (valid: key, path)"},
+        {R"({"from":{"source":"nope"},"to":{"target":"break"}})", "unknown source 'nope'"},
+        {R"({"from":{"source":"recvseq","name":"x"},"to":{"target":"break"}})", "unknown field 'name' for source 'recvseq' (valid: none)"},
+        {R"({"from":{"source":"vault","key":"K","extra":1},"to":{"target":"break"}})", "unknown field 'extra' for source 'vault' (valid: key, path)"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"udpSocket","socket":"/s","delay":1}})", "unknown field 'delay' for target 'udpSocket' (valid: socket, delayMs)"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"clientProvision","id":"flow"}})", "target 'clientProvision' requires 'inState'"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"outState","uri":"/x"}})", "'uri' requires 'method'"},
-        {R"({"from":{"source":"requestBody","path":"a"},"to":{"target":"stop"}})", "'path' must be a json pointer"},
-        {R"({"from":{"source":"recvseq"},"filter":[{"op":"size","x":1}],"to":{"target":"stop"}})", "unknown field 'x' for op 'size' (valid: none)"},
-        {R"({"from":{"source":"recvseq"},"filter":[{"op":"Size"}],"to":{"target":"stop"}})", "unknown filter op 'Size'"},
-        {R"({"from":{"source":"recvseq"},"filter":{"op":"size"},"to":{"target":"stop"}})", "/r/filter: must be a non-empty list"},
-        {R"({"from":{"source":"serverEvent","requestUri":"/x","eventNumber":"last"},"to":{"target":"stop"}})", "'eventNumber' must be an integer or a text with variables"},
+        {R"({"from":{"source":"requestBody","path":"a"},"to":{"target":"break"}})", "'path' must be a json pointer"},
+        {R"({"from":{"source":"recvseq"},"filter":[{"op":"size","x":1}],"to":{"target":"break"}})", "unknown field 'x' for op 'size' (valid: none)"},
+        {R"({"from":{"source":"recvseq"},"filter":[{"op":"Size"}],"to":{"target":"break"}})", "unknown filter op 'Size'"},
+        {R"({"from":{"source":"recvseq"},"filter":{"op":"size"},"to":{"target":"break"}})", "/r/filter: must be a non-empty list"},
+        {R"({"from":{"source":"serverEvent","requestUri":"/x","eventNumber":"last"},"to":{"target":"break"}})", "'eventNumber' must be an integer or a text with variables"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"serverEvent","eventPath":"/a"}})", "unknown field 'eventPath' for target 'serverEvent'"},
         // richer than v1:
-        {R"({"from":{"source":"recvseq"},"filter":[{"op":"append","value":"a"},{"op":"prepend","value":"b"}],"to":{"target":"stop"}})", "several filters is not expressible"},
+        {R"({"from":{"source":"recvseq"},"filter":[{"op":"append","value":"a"},{"op":"prepend","value":"b"}],"to":{"target":"break"}})", "several filters is not expressible"},
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"integer"},{"op":"append","value":"a"}],"to":{"target":"var","name":"x"}})", "as the last filter"},
         {R"({"from":{"source":"recvseq"},"to":{"target":"responseBody","path":"/a"}})", "needs a final cast filter"},
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"var","name":"x"}})", "cast to 'integer' on target 'var'"},
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"integer"}],"to":{"target":"vault","key":"K"}})", "on target 'vault'"},
         {R"({"from":{"source":"recvseq"},"filter":[{"op":"cast","type":"date"}],"to":{"target":"responseBody"}})", "unknown cast type 'date'"},
         {R"({"from":{"source":"eraser"},"filter":[{"op":"conditionVar","name":"c"}],"to":{"target":"vault","key":"K"}})", "a conditional erase is not expressible in v1"},
-        {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"stop"}})", "not expressible in v1"},
-        {R"({"from":{"source":"vault","key":"a.b"},"to":{"target":"stop"}})", "contain no dots"},
-        {R"({"from":{"source":"random","min":1},"to":{"target":"stop"}})", "source 'random' requires 'max'"},
+        {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"break"}})", "not expressible in v1"},
+        {R"({"from":{"source":"vault","key":"a.b"},"to":{"target":"break"}})", "contain no dots"},
+        {R"({"from":{"source":"random","min":1},"to":{"target":"break"}})", "source 'random' requires 'max'"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToText"}],"to":{"target":"var","name":"x"}})", "filter 'hexToText' has no v1 equivalent"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"textToHex"}],"to":{"target":"var","name":"x"}})", "filter 'textToHex' has no v1 equivalent"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToIp"}],"to":{"target":"var","name":"x"}})", "filter 'hexToIp' has no v1 equivalent"},

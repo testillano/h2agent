@@ -84,7 +84,7 @@ public:
         bool usesRequestBody{};     // some 'from' reads requestBody (request body must be decoded)
         bool usesJsonBodyTarget{};  // some 'to' writes the (server response | client request) json body
         bool needsStorage{};        // some rule reads or purges stored events
-        bool endsWithStop{};        // last rule is a 'stop' target (illogical, warned)
+        bool endsWithBreak{};       // last rule is a 'break' target (illogical, warned)
     };
 
     static Summary summarize(const nlohmann::json &v2Rules, Mode mode);

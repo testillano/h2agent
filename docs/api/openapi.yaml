@@ -2201,7 +2201,7 @@ components:
         properties:
           target:
             enum:
-            - stop
+            - break
             type: string
         required:
         - target
@@ -2262,7 +2262,7 @@ components:
               properties:
                 target:
                   enum:
-                  - stop
+                  - break
                   - clientProvision
               required:
               - target
@@ -2924,7 +2924,7 @@ components:
               properties:
                 target:
                   enum:
-                  - stop
+                  - break
                   - clientProvision
               required:
               - target
@@ -3438,7 +3438,7 @@ components:
         properties:
           target:
             enum:
-            - stop
+            - break
             type: string
         required:
         - target
@@ -3499,7 +3499,7 @@ components:
               properties:
                 target:
                   enum:
-                  - stop
+                  - break
                   - clientProvision
               required:
               - target

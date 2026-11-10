@@ -183,7 +183,7 @@ std::string lowerTarget(const nlohmann::json &to, const std::string &castType, M
     if (kind == "var") return withPath("local." + text(to, "name"), to);
     if (kind == "txtFile" || kind == "binFile") return kind + "." + text(to, "file");
     if (kind == "udpSocket") return "udpSocket." + text(to, "socket") + (to.contains("delayMs") ? "|" + number(to["delayMs"]) : "");
-    if (kind == "stop") return "break";
+    if (kind == "break") return "break";
 
     if (mode == Mode::Server) {
         if (kind == "responseBodyText") return "output.string";
@@ -309,7 +309,7 @@ EngineGrammarV2::Summary EngineGrammarV2::summarize(const nlohmann::json &v2Rule
         if (from == "requestBody") s.usesRequestBody = true;
         if (mode != Mode::ClientResponse && to == bodyTarget) s.usesJsonBodyTarget = true;
         if (from == "serverEvent" || from == "clientEvent" || to == "serverEvent" || to == "clientEvent") s.needsStorage = true;
-        s.endsWithStop = (to == "stop");
+        s.endsWithBreak = (to == "break");
     }
     return s;
 }

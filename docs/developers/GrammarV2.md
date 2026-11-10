@@ -103,7 +103,7 @@ Numeric fields also accept a string holding a variable (`"@{seq}"`). A v1 query 
 | `udpSocket.<path>` / `udpSocket.<path>\|<ms>` | `{"target": "udpSocket", "socket": "<path>"[, "delayMs": <ms>]}` | all |
 | `serverEvent.<query>` / `clientEvent.<query>` (with `eraser`) | `{"target": "serverEvent", <event fields>}` / `{"target": "clientEvent", <event fields>}` | server / client |
 | `clientProvision.<id>.<inState>` | `{"target": "clientProvision", "id": "<id>", "inState": "<inState>"}` | server |
-| `break` | `{"target": "stop"}` (see [Stop](#stop)) | server, client response |
+| `break` | `{"target": "break"}` (see [Break](#break)) | server, client response |
 
 `<type'>`: `string`, `integer`, `unsigned`, `float`, `boolean`, `object` (v1 `object` best-effort typing, kept as is: a non-object is converted from its text to integer, unsigned, float or boolean, in that order), `json` (v1 `jsonstring`: parse the text as json).
 
@@ -174,21 +174,23 @@ The only filters it accepts are `conditionVar` (one or several, optionally negat
 
 Event storage is read-only for transformations: erasing is the only write `serverEvent` / `clientEvent` accept as targets, and `eraser` is the only source they accept (v1 skipped any other source silently, the schema rejects it). A dedicated purge target was considered (phase [6]) and discarded: it would only be a longer spelling of this rule.
 
-An `eraser` cannot feed `stop` nor `clientProvision`: they act on a true value, so v1 did nothing with such a rule (the documented way to "disable" a trigger). The schema rejects it, and the migrator reports it to be removed.
+An `eraser` cannot feed `break` nor `clientProvision`: they act on a true value, so v1 did nothing with such a rule (the documented way to "disable" a trigger). The schema rejects it, and the migrator reports it to be removed.
 
 ## Boolean criterion
 
-`conditionVar`, `stop`, `clientProvision` and the boolean `cast` share one criterion (per-context table in [docs/api/README.md](../api/README.md#boolean-criterion)): `null`, `false`, numeric zero and the empty string are false; anything else (any non-empty string, `"0"` and `"false"` included, non-zero numbers, `true`, any object or array) is true. An absent value (unknown variable, unresolved source or pointer) is false for `conditionVar` and skips the rule for the targets.
+`conditionVar`, `break`, `clientProvision` and the boolean `cast` share one criterion (per-context table in [docs/api/README.md](../api/README.md#boolean-criterion)): `null`, `false`, numeric zero and the empty string are false; anything else (any non-empty string, `"0"` and `"false"` included, non-zero numbers, `true`, any object or array) is true. An absent value (unknown variable, unresolved source or pointer) is false for `conditionVar` and skips the rule for the targets.
 
 v1 tested the text of the value (non-empty is true). With the native store values, a numeric `0` or a boolean `false` is now false (they were the non-empty texts `"0"` / `"false"`); text values behave as in v1.
 
-## Stop
+## Break
 
-`{"target": "stop"}` is v1 `break` renamed: when the value reaching it (after the filters) is true (see [Boolean criterion](#boolean-criterion)), the remaining items of the list are not executed.
+`{"target": "break"}` keeps the v1 name: when the value reaching it (after the filters) is true (see [Boolean criterion](#boolean-criterion)), the remaining items of the list are not executed. It only leaves the transformation list: the provision `outState` still applies, so a client chain goes on.
 
 ```json
-{"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "stop"}}
+{"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "break"}}
 ```
+
+h2agent 5.0-5.2 named it `stop`, which read as "the chain stops". Since 6.0.0 `stop` is rejected (no alias); `h2agent-migrate --reverse` still reads it, so `v2 -> v1 -> v2` upgrades such provisions (with a warning per `stop`).
 
 ## Full example
 
@@ -217,6 +219,6 @@ Some v1 spellings have no direct equivalent and are normalized (same behaviour):
 2. Every kind and field in lowerCamelCase, filters included; the cast is the filter `{"op": "cast", "type": ...}`.
 3. `fmt` for every format field (`strftime` source included); `expression`, `values`, `command`, `socket` as listed.
 4. Event addressing with plain fields (no url-encoding); `outState` with optional `method`/`uri`.
-5. `eraser` (a noun, like every source; decided as `erase` on 2026-10-30, renamed on 2026-10-31) is a source accepting only `conditionVar` filters (conditional erase is new) and the cast, the only source of an event purge, and it cannot feed `stop` nor `clientProvision`; `stop` replaces `break`.
+5. `eraser` (a noun, like every source; decided as `erase` on 2026-10-30, renamed on 2026-10-31) is a source accepting only `conditionVar` filters (conditional erase is new) and the cast, the only source of an event purge, and it cannot feed `stop` nor `clientProvision`; `stop` replaces `break` (reverted in 6.0.0: the target is `break` again, see [Break](#break)).
 6. The v1 `value.<text>` source is the `literal` kind (`{"source": "literal", "value": ...}`): `value` stays the field of every literal operand.
 7. A json body target without `cast` writes the value with the type the source yields (text sources give a string, json sources their json). The migrator does not produce `{"op": "cast", "type": "string"}` when the source always yields text (`literal`, `requestHeader`, `requestUriParam`, `requestUri`, `requestUriPath`, `strftime`, `inState`); every other cast is kept.

@@ -687,7 +687,7 @@ curl --http2-prior-knowledge -XPOST \
   <div class="fragment fade-up" style="font-size:.55em;margin-top:.4em">
     <h3>Both</h3>
     <p><code>var</code> &middot; <code>vault</code> (<code>key</code>, <code>path</code>) &middot; <code>txtFile</code> / <code>binFile</code> &middot; <code>udpSocket</code> (<code>socket</code>, <code>delayMs</code>)
-      &middot; <code>serverEvent</code> / <code>clientEvent</code> (with <code>eraser</code>: purge) &middot; <code>stop</code> (v1 <code>break</code>)</p>
+      &middot; <code>serverEvent</code> / <code>clientEvent</code> (with <code>eraser</code>: purge) &middot; <code>break</code></p>
   </div>
 </section>
 
@@ -699,7 +699,7 @@ curl --http2-prior-knowledge -XPOST \
     <div class="card fragment fade-up"><h3>#{key[/pointer]}</h3>Provision references resolved <b>once at load</b> against the vault: shared regular expressions, constants&hellip;</div>
   </div>
   <div class="cols c2" style="font-size:.52em;margin-top:.6em">
-    <div class="card orange fragment fade-up"><h3>Boolean criterion</h3><code>null</code>, <code>false</code>, numeric zero and <code>""</code> are false; anything else is true. Shared by <code>conditionVar</code>, <code>stop</code>, <code>clientProvision</code> and the boolean cast.</div>
+    <div class="card orange fragment fade-up"><h3>Boolean criterion</h3><code>null</code>, <code>false</code>, numeric zero and <code>""</code> are false; anything else is true. Shared by <code>conditionVar</code>, <code>break</code>, <code>clientProvision</code> and the boolean cast.</div>
     <div class="card orange fragment fade-up"><h3>Eraser</h3>One meaning per target: removes the variable, the vault entry or node, the body node, empties a file, purges events. Conditional with <code>conditionVar</code>.</div>
   </div>
 </section>
