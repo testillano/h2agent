@@ -7,6 +7,7 @@
 #include <SocketManager.hpp>
 #include <MockClientData.hpp>
 #include <MockServerData.hpp>
+#include <FailureStates.hpp>
 
 #include <ert/http2comm/Http2Client.hpp>
 
@@ -866,6 +867,84 @@ TEST_F(ClientTransform_test, TransformResponseReturnsFalseWhenStatusCodeMismatch
     resp.statusCode = 500;
     std::string outState = "initial";
     EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState, variables_));
+}
+
+TEST_F(ClientTransform_test, TransformResponseFailuresInEvaluationOrder)
+{
+    const nlohmann::json schema = R"({"id": "mySchema", "schema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "required": ["ok"]}})"_json;
+    ASSERT_EQ(adata_.loadSchema(schema), h2agent::model::AdminSchemaData::Success);
+    client_provision_json_["expectedResponseStatusCode"] = 204;
+    client_provision_json_["responseSchemaId"] = "mySchema";
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 500;
+    resp.body = R"({"cause":"boom"})";
+    std::string outState = "next";
+    nlohmann::json failures = nlohmann::json::array();
+    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState, variables_, -1, nullptr, &failures));
+
+    ASSERT_EQ(failures.size(), 2u);
+    EXPECT_EQ(failures[0], nlohmann::json::parse(R"({"reason": "expectedResponseStatusCode", "expected": 204, "got": 500})"));
+    EXPECT_EQ(failures[1]["reason"], "responseSchemaId");
+    EXPECT_EQ(failures[1]["id"], "mySchema");
+    EXPECT_FALSE(failures[1]["error"].get<std::string>().empty());
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), "__core:failed:expectedResponseStatusCode");
+    EXPECT_EQ(h2agent::model::failureDetail(failures[0]), "expected 204, got 500");
+
+    // No failure: nothing appended
+    resp.statusCode = 204;
+    resp.body = R"({"ok":1})";
+    failures = nlohmann::json::array();
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 2, outState, variables_, -1, nullptr, &failures));
+    EXPECT_TRUE(failures.empty());
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), "next");
+}
+
+TEST_F(ClientTransform_test, ReservedStates)
+{
+    const std::vector<std::pair<std::string, std::string>> rejected = {
+        {"outState", "__core:failed"}, {"outState", "__core:failed:transport"}, {"outState", "__core:other"},
+        {"inState", "__core:other"}, {"inState", "__core:failed:"}, {"inState", "__core:failed:a:b"},
+    };
+    for (const auto &r : rejected) {
+        SCOPED_TRACE(r.first + " = " + r.second);
+        nlohmann::json provision = client_provision_json_;
+        provision[r.first] = r.second;
+        EXPECT_NE(adata_.loadClientProvision(provision, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    }
+    // inState accepts the failure states (error branch):
+    for (const char *state : {
+                "__core:failed", "__core:failed:expectedResponseStatusCode", "__core:failed:my-reason"
+            }) {
+        SCOPED_TRACE(state);
+        nlohmann::json provision = client_provision_json_;
+        provision["inState"] = state;
+        EXPECT_EQ(adata_.loadClientProvision(provision, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    }
+}
+
+TEST_F(ClientTransform_test, ReservedOutStateWrittenByTransformationIsIgnored)
+{
+    client_provision_json_["outState"] = "next";
+    client_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "__core:failed:fake"}, "to": {"target": "outState"}}])"_json;
+    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "literal", "value": "__core:x"}, "to": {"target": "outState"}}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    std::string outState{};
+    std::string error{};
+    provision->transform(request_method_, request_uri_, request_body_, request_headers_, outState, request_delay_ms_, request_timeout_ms_, error, variables_);
+    EXPECT_EQ(outState, "next");
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 200;
+    outState = "next";
+    provision->transformResponse("/test", {}, resp, 1, outState, variables_);
+    EXPECT_EQ(outState, "next");
 }
 
 /////////////////////////////////////

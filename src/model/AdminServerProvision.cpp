@@ -60,6 +60,7 @@ SOFTWARE.
 #include <AdminData.hpp>
 
 #include <functions.hpp>
+#include <FailureStates.hpp>
 
 
 
@@ -122,7 +123,8 @@ void AdminServerProvision::transform( const std::string &requestUri,
                                       std::string &outStateUri,
                                       std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
                                       Variables &variables,
-                                      nlohmann::json *executionTrace
+                                      nlohmann::json *executionTrace,
+                                      nlohmann::json *failures
                                     )
 {
     // Default values without transformations:
@@ -157,6 +159,9 @@ void AdminServerProvision::transform( const std::string &requestUri,
         std::string error{};
         if (!getRequestSchema()->validate(requestBodyDataPart.getJson(), error)) {
             responseStatusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            // A failure: the key does not advance to the provision outState
+            outState = failedState(FAILURE_REQUEST_SCHEMA_ID);
+            if (failures) failures->push_back({{"reason", FAILURE_REQUEST_SCHEMA_ID}, {"id", request_schema_id_}, {"error", error}});
             return; // INTERRUPT TRANSFORMATIONS
         }
     }
@@ -221,6 +226,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
         h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
         if (executionTrace) appendExecutionTrace(*executionTrace, result, "transform");
     }
+    keepReservedStatesUnwritten(outState);
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)
@@ -250,6 +256,12 @@ void AdminServerProvision::transform( const std::string &requestUri,
     }
 }
 
+void AdminServerProvision::keepReservedStatesUnwritten(std::string &outState) const {
+    if (!isReservedState(outState)) return;
+    LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Server provision '%s %s' (inState '%s'): reserved outState '%s' written by a transformation is ignored ('%s' kept)", request_method_.c_str(), request_uri_.c_str(), in_state_.c_str(), outState.c_str(), out_state_.c_str()), ERT_FILE_LOCATION));
+    outState = out_state_;
+}
+
 bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfigured) {
 
     // Store whole document (useful for GET operation)
@@ -272,12 +284,24 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     if (it != j.end() && it->is_string()) {
         in_state_ = *it;
         if (in_state_.empty()) in_state_ = DEFAULT_ADMIN_PROVISION_STATE;
+        // '__core:' is reserved: a server inState is only used by the next request on the
+        // key, so it cannot react to a failure (react before it with a foreign outState
+        // or a clientProvision target)
+        if (isReservedState(in_state_)) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid inState reserved value: %s ('%s' is reserved)", in_state_.c_str(), RESERVED_STATE_PREFIX), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     it = j.find("outState");
     if (it != j.end() && it->is_string()) {
         out_state_ = *it;
         if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
+        // '__core:' is reserved: never an output
+        if (isReservedState(out_state_)) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid outState reserved value: %s ('%s' is reserved)", out_state_.c_str(), RESERVED_STATE_PREFIX), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     it = j.find("requestSchemaId");

@@ -61,6 +61,7 @@ SOFTWARE.
 #include <AdminData.hpp>
 
 #include <functions.hpp>
+#include <FailureStates.hpp>
 
 
 
@@ -233,6 +234,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
         h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
         if (executionTrace) appendExecutionTrace(*executionTrace, result, "transform");
     }
+    keepReservedStatesUnwritten(outState);
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)
@@ -265,7 +267,8 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         std::string &outState,
         Variables &variables,
         std::int64_t seq,
-        nlohmann::json *executionTrace
+        nlohmann::json *executionTrace,
+        nlohmann::json *failures
                                             )
 {
     bool validationOk = true;
@@ -303,12 +306,16 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
             h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports, executionTrace != nullptr);
             if (executionTrace) appendExecutionTrace(*executionTrace, result, "onResponseTransform");
         }
+        keepReservedStatesUnwritten(outState);
 
     } // has_response_transform_
 
+    // Built-in checks, in the documented evaluation order (they are logged by the
+    // caller, which knows the final event state):
+
     // Expected response status code validation:
     if (expected_response_status_code_ != 0 && receivedResponse.statusCode != (int)expected_response_status_code_) {
-        ert::tracing::Logger::error(ert::tracing::Logger::asString("Expected response status code %u but got %d", expected_response_status_code_, receivedResponse.statusCode), ERT_FILE_LOCATION);
+        if (failures) failures->push_back({{"reason", FAILURE_EXPECTED_RESPONSE_STATUS_CODE}, {"expected", expected_response_status_code_}, {"got", receivedResponse.statusCode}});
         validationOk = false;
     }
 
@@ -318,13 +325,19 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         if (h2agent::model::parseJsonContent(receivedResponse.body, responseJson)) {
             std::string error{};
             if (!getResponseSchema()->validate(responseJson, error)) {
-                ert::tracing::Logger::error(ert::tracing::Logger::asString("Response schema validation failed: %s", error.c_str()), ERT_FILE_LOCATION);
+                if (failures) failures->push_back({{"reason", FAILURE_RESPONSE_SCHEMA_ID}, {"id", response_schema_id_}, {"error", error}});
                 validationOk = false;
             }
         }
     }
 
     return validationOk;
+}
+
+void AdminClientProvision::keepReservedStatesUnwritten(std::string &outState) const {
+    if (!isReservedState(outState)) return;
+    LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Client provision '%s' (inState '%s'): reserved outState '%s' written by a transformation is ignored ('%s' kept)", client_provision_id_.c_str(), in_state_.c_str(), outState.c_str(), out_state_.c_str()), ERT_FILE_LOCATION));
+    outState = out_state_;
 }
 
 bool AdminClientProvision::updateTriggering(const std::string &sequenceBegin, const std::string &sequenceEnd, const std::string &cps, const std::string &repeat) {
@@ -505,6 +518,11 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid inState reserved value: %s", DEFAULT_ADMIN_PROVISION_CLIENT_OUT_STATE), ERT_FILE_LOCATION);
             return false;
         }
+        // '__core:' is reserved: a client inState only accepts the failure states (error branch)
+        if (isReservedState(in_state_) && !isFailedState(in_state_)) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid inState reserved value: %s (only '%s' or '%s<reason>' are accepted)", in_state_.c_str(), FAILED_STATE, FAILED_STATE_PREFIX), ERT_FILE_LOCATION);
+            return false;
+        }
     }
 
     it = j.find("outState");
@@ -513,6 +531,11 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
         if (out_state_.empty()) out_state_ = DEFAULT_ADMIN_PROVISION_STATE;
         if (out_state_ == DEFAULT_ADMIN_PROVISION_STATE) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid outState reserved value: %s", DEFAULT_ADMIN_PROVISION_STATE), ERT_FILE_LOCATION);
+            return false;
+        }
+        // '__core:' is reserved: never an output
+        if (isReservedState(out_state_)) {
+            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid outState reserved value: %s ('%s' is reserved)", out_state_.c_str(), RESERVED_STATE_PREFIX), ERT_FILE_LOCATION);
             return false;
         }
     }

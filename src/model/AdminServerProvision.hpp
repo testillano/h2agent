@@ -126,6 +126,9 @@ class AdminServerProvision
     bool uses_json_body_target_{};     // some rule writes the response json body (it is cloned)
     bool needs_storage_{};             // some rule reads or purges stored events
 
+    // '__core:' states are never an output: a transformation writing one is ignored (provision outState kept)
+    void keepReservedStatesUnwritten(std::string &outState) const;
+
 
 public:
 
@@ -152,6 +155,8 @@ public:
      * @param outStateMethod method inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param executionTrace when given, the pipeline execution trace is appended there (json array)
+     * @param failures when given, one entry is appended per failure, in evaluation order
+     *        ({"reason": ..., <detail fields>}); then 'outState' is '__core:failed:<reason>' (first one)
      */
     void transform( const std::string &requestUri,
                     const std::string &requestUriPath,
@@ -169,7 +174,8 @@ public:
                     std::string &outStateUri,
                     std::vector<std::pair<std::string, std::string>> &clientProvisionTriggers,
                     Variables &variables,
-                    nlohmann::json *executionTrace = nullptr
+                    nlohmann::json *executionTrace = nullptr,
+                    nlohmann::json *failures = nullptr
                   );
 
     // setters:

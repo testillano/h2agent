@@ -68,6 +68,7 @@ SOFTWARE.
 #include <functions.hpp>
 #include <GrammarMigrator.hpp>
 #include <JsonSchema.hpp>
+#include <FailureStates.hpp>
 
 
 namespace h2agent
@@ -1398,42 +1399,41 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         std::string finalOutState = outState;
         const h2agent::model::AdminClientProvisionData &provisionData = getAdminData()->getClientProvisionData();
         auto provision = provisionData.find(inState, clientProvisionId);
-        bool responseValidationOk = true;
+        nlohmann::json failures = nlohmann::json::array();
         if (provision) {
-            responseValidationOk = provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get());
+            provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures);
         }
 
         // Provisioned request counter
         if (response.statusCode > 0) client->incrementProvisionedRequestsSuccessful();
         else client->incrementProvisionedRequestsFailed();
 
-        // Break chain on transport errors (timeout, connection error, request
-        // unsent, etc.: statusCode <= 0). The chain cannot progress without a
-        // real answer, so it stops here -- but the failed step MUST still be
-        // recorded, otherwise the flow would end silently with no trace in
-        // client-data (the step would appear stuck as 'unsent' and the failure
-        // would be invisible). Store the event (with its error statusCode) first,
-        // then break.
+        // Transport errors (timeout, connection error, request unsent, etc.:
+        // statusCode <= 0): there is no answer, so nothing else applies.
         if (response.statusCode <= 0) {
-            if (client_data_) {
-                h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
-                h2agent::model::DataPart responseBodyDataPart(response.body);
-                getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get());
-            }
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Transport error (statusCode %d) sending client provision '%s': chain interrupted", response.statusCode, clientProvisionId.c_str()), ERT_FILE_LOCATION));
-            return;
+            failures = nlohmann::json::array({{{"reason", h2agent::model::FAILURE_TRANSPORT}, {"statusCode", response.statusCode}}});
         }
 
-        // Response validation counters
-        if (!responseValidationOk) {
-            client->incrementUnexpectedResponseStatusCode();
+        // A failure is a state of the chain: the event is stored with it (instead
+        // of the intended outState), so that it is visible in client-data, and
+        // the chain stops there.
+        const bool failed = !failures.empty();
+        if (failed) {
+            finalOutState = h2agent::model::stateAfterFailures(failures, finalOutState);
+            LOGWARNING(
+            for (const auto &failure : failures) {
+            const std::string state = h2agent::model::failedState(failure.value("reason", std::string("")));
+                ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed client provision '%s' (inState '%s') -> '%s': %s", clientProvisionId.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
+            }
+            );
+            if (response.statusCode > 0) client->incrementUnexpectedResponseStatusCode();
         }
 
         // Store event
         if (client_data_) {
             h2agent::model::DataKey dataKey(clientEndpointId, requestMethod, requestUri);
             h2agent::model::DataPart responseBodyDataPart(response.body);
-            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get());
+            getMockClientData()->loadEvent(dataKey, clientProvisionId, inState, finalOutState, response.sendingUs, response.receptionUs, response.statusCode, requestHeaders, response.headers, requestBody, responseBodyDataPart, sendSeq, provisionSeq, requestDelayMs, requestTimeoutMs, client_data_key_history_, executionTrace.get(), &failures);
 
             // Accumulate purge key for chain-aware purge:
             if (purgeKeys) {
@@ -1441,11 +1441,8 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
             }
         }
 
-        // Chain break on validation failure
-        if (!responseValidationOk) {
-            LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Response validation failed for provision '%s': chain interrupted", clientProvisionId.c_str()), ERT_FILE_LOCATION));
-            return;
-        }
+        // The chain ends on a failure (no purge):
+        if (failed) return;
 
         // Purge
         if (purge_execution_ && finalOutState == "purge") {

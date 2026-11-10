@@ -88,10 +88,11 @@ public:
      * @param virtualOriginComingFromMethod Marks event as virtual one, adding a field with the origin method which caused it. Non-virtual by default (empty parameter).
      * @param virtualOriginComingFromUri Marks event as virtual one, adding a field with the origin uri which caused it. Non-virtual by default (empty parameter).
      * @param executionTrace Optional transformation pipeline execution trace stored in the event
+     * @param failures Optional failures of the event (stored when non-empty)
      *
      * @return The event loaded (thread-safe handle for the caller, e.g. to set its sending timestamp)
      */
-    std::shared_ptr<MockServerEvent> loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr);
+    std::shared_ptr<MockServerEvent> loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr, const nlohmann::json *failures = nullptr);
 
     /**
      * Removes event matching a given receive sequence within a data key

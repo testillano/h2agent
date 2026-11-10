@@ -261,6 +261,7 @@ public:
     std::string out_state_uri_{};
     std::vector<std::pair<std::string, std::string>> client_provision_triggers_{};
     h2agent::model::Variables variables_{};
+    nlohmann::json failures_ = nlohmann::json::array();
 
     Transform_test() {
         adata_.loadServerMatching(MatchingConfiguration_FullMatching);
@@ -320,7 +321,7 @@ public:
         EXPECT_EQ(adata_.getServerProvisionData().size(), 1);
 
         request_body_data_part_.assign(requestBody);
-        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_, nullptr, &failures_);
     }
 
     ~Transform_test() {
@@ -446,6 +447,58 @@ TEST_F(Transform_test, RequestNotValidated)
     // Validations:
     EXPECT_EQ(status_code_, 400); // transformations are interrupted when request is invalid: response body will be empty:
     EXPECT_EQ(response_body_, "");
+
+    // A failure: the key does not advance to the provision outState
+    EXPECT_EQ(out_state_, "__core:failed:requestSchemaId");
+    ASSERT_EQ(failures_.size(), 1u);
+    EXPECT_EQ(failures_[0]["reason"], "requestSchemaId");
+    EXPECT_EQ(failures_[0]["id"], "myRequestSchema");
+    EXPECT_FALSE(failures_[0]["error"].get<std::string>().empty());
+}
+
+TEST_F(Transform_test, RequestValidatedHasNoFailures)
+{
+    server_provision_json_["requestSchemaId"] = "myRequestSchema";
+    server_provision_json_["outState"] = "next";
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(out_state_, "next");
+    EXPECT_TRUE(failures_.empty());
+}
+
+TEST_F(Transform_test, ResponseNotValidatedIsNotAFailure)
+{
+    // The server response schema checks the mock itself (500 answered), not the peer:
+    server_provision_json_["responseSchemaId"] = "myResponseSchema";
+    server_provision_json_["responseBody"].erase("bar");
+    server_provision_json_["outState"] = "next";
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(status_code_, 500);
+    EXPECT_EQ(out_state_, "next");
+    EXPECT_TRUE(failures_.empty());
+}
+
+TEST_F(Transform_test, ReservedStatesAreRejected)
+{
+    for (const char *field : {"inState", "outState"}) {
+        for (const char *state : {"__core:failed", "__core:failed:requestSchemaId", "__core:other"}) {
+            SCOPED_TRACE(std::string(field) + " = " + state);
+            nlohmann::json provision = server_provision_json_;
+            provision[field] = state;
+            EXPECT_NE(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+        }
+    }
+}
+
+TEST_F(Transform_test, ReservedOutStateWrittenByTransformationIsIgnored)
+{
+    server_provision_json_["outState"] = "next";
+    server_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "__core:failed:fake"}, "to": {"target": "outState"}}])"_json;
+    provisionAndTransform(request_body_.dump());
+
+    EXPECT_EQ(out_state_, "next");
+    EXPECT_TRUE(failures_.empty());
 }
 
 TEST_F(Transform_test, ResponseNotValidated)

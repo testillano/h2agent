@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import SCHEMAS_SERVER_PROVISION_TEMPLATE, MY_REQUESTS_SCHEMA_ID_TEMPLATE, string2dict, ADMIN_SCHEMA_URI
+from conftest import SCHEMAS_SERVER_PROVISION_TEMPLATE, MY_REQUESTS_SCHEMA_ID_TEMPLATE, string2dict, ADMIN_SCHEMA_URI, ADMIN_SERVER_DATA_URI
 
 
 @pytest.mark.admin
@@ -49,13 +49,28 @@ def test_003_i_want_to_send_valid_post_request_for_provisioned_data_on_traffic_i
   h2ac_traffic.assert_response__status_body_headers(response, 201, responseBodyRef)
 
 
-def test_004_i_want_to_send_post_request_for_provisioned_data_on_traffic_interface_and_fail_on_request_schema(h2ac_traffic):
+def test_004_i_want_to_send_post_request_for_provisioned_data_on_traffic_interface_and_fail_on_request_schema(h2ac_traffic, h2ac_admin):
 
   # Send POST
   response = h2ac_traffic.postDict("/app/v1/foo/bar", { "foo": "required", "no-additional-allowed": "test" })
 
   # Verify response
   h2ac_traffic.assert_response__status_body_headers(response, 400, "") # failed on request schema, so no transformations and response body are processed
+
+  # The failure is a state of the key (it does not advance to the provision outState), and its detail is in the event:
+  response = h2ac_admin.get(ADMIN_SERVER_DATA_URI + "?requestMethod=POST&requestUri=/app/v1/foo/bar&eventNumber=-1")
+  assert response["status"] == 200
+  event = response["body"]
+  assert event["previousState"] == "initial"
+  assert event["state"] == "__core:failed:requestSchemaId"
+  assert len(event["failures"]) == 1
+  assert event["failures"][0]["reason"] == "requestSchemaId"
+  assert event["failures"][0]["id"] == "myRequestsSchemaId"
+
+  # No server provision has that inState, so the key stays there (next request: 501) until its events are removed:
+  response = h2ac_traffic.postDict("/app/v1/foo/bar", { "foo": "required" })
+  assert response["status"] == 501
+  h2ac_admin.delete(ADMIN_SERVER_DATA_URI)
 
 
 def test_005_i_want_to_send_post_request_for_provisioned_data_on_traffic_interface_and_fail_on_response_schema(admin_server_provision, h2ac_traffic):

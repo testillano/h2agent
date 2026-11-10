@@ -46,10 +46,10 @@ namespace h2agent
 namespace model
 {
 
-std::shared_ptr<MockServerEvent> MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace) {
+std::shared_ptr<MockServerEvent> MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace, const nlohmann::json *failures) {
 
     // The event is built outside any lock (the costly part)...
-    auto event = MockServerEventsHistory::buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace);
+    auto event = MockServerEventsHistory::buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace, failures);
 
     // ... and stored with an atomic get-or-create of the key history (as MockClientData
     // does), so a key is never published without events: the former get + add was not

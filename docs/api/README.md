@@ -24,6 +24,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
   - [Algorithm selection](#algorithm-selection)
 - [Server provisions](#server-provisions)
   - [State machine (inState/outState)](#state-machine-instateoutstate)
+  - [Reserved states and failures](#reserved-states-and-failures)
   - [Server provision fields](#server-provision-fields)
   - [Variable types: `var` vs `vault`](#variable-types-var-vs-vault)
   - [Transformation pipeline](#transformation-pipeline)
@@ -414,6 +415,48 @@ Further similar matches (*m*), will repeat the cycle again and again.
 
 The keyword '*purge*' is a reserved out-state used to indicate that server data for the current data key (method + URI) must be dropped. It should be configured at the last stage of a scenario to control memory consumption in long-term load tests. Incomplete chains (due to timeouts or SUT failures) retain their full event history for forensics, since purge only fires at the chain's final step.
 
+### Reserved states and failures
+
+`__core:` is the h2agent reserved prefix, in any context (vault keys, states): the user reads it, never writes it as an output. The historical reserved states keep their plain names:
+
+| State | Meaning |
+|---|---|
+| `initial` | default state; not allowed as a client `outState` |
+| `road-closed` | default client `outState` (end of chain); not allowed as a client `inState` |
+| `purge` | `outState` that purges the chain/key events (when purge is enabled) |
+| `__core:failed:<reason>` | a failure (see below) |
+
+**A failure is a state of the event**: `__core:failed:<reason>`, set instead of the provision `outState`. The event keeps the reason and the details in its `failures` field ([server](#server-event-fields) and [client](#client-event-fields) event fields), and a warning is logged per failure:
+
+```
+Failed client provision '<id>' (inState '<s>') -> '__core:failed:<reason>': <detail>
+Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<reason>': <detail>
+```
+
+| Origin | State | `failures` entry |
+|---|---|---|
+| client transport error (no answer: `statusCode <= 0`, i.e. timeout, connection error, unsent request) | `__core:failed:transport` | `{"reason": "transport", "statusCode": <n>}` |
+| client [`expectedResponseStatusCode`](#expectedresponsestatuscode) not met | `__core:failed:expectedResponseStatusCode` | `{"reason": "expectedResponseStatusCode", "expected": <n>, "got": <n>}` |
+| client [`responseSchemaId`](#responseschemaid-1) not met | `__core:failed:responseSchemaId` | `{"reason": "responseSchemaId", "id": "<schema id>", "error": "<report>"}` |
+| server [`requestSchemaId`](#requestschemaid) not met | `__core:failed:requestSchemaId` | `{"reason": "requestSchemaId", "id": "<schema id>", "error": "<report>"}` |
+
+The event state is the **first** failure in this order (the later ones are still recorded in `failures`, which is present only when the event failed):
+
+- Client: 1. `transport` (no answer: nothing else applies), 2. `expectedResponseStatusCode`, 3. `responseSchemaId`.
+- Server: 1. `requestSchemaId` (before the transformations, which do not run).
+
+The server response schema (`responseSchemaId` of a server provision) checks the mock itself, not the peer: it answers `500` and is not a failure.
+
+`__core:failed...` in provisions:
+
+| `__core:failed...` as | Client provision | Server provision |
+|---|---|---|
+| `outState` | rejected | rejected |
+| `inState` | accepted (`__core:failed` or `__core:failed:<reason>`) | rejected: a server `inState` is only used by the next request on that key, so it cannot react to a failure |
+| no provision for that state | the chain ends (no purge) | the key stays in that state: the next requests on it find no provision (`501`) until its events are removed |
+
+Any other `__core:` state is rejected in a provision, and a transformation writing a `__core:` `outState` is ignored (the provision `outState` is kept, with a warning).
+
 ### Extra fields (description)
 
 Provision objects accept an optional `description` field to annotate the purpose of each entry. This is useful because JSON does not support comments:
@@ -447,6 +490,8 @@ Request *URI* path (percent-encoded) to match depending on the algorithm selecte
 #### requestSchemaId
 
 We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](../../README.md#command-line) or REST API. When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+An invalid request is answered with `400`, the transformations do not run, and the event state is `__core:failed:requestSchemaId` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)).
 
 #### responseHeaders
 
@@ -2009,6 +2054,7 @@ The information collected for a server event item is:
 * `responseDelayMs`: delay which was processed.
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
+* `failures`: present only when the event failed: one entry per failure, in evaluation order (the first one gives the `state`), see [reserved states and failures](#reserved-states-and-failures).
 * `recvseq`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### Server data summary
@@ -2087,7 +2133,7 @@ When *scenario1* is triggered, its current state is searched assuming "initial" 
 
 Each stage (chain link) may target a **different client endpoint** through its own [`endpoint`](#endpoint) field, so a single scenario can mix remote servers across its states (see the fallback rules and example there).
 
-The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning.
+The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning. A failed step stores its event with the state `__core:failed:<reason>` and ends the chain (see [reserved states and failures](#reserved-states-and-failures)).
 
 #### Chain cycle prevention
 
@@ -2182,7 +2228,7 @@ We could optionally validate received responses against a `json` schema. When a 
 
 #### expectedResponseStatusCode
 
-Optional expected HTTP status code for the response (integer, 100-599). When configured and the received response status code does not match, the provision flow chain is interrupted (no state progression) and a validation failure counter is incremented. This is useful for automated verdict without requiring event storage:
+Optional expected HTTP status code for the response (integer, 100-599). When configured and the received response status code does not match, the event fails (`__core:failed:expectedResponseStatusCode`, see [reserved states and failures](#reserved-states-and-failures)) and a validation failure counter is incremented. This is useful for automated verdict without requiring event storage:
 
 ```json
 {
@@ -2194,10 +2240,10 @@ Optional expected HTTP status code for the response (integer, 100-599). When con
 }
 ```
 
-When either `expectedResponseStatusCode` or `responseSchemaId` validation fails:
-- The error is logged
-- The `h2agent_traffic_client_unexpected_response_status_code_counter` prometheus metric is incremented
-- The event is still stored (if storage is enabled) for debugging
+When either `expectedResponseStatusCode` or `responseSchemaId` validation fails (and also on a transport error, with no answer):
+- The failure is logged
+- The `h2agent_traffic_client_unexpected_response_status_code_counter` prometheus metric is incremented (not on transport errors)
+- The event is stored (if storage is enabled) with the state `__core:failed:<reason>` (instead of the intended `outState`) and its `failures`
 - The state progression chain is interrupted (no purge, no next provision)
 
 ### Client transformation differences
@@ -2560,6 +2606,7 @@ The information collected for a client event item is:
 * `requestDelayMs`: delay for outgoing request.
 * `responseStatusCode`: status code which was received.
 * `responseHeaders`: object containing the list of response headers which were received.
+* `failures`: present only when the event failed: one entry per failure, in evaluation order (the first one gives the `state`), see [reserved states and failures](#reserved-states-and-failures).
 * `sequence`: internal provision sequence.
 * `timeoutMs`: accepted timeout for request response.
 

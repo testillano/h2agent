@@ -1985,6 +1985,8 @@ See `tools/sse-vault-events.sh` for a runnable demo.
 
 The following variables are used internally by the server engine (`__core`) to manage critical functions such as dynamic response latency and stream error handling. These variables **must not be manipulated or overwritten** by user configurations for different purposes as expected, to avoid interference.
 
+The `__core:` prefix is also reserved for states: a failed event gets the state `__core:failed:<reason>` (see [reserved states and failures](./docs/api/README.md#reserved-states-and-failures)).
+
 ### Naming convention
 
 Reserved vault entry names follow this structure:

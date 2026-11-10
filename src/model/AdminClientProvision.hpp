@@ -142,6 +142,9 @@ class AdminClientProvision
 
     void saveDynamics() const;
 
+    // '__core:' states are never an output: a transformation writing one is ignored (provision outState kept)
+    void keepReservedStatesUnwritten(std::string &outState) const;
+
 
 
 public:
@@ -189,6 +192,8 @@ public:
      * @param sendSeq Client endpoint sending sequence
      * @param outState out-state updated by reference (may change based on response)
      * @param executionTrace when given, the pipeline execution trace is appended there (json array)
+     * @param failures when given, one entry is appended per failed built-in check, in evaluation
+     *        order (expectedResponseStatusCode, responseSchemaId): {"reason": ..., <detail fields>}
      *
      * @return True if response validation passed (status code + schema), false otherwise (chain should break)
      */
@@ -199,7 +204,8 @@ public:
                             std::string &outState,
                             Variables &variables,
                             std::int64_t seq = -1,
-                            nlohmann::json *executionTrace = nullptr
+                            nlohmann::json *executionTrace = nullptr,
+                            nlohmann::json *failures = nullptr
                           );
 
     /**

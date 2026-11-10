@@ -2313,11 +2313,11 @@ components:
         inState:
           type: string
           pattern: '^[^#]*$'
-          description: "Input state for FSM (default: 'initial')"
+          description: "Input state for FSM (default: 'initial'). The '__core:' prefix is reserved (rejected)."
         outState:
           type: string
           pattern: '^[^#]*$'
-          description: "Output state for FSM (default: 'initial'). Use 'purge' to clean event history."
+          description: "Output state for FSM (default: 'initial'). Use 'purge' to clean event history. The '__core:' prefix is reserved (rejected)."
         requestMethod:
           type: string
           enum: [POST, GET, PUT, DELETE, HEAD]
@@ -3554,13 +3554,13 @@ components:
         inState:
           type: string
           pattern: '^[^#]*$'
-          description: "Input state for scenario FSM (default: 'initial')"
+          description: "Input state for scenario FSM (default: 'initial'). The '__core:' prefix is reserved: only '__core:failed' (any failure) and '__core:failed:<reason>' are accepted."
         outState:
           type: string
           pattern: '^[^#]*$'
           not:
             enum: [initial]
-          description: "Output state (default: 'road-closed'). Cannot be 'initial'. Use 'purge' to clean scenario history."
+          description: "Output state (default: 'road-closed'). Cannot be 'initial'. Use 'purge' to clean scenario history. The '__core:' prefix is reserved (rejected)."
         endpoint:
           type: string
           pattern: '^[^#]*$'

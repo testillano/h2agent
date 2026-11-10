@@ -86,6 +86,17 @@ public:
         json_["executionTrace"] = trace;
     }
 
+    /**
+     * Sets the failures of the event (present only when it failed), in evaluation
+     * order: the first one gives the event state ('__core:failed:<reason>')
+     *
+     * @param failures Json array with one entry per failure ({"reason": ..., <detail fields>})
+     */
+    void setFailures(const nlohmann::json &failures) {
+        std::unique_lock<std::shared_mutex> lock(json_mutex_);
+        json_["failures"] = failures;
+    }
+
     // setters:
 
     /**
