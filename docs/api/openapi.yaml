@@ -219,7 +219,7 @@ paths:
         '400':
           description: Bad request
 
-  /admin/v2/vault/{key}/wait:
+  /admin/v2/vault/wait:
     get:
       tags: [vault]
       summary: Block until a vault changes
@@ -227,11 +227,12 @@ paths:
         Long-poll endpoint that blocks until the specified vault
         changes from its current value (any change) or reaches a specific
         target value. Returns immediately if the condition is already met.
+        The former path form (/admin/v2/vault/{key}/wait) was removed in 6.0.0.
       parameters:
         - name: key
-          in: path
+          in: query
           required: true
-          description: Vault name to watch
+          description: Vault name to watch (URL-encoded)
           schema:
             type: string
         - name: value
@@ -261,8 +262,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VaultWaitResponse'
+        '400':
+          description: Missing key
         '429':
-          description: Too many concurrent waiters (max 32)
+          description: Too many concurrent waiters (max 32, shared with the data waits)
 
   /admin/v2/files:
     get:

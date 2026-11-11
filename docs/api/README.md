@@ -149,12 +149,16 @@ When querying (`GET /admin/v2/vault`), without the `name` query parameter, the w
 
 #### Blocking wait
 
-The endpoint `GET /admin/v2/vault/<key>/wait` blocks until a variable changes, replacing polling loops with a single call. Two modes are supported:
+The endpoint `GET /admin/v2/vault/wait?key=<key>` blocks until a variable changes, replacing polling loops with a single call. The key goes to the query (URL-encoded), as the event keys of the [data waits](#waiting-for-server-data) do, so any vault key fits. Two modes are supported:
 
 - **Any change** (no `value` parameter): returns when the variable differs from its value at the time the request was received.
 - **Specific value** (`value=V`): returns when the variable equals `V`. Returns immediately if already satisfied. Scalars are compared by their text, so the barrier does not depend on how the value was stored: `value=60` matches both `60` and `"60"`, and `value=true` matches `true` and `"true"` (text is case-sensitive). JSON objects and arrays (`value={"a":1}`, URL-encoded) are compared as JSON.
 
-Parameters: `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32).
+Parameters: `key` (mandatory), `value` (optional) and `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32, shared with the data waits), `400` without `key`. The answer is `{"result", "key", "value", "previousValue"}`.
+
+> **Changed in 6.0.0:** the path form `GET /admin/v2/vault/<key>/wait` is removed (`404`, with a hint to the query form).
+
+This wait is for **generic** signals (any key the user agrees on); the [data waits](#waiting-for-server-data) cover the states h2agent already records, so no provision has to signal them.
 
 #### Thread safety with worker pool
 
@@ -580,7 +584,7 @@ There are two variable stores available in transformations. Both hold native `js
 | **Path navigation** | `{"source": "var", "name": "NAME", "path": "/path/to/field"}` (json pointer) | `{"source": "vault", "key": "KEY", "path": "/path/to/field"}` (json pointer) |
 | **REST API** | None (internal only) | Full CRUD: `GET`/`POST`/`DELETE` on `/admin/v2/vault` |
 | **CLI loading** | Not supported | `--vault file.json` |
-| **Blocking wait** | Not supported | `GET /admin/v2/vault/<key>/wait` |
+| **Blocking wait** | Not supported | `GET /admin/v2/vault/wait?key=<key>` |
 
 #### regexCapture behavior difference
 

@@ -1783,7 +1783,7 @@ The API is organized in the following groups:
 | **api-schema** | `GET` `/admin/v2/api-schema[/<resource>]` | Json schemas of the admin resources (provision grammar included) |
 | **schema** | `POST` `GET` `DELETE` `/admin/v2/schema` | Validation schemas for traffic checking |
 | **vault** | `POST` `GET` `DELETE` `/admin/v2/vault` | Shared variables between provisions |
-| | `GET` `/admin/v2/vault/<key>/wait` | Block until variable changes (long-poll) |
+| | `GET` `/admin/v2/vault/wait?key=<key>` | Block until variable changes (long-poll) |
 | | `GET` `/admin/v2/vault/events[?key=...]` | SSE stream of vault mutations (real-time push) |
 | **files** | `GET` `/admin/v2/files` | Processed files status |
 | **logging** | `GET` `PUT` `/admin/v2/logging` | Dynamic log level configuration |
@@ -1903,15 +1903,17 @@ How the server sequence is determined is a separate issue. For example, the prov
 
 ## Blocking Wait on Vault Entrys
 
-The endpoint `GET /admin/v2/vault/<key>/wait` blocks until a variable changes, eliminating polling loops in test orchestration:
+The endpoint `GET /admin/v2/vault/wait?key=<key>` blocks until a variable changes, eliminating polling loops in test orchestration (the key is URL-encoded in the query):
 
 ```bash
 # Wait until SIGNAL equals "done" (30s timeout by default):
-curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v2/vault/SIGNAL/wait?value=done&timeoutMs=30000"
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v2/vault/wait?key=SIGNAL&value=done&timeoutMs=30000"
 
 # Wait for any change on MY_FLAG:
-curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v2/vault/MY_FLAG/wait?timeoutMs=5000"
+curl -sf --http2-prior-knowledge "http://localhost:8074/admin/v2/vault/wait?key=MY_FLAG&timeoutMs=5000"
 ```
+
+To wait for a state (or a failure) of a server or client event, with no provision writing a vault entry, use the [data waits](./docs/api/README.md#waiting-for-server-data) (`server-data/wait`, `client-data/wait`).
 
 Response (200 when met, 408 on timeout, 429 if too many concurrent waiters):
 

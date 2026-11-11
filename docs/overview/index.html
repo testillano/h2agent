@@ -245,7 +245,7 @@
     <div class="fragment fade-up"><div class="label">Schema data</div><div class="box">JSON schemas referenced by provisions to validate incoming / outgoing traffic.</div>
       <div class="path"><b>/admin/v2/schema</b> POST, GET, DELETE</div></div>
     <div class="fragment fade-up"><div class="label">Vault</div><div class="box">Global storage shared between provisions (native json values). <b>Blocking wait</b> (long-poll) and <b>SSE</b> stream of mutations.</div>
-      <div class="path"><b>/admin/v2/vault</b>, <b>/vault/&lt;key&gt;/wait</b>, <b>/vault/events</b></div></div>
+      <div class="path"><b>/admin/v2/vault</b>, <b>/vault/wait?key=</b>, <b>/vault/events</b></div></div>
     <div class="fragment fade-up"><div class="label">Process</div><div class="box">Logging level, files, general configuration, health probe and capabilities (API version, program version, grammar).</div>
       <div class="path"><b>/admin/v2/logging</b>, <b>/files</b>, <b>/configuration</b>, <b>/health</b>, <b>/capabilities</b></div></div>
   </div>

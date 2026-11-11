@@ -1072,10 +1072,10 @@ wait_vault() {
     shift
   done
   local maxTime=$(( (timeoutMs / 1000) + 1 ))
-  local q="timeoutMs=${timeoutMs}"
-  [ -n "${value}" ] && q+="&value=${value}"
+  local q="key=$(jq -rn --arg s "${key}" '$s|@uri')&timeoutMs=${timeoutMs}"
+  [ -n "${value}" ] && q+="&value=$(jq -rn --arg s "${value}" '$s|@uri')"
 
-  ${H2AHLP_CURL} --max-time ${maxTime} "$(admin_url)/vault/${key}/wait?${q}"
+  ${H2AHLP_CURL} --max-time ${maxTime} "$(admin_url)/vault/wait?${q}"
   local rc=$?
   echo
   return ${rc}

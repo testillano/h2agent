@@ -2,22 +2,20 @@ import pytest
 import json
 import threading
 import time
+import urllib.parse
 from conftest import ADMIN_VAULT_URI, RestClient, H2AGENT_ENDPOINT__admin
 
 
-WAIT_URI_PREFIX = ADMIN_VAULT_URI + "/"
+WAIT_URI = ADMIN_VAULT_URI + "/wait"
 
 
 def wait_uri(key, timeout_ms=None, value=None):
-    q = []
+    q = ["key={}".format(urllib.parse.quote(key, safe=""))]
     if timeout_ms is not None:
         q.append("timeoutMs={}".format(timeout_ms))
     if value is not None:
-        q.append("value={}".format(value))
-    uri = WAIT_URI_PREFIX + key + "/wait"
-    if q:
-        uri += "?" + "&".join(q)
-    return uri
+        q.append("value={}".format(urllib.parse.quote(value, safe="")))
+    return WAIT_URI + "?" + "&".join(q)
 
 
 @pytest.mark.admin
@@ -119,3 +117,25 @@ def test_004_wait_specific_value_via_traffic(h2ac_admin, h2ac_traffic, admin_ser
     assert response["status"] == 200
     assert response["body"]["result"] == True
     assert response["body"]["value"] == "ready"
+
+
+@pytest.mark.admin
+def test_005_wait_key_with_reserved_characters(h2ac_admin):
+    """The key goes to the query: any vault key fits (e.g. '/', '|', ':')"""
+    key = "__app_barrier:001019000040000|123/x"
+    h2ac_admin.postDict(ADMIN_VAULT_URI, {key: "done"})
+
+    response = h2ac_admin.get(wait_uri(key, timeout_ms=1000, value="done"))
+    assert response["status"] == 200
+    assert response["body"]["key"] == key
+
+
+@pytest.mark.admin
+def test_006_wait_missing_key_and_removed_path_form(h2ac_admin):
+    response = h2ac_admin.get(WAIT_URI + "?timeoutMs=100")
+    assert response["status"] == 400
+
+    # GET /admin/v2/vault/<key>/wait was removed in 6.0.0 (404 with a hint):
+    response = h2ac_admin.get(ADMIN_VAULT_URI + "/MY_KEY/wait?timeoutMs=100")
+    assert response["status"] == 404
+    assert "vault/wait?key=MY_KEY" in response["body"]["response"]

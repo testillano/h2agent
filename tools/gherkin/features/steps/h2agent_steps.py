@@ -640,15 +640,15 @@ def step_vault_clear_key(context, key):
 @when(f'I wait for vault {Q} with value {Q} timeout {D} ms')
 def step_wait_vault(context, key, value, ms):
     flush_provision(context)
-    admin(context, f"wait-vault-{key}", "GET", f"vault/{key}/wait",
-          params={"value": value, "timeoutMs": int(ms)}, expected=None)
+    admin(context, f"wait-vault-{key}", "GET", "vault/wait",
+          params={"key": key, "value": value, "timeoutMs": int(ms)}, expected=None)
 
 
 @when(f'I wait for vault {Q} to change timeout {D} ms')
 def step_wait_vault_any(context, key, ms):
     flush_provision(context)
-    admin(context, f"wait-vault-{key}", "GET", f"vault/{key}/wait",
-          params={"timeoutMs": int(ms)}, expected=None)
+    admin(context, f"wait-vault-{key}", "GET", "vault/wait",
+          params={"key": key, "timeoutMs": int(ms)}, expected=None)
 
 
 # ---------------------------------------------------------------------------
