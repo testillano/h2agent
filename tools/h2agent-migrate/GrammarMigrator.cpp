@@ -40,7 +40,6 @@ SOFTWARE.
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <regex>
 #include <sstream>
@@ -473,15 +472,22 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
     }
 
     // v1 rule literals: a dotted (or v1-only) value right after "source"/"target". v2 kind names
-    // never contain dots, so '{"source": "requestBody"}' does not match.
+    // never contain dots, so '{"source": "requestBody"}' does not match ('break' is a kind of both
+    // grammars, so it is not a leftover).
     static const std::regex ruleLiteral(
-        R"rgx("source"\s*:\s*"(eraser"|(request|response|var|vault|value|math|random|randomset|timestamp|strftime|serverEvent|clientEvent|txtFile|binFile|command)\.)|"target"\s*:\s*"(break"|(response|request|var|vault|outState|txtFile|binFile|udpSocket|serverEvent|clientEvent|clientProvision)\.))rgx",
+        R"rgx("source"\s*:\s*"(eraser"|(request|response|var|vault|value|math|random|randomset|timestamp|strftime|serverEvent|clientEvent|txtFile|binFile|command)\.)|"target"\s*:\s*"(response|request|var|vault|outState|txtFile|binFile|udpSocket|serverEvent|clientEvent|clientProvision)\.)rgx",
         std::regex::optimize);
+    // h2agent 5.0-5.2 leftovers (removed in 5.3.0, docs/MigrationGuide.md section 21):
+    static const std::regex stopTarget(R"rgx("target"\s*:\s*"stop")rgx", std::regex::optimize);
+    static const std::regex vaultWaitPath(R"rgx(/vault/[^/?\s"']+/wait)rgx", std::regex::optimize);
     std::istringstream lines(content);
     std::string line;
     for (std::size_t n = 1; std::getline(lines, line); n++) {
         if (line.find("/admin/v1") != std::string::npos) hits.push_back({name, n, "admin-v1-path", trimmed(line)});
         if (!v1Provision && std::regex_search(line, ruleLiteral)) hits.push_back({name, n, "v1-rule-literal", trimmed(line)});
+        if (std::regex_search(line, stopTarget)) hits.push_back({name, n, "v5-stop-target", trimmed(line)});
+        if (std::regex_search(line, vaultWaitPath)) hits.push_back({name, n, "v5-vault-wait-path", trimmed(line)});
+        if (line.find("unexpected_response_status_code_counter") != std::string::npos) hits.push_back({name, n, "v5-removed-counter", trimmed(line)});
     }
 }
 
@@ -722,15 +728,6 @@ std::string GrammarMigrator::targetToV1(const Json &v2, const std::string &castT
         if (!castType.empty()) fail(where, "cast to '" + castType + "' on target '" + kind + "' is not expressible in v1");
     };
 
-    // 'stop' was the name of 'break' in h2agent 5.0-5.2: still read here, so that
-    // v2 -> v1 -> v2 upgrades those provisions. A 'stop' marking a failure deserves
-    // a different target, which cannot be told from the syntax: hence the warning.
-    if (kind == "stop") {
-        checkFields(v2, "target", kind, {}, {}, where);
-        noCast();
-        std::cerr << "Warning: " << where << ": target 'stop' (h2agent 5.0-5.2) read as 'break'; if it marks a failure, use 'fail' instead" << std::endl;
-        return "break";
-    }
     if (kind == "fail") fail(where, "target 'fail' has no v1 equivalent");
 
     for (const auto &entry : plainTargets()) {

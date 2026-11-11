@@ -1474,7 +1474,7 @@ ___________________________________ _________ _______________ __________________
 
 This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"source": "requestBody", "path": "/a"}`, `"filter": [{"op": "cast", "type": "integer"}]`, `"to": {"target": "responseBody", "path": "/n"}`). It is a syntax-only conversion: each v2 rule behaves as its v1 origin, except that variables and vaults keep the json type of their values (see [store values](./docs/developers/GrammarV2.md#store-values)). The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md), and every change from 4.x to 5.0.0 (API and grammar, with before/after examples) in the [migration guide](./docs/MigrationGuide.md).
 
-It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), so test suites can be migrated before upgrading.
+It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), and for the 5.0-5.2 items removed in 5.3.0 (`stop` targets, the `vault/<key>/wait` path form and the former unexpected response status code counter), so test suites can be migrated before upgrading.
 
 ### Command line
 
@@ -1503,8 +1503,11 @@ Options:
 
 -s|--scan <directory|file>
   Report v1 leftovers: '/admin/v1' references, json files holding v1 provisions
-  and v1 rule literals embedded in scripts or tests ('.git', 'build' and
-  'node_modules' are skipped). Exit code is 1 when something is found.
+  and v1 rule literals embedded in scripts or tests; and h2agent 5.0-5.2 items
+  removed in 5.3.0: 'stop' targets (use 'break', or 'fail' for a failure), the
+  'vault/<key>/wait' path form and the former unexpected response status code
+  counter ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when
+  something is found.
 
 [-h|--help]
   This help.

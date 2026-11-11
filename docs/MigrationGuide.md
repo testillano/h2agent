@@ -7,6 +7,7 @@ test suite, and it will be kept here during the transition.
 * The exact, table-driven syntax mapping is in [GrammarV2.md](developers/GrammarV2.md).
 * The full reference is the [API user guide](api/README.md) and [openapi.yaml](api/openapi.yaml).
 * Most of the syntax work is automatic: see [1. The migration tool](#1-the-migration-tool).
+* Coming from 5.0-5.2: see [21. From 5.x to 5.3.0](#21-from-5x-to-530) (failure states and data waits).
 
 Changes are tagged by how much attention they need:
 
@@ -39,6 +40,7 @@ Changes are tagged by how much attention they need:
 18. [Math source fixes](#18-math-source-fixes)
 19. [Startup order](#19-startup-order)
 20. [Checklist](#20-checklist)
+21. [From 5.x to 5.3.0](#21-from-5x-to-530)
 
 ---
 
@@ -617,12 +619,10 @@ v1: {"source": "response.statusCode", "target": "break", "filter": {"DifferentFr
 v2: {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "break"}}
 ```
 
-**[removed]** h2agent 5.0-5.2 named this target `stop`. From 6.0.0 `stop` is rejected (no alias): use `break`.
-`h2agent-migrate --reverse` still reads `stop`, so a 5.x provision is upgraded by `v2 -> v1 -> v2`
-(`h2agent-migrate -r -i p.json | h2agent-migrate -i - -o p.json`), with a warning per `stop` found: a `stop`
-which actually marks a failure is better written as the `fail` target (it records the failure in the event state). This only works for provisions
-whose rules all have a v1 equivalent (the tool rejects the rest, e.g. filter chains); otherwise rename the
-target by hand (`"target": "stop"` -> `"target": "break"`).
+**[removed]** h2agent 5.0-5.2 named this target `stop`. From 5.3.0 `stop` is rejected (no alias): rename it
+to `break` (`"target": "stop"` -> `"target": "break"`), or to `fail` when it marks a failure (it records the
+failure in the event state). `h2agent-migrate --scan` lists the `stop` targets left
+([21](#21-from-5x-to-530)).
 
 ---
 
@@ -733,3 +733,59 @@ references. Nothing else depends on that order.
 8. Optionally simplify: filter chains instead of auxiliary variables ([8](#8-filter-chains)), `@{name/pointer}`
    ([10](#10-variable-references-)), `#{}` for shared regular expressions ([11](#11-provision-references-)),
    conditional erase ([13.2](#132-conditional-erase-new)), and `executionTrace` while developing.
+
+---
+
+## 21. From 5.x to 5.3.0
+
+5.3.0 makes failures visible: a failure is a state of its event (`__core:failed:<reason>`, with a `failures`
+field), and the data waits block until an event reaches a state. Its few breaking items are listed first
+(no aliases are kept for them).
+
+### 21.1 Breaking
+
+| 5.0-5.2 | 5.3.0 |
+|---|---|
+| `{"target": "stop"}` | `{"target": "break"}` (`stop` is rejected); if it marked a failure, `{"target": "fail", "reason": "..."}` ([14](#14-break)) |
+| a failed client step (`expectedResponseStatusCode`, `responseSchemaId`, transport error) stored with its intended `outState` | stored with `__core:failed:<reason>` and its `failures`; the chain goes on only through an [error branch](api/README.md#error-branch) |
+| a server request failing `requestSchemaId` advanced its key to the provision `outState` | the key stays in `__core:failed:requestSchemaId` (next requests: `501` until its events are removed) |
+| `h2agent_traffic_client_unexpected_response_status_code_counter{source}` | `h2agent_traffic_client_failed_counter{source, reason}` (and the server one), see below |
+| `GET /admin/v2/vault/<key>/wait?...` | `GET /admin/v2/vault/wait?key=<key>&...` |
+| any `inState` / `outState` starting with `__core:` | rejected, except a client `inState` `__core:failed` or `__core:failed:<reason>` |
+
+The former counter counted the built-in client checks only; the same figure is:
+
+```
+sum by (source) (h2agent_traffic_client_failed_counter{reason=~"expectedResponseStatusCode|responseSchemaId"})
+```
+
+A hand-made failure counter (a check variable, a vault incremented with `math` and a `stop`) becomes one rule,
+counted by the failure metric:
+
+```json
+5.2: {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "201", "not": true}], "to": {"target": "var", "name": "failed"}},
+     {"from": {"source": "math", "expression": "@{FAILED} + 1"}, "filter": [{"op": "conditionVar", "name": "failed"}], "to": {"target": "vault", "key": "FAILED"}},
+     {"from": {"source": "var", "name": "failed"}, "to": {"target": "stop"}}
+5.3: {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "201", "not": true}], "to": {"target": "fail", "reason": "establishment"}}
+```
+
+Keep the vault when a provision reads the count, or when it must be reset per test (a prometheus counter only
+grows).
+
+### 21.2 New
+
+* Target `fail` (`reason`, the value as `detail`) and the [reserved states and failures](api/README.md#reserved-states-and-failures).
+* `"not": true` on `jsonConstraint` / `schemaId`: one rule for "if the document is not valid, do X", the report as its value ([validation with `not`](api/README.md#validation-with-not)).
+* Client [error branch](api/README.md#error-branch): `inState` = the exact failure state, else `__core:failed`.
+* Failure metrics `*_failed_counter{reason}`, `state` and `failures` in the `*-data/sequence` entries.
+* [Data waits](api/README.md#waiting-for-server-data): `server-data/wait`, `client-data/wait` (`state`, `statePrefix`, `eventNumber`).
+
+### 21.3 Checklist
+
+1. `h2agent-migrate --scan <dir>` lists the `stop` targets (`v5-stop-target`), the vault wait path form
+   (`v5-vault-wait-path`) and the former counter (`v5-removed-counter`) left in scripts, tests, provisions
+   and dashboards.
+2. Replace `stop` by `break` (or `fail`), and the vault waits by the query form (the helper `wait_vault` and the gherkin steps of this release already use it).
+3. Dashboards and alerts: the former counter by `*_failed_counter`.
+4. Tests reading the `state` of a step which may fail: expect `__core:failed:<reason>`.
+5. Optionally simplify: barrier transforms (a literal written to the vault to be waited) by data waits, failure gates by `fail` (or by nothing, with the built-in checks).

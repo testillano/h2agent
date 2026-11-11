@@ -631,7 +631,6 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     // composed path suffixes
     std::smatch matches;
     static std::regex clientProvisionId("^client-provision/([^/]+)(/trigger)?$", std::regex::optimize);
-    static std::regex retiredVaultWait("^vault/([^/]+)/wait$", std::regex::optimize);
     static std::regex apiSchema("^api-schema/([^/]+)$", std::regex::optimize);
     static std::regex retiredSchema("^(server-matching|server-provision|client-endpoint|client-provision|schema|vault)/schema$", std::regex::optimize);
 
@@ -766,11 +765,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             }
         }
     }
-    else if (std::regex_match(pathSuffix, matches, retiredVaultWait)) { // vault/<key>/wait (removed in 6.0.0)
-        statusCode = ert::http2comm::ResponseCode::NOT_FOUND; // 404
-        responseBody = buildJsonResponse(false, std::string("removed: use GET ") + getApiPath() + "/vault/wait?key=" + matches.str(1));
-    }
-    else if (pathSuffix == "vault/wait") { // vault/wait?key=<key> (the key goes to the query, as the event keys do)
+    else if (pathSuffix == "vault/wait") { // vault/wait?key=<key>
         if (!wait_manager_) {
             statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
             return;

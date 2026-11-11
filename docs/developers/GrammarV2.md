@@ -4,7 +4,7 @@ This is the exact syntax mapping the migration tool (`h2agent-migrate`) produces
 
 ## Tool
 
-`h2agent-migrate --in <v1 provisions> [--out <file>]` applies this mapping (server and client provisions, single object or array); `--reverse` goes back to v1 for the v2 subset that has a v1 equivalent, and `--scan <dir>` lists v1 leftovers. Unit tests (`GrammarMigrator_test`) check every row of the tables below and the `v1 -> v2 -> v1` identity; the unit and component tests run the migrated provisions.
+`h2agent-migrate --in <v1 provisions> [--out <file>]` applies this mapping (server and client provisions, single object or array); `--reverse` goes back to v1 for the v2 subset that has a v1 equivalent, and `--scan <dir>` lists v1 leftovers (and the 5.0-5.2 items removed in 5.3.0). Unit tests (`GrammarMigrator_test`) check every row of the tables below and the `v1 -> v2 -> v1` identity; the unit and component tests run the migrated provisions.
 
 ## Rule shape
 
@@ -191,7 +191,7 @@ v1 tested the text of the value (non-empty is true). With the native store value
 {"from": {"source": "responseStatusCode"}, "filter": [{"op": "equalTo", "value": "200", "not": true}], "to": {"target": "break"}}
 ```
 
-h2agent 5.0-5.2 named it `stop`, which read as "the chain stops". Since 6.0.0 `stop` is rejected (no alias); `h2agent-migrate --reverse` still reads it, so `v2 -> v1 -> v2` upgrades such provisions (with a warning per `stop`).
+h2agent 5.0-5.2 named it `stop`, which read as "the chain stops". Since 5.3.0 `stop` is rejected (no alias): rename it to `break`, or to `fail` when it marks a failure; `h2agent-migrate --scan` lists them.
 
 ## Full example
 
@@ -220,6 +220,6 @@ Some v1 spellings have no direct equivalent and are normalized (same behaviour):
 2. Every kind and field in lowerCamelCase, filters included; the cast is the filter `{"op": "cast", "type": ...}`.
 3. `fmt` for every format field (`strftime` source included); `expression`, `values`, `command`, `socket` as listed.
 4. Event addressing with plain fields (no url-encoding); `outState` with optional `method`/`uri`.
-5. `eraser` (a noun, like every source; decided as `erase` on 2026-10-30, renamed on 2026-10-31) is a source accepting only `conditionVar` filters (conditional erase is new) and the cast, the only source of an event purge, and it cannot feed `stop` nor `clientProvision`; `stop` replaces `break` (reverted in 6.0.0: the target is `break` again, see [Break](#break)).
+5. `eraser` (a noun, like every source; decided as `erase` on 2026-10-30, renamed on 2026-10-31) is a source accepting only `conditionVar` filters (conditional erase is new) and the cast, the only source of an event purge, and it cannot feed `stop` nor `clientProvision`; `stop` replaces `break` (reverted in 5.3.0: the target is `break` again, see [Break](#break)).
 6. The v1 `value.<text>` source is the `literal` kind (`{"source": "literal", "value": ...}`): `value` stays the field of every literal operand.
 7. A json body target without `cast` writes the value with the type the source yields (text sources give a string, json sources their json). The migrator does not produce `{"op": "cast", "type": "string"}` when the source always yields text (`literal`, `requestHeader`, `requestUriParam`, `requestUri`, `requestUriPath`, `strftime`, `inState`); every other cast is kept.

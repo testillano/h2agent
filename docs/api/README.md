@@ -156,8 +156,6 @@ The endpoint `GET /admin/v2/vault/wait?key=<key>` blocks until a variable change
 
 Parameters: `key` (mandatory), `value` (optional) and `timeoutMs` (default 30000, max 300000). Returns `200` on success, `408` on timeout, `429` if too many concurrent waiters (max 32, shared with the data waits), `400` without `key`. The answer is `{"result", "key", "value", "previousValue"}`.
 
-> **Changed in 6.0.0:** the path form `GET /admin/v2/vault/<key>/wait` is removed (`404`, with a hint to the query form).
-
 This wait is for **generic** signals (any key the user agrees on); the [data waits](#waiting-for-server-data) cover the states h2agent already records, so no provision has to signal them.
 
 #### Thread safety with worker pool

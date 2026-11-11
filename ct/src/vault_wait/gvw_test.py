@@ -131,11 +131,6 @@ def test_005_wait_key_with_reserved_characters(h2ac_admin):
 
 
 @pytest.mark.admin
-def test_006_wait_missing_key_and_removed_path_form(h2ac_admin):
+def test_006_wait_missing_key(h2ac_admin):
     response = h2ac_admin.get(WAIT_URI + "?timeoutMs=100")
     assert response["status"] == 400
-
-    # GET /admin/v2/vault/<key>/wait was removed in 6.0.0 (404 with a hint):
-    response = h2ac_admin.get(ADMIN_VAULT_URI + "/MY_KEY/wait?timeoutMs=100")
-    assert response["status"] == 404
-    assert "vault/wait?key=MY_KEY" in response["body"]["response"]

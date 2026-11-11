@@ -301,22 +301,10 @@ TEST(GrammarMigrator_test, ProvisionsKeepEveryOtherFieldInOrder) {
     EXPECT_EQ(GrammarMigrator::provisionsToV1(clientV2).dump(), client.dump());
 }
 
-TEST(GrammarMigrator_test, LegacyStopIsUpgradedToBreakWithWarning) {
-    // h2agent 5.0-5.2 named the 'break' target 'stop': v2 -> v1 -> v2 upgrades it.
-    const Json legacy = Json::parse(R"({"id":"flow","endpoint":"e","requestMethod":"POST",
-      "onResponseTransform":[{"from":{"source":"responseStatusCode"},"filter":[{"op":"equalTo","value":"201","not":true}],"to":{"target":"stop"}}]})");
-    testing::internal::CaptureStderr();
-    const Json v1 = GrammarMigrator::provisionsToV1(legacy);
-    const std::string warning = testing::internal::GetCapturedStderr();
-    EXPECT_NE(warning.find("/onResponseTransform/0"), std::string::npos) << warning;
-    EXPECT_NE(warning.find("target 'stop' (h2agent 5.0-5.2) read as 'break'"), std::string::npos) << warning;
-    EXPECT_EQ(v1["onResponseTransform"][0]["target"], "break");
-    EXPECT_EQ(GrammarMigrator::provisionsToV2(v1)["onResponseTransform"][0]["to"].dump(), R"({"target":"break"})");
-
-    // 'break' itself converts silently both ways:
-    testing::internal::CaptureStderr();
+TEST(GrammarMigrator_test, StopTargetHasNoV1Equivalent) {
+    // h2agent 5.0-5.2 named the 'break' target 'stop': removed in 5.3.0 (--scan reports it)
+    EXPECT_NE(errorOf([] { GrammarMigrator::targetToV1(Json::parse(R"({"target":"stop"})"), ""); }).find("unknown target 'stop'"), std::string::npos);
     EXPECT_EQ(GrammarMigrator::targetToV1(Json::parse(R"({"target":"break"})"), ""), "break");
-    EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
 }
 
 TEST(GrammarMigrator_test, DetectsGrammar) {
@@ -448,5 +436,26 @@ TEST(GrammarMigrator_test, ScanReportsV1Leftovers) {
 
     EXPECT_TRUE(GrammarMigrator::scan((dir / "sub" / "provision.v2.json").string()).empty());
     EXPECT_NE(errorOf([&] { GrammarMigrator::scan((dir / "missing").string()); }).find("not a file or directory"), std::string::npos);
+    fs::remove_all(dir);
+}
+
+TEST(GrammarMigrator_test, ScanReportsV5Leftovers) {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / ("h2agent-migrate-scan5-" + std::to_string(::getpid()));
+    fs::create_directories(dir);
+    const auto write = [](const fs::path &p, const std::string &content) {
+        std::ofstream(p) << content;
+    };
+    write(dir / "a.json", R"({"onResponseTransform":[{"from":{"source":"literal","value":"1"},"to":{"target":"stop"}}]})");
+    write(dir / "b.sh", "curl \"$URL/admin/v2/vault/MY_KEY/wait?timeoutMs=1\"\n");
+    write(dir / "c.json", "{\"expr\": \"h2agent_traffic_client_unexpected_response_status_code_counter\"}\n");
+    // Current forms are not leftovers ('break' is also a v2 kind):
+    write(dir / "d.json", R"({"onResponseTransform":[{"from":{"source":"literal","value":"1"},"to":{"target":"break"}}]})");
+    write(dir / "e.sh", "curl \"$URL/admin/v2/vault/wait?key=MY_KEY\"\n");
+
+    const auto hits = GrammarMigrator::scan(dir.string());
+    std::vector<std::string> found;
+    for (const auto &h : hits) found.push_back(fs::path(h.file).filename().string() + ":" + std::to_string(h.line) + ":" + h.kind);
+    EXPECT_EQ(found, (std::vector<std::string> {"a.json:1:v5-stop-target", "b.sh:1:v5-vault-wait-path", "c.json:1:v5-removed-counter"}));
     fs::remove_all(dir);
 }

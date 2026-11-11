@@ -129,14 +129,16 @@ public:
     struct ScanHit {
         std::string file;
         std::size_t line;
-        std::string kind;  // "admin-v1-path", "v1-provision", "v1-rule-literal"
+        std::string kind;  // "admin-v1-path", "v1-provision", "v1-rule-literal", "v5-stop-target", "v5-vault-wait-path", "v5-removed-counter"
         std::string text;
     };
 
     /**
      * Recursively scans a directory (or a single file) for v1 leftovers:
      * '/admin/v1' references, json files holding v1 provisions and v1 rule
-     * literals embedded in other files (scripts, tests). Binary files and
+     * literals embedded in other files (scripts, tests); and for the h2agent
+     * 5.0-5.2 items removed in 5.3.0: 'stop' targets, the vault wait path form
+     * and the former unexpected response status code counter. Binary files and
      * '.git', 'build' and 'node_modules' directories are skipped.
      */
     static std::vector<ScanHit> scan(const std::string &path);

@@ -76,8 +76,11 @@ void usage(int rc) {
 
        << "-s|--scan <directory|file>\n"
        << "  Report v1 leftovers: '/admin/v1' references, json files holding v1 provisions\n"
-       << "  and v1 rule literals embedded in scripts or tests ('.git', 'build' and\n"
-       << "  'node_modules' are skipped). Exit code is 1 when something is found.\n\n"
+       << "  and v1 rule literals embedded in scripts or tests; and h2agent 5.0-5.2 items\n"
+       << "  removed in 5.3.0: 'stop' targets (use 'break', or 'fail' for a failure), the\n"
+       << "  'vault/<key>/wait' path form and the former unexpected response status code\n"
+       << "  counter ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when\n"
+       << "  something is found.\n\n"
 
        << "[-h|--help]\n"
        << "  This help.\n\n"

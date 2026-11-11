@@ -227,7 +227,6 @@ paths:
         Long-poll endpoint that blocks until the specified vault
         changes from its current value (any change) or reaches a specific
         target value. Returns immediately if the condition is already met.
-        The former path form (/admin/v2/vault/{key}/wait) was removed in 6.0.0.
       parameters:
         - name: key
           in: query
