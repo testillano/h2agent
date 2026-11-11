@@ -1577,18 +1577,18 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         }
 
         // A failure is a state of the chain: the event is stored with it (instead
-        // of the intended outState), so that it is visible in client-data, and
-        // the chain stops there.
+        // of the intended outState), so that it is visible in client-data. Its
+        // stage is the inState of the step (a literal of the provision).
         const bool failed = !failures.empty();
         if (failed) {
-            finalOutState = h2agent::model::stateAfterFailures(failures, finalOutState);
+            finalOutState = h2agent::model::stateAfterFailures(failures, inState, finalOutState);
             LOGWARNING(
             for (const auto &failure : failures) {
-            const std::string state = h2agent::model::failedState(failure.value("reason", std::string("")));
+            const std::string state = h2agent::model::failedState(inState, failure.value("reason", std::string("")));
                 ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed client provision '%s' (inState '%s') -> '%s': %s", clientProvisionId.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
             }
             );
-            client->incrementFailed(h2agent::model::metricReason(failures, failReasonTemplate));
+            client->incrementFailed(h2agent::model::failureStage(inState), h2agent::model::metricReason(failures, failReasonTemplate));
         }
 
         // Store event
@@ -1604,18 +1604,21 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         }
 
         // Error branch: after a failure, the next step is the provision with the
-        // same id and that exact failure state as inState, else the one with the
-        // generic '__core:failed'; with none the chain ends (no purge). A failure
-        // within an error branch also ends it: nested branches could loop forever
-        // (the generic branch would catch its own failures).
+        // same id and that exact failure state as inState, else the one of its
+        // stage ('__core:failed:<state>'), else the generic '__core:failed'; with
+        // none the chain ends (no purge). A failure within an error branch also
+        // ends it: nested branches could loop forever (the generic branch would
+        // catch its own failures).
         std::shared_ptr<h2agent::model::AdminClientProvision> nextProvision;
         if (failed) {
             if (h2agent::model::isFailedState(inState)) {
                 LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Client provision '%s' failed within its error branch (inState '%s'): chain ends", clientProvisionId.c_str(), inState.c_str()), ERT_FILE_LOCATION));
                 return;
             }
-            nextProvision = provisionData.find(finalOutState, clientProvisionId);
-            if (!nextProvision) nextProvision = provisionData.find(h2agent::model::FAILED_STATE, clientProvisionId);
+            for (const auto &branch : h2agent::model::errorBranchStates(finalOutState)) {
+                nextProvision = provisionData.find(branch, clientProvisionId);
+                if (nextProvision) break;
+            }
             if (!nextProvision) return;
         }
 

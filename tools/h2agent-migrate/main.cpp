@@ -79,7 +79,9 @@ void usage(int rc) {
        << "  and v1 rule literals embedded in scripts or tests; and h2agent 5.0-5.2 items\n"
        << "  removed in 5.3.0: 'stop' targets (use 'break', or 'fail' for a failure), the\n"
        << "  'vault/<key>/wait' path form and the former unexpected response status code\n"
-       << "  counter ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when\n"
+       << "  counter; and h2agent 5.3.0 items changed in 5.4.0: client error branches\n"
+       << "  '__core:failed:<x>' (a reason in 5.3.0, a stage now) and user states with ':'\n"
+       << "  ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when\n"
        << "  something is found.\n\n"
 
        << "[-h|--help]\n"

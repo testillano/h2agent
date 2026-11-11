@@ -480,6 +480,10 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
     // h2agent 5.0-5.2 leftovers (removed in 5.3.0, docs/MigrationGuide.md section 21):
     static const std::regex stopTarget(R"rgx("target"\s*:\s*"stop")rgx", std::regex::optimize);
     static const std::regex vaultWaitPath(R"rgx(/vault/[^/?\s"']+/wait)rgx", std::regex::optimize);
+    // h2agent 5.3.0 leftovers (changed in 5.4.0, docs/MigrationGuide.md section 22): a client error
+    // branch '__core:failed:<x>' (a reason in 5.3.0, a stage in 5.4.0), and user states with ':'.
+    static const std::regex failedBranch(R"rgx("inState"\s*:\s*"__core:failed:[^:"]+")rgx", std::regex::optimize);
+    static const std::regex colonState(R"rgx("(inState|outState)"\s*:\s*"(?!__core:failed)[^"]*:[^"]*")rgx", std::regex::optimize);
     std::istringstream lines(content);
     std::string line;
     for (std::size_t n = 1; std::getline(lines, line); n++) {
@@ -488,6 +492,8 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
         if (std::regex_search(line, stopTarget)) hits.push_back({name, n, "v5-stop-target", trimmed(line)});
         if (std::regex_search(line, vaultWaitPath)) hits.push_back({name, n, "v5-vault-wait-path", trimmed(line)});
         if (line.find("unexpected_response_status_code_counter") != std::string::npos) hits.push_back({name, n, "v5-removed-counter", trimmed(line)});
+        if (std::regex_search(line, failedBranch)) hits.push_back({name, n, "v53-failed-branch", trimmed(line)});
+        if (std::regex_search(line, colonState)) hits.push_back({name, n, "v53-colon-state", trimmed(line)});
     }
 }
 

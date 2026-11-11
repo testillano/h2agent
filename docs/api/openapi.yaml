@@ -1480,7 +1480,7 @@ components:
             type: string
             description: >
               State of the event (both entries of an event carry it); a failure
-              is '__core:failed:<reason>'. Absent for unprovisioned server events.
+              is '__core:failed:<state>:<reason>'. Absent for unprovisioned server events.
           failures:
             type: array
             description: >
@@ -2375,6 +2375,7 @@ components:
             type: string
           inState:
             minLength: 1
+            pattern: ^[^:#]+$
             type: string
           target:
             enum:
@@ -2510,12 +2511,12 @@ components:
       properties:
         inState:
           type: string
-          pattern: '^[^#]*$'
-          description: "Input state for FSM (default: 'initial'). The '__core:' prefix is reserved (rejected)."
+          pattern: '^[^:#]*$'
+          description: "Input state for FSM (default: 'initial'). No ':' (the reserved states level separator)."
         outState:
           type: string
-          pattern: '^[^#]*$'
-          description: "Output state for FSM (default: 'initial'). Use 'purge' to clean event history. The '__core:' prefix is reserved (rejected)."
+          pattern: '^[^:#]*$'
+          description: "Output state for FSM (default: 'initial'). Use 'purge' to clean event history. No ':' (the reserved states level separator)."
         requestMethod:
           type: string
           enum: [POST, GET, PUT, DELETE, HEAD]
@@ -3766,14 +3767,14 @@ components:
           description: Client provision identifier
         inState:
           type: string
-          pattern: '^[^#]*$'
-          description: "Input state for scenario FSM (default: 'initial'). The '__core:' prefix is reserved: only '__core:failed' (any failure) and '__core:failed:<reason>' are accepted."
+          pattern: '^([^:#]*|__core:failed(:[^:#]+){0,2})$'
+          description: "Input state for scenario FSM (default: 'initial'). No ':' (the reserved states level separator), except the error branches '__core:failed', '__core:failed:<state>' and '__core:failed:<state>:<reason>'."
         outState:
           type: string
-          pattern: '^[^#]*$'
+          pattern: '^[^:#]*$'
           not:
             enum: [initial]
-          description: "Output state (default: 'road-closed'). Cannot be 'initial'. Use 'purge' to clean scenario history. The '__core:' prefix is reserved (rejected)."
+          description: "Output state (default: 'road-closed'). Cannot be 'initial'. Use 'purge' to clean scenario history. No ':' (the reserved states level separator)."
         endpoint:
           type: string
           pattern: '^[^#]*$'

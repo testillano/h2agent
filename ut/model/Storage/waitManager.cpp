@@ -236,12 +236,20 @@ TEST_F(EventWait_test, OnlyNewIgnoresStoredEvents)
 TEST_F(EventWait_test, StatePrefix)
 {
     serverEvent("/a", "done");
-    serverEvent("/a", "__core:failed:requestSchemaId");
+    serverEvent("/a", "__core:failed:initial:requestSchemaId");
     auto spec = serverSpec("/a", "__core:failed:", true /* prefix */);
     std::optional<h2agent::model::EventWaitMatch> match;
     EXPECT_EQ(waitServer(spec, 5000, match), h2agent::model::WaitOutcome::Met);
     ASSERT_TRUE(match.has_value());
-    EXPECT_EQ(match->event->getState(), "__core:failed:requestSchemaId");
+    EXPECT_EQ(match->event->getState(), "__core:failed:initial:requestSchemaId");
+
+    // Stage level: any failure of the stage 'initial'; another stage does not match
+    auto stage = serverSpec("/a", "__core:failed:initial:", true);
+    std::optional<h2agent::model::EventWaitMatch> stageMatch;
+    EXPECT_EQ(waitServer(stage, 5000, stageMatch), h2agent::model::WaitOutcome::Met);
+    auto other = serverSpec("/a", "__core:failed:update-2:", true);
+    std::optional<h2agent::model::EventWaitMatch> otherMatch;
+    EXPECT_EQ(waitServer(other, 50, otherMatch), h2agent::model::WaitOutcome::Timeout);
 }
 
 TEST_F(EventWait_test, EventNumberCountsMatchingEvents)
@@ -283,12 +291,12 @@ TEST_F(EventWait_test, ClientEventsByProvisionId)
     });
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     clientEvent("other", "done");
-    clientEvent("flow", "__core:failed:transport");
+    clientEvent("flow", "__core:failed:initial:transport");
     waiter.join();
     EXPECT_EQ(outcome, h2agent::model::WaitOutcome::Met);
     ASSERT_TRUE(match.has_value());
     EXPECT_EQ(match->key.getClientEndpointId(), "ep");
-    EXPECT_EQ(match->event->getState(), "__core:failed:transport");
+    EXPECT_EQ(match->event->getState(), "__core:failed:initial:transport");
 }
 
 TEST_F(EventWait_test, SharesTheWaitersLimitWithVault)

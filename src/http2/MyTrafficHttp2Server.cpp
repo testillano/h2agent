@@ -94,7 +94,7 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const
         purged_contexts_successful_counter_ = &(cf2.Add({{"source", src}, {"result", "successful"}}));
         purged_contexts_failed_counter_ = &(cf2.Add({{"source", src}, {"result", "failed"}}));
 
-        failed_counter_family_ = &(metrics->addCounterFamily("h2agent_traffic_server_failed_counter", "Failed events counter in h2agent_traffic_server, by failure reason", familyLabels));
+        failed_counter_family_ = &(metrics->addCounterFamily("h2agent_traffic_server_failed_counter", "Failed events counter in h2agent_traffic_server, by failure stage and reason", familyLabels));
         metrics_source_ = src;
     }
 }
@@ -338,13 +338,13 @@ ss << "TRAFFIC REQUEST RECEIVED"
                              statusCode, headers, responseBody, responseDelayMs, outState, outStateMethod, outStateUri, clientProvisionTriggers, chainVariables,
                              traced ? &executionTrace : nullptr, &failures, &failReasonTemplate);
         if (!failures.empty() && failed_counter_family_) {
-            failed_counter_family_->Add({{"source", metrics_source_}, {"reason", h2agent::model::metricReason(failures, failReasonTemplate)}}).Increment();
+            failed_counter_family_->Add({{"source", metrics_source_}, {"state", provision->getInState()}, {"reason", h2agent::model::metricReason(failures, failReasonTemplate)}}).Increment();
         }
 
         // Failures (the event state is the first one, already set by the provision):
         LOGWARNING(
         for (const auto &failure : failures) {
-        const std::string state = h2agent::model::failedState(failure.value("reason", std::string("")));
+        const std::string state = h2agent::model::failedState(provision->getInState(), failure.value("reason", std::string("")));
             ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed server provision '%s %s' (inState '%s') -> '%s': %s", method.c_str(), normalizedUri.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
         }
         );
@@ -377,7 +377,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
         else {
             bool hasVirtualMethod = !outStateMethod.empty();
             // A failure is the state of the current key (a foreign outState keeps its own):
-            const std::string currentState = failed ? h2agent::model::stateAfterFailures(failures, outState) : (hasVirtualMethod ? provision->getOutState() : outState);
+            const std::string currentState = failed ? h2agent::model::stateAfterFailures(failures, provision->getInState(), outState) : (hasVirtualMethod ? provision->getOutState() : outState);
 
             // Store event context information
             if (server_data_) {

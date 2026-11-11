@@ -616,7 +616,7 @@ When using h2agent as a traffic client against a server under congestion, 503 re
 
 **Breaking the chain on rejection** (detecting the problem):
 
-* **`expectedResponseStatusCode`**: set the expected value (e.g., `201`). If the actual response differs, the step fails (`__core:failed:expectedResponseStatusCode`) and the chain ends, unless an [error branch](./docs/api/README.md#error-branch) handles it. Simple and deterministic.
+* **`expectedResponseStatusCode`**: set the expected value (e.g., `201`). If the actual response differs, the step fails (`__core:failed:<inState>:expectedResponseStatusCode`) and the chain ends, unless an [error branch](./docs/api/README.md#error-branch) handles it. Simple and deterministic.
 * **`onResponseTransform` with filters**: read `responseStatusCode` as source, apply conditional logic via filters. On mismatch, use `onFilterFail` to set an error `outState`, write diagnostic vaults, or trigger alternative flows. More flexible than the binary kill-switch above.
 * **Omit `expectedResponseStatusCode`**: the chain continues regardless of status code. Useful when you want to collect all events for post-hoc analysis without interrupting the flow.
 
@@ -1474,7 +1474,7 @@ ___________________________________ _________ _______________ __________________
 
 This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"source": "requestBody", "path": "/a"}`, `"filter": [{"op": "cast", "type": "integer"}]`, `"to": {"target": "responseBody", "path": "/n"}`). It is a syntax-only conversion: each v2 rule behaves as its v1 origin, except that variables and vaults keep the json type of their values (see [store values](./docs/developers/GrammarV2.md#store-values)). The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md), and every change from 4.x to 5.0.0 (API and grammar, with before/after examples) in the [migration guide](./docs/MigrationGuide.md).
 
-It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), and for the 5.0-5.2 items removed in 5.3.0 (`stop` targets, the `vault/<key>/wait` path form and the former unexpected response status code counter), so test suites can be migrated before upgrading.
+It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), and for the 5.0-5.2 items removed in 5.3.0 (`stop` targets, the `vault/<key>/wait` path form and the former unexpected response status code counter) and the 5.3.0 items changed in 5.4.0 (client error branches `__core:failed:<x>` and user states with `:`), so test suites can be migrated before upgrading.
 
 ### Command line
 
@@ -1506,7 +1506,9 @@ Options:
   and v1 rule literals embedded in scripts or tests; and h2agent 5.0-5.2 items
   removed in 5.3.0: 'stop' targets (use 'break', or 'fail' for a failure), the
   'vault/<key>/wait' path form and the former unexpected response status code
-  counter ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when
+  counter; and h2agent 5.3.0 items changed in 5.4.0: client error branches
+  '__core:failed:<x>' (a reason in 5.3.0, a stage now) and user states with ':'
+  ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when
   something is found.
 
 [-h|--help]
@@ -1992,7 +1994,7 @@ See `tools/sse-vault-events.sh` for a runnable demo.
 
 The following variables are used internally by the server engine (`__core`) to manage critical functions such as dynamic response latency and stream error handling. These variables **must not be manipulated or overwritten** by user configurations for different purposes as expected, to avoid interference.
 
-The `__core:` prefix is also reserved for states: a failed event gets the state `__core:failed:<reason>` (see [reserved states and failures](./docs/api/README.md#reserved-states-and-failures)).
+The `__core:` prefix is also reserved for states: a failed event gets the state `__core:failed:<state>:<reason>`, where `<state>` is the `inState` of the provision which failed, and `:` is not allowed in a user state (see [reserved states and failures](./docs/api/README.md#reserved-states-and-failures)).
 
 ### Naming convention
 

@@ -355,11 +355,11 @@ TEST_F(MockServerData_test, FailuresAreStoredOnlyWhenPresent)
 {
     h2agent::model::DataKey key("POST", "/the/failed/uri");
     const nlohmann::json failures = R"([{"reason": "requestSchemaId", "id": "s", "error": "bad"}])"_json;
-    data_.loadEvent(key, previous_state_, "__core:failed:requestSchemaId", reception_timestamp_us_, 400, request_headers_, response_headers_, request_body_data_part_, response_body_, 112 /* server sequence */, 0 /* response delay ms */, true /* history */, "", "", nullptr, &failures);
+    data_.loadEvent(key, previous_state_, "__core:failed:initial:requestSchemaId", reception_timestamp_us_, 400, request_headers_, response_headers_, request_body_data_part_, response_body_, 112 /* server sequence */, 0 /* response delay ms */, true /* history */, "", "", nullptr, &failures);
     data_.loadEvent(key, previous_state_, state_, reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 113 /* server sequence */, 0 /* response delay ms */, true /* history */);
 
     nlohmann::json failed = data_.getEvent(h2agent::model::EventKey("POST", "/the/failed/uri", "1"))->getJson();
-    EXPECT_EQ(failed["state"], "__core:failed:requestSchemaId");
+    EXPECT_EQ(failed["state"], "__core:failed:initial:requestSchemaId");
     EXPECT_EQ(failed["failures"], failures);
     nlohmann::json passed = data_.getEvent(h2agent::model::EventKey("POST", "/the/failed/uri", "2"))->getJson();
     EXPECT_FALSE(passed.contains("failures"));
@@ -414,7 +414,7 @@ TEST_F(MockServerData_test, SequenceEntriesCarryStateAndFailures)
     h2agent::model::MockServerData data;
     const nlohmann::json failures = R"([{"reason": "requestSchemaId", "id": "s", "error": "bad"}])"_json;
     data.loadEvent(h2agent::model::DataKey("POST", "/seq/ok"), previous_state_, "reauth", reception_timestamp_us_, 201, request_headers_, response_headers_, request_body_data_part_, response_body_, 1, 0, true);
-    data.loadEvent(h2agent::model::DataKey("POST", "/seq/failed"), previous_state_, "__core:failed:requestSchemaId", reception_timestamp_us_, 400, request_headers_, response_headers_, request_body_data_part_, response_body_, 2, 0, true, "", "", nullptr, &failures);
+    data.loadEvent(h2agent::model::DataKey("POST", "/seq/failed"), previous_state_, "__core:failed:initial:requestSchemaId", reception_timestamp_us_, 400, request_headers_, response_headers_, request_body_data_part_, response_body_, 2, 0, true, "", "", nullptr, &failures);
     data.loadEvent(h2agent::model::DataKey("POST", "/seq/unprovisioned"), "", "", reception_timestamp_us_, 501, request_headers_, response_headers_, request_body_data_part_, response_body_, 3, 0, true);
 
     auto json = nlohmann::json::parse(data.getSequence(0, 0, "", nullptr));
@@ -426,7 +426,7 @@ TEST_F(MockServerData_test, SequenceEntriesCarryStateAndFailures)
             EXPECT_FALSE(e.contains("failures"));
         }
         else if (e["uri"] == "/seq/failed") {
-            EXPECT_EQ(e["state"], "__core:failed:requestSchemaId");
+            EXPECT_EQ(e["state"], "__core:failed:initial:requestSchemaId");
             EXPECT_EQ(e["failures"], failures);
         }
         else {

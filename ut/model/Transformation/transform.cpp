@@ -450,7 +450,7 @@ TEST_F(Transform_test, RequestNotValidated)
     EXPECT_EQ(response_body_, "");
 
     // A failure: the key does not advance to the provision outState
-    EXPECT_EQ(out_state_, "__core:failed:requestSchemaId");
+    EXPECT_EQ(out_state_, "__core:failed:initial:requestSchemaId");  // stage: the provision inState
     ASSERT_EQ(failures_.size(), 1u);
     EXPECT_EQ(failures_[0]["reason"], "requestSchemaId");
     EXPECT_EQ(failures_[0]["id"], "myRequestSchema");
@@ -482,8 +482,9 @@ TEST_F(Transform_test, ResponseNotValidatedIsNotAFailure)
 
 TEST_F(Transform_test, ReservedStatesAreRejected)
 {
+    // ':' (reserved states level separator) is not allowed in a server state:
     for (const char *field : {"inState", "outState"}) {
-        for (const char *state : {"__core:failed", "__core:failed:requestSchemaId", "__core:other"}) {
+        for (const char *state : {"__core:failed", "__core:failed:requestSchemaId", "__core:failed:s:r", "__core:other", "a:b"}) {
             SCOPED_TRACE(std::string(field) + " = " + state);
             nlohmann::json provision = server_provision_json_;
             provision[field] = state;
@@ -494,12 +495,31 @@ TEST_F(Transform_test, ReservedStatesAreRejected)
 
 TEST_F(Transform_test, ReservedOutStateWrittenByTransformationIsIgnored)
 {
-    server_provision_json_["outState"] = "next";
-    server_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "__core:failed:fake"}, "to": {"target": "outState"}}])"_json;
+    // An outState written with ':' (plain or foreign) is ignored: the provision outState is kept
+    for (const char *state : {"__core:failed:fake", "a:b"}) {
+        SCOPED_TRACE(state);
+        adata_.clearServerProvisions();
+        server_provision_json_["outState"] = "next";
+        server_provision_json_["transform"] = nlohmann::json::array({{{"from", {{"source", "literal"}, {"value", state}}}, {"to", {{"target", "outState"}}}}});
+        provisionAndTransform(request_body_.dump());
+        EXPECT_EQ(out_state_, "next");
+        EXPECT_TRUE(failures_.empty());
+    }
+    adata_.clearServerProvisions();
+    server_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "x:y"}, "to": {"target": "outState", "method": "DELETE", "uri": "/other"}}])"_json;
     provisionAndTransform(request_body_.dump());
-
     EXPECT_EQ(out_state_, "next");
-    EXPECT_TRUE(failures_.empty());
+}
+
+TEST_F(Transform_test, FailedStateNamesTheStage)
+{
+    // The stage is the inState of the failing provision (here a named one):
+    server_provision_json_["inState"] = "update-2";
+    server_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "1"}, "to": {"target": "fail", "reason": "Result-Code"}}])"_json;
+    in_state_ = "update-2";  // provisionAndTransform() looks the provision up by this state
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(out_state_, "__core:failed:update-2:Result-Code");
+    EXPECT_EQ(failures_[0]["reason"], "Result-Code");
 }
 
 ////////////////
@@ -518,7 +538,7 @@ TEST_F(Transform_test, TargetFailSetsStateAndKeepsTheBuiltAnswer)
 
     EXPECT_EQ(status_code_, 400);
     EXPECT_EQ(response_body_, "bad request");  // the list was left: the answer is sent as built so far
-    EXPECT_EQ(out_state_, "__core:failed:wrong-foo");  // not the provision outState
+    EXPECT_EQ(out_state_, "__core:failed:initial:wrong-foo");  // not the provision outState
     ASSERT_EQ(failures_.size(), 1u);
     EXPECT_EQ(failures_[0], nlohmann::json::parse(R"({"reason": "wrong-foo", "detail": 1})"));
 }
@@ -557,7 +577,7 @@ TEST_F(Transform_test, TargetFailReasonDefaultSubstitutionAndSanitisation)
             {{"from", {{"source", "literal"}, {"value", "x"}}}, {"to", row.first}}
         });
         provisionAndTransform(request_body_.dump());
-        EXPECT_EQ(out_state_, "__core:failed:" + row.second);
+        EXPECT_EQ(out_state_, "__core:failed:initial:" + row.second);
         ASSERT_EQ(failures_.size(), 1u);
         EXPECT_EQ(failures_[0]["reason"], row.second);
         EXPECT_EQ(failures_[0]["detail"], "x");
@@ -572,7 +592,7 @@ TEST_F(Transform_test, TargetFailWithValidationNotCarriesTheReport)
     ])"_json;
     provisionAndTransform(request_body_.dump());
 
-    EXPECT_EQ(out_state_, "__core:failed:wrong-body");
+    EXPECT_EQ(out_state_, "__core:failed:initial:wrong-body");
     ASSERT_EQ(failures_.size(), 1u);
     EXPECT_EQ(failures_[0]["detail"], "JsonConstraint FAILED: expected value for key 'foo' differs regarding validated source");
 }
@@ -589,7 +609,7 @@ TEST_F(Transform_test, TargetFailKeepsForeignOutState)
     EXPECT_EQ(out_state_, "cleanup");
     EXPECT_EQ(out_state_method_, "DELETE");
     ASSERT_EQ(failures_.size(), 1u);
-    EXPECT_EQ(h2agent::model::stateAfterFailures(failures_, out_state_), "__core:failed:r");
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures_, "initial", out_state_), "__core:failed:initial:r");
 }
 
 TEST_F(Transform_test, TargetFailSchema)
@@ -1847,6 +1867,18 @@ TEST_F(Transform_test, EraserCannotFeedClientProvisionNorBreak)
         SCOPED_TRACE(target);
         nlohmann::json provision = server_provision_json_;
         provision["transform"] = nlohmann::json::array({{{"from", {{"source", "eraser"}}}, {"to", nlohmann::json::parse(target)}}});
+        EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    }
+}
+
+TEST_F(Transform_test, TargetClientProvisionInStateIsAUserState)
+{
+    // ':' is the reserved states level separator (and '#' is not a state character):
+    // a triggered inState is a user state, so neither is accepted.
+    for (const char *state : {"__core:failed", "__core:failed:initial", "a:b", "a#b", ""}) {
+        SCOPED_TRACE(state);
+        nlohmann::json provision = server_provision_json_;
+        provision["transform"] = nlohmann::json::array({{{"from", {{"source", "literal"}, {"value", "1"}}}, {"to", {{"target", "clientProvision"}, {"id", "myFlow"}, {"inState", state}}}}});
         EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
     }
 }

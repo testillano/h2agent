@@ -894,7 +894,7 @@ TEST_F(ClientTransform_test, TransformResponseFailuresInEvaluationOrder)
     EXPECT_EQ(failures[1]["reason"], "responseSchemaId");
     EXPECT_EQ(failures[1]["id"], "mySchema");
     EXPECT_FALSE(failures[1]["error"].get<std::string>().empty());
-    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), "__core:failed:expectedResponseStatusCode");
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, "initial", outState), "__core:failed:initial:expectedResponseStatusCode");
     EXPECT_EQ(h2agent::model::failureDetail(failures[0]), "expected 204, got 500");
 
     // No failure: nothing appended
@@ -903,14 +903,15 @@ TEST_F(ClientTransform_test, TransformResponseFailuresInEvaluationOrder)
     failures = nlohmann::json::array();
     EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 2, outState, variables_, -1, nullptr, &failures));
     EXPECT_TRUE(failures.empty());
-    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), "next");
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, "initial", outState), "next");
 }
 
 TEST_F(ClientTransform_test, ReservedStates)
 {
     const std::vector<std::pair<std::string, std::string>> rejected = {
-        {"outState", "__core:failed"}, {"outState", "__core:failed:transport"}, {"outState", "__core:other"},
-        {"inState", "__core:other"}, {"inState", "__core:failed:"}, {"inState", "__core:failed:a:b"},
+        {"outState", "__core:failed"}, {"outState", "__core:failed:transport"}, {"outState", "__core:other"}, {"outState", "a:b"},
+        {"inState", "__core:other"}, {"inState", "__core:failed:"}, {"inState", "__core:failed::r"},
+        {"inState", "__core:failed:s:r:x"}, {"inState", "__core:failed:s:"}, {"inState", "a:b"},
     };
     for (const auto &r : rejected) {
         SCOPED_TRACE(r.first + " = " + r.second);
@@ -920,7 +921,7 @@ TEST_F(ClientTransform_test, ReservedStates)
     }
     // inState accepts the failure states (error branch):
     for (const char *state : {
-                "__core:failed", "__core:failed:expectedResponseStatusCode", "__core:failed:my-reason"
+                "__core:failed", "__core:failed:update-2", "__core:failed:update-2:Result-Code", "__core:failed:initial:transport"
             }) {
         SCOPED_TRACE(state);
         nlohmann::json provision = client_provision_json_;
@@ -952,7 +953,7 @@ TEST_F(ClientTransform_test, TargetFailIsTheFirstFailure)
     ASSERT_EQ(failures.size(), 2u);
     EXPECT_EQ(failures[0], nlohmann::json::parse(R"({"reason": "create-not-terminated", "detail": "OTHER"})"));
     EXPECT_EQ(failures[1]["reason"], "expectedResponseStatusCode");
-    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), "__core:failed:create-not-terminated");
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, "initial", outState), "__core:failed:initial:create-not-terminated");
 
     // only the target: built-in checks pass
     resp.statusCode = 201;
@@ -976,9 +977,9 @@ TEST_F(ClientTransform_test, FailureMetricReasonIsUnsubstituted)
     ASSERT_TRUE(provision != nullptr);
 
     const std::vector<std::tuple<int, std::string, std::string>> table = {
-        {500, "__core:failed:notify-0010-missing", "notify-@{uid}-missing"},
-        {404, "__core:failed:unspecified", "unspecified"},
-        {200, "__core:failed:expectedResponseStatusCode", "expectedResponseStatusCode"},  // built-in: no template
+        {500, "__core:failed:initial:notify-0010-missing", "notify-@{uid}-missing"},
+        {404, "__core:failed:initial:unspecified", "unspecified"},
+        {200, "__core:failed:initial:expectedResponseStatusCode", "expectedResponseStatusCode"},  // built-in: no template
     };
     for (const auto &[code, state, label] : table) {
         SCOPED_TRACE(code);
@@ -989,7 +990,7 @@ TEST_F(ClientTransform_test, FailureMetricReasonIsUnsubstituted)
         std::optional<std::string> failReasonTemplate;
         provision->transformResponse("/test", {}, resp, 1, outState, variables_, -1, nullptr, &failures, &failReasonTemplate);
         ASSERT_FALSE(failures.empty());
-        EXPECT_EQ(h2agent::model::stateAfterFailures(failures, outState), state);
+        EXPECT_EQ(h2agent::model::stateAfterFailures(failures, "initial", outState), state);
         EXPECT_EQ(h2agent::model::metricReason(failures, failReasonTemplate), label);
     }
 }
@@ -1016,6 +1017,20 @@ TEST_F(ClientTransform_test, ReservedOutStateWrittenByTransformationIsIgnored)
 
     ert::http2comm::Http2Client::response resp;
     resp.statusCode = 200;
+    outState = "next";
+    provision->transformResponse("/test", {}, resp, 1, outState, variables_);
+    EXPECT_EQ(outState, "next");
+
+    // A user state with ':' (the reserved states level separator) is ignored too:
+    adata_.clearClientProvisions();
+    client_provision_json_["transform"] = R"([{"from": {"source": "literal", "value": "a:b"}, "to": {"target": "outState"}}])"_json;
+    client_provision_json_["onResponseTransform"] = R"([{"from": {"source": "literal", "value": "step:2"}, "to": {"target": "outState"}}])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+    outState = "";
+    provision->transform(request_method_, request_uri_, request_body_, request_headers_, outState, request_delay_ms_, request_timeout_ms_, error, variables_);
+    EXPECT_EQ(outState, "next");
     outState = "next";
     provision->transformResponse("/test", {}, resp, 1, outState, variables_);
     EXPECT_EQ(outState, "next");
@@ -1401,4 +1416,22 @@ TEST_F(ClientTransform_test, RequestHeaderRewriteKeepsFirstValueOnRead)
     nlohmann::json body = nlohmann::json::parse(request_body_);
     EXPECT_EQ(body["h"], "orig");
     EXPECT_EQ(request_headers_.count("x-a"), 2u);
+}
+
+// Failure state levels and the error branch lookup order
+TEST(FailureStates_test, LevelsAndBranchLookup)
+{
+    using namespace h2agent::model;
+    EXPECT_EQ(failedState("update-2", "Result-Code"), "__core:failed:update-2:Result-Code");
+    EXPECT_EQ(failedState("__core:failed:next", "transport"), "__core:failed:__core_failed_next:transport");  // within a branch
+    for (const char *ok : {
+                "__core:failed", "__core:failed:update-2", "__core:failed:update-2:Result-Code"
+            }) EXPECT_TRUE(isFailedState(ok)) << ok;
+    for (const char *ko : {
+                "__core:failed:", "__core:failed::r", "__core:failed:s:", "__core:failed:s:r:x", "__core:other", "update-2"
+            }) EXPECT_FALSE(isFailedState(ko)) << ko;
+    EXPECT_TRUE(isUserState("update-2"));
+    EXPECT_FALSE(isUserState("a:b"));
+    EXPECT_EQ(errorBranchStates("__core:failed:update-2:Result-Code"),
+              (std::vector<std::string> {"__core:failed:update-2:Result-Code", "__core:failed:update-2", "__core:failed"}));
 }

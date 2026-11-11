@@ -234,7 +234,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
         h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
         if (executionTrace) appendExecutionTrace(*executionTrace, result, "transform");
     }
-    keepReservedStatesUnwritten(outState);
+    keepUserStates(outState);
 
     // Everything was written in place; only header writes are applied (v1 emplace).
     for (auto &h : headerWrites)
@@ -312,7 +312,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
                 if (failReasonTemplate) *failReasonTemplate = result.failure->reasonTemplate;
             }
         }
-        keepReservedStatesUnwritten(outState);
+        keepUserStates(outState);
 
     } // has_response_transform_
 
@@ -340,9 +340,9 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
     return validationOk;
 }
 
-void AdminClientProvision::keepReservedStatesUnwritten(std::string &outState) const {
-    if (!isReservedState(outState)) return;
-    LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Client provision '%s' (inState '%s'): reserved outState '%s' written by a transformation is ignored ('%s' kept)", client_provision_id_.c_str(), in_state_.c_str(), outState.c_str(), out_state_.c_str()), ERT_FILE_LOCATION));
+void AdminClientProvision::keepUserStates(std::string &outState) const {
+    if (isUserState(outState)) return;
+    LOGWARNING(ert::tracing::Logger::warning(ert::tracing::Logger::asString("Client provision '%s' (inState '%s'): outState '%s' written by a transformation is ignored (':' is the reserved states level separator; '%s' kept)", client_provision_id_.c_str(), in_state_.c_str(), outState.c_str(), out_state_.c_str()), ERT_FILE_LOCATION));
     outState = out_state_;
 }
 
@@ -524,11 +524,8 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid inState reserved value: %s", DEFAULT_ADMIN_PROVISION_CLIENT_OUT_STATE), ERT_FILE_LOCATION);
             return false;
         }
-        // '__core:' is reserved: a client inState only accepts the failure states (error branch)
-        if (isReservedState(in_state_) && !isFailedState(in_state_)) {
-            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid inState reserved value: %s (only '%s' or '%s<reason>' are accepted)", in_state_.c_str(), FAILED_STATE, FAILED_STATE_PREFIX), ERT_FILE_LOCATION);
-            return false;
-        }
+        // No ':' (schema), except the failure states of the error branch:
+        // '__core:failed', '__core:failed:<state>', '__core:failed:<state>:<reason>'
     }
 
     it = j.find("outState");
@@ -539,11 +536,7 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
             ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid outState reserved value: %s", DEFAULT_ADMIN_PROVISION_STATE), ERT_FILE_LOCATION);
             return false;
         }
-        // '__core:' is reserved: never an output
-        if (isReservedState(out_state_)) {
-            ert::tracing::Logger::error(ert::tracing::Logger::asString("Invalid outState reserved value: %s ('%s' is reserved)", out_state_.c_str(), RESERVED_STATE_PREFIX), ERT_FILE_LOCATION);
-            return false;
-        }
+        // No ':' (schema): the reserved states are never an output
     }
 
     it = j.find("requestSchemaId");

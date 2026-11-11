@@ -4,7 +4,7 @@ This is the exact syntax mapping the migration tool (`h2agent-migrate`) produces
 
 ## Tool
 
-`h2agent-migrate --in <v1 provisions> [--out <file>]` applies this mapping (server and client provisions, single object or array); `--reverse` goes back to v1 for the v2 subset that has a v1 equivalent, and `--scan <dir>` lists v1 leftovers (and the 5.0-5.2 items removed in 5.3.0). Unit tests (`GrammarMigrator_test`) check every row of the tables below and the `v1 -> v2 -> v1` identity; the unit and component tests run the migrated provisions.
+`h2agent-migrate --in <v1 provisions> [--out <file>]` applies this mapping (server and client provisions, single object or array); `--reverse` goes back to v1 for the v2 subset that has a v1 equivalent, and `--scan <dir>` lists v1 leftovers (and the 5.x items removed or changed later: see the migration guide). Unit tests (`GrammarMigrator_test`) check every row of the tables below and the `v1 -> v2 -> v1` identity; the unit and component tests run the migrated provisions.
 
 ## Rule shape
 

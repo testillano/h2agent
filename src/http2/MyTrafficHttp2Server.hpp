@@ -88,7 +88,7 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *provisioned_requests_failed_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
-    ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure reason
+    ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure stage and reason
     std::string metrics_source_{};
 
     std::atomic<int> max_busy_threads_{0};

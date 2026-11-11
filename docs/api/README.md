@@ -422,30 +422,32 @@ The keyword '*purge*' is a reserved out-state used to indicate that server data 
 
 ### Reserved states and failures
 
-`__core:` is the h2agent reserved prefix, in any context (vault keys, states): the user reads it, never writes it as an output. The historical reserved states keep their plain names:
+`__core:` is the h2agent reserved prefix, in any context (vault keys, states): the user reads it, never writes it as an output. `:` is the level separator of the reserved states, so it is **not allowed in a user state** (`inState`, `outState`, the `inState` of a `clientProvision` target): the schema rejects it, and an `outState` written with `:` by a transformation is ignored (the provision `outState` is kept, with a warning). The historical reserved states keep their plain names:
 
 | State | Meaning |
 |---|---|
 | `initial` | default state; not allowed as a client `outState` |
 | `road-closed` | default client `outState` (end of chain); not allowed as a client `inState` |
 | `purge` | `outState` that purges the chain/key events (when purge is enabled) |
-| `__core:failed:<reason>` | a failure (see below) |
+| `__core:failed:<state>:<reason>` | a failure (see below) |
 
-**A failure is a state of the event**: `__core:failed:<reason>`, set instead of the provision `outState`. The event keeps the reason and the details in its `failures` field ([server](#server-event-fields) and [client](#client-event-fields) event fields), and a warning is logged per failure:
+**A failure is a state of the event**: `__core:failed:<state>:<reason>`, set instead of the provision `outState`. `<state>` is the **stage**: the `inState` of the provision which failed (`initial` for a first step), set by h2agent (server: the state of the key when the request arrived; client: the state of the chain step). `<reason>` says what was checked. The event keeps the reason and the details in its `failures` field ([server](#server-event-fields) and [client](#client-event-fields) event fields; the stage is its `previousState`), and a warning is logged per failure:
 
 ```
-Failed client provision '<id>' (inState '<s>') -> '__core:failed:<reason>': <detail>
-Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<reason>': <detail>
+Failed client provision '<id>' (inState '<s>') -> '__core:failed:<s>:<reason>': <detail>
+Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<s>:<reason>': <detail>
 ```
 
-| Origin | State | `failures` entry |
+| Origin | State (stage `<s>`) | `failures` entry |
 |---|---|---|
-| client transport error (no answer: `statusCode <= 0`, i.e. timeout, connection error, unsent request) | `__core:failed:transport` | `{"reason": "transport", "statusCode": <n>}` |
-| client [`expectedResponseStatusCode`](#expectedresponsestatuscode) not met | `__core:failed:expectedResponseStatusCode` | `{"reason": "expectedResponseStatusCode", "expected": <n>, "got": <n>}` |
-| client [`responseSchemaId`](#responseschemaid-1) not met | `__core:failed:responseSchemaId` | `{"reason": "responseSchemaId", "id": "<schema id>", "error": "<report>"}` |
-| target `fail` without `reason` (server and client response transformations) | `__core:failed:unspecified` | `{"reason": "unspecified", "detail": <value>}` |
-| target `fail` with `reason` | `__core:failed:<reason>` | `{"reason": "<reason>", "detail": <value>}` |
-| server [`requestSchemaId`](#requestschemaid) not met | `__core:failed:requestSchemaId` | `{"reason": "requestSchemaId", "id": "<schema id>", "error": "<report>"}` |
+| client transport error (no answer: `statusCode <= 0`, i.e. timeout, connection error, unsent request) | `__core:failed:<s>:transport` | `{"reason": "transport", "statusCode": <n>}` |
+| client [`expectedResponseStatusCode`](#expectedresponsestatuscode) not met | `__core:failed:<s>:expectedResponseStatusCode` | `{"reason": "expectedResponseStatusCode", "expected": <n>, "got": <n>}` |
+| client [`responseSchemaId`](#responseschemaid-1) not met | `__core:failed:<s>:responseSchemaId` | `{"reason": "responseSchemaId", "id": "<schema id>", "error": "<report>"}` |
+| target `fail` without `reason` (server and client response transformations) | `__core:failed:<s>:unspecified` | `{"reason": "unspecified", "detail": <value>}` |
+| target `fail` with `reason` | `__core:failed:<s>:<reason>` | `{"reason": "<reason>", "detail": <value>}` |
+| server [`requestSchemaId`](#requestschemaid) not met | `__core:failed:<s>:requestSchemaId` | `{"reason": "requestSchemaId", "id": "<schema id>", "error": "<report>"}` |
+
+For example, a `fail` with `"reason": "Result-Code"` in the provision with `inState` `update-2` gives `__core:failed:update-2:Result-Code`. As the stage is in the state, the `reason` only names the checked item (an AVP, a json node, a header), not the step.
 
 The event state is the **first** failure in this order (the later ones are still recorded in `failures`, which is present only when the event failed):
 
@@ -459,10 +461,10 @@ The server response schema (`responseSchemaId` of a server provision) checks the
 | `__core:failed...` as | Client provision | Server provision |
 |---|---|---|
 | `outState` | rejected | rejected |
-| `inState` | accepted (`__core:failed` or `__core:failed:<reason>`): the [error branch](#error-branch) | rejected: a server `inState` is only used by the next request on that key, so it cannot react to a failure |
-| no provision for that state (nor `__core:failed` on the client) | the chain ends (no purge) | the key stays in that state: the next requests on it find no provision (`501`) until its events are removed |
+| `inState` | `__core:failed`, `__core:failed:<state>`, `__core:failed:<state>:<reason>`: the [error branch](#error-branch) | rejected: a server `inState` is only used by the next request on that key, so it cannot react to a failure |
+| no provision for that state | the chain ends (no purge) | the key stays in that state: the next requests on it find no provision (`501`) until its events are removed |
 
-Any other `__core:` state is rejected in a provision, and a transformation writing a `__core:` `outState` is ignored (the provision `outState` is kept, with a warning).
+**Naming the states**: name the `outState` after the next stage of the key, so that the failed state reads as the step that failed and a barrier `state=update-2` as "ready for the second update". A stage that may repeat is numbered from 1 (`update-1`, `update-2`, `notify-1`): adding a later occurrence renames nothing, and the number is the occurrence. A one-shot stage keeps its plain name (`termination`).
 
 Where to read a failure:
 
@@ -473,23 +475,23 @@ Where to read a failure:
 | Sequences | `GET /admin/v2/{client,server}-data/sequence`: every entry carries the `state` of its event and, when it failed, its `failures` (entries stay light: no bodies nor headers), so the order of the messages and the verdict come in one call |
 | Another provision | the `serverEvent` / `clientEvent` sources with a path, e.g. `"eventPath": "/failures/0/detail"` |
 | Log | one warning per failure (see above) |
-| Metrics | `*_failed_counter{reason}` (see below): the count, without details |
+| Metrics | `*_failed_counter{state, reason}` (see below): the count, without details |
 
-<a name="failure-metrics"></a>**Failure metrics**: every failed event increments one counter, with the reason of its state (the first failure), also when event storage is disabled (load tests), where they are the cheap verdict:
+<a name="failure-metrics"></a>**Failure metrics**: every failed event increments one counter, with the stage and the reason of its state (the first failure), also when event storage is disabled (load tests), where they are the cheap verdict:
 
 ```
-h2agent_traffic_client_failed_counter{source="...", reason="..."}
-h2agent_traffic_server_failed_counter{source="...", reason="..."}
+h2agent_traffic_client_failed_counter{source="...", state="...", reason="..."}
+h2agent_traffic_server_failed_counter{source="...", state="...", reason="..."}
 ```
 
-The `reason` label is the reason **as written in the provision**, not substituted, so its cardinality is bounded by the loaded provisions and not by the traffic (the substituted value lives in the event state):
+The `state` label is the stage (the `inState` of the failing provision, a literal of a loaded provision), and the `reason` label is the reason **as written in the provision**, not substituted, so their cardinality is bounded by the loaded provisions and not by the traffic (the substituted value lives in the event state):
 
-| `reason` in the provision | Event state | Label `reason` |
+| `reason` in the provision (`inState` `initial`) | Event state | Labels `state`, `reason` |
 |---|---|---|
-| `"create-not-terminated"` | `__core:failed:create-not-terminated` | `create-not-terminated` |
-| `"notify-@{uid}-missing"` | `__core:failed:notify-001019000040000-missing` | `notify-@{uid}-missing` |
-| none | `__core:failed:unspecified` | `unspecified` |
-| built-in | `__core:failed:expectedResponseStatusCode` | `expectedResponseStatusCode` |
+| `"create-not-terminated"` | `__core:failed:initial:create-not-terminated` | `initial`, `create-not-terminated` |
+| `"notify-@{uid}-missing"` | `__core:failed:initial:notify-001019000040000-missing` | `initial`, `notify-@{uid}-missing` |
+| none | `__core:failed:initial:unspecified` | `initial`, `unspecified` |
+| built-in | `__core:failed:initial:expectedResponseStatusCode` | `initial`, `expectedResponseStatusCode` |
 
 ### Extra fields (description)
 
@@ -525,7 +527,7 @@ Request *URI* path (percent-encoded) to match depending on the algorithm selecte
 
 We could optionally validate requests against a `json` schema. Schemas are identified by string name and configured through [command line](../../README.md#command-line) or REST API. When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
 
-An invalid request is answered with `400`, the transformations do not run, and the event state is `__core:failed:requestSchemaId` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)).
+An invalid request is answered with `400`, the transformations do not run, and the event state is `__core:failed:<inState>:requestSchemaId` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)).
 
 #### responseHeaders
 
@@ -739,7 +741,7 @@ How each context applies it, and what happens with an absent value (unknown vari
 | `conditionVar` filter (`{"op": "conditionVar", "name": "<name>[/<pointer>]"}`) | the filter passes | the filter fails: target untouched, `onFilterFail` runs | false (the filter fails) |
 | `conditionVar` filter with `"not": true` | the filter fails | the filter passes | true (the filter passes) |
 | `break` target (server and client response transformations) | the transformation list is left | ignored, the list goes on | the rule is skipped (the list goes on) |
-| `fail` target (server and client response transformations) | the list is left and the event fails (`__core:failed:<reason>`) | ignored, the list goes on | the rule is skipped (the list goes on) |
+| `fail` target (server and client response transformations) | the list is left and the event fails (`__core:failed:<inState>:<reason>`) | ignored, the list goes on | the rule is skipped (the list goes on) |
 | `clientProvision` target (server transformations) | the client provision is triggered | not triggered | the rule is skipped (not triggered) |
 | `{"op": "cast", "type": "boolean"}` filter | `true` | `false` (`null`, objects and arrays fail the cast) | the rule is skipped |
 
@@ -1145,7 +1147,7 @@ The **target** of information is classified after parsing the following possible
 
 - `{"target": "break"}`: when a **true** value (see [boolean criterion](#boolean-criterion)) is transferred, the transformations list is left (the remaining items are not executed, and the provision `outState` still applies). A false value (or undefined source) ignores the action. Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected.
 
-- `{"target": "fail"[, "reason": "<reason>"]}`: same trigger as `break` (a **true** value, see [boolean criterion](#boolean-criterion); a false value or an undefined source skips the rule), but it also **marks a failure**: the transformation list is left and the event state is `__core:failed:<reason>` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)). The value reaching the target (after the filters) is the failure `detail`, so a validation filter with `"not": true` delivers its report there:
+- `{"target": "fail"[, "reason": "<reason>"]}`: same trigger as `break` (a **true** value, see [boolean criterion](#boolean-criterion); a false value or an undefined source skips the rule), but it also **marks a failure**: the transformation list is left and the event state is `__core:failed:<inState>:<reason>` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)). The value reaching the target (after the filters) is the failure `detail`, so a validation filter with `"not": true` delivers its report there:
 
   ```json
   {"from": {"source": "responseBody"},
@@ -1154,6 +1156,16 @@ The **target** of information is classified after parsing the following possible
   ```
 
   `reason` is a short stable name to react to (`inState`), wait for and count: it admits variables (`@{...}`) but not `:` (rejected at provision time; a substituted `:` becomes `_`). Without it (or when it is empty once substituted), the reason is `unspecified`: give one whenever a provision has several `fail` rules, or they cannot be told apart. Use `detail` for what changes on every run (a report, a status code, a body node), never the reason.
+
+  The `detail` is the value as it reaches the target, keeping its json type (a number, a text, an object: a whole body node). The common case is a received value through a filter which does not transform it:
+
+  ```json
+  {"from": {"source": "var", "name": "rc"},
+   "filter": [{"op": "equalTo", "value": "2001", "not": true}],
+   "to": {"target": "fail", "reason": "Result-Code"}}
+  ```
+
+  gives `"detail": "5012"` when the received code is `5012`. The `detail` is never a false value (`0`, `""`, `false`): `fail` only fires on a true one. To fail on a missing node or a zero value, feed `fail` with a descriptive literal and decide with the filter, e.g. `{"source": "literal", "value": "missing /cause"}` with a negated `conditionVar` on the node.
 
   In server provisions, the key stays in the failure state and the answer is sent as built so far, so set `responseStatusCode` / body before `fail` when the peer must see the error. A server cannot react to its own failure through `inState`: an immediate reaction is a foreign `outState` (another key) or a `clientProvision` target placed before `fail`, with the same condition. In client provisions (`onResponseTransform` only), it is the first failure of the event (before `expectedResponseStatusCode` and `responseSchemaId`).
 
@@ -2114,7 +2126,7 @@ The information collected for a server event item is:
 |---|---|
 | `requestMethod` + `requestUri` (or `uriRegex`) | the event key, as in `server-data` / `server-data/sequence` (method mandatory, exactly one of `requestUri` or `uriRegex`) |
 | `state=<s>` | met when an event of the key reaches that state, or already had |
-| `statePrefix=<p>` | met when it reaches a state starting by `p` (e.g. `__core:failed:` for any failure) |
+| `statePrefix=<p>` | met when it reaches a state starting by `p`: `__core:failed:` (any failure), `__core:failed:update-2:` (any failure of the stage `update-2`) |
 | neither | met by the **next new** event of the key, whatever its state (stored ones are ignored) |
 | `eventNumber=<n>` | the n-th matching event (`1..N`, chronological): a wait issued after the event still answers at once, e.g. the second notification of a key |
 | `timeoutMs` | default 30000, max 300000 |
@@ -2210,15 +2222,16 @@ When *scenario1* is triggered, its current state is searched assuming "initial" 
 
 Each stage (chain link) may target a **different client endpoint** through its own [`endpoint`](#endpoint) field, so a single scenario can mix remote servers across its states (see the fallback rules and example there).
 
-The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning. A failed step stores its event with the state `__core:failed:<reason>` and the chain goes on only through an [error branch](#error-branch).
+The `outState` holds a reserved default value of `road-closed` for any provision when it is not explicitly configured. This is because here, the provision is not reset and must be guided by the flow execution. This `outState` can be configured on request transformation before sending and after response is received so new flows can be triggered with different stages, but they are unset by default (`road-closed`). This special value is not accepted for `inState` field to guarantee its reserved meaning. A failed step stores its event with the state `__core:failed:<inState>:<reason>` and the chain goes on only through an [error branch](#error-branch).
 
 #### Error branch
 
-A failed step (see [reserved states and failures](#reserved-states-and-failures)) stores its event with the state `__core:failed:<reason>`, and the chain goes on from that state as from any `outState`. The next step is looked up with the same `id`:
+A failed step (see [reserved states and failures](#reserved-states-and-failures)) stores its event with the state `__core:failed:<state>:<reason>`, and the chain goes on from that state as from any `outState`. The next step is looked up with the same `id`:
 
-1. `inState` = the exact failure state (e.g. `__core:failed:expectedResponseStatusCode`);
-2. else `inState` = `__core:failed` (any failure);
-3. else the chain ends (no purge).
+1. `inState` = the exact failure state (e.g. `__core:failed:update-2:Result-Code`): that check of that step;
+2. else `inState` = `__core:failed:<state>` (e.g. `__core:failed:update-2`): any failure of that step;
+3. else `inState` = `__core:failed`: any failure;
+4. else the chain ends (no purge).
 
 The branch is sent at once, as any chain step, and its events keep the provision `inState` as `previousState` (`__core:failed` for the generic branch). For example, a cleanup after any failure of the scenario:
 
@@ -2227,7 +2240,7 @@ The branch is sent at once, as any chain step, and its events keep the provision
  "requestMethod": "DELETE", "requestUri": "/app/v1/resource/1"}
 ```
 
-A failure **within** an error branch (a step whose `inState` is a failure state) ends the chain: it is stored with its own failure state, but no further branch is looked up (the generic branch would otherwise catch its own failures forever). A branch ending in `purge` purges the whole chain, failed step included.
+A failure **within** an error branch (a step whose `inState` is a failure state) ends the chain: it is stored with its own failure state (its stage is the branch `inState` with `:` as `_`, e.g. `__core:failed:__core_failed:expectedResponseStatusCode`), but no further branch is looked up (the generic branch would otherwise catch its own failures forever). A branch ending in `purge` purges the whole chain, failed step included.
 
 #### Chain cycle prevention
 
@@ -2322,7 +2335,7 @@ We could optionally validate received responses against a `json` schema. When a 
 
 #### expectedResponseStatusCode
 
-Optional expected HTTP status code for the response (integer, 100-599). When configured and the received response status code does not match, the event fails (`__core:failed:expectedResponseStatusCode`, see [reserved states and failures](#reserved-states-and-failures)) and a validation failure counter is incremented. This is useful for automated verdict without requiring event storage:
+Optional expected HTTP status code for the response (integer, 100-599). When configured and the received response status code does not match, the event fails (`__core:failed:<inState>:expectedResponseStatusCode`, see [reserved states and failures](#reserved-states-and-failures)) and a validation failure counter is incremented. This is useful for automated verdict without requiring event storage:
 
 ```json
 {
@@ -2336,8 +2349,8 @@ Optional expected HTTP status code for the response (integer, 100-599). When con
 
 When either `expectedResponseStatusCode` or `responseSchemaId` validation fails (and also on a transport error, with no answer):
 - The failure is logged
-- The `h2agent_traffic_client_failed_counter{reason}` prometheus metric is incremented (see [failure metrics](#failure-metrics))
-- The event is stored (if storage is enabled) with the state `__core:failed:<reason>` (instead of the intended `outState`) and its `failures`
+- The `h2agent_traffic_client_failed_counter{state, reason}` prometheus metric is incremented (see [failure metrics](#failure-metrics))
+- The event is stored (if storage is enabled) with the state `__core:failed:<inState>:<reason>` (instead of the intended `outState`) and its `failures`
 - The chain goes on only through an [error branch](#error-branch) (otherwise it ends: no purge, no next provision)
 
 ### Client transformation differences
@@ -2383,7 +2396,7 @@ New **targets**:
 - `{"target": "requestUri"}` *[string]*: overrides the request URI to be sent. This is useful in combination with `sequence` source to build dynamic URIs (e.g., `/api/v1/resource/@{myId}`).
 - `{"target": "requestMethod"}` *[string]*: overrides the HTTP method to be sent (e.g., `POST`, `GET`, `PUT`, `DELETE`, `HEAD`).
 - `{"target": "break"}`: this target is activated with a **true** source (see [boolean criterion](#boolean-criterion)) (for example `{"source": "literal", "value": "1"}`) and interrupts the transformation list. It is used on response context to discard further transformations when, for example, response status code is not valid to continue processing the test scenario. Normally, we should "dirty" the `outState` (for example, setting an unprovisioned "road closed" state, in order to stop the flow) and then break the transformation list (this also dodges a probable purge state configured in next stages, keeping internal data for further analysis). Note that placing `break` as the **last** item in a transformation list is illogical — there are no further items to interrupt. A warning is logged at provision time when this is detected. To mark the step as failed (and end the chain), use `fail` instead.
-- `{"target": "fail"[, "reason": "<reason>"]}`: as in server provisions (see [transformation pipeline](#transformation-pipeline)): on a true value the list is left and the event state is `__core:failed:<reason>`, with the value as `detail`. It is the first failure of the event, before the built-in checks.
+- `{"target": "fail"[, "reason": "<reason>"]}`: as in server provisions (see [transformation pipeline](#transformation-pipeline)): on a true value the list is left and the event state is `__core:failed:<inState>:<reason>`, with the value as `detail`. It is the first failure of the event, before the built-in checks.
 
 Note that the `clientProvision` target is only available in server mode transformations (not in client mode), as it is the mechanism to trigger client flows from server context.
 

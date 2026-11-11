@@ -8,6 +8,7 @@ test suite, and it will be kept here during the transition.
 * The full reference is the [API user guide](api/README.md) and [openapi.yaml](api/openapi.yaml).
 * Most of the syntax work is automatic: see [1. The migration tool](#1-the-migration-tool).
 * Coming from 5.0-5.2: see [21. From 5.x to 5.3.0](#21-from-5x-to-530) (failure states and data waits).
+* Coming from 5.3.0: see [22. From 5.3.0 to 5.4.0](#22-from-530-to-540) (the failed state names its stage).
 
 Changes are tagged by how much attention they need:
 
@@ -41,6 +42,7 @@ Changes are tagged by how much attention they need:
 19. [Startup order](#19-startup-order)
 20. [Checklist](#20-checklist)
 21. [From 5.x to 5.3.0](#21-from-5x-to-530)
+22. [From 5.3.0 to 5.4.0](#22-from-530-to-540)
 
 ---
 
@@ -789,3 +791,33 @@ grows).
 3. Dashboards and alerts: the former counter by `*_failed_counter`.
 4. Tests reading the `state` of a step which may fail: expect `__core:failed:<reason>`.
 5. Optionally simplify: barrier transforms (a literal written to the vault to be waited) by data waits, failure gates by `fail` (or by nothing, with the built-in checks).
+
+---
+
+## 22. From 5.3.0 to 5.4.0
+
+The failed state names its stage: `__core:failed:<state>:<reason>`, where `<state>` is the `inState` of the
+provision which failed, set by h2agent. The `reason` of the `fail` target then only names the checked item
+(`Result-Code`, a header, a json node), not the step.
+
+| 5.3.0 | 5.4.0 |
+|---|---|
+| `__core:failed:<reason>` (e.g. `__core:failed:Result-Code`) | `__core:failed:<state>:<reason>` (e.g. `__core:failed:update-2:Result-Code`, `__core:failed:initial:transport`) |
+| client error branch `inState: "__core:failed:<reason>"` | `__core:failed:<state>:<reason>` (that check of that step) or `__core:failed:<state>` (any failure of that step); it still loads, but now means a stage |
+| error branch lookup: exact, `__core:failed` | exact, `__core:failed:<state>`, `__core:failed` |
+| user states with `:` accepted | rejected (`inState`, `outState`, `clientProvision` `inState`); an `outState` written with `:` by a transformation is ignored |
+| `*_failed_counter{source, reason}` | `*_failed_counter{source, state, reason}` (dashboards grouping by `reason` keep working) |
+
+Waits by prefix keep working (`statePrefix=__core:failed:`), and get a stage level
+(`statePrefix=__core:failed:update-2:`); waits and tests on an exact 5.3.0 failed state change.
+
+Checklist:
+
+1. `h2agent-migrate --scan <dir>` lists the 5.3.0 error branches (`v53-failed-branch`) and the user states with
+   `:` (`v53-colon-state`).
+2. Rewrite each branch as `__core:failed:<state>:<reason>` or `__core:failed:<state>`, and the exact failed
+   states expected by tests and waits.
+3. Rename the states with `:` (e.g. `step:1` -> `step-1`).
+4. Optionally: drop the stage written by hand in `fail` reasons (`"update-2.Result-Code"` -> `"Result-Code"`),
+   and name the `outState` after the next stage of the key, numbered from 1 when it may repeat (`update-1`,
+   `update-2`), see [reserved states and failures](api/README.md#reserved-states-and-failures).

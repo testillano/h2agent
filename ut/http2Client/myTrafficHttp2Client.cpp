@@ -133,15 +133,15 @@ TEST_F(MyTrafficHttp2ClientUnitTest, IncrementCountersWithMetrics) {
 
 // Failed counter: one per reason label (family shared with the registry)
 TEST_F(MyTrafficHttp2ClientUnitTest, IncrementFailedByReason) {
-    EXPECT_NO_THROW(client_->incrementFailed("transport"));  // null guard
+    EXPECT_NO_THROW(client_->incrementFailed("initial", "transport"));  // null guard
     ert::metrics::Metrics metrics;
     client_->enableMyMetrics(&metrics, "test");
-    client_->incrementFailed("transport");
-    client_->incrementFailed("create-@{uid}");
-    client_->incrementFailed("create-@{uid}");
+    client_->incrementFailed("initial", "transport");
+    client_->incrementFailed("update-2", "create-@{uid}");
+    client_->incrementFailed("update-2", "create-@{uid}");
     auto &family = metrics.addCounterFamily("h2agent_traffic_client_failed_counter", "", {});
-    EXPECT_EQ(family.Add({{"source", "test"}, {"reason", "transport"}}).Value(), 1);
-    EXPECT_EQ(family.Add({{"source", "test"}, {"reason", "create-@{uid}"}}).Value(), 2);
+    EXPECT_EQ(family.Add({{"source", "test"}, {"state", "initial"}, {"reason", "transport"}}).Value(), 1);
+    EXPECT_EQ(family.Add({{"source", "test"}, {"state", "update-2"}, {"reason", "create-@{uid}"}}).Value(), 2);
 }
 
 } // namespace test

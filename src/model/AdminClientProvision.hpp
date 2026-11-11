@@ -143,8 +143,9 @@ class AdminClientProvision
 
     void saveDynamics() const;
 
-    // '__core:' states are never an output: a transformation writing one is ignored (provision outState kept)
-    void keepReservedStatesUnwritten(std::string &outState) const;
+    // ':' (the reserved states level separator) is not allowed in a user state: an outState
+    // written by a transformation with it is ignored (provision outState kept, with a warning)
+    void keepUserStates(std::string &outState) const;
 
 
 

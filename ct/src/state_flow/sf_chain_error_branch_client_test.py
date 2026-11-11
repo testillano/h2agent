@@ -9,8 +9,9 @@ H2AGENT_HOST = os.environ.get('H2AGENT_SERVICE_HOST', 'h2agent')
 H2AGENT_TRAFFIC_PORT = int(os.environ.get('H2AGENT_SERVICE_PORT_HTTP2_TRAFFIC', 8000))
 
 # After a failure, the client chain goes on with the provision of the same id whose
-# inState is the exact failure state, else the generic '__core:failed'; with none
-# the chain ends. A failure within an error branch ends the chain.
+# inState is the exact failure state ('__core:failed:<state>:<reason>'), else the
+# one of its stage ('__core:failed:<state>'), else the generic '__core:failed'; with
+# none the chain ends. A failure within an error branch ends the chain.
 
 def step(flowId, method, uri, inState = None, outState = None, expected = None, onResponseTransform = None):
   provision = {"id": flowId, "endpoint": "loopback", "requestMethod": method, "requestUri": uri}
@@ -57,7 +58,7 @@ def test_001_provision_error_branches(h2ac_admin):
   provisions = [
     # exact branch preferred over the generic one:
     step("exactFlow", "POST", "/app/v1/err-branch/create", outState = "next", expected = 201),
-    step("exactFlow", "DELETE", "/app/v1/err-branch/cleanup", inState = "__core:failed:expectedResponseStatusCode", expected = 204),
+    step("exactFlow", "DELETE", "/app/v1/err-branch/cleanup", inState = "__core:failed:initial:expectedResponseStatusCode", expected = 204),
     step("exactFlow", "GET", "/app/v1/err-branch/generic", inState = "__core:failed"),
     # generic branch, reached from a 'fail' target:
     step("genericFlow", "POST", "/app/v1/err-branch/create", outState = "next", onResponseTransform = failOnStatus),
@@ -65,6 +66,11 @@ def test_001_provision_error_branches(h2ac_admin):
     # a failure within the branch ends the chain (the generic branch does not catch it again):
     step("nestedFlow", "POST", "/app/v1/err-branch/create", expected = 201),
     step("nestedFlow", "GET", "/app/v1/err-branch/generic", inState = "__core:failed", expected = 201),
+    # stage branch (any failure of the step 'next'), preferred over the generic one:
+    step("stageFlow", "GET", "/app/v1/err-branch/generic", outState = "next"),
+    step("stageFlow", "POST", "/app/v1/err-branch/create", inState = "next", expected = 201),
+    step("stageFlow", "DELETE", "/app/v1/err-branch/cleanup", inState = "__core:failed:next", expected = 204),
+    step("stageFlow", "GET", "/app/v1/err-branch/generic", inState = "__core:failed"),
     # no branch: the chain ends at the failure
     step("noBranchFlow", "POST", "/app/v1/err-branch/create", outState = "next", expected = 201),
     step("noBranchFlow", "GET", "/app/v1/err-branch/generic", inState = "next")
@@ -87,12 +93,12 @@ def test_002_exact_branch_is_preferred(h2ac_admin):
 
   created = clientEvents(h2ac_admin, "POST", "/app/v1/err-branch/create")
   assert len(created) == 1
-  assert created[0]["state"] == "__core:failed:expectedResponseStatusCode"
+  assert created[0]["state"] == "__core:failed:initial:expectedResponseStatusCode"
   assert created[0]["failures"] == [{"reason": "expectedResponseStatusCode", "expected": 201, "got": 500}]
 
   cleanup = clientEvents(h2ac_admin, "DELETE", "/app/v1/err-branch/cleanup")
   assert len(cleanup) == 1
-  assert cleanup[0]["previousState"] == "__core:failed:expectedResponseStatusCode"
+  assert cleanup[0]["previousState"] == "__core:failed:initial:expectedResponseStatusCode"
   assert cleanup[0]["state"] == "road-closed"
   assert "failures" not in cleanup[0]
 
@@ -104,7 +110,7 @@ def test_002_exact_branch_is_preferred(h2ac_admin):
   entries = response["body"]
   assert [(e["direction"], e["method"]) for e in entries] == [("send", "POST"), ("recv", "POST"), ("send", "DELETE"), ("recv", "DELETE")]
   for e in entries[:2]:
-    assert e["state"] == "__core:failed:expectedResponseStatusCode"
+    assert e["state"] == "__core:failed:initial:expectedResponseStatusCode"
     assert e["failures"] == [{"reason": "expectedResponseStatusCode", "expected": 201, "got": 500}]
   for e in entries[2:]:
     assert e["state"] == "road-closed"
@@ -118,7 +124,7 @@ def test_003_generic_branch_catches_any_failure(h2ac_admin):
 
   created = clientEvents(h2ac_admin, "POST", "/app/v1/err-branch/create")
   assert len(created) == 1
-  assert created[0]["state"] == "__core:failed:create-rejected"
+  assert created[0]["state"] == "__core:failed:initial:create-rejected"
   assert created[0]["failures"] == [{"reason": "create-rejected", "detail": 500}]
 
   generic = clientEvents(h2ac_admin, "GET", "/app/v1/err-branch/generic")
@@ -133,7 +139,7 @@ def test_004_failure_within_branch_ends_chain(h2ac_admin):
 
   generic = clientEvents(h2ac_admin, "GET", "/app/v1/err-branch/generic")
   assert len(generic) == 1 # sent once: no loop over the generic branch
-  assert generic[0]["state"] == "__core:failed:expectedResponseStatusCode"
+  assert generic[0]["state"] == "__core:failed:__core_failed:expectedResponseStatusCode" # stage: the branch inState, ':' as '_'
 
 
 @pytest.mark.client
@@ -143,5 +149,24 @@ def test_005_no_branch_ends_chain(h2ac_admin):
 
   created = clientEvents(h2ac_admin, "POST", "/app/v1/err-branch/create")
   assert len(created) == 1
-  assert created[0]["state"] == "__core:failed:expectedResponseStatusCode"
+  assert created[0]["state"] == "__core:failed:initial:expectedResponseStatusCode"
   assert clientEvents(h2ac_admin, "GET", "/app/v1/err-branch/generic") == []
+
+
+@pytest.mark.client
+def test_006_stage_branch_catches_any_failure_of_its_step(h2ac_admin):
+
+  trigger(h2ac_admin, "stageFlow")
+
+  created = clientEvents(h2ac_admin, "POST", "/app/v1/err-branch/create")
+  assert len(created) == 1
+  assert created[0]["previousState"] == "next"
+  assert created[0]["state"] == "__core:failed:next:expectedResponseStatusCode"
+
+  cleanup = clientEvents(h2ac_admin, "DELETE", "/app/v1/err-branch/cleanup")
+  assert len(cleanup) == 1
+  assert cleanup[0]["previousState"] == "__core:failed:next"
+
+  generic = clientEvents(h2ac_admin, "GET", "/app/v1/err-branch/generic")
+  assert len(generic) == 1 # only the first step (the generic branch is not reached)
+  assert generic[0]["state"] == "next"

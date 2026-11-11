@@ -78,7 +78,7 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
     ert::metrics::counter_t *provisioned_requests_failed_counter_{};
     ert::metrics::counter_t *purged_contexts_successful_counter_{};
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
-    ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure reason
+    ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure stage and reason
     std::string metrics_source_{};
 
 public:
@@ -116,12 +116,13 @@ public:
         if (purged_contexts_failed_counter_)          purged_contexts_failed_counter_->Increment();
     }
     /**
-     * Counts a failed event (one per event, with the reason of its state)
+     * Counts a failed event (one per event, with the stage and the reason of its state)
      *
+     * @param state Stage: inState of the failing provision (a literal: bounded cardinality)
      * @param reason Reason as written in the provision (bounded cardinality)
      */
-    void incrementFailed(const std::string &reason) {
-        if (failed_counter_family_) failed_counter_family_->Add({{"source", metrics_source_}, {"reason", reason}}).Increment();  // Add() is thread-safe and returns the existing counter
+    void incrementFailed(const std::string &state, const std::string &reason) {
+        if (failed_counter_family_) failed_counter_family_->Add({{"source", metrics_source_}, {"state", state}, {"reason", reason}}).Increment();  // Add() is thread-safe and returns the existing counter
     }
 
     //void responseTimeout();

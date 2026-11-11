@@ -184,7 +184,8 @@ inline nlohmann::json targetKind(const std::string &name) {
         {"udpSocket", kind("target", "udpSocket", {{"socket", text()}, {"delayMs", {{"oneOf", {{{"type", "integer"}, {"minimum", 0}}, text()}}}}}, {"socket"})},
         {"serverEvent", kind("target", "serverEvent", eventFields(false, false))},
         {"clientEvent", kind("target", "clientEvent", eventFields(true, false))},
-        {"clientProvision", kind("target", "clientProvision", {{"id", dotless()}, {"inState", text()}}, {"id", "inState"})},
+        // the triggered inState is a user state (no ':', the reserved states level separator, nor '#'):
+        {"clientProvision", kind("target", "clientProvision", {{"id", dotless()}, {"inState", {{"type", "string"}, {"minLength", 1}, {"pattern", "^[^:#]+$"}}}}, {"id", "inState"})},
         {"break", kind("target", "break")},
         // failure reason: a short stable name, '@{}' allowed, ':' not (it is a state level)
         {"fail", kind("target", "fail", {{"reason", {{"type", "string"}, {"minLength", 1}, {"pattern", "^[^:]+$"}}}})},
@@ -450,11 +451,11 @@ const nlohmann::json server_provision = grammar::withServerGrammar(R"(
     },
     "inState":{
       "type": "string",
-      "pattern": "^[^#]*$"
+      "pattern": "^[^:#]*$"
     },
     "outState":{
       "type": "string",
-      "pattern": "^[^#]*$"
+      "pattern": "^[^:#]*$"
     },
     "requestMethod": {
       "type": "string",
@@ -573,11 +574,11 @@ const nlohmann::json client_provision = grammar::withClientGrammar(R"(
     },
     "inState":{
       "type": "string",
-      "pattern": "^[^#]*$"
+      "pattern": "^([^:#]*|__core:failed(:[^:#]+){0,2})$"
     },
     "outState":{
       "type": "string",
-      "pattern": "^[^#]*$",
+      "pattern": "^[^:#]*$",
       "not": { "enum": ["initial"] }
     },
     "endpoint":{

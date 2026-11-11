@@ -78,7 +78,7 @@ def test_002_server_answers_the_report_and_marks_the_failure(h2ac_admin, h2ac_tr
   assert len(events) == 2
   assert events[0]["state"] == "initial"
   assert "failures" not in events[0]
-  assert events[1]["state"] == "__core:failed:wrong-supi"
+  assert events[1]["state"] == "__core:failed:initial:wrong-supi"
   assert events[1]["failures"] == [{"reason": "wrong-supi", "detail": WRONG_SUPI_REPORT}]
 
 
@@ -90,7 +90,7 @@ def test_003_failure_detail_read_from_another_provision(h2ac_admin, h2ac_traffic
 
   response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "/wait?clientProvisionId=fsCreate&statePrefix=__core:failed:&timeoutMs=5000")
   assert response["status"] == 200
-  assert response["body"]["state"] == "__core:failed:create-rejected"
+  assert response["body"]["state"] == "__core:failed:initial:create-rejected"
 
   # The detail (the status code which reached the 'fail' target) through the clientEvent source:
   response = h2ac_traffic.get("/app/v1/fs/report")

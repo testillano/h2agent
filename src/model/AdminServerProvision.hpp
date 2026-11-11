@@ -127,8 +127,9 @@ class AdminServerProvision
     bool uses_json_body_target_{};     // some rule writes the response json body (it is cloned)
     bool needs_storage_{};             // some rule reads or purges stored events
 
-    // '__core:' states are never an output: a transformation writing one is ignored (provision outState kept)
-    void keepReservedStatesUnwritten(std::string &outState) const;
+    // ':' (the reserved states level separator) is not allowed in a user state: an outState
+    // written by a transformation with it is ignored (provision outState kept, with a warning)
+    void keepUserStates(std::string &outState) const;
 
 
 public:
@@ -157,7 +158,7 @@ public:
      * @param outStateUri uri inferred towards a virtual server data entry created through a foreign out-state, filled by reference (if any transformation applies)
      * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      * @param failures when given, one entry is appended per failure, in evaluation order
-     *        ({"reason": ..., <detail fields>}); then 'outState' is '__core:failed:<reason>' (first one)
+     *        ({"reason": ..., <detail fields>}); then 'outState' is '__core:failed:<inState>:<reason>' (first one)
      * @param failReasonTemplate when given and a 'fail' target fires, its reason as written in the
      *        provision (unsubstituted, "" when none) is set there (failure metric label)
      */

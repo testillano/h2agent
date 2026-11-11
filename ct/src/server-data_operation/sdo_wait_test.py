@@ -90,7 +90,7 @@ def test_005_server_wait_failure_by_prefix_and_uri_regex(h2ac_admin, h2ac_traffi
   assert response["status"] == 200
   body = response["body"]
   assert body["key"] == {"requestMethod": "POST", "requestUri": "/app/v1/wait/trap"}
-  assert body["state"] == "__core:failed:trap-hit"
+  assert body["state"] == "__core:failed:initial:trap-hit"
   assert body["event"]["failures"] == [{"reason": "trap-hit", "detail": "sent"}]
 
 
@@ -127,7 +127,7 @@ def test_007_client_wait(h2ac_admin):
   body = response["body"]
   assert body["key"]["clientProvisionId"] == "waitFlow"
   assert body["key"]["clientEndpointId"] == "loopback"
-  assert body["state"] == "__core:failed:expectedResponseStatusCode"
+  assert body["state"] == "__core:failed:initial:expectedResponseStatusCode"
 
   # Unknown provision: timeout; missing id: 400
   response = h2ac_admin.get(ADMIN_CLIENT_DATA_URI + "/wait?clientProvisionId=other&state=x&timeoutMs=200")

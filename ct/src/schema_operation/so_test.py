@@ -62,7 +62,7 @@ def test_004_i_want_to_send_post_request_for_provisioned_data_on_traffic_interfa
   assert response["status"] == 200
   event = response["body"]
   assert event["previousState"] == "initial"
-  assert event["state"] == "__core:failed:requestSchemaId"
+  assert event["state"] == "__core:failed:initial:requestSchemaId"
   assert len(event["failures"]) == 1
   assert event["failures"][0]["reason"] == "requestSchemaId"
   assert event["failures"][0]["id"] == "myRequestsSchemaId"

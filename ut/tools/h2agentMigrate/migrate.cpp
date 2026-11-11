@@ -459,3 +459,26 @@ TEST(GrammarMigrator_test, ScanReportsV5Leftovers) {
     EXPECT_EQ(found, (std::vector<std::string> {"a.json:1:v5-stop-target", "b.sh:1:v5-vault-wait-path", "c.json:1:v5-removed-counter"}));
     fs::remove_all(dir);
 }
+
+TEST(GrammarMigrator_test, ScanReportsV53Leftovers) {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / ("h2agent-migrate-scan53-" + std::to_string(::getpid()));
+    fs::create_directories(dir);
+    const auto write = [](const fs::path &p, const std::string &content) {
+        std::ofstream(p) << content;
+    };
+    // 5.3.0 error branch by reason (a stage in 5.4.0), and user states with ':'
+    write(dir / "a.json", "{\"id\": \"f\", \"inState\": \"__core:failed:expectedResponseStatusCode\"}\n");
+    write(dir / "b.json", "{\"inState\": \"step:1\"}\n");
+    write(dir / "c.json", "{\"outState\": \"a:b\"}\n");
+    // 5.4.0 forms are not leftovers:
+    write(dir / "d.json", "{\"inState\": \"__core:failed\"}\n");
+    write(dir / "e.json", "{\"inState\": \"__core:failed:update-2:Result-Code\"}\n");
+    write(dir / "f.json", "{\"inState\": \"update-2\", \"outState\": \"update-3\"}\n");
+
+    const auto hits = GrammarMigrator::scan(dir.string());
+    std::vector<std::string> found;
+    for (const auto &h : hits) found.push_back(fs::path(h.file).filename().string() + ":" + std::to_string(h.line) + ":" + h.kind);
+    EXPECT_EQ(found, (std::vector<std::string> {"a.json:1:v53-failed-branch", "b.json:1:v53-colon-state", "c.json:1:v53-colon-state"}));
+    fs::remove_all(dir);
+}
