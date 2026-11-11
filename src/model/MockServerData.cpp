@@ -60,6 +60,9 @@ std::shared_ptr<MockServerEvent> MockServerData::loadEvent(const DataKey &dataKe
         entry->loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
     });
 
+    // Data waits (outside the key lock):
+    notifyEvent(dataKey, std::static_pointer_cast<MockEvent>(event));
+
     // The event is returned to the caller (it was published through a shared member
     // written by every worker thread without synchronization: a data race corrupting
     // the heap under concurrent receptions).

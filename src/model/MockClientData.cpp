@@ -49,10 +49,14 @@ namespace model
 
 void MockClientData::loadEvent(const DataKey &dataKey, const std::string &clientProvisionId, const std::string &previousState, const std::string &state, const std::chrono::microseconds &sendingTimestampUs, const std::chrono::microseconds &receptionTimestampUs, int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, const std::string &requestBody, DataPart &responseBodyDataPart, std::uint64_t sendSeq, std::int64_t sequence, unsigned int requestDelayMs, unsigned int timeoutMs, bool historyEnabled, const nlohmann::json *executionTrace, const nlohmann::json *failures) {
 
+    std::shared_ptr<MockClientEvent> event;
     modifyOrInsert(dataKey.getKey(), [&](std::shared_ptr<MockEventsHistory> &entry) {
         if (!entry) entry = std::make_shared<MockClientEventsHistory>(dataKey);
-        std::static_pointer_cast<MockClientEventsHistory>(entry)->loadEvent(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, sendSeq, sequence, requestDelayMs, timeoutMs, historyEnabled, executionTrace, failures);
+        event = std::static_pointer_cast<MockClientEventsHistory>(entry)->loadEvent(clientProvisionId, previousState, state, sendingTimestampUs, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBody, responseBodyDataPart, sendSeq, sequence, requestDelayMs, timeoutMs, historyEnabled, executionTrace, failures);
     });
+
+    // Data waits (outside the key lock):
+    notifyEvent(dataKey, std::static_pointer_cast<MockEvent>(event));
 }
 
 bool MockClientData::removeEventBySendSeq(const DataKey &dataKey, std::uint64_t sendSeq) {

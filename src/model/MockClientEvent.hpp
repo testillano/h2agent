@@ -85,6 +85,14 @@ public:
 
     // getters:
 
+    /** Client provision identifier
+     *
+     * @return Client provision id responsible for the event
+     */
+    const std::string &getClientProvisionId() const {
+        return client_provision_id_;
+    }
+
     /** Send sequence
      *
      * @return Send sequence (1..N)

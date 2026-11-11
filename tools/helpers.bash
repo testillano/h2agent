@@ -1081,6 +1081,63 @@ wait_vault() {
   return ${rc}
 }
 
+# Data waits: shared argument parsing for wait_server_data / wait_client_data
+_wait_data() {
+  local resource=$1; shift
+  local q=$1; shift
+  local timeoutMs=30000
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --state) q+="&state=$(jq -rn --arg s "$2" '$s|@uri')"; shift ;;
+      --state-prefix) q+="&statePrefix=$(jq -rn --arg s "$2" '$s|@uri')"; shift ;;
+      --event-number) q+="&eventNumber=$2"; shift ;;
+      --timeout) timeoutMs=$2; shift ;;
+      *) echo "Error: unknown option '$1'"; return 1 ;;
+    esac
+    shift
+  done
+  local maxTime=$(( (timeoutMs / 1000) + 1 ))
+  ${H2AHLP_CURL} --max-time ${maxTime} "$(admin_url)/${resource}/wait?${q}&timeoutMs=${timeoutMs}"
+  local rc=$?
+  echo
+  return ${rc}
+}
+
+wait_server_data() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: wait_server_data [-h|--help] <method> <uri> [--state <s>|--state-prefix <p>] [--event-number <n>] [--timeout <ms>]"
+    echo "       Blocks until a server event of the key meets the condition ($(admin_url)/server-data/wait), or timeout."
+    echo "       No condition: the next new event. Default timeout: 30000 ms."
+    echo
+    echo "  Examples:"
+    echo "    wait_server_data POST /app/v1/foo --state reauth"
+    echo "    wait_server_data POST /app/v1/foo --state-prefix __core:failed:"
+    echo "    wait_server_data POST /app/v1/foo --state notify --event-number 2"
+    return 0
+  fi
+  [ $# -lt 2 ] && echo "Error: method and uri required" && return 1
+  local method=$1 uri=$2; shift 2
+  _wait_data server-data "requestMethod=${method}&requestUri=$(jq -rn --arg s "${uri}" '$s|@uri')" "$@"
+}
+
+wait_client_data() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: wait_client_data [-h|--help] <client provision id> [--state <s>|--state-prefix <p>] [--event-number <n>] [--timeout <ms>]"
+    echo "       Blocks until a client event of the provision meets the condition ($(admin_url)/client-data/wait), or timeout."
+    echo "       No condition: the next new event. Default timeout: 30000 ms."
+    echo
+    echo "  Examples:"
+    echo "    wait_client_data myFlow                                # next step of the flow, done or failed"
+    echo "    wait_client_data myFlow --state-prefix __core:failed:  # any failure"
+    return 0
+  fi
+  [ -z "$1" ] && echo "Error: client provision id required" && return 1
+  local id=$1; shift
+  _wait_data client-data "clientProvisionId=$(jq -rn --arg s "${id}" '$s|@uri')" "$@"
+}
+
 # -----------------------------------------------------------------------------
 # AUXILIARY
 
@@ -1902,10 +1959,11 @@ help() {
   for f in health schema vault files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Server Functions === "
-  for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data wait_server_data; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Client Functions === "
-  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_cps client_provision_unused client_data metrics_summary; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in client_data_configuration client_endpoint client_provision client_provision_trigger client_provision_cps client_provision_unused client_data wait_client_data metrics_summary; do ${f} -h | head -n 1; export -f ${f} ; done
+  export -f _wait_data
   echo
   echo "=== Operation Schemas' Functions === "
   for f in schema_schema vault_schema server_matching_schema server_provision_schema client_endpoint_schema client_provision_schema; do ${f} -h | head -n 1; export -f ${f} ; done

@@ -1139,6 +1139,8 @@ Overview:       https://testillano.github.io/h2agent/overview/
     myWaitManager = new h2agent::model::WaitManager();
     myWaitManager->setVault(myVault);
     myVault->setWaitManager(myWaitManager);
+    myMockServerData->setWaitManager(myWaitManager);  // data waits
+    myMockClientData->setWaitManager(myWaitManager);
 
     // SSE (Server-Sent Events) manager for vault event streaming:
     mySseManager = new h2agent::model::SseManager();

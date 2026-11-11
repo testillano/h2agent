@@ -45,6 +45,19 @@ namespace h2agent
 namespace model
 {
 
+std::vector<KeyedEvent> MockData::collectEvents(const std::function<bool(const DataKey &, const MockEvent &)> &matches) const {
+
+    std::vector<KeyedEvent> result;
+    forEach([&](const mock_events_key_t&, const std::shared_ptr<MockEventsHistory> &history) {
+        const DataKey &key = history->getKey();
+        read_guard_t guard(history->getMutex());
+        for (const auto &event : history->getEvents()) {
+            if (matches(key, *event)) result.emplace_back(key, event);
+        }
+    });
+    return result;
+}
+
 std::shared_ptr<MockEventsHistory> MockData::getEvents(const DataKey &dataKey, bool &maiden) {
 
     bool exists;

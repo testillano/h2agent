@@ -38,6 +38,7 @@ SOFTWARE.
 
 #include <WaitManager.hpp>
 #include <Vault.hpp>
+#include <MockEvent.hpp>
 
 namespace h2agent
 {
@@ -105,6 +106,76 @@ bool WaitManager::waitForVault(const std::string &key, const nlohmann::json &tar
     }
 
     return result;
+}
+
+void WaitManager::addMatch(EventWaiter &w, const DataKey &key, const std::shared_ptr<MockEvent> &event) {
+    if (w.seen.insert(event.get()).second) w.matched.emplace_back(key, event);
+}
+
+void WaitManager::evaluate(EventWaiter &w) {
+    const std::uint64_t needed = w.spec->eventNumber ? w.spec->eventNumber : 1;
+    w.done = (w.matched.size() >= needed);
+}
+
+WaitOutcome WaitManager::waitForEvent(const EventWaitSpec &spec, const std::function<std::vector<KeyedEvent>()> &scan,
+                                      unsigned int timeoutMs, std::optional<EventWaitMatch> &match) {
+
+    timeoutMs = std::min(timeoutMs, MAX_TIMEOUT_MS);
+    EventWaiter w;
+    w.spec = &spec;
+
+    // Register before scanning: an event loaded meanwhile is seen by onEvent()
+    // (and deduplicated if the scan also finds it).
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (shutdown_) return WaitOutcome::Shutdown;
+        if (active_waiters_ >= MAX_WAITERS) return WaitOutcome::Full;
+        active_waiters_++;
+        event_waiters_.push_back(&w);
+        event_waiters_count_++;
+    }
+
+    std::vector<KeyedEvent> stored;
+    if (!spec.onlyNew && scan) stored = scan();  // without the lock: loads are not blocked
+
+    std::unique_lock<std::mutex> lock(mutex_);
+    for (const auto &e : stored) addMatch(w, e.first, e.second);
+    evaluate(w);
+    cv_.wait_for(lock, std::chrono::milliseconds(timeoutMs), [&] { return shutdown_ || w.done; });
+
+    event_waiters_.erase(std::remove(event_waiters_.begin(), event_waiters_.end(), &w), event_waiters_.end());
+    event_waiters_count_--;
+    active_waiters_--;
+
+    if (shutdown_) return WaitOutcome::Shutdown;
+    if (!w.done) return WaitOutcome::Timeout;
+
+    // Chronological order (stored events and notified ones may interleave):
+    std::stable_sort(w.matched.begin(), w.matched.end(), [](const KeyedEvent &a, const KeyedEvent &b) {
+        return a.second->getReceptionTimestampUs() < b.second->getReceptionTimestampUs();
+    });
+    std::size_t index = 0;
+    if (spec.eventNumber) index = spec.eventNumber - 1;  // the n-th matching event
+    else if (!spec.onlyNew) index = w.matched.size() - 1;  // state condition: the latest
+    // onlyNew: the first event loaded after the request
+    match.emplace(EventWaitMatch{w.matched[index].first, w.matched[index].second, spec.onlyNew ? 0 : index + 1});
+    return WaitOutcome::Met;
+}
+
+void WaitManager::onEvent(const DataKey &key, const std::shared_ptr<MockEvent> &event) {
+    if (event_waiters_count_.load() == 0 || !event) return;  // load path: no lock without data waiters
+
+    bool wake = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto *w : event_waiters_) {
+            if (w->done || !w->spec->matches(key, *event)) continue;
+            addMatch(*w, key, event);
+            evaluate(*w);
+            wake |= w->done;
+        }
+    }
+    if (wake) cv_.notify_all();
 }
 
 void WaitManager::shutdown() {

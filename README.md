@@ -58,7 +58,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Logging system.
     * Traffic classification and provisioning configuration.
     * Client endpoints configuration.
-    * Events data (server and clients) summary and inspection.
+    * Events data (server and clients) summary and inspection, with blocking wait (long-poll) on event states.
     * Events data configuration (global storage, history).
     * Health check endpoint.
     * Memory management (malloc-trim).
@@ -1792,9 +1792,11 @@ The API is organized in the following groups:
 | **server-matching** | `POST` `GET` `/admin/v2/server-matching` | Traffic classification algorithm (FullMatching, FullMatchingRegexReplace, RegexMatching) |
 | **server-provision** | `POST` `GET` `DELETE` `/admin/v2/server-provision` | Server mock response behavior and transformation pipeline |
 | **server-data** | `GET` `PUT` `DELETE` `/admin/v2/server-data` | Server events storage and inspection |
+| | `GET` `/admin/v2/server-data/wait` | Block until a server event reaches a state (long-poll) |
 | **client-endpoint** | `POST` `GET` `DELETE` `/admin/v2/client-endpoint` | Remote server connection definitions |
 | **client-provision** | `POST` `GET` `DELETE` `/admin/v2/client-provision`, `POST` `/admin/v2/client-provision/<id>/trigger` | Client mock request behavior, triggering and transformation pipeline |
 | **client-data** | `GET` `PUT` `DELETE` `/admin/v2/client-data` | Client events storage and inspection |
+| | `GET` `/admin/v2/client-data/wait` | Block until a client event reaches a state (long-poll) |
 
 ## Server-triggered client flows with serverEvent source
 

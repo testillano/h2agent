@@ -700,6 +700,74 @@ paths:
         '400':
           description: Bad request
 
+  /admin/v2/server-data/wait:
+    get:
+      tags: [data]
+      summary: Block until a server event meets a state condition (long-poll)
+      description: >
+        Blocks until an event of the key reaches a state (state), a state
+        prefix (statePrefix, e.g. '__core:failed:'), the n-th matching event
+        exists (eventNumber), or, with none of them, until the next new event.
+        A condition already met answers at once.
+      parameters:
+        - name: requestMethod
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [POST, GET, PUT, DELETE, HEAD]
+        - name: requestUri
+          in: query
+          description: Event key uri (exclusive with uriRegex, one of them mandatory)
+          schema:
+            type: string
+        - name: uriRegex
+          in: query
+          description: Regular expression matched against the event key uris (exclusive with requestUri)
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: State to wait for (exclusive with statePrefix)
+          schema:
+            type: string
+        - name: statePrefix
+          in: query
+          description: State prefix to wait for (exclusive with state)
+          schema:
+            type: string
+        - name: eventNumber
+          in: query
+          description: n-th matching event (1..N, chronological)
+          schema:
+            type: integer
+            minimum: 1
+        - name: timeoutMs
+          in: query
+          description: Maximum wait time in milliseconds (capped at 300000)
+          schema:
+            type: integer
+            default: 30000
+      responses:
+        '200':
+          description: Condition met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWaitResponse'
+        '400':
+          description: Bad parameters
+        '408':
+          description: Timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWaitResponse'
+        '429':
+          description: Too many concurrent waiters (max 32, shared with the vault waits)
+        '503':
+          description: Shutting down
+
   /admin/v2/server-data/summary:
     get:
       tags: [server-data]
@@ -1156,6 +1224,78 @@ paths:
         '400':
           description: Bad request
 
+  /admin/v2/client-data/wait:
+    get:
+      tags: [data]
+      summary: Block until a client event meets a state condition (long-poll)
+      description: >
+        Blocks until an event of the key reaches a state (state), a state
+        prefix (statePrefix, e.g. '__core:failed:'), the n-th matching event
+        exists (eventNumber), or, with none of them, until the next new event.
+        A condition already met answers at once.
+      parameters:
+        - name: clientProvisionId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: clientEndpointId
+          in: query
+          description: Narrows the events to this client endpoint
+          schema:
+            type: string
+        - name: requestMethod
+          in: query
+          description: Narrows the events to this method
+          schema:
+            type: string
+        - name: requestUri
+          in: query
+          description: Narrows the events to this uri
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: State to wait for (exclusive with statePrefix)
+          schema:
+            type: string
+        - name: statePrefix
+          in: query
+          description: State prefix to wait for (exclusive with state)
+          schema:
+            type: string
+        - name: eventNumber
+          in: query
+          description: n-th matching event (1..N, chronological)
+          schema:
+            type: integer
+            minimum: 1
+        - name: timeoutMs
+          in: query
+          description: Maximum wait time in milliseconds (capped at 300000)
+          schema:
+            type: integer
+            default: 30000
+      responses:
+        '200':
+          description: Condition met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWaitResponse'
+        '400':
+          description: Bad parameters
+        '408':
+          description: Timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataWaitResponse'
+        '429':
+          description: Too many concurrent waiters (max 32, shared with the vault waits)
+        '503':
+          description: Shutting down
+
   /admin/v2/client-data/summary:
     get:
       tags: [client-data]
@@ -1258,6 +1398,31 @@ components:
         previousValue:
           type: string
           description: Variable value captured before waiting
+
+    DataWaitResponse:
+      type: object
+      properties:
+        result:
+          type: boolean
+          description: Whether the wait condition was met
+        key:
+          type: object
+          description: >
+            Key of the event which met the condition (requestMethod, requestUri;
+            clientEndpointId and clientProvisionId for client events), or the
+            requested key on timeout
+        state:
+          type: string
+          description: State of the event
+        previousState:
+          type: string
+          description: Previous state of the event
+        eventNumber:
+          type: integer
+          description: Position among the matching events (absent for the next-new-event mode)
+        event:
+          type: object
+          description: The full event, as in server-data / client-data
 
     FileInfo:
       type: object

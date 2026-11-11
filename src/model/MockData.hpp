@@ -37,12 +37,16 @@ SOFTWARE.
 
 #include <vector>
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
 #include <Map.hpp>
 #include <MockEventsHistory.hpp>
 #include <MockEvent.hpp>
+#include <WaitManager.hpp>
 
 
 namespace h2agent
@@ -80,9 +84,28 @@ protected:
     // Get the events list for data key provided, and pass by reference a boolean to know if the list must be inaugurated
     std::shared_ptr<MockEventsHistory> getEvents(const DataKey &dataKey, bool &maiden);
 
+    WaitManager *wait_manager_{};  // data waits: notified on every event load
+
+    // Notifies the data waiters about a stored event
+    void notifyEvent(const DataKey &dataKey, const std::shared_ptr<MockEvent> &event) const {
+        if (wait_manager_) wait_manager_->onEvent(dataKey, event);
+    }
+
 public:
     MockData() {};
     ~MockData() = default;
+
+    /** Sets the wait manager notified on every event load (data waits) */
+    void setWaitManager(WaitManager *p) {
+        wait_manager_ = p;
+    }
+
+    /**
+     * Stored events matching a filter, with their keys (data waits)
+     *
+     * @param matches Filter over key and event
+     */
+    std::vector<KeyedEvent> collectEvents(const std::function<bool(const DataKey &, const MockEvent &)> &matches) const;
 
     using KeyType = mock_events_key_t;
     using ValueType = std::shared_ptr<MockEventsHistory>;

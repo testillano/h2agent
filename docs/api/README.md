@@ -33,6 +33,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 - [Server data](#server-data)
   - [Storage configuration](#storage-configuration)
   - [Querying server data](#querying-server-data)
+  - [Waiting for server data](#waiting-for-server-data)
   - [Server data summary](#server-data-summary)
   - [Deleting server data](#deleting-server-data)
 - [Client endpoints](#client-endpoints)
@@ -49,6 +50,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
 - [Client data](#client-data)
   - [Client storage configuration](#client-storage-configuration)
   - [Querying client data](#querying-client-data)
+  - [Waiting for client data](#waiting-for-client-data)
   - [Client data summary](#client-data-summary)
   - [Deleting client data](#deleting-client-data)
 
@@ -465,6 +467,7 @@ Where to read a failure:
 | Where | How |
 |---|---|
 | Inspection | `GET /admin/v2/client-data?...` / `GET /admin/v2/server-data?...`: every event carries `state`, `previousState` and, when it failed, `failures` |
+| Waits | `GET /admin/v2/{client,server}-data/wait`: the answer has the `state` and the full `event` ([server](#waiting-for-server-data), [client](#waiting-for-client-data)) |
 | Sequences | `GET /admin/v2/{client,server}-data/sequence`: every entry carries the `state` of its event and, when it failed, its `failures` (entries stay light: no bodies nor headers), so the order of the messages and the verdict come in one call |
 | Another provision | the `serverEvent` / `clientEvent` sources with a path, e.g. `"eventPath": "/failures/0/detail"` |
 | Log | one warning per failure (see above) |
@@ -2101,6 +2104,34 @@ The information collected for a server event item is:
 * `failures`: present only when the event failed: one entry per failure, in evaluation order (the first one gives the `state`), see [reserved states and failures](#reserved-states-and-failures).
 * `recvseq`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
+### Waiting for server data
+
+`GET /admin/v2/server-data/wait` blocks (long-poll) until an event of a key meets a condition on its **state**, so a test framework waits for a state (or a failure) with no provision written to signal it (the [vault wait](#blocking-wait) remains for generic signals agreed by the user):
+
+| Parameter | Meaning |
+|---|---|
+| `requestMethod` + `requestUri` (or `uriRegex`) | the event key, as in `server-data` / `server-data/sequence` (method mandatory, exactly one of `requestUri` or `uriRegex`) |
+| `state=<s>` | met when an event of the key reaches that state, or already had |
+| `statePrefix=<p>` | met when it reaches a state starting by `p` (e.g. `__core:failed:` for any failure) |
+| neither | met by the **next new** event of the key, whatever its state (stored ones are ignored) |
+| `eventNumber=<n>` | the n-th matching event (`1..N`, chronological): a wait issued after the event still answers at once, e.g. the second notification of a key |
+| `timeoutMs` | default 30000, max 300000 |
+
+`state` and `statePrefix` are exclusive. A condition already met answers at once, and an event loaded while the wait starts is not missed (no race between the event and the wait). Codes: `200` met, `408` timeout, `429` too many waiters (shared with the vault waits, max 32), `400` bad parameters, `503` on shutdown. The answer is symmetric with the vault wait (the value is the state), plus the full event:
+
+```json
+{"result": true,
+ "key": {"requestMethod": "POST", "requestUri": "/app/v1/session/imsi-001019000040000"},
+ "state": "reauth",
+ "previousState": "initial",
+ "eventNumber": 1,
+ "event": { "...": "the full event, as in server-data" }}
+```
+
+`eventNumber` is the position of the event among the matching ones (absent for the "next new event" mode); on timeout only `result` and the requested `key` are answered. With a condition on the state, the latest matching event is answered (or the n-th one with `eventNumber`). Counting relies on the key history: with `--discard-data-key-history` only the last event of a key is kept, and removed events (purge, `DELETE`) are not counted.
+
+Helper: `wait_server_data <method> <uri> [--state <s>|--state-prefix <p>] [--event-number <n>] [--timeout <ms>]`.
+
 ### Server data summary
 
 `GET /admin/v2/server-data/summary` — when a huge amount of events are stored, we can still troubleshoot an specific known key by mean filtering the server data as commented in the previous section. But if we need just to check what's going on there (imagine a high amount of failed transactions, thus not purged), perhaps some hints like the total amount of receptions or some example keys may be useful to avoid performance impact in the process due to the unfiltered query, as well as difficult forensics of the big document obtained. So, the purpose of server data summary operation is try to guide the user to narrow and prepare an efficient query.
@@ -2671,6 +2702,17 @@ The information collected for a client event item is:
 * `failures`: present only when the event failed: one entry per failure, in evaluation order (the first one gives the `state`), see [reserved states and failures](#reserved-states-and-failures).
 * `sequence`: internal provision sequence.
 * `timeoutMs`: accepted timeout for request response.
+
+### Waiting for client data
+
+`GET /admin/v2/client-data/wait` is the client counterpart of [waiting for server data](#waiting-for-server-data): same condition parameters (`state`, `statePrefix`, `eventNumber`, `timeoutMs`), codes and answer, with `clientProvisionId=<id>` as the key (mandatory), optionally narrowed by `clientEndpointId`, `requestMethod` and `requestUri`. The answer `key` also carries `clientEndpointId` and `clientProvisionId`. For example, wait for the end of a step, done or failed, or for any failure of it:
+
+```
+GET /admin/v2/client-data/wait?clientProvisionId=myFlow
+GET /admin/v2/client-data/wait?clientProvisionId=myFlow&statePrefix=__core:failed:
+```
+
+Helper: `wait_client_data <client provision id> [--state <s>|--state-prefix <p>] [--event-number <n>] [--timeout <ms>]`.
 
 ### Client data summary
 

@@ -41,6 +41,8 @@ SOFTWARE.
 #include <malloc.h>
 #include <regex>
 #include <unordered_set>
+#include <functional>
+#include <optional>
 
 #include <nghttp2/nghttp2.h>
 
@@ -69,6 +71,7 @@ SOFTWARE.
 #include <GrammarMigrator.hpp>
 #include <JsonSchema.hpp>
 #include <FailureStates.hpp>
+#include <MockClientEvent.hpp>
 
 
 namespace h2agent
@@ -106,6 +109,77 @@ void addressedEventResponse(const std::shared_ptr<h2agent::model::MockEvent> &ev
                             std::string &responseBody, unsigned int &statusCode) {
     responseBody = event ? event->getJson(eventPath).dump() : "[]";
     statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT : ert::http2comm::ResponseCode::OK);
+}
+
+// Data waits (server-data/wait, client-data/wait): state condition and wait answer.
+struct DataWaitCondition {
+    std::string state{};
+    std::string statePrefix{};
+    std::uint64_t eventNumber{};
+    unsigned int timeoutMs{30000};
+};
+
+// Parses the common parameters; false on bad ones (400).
+bool parseDataWaitCondition(const std::map<std::string, std::string> &qmap, DataWaitCondition &c) {
+    auto it = qmap.find("state");
+    if (it != qmap.end()) c.state = it->second;
+    it = qmap.find("statePrefix");
+    if (it != qmap.end()) c.statePrefix = it->second;
+    if (!c.state.empty() && !c.statePrefix.empty()) return false;  // mutually exclusive
+    it = qmap.find("eventNumber");
+    if (it != qmap.end() && (!parseSequence(it->second, c.eventNumber) || c.eventNumber == 0)) return false;  // 1..N
+    it = qmap.find("timeoutMs");
+    if (it != qmap.end()) {
+        std::uint64_t t = 0;
+        if (!parseSequence(it->second, t)) return false;
+        c.timeoutMs = (unsigned int)std::min<std::uint64_t>(t, h2agent::model::WaitManager::MAX_TIMEOUT_MS);
+    }
+    return true;
+}
+
+bool stateMatches(const DataWaitCondition &c, const std::string &state) {
+    if (!c.state.empty()) return state == c.state;
+    if (!c.statePrefix.empty()) return state.rfind(c.statePrefix, 0) == 0;
+    return true;
+}
+
+// Answer, symmetric with vault/wait: the value is the state, plus the full event.
+void dataWaitResponse(h2agent::model::WaitOutcome outcome, const std::optional<h2agent::model::EventWaitMatch> &match,
+                      const nlohmann::json &requestedKey, bool clientDomain, unsigned int &statusCode, std::string &responseBody) {
+    nlohmann::json result;
+    result["result"] = (outcome == h2agent::model::WaitOutcome::Met);
+    if (outcome == h2agent::model::WaitOutcome::Met && match) {
+        nlohmann::json key;
+        if (clientDomain) key["clientEndpointId"] = match->key.getClientEndpointId();
+        key["requestMethod"] = match->key.getMethod();
+        key["requestUri"] = match->key.getUri();
+        const nlohmann::json event = match->event->getJson();
+        if (clientDomain && event.contains("clientProvisionId")) key["clientProvisionId"] = event["clientProvisionId"];
+        result["key"] = key;
+        result["state"] = event.value("state", std::string(""));
+        if (event.contains("previousState")) result["previousState"] = event["previousState"];
+        if (match->position) result["eventNumber"] = match->position;
+        result["event"] = event;
+    }
+    else {
+        result["key"] = requestedKey;
+    }
+    responseBody = result.dump();
+
+    switch (outcome) {
+    case h2agent::model::WaitOutcome::Met:
+        statusCode = ert::http2comm::ResponseCode::OK;
+        break;  // 200
+    case h2agent::model::WaitOutcome::Full:
+        statusCode = ert::http2comm::ResponseCode::TOO_MANY_REQUESTS;
+        break;  // 429
+    case h2agent::model::WaitOutcome::Shutdown:
+        statusCode = ert::http2comm::ResponseCode::SERVICE_UNAVAILABLE;
+        break;  // 503
+    default:
+        statusCode = ert::http2comm::ResponseCode::REQUEST_TIMEOUT;
+        break;  // 408
+    }
 }
 
 }
@@ -739,6 +813,85 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         else {
             statusCode = met ? ert::http2comm::ResponseCode::OK : ert::http2comm::ResponseCode::REQUEST_TIMEOUT; // 200 or 408
         }
+    }
+    else if (pathSuffix == "server-data/wait" || pathSuffix == "client-data/wait") { // data waits (long-poll on event states)
+        if (!wait_manager_) {
+            statusCode = ert::http2comm::ResponseCode::NOT_FOUND;
+            return;
+        }
+        const bool clientDomain = (pathSuffix == "client-data/wait");
+        const std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+        const auto param = [&qmap](const char *name) {
+            auto it = qmap.find(name);
+            return (it != qmap.end()) ? it->second : std::string();
+        };
+
+        DataWaitCondition condition;
+        bool valid = parseDataWaitCondition(qmap, condition);
+        const std::string requestMethod = param("requestMethod");
+        const std::string requestUri = param("requestUri");
+        const std::string uriRegexStr = param("uriRegex");
+        const std::string clientProvisionId = param("clientProvisionId");
+        const std::string clientEndpointId = param("clientEndpointId");
+
+        // Event key: server: method + uri (or uri regex); client: provision id (optionally narrowed)
+        nlohmann::json requestedKey = nlohmann::json::object();
+        std::regex uriRegex;
+        bool useUriRegex = false;
+        if (clientDomain) {
+            valid = valid && !clientProvisionId.empty() && uriRegexStr.empty();
+            requestedKey["clientProvisionId"] = clientProvisionId;
+            if (!clientEndpointId.empty()) requestedKey["clientEndpointId"] = clientEndpointId;
+        }
+        else {
+            valid = valid && !requestMethod.empty() && (requestUri.empty() != uriRegexStr.empty());  // exactly one of them
+        }
+        if (!requestMethod.empty()) requestedKey["requestMethod"] = requestMethod;
+        if (!requestUri.empty()) requestedKey["requestUri"] = requestUri;
+        if (valid && !uriRegexStr.empty()) {
+            try {
+                uriRegex = std::regex(uriRegexStr, std::regex::optimize);
+                useUriRegex = true;
+                requestedKey["uriRegex"] = uriRegexStr;
+            }
+            catch (const std::regex_error&) {
+                valid = false;
+            }
+        }
+        if (!valid) {
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+            responseBody = buildJsonResponse(false, clientDomain ?
+                                             "invalid parameters: 'clientProvisionId' is mandatory ('clientEndpointId', 'requestMethod', 'requestUri' narrow it), 'state' and 'statePrefix' are exclusive, 'eventNumber' is 1..N" :
+                                             "invalid parameters: 'requestMethod' and one of 'requestUri' or 'uriRegex' (valid) are mandatory, 'state' and 'statePrefix' are exclusive, 'eventNumber' is 1..N");
+            return;
+        }
+
+        h2agent::model::EventWaitSpec spec;
+        spec.eventNumber = condition.eventNumber;
+        spec.onlyNew = condition.state.empty() && condition.statePrefix.empty() && condition.eventNumber == 0;
+        if (clientDomain) {
+            spec.matches = [&](const h2agent::model::DataKey &key, const h2agent::model::MockEvent &event) {
+                if (!clientEndpointId.empty() && key.getClientEndpointId() != clientEndpointId) return false;
+                if (!requestMethod.empty() && key.getMethod() != requestMethod) return false;
+                if (!requestUri.empty() && key.getUri() != requestUri) return false;
+                if (static_cast<const h2agent::model::MockClientEvent &>(event).getClientProvisionId() != clientProvisionId) return false;
+                return stateMatches(condition, event.getState());
+            };
+        }
+        else {
+            spec.matches = [&](const h2agent::model::DataKey &key, const h2agent::model::MockEvent &event) {
+                if (key.getMethod() != requestMethod) return false;
+                if (useUriRegex ? !std::regex_search(key.getUri(), uriRegex) : key.getUri() != requestUri) return false;
+                return stateMatches(condition, event.getState());
+            };
+        }
+        const std::function<std::vector<h2agent::model::KeyedEvent>()> scan = [&]() {
+            return clientDomain ? getMockClientData()->collectEvents(spec.matches) : getMockServerData()->collectEvents(spec.matches);
+        };
+
+        std::optional<h2agent::model::EventWaitMatch> match;
+        const h2agent::model::WaitOutcome outcome = wait_manager_->waitForEvent(spec, scan, condition.timeoutMs, match);
+        dataWaitResponse(outcome, match, requestedKey, clientDomain, statusCode, responseBody);
     }
     else if (pathSuffix == "server-matching") {
         responseBody = getAdminData()->getServerMatchingData().getJson().dump();
