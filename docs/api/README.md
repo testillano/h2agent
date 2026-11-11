@@ -443,7 +443,7 @@ Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<reas
 | client transport error (no answer: `statusCode <= 0`, i.e. timeout, connection error, unsent request) | `__core:failed:transport` | `{"reason": "transport", "statusCode": <n>}` |
 | client [`expectedResponseStatusCode`](#expectedresponsestatuscode) not met | `__core:failed:expectedResponseStatusCode` | `{"reason": "expectedResponseStatusCode", "expected": <n>, "got": <n>}` |
 | client [`responseSchemaId`](#responseschemaid-1) not met | `__core:failed:responseSchemaId` | `{"reason": "responseSchemaId", "id": "<schema id>", "error": "<report>"}` |
-| target `fail` without `reason` (server and client response transformations) | `__core:failed:transform` | `{"reason": "transform", "detail": <value>}` |
+| target `fail` without `reason` (server and client response transformations) | `__core:failed:unspecified` | `{"reason": "unspecified", "detail": <value>}` |
 | target `fail` with `reason` | `__core:failed:<reason>` | `{"reason": "<reason>", "detail": <value>}` |
 | server [`requestSchemaId`](#requestschemaid) not met | `__core:failed:requestSchemaId` | `{"reason": "requestSchemaId", "id": "<schema id>", "error": "<report>"}` |
 
@@ -488,7 +488,7 @@ The `reason` label is the reason **as written in the provision**, not substitute
 |---|---|---|
 | `"create-not-terminated"` | `__core:failed:create-not-terminated` | `create-not-terminated` |
 | `"notify-@{uid}-missing"` | `__core:failed:notify-001019000040000-missing` | `notify-@{uid}-missing` |
-| none | `__core:failed:transform` | `transform` |
+| none | `__core:failed:unspecified` | `unspecified` |
 | built-in | `__core:failed:expectedResponseStatusCode` | `expectedResponseStatusCode` |
 
 ### Extra fields (description)
@@ -1153,7 +1153,7 @@ The **target** of information is classified after parsing the following possible
    "to": {"target": "fail", "reason": "create-not-terminated"}}
   ```
 
-  `reason` is a short stable name to react to (`inState`), wait for and count: it admits variables (`@{...}`) but not `:` (rejected at provision time; a substituted `:` becomes `_`). Without it (or when it is empty once substituted), the reason is `transform`. Use `detail` for what changes on every run (a report, a status code, a body node), never the reason.
+  `reason` is a short stable name to react to (`inState`), wait for and count: it admits variables (`@{...}`) but not `:` (rejected at provision time; a substituted `:` becomes `_`). Without it (or when it is empty once substituted), the reason is `unspecified`: give one whenever a provision has several `fail` rules, or they cannot be told apart. Use `detail` for what changes on every run (a report, a status code, a body node), never the reason.
 
   In server provisions, the key stays in the failure state and the answer is sent as built so far, so set `responseStatusCode` / body before `fail` when the peer must see the error. A server cannot react to its own failure through `inState`: an immediate reaction is a foreign `outState` (another key) or a `clientProvision` target placed before `fail`, with the same condition. In client provisions (`onResponseTransform` only), it is the first failure of the event (before `expectedResponseStatusCode` and `responseSchemaId`).
 

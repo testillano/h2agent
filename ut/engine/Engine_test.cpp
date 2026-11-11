@@ -2568,7 +2568,7 @@ TEST(Engine_test, FailWithoutReasonAndFalseValues) {
     EXPECT_FALSE(result.failure.has_value());
     EXPECT_EQ(ctx.outBody.raw, "after");
 
-    // no reason: empty (the host names it 'transform'), detail is the literal:
+    // no reason: empty (the host names it 'unspecified'), detail is the literal:
     pipeline = engine.parse(R"([{"source":"value.boom","target":"fail"}])"_json, err);
     ASSERT_NE(pipeline, nullptr) << err;
     result = engine.evaluate(pipeline, ctx, ports);

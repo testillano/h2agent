@@ -541,10 +541,10 @@ TEST_F(Transform_test, TargetFailOnFalseValueIsSkipped)
 TEST_F(Transform_test, TargetFailReasonDefaultSubstitutionAndSanitisation)
 {
     const std::vector<std::pair<nlohmann::json, std::string>> table = {
-        {R"({"target": "fail"})"_json, "transform"},
+        {R"({"target": "fail"})"_json, "unspecified"},
         {R"({"target": "fail", "reason": "seq-@{recvseq}"})"_json, "seq-74"},
         {R"({"target": "fail", "reason": "@{colon}"})"_json, "a_b"},    // substituted ':' -> '_'
-        {R"({"target": "fail", "reason": "@{empty}"})"_json, "transform"},  // empty once substituted
+        {R"({"target": "fail", "reason": "@{empty}"})"_json, "unspecified"},  // empty once substituted
     };
     for (const auto &row : table) {
         SCOPED_TRACE(row.first.dump());

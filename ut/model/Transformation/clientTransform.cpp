@@ -977,7 +977,7 @@ TEST_F(ClientTransform_test, FailureMetricReasonIsUnsubstituted)
 
     const std::vector<std::tuple<int, std::string, std::string>> table = {
         {500, "__core:failed:notify-0010-missing", "notify-@{uid}-missing"},
-        {404, "__core:failed:transform", "transform"},
+        {404, "__core:failed:unspecified", "unspecified"},
         {200, "__core:failed:expectedResponseStatusCode", "expectedResponseStatusCode"},  // built-in: no template
     };
     for (const auto &[code, state, label] : table) {

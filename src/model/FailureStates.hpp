@@ -64,7 +64,7 @@ constexpr const char *FAILURE_TRANSPORT = "transport";
 constexpr const char *FAILURE_EXPECTED_RESPONSE_STATUS_CODE = "expectedResponseStatusCode";
 constexpr const char *FAILURE_RESPONSE_SCHEMA_ID = "responseSchemaId";
 constexpr const char *FAILURE_REQUEST_SCHEMA_ID = "requestSchemaId";
-constexpr const char *FAILURE_TRANSFORM = "transform";  // target 'fail' without reason
+constexpr const char *FAILURE_UNSPECIFIED = "unspecified";  // target 'fail' without reason
 
 inline bool hasStatePrefix(const std::string &s, const char *prefix) {
     return s.rfind(prefix, 0) == 0;
@@ -99,10 +99,10 @@ inline std::string stateAfterFailures(const nlohmann::json &failures, const std:
 
 /**
  * Reason of a 'fail' target once its variables are substituted: ':' (a state
- * level separator) becomes '_', and an empty one is 'transform'.
+ * level separator) becomes '_', and an empty one is 'unspecified'.
  */
 inline std::string sanitizedReason(std::string reason) {
-    if (reason.empty()) return FAILURE_TRANSFORM;
+    if (reason.empty()) return FAILURE_UNSPECIFIED;
     std::replace(reason.begin(), reason.end(), ':', '_');
     return reason;
 }
@@ -121,7 +121,7 @@ inline nlohmann::json targetFailure(const std::string &reason, const nlohmann::j
  * @param failReasonTemplate Unsubstituted reason of the 'fail' target, when it is the first failure
  */
 inline std::string metricReason(const nlohmann::json &failures, const std::optional<std::string> &failReasonTemplate) {
-    if (failReasonTemplate) return failReasonTemplate->empty() ? std::string(FAILURE_TRANSFORM) : *failReasonTemplate;
+    if (failReasonTemplate) return failReasonTemplate->empty() ? std::string(FAILURE_UNSPECIFIED) : *failReasonTemplate;
     return failures[0].value("reason", std::string(""));
 }
 
