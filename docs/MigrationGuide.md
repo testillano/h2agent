@@ -8,7 +8,7 @@ test suite, and it will be kept here during the transition.
 * The full reference is the [API user guide](api/README.md) and [openapi.yaml](api/openapi.yaml).
 * Most of the syntax work is automatic: see [1. The migration tool](#1-the-migration-tool).
 * Coming from 5.0-5.2: see [21. From 5.x to 5.3.0](#21-from-5x-to-530) (failure states and data waits).
-* Coming from 5.3.0: see [22. From 5.3.0 to 5.4.0](#22-from-530-to-540) (the failed state names its stage).
+* Coming from 5.3.0: see [22. From 5.3.0 to 5.4.0](#22-from-530-to-540) (failed state with its stage, received server uri, json parse failures).
 
 Changes are tagged by how much attention they need:
 
@@ -796,9 +796,61 @@ grows).
 
 ## 22. From 5.3.0 to 5.4.0
 
-Breaking items: the failed state names its stage, the server uri is the received one, and a body announced as json which does not parse is a failure.
+5.4.0 makes the failures and the server uris exact: the failed state names the step which failed, the server
+uri is the one received (no path decoding), and a body announced as json which does not parse is a failure.
+The breaking items are listed first (no aliases are kept for them); the details follow the checklist.
 
-### The failed state names its stage
+### 22.1 Breaking
+
+| 5.3.0 | 5.4.0 |
+|---|---|
+| `__core:failed:<reason>` | `__core:failed:<state>:<reason>`, `<state>` the `inState` of the failing provision ([22.4](#224-the-failed-state-names-its-stage)) |
+| client error branch `inState: "__core:failed:<reason>"` | it still loads, but now means a stage: `__core:failed:<state>:<reason>` or `__core:failed:<state>` |
+| user states with `:` accepted | rejected; an `outState` written with `:` by a transformation is ignored |
+| `*_failed_counter{source, reason}` | `*_failed_counter{source, state, reason}` |
+| server path percent-decoded (matching, event key, sources, admin queries, waits) | the received path, byte by byte ([22.5](#225-the-server-uri-is-the-received-one)) |
+| body announced as json which does not parse: the parse error text as body, no failure, client `responseSchemaId` skipped | the received text kept, `__core:failed:<state>:jsonParse` (server: `400`), `responseSchemaId` fails ([22.6](#226-bodies-announced-as-json-which-do-not-parse)) |
+| `application/<x>+json`, `application/json; charset=...` stored as text | parsed as json |
+
+### 22.2 New and fixed
+
+* Error branch per step: `__core:failed:<state>` catches any failure of that step (lookup: exact, stage,
+  generic), and waits by stage (`statePrefix=__core:failed:<state>:`).
+* Filter [`urlDecode`](api/README.md#filter-urldecode): one percent-decoding level of a value (a value taken from
+  the path).
+* `h2agent-migrate`: `--scan` reports the 5.3.0 items above (`v53-failed-branch`, `v53-colon-state`,
+  `v53-encoded-uri`, `v53-raw-illegal-uri`), and `--encode-uri <chars>` rewrites the server uris of a provisions
+  file in their received form.
+* Fixed: a received text which is not UTF-8 (a body, a header) emptied `server-data` and, in a path, made the
+  sequence end the process; it is now dumped with `U+FFFD`. An internal error of an admin operation answers
+  `500` instead of leaving the handler.
+* Docs: headers are validated with one rule (`requestHeaders` / `responseHeaders` source, `jsonConstraint`,
+  `not`, `fail`); a headers schema (`requestHeadersSchemaId`) is not implemented
+  ([requestSchemaId](api/README.md#requestschemaid)).
+
+### 22.3 Checklist
+
+1. `h2agent-migrate --scan <dir>` over scripts, tests, provisions and dashboards: `v53-failed-branch`,
+   `v53-colon-state`, `v53-encoded-uri`, `v53-raw-illegal-uri`.
+2. Failed states: rewrite each error branch as `__core:failed:<state>:<reason>` or `__core:failed:<state>`, and
+   the exact failed states expected by tests and waits (`statePrefix=__core:failed:` keeps working). Rename the
+   states with `:` (`step:1` -> `step-1`).
+3. Server uris: check what the SUT sends (its logs, or the 5.4.0 `server-data` keys) and rewrite the provisions
+   with `h2agent-migrate --in <f> --out <f> --encode-uri '<chars>'` (`'|'`: `|` and `\|` as `%7C`; `'%'`: `%3B`
+   as `%253B`). A decoded character allowed raw (`;`, `:`, `@`) for a path sent encoded cannot be found: it
+   shows as an unprovisioned `501`.
+4. Waits and `server-data` queries: the received uri, URL-encoded once more as a query value
+   (`curl -G --data-urlencode "requestUri=/a%3Bb"` sends `%253B`).
+5. Values taken from the path (`regexCapture` / `regexReplace` over `requestUriPath`): add `urlDecode` where the
+   decoded value is wanted.
+6. Tests reading a parse error text from a body, or a `+json` body as text, and tests sending broken json on
+   purpose (send it with another content type).
+7. Dashboards grouping the failure counters by `reason` keep working; add `state` to tell the steps apart.
+8. Optionally: drop the stage written by hand in `fail` reasons (`"update-2.Result-Code"` -> `"Result-Code"`), and
+   name the `outState` after the next stage of the key, numbered from 1 when it may repeat (`update-1`,
+   `update-2`), see [reserved states and failures](api/README.md#reserved-states-and-failures).
+
+### 22.4 The failed state names its stage
 
 The failed state names its stage: `__core:failed:<state>:<reason>`, where `<state>` is the `inState` of the
 provision which failed, set by h2agent. The `reason` of the `fail` target then only names the checked item
@@ -815,18 +867,7 @@ provision which failed, set by h2agent. The `reason` of the `fail` target then o
 Waits by prefix keep working (`statePrefix=__core:failed:`), and get a stage level
 (`statePrefix=__core:failed:update-2:`); waits and tests on an exact 5.3.0 failed state change.
 
-#### Checklist
-
-1. `h2agent-migrate --scan <dir>` lists the 5.3.0 error branches (`v53-failed-branch`) and the user states with
-   `:` (`v53-colon-state`).
-2. Rewrite each branch as `__core:failed:<state>:<reason>` or `__core:failed:<state>`, and the exact failed
-   states expected by tests and waits.
-3. Rename the states with `:` (e.g. `step:1` -> `step-1`).
-4. Optionally: drop the stage written by hand in `fail` reasons (`"update-2.Result-Code"` -> `"Result-Code"`),
-   and name the `outState` after the next stage of the key, numbered from 1 when it may repeat (`update-1`,
-   `update-2`), see [reserved states and failures](api/README.md#reserved-states-and-failures).
-
-### The server uri is the received one
+### 22.5 The server uri is the received one
 
 The server path is no longer percent-decoded: matching, event keys, the `requestUri` / `requestUriPath` sources,
 `serverEvent` addresses, `server-data` queries and waits all use the *URI* as it travelled (see
@@ -858,21 +899,7 @@ The same applies to the `rgx` of the transformations over `requestUriPath` / `re
 `serverEvent` `requestUri` addresses; a response body `path` built with `%3B` is a json key, not a uri, and is
 kept. A value captured from the path is now encoded: add `{"op": "urlDecode"}` when the decoded one is wanted.
 
-#### Checklist
-
-1. `h2agent-migrate --scan <dir>` lists the server uris with `%XX` in the path (`v53-encoded-uri`: in 5.3.0 one
-   level below the wire) and with characters not allowed raw in a path (`v53-raw-illegal-uri`: `|`, a space...,
-   most likely sent encoded). A decoded character allowed raw (`;`, `:`, `@`) cannot be found: it shows as an
-   unprovisioned `501` in the tests.
-2. Check what the SUT sends (its logs, or the 5.4.0 `server-data` keys) and rewrite: `h2agent-migrate --in <f>
-   --out <f> --encode-uri '|'` encodes `|` (and `\|` in regular expressions) as `%7C` in the server uris of a
-   provisions file; `--encode-uri '%'` turns one level (`%3B`) into the double encoding (`%253B`).
-3. Waits and `server-data` queries: give the received uri, URL-encoded once more as a query value
-   (`curl -G --data-urlencode "requestUri=/a%3Bb"` sends `%253B`).
-4. Values taken from the path (`regexCapture` / `regexReplace` over `requestUriPath`): add `urlDecode` where the
-   decoded value is wanted.
-
-### Bodies announced as json which do not parse
+### 22.6 Bodies announced as json which do not parse
 
 A body announced as json (`application/json` and now also `application/<x>+json`, any case, with parameters
 such as `; charset=utf-8`) which does not parse:
@@ -887,4 +914,3 @@ such as `; charset=utf-8`) which does not parse:
 
 Tests reading the parse error text from a body, or relying on a `+json` body being text, change. A test which
 sends broken json on purpose and expects no failure sends it with another content type.
-
