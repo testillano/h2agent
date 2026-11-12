@@ -906,6 +906,51 @@ TEST_F(ClientTransform_test, TransformResponseFailuresInEvaluationOrder)
     EXPECT_EQ(h2agent::model::stateAfterFailures(failures, "initial", outState), "next");
 }
 
+TEST_F(ClientTransform_test, ResponseBodyAnnouncedAsJsonWhichDoesNotParse)
+{
+    const nlohmann::json schema = R"({"id": "mySchema", "schema": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}})"_json;
+    ASSERT_EQ(adata_.loadSchema(schema), h2agent::model::AdminSchemaData::Success);
+    client_provision_json_["responseSchemaId"] = "mySchema";
+    client_provision_json_["onResponseTransform"] = R"([
+      {"from": {"source": "literal", "value": "1"}, "to": {"target": "fail", "reason": "always"}}
+    ])"_json;
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    auto provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    ASSERT_TRUE(provision != nullptr);
+
+    ert::http2comm::Http2Client::response resp;
+    resp.statusCode = 200;
+    resp.body = "{\"cause\":";
+    resp.headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/problem+json"});
+    std::string outState = "next";
+    nlohmann::json failures = nlohmann::json::array();
+    std::optional<std::string> failReasonTemplate;
+    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 1, outState, variables_, -1, nullptr, &failures, &failReasonTemplate));
+
+    // jsonParse first, then the 'fail' target, then the schema (never skipped)
+    ASSERT_EQ(failures.size(), 3u);
+    EXPECT_EQ(failures[0]["reason"], "jsonParse");
+    EXPECT_EQ(failures[1]["reason"], "always");
+    EXPECT_EQ(failures[2]["reason"], "responseSchemaId");
+    EXPECT_EQ(failures[2]["error"], "validated source is not a json document (text: {\"cause\":)");
+    EXPECT_EQ(h2agent::model::stateAfterFailures(failures, "initial", outState), "__core:failed:initial:jsonParse");
+    EXPECT_FALSE(failReasonTemplate.has_value());  // the metric label is the first failure one
+    EXPECT_EQ(h2agent::model::metricReason(failures, failReasonTemplate), "jsonParse");
+
+    // not stored, not transformed, not validated: not checked
+    client_provision_json_.erase("responseSchemaId");
+    client_provision_json_.erase("onResponseTransform");
+    adata_.clearClientProvisions();
+    EXPECT_EQ(adata_.loadClientProvision(client_provision_json_, common_resources_), h2agent::model::AdminClientProvisionData::Success);
+    provision = adata_.getClientProvisionData().find("initial", "myFlow");
+    failures = nlohmann::json::array();
+    EXPECT_TRUE(provision->transformResponse("/test", {}, resp, 2, outState, variables_, -1, nullptr, &failures, nullptr, false /* stores event */));
+    EXPECT_TRUE(failures.empty());
+    EXPECT_FALSE(provision->transformResponse("/test", {}, resp, 3, outState, variables_, -1, nullptr, &failures, nullptr, true));
+    ASSERT_EQ(failures.size(), 1u);
+    EXPECT_EQ(failures[0]["reason"], "jsonParse");
+}
+
 TEST_F(ClientTransform_test, ReservedStates)
 {
     const std::vector<std::pair<std::string, std::string>> rejected = {

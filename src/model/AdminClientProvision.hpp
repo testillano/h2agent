@@ -195,9 +195,13 @@ public:
      * @param outState out-state updated by reference (may change based on response)
      * @param executionTrace when given, the pipeline execution trace is appended there (json array)
      * @param failures when given, one entry is appended per failure, in evaluation order
-     *        ('fail' target, expectedResponseStatusCode, responseSchemaId): {"reason": ..., <detail fields>}
+     *        (jsonParse, 'fail' target, expectedResponseStatusCode, responseSchemaId): {"reason": ..., <detail fields>}
      * @param failReasonTemplate when given and a 'fail' target fires, its reason as written in the
-     *        provision (unsubstituted, "" when none) is set there (failure metric label)
+     *        provision (unsubstituted, "" when none) is set there (failure metric label), when it is
+     *        the first failure of the event
+     * @param storesEvent the event will be stored: the response body is used, so a body announced
+     *        as json which does not parse is a failure (it is also checked when a response
+     *        transformation or schema uses it)
      *
      * @return True if the built-in response validation passed (status code + schema), false otherwise
      *         (a 'fail' target is only reported through 'failures')
@@ -211,7 +215,8 @@ public:
                             std::int64_t seq = -1,
                             nlohmann::json *executionTrace = nullptr,
                             nlohmann::json *failures = nullptr,
-                            std::optional<std::string> *failReasonTemplate = nullptr
+                            std::optional<std::string> *failReasonTemplate = nullptr,
+                            bool storesEvent = true
                           );
 
     /**

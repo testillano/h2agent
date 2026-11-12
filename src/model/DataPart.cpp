@@ -94,7 +94,7 @@ bool DataPart::assignFromHex(const std::string &strAsHex) {
     return h2agent::model::fromHexString(strAsHex, str_);
 }
 
-void DataPart::decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &jsonRepresentation) {
+void DataPart::decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &jsonRepresentation, std::string *parseError) {
 
     LOGDEBUG(
         std::string output;
@@ -108,9 +108,17 @@ void DataPart::decodeContent(const std::string &content, const std::string &cont
     //    return std::tolower(c);
     //});
 
-    if (contentType == "application/json") {
-        /*is_json_ = */h2agent::model::parseJsonContent(content, jsonRepresentation, true /* write exception message */);
-        is_json_ = true; // even if json is invalid, we prefer to show the error description, but obey the content-type
+    if (h2agent::model::isJsonContentType(contentType)) {
+        nlohmann::json parsed;
+        if (h2agent::model::parseJsonContent(content, parsed, true /* the error literal on failure */)) {
+            jsonRepresentation = std::move(parsed);
+            is_json_ = true;
+        }
+        else {
+            // The received text is kept (never replaced by the error), and the error goes apart:
+            if (parseError) *parseError = parsed.get<std::string>();
+            jsonRepresentation = content;
+        }
     }
     else if (contentType.rfind("text/", 0) == 0) {
         jsonRepresentation = content;
@@ -160,7 +168,7 @@ void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
         LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("content-type: %s", contentType.c_str()), ERT_FILE_LOCATION));
     }
 
-    decodeContent(str_, contentType, json_);
+    decodeContent(str_, contentType, json_, &json_parse_error_);
 
     decoded_ = true;
 

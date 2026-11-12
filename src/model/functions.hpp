@@ -114,6 +114,15 @@ bool getFileContent(const std::string &filePath, std::string &content);
 bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bool writeException = false);
 
 /**
+ * True when a content type announces json (RFC 6839): 'application/json' or
+ * 'application/<subtype>+json', case-insensitive, parameters ('; charset=...')
+ * ignored.
+ *
+ * @param contentType content-type header value
+ */
+bool isJsonContentType(const std::string &contentType);
+
+/**
  * Represents the input as ascii string (non printable characters are dots).
  *
  * @param input string to convert

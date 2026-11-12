@@ -156,6 +156,16 @@ void AdminServerProvision::transform( const std::string &requestUri,
         requestBodyDataPart.decode(requestHeaders);
     }
 
+    // A body announced as json which does not parse (checked whenever the body is decoded:
+    // stored, read by a transformation or validated by a schema). As an invalid request
+    // (requestSchemaId), it is answered with 400 and the transformations do not run:
+    if (requestBodyDataPart.isDecoded() && !requestBodyDataPart.getJsonParseError().empty()) {
+        responseStatusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+        outState = failedState(in_state_, FAILURE_JSON_PARSE);
+        if (failures) failures->push_back({{"reason", FAILURE_JSON_PARSE}, {"error", requestBodyDataPart.getJsonParseError()}});
+        return; // INTERRUPT TRANSFORMATIONS
+    }
+
     // Request schema validation (normally used to validate native json received, but can also be used to validate the agent json representation (multipart, text, etc.)):
     if (getRequestSchema()) {
         std::string error{};

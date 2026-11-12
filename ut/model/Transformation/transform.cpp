@@ -1905,6 +1905,33 @@ TEST_F(Transform_test, ReceivedUriIsNotDecodedAndUrlDecodeGivesTheValue)
     EXPECT_EQ(body["basketId"], "alice;apples;42");
 }
 
+TEST_F(Transform_test, RequestBodyAnnouncedAsJsonWhichDoesNotParse)
+{
+    // The request headers of the fixture announce json. A body which does not parse is
+    // answered with 400, the transformations do not run, and the event fails at its stage:
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "requestBody"}, "to": {"target": "responseBodyText"}}
+    ])"_json;
+    provisionAndTransform("{\"foo\":");
+    EXPECT_EQ(status_code_, 400);
+    EXPECT_EQ(out_state_, "__core:failed:initial:jsonParse");
+    ASSERT_EQ(failures_.size(), 1u);
+    EXPECT_EQ(failures_[0]["reason"], "jsonParse");
+    EXPECT_NE(failures_[0]["error"].get<std::string>().find("parse error"), std::string::npos);
+    EXPECT_NE(h2agent::model::failureDetail(failures_[0]).find("parse error"), std::string::npos);
+    EXPECT_EQ(request_body_data_part_.getJson(), nlohmann::json("{\"foo\":"));  // the received text is kept
+}
+
+TEST_F(Transform_test, JsonConstraintOnATextSourceSaysSo)
+{
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "literal", "value": "not a document"}, "filter": [{"op": "jsonConstraint", "value": {"a": 1}, "not": true}],
+       "to": {"target": "responseBodyText"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(response_body_, "JsonConstraint FAILED: validated source is not a json object (text: not a document)");
+}
+
 TEST_F(Transform_test, TargetStopIsRejected)
 {
     // 'stop' was the name of 'break' in h2agent 5.0-5.2: no alias is kept.

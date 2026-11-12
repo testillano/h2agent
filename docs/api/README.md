@@ -443,6 +443,7 @@ Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<s>:<
 | Origin | State (stage `<s>`) | `failures` entry |
 |---|---|---|
 | client transport error (no answer: `statusCode <= 0`, i.e. timeout, connection error, unsent request) | `__core:failed:<s>:transport` | `{"reason": "transport", "statusCode": <n>}` |
+| <a name="json-parse"></a>body announced as json (`application/json`, `application/<x>+json`, any case, parameters ignored) which does not parse: server request, client response (empty bodies are not checked) | `__core:failed:<s>:jsonParse` | `{"reason": "jsonParse", "error": "<parse error>"}` |
 | client [`expectedResponseStatusCode`](#expectedresponsestatuscode) not met | `__core:failed:<s>:expectedResponseStatusCode` | `{"reason": "expectedResponseStatusCode", "expected": <n>, "got": <n>}` |
 | client [`responseSchemaId`](#responseschemaid-1) not met | `__core:failed:<s>:responseSchemaId` | `{"reason": "responseSchemaId", "id": "<schema id>", "error": "<report>"}` |
 | target `fail` without `reason` (server and client response transformations) | `__core:failed:<s>:unspecified` | `{"reason": "unspecified", "detail": <value>}` |
@@ -453,8 +454,10 @@ For example, a `fail` with `"reason": "Result-Code"` in the provision with `inSt
 
 The event state is the **first** failure in this order (the later ones are still recorded in `failures`, which is present only when the event failed):
 
-- Client: 1. `transport` (no answer: nothing else applies), 2. target `fail` in `onResponseTransform`, 3. `expectedResponseStatusCode`, 4. `responseSchemaId`.
-- Server: 1. `requestSchemaId` (before the transformations, which do not run), 2. target `fail`.
+- Client: 1. `transport` (no answer: nothing else applies), 2. `jsonParse`, 3. target `fail` in `onResponseTransform`, 4. `expectedResponseStatusCode`, 5. `responseSchemaId`.
+- Server: 1. `jsonParse` and 2. `requestSchemaId` (both answered with `400` before the transformations, which do not run), 3. target `fail`.
+
+A body which does not parse is kept as the received text (the `requestBody` / `responseBody` of the event, and the body sources), never replaced by the error. It is checked whenever the body is used: the event is stored, a transformation reads it or a schema validates it (with `--discard-data`, a provision which ignores the body does not parse it). A client `responseSchemaId` over a body which is not json fails (`validated source is not a json document`), it is never skipped.
 
 The server response schema (`responseSchemaId` of a server provision) checks the mock itself, not the peer: it answers `500` and is not a failure.
 

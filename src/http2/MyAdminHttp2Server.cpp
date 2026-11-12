@@ -1574,7 +1574,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         nlohmann::json failures = nlohmann::json::array();
         std::optional<std::string> failReasonTemplate;  // set when a 'fail' target fired (first failure)
         if (provision) {
-            provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures, &failReasonTemplate);
+            provision->transformResponse(requestUri, requestHeaders, response, sendSeq, finalOutState, *chainVariables, provisionSeq, executionTrace.get(), &failures, &failReasonTemplate, client_data_);
         }
 
         // Provisioned request counter

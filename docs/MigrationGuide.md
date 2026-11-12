@@ -796,7 +796,7 @@ grows).
 
 ## 22. From 5.3.0 to 5.4.0
 
-Two breaking items: the failed state names its stage, and the server uri is the received one.
+Breaking items: the failed state names its stage, the server uri is the received one, and a body announced as json which does not parse is a failure.
 
 ### The failed state names its stage
 
@@ -871,3 +871,20 @@ kept. A value captured from the path is now encoded: add `{"op": "urlDecode"}` w
    (`curl -G --data-urlencode "requestUri=/a%3Bb"` sends `%253B`).
 4. Values taken from the path (`regexCapture` / `regexReplace` over `requestUriPath`): add `urlDecode` where the
    decoded value is wanted.
+
+### Bodies announced as json which do not parse
+
+A body announced as json (`application/json` and now also `application/<x>+json`, any case, with parameters
+such as `; charset=utf-8`) which does not parse:
+
+| | 5.3.0 | 5.4.0 |
+|---|---|---|
+| event body and body sources | the parse error text, in place of the body | the received text |
+| server request | the transformations run (with `requestSchemaId`, a confusing schema report) | `400`, transformations skipped, `__core:failed:<s>:jsonParse` |
+| client response | no failure; `responseSchemaId` skipped | `__core:failed:<s>:jsonParse` (after `transport`, before the `fail` target); `responseSchemaId` fails |
+| `application/problem+json`, `application/json; charset=utf-8` | stored as text (no `path`) | parsed as json |
+| `jsonConstraint` over a value which is not an object | `expected key '<k>' is missing in validated source` | `validated source is not a json object (text: ...)` |
+
+Tests reading the parse error text from a body, or relying on a `+json` body being text, change. A test which
+sends broken json on purpose and expects no failure sends it with another content type.
+

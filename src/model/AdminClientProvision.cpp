@@ -270,10 +270,22 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         std::int64_t seq,
         nlohmann::json *executionTrace,
         nlohmann::json *failures,
-        std::optional<std::string> *failReasonTemplate
+        std::optional<std::string> *failReasonTemplate,
+        bool storesEvent
                                             )
 {
     bool validationOk = true;
+
+    // A body announced as json which does not parse (first check after 'transport'), when
+    // the body is used (stored, transformed or validated):
+    if ((storesEvent || has_response_transform_ || getResponseSchema()) && !receivedResponse.body.empty()) {
+        DataPart responseBody(receivedResponse.body);
+        responseBody.decode(receivedResponse.headers);
+        if (!responseBody.getJsonParseError().empty()) {
+            if (failures) failures->push_back({{"reason", FAILURE_JSON_PARSE}, {"error", responseBody.getJsonParseError()}});
+            validationOk = false;
+        }
+    }
 
     if (has_response_transform_) {
 
@@ -307,10 +319,11 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         if (engine_response_pipeline_) {
             h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports, executionTrace != nullptr);
             if (executionTrace) appendExecutionTrace(*executionTrace, result, "onResponseTransform");
-            // Target 'fail': first in the evaluation order (before the built-in checks)
+            // Target 'fail': after jsonParse, before the other built-in checks
             if (result.failure) {
+                const bool first = !failures || failures->empty();  // the metric label is the first failure one
                 if (failures) failures->push_back(targetFailure(result.failure->reason, result.failure->detail));
-                if (failReasonTemplate) *failReasonTemplate = result.failure->reasonTemplate;
+                if (failReasonTemplate && first) *failReasonTemplate = result.failure->reasonTemplate;
             }
         }
         keepUserStates(outState);
@@ -329,12 +342,15 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
     // Response schema validation:
     if (getResponseSchema()) {
         nlohmann::json responseJson;
-        if (h2agent::model::parseJsonContent(receivedResponse.body, responseJson)) {
-            std::string error{};
-            if (!getResponseSchema()->validate(responseJson, error)) {
-                if (failures) failures->push_back({{"reason", FAILURE_RESPONSE_SCHEMA_ID}, {"id", response_schema_id_}, {"error", error}});
-                validationOk = false;
-            }
+        std::string error{};
+        if (!h2agent::model::parseJsonContent(receivedResponse.body, responseJson)) {
+            // never skipped: a body which is not json does not meet a json schema
+            constexpr std::size_t Shown = 80;
+            error = "validated source is not a json document (text: " + receivedResponse.body.substr(0, Shown) + (receivedResponse.body.size() > Shown ? "..." : "") + ")";
+        }
+        if (!error.empty() || !getResponseSchema()->validate(responseJson, error)) {
+            if (failures) failures->push_back({{"reason", FAILURE_RESPONSE_SCHEMA_ID}, {"id", response_schema_id_}, {"error", error}});
+            validationOk = false;
         }
     }
 

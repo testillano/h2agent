@@ -70,6 +70,7 @@ constexpr const char *FAILURE_TRANSPORT = "transport";
 constexpr const char *FAILURE_EXPECTED_RESPONSE_STATUS_CODE = "expectedResponseStatusCode";
 constexpr const char *FAILURE_RESPONSE_SCHEMA_ID = "responseSchemaId";
 constexpr const char *FAILURE_REQUEST_SCHEMA_ID = "requestSchemaId";
+constexpr const char *FAILURE_JSON_PARSE = "jsonParse";  // body announced as json which does not parse
 constexpr const char *FAILURE_UNSPECIFIED = "unspecified";  // target 'fail' without reason
 
 inline bool hasStatePrefix(const std::string &s, const char *prefix) {
@@ -176,6 +177,10 @@ inline std::string failureDetail(const nlohmann::json &failure) {
     if (failure.contains("id")) {
         const nlohmann::json error = failure.value("error", nlohmann::json(""));
         return "schema '" + failure.value("id", std::string("")) + "': " + (error.is_string() ? error.get<std::string>() : h2agent::model::dumpJson(error));
+    }
+    if (failure.contains("error")) {  // jsonParse
+        const nlohmann::json &error = failure["error"];
+        return error.is_string() ? error.get<std::string>() : h2agent::model::dumpJson(error);
     }
     if (failure.contains("statusCode")) {
         return "statusCode " + h2agent::model::dumpJson(failure["statusCode"]);

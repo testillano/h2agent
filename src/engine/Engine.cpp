@@ -181,6 +181,15 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
         return true;
     }
 
+    if (!received.is_object() && !expected.empty()) {
+        // not "key missing": the source is no object at all (e.g. a body which is not json)
+        constexpr std::size_t Shown = 80;
+        const std::string text = received.is_string() ? received.get<std::string>() : received.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        failReport = std::string("JsonConstraint FAILED: validated source is not a json object (") + (received.is_string() ? "text" : received.type_name()) +
+                     ": " + text.substr(0, Shown) + (text.size() > Shown ? "..." : "") + ")";
+        return false;
+    }
+
     for (auto &el : expected.items()) {
         const std::string &key = el.key();
         const nlohmann::json &val = el.value();

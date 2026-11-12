@@ -173,6 +173,21 @@ bool getFileContent(const std::string &filePath, std::string &content)
     return true;
 }
 
+bool isJsonContentType(const std::string &contentType) {
+    std::string mediaType = contentType.substr(0, contentType.find(';'));
+    const auto first = mediaType.find_first_not_of(" \t");
+    if (first == std::string::npos) return false;
+    mediaType = mediaType.substr(first, mediaType.find_last_not_of(" \t") - first + 1);
+    std::transform(mediaType.begin(), mediaType.end(), mediaType.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    static const std::string application = "application/";
+    static const std::string suffix = "+json";
+    if (mediaType == "application/json") return true;
+    return mediaType.size() > application.size() + suffix.size() && mediaType.rfind(application, 0) == 0 &&
+           mediaType.compare(mediaType.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bool writeException) {
 
     try {
@@ -316,7 +331,15 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
         return true;
     }
 
-    // Object mode: every key/value in expected must exist in received
+    // Object mode: every key/value in expected must exist in received (an object at all)
+    if (!received.is_object() && !expected.empty()) {
+        constexpr std::size_t Shown = 80;
+        const std::string text = received.is_string() ? received.get<std::string>() : h2agent::model::dumpJson(received);
+        failReport = std::string("JsonConstraint FAILED: validated source is not a json object (") + (received.is_string() ? "text" : received.type_name()) +
+                     ": " + text.substr(0, Shown) + (text.size() > Shown ? "..." : "") + ")";
+        LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
+        return false;
+    }
     for (auto& [key, value] : expected.items()) {
 
         // Check if key exists in document:

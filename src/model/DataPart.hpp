@@ -119,6 +119,7 @@ class DataPart {
     std::string str_; // raw data content: always filled with the original data received
     bool decoded_; // lazy decode indicator to skip multiple decode operations
     bool is_json_; // if not, we will use str_ as native source instead of json representation
+    std::string json_parse_error_; // announced as json (content-type) but not parsed: the error (json_ holds the received text)
 
     nlohmann::json json_; // data json representation valid for:
     // 1) parse json strings received (application/json)
@@ -161,6 +162,7 @@ public:
             str_ = other.str_;
             decoded_ = other.decoded_;
             is_json_ = other.is_json_;
+            json_parse_error_ = other.json_parse_error_;
             json_ = other.json_;
         }
         return *this;
@@ -173,6 +175,7 @@ public:
             json_ = std::move(other.json_);
             decoded_ = other.decoded_; // it has no sense to move
             is_json_ = other.is_json_; // it has no sense to move
+            json_parse_error_ = std::move(other.json_parse_error_);
         }
         return *this;
     }
@@ -185,6 +188,20 @@ public:
     /** getter for class data */
     const std::string &str() const {
         return str_;
+    }
+
+    /** getter to know if data was decoded (lazy decode) */
+    bool isDecoded() const {
+        return decoded_;
+    }
+
+    /**
+     * Parse error of a body announced as json (content-type) which does not parse:
+     * empty when it parsed or was not announced as json. Then the json
+     * representation is the received text.
+     */
+    const std::string &getJsonParseError() const {
+        return json_parse_error_;
     }
 
     /** getter to know if data was decoded as json (multipart is always representable as json) */
@@ -205,16 +222,23 @@ public:
         str_ = std::move(str);
         decoded_ = false;
         is_json_ = false;
+        json_parse_error_.clear();
     }
     void assign(const std::string &str) {
         str_ = str;
         decoded_ = false;
         is_json_ = false;
+        json_parse_error_.clear();
     }
     bool assignFromHex(const std::string &strAsHex);
 
-    /** save json data decoded */
-    void decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &j);
+    /**
+     * save json data decoded
+     *
+     * @param parseError when given and the content is announced as json but does not
+     * parse, the parse error is set there (the representation is the received text)
+     */
+    void decodeContent(const std::string &content, const std::string &contentType, nlohmann::json &j, std::string *parseError = nullptr);
 
     /** decode string data depending on content type */
     void decode(const nghttp2::asio_http2::header_map &headers /* to get the content-type */);

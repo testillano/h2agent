@@ -132,3 +132,48 @@ TEST_F(DataPart_test, DecodeMultipartEmptyBoundary)
     EXPECT_FALSE(dp_multipart_.isJson());
 }
 
+// A content type announces json as 'application/json' or 'application/<x>+json' (RFC 6839),
+// case-insensitive and with parameters ignored:
+TEST_F(DataPart_test, DecodeJsonContentTypes)
+{
+    for (const char *ct : {
+                "application/json", "application/json; charset=utf-8", "Application/JSON", "application/problem+json", " application/merge-patch+json ;q=1"
+            }) {
+        SCOPED_TRACE(ct);
+        h2agent::model::DataPart dp(FooBarJson.dump());
+        nghttp2::asio_http2::header_map headers;
+        headers.emplace("content-type", nghttp2::asio_http2::header_value{ct});
+        dp.decode(headers);
+        EXPECT_TRUE(dp.isJson());
+        EXPECT_EQ(dp.getJson(), FooBarJson);
+        EXPECT_TRUE(dp.getJsonParseError().empty());
+    }
+}
+
+// Announced as json but not parsed: the received text is kept, the error goes apart.
+TEST_F(DataPart_test, DecodeInvalidJsonKeepsTheText)
+{
+    h2agent::model::DataPart dp(std::string("{\"foo\":"));
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+    EXPECT_FALSE(dp.isDecoded());
+    dp.decode(headers);
+    EXPECT_TRUE(dp.isDecoded());
+    EXPECT_FALSE(dp.isJson());
+    EXPECT_EQ(dp.getJson(), nlohmann::json("{\"foo\":"));
+    EXPECT_NE(dp.getJsonParseError().find("parse error"), std::string::npos);
+
+    // assigning a new content clears it:
+    dp.assign(FooBarJson.dump());
+    EXPECT_TRUE(dp.getJsonParseError().empty());
+
+    // not announced as json, or empty: no parse error
+    h2agent::model::DataPart text(std::string("{\"foo\":"));
+    nghttp2::asio_http2::header_map plain;
+    plain.emplace("content-type", nghttp2::asio_http2::header_value{"text/plain"});
+    text.decode(plain);
+    EXPECT_TRUE(text.getJsonParseError().empty());
+    h2agent::model::DataPart empty;
+    empty.decode(headers);
+    EXPECT_TRUE(empty.getJsonParseError().empty());
+}

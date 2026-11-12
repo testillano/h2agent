@@ -333,6 +333,10 @@ ss << "TRAFFIC REQUEST RECEIVED"
         std::string outStateUri;
         std::vector<std::pair<std::string, std::string>> clientProvisionTriggers;
 
+        // A stored request body is decoded anyway (event): decoding it here lets the provision
+        // check a body announced as json which does not parse.
+        if (server_data_) requestBodyDataPart.decode(req.header());
+
         // Process provision (the execution trace is only built when it will be stored):
         const bool traced = server_data_ && execution_trace_.load();
         nlohmann::json executionTrace = traced ? nlohmann::json::array() : nlohmann::json();
