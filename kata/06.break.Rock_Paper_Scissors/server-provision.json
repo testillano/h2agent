@@ -1,6 +1,6 @@
 {
   "requestMethod": "GET",
-  "requestUri": "/rock paper or scissors",
+  "requestUri": "/rock%20paper%20or%20scissors",
   "responseCode": 200,
   "transform": [
     {

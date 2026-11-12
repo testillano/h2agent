@@ -11,6 +11,7 @@
 
 #include <unistd.h> // getpid
 
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 #include <fstream>
@@ -398,6 +399,7 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToText"}],"to":{"target":"var","name":"x"}})", "filter 'hexToText' has no v1 equivalent"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"textToHex"}],"to":{"target":"var","name":"x"}})", "filter 'textToHex' has no v1 equivalent"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToIp"}],"to":{"target":"var","name":"x"}})", "filter 'hexToIp' has no v1 equivalent"},
+        {R"({"from":{"source":"requestUriPath"},"filter":[{"op":"urlDecode"}],"to":{"target":"var","name":"x"}})", "filter 'urlDecode' has no v1 equivalent"},
         {R"({"source":"recvseq","target":"var.x"})", "rule is already v1"},
     };
     for (const auto &row : table) {
@@ -482,3 +484,79 @@ TEST(GrammarMigrator_test, ScanReportsV53Leftovers) {
     EXPECT_EQ(found, (std::vector<std::string> {"a.json:1:v53-failed-branch", "b.json:1:v53-colon-state", "c.json:1:v53-colon-state"}));
     fs::remove_all(dir);
 }
+
+TEST(GrammarMigrator_test, ScanReportsV53ServerUris) {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / ("h2agent-migrate-scan53uri-" + std::to_string(::getpid()));
+    fs::create_directories(dir);
+    const auto write = [](const fs::path &p, const std::string &content) {
+        std::ofstream(p) << content;
+    };
+    // one decoding level below the wire (5.3.0), in the path:
+    write(dir / "a.json", "{\"requestUri\": \"(/foo/bar)(%3B)([0-9]{15})\"}\n");
+    write(dir / "b.json", "{\"requestUri\": \"/foo/bar/x%3B@{id}\"}\n");
+    // characters not allowed raw in a path: an escaped '|' in a regex, a literal '|', a space
+    write(dir / "c.json", "{\"requestUri\": \"(/foo/bar/id-[0-9]{15}\\\\|123\\\\|)([0-9]{16})\"}\n");
+    write(dir / "d.json", "{\"requestUri\": \"/foo/id-1|123\"}\n");
+    write(dir / "e.json", "{\"requestUri\": \"/rock paper or scissors\"}\n");
+    // not findings: '%XX' only in the query, a regex alternation, templates and quantifiers
+    write(dir / "f.json", "{\"requestUri\": \"/foo/items?id=x-1%7C123&select={}\"}\n");
+    write(dir / "g.json", "{\"requestUri\": \"(/foo/)(bar|baz)(/id-[0-9]{15})\"}\n");
+    write(dir / "h.json", "{\"requestUri\": \"/app/v1/@{id}/#{base}\"}\n");
+
+    const auto hits = GrammarMigrator::scan(dir.string());
+    std::vector<std::string> found;
+    for (const auto &h : hits) found.push_back(fs::path(h.file).filename().string() + ":" + h.kind);
+    std::sort(found.begin(), found.end());
+    EXPECT_EQ(found, (std::vector<std::string> {"a.json:v53-encoded-uri", "b.json:v53-encoded-uri", "c.json:v53-raw-illegal-uri",
+                      "d.json:v53-raw-illegal-uri", "e.json:v53-raw-illegal-uri"
+                                               }));
+    fs::remove_all(dir);
+}
+
+TEST(GrammarMigrator_test, EncodeUrisInServerProvisions) {
+    // identifiers sent encoded twice ('%253B') and with an encoded '|' ('%7C')
+    const Json doc = Json::parse(R"json([
+      {"requestMethod": "GET",
+       "requestUri": "(/foo/bar/qux)(%3B)([0-9]+)(%3B)([0-9]+)",
+       "transform": [
+         {"from": {"source": "requestUriPath"},
+          "filter": [{"op": "regexCapture", "rgx": "(/foo/bar/qux)(%3B)([0-9]+)(%3B)([0-9]+)"}],
+          "to": {"target": "var", "name": "uri_parts"}},
+         {"from": {"source": "serverEvent", "requestMethod": "POST", "requestUri": "/foo/baz/qux%3B@{uri_parts.3}%3B@{uri_parts.5}", "eventNumber": 1},
+          "to": {"target": "responseBody", "path": "/qux%3B@{uri_parts.3}"}}
+       ]},
+      {"requestMethod": "POST", "requestUri": "(/foo/bar/id-[0-9]{15}\\|123\\|)([0-9]{16})", "responseCode": 200},
+      {"requestMethod": "POST", "requestUri": "(/foo/)(bar|baz)(/x)\\?a=b\\|c", "responseCode": 200},
+      {"requestMethod": "GET", "requestUri": "/foo/id-1|123?q=a|b", "responseCode": 200,
+       "transform": [{"from": {"source": "literal", "value": "s"}, "to": {"target": "outState", "method": "DELETE", "uri": "/foo/id-1|123"}}]},
+      {"id": "flow", "endpoint": "ep", "requestMethod": "GET", "requestUri": "/client/id-1|123",
+       "transform": [{"from": {"source": "serverEvent", "requestMethod": "GET", "requestUri": "/foo/id-1|123", "eventNumber": -1}, "to": {"target": "var", "name": "x"}}]},
+      {"algorithm": "FullMatchingRegexReplace", "rgx": "(/foo/id-[0-9]+\\|)([0-9]+)", "fmt": "$1"}
+    ])json");
+
+    std::size_t changes = 0;
+    Json pct = GrammarMigrator::encodeUris(doc, "%", changes);
+    EXPECT_EQ(pct[0]["requestUri"], "(/foo/bar/qux)(%253B)([0-9]+)(%253B)([0-9]+)");
+    EXPECT_EQ(pct[0]["transform"][0]["filter"][0]["rgx"], "(/foo/bar/qux)(%253B)([0-9]+)(%253B)([0-9]+)");
+    EXPECT_EQ(pct[0]["transform"][1]["from"]["requestUri"], "/foo/baz/qux%253B@{uri_parts.3}%253B@{uri_parts.5}");
+    EXPECT_EQ(pct[0]["transform"][1]["to"]["path"], "/qux%3B@{uri_parts.3}");  // a json key, not a uri
+    EXPECT_EQ(changes, 3u);
+
+    Json pipe = GrammarMigrator::encodeUris(doc, "|", changes);
+    EXPECT_EQ(pipe[0], doc[0]);
+    EXPECT_EQ(pipe[1]["requestUri"], "(/foo/bar/id-[0-9]{15}%7C123%7C)([0-9]{16})");
+    EXPECT_EQ(pipe[2]["requestUri"], doc[2]["requestUri"]);  // alternation kept, query kept
+    EXPECT_EQ(pipe[3]["requestUri"], "/foo/id-1%7C123?q=a|b");  // literal uri: query kept
+    EXPECT_EQ(pipe[3]["transform"][0]["to"]["uri"], "/foo/id-1%7C123");
+    EXPECT_EQ(pipe[4]["requestUri"], "/client/id-1|123");  // client uri: sent as written
+    EXPECT_EQ(pipe[4]["transform"][0]["from"]["requestUri"], "/foo/id-1%7C123");  // a server key
+    EXPECT_EQ(pipe[5]["rgx"], "(/foo/id-[0-9]+%7C)([0-9]+)");
+    EXPECT_EQ(pipe[5]["fmt"], "$1");
+    EXPECT_EQ(changes, 5u);
+
+    // idempotent with nothing left to encode
+    GrammarMigrator::encodeUris(pipe, "|", changes);
+    EXPECT_EQ(changes, 0u);
+}
+

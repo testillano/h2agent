@@ -222,6 +222,7 @@ inline nlohmann::json filter(const nlohmann::json &conditionVarName) {
         kind("op", "hexToText"),
         kind("op", "textToHex"),
         kind("op", "hexToIp"),
+        kind("op", "urlDecode"),
         kind("op", "cast", {{"type", enumOf({"string", "integer", "unsigned", "float", "boolean", "object", "json"})}}, {"type"}),
     });
     return {{"oneOf", ops}};

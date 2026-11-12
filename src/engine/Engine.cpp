@@ -395,6 +395,24 @@ void splitKeyPtr(const std::string &rest, std::string &key, std::string &ptr) {
     }
 }
 
+// Percent-decode one level (%XX only, either case): the UrlDecode filter. A '%'
+// not followed by two hex digits is kept, and so is '+' (a space only in form
+// encoded query values, which requestUriParam already gives decoded).
+std::string percentDecode(const std::string &in) {
+    std::string out;
+    out.reserve(in.size());
+    for (std::size_t i = 0; i < in.size(); ++i) {
+        if (in[i] == '%' && i + 2 < in.size() &&
+                std::isxdigit(static_cast<unsigned char>(in[i + 1])) && std::isxdigit(static_cast<unsigned char>(in[i + 2]))) {
+            out.push_back(static_cast<char>(std::strtol(in.substr(i + 1, 2).c_str(), nullptr, 16)));
+            i += 2;
+        } else {
+            out.push_back(in[i]);
+        }
+    }
+    return out;
+}
+
 // URL-decode (%XX and '+'), parity with ert::http2comm::URLFunctions::decode.
 std::string urlDecode(const std::string &in) {
     std::string out;
@@ -869,10 +887,11 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     // Parameterless byte filters (grammar v2 only, no v1 counterpart).
     if (filterNode.is_string()) {
         const std::string &name = filterNode.get_ref<const std::string &>();
-        if (name == "HexToText" || name == "TextToHex" || name == "HexToIp") {
+        if (name == "HexToText" || name == "TextToHex" || name == "HexToIp" || name == "UrlDecode") {
             filter.raw = name;
             return (name == "HexToText")   ? FilterType::HexToText
                    : (name == "TextToHex") ? FilterType::TextToHex
+                   : (name == "UrlDecode") ? FilterType::UrlDecode
                    : FilterType::HexToIp;
         }
     }
@@ -1402,6 +1421,17 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
             return false;
         }
         value = bytes;
+    } else if (f.type == FilterType::UrlDecode) {
+        if (value.is_object() || value.is_array() || value.is_null()) {
+            note = "UrlDecode filter requires a scalar source; rule skipped";
+            return false;
+        }
+        const std::string decoded = percentDecode(asString(value));
+        if (decoded.find('\0') != std::string::npos || !isValidUtf8(decoded)) {
+            note = "UrlDecode filter: decoded bytes are not UTF-8 text (or hold NUL); rule skipped";
+            return false;
+        }
+        value = decoded;
     } else if (f.type == FilterType::TextToHex) {
         if (value.is_object() || value.is_array() || value.is_null()) {
             note = "TextToHex filter requires a scalar source; rule skipped";

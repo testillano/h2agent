@@ -210,6 +210,10 @@ enum class FilterType {
     // arrays and null fail the filter.
     HexToIp,       // HexToIp: plain string "HexToIp" (v2 only). Hex of 4 / 16 bytes into
     // dotted IPv4 / RFC 5952 IPv6 text (inet_ntop); other lengths fail.
+    UrlDecode,     // UrlDecode: plain string "UrlDecode" (v2 only). Percent-decode ONE
+    // level of the value text ('%XX', either case); a '%' not followed by two
+    // hex digits and '+' are kept. The result must be UTF-8 without NUL, else
+    // the filter fails. Objects, arrays and null fail it too.
 };
 
 /**

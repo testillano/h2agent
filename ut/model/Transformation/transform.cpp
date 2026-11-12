@@ -1883,6 +1883,28 @@ TEST_F(Transform_test, TargetClientProvisionInStateIsAUserState)
     }
 }
 
+TEST_F(Transform_test, ReceivedUriIsNotDecodedAndUrlDecodeGivesTheValue)
+{
+    // The server uri is the received one (the traffic server passes the raw path):
+    // the sources give it as it travelled, and 'urlDecode' gives a decoded value.
+    request_uri_ = "/app/v1/baskets/alice%3Bapples%3B42?name=test";
+    request_uri_path_ = "/app/v1/baskets/alice%3Bapples%3B42";
+    server_provision_json_["requestUri"] = request_uri_;
+    server_provision_json_["responseBody"] = nlohmann::json::object();
+    server_provision_json_["transform"] = R"json([
+      {"from": {"source": "requestUriPath"}, "to": {"target": "responseBody", "path": "/path"}},
+      {"from": {"source": "requestUri"}, "to": {"target": "responseBody", "path": "/uri"}},
+      {"from": {"source": "requestUriPath"},
+       "filter": [{"op": "regexReplace", "rgx": ".*/baskets/([^/]+)", "fmt": "$1"}, {"op": "urlDecode"}],
+       "to": {"target": "responseBody", "path": "/basketId"}}
+    ])json"_json;
+    provisionAndTransform(request_body_.dump());
+    const nlohmann::json body = nlohmann::json::parse(response_body_);
+    EXPECT_EQ(body["path"], "/app/v1/baskets/alice%3Bapples%3B42");
+    EXPECT_EQ(body["uri"], "/app/v1/baskets/alice%3Bapples%3B42?name=test");
+    EXPECT_EQ(body["basketId"], "alice;apples;42");
+}
+
 TEST_F(Transform_test, TargetStopIsRejected)
 {
     // 'stop' was the name of 'break' in h2agent 5.0-5.2: no alias is kept.

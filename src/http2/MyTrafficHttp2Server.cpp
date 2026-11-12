@@ -177,7 +177,10 @@ void MyTrafficHttp2Server::receive(const std::uint64_t &receptionId,
     // see uri_ref struct (https://nghttp2.org/documentation/asio_http2.h.html#asio-http2-h)
     // Use const references to avoid unnecessary copies - nghttp2 returns const refs
     const std::string &method = req.method();
-    const std::string &uriPath = req.uri().path; // decoded
+    // The uri is the received one, byte by byte (docs/api/README.md, "Server uri"):
+    // the path is not percent-decoded (decoding loses information: '%2F' would be a
+    // segment separator, '%3F' a query start, '%FF' a non UTF-8 byte in the key).
+    const std::string &uriPath = req.uri().raw_path;
     const std::string &uriQuery = req.uri().raw_query; // parameter values may be percent-encoded
 
     // Move request body to internal encoded body data:
@@ -476,7 +479,7 @@ void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &se
     //ert::http2comm::Http2Server::streamError(errorCode, serverName, receptionId, req);
     // For us, receptionId is the serverSequence.
     // Also, we will ignore the serverName as we have only 1 server in this application (h2agent_traffic_server), and the vault entry name itself, autoexplains.
-    std::string msg = ert::tracing::Logger::asString("Error code: %d | Traffic server sequence (recvseq): %llu | Request Method: %s | Request Uri: %s", errorCode, receptionId, req.method().c_str(), req.uri().path.c_str());
+    std::string msg = ert::tracing::Logger::asString("Error code: %d | Traffic server sequence (recvseq): %llu | Request Method: %s | Request Uri: %s", errorCode, receptionId, req.method().c_str(), req.uri().raw_path.c_str());
     ert::tracing::Logger::error(msg, ERT_FILE_LOCATION);
 
 
@@ -486,7 +489,7 @@ void MyTrafficHttp2Server::streamError(uint32_t errorCode, const std::string &se
     // We also have error logs for this kind of events.
     if (vault_ptr_) {
         static const std::string varPrefix = "__core:stream-error-traffic-server:";
-        std::string var = varPrefix + std::to_string(receptionId) + ":" + req.method() + ":" + req.uri().path;
+        std::string var = varPrefix + std::to_string(receptionId) + ":" + req.method() + ":" + req.uri().raw_path;
         std::string val = std::to_string(errorCode);
 
         vault_ptr_->load(var, nlohmann::json(val)); // shall not exists: server sequence (reception id) is unique

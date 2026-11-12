@@ -128,7 +128,7 @@ The state written by `outState` is still the value of `from` (as in v1), e.g. `{
 | `{"Strptime": {"fmt": ..., "unit": ...}}` / `{"Strftime": {...}}` | `{"op": "strptime", "fmt": ..., "unit": ...}` / `{"op": "strftime", ...}` |
 | `"Size"` | `{"op": "size"}` |
 | (typed v1 target) | `{"op": "cast", "type": <type'>}`, appended last |
-| (none: v2 only) | `{"op": "hexToText"}`, `{"op": "textToHex"}`, `{"op": "hexToIp"}` (`--reverse` rejects them) |
+| (none: v2 only) | `{"op": "hexToText"}`, `{"op": "textToHex"}`, `{"op": "hexToIp"}`, `{"op": "urlDecode"}` (`--reverse` rejects them) |
 
 The migrator produces at most `[<v1 filter>, {"op": "cast", ...}]`, which is exactly the v1 order (filter first, target typing last). Longer chains are accepted by the grammar and run in list order.
 

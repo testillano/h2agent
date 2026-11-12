@@ -1927,6 +1927,47 @@ std::string runByteFilter(const std::string &source, const std::string &filter) 
 }
 }  // namespace
 
+// UrlDecode: one percent-decoding level ('%XX' either case), '%' alone and '+'
+// kept; non UTF-8 / NUL results and non scalar sources fail the filter.
+TEST(Engine_test, UrlDecodeDecodesOneLevel) {
+    const std::vector<std::pair<std::string, std::string>> table = {
+        {"value.alice%3Bapples%3B42", "alice;apples;42"},
+        {"value.a%3bb", "a;b"},                   // lower case hex
+        {"value.foo-1%7Cbar%7C99", "foo-1|bar|99"},
+        {"value.x%253By", "x%3By"},               // one level only
+        {"value.100%", "100%"},                   // '%' alone kept
+        {"value.a%4", "a%4"},                     // truncated kept
+        {"value.a%zzb", "a%zzb"},                 // not hex kept
+        {"value.a+b", "a+b"},                     // '+' kept (not a space in a path)
+        {"value.%C3%B1", "\xC3\xB1"},             // UTF-8 bytes
+        {"value.plain", "plain"},
+    };
+    for (const auto &row : table) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(runByteFilter(row.first, "UrlDecode"), row.second);
+    }
+    // two levels are two filters:
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "value.x%253By"}, {"target", "output.string"},
+            {"filter", nlohmann::json::array({"UrlDecode", "UrlDecode"})}
+        }}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    StandaloneContext ctx;
+    Ports ports;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "x;y");
+}
+
+TEST(Engine_test, UrlDecodeFailsOnInvalidResult) {
+    for (const char *source : {
+                "value.a%FFb", "value.a%00b", "value.%C3"
+            }) {
+        SCOPED_TRACE(source);
+        EXPECT_EQ(runByteFilter(source, "UrlDecode"), "FAILED");
+    }
+}
+
 TEST(Engine_test, HexToTextDecodesUtf8Bytes) {
     const std::vector<std::pair<std::string, std::string>> table = {
         {"value.6c6962726172792e6578616d706c65", "library.example"},

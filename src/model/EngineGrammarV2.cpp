@@ -229,6 +229,7 @@ nlohmann::json lowerFilter(const nlohmann::json &f) {
     if (op == "hexToText") return "HexToText";
     if (op == "textToHex") return "TextToHex";
     if (op == "hexToIp") return "HexToIp";
+    if (op == "urlDecode") return "UrlDecode";
     if (op == "conditionVar") return {{"ConditionVar", (f.value("not", false) ? "!" : "") + text(f, "name")}};
     if (op == "regexCapture") return {{"RegexCapture", f["rgx"]}};
     if (op == "regexKey") return {{"RegexKey", f["rgx"]}};

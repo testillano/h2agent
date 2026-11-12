@@ -104,7 +104,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
     * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, shell commands, random generation (ranges, sets), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
-    * Filters: regular expression captures and regex/replace, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search, size.
+    * Filters: regular expression captures and regex/replace, url decoding, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search, size.
     * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, stop conditions.
   * Provision references (`#{key}`, `#{<cast type>:key}`): vault values resolved once at provision load, as text (shared regular expressions, constants) or typed (shared object blocks, numbers...), and provision presets (`"#preset"`: an object built from vault objects, its own keys on top).
   * Multipart support.
@@ -1474,7 +1474,7 @@ ___________________________________ _________ _______________ __________________
 
 This utility converts provisions written for the transformation grammar v1 (`"source": "request.body./a"`, `"target": "response.body.json.integer./n"`) into grammar v2 (`"from": {"source": "requestBody", "path": "/a"}`, `"filter": [{"op": "cast", "type": "integer"}]`, `"to": {"target": "responseBody", "path": "/n"}`). It is a syntax-only conversion: each v2 rule behaves as its v1 origin, except that variables and vaults keep the json type of their values (see [store values](./docs/developers/GrammarV2.md#store-values)). The exact mapping is documented in [GrammarV2.md](./docs/developers/GrammarV2.md), and every change from 4.x to 5.0.0 (API and grammar, with before/after examples) in the [migration guide](./docs/MigrationGuide.md).
 
-It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), and for the 5.0-5.2 items removed in 5.3.0 (`stop` targets, the `vault/<key>/wait` path form and the former unexpected response status code counter) and the 5.3.0 items changed in 5.4.0 (client error branches `__core:failed:<x>` and user states with `:`), so test suites can be migrated before upgrading.
+It also scans directories for v1 leftovers (`/admin/v1` references, v1 provision files and v1 rules embedded in scripts or tests), and for the 5.0-5.2 items removed in 5.3.0 (`stop` targets, the `vault/<key>/wait` path form and the former unexpected response status code counter) and the 5.3.0 items changed in 5.4.0 (client error branches `__core:failed:<x>`, user states with `:` and server uris written decoded), so test suites can be migrated before upgrading. With `--encode-uri` it rewrites the server uris of a provisions file in their received (encoded) form.
 
 ### Command line
 
@@ -1501,13 +1501,27 @@ Options:
   Convert v2 into v1 instead (diagnostics). Only the v2 subset with a v1
   equivalent is accepted.
 
+[-e|--encode-uri <characters>]
+  With '--in': percent-encode the given characters in the path part of the
+  server uris (h2agent 5.4.0 compares the uri as received, not decoded):
+  server provision 'requestUri', server matching 'rgx', 'serverEvent'
+  'requestUri'/'requestUriStartsWith', foreign 'outState' 'uri', and the 'rgx'
+  of 'regexCapture'/'regexReplace' over 'requestUri'/'requestUriPath'. The
+  query part, '@{...}' and '#{...}' are kept; in a regular expression an
+  escaped character ('\|') is encoded, a metacharacter is not. Client
+  provision uris are not touched. '%' turns '%3B' into '%253B' (the wire form
+  of a double encoding). v1 rules are converted first; v2 ones are kept.
+
 -s|--scan <directory|file>
   Report v1 leftovers: '/admin/v1' references, json files holding v1 provisions
   and v1 rule literals embedded in scripts or tests; and h2agent 5.0-5.2 items
   removed in 5.3.0: 'stop' targets (use 'break', or 'fail' for a failure), the
   'vault/<key>/wait' path form and the former unexpected response status code
   counter; and h2agent 5.3.0 items changed in 5.4.0: client error branches
-  '__core:failed:<x>' (a reason in 5.3.0, a stage now) and user states with ':'
+  '__core:failed:<x>' (a reason in 5.3.0, a stage now), user states with ':',
+  server uris with '%XX' in the path (one decoding level below the wire in
+  5.3.0, the wire in 5.4.0) and with characters not allowed raw in a path
+  (most likely sent encoded: see '--encode-uri')
   ('.git', 'build' and 'node_modules' are skipped). Exit code is 1 when
   something is found.
 
@@ -1525,6 +1539,7 @@ Examples:
    h2agent-migrate --in client-provision.json --out client-provision.json
    cat provision.json | h2agent-migrate --in -
    h2agent-migrate --scan ./ct
+   h2agent-migrate --in server-provision.json --out server-provision.json --encode-uri '|'
 ```
 
 </details>
@@ -2044,7 +2059,7 @@ This convention avoids dots (`.`), which are not allowed in vault keys (the form
 | `stream-error-traffic-server` | N/A | **Reserved Function:** Identifies the variable as a stream or connection error indicator. |
 | `<recvseq>` | `12345` | **Sequence Identifier Value:** The unique reception sequence value (`server sequence`) for the request. |
 | `<method>` | `GET` | **Request Method Value:** The method used in the HTTP request (e.g., GET, POST, PUT, etc.). |
-| `<uri>` | `/api/users` | **Request Uri Value:** The Uniform Resource Identifier (URI) or path of the HTTP request. |
+| `<uri>` | `/api/users` | **Request Uri Value:** The path of the HTTP request, as received (not decoded). |
 
 ## How it is delivered
 

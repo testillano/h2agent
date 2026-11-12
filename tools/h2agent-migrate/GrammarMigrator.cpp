@@ -452,6 +452,31 @@ std::string trimmed(const std::string &line) {
     return s.size() > MaxShown ? s.substr(0, MaxShown) + "..." : s;
 }
 
+// Path part of a uri (or of a regular expression over one): up to the first '?'.
+std::string pathPart(const std::string &value) {
+    return value.substr(0, value.find('?'));
+}
+
+// '@{...}', '#{...}' and '{n[,m]}' quantifiers removed (they are not uri characters).
+std::string withoutTemplates(const std::string &value) {
+    static const std::regex templates(R"rgx([@#]\{[^}]*\}|\{[0-9]+(,[0-9]*)?\})rgx", std::regex::optimize);
+    return std::regex_replace(value, templates, "");
+}
+
+bool hasPathEncoding(const std::string &jsonText) {
+    static const std::regex pct("%[0-9A-Fa-f]{2}", std::regex::optimize);
+    return std::regex_search(pathPart(jsonText), pct);
+}
+
+// jsonText is the value as written in the json text: a regular expression '\|' is '\\|' there.
+bool hasPathIllegalChar(const std::string &jsonText) {
+    const std::string path = withoutTemplates(pathPart(jsonText));
+    if (path.find("\\\\|") != std::string::npos) return true;  // escaped pipe: a literal '|'
+    const bool regexHints = path.find_first_of("()[]*+\\") != std::string::npos;
+    if (!regexHints && path.find('|') != std::string::npos) return true;  // literal '|'
+    return path.find_first_of(" <>`") != std::string::npos;
+}
+
 void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::ScanHit> &hits) {
     std::string content;
     if (!readTextFile(file, content)) return;
@@ -484,6 +509,10 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
     // branch '__core:failed:<x>' (a reason in 5.3.0, a stage in 5.4.0), and user states with ':'.
     static const std::regex failedBranch(R"rgx("inState"\s*:\s*"__core:failed:[^:"]+")rgx", std::regex::optimize);
     static const std::regex colonState(R"rgx("(inState|outState)"\s*:\s*"(?!__core:failed)[^"]*:[^"]*")rgx", std::regex::optimize);
+    // h2agent 5.3.0 server uris (5.4.0: the received uri, not decoded): a uri value (or a regular
+    // expression over one) whose path part holds '%XX' (one level below the wire in 5.3.0) or a
+    // character not allowed raw in a path (most likely sent encoded).
+    static const std::regex uriValue(R"rgx("(requestUri|requestUriStartsWith|rgx|uri)"\s*:\s*"((?:[^"\\]|\\.)*)")rgx", std::regex::optimize);
     std::istringstream lines(content);
     std::string line;
     for (std::size_t n = 1; std::getline(lines, line); n++) {
@@ -494,6 +523,15 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
         if (line.find("unexpected_response_status_code_counter") != std::string::npos) hits.push_back({name, n, "v5-removed-counter", trimmed(line)});
         if (std::regex_search(line, failedBranch)) hits.push_back({name, n, "v53-failed-branch", trimmed(line)});
         if (std::regex_search(line, colonState)) hits.push_back({name, n, "v53-colon-state", trimmed(line)});
+        bool encoded = false, illegal = false;
+        for (auto it = std::sregex_iterator(line.begin(), line.end(), uriValue); it != std::sregex_iterator(); ++it) {
+            const std::string value = (*it)[2].str();
+            if (value.empty() || (value[0] != '/' && value[0] != '(' && value[0] != '^')) continue;
+            encoded = encoded || hasPathEncoding(value);
+            illegal = illegal || hasPathIllegalChar(value);
+        }
+        if (encoded) hits.push_back({name, n, "v53-encoded-uri", trimmed(line)});
+        if (illegal) hits.push_back({name, n, "v53-raw-illegal-uri", trimmed(line)});
     }
 }
 
@@ -916,7 +954,7 @@ Json GrammarMigrator::filterToV1(const Json &v2, const std::string &where) {
         return Json{{f.v1, arg}};
     }
     if (op == "cast") fail(where, "a cast is only expressible in v1 as the last filter");
-    if (op == "hexToText" || op == "textToHex" || op == "hexToIp") fail(where, "filter '" + op + "' has no v1 equivalent");
+    if (op == "hexToText" || op == "textToHex" || op == "hexToIp" || op == "urlDecode") fail(where, "filter '" + op + "' has no v1 equivalent");
     fail(where, "unknown filter op '" + op + "'");
 }
 
@@ -1083,6 +1121,127 @@ std::vector<GrammarMigrator::ScanHit> GrammarMigrator::scan(const std::string &p
         return a.file != b.file ? a.file < b.file : a.line < b.line;
     });
     return hits;
+}
+
+////////////////
+// ENCODE URIS //
+////////////////
+
+namespace {
+
+std::string percentEncoded(char c) {
+    static const char digits[] = "0123456789ABCDEF";
+    const auto u = static_cast<unsigned char>(c);
+    return std::string{'%', digits[u >> 4], digits[u & 0x0F]};
+}
+
+// Encodes 'chars' in the path part of a uri, or of a regular expression over one.
+std::string encodePath(const std::string &value, const std::string &chars, bool regex) {
+    static const std::string metachars = ".^$|()[]{}*+?\\";
+    std::string out;
+    out.reserve(value.size());
+    for (std::size_t i = 0; i < value.size(); i++) {
+        const char c = value[i];
+        // '@{...}' / '#{...}': kept as written
+        if ((c == '@' || c == '#') && i + 1 < value.size() && value[i + 1] == '{') {
+            const std::size_t end = value.find('}', i);
+            if (end == std::string::npos) return out + value.substr(i);
+            out += value.substr(i, end - i + 1);
+            i = end;
+            continue;
+        }
+        // the query part is kept: '?' in a uri, '\?' in a regular expression
+        if (!regex && c == '?') return out + value.substr(i);
+        if (regex && c == '\\' && i + 1 < value.size()) {
+            const char next = value[i + 1];
+            if (next == '?') return out + value.substr(i);
+            if (chars.find(next) != std::string::npos) out += percentEncoded(next);
+            else out += value.substr(i, 2);
+            i++;
+            continue;
+        }
+        const bool syntax = regex && metachars.find(c) != std::string::npos;
+        out += (!syntax && chars.find(c) != std::string::npos) ? percentEncoded(c) : std::string(1, c);
+    }
+    return out;
+}
+
+bool looksLikeRegex(const std::string &uri) {
+    return uri.find_first_of("([\\*+^$") != std::string::npos;
+}
+
+void encodeField(Json &o, const char *key, const std::string &chars, bool regex, std::size_t &changes) {
+    auto it = o.find(key);
+    if (it == o.end() || !it->is_string()) return;
+    const std::string before = it->get<std::string>();
+    const std::string after = encodePath(before, chars, regex);
+    if (after == before) return;
+    *it = after;
+    changes++;
+}
+
+void encodeRules(Json &rules, const std::string &chars, std::size_t &changes) {
+    if (!rules.is_array()) return;
+    for (auto &rule : rules) {
+        if (!rule.is_object()) continue;
+        auto from = rule.find("from");
+        auto to = rule.find("to");
+        bool overUri = false;
+        if (from != rule.end() && from->is_object()) {
+            const std::string source = from->value("source", "");
+            if (source == "serverEvent") {
+                encodeField(*from, "requestUri", chars, false, changes);
+                encodeField(*from, "requestUriStartsWith", chars, false, changes);
+            }
+            overUri = (source == "requestUri" || source == "requestUriPath");
+        }
+        if (overUri) {
+            auto filters = rule.find("filter");
+            if (filters != rule.end() && filters->is_array()) {
+                for (auto &f : *filters) {
+                    if (!f.is_object()) continue;
+                    const std::string op = f.value("op", "");
+                    if (op == "regexCapture" || op == "regexReplace") encodeField(f, "rgx", chars, true, changes);
+                }
+            }
+        }
+        if (to != rule.end() && to->is_object()) {
+            const std::string target = to->value("target", "");
+            if (target == "serverEvent") encodeField(*to, "requestUri", chars, false, changes);
+            if (target == "outState") encodeField(*to, "uri", chars, false, changes);
+        }
+        auto fallback = rule.find("onFilterFail");
+        if (fallback != rule.end()) encodeRules(*fallback, chars, changes);
+    }
+}
+
+void encodeDocument(Json &doc, const std::string &chars, std::size_t &changes) {
+    if (doc.is_array()) {
+        for (auto &item : doc) encodeDocument(item, chars, changes);
+        return;
+    }
+    if (!doc.is_object()) return;
+    const bool client = doc.contains("endpoint");
+    if (doc.contains("algorithm")) encodeField(doc, "rgx", chars, true, changes);  // server matching
+    if (!client && doc.contains("requestMethod")) {
+        auto uri = doc.find("requestUri");
+        if (uri != doc.end() && uri->is_string()) encodeField(doc, "requestUri", chars, looksLikeRegex(uri->get<std::string>()), changes);
+    }
+    for (const char *list : {
+                "transform", "onResponseTransform"
+            }) {
+        auto rules = doc.find(list);
+        if (rules != doc.end()) encodeRules(*rules, chars, changes);
+    }
+}
+
+}  // namespace
+
+Json GrammarMigrator::encodeUris(const Json &doc, const std::string &chars, std::size_t &changes) {
+    changes = 0;
+    Json result = doc;
+    encodeDocument(result, chars, changes);
+    return result;
 }
 
 }  // namespace migrate

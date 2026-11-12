@@ -134,7 +134,7 @@ Now, returning to our `rock, paper, scissors` game, the list is static so we hav
 ```json
 {
   "requestMethod": "GET",
-  "requestUri": "/rock paper or scissors",
+  "requestUri": "/rock%20paper%20or%20scissors",
   "responseCode": 200,
   "transform": [
     {
@@ -146,7 +146,7 @@ Now, returning to our `rock, paper, scissors` game, the list is static so we hav
 }
 ```
 
-Then, you just need to request the `GET` request on `URI` `/rock%20paper%20or%20scissors` to get the random choice done by the mock (the response is not a `json` document, just a string with the choice).
+Then, you just need to request the `GET` request on `URI` `/rock%20paper%20or%20scissors` to get the random choice done by the mock (the response is not a `json` document, just a string with the choice). The provision `requestUri` is written as it travels (encoded): h2agent compares the uri as received, not decoded.
 
 Note that we always provision **decoded** `URIs` and although this complication is not needed for the example, it is good to know that it is possible to mess with that.
 

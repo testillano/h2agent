@@ -1810,6 +1810,15 @@ components:
         properties:
           op:
             enum:
+            - urlDecode
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
             - textToHex
             type: string
         required:

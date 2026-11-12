@@ -129,7 +129,7 @@ public:
     struct ScanHit {
         std::string file;
         std::size_t line;
-        std::string kind;  // "admin-v1-path", "v1-provision", "v1-rule-literal", "v5-stop-target", "v5-vault-wait-path", "v5-removed-counter", "v53-failed-branch", "v53-colon-state"
+        std::string kind;  // "admin-v1-path", "v1-provision", "v1-rule-literal", "v5-stop-target", "v5-vault-wait-path", "v5-removed-counter", "v53-failed-branch", "v53-colon-state", "v53-encoded-uri", "v53-raw-illegal-uri"
         std::string text;
     };
 
@@ -140,10 +140,31 @@ public:
      * 5.0-5.2 items removed in 5.3.0: 'stop' targets, the vault wait path form
      * and the former unexpected response status code counter; and the 5.3.0
      * items changed in 5.4.0: client error branches '__core:failed:<x>' (now a
-     * stage) and user states with ':'. Binary files and
-     * '.git', 'build' and 'node_modules' directories are skipped.
+     * stage), user states with ':', and server uris written one decoding level
+     * below the wire ('%XX' in a path) or with a character not allowed raw in a
+     * path (most likely sent encoded). Binary files and '.git', 'build' and
+     * 'node_modules' directories are skipped.
      */
     static std::vector<ScanHit> scan(const std::string &path);
+
+    /**
+     * Percent-encodes the given characters in the path part of the server uris
+     * of a provisions document (5.4.0: the server uri is the received one, not
+     * decoded): server provision 'requestUri', server matching 'rgx', the
+     * 'serverEvent' 'requestUri' / 'requestUriStartsWith' (server and client
+     * provisions), the foreign 'outState' 'uri', and the 'rgx' of 'regexCapture'
+     * / 'regexReplace' over 'requestUri' / 'requestUriPath'. The query part (from
+     * the first '?', or '\?' in a regular expression) and '@{...}' / '#{...}'
+     * are kept. In a regular expression an escaped character ('\|') is always
+     * encoded, an unescaped regular expression metacharacter never (it is
+     * syntax); a 'requestUri' is a regular expression when it holds '(', '[',
+     * '\', '*', '+', '^' or '$'. Client provision uris are not touched (they are
+     * sent as written). Encoding '%' turns one level ('%3B') into the wire form
+     * of a double encoding ('%253B').
+     *
+     * @param changes number of values changed (output)
+     */
+    static Json encodeUris(const Json &doc, const std::string &chars, std::size_t &changes);
 };
 
 }  // namespace migrate

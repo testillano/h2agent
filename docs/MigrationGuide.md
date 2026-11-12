@@ -796,6 +796,10 @@ grows).
 
 ## 22. From 5.3.0 to 5.4.0
 
+Two breaking items: the failed state names its stage, and the server uri is the received one.
+
+### The failed state names its stage
+
 The failed state names its stage: `__core:failed:<state>:<reason>`, where `<state>` is the `inState` of the
 provision which failed, set by h2agent. The `reason` of the `fail` target then only names the checked item
 (`Result-Code`, a header, a json node), not the step.
@@ -811,7 +815,7 @@ provision which failed, set by h2agent. The `reason` of the `fail` target then o
 Waits by prefix keep working (`statePrefix=__core:failed:`), and get a stage level
 (`statePrefix=__core:failed:update-2:`); waits and tests on an exact 5.3.0 failed state change.
 
-Checklist:
+#### Checklist
 
 1. `h2agent-migrate --scan <dir>` lists the 5.3.0 error branches (`v53-failed-branch`) and the user states with
    `:` (`v53-colon-state`).
@@ -821,3 +825,49 @@ Checklist:
 4. Optionally: drop the stage written by hand in `fail` reasons (`"update-2.Result-Code"` -> `"Result-Code"`),
    and name the `outState` after the next stage of the key, numbered from 1 when it may repeat (`update-1`,
    `update-2`), see [reserved states and failures](api/README.md#reserved-states-and-failures).
+
+### The server uri is the received one
+
+The server path is no longer percent-decoded: matching, event keys, the `requestUri` / `requestUriPath` sources,
+`serverEvent` addresses, `server-data` queries and waits all use the *URI* as it travelled (see
+[the server uri](api/README.md#server-uri)). The query does not change (it already was the received one), and
+`requestUriParam` still gives the decoded value. A new `urlDecode` filter decodes a value taken from the path.
+
+| Sent by the SUT | 5.3.0 key (and what provisions matched) | 5.4.0 key |
+|---|---|---|
+| `/foo/bar/id-1%7C123%7C99` | `/foo/bar/id-1\|123\|99` | `/foo/bar/id-1%7C123%7C99` |
+| `/foo/baz/qux%253B1%253B2` (double encoding) | `/foo/baz/qux%3B1%3B2` | `/foo/baz/qux%253B1%253B2` |
+| `/items/a%2Fb` and `/items/a/b` | `/items/a/b` (one key, shared state) | two keys |
+| `/q?b=%7B%22size%22%3A1%7D` | `/q?b=%7B%22size%22%3A1%7D` | unchanged |
+
+Only paths sent with `%XX` are affected. A provision written for 5.3.0 holds that path one decoding level below
+the wire: a decoded character (`|`, a space, `;`) or a `%XX` which travels as `%25XX`. For example, a provision for
+an identifier holding `;` which the client sends encoded twice:
+
+```json
+{"requestMethod": "GET", "requestUri": "(/foo/bar/qux)(%3B)([0-9]+)(%3B)([0-9]+)"}
+```
+
+becomes, in 5.4.0, the form on the wire:
+
+```json
+{"requestMethod": "GET", "requestUri": "(/foo/bar/qux)(%253B)([0-9]+)(%253B)([0-9]+)"}
+```
+
+The same applies to the `rgx` of the transformations over `requestUriPath` / `requestUri` and to the
+`serverEvent` `requestUri` addresses; a response body `path` built with `%3B` is a json key, not a uri, and is
+kept. A value captured from the path is now encoded: add `{"op": "urlDecode"}` when the decoded one is wanted.
+
+#### Checklist
+
+1. `h2agent-migrate --scan <dir>` lists the server uris with `%XX` in the path (`v53-encoded-uri`: in 5.3.0 one
+   level below the wire) and with characters not allowed raw in a path (`v53-raw-illegal-uri`: `|`, a space...,
+   most likely sent encoded). A decoded character allowed raw (`;`, `:`, `@`) cannot be found: it shows as an
+   unprovisioned `501` in the tests.
+2. Check what the SUT sends (its logs, or the 5.4.0 `server-data` keys) and rewrite: `h2agent-migrate --in <f>
+   --out <f> --encode-uri '|'` encodes `|` (and `\|` in regular expressions) as `%7C` in the server uris of a
+   provisions file; `--encode-uri '%'` turns one level (`%3B`) into the double encoding (`%253B`).
+3. Waits and `server-data` queries: give the received uri, URL-encoded once more as a query value
+   (`curl -G --data-urlencode "requestUri=/a%3Bb"` sends `%253B`).
+4. Values taken from the path (`regexCapture` / `regexReplace` over `requestUriPath`): add `urlDecode` where the
+   decoded value is wanted.

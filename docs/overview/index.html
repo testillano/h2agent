@@ -653,6 +653,7 @@ curl --http2-prior-knowledge -XPOST \
     <div class="fbox fragment fade-up"><h4>regexCapture</h4><code>{"op":"regexCapture","rgx":"api/v2/id-([0-9]+)/cat-([a-z]+)"}</code><br>groups: <code>var.1</code>, <code>var.2</code></div>
     <div class="fbox fragment fade-up"><h4>regexReplace</h4><code>{"op":"regexReplace","rgx":"...","fmt":"$1"}</code></div>
     <div class="fbox fragment fade-up"><h4>regexKey</h4><code>{"op":"regexKey","rgx":"acct-[0-9]{10}"}</code> on object keys</div>
+    <div class="fbox fragment fade-up"><h4>urlDecode</h4><code>{"op":"urlDecode"}</code> one level: <code>alice%3Bapples</code> &rarr; <code>alice;apples</code></div>
     <div class="fbox fragment fade-up"><h4>append / prepend</h4><code>{"op":"append","value":".teslayout.com"}</code></div>
     <div class="fbox fragment fade-up"><h4>sum / multiply</h4><code>{"op":"sum","value":0.618033}</code></div>
     <div class="fbox fragment fade-up"><h4>equalTo</h4><code>{"op":"equalTo","value":"200","not":true}</code> <small>(v1 DifferentFrom)</small></div>

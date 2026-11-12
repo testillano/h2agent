@@ -264,16 +264,18 @@ The server matching configuration (`POST /admin/v2/server-matching`) defines how
 
 ### Classification pipeline
 
+<a name="server-uri"></a>**The server uri is the received one**, byte by byte: the path is <u>not</u> percent-decoded, and the query keeps its values as received (only its parameters may be sorted). A query parameter read by name (`requestUriParam`) is given decoded. So provisions (`requestUri`, `rgx`), the `serverEvent` addresses and the admin queries (`server-data`, its waits) are written as the *URI* travels: a path sent as `/baskets/alice%3Bapples%3B42` is matched by `/baskets/alice%3B[a-z]+%3B[0-9]+`, not by a decoded `;`. Decoding the path would lose information: `/items/a%2Fb` (an identifier holding `/`) and `/items/a/b` (two segments) are different requests, with different keys. A value taken from the path is decoded on demand with the [`urlDecode`](#filter-urldecode) filter.
+
 Every request received goes through the same steps, whatever the algorithm. Two different *URIs* are built from it, and it is important not to confuse them:
 
 | URI | Built as | Used for |
 |-----|----------|----------|
-| **normalized URI** | decoded path + `?` + query parameters <u>sorted</u> (always, whatever the filter) | server data key (`method` + `uri`): events history, <u>state machine</u> (`inState`/`outState`), `purge`, admin queries |
-| **classification URI** | decoded path + query parameters according to the `uriPathQueryParameters` filter, then the algorithm step | provision selection only |
+| **normalized URI** | received path + `?` + query parameters <u>sorted</u> (always, whatever the filter) | server data key (`method` + `uri`): events history, <u>state machine</u> (`inState`/`outState`), `purge`, admin queries |
+| **classification URI** | received path + query parameters according to the `uriPathQueryParameters` filter, then the algorithm step | provision selection only |
 
 Steps:
 
-1. **Split** the received *URI* into the path (percent-decoded, `%2F` becomes `/`) and the raw query (values kept as received, percent-encoded). The query is tokenized with the configured `separator`.
+1. **Split** the received *URI* into the path (as received: `%2F` stays `%2F`) and the raw query (values kept as received, percent-encoded). The query is tokenized with the configured `separator`.
 2. **Current state**: the last state registered for `method` + **normalized URI** is looked up (`initial` for a maiden event). So the state machine is per real received *URI*, never per classification *URI*.
 3. **Query parameters filter** (`uriPathQueryParameters.filter`), applied for <u>the three algorithms</u>:
    * `Sort` (default): path + `?` + query sorted by key.
@@ -292,10 +294,10 @@ Example, received `POST /app/v1/id-55%2F5/ts-1615562841?b=2&a=1`, with `FullMatc
 
 | filter | classification URI after step 3 | after regex-replace (provision key) |
 |--------|----------------------------------|-------------------------------------|
-| `Sort` | `/app/v1/id-55/5/ts-1615562841?a=1&b=2` | no match (`id-55/5` has a `/`): unchanged |
-| `Ignore` | `/app/v1/id-55/5/ts-1615562841` | no match: unchanged |
+| `Sort` | `/app/v1/id-55%2F5/ts-1615562841?a=1&b=2` | `/app/v1/id-55%2F5?a=1&b=2` (the unmatched query suffix is kept) |
+| `Ignore` | `/app/v1/id-55%2F5/ts-1615562841` | `/app/v1/id-55%2F5` |
 
-The decoded `/` breaks the `[^/]+` assumption; with `rgx: "(/app/v1/id-.+)/ts-[0-9]+"` the results would be `/app/v1/id-55/5?a=1&b=2` (`Sort`: the unmatched query suffix is kept) and `/app/v1/id-55/5` (`Ignore`). In every case the normalized URI (state and server data key) is `/app/v1/id-55/5/ts-1615562841?a=1&b=2`.
+The encoded `/` stays inside the identifier, so `[^/]+` holds. In every case the normalized URI (state and server data key) is `/app/v1/id-55%2F5/ts-1615562841?a=1&b=2`.
 
 ### URI path query parameters
 
@@ -789,11 +791,11 @@ Before describing sources and targets (and filters), just to clarify that in som
 
 The **source** of information is classified after parsing the following possible expressions:
 
-- `{"source": "requestUri"}`: whole `url-decoded` and **normalized** request *URI* (path together with possible query parameters **sorted**). Not necessarily the same as the classification *URI* (which could ignore those query parameters, or even pass them by from *URI* with no order guaranteed) and in the same way, not necessarily the same as the original *URI* due to the same reason: query parameters order. Normalization makes the source more predictable, something useful to extract specific *URI* parts. For example, consider the *URI* `/composer?city=Bonn&author=Beethoven`, which normalized would turn into `/composer?author=Beethoven&city=Bonn` (because query parameters are sorted). Assuming that source format, you may use the regular expression `(/composer\?author=)([a-zA-Z]*)(&city=)([a-zA-Z]*)`, to extract the author name or city from that predictable normalized *URI* (second or fourth capture group) . This kind of transformation is very usual regardless if query parameters are processed or not.
+- `{"source": "requestUri"}`: whole request *URI* as received ([not decoded](#server-uri)) and **normalized** (path together with possible query parameters **sorted**). Not necessarily the same as the classification *URI* (which could ignore those query parameters, or even pass them by from *URI* with no order guaranteed) and in the same way, not necessarily the same as the original *URI* due to the same reason: query parameters order. Normalization makes the source more predictable, something useful to extract specific *URI* parts. For example, consider the *URI* `/composer?city=Bonn&author=Beethoven`, which normalized would turn into `/composer?author=Beethoven&city=Bonn` (because query parameters are sorted). Assuming that source format, you may use the regular expression `(/composer\?author=)([a-zA-Z]*)(&city=)([a-zA-Z]*)`, to extract the author name or city from that predictable normalized *URI* (second or fourth capture group) . This kind of transformation is very usual regardless if query parameters are processed or not.
 
-- `{"source": "requestUriPath"}`: `url-decoded` request *URI* path part.
+- `{"source": "requestUriPath"}`: request *URI* path part, as received ([not decoded](#server-uri)): use the `urlDecode` filter for a decoded value.
 
-- `{"source": "requestUriParam", "name": "<name>"}`: request URI specific parameter `<name>`.
+- `{"source": "requestUriParam", "name": "<name>"}`: request URI specific parameter `<name>`, decoded.
 
 - `{"source": "requestBody"}`: request body received. Should be interpreted depending on the request content type. In case of `json`, it will be the document from *root*. In case of `multipart` reception, a proprietary `json` structure is built to ease accessibility, for example:
 
@@ -1372,6 +1374,18 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   * a text request/response body: the `requestBodyText` / `responseBodyText` targets, rather than a hex body target fed by `textToHex`.
 
   It remains useful when exact bytes matter, e.g. building a raw message from text pieces for negative testing.
+
+- <a name="filter-urldecode"></a>`urlDecode`: percent-decodes **one** level of the value (as text): each `%XX` (two hex digits, either case) becomes its byte; a `%` not followed by two hex digits is kept, and so is `+` (a space only in form-encoded query values, which `requestUriParam` already gives decoded). It takes no arguments. A result which is not UTF-8 text or holds a NUL, and an object, array or null source, **fail the filter**. Two levels (a double encoding) are two filters. The server uri is [the received one](#server-uri), so this is how a value taken from the path is decoded:
+
+  ```json
+  {
+    "from": {"source": "requestUriPath"},
+    "filter": [{"op": "regexReplace", "rgx": ".*/baskets/([^/]+)", "fmt": "$1"}, {"op": "urlDecode"}],
+    "to": {"target": "responseBody", "path": "/basketId"}
+  }
+  ```
+
+  `/baskets/alice%3Bapples%3B42` gives `"alice;apples;42"` (without the filter, `"alice%3Bapples%3B42"`).
 
   Through the Diameter gateway, an alternative is to have `h2diagent` decode the AVP in readable form (`--decode-as <AVP>=<form>`, see its README): better for the structured values a suite reads often (a location, a time zone), so the transformation just reads a path. These filters fit a field read once, or hex which does not come through a gateway.
 
@@ -2085,11 +2099,11 @@ Both *method* and *uri* shall be provided together (if any of them is missing, a
 
 This operation is useful for testing post verification stages (validate content and/or document schema for an specific interface). Remember that you could start the *h2agent* providing a requests schema file to validate incoming receptions through traffic interface, but external validation allows to apply different schemas (although this need depends on the application that you are mocking), and also permits to match the requests content that the agent received.
 
-**Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it may be URL-encoded to avoid ambiguity with query parameters separators ('=', '&'). Use `./tools/url.sh` helper to encode:
+**Important note**: as this operation provides a list of query parameters, and one of these parameters is a *URI* itself (`requestUri`) it must be URL-encoded as any query value, to avoid ambiguity with query parameters separators ('=', '&') and with its own encoding (`%` is `%25`). Use `./tools/url.sh` helper (or `curl -G --data-urlencode`) to encode:
 
 `/admin/v2/server-data?requestMethod=GET&requestUri=/app/v1/foo/bar%3Fid%3D5%26name%3Dtest&eventNumber=3&eventPath=/requestBody`
 
-Once internally decoded, the request *URI* will be matched against the `uri` <u>normalized</u> as commented above, so encoding must be also done taking this normalization into account (query parameters order).
+Once internally decoded (one level, as any query value), the request *URI* is compared with the `uri` <u>normalized</u> as commented above: the [received one](#server-uri), with its query parameters sorted. For example, a request received as `DELETE /baskets/alice%3Bapples%3B42` is queried with `requestUri=/baskets/alice%253Bapples%253B42`.
 
 When provided *method* and *uri*, server data will be filtered with that key. If event number is provided too, the single event object, if exists, will be returned. Same for event path (if nothing found, empty document is returned but status code will be 200, not 204). When no query parameters are provided, the whole internal data organized by key (*method* + *uri*) together with their events arrays are returned.
 
@@ -2124,7 +2138,7 @@ The information collected for a server event item is:
 
 | Parameter | Meaning |
 |---|---|
-| `requestMethod` + `requestUri` (or `uriRegex`) | the event key, as in `server-data` / `server-data/sequence` (method mandatory, exactly one of `requestUri` or `uriRegex`) |
+| `requestMethod` + `requestUri` (or `uriRegex`) | the event key, as in `server-data` / `server-data/sequence` (method mandatory, exactly one of `requestUri` or `uriRegex`): the [received uri](#server-uri), URL-encoded once more as a query value (`curl -G --data-urlencode "requestUri=/baskets/alice%3Bapples%3B42"`); `uriRegex` is searched in the received uri too |
 | `state=<s>` | met when an event of the key reaches that state, or already had |
 | `statePrefix=<p>` | met when it reaches a state starting by `p`: `__core:failed:` (any failure), `__core:failed:update-2:` (any failure of the stage `update-2`) |
 | neither | met by the **next new** event of the key, whatever its state (stored ones are ignored) |
