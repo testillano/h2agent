@@ -67,8 +67,11 @@ void usage(int rc)
 
        << "Examples: " << '\n'
        << "   " << progname << " --regex \"https://(\\w+).(com|es)/(\\w+)/(\\w+)\" --test \"https://github.com/testillano/h2agent\" --fmt 'User: $3; Project: $4'" << '\n'
-       << "   " << progname << " --regex \"(a\\|b\\|)([0-9]{10})\" --test \"a|b|0123456789\" --fmt '$2'" << '\n'
+       << "   " << progname << " --regex \"(/foo/id-[0-9]+%7C)([0-9]{10})\" --test \"/foo/id-1%7C0123456789\" --fmt '$2'" << '\n'
        << "   " << progname << " --regex \"1|3|5|9\" --test 2" << '\n'
+
+       << "\nServer uris are matched as received (not decoded): test the path as it travels,\n"
+       << "e.g. '%7C' for an encoded '|', which needs no regex escaping.\n"
 
        << '\n';
 

@@ -1005,8 +1005,11 @@ Options:
 Examples:
    matching-helper --regex "https://(\w+).(com|es)/(\w+)/(\w+)" \
                    --test "https://github.com/testillano/h2agent" --fmt 'User: $3; Project: $4'
-   matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+   matching-helper --regex "(/foo/id-[0-9]+%7C)([0-9]{10})" --test "/foo/id-1%7C0123456789" --fmt '$2'
    matching-helper --regex "1|3|5|9" --test 2
+
+Server uris are matched as received (not decoded): test the path as it travels,
+e.g. '%7C' for an encoded '|', which needs no regex escaping.
 ```
 
 </details>
@@ -1014,10 +1017,10 @@ Examples:
 Execution example:
 
 ```bash
-$ build/Release/bin/matching-helper --regex "(a\|b\|)([0-9]{10})" --test "a|b|0123456789" --fmt '$2'
+$ build/Release/bin/matching-helper --regex "(/foo/id-[0-9]+%7C)([0-9]{10})" --test "/foo/id-1%7C0123456789" --fmt '$2'
 
-Regex: (a\|b\|)([0-9]{10})
-Test:  a|b|0123456789
+Regex: (/foo/id-[0-9]+%7C)([0-9]{10})
+Test:  /foo/id-1%7C0123456789
 Fmt:   $2
 
 Match result: true
@@ -1511,6 +1514,8 @@ Options:
   escaped character ('\|') is encoded, a metacharacter is not. Client
   provision uris are not touched. '%' turns '%3B' into '%253B' (the wire form
   of a double encoding). v1 rules are converted first; v2 ones are kept.
+  Give every character in one run ('%|'): a later '%' run would encode the
+  '%' written by an earlier one ('%7C' -> '%257C').
 
 -s|--scan <directory|file>
   Report v1 leftovers: '/admin/v1' references, json files holding v1 provisions

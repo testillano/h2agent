@@ -83,7 +83,9 @@ void usage(int rc) {
        << "  query part, '@{...}' and '#{...}' are kept; in a regular expression an\n"
        << "  escaped character ('\\|') is encoded, a metacharacter is not. Client\n"
        << "  provision uris are not touched. '%' turns '%3B' into '%253B' (the wire form\n"
-       << "  of a double encoding). v1 rules are converted first; v2 ones are kept.\n\n"
+       << "  of a double encoding). v1 rules are converted first; v2 ones are kept.\n"
+       << "  Give every character in one run ('%|'): a later '%' run would encode the\n"
+       << "  '%' written by an earlier one ('%7C' -> '%257C').\n\n"
 
        << "-s|--scan <directory|file>\n"
        << "  Report v1 leftovers: '/admin/v1' references, json files holding v1 provisions\n"

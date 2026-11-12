@@ -837,7 +837,8 @@ The breaking items are listed first (no aliases are kept for them); the details 
    states with `:` (`step:1` -> `step-1`).
 3. Server uris: check what the SUT sends (its logs, or the 5.4.0 `server-data` keys) and rewrite the provisions
    with `h2agent-migrate --in <f> --out <f> --encode-uri '<chars>'` (`'|'`: `|` and `\|` as `%7C`; `'%'`: `%3B`
-   as `%253B`). A decoded character allowed raw (`;`, `:`, `@`) for a path sent encoded cannot be found: it
+   as `%253B`; both in one run, `'%|'`: a later `'%'` run would turn the `%7C` of an earlier one into `%257C`).
+   The output is indented: lay it out again with your formatter if needed. A decoded character allowed raw (`;`, `:`, `@`) for a path sent encoded cannot be found: it
    shows as an unprovisioned `501`.
 4. Waits and `server-data` queries: the received uri, URL-encoded once more as a query value
    (`curl -G --data-urlencode "requestUri=/a%3Bb"` sends `%253B`).
