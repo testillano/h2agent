@@ -1925,7 +1925,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   | fails | the report reaches the target (a variable target is emptied and the report goes to `<varname>.fail`) | the **report** reaches the target, whatever it is (a variable holds the report itself: no `<varname>.fail` is created) |
   | ignored (`schemaId` with an unknown schema id) | the source passes unchanged | counts as valid: the filter fails |
 
-  So the report only arrives on failure, and it is the value itself. The `expectedBody` example above becomes:
+  So the report only arrives on failure, and it is the value itself. In every case the validated document is the source, and what reaches the target is the verdict (`"1"` or the report), never the document (except for an ignored `schemaId`). To keep the document too (e.g. the body which did not validate), read it with another rule; the event keeps it anyway. The `expectedBody` example above becomes:
 
   ```json
   {
