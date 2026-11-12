@@ -40,6 +40,7 @@ SOFTWARE.
 #include <ProvisionReferences.hpp>
 #include <TypeConverter.hpp>
 #include <Vault.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -87,7 +88,7 @@ bool lookupValue(const std::string &ref, const Vault *vault, nlohmann::json &val
 }
 
 std::string asText(const nlohmann::json &value) {
-    return value.is_string() ? value.get<std::string>() : value.dump();
+    return value.is_string() ? value.get<std::string>() : h2agent::model::dumpJson(value);
 }
 
 /** Converts a vault value as the cast filter does; false when not possible. */

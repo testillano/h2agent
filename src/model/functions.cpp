@@ -42,6 +42,7 @@ SOFTWARE.
 
 #include <ert/tracing/Logger.hpp>
 #include <ert/http2comm/URLFunctions.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -178,7 +179,7 @@ bool parseJsonContent(const std::string &content, nlohmann::json &jsonObject, bo
         jsonObject = nlohmann::json::parse(content);
         LOGDEBUG(
             std::string msg("Json body parsed: ");
-            msg += jsonObject.dump();
+            msg += h2agent::model::dumpJson(jsonObject);
             ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
         );
     }
@@ -280,8 +281,8 @@ bool fromHexString(const std::string &input, std::string &output) {
 
 bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expected, std::string &failReport) {
 
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Received object: %s", received.dump().c_str()), ERT_FILE_LOCATION));
-    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Expected object: %s", expected.dump().c_str()), ERT_FILE_LOCATION));
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Received object: %s", h2agent::model::dumpJson(received).c_str()), ERT_FILE_LOCATION));
+    LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Expected object: %s", h2agent::model::dumpJson(expected).c_str()), ERT_FILE_LOCATION));
 
     // Array mode: every element in expected must exist in received
     if (expected.is_array()) {
@@ -306,7 +307,7 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
                 }
             }
             if (!found) {
-                failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected element at index '%zu' not found in validated source array: %s", i, expected[i].dump().c_str());
+                failReport = ert::tracing::Logger::asString("JsonConstraint FAILED: expected element at index '%zu' not found in validated source array: %s", i, h2agent::model::dumpJson(expected[i]).c_str());
                 LOGINFORMATIONAL(ert::tracing::Logger::informational(failReport, ERT_FILE_LOCATION));
                 return false;
             }

@@ -38,6 +38,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <TypeConverter.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -141,7 +142,7 @@ const std::string &TypeConverter::getString(bool &success) {
     switch (native_type_) {
     case NativeType::Object:
     {
-        s_value_ = j_value_.dump();
+        s_value_ = h2agent::model::dumpJson(j_value_);
         break;
     }
     case NativeType::Integer:
@@ -416,7 +417,7 @@ const nlohmann::json &TypeConverter::getObject(bool &success) {
     LOGDEBUG(
         std::string msg;
     if (success) {
-    msg = ert::tracing::Logger::asString("Json object value: %s", j_value_.dump().c_str());
+    msg = ert::tracing::Logger::asString("Json object value: %s", h2agent::model::dumpJson(j_value_).c_str());
     }
     else {
         msg = ert::tracing::Logger::asString("Unable to get json object from source: %s", asString().c_str());
@@ -442,7 +443,7 @@ bool TypeConverter::setObject(const nlohmann::json &jsonSource, const std::strin
     clear();
 
     LOGDEBUG(
-        std::string msg = ert::tracing::Logger::asString("Json path: %s | Json object: %s", path.c_str(), jsonSource.dump().c_str());
+        std::string msg = ert::tracing::Logger::asString("Json path: %s | Json object: %s", path.c_str(), h2agent::model::dumpJson(jsonSource).c_str());
         ert::tracing::Logger::debug(msg, ERT_FILE_LOCATION);
     );
 
@@ -505,7 +506,7 @@ std::string TypeConverter::asString() {
        << " | " << ((getNativeType() == NativeType::Unsigned) ? "UNSIGNED":"Unsigned") << ": " << u_value_
        << " | " << ((getNativeType() == NativeType::Float) ? "FLOAT":"Float") << ": " << f_value_
        << " | " << ((getNativeType() == NativeType::Boolean) ? "BOOLEAN":"Boolean") << ": " << (b_value_ ? "true":"false")
-       << " | " << ((getNativeType() == NativeType::Object) ? "OBJECT":"Object") << ": " << j_value_.dump();
+       << " | " << ((getNativeType() == NativeType::Object) ? "OBJECT":"Object") << ": " << h2agent::model::dumpJson(j_value_);
 
     return (ss.str());
 }

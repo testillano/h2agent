@@ -39,6 +39,7 @@ SOFTWARE.
 
 #include <Map.hpp>
 #include <JsonSchema.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -56,7 +57,7 @@ class SseManager;
 inline std::string jsonToString(const nlohmann::json &j) {
     if (j.is_string()) return j.get<std::string>();
     if (j.is_null()) return "";
-    return j.dump();
+    return h2agent::model::dumpJson(j);
 }
 
 /**

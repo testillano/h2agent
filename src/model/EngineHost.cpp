@@ -50,6 +50,7 @@ SOFTWARE.
 #include <Vault.hpp>
 #include <functions.hpp>
 #include <keys.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent {
 namespace model {
@@ -262,7 +263,7 @@ std::optional<nlohmann::json> EngineEventSource::resolve(const std::string &doma
     if (!v) {
         ert::tracing::Logger::warning(ert::tracing::Logger::asString("Cannot extract path '%s' from %s for address '%s'",
                                       field(address, "eventPath").c_str(), domain.c_str(),
-                                      address.dump().c_str()),
+                                      h2agent::model::dumpJson(address).c_str()),
                                       ERT_FILE_LOCATION);
     }
     return v;
@@ -292,7 +293,7 @@ void EngineEventSource::purge(const std::string &domain, const nlohmann::json &a
         // non numeric sequence: nothing removed
     }
     LOGDEBUG(ert::tracing::Logger::debug(
-                 ert::tracing::Logger::asString("%s purge %s: %s", domain.c_str(), address.dump().c_str(),
+                 ert::tracing::Logger::asString("%s purge %s: %s", domain.c_str(), h2agent::model::dumpJson(address).c_str(),
                          deleted ? "SUCCESS" : "NOTHING REMOVED"),
                  ERT_FILE_LOCATION));
 }

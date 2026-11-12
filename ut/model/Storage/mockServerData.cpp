@@ -515,3 +515,34 @@ TEST_F(MockServerData_test, UriStartsWithEmptyPrefixMatchesMethod)
     auto ptr = data_.getEventByUriStartsWith("DELETE", "", "-1");
     ASSERT_NE(ptr, nullptr);
 }
+
+// A text which is not UTF-8 (body, header, uri) is dumped with U+FFFD in place of the
+// invalid bytes: no exception (it killed the process through the sequence) and the
+// other events stay readable (the whole dump came out empty).
+TEST_F(MockServerData_test, InvalidUtf8IsReplacedInDumps)
+{
+    const std::string replacement = "\xEF\xBF\xBD";  // U+FFFD in UTF-8
+    nghttp2::asio_http2::header_map headers;
+    headers.emplace("content-type", nghttp2::asio_http2::header_value{"text/plain"});
+    headers.emplace("x-bad", nghttp2::asio_http2::header_value{"a\xff" "b"});
+    h2agent::model::DataPart body;
+    body.assign("ab\xff" "cd");
+    data_.loadEvent(h2agent::model::DataKey("POST", "/bad\xff" "uri"), previous_state_, state_, reception_timestamp_us_, 200, headers, response_headers_, body, response_body_, 333 /* server sequence */, 0, true /* history */);
+
+    bool validQuery = false;
+    std::string all;
+    EXPECT_NO_THROW(all = data_.asJsonString(h2agent::model::EventLocationKey("", "", "", ""), validQuery));
+    EXPECT_TRUE(validQuery);
+    const nlohmann::json parsed = nlohmann::json::parse(all);
+    EXPECT_EQ(parsed.size(), 3u);  // the two fixture keys are still there
+    EXPECT_NE(all.find("ab" + replacement + "cd"), std::string::npos);
+    EXPECT_NE(all.find("a" + replacement + "b"), std::string::npos);
+
+    std::string sequence;
+    EXPECT_NO_THROW(sequence = data_.getSequence(0, 0, "", nullptr));
+    EXPECT_NE(sequence.find("/bad" + replacement + "uri"), std::string::npos);
+
+    std::string summary;
+    EXPECT_NO_THROW(summary = data_.summary());
+    EXPECT_NO_THROW(nlohmann::json::parse(summary));
+}

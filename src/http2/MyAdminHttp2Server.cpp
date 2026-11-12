@@ -72,6 +72,7 @@ SOFTWARE.
 #include <JsonSchema.hpp>
 #include <FailureStates.hpp>
 #include <MockClientEvent.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -107,7 +108,7 @@ bool validEventNumber(const std::string &eventNumber) {
 // Single addressed event as GET response (same shape as the eventNumber selection).
 void addressedEventResponse(const std::shared_ptr<h2agent::model::MockEvent> &event, const std::string &eventPath,
                             std::string &responseBody, unsigned int &statusCode) {
-    responseBody = event ? event->getJson(eventPath).dump() : "[]";
+    responseBody = event ? h2agent::model::dumpJson(event->getJson(eventPath)) : "[]";
     statusCode = ((responseBody == "[]") ? ert::http2comm::ResponseCode::NO_CONTENT : ert::http2comm::ResponseCode::OK);
 }
 
@@ -164,7 +165,7 @@ void dataWaitResponse(h2agent::model::WaitOutcome outcome, const std::optional<h
     else {
         result["key"] = requestedKey;
     }
-    responseBody = result.dump();
+    responseBody = h2agent::model::dumpJson(result);
 
     switch (outcome) {
     case h2agent::model::WaitOutcome::Met:
@@ -289,7 +290,7 @@ std::string MyAdminHttp2Server::capabilitiesAsJsonString() const
     result["apiVersion"] = getApiVersion();
     result["programVersion"] = program_version_.empty() ? "unknown" : program_version_;
     result["grammar"] = "v2";
-    return result.dump();
+    return h2agent::model::dumpJson(result);
 }
 
 std::string MyAdminHttp2Server::getPathSuffix(const std::string &uriPath) const
@@ -414,7 +415,7 @@ namespace {
 /** Hint appended to a rejected provision written in the retired transformation grammar v1. */
 std::string retiredGrammarHint(const nlohmann::json &provisions) {
     using Grammar = h2agent::migrate::GrammarMigrator::Grammar;
-    const auto grammar = h2agent::migrate::GrammarMigrator::detect(h2agent::migrate::Json::parse(provisions.dump()));
+    const auto grammar = h2agent::migrate::GrammarMigrator::detect(h2agent::migrate::Json::parse(h2agent::model::dumpJson(provisions)));
     if (grammar != Grammar::V1 && grammar != Grammar::Mixed) return "";
     return ": transformation grammar v1 ('source'/'target') is retired, migrate provisions with the h2agent-migrate tool (see docs/developers/GrammarV2.md)";
 }
@@ -638,7 +639,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
     if (pathSuffix == "api-schema") {
         nlohmann::json resources = nlohmann::json::array();
         for (const auto &r : apiSchemaResources()) resources.push_back(r);
-        responseBody = resources.dump();
+        responseBody = h2agent::model::dumpJson(resources);
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (std::regex_match(pathSuffix, matches, apiSchema)) { // api-schema/<resource>
@@ -647,7 +648,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             // Add the $id field dynamically (full URI including scheme/host)
             nlohmann::json jsonSchema = schema->getJson();
             jsonSchema["$id"] = uri;
-            responseBody = jsonSchema.dump();
+            responseBody = h2agent::model::dumpJson(jsonSchema);
             statusCode = ert::http2comm::ResponseCode::OK; // 200
         }
         else {
@@ -760,7 +761,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
             else {
                 nlohmann::json gvarValue;
                 bool exists = getVault()->tryGet(name, gvarValue);
-                if (exists) responseBody = gvarValue.dump();
+                if (exists) responseBody = h2agent::model::dumpJson(gvarValue);
                 statusCode = (exists ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
         }
@@ -812,7 +813,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         result["key"] = key;
         result["value"] = resultValue;
         result["previousValue"] = previousValue;
-        responseBody = result.dump();
+        responseBody = h2agent::model::dumpJson(result);
 
         if (!met && wait_manager_->isFull()) {
             statusCode = ert::http2comm::ResponseCode::TOO_MANY_REQUESTS; // 429
@@ -901,7 +902,7 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
         dataWaitResponse(outcome, match, requestedKey, clientDomain, statusCode, responseBody);
     }
     else if (pathSuffix == "server-matching") {
-        responseBody = getAdminData()->getServerMatchingData().getJson().dump();
+        responseBody = h2agent::model::dumpJson(getAdminData()->getServerMatchingData().getJson());
         statusCode = ert::http2comm::ResponseCode::OK; // 200
     }
     else if (pathSuffix == "server-provision") {
@@ -1478,30 +1479,41 @@ void MyAdminHttp2Server::receive(const std::uint64_t &receptionId,
     // Defaults
     responseBody.clear();
 
-    // No operation provided:
-    if (noPathSuffix) {
-        receiveNOOP(statusCode, headers, responseBody);
-        return;
-    }
+    // An exception never leaves the handler (it would reach the I/O thread and end the
+    // process): the operation answers 500 with its message.
+    try {
+        // No operation provided:
+        if (noPathSuffix) {
+            receiveNOOP(statusCode, headers, responseBody);
+            return;
+        }
 
-    // Methods supported:
-    if (method == "DELETE") {
-        receiveDELETE(pathSuffix, uriQuery, statusCode);
+        // Methods supported:
+        if (method == "DELETE") {
+            receiveDELETE(pathSuffix, uriQuery, statusCode);
+            headers.clear();
+            return;
+        }
+        else if (method == "GET") {
+            receiveGET(req.uri().scheme + std::string("://") + req.uri().host + uriPath /* schema $id */, pathSuffix, uriQuery, statusCode, headers, responseBody);
+            return;
+        }
+        else if (method == "POST") {
+            receivePOST(pathSuffix, uriQuery, requestBody, statusCode, headers, responseBody);
+            return;
+        }
+        else if (method == "PUT") {
+            receivePUT(pathSuffix, uriQuery, statusCode, headers, responseBody);
+            if (responseBody.empty()) headers.clear();
+            return;
+        }
+    }
+    catch (const std::exception &e) {
+        ert::tracing::Logger::error(ert::tracing::Logger::asString("Admin operation '%s %s' failed: %s", method.c_str(), uriPath.c_str(), e.what()), ERT_FILE_LOCATION);
+        statusCode = ert::http2comm::ResponseCode::INTERNAL_SERVER_ERROR; // 500
         headers.clear();
-        return;
-    }
-    else if (method == "GET") {
-        receiveGET(req.uri().scheme + std::string("://") + req.uri().host + uriPath /* schema $id */, pathSuffix, uriQuery, statusCode, headers, responseBody);
-        return;
-    }
-    else if (method == "POST") {
-        receivePOST(pathSuffix, uriQuery, requestBody, statusCode, headers, responseBody);
-        return;
-    }
-    else if (method == "PUT") {
-        receivePUT(pathSuffix, uriQuery, statusCode, headers, responseBody);
-        if (responseBody.empty()) headers.clear();
-        return;
+        headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+        responseBody = h2agent::model::dumpJson(nlohmann::json{{"result", "false"}, {"response", std::string("internal error: ") + e.what()}});
     }
 }
 
@@ -1835,7 +1847,7 @@ std::string MyAdminHttp2Server::clientDataConfigurationAsJsonString() const {
     result["executionTrace"] = client_execution_trace_.load();
     result["needsStorage"] = admin_data_->getClientProvisionData().needsStorage();
 
-    return result.dump();
+    return h2agent::model::dumpJson(result);
 }
 
 void MyAdminHttp2Server::registerHandlers() {

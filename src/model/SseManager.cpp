@@ -36,6 +36,7 @@ SOFTWARE.
 #include <SseManager.hpp>
 
 #include <ert/tracing/Logger.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -66,7 +67,7 @@ void SseManager::notify(const std::string &key, const nlohmann::json &value) {
     nlohmann::json data;
     data["key"] = key;
     data["value"] = value;
-    std::string event = "event: vault-set\ndata: " + data.dump() + "\n\n";
+    std::string event = "event: vault-set\ndata: " + h2agent::model::dumpJson(data) + "\n\n";
 
     std::lock_guard<std::mutex> lock(mutex_);
     for (auto &[id, conn] : connections_) {

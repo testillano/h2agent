@@ -38,6 +38,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <SocketManager.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -110,7 +111,7 @@ nlohmann::json SocketManager::getJson() const {
 
 std::string SocketManager::asJsonString() const {
 
-    return ((size() != 0) ? getJson().dump() : "[]");
+    return ((size() != 0) ? h2agent::model::dumpJson(getJson()) : "[]");
 }
 
 

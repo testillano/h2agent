@@ -38,6 +38,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <FileManager.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -162,7 +163,7 @@ nlohmann::json FileManager::getConfigurationJson() const {
 
 std::string FileManager::configurationAsJsonString() const {
 
-    return (getConfigurationJson().dump());
+    return (h2agent::model::dumpJson(getConfigurationJson()));
 }
 
 nlohmann::json FileManager::getJson() const {
@@ -178,7 +179,7 @@ nlohmann::json FileManager::getJson() const {
 
 std::string FileManager::asJsonString() const {
 
-    return ((size() != 0) ? getJson().dump() : "[]");
+    return ((size() != 0) ? h2agent::model::dumpJson(getJson()) : "[]");
 }
 
 

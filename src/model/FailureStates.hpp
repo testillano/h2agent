@@ -41,6 +41,7 @@ SOFTWARE.
 #include <vector>
 
 #include <nlohmann/json.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -170,18 +171,18 @@ inline std::string metricReason(const nlohmann::json &failures, const std::optio
 /** Human readable detail of a 'failures' entry (log) */
 inline std::string failureDetail(const nlohmann::json &failure) {
     if (failure.contains("expected") && failure.contains("got")) {
-        return "expected " + failure["expected"].dump() + ", got " + failure["got"].dump();
+        return "expected " + h2agent::model::dumpJson(failure["expected"]) + ", got " + h2agent::model::dumpJson(failure["got"]);
     }
     if (failure.contains("id")) {
         const nlohmann::json error = failure.value("error", nlohmann::json(""));
-        return "schema '" + failure.value("id", std::string("")) + "': " + (error.is_string() ? error.get<std::string>() : error.dump());
+        return "schema '" + failure.value("id", std::string("")) + "': " + (error.is_string() ? error.get<std::string>() : h2agent::model::dumpJson(error));
     }
     if (failure.contains("statusCode")) {
-        return "statusCode " + failure["statusCode"].dump();
+        return "statusCode " + h2agent::model::dumpJson(failure["statusCode"]);
     }
     if (failure.contains("detail")) {
         const nlohmann::json &detail = failure["detail"];
-        return detail.is_string() ? detail.get<std::string>() : detail.dump();
+        return detail.is_string() ? detail.get<std::string>() : h2agent::model::dumpJson(detail);
     }
     return "";
 }

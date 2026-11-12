@@ -61,6 +61,7 @@ SOFTWARE.
 
 #include <functions.hpp>
 #include <FailureStates.hpp>
+#include <JsonDump.hpp>
 
 
 
@@ -335,7 +336,7 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
     if (it != j.end()) {
         if (it->is_object() || it->is_array()) {
             response_body_ = *it;
-            response_body_string_ = response_body_.dump(); // valid as cache for static responses (not updated with transformations)
+            response_body_string_ = h2agent::model::dumpJson(response_body_); // valid as cache for static responses (not updated with transformations)
         }
         else if (it->is_string()) {
             response_body_string_ = *it;

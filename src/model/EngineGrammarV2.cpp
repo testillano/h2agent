@@ -36,6 +36,7 @@ SOFTWARE.
 #include <EngineGrammarV2.hpp>
 
 #include <vector>
+#include <JsonDump.hpp>
 
 namespace h2agent {
 namespace model {
@@ -59,7 +60,7 @@ std::string number(const nlohmann::json &v) {
     if (v.is_number_unsigned()) return std::to_string(v.get<unsigned long long>());
     if (v.is_number_integer()) return std::to_string(v.get<long long>());
     if (v.is_string()) return v.get<std::string>();
-    return v.dump();
+    return h2agent::model::dumpJson(v);
 }
 
 /** "<base>" or "<base>.<path>" (path is a json pointer, absent means the whole document). */

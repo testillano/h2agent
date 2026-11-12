@@ -42,6 +42,7 @@ SOFTWARE.
 
 #include <AdminClientProvisionData.hpp>
 #include <functions.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -64,7 +65,7 @@ std::string AdminClientProvisionData::asJsonString(bool getUnused) const {
     });
 
     // Provision is shown as an array regardless if there is 1 item, N items or none ([]):
-    return (result.dump());
+    return (h2agent::model::dumpJson(result));
 }
 
 AdminClientProvisionData::LoadResult AdminClientProvisionData::loadSingle(const nlohmann::json &j, const common_resources_t &cr) {

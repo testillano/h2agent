@@ -39,6 +39,7 @@ SOFTWARE.
 #include <WaitManager.hpp>
 #include <Vault.hpp>
 #include <MockEvent.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -51,7 +52,7 @@ namespace {
 // not depend on how the value was stored ('?value=60' matches 60, "60" and 60.0
 // written as text "60"); objects/arrays are compared as JSON.
 std::string scalarText(const nlohmann::json &v) {
-    return v.is_string() ? v.get<std::string>() : v.dump();
+    return v.is_string() ? v.get<std::string>() : h2agent::model::dumpJson(v);
 }
 
 bool matchesTarget(const nlohmann::json &value, const nlohmann::json &target) {

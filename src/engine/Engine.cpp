@@ -143,7 +143,7 @@ std::string substituteVariables(const std::string &in, const Ports &ports) {
 std::string asString(const nlohmann::json &v) {
     if (v.is_string()) return v.get<std::string>();
     if (v.is_null()) return "";
-    return v.dump();
+    return v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);  // non UTF-8 text: U+FFFD, no throw
 }
 
 // Validate that `received` contains the `expected` subset (parity with
@@ -174,7 +174,7 @@ bool jsonConstraint(const nlohmann::json &received, const nlohmann::json &expect
             }
             if (!found) {
                 failReport = "JsonConstraint FAILED: expected element at index '" + std::to_string(i) +
-                             "' not found in validated source array: " + expected[i].dump();
+                             "' not found in validated source array: " + expected[i].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
                 return false;
             }
         }

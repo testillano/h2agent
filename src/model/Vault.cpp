@@ -41,6 +41,7 @@ SOFTWARE.
 #include <AdminSchemas.hpp>
 #include <WaitManager.hpp>
 #include <SseManager.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -109,7 +110,7 @@ bool Vault::loadJson(const nlohmann::json &j) {
 
 std::string Vault::asJsonString() const {
 
-    return ((size() != 0) ? getJson().dump() : "{}"); // server data is shown as an object
+    return ((size() != 0) ? h2agent::model::dumpJson(getJson()) : "{}"); // server data is shown as an object
 }
 
 nlohmann::json Vault::getJson() const {

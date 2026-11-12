@@ -62,6 +62,7 @@ SOFTWARE.
 
 #include <functions.hpp>
 #include <FailureStates.hpp>
+#include <JsonDump.hpp>
 
 
 
@@ -567,7 +568,7 @@ bool AdminClientProvision::load(const nlohmann::json &j) {
     if (it != j.end()) {
         if (it->is_object() || it->is_array()) {
             request_body_ = *it;
-            request_body_string_ = request_body_.dump(); // valid as cache for static requests (not updated with transformations)
+            request_body_string_ = h2agent::model::dumpJson(request_body_); // valid as cache for static requests (not updated with transformations)
         }
         else if (it->is_string()) {
             request_body_string_ = *it;

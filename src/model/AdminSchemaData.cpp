@@ -40,6 +40,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <AdminSchemaData.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -60,7 +61,7 @@ std::string AdminSchemaData::asJsonString() const {
     });
 
     // Schema configuration is shown as an array regardless if there is 1 item, N items or none ([]):
-    return (result.dump());
+    return (h2agent::model::dumpJson(result));
 }
 
 AdminSchemaData::LoadResult AdminSchemaData::loadSingle(const nlohmann::json &j) {

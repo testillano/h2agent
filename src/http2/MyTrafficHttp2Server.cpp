@@ -55,6 +55,7 @@ SOFTWARE.
 #include <SocketManager.hpp>
 #include <functions.hpp>
 #include <FailureStates.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -138,7 +139,7 @@ std::string MyTrafficHttp2Server::dataConfigurationAsJsonString() const {
     result["executionTrace"] = execution_trace_.load();
     result["needsStorage"] = admin_data_->getServerProvisionData().needsStorage();
 
-    return result.dump();
+    return h2agent::model::dumpJson(result);
 }
 
 std::string MyTrafficHttp2Server::configurationAsJsonString() const {
@@ -147,7 +148,7 @@ std::string MyTrafficHttp2Server::configurationAsJsonString() const {
     result["receiveRequestBody"] = receive_request_body_.load();
     result["preReserveRequestBody"] = pre_reserve_request_body_.load();
 
-    return result.dump();
+    return h2agent::model::dumpJson(result);
 }
 
 bool MyTrafficHttp2Server::receiveDataLen(const nghttp2::asio_http2::server::request& req) {

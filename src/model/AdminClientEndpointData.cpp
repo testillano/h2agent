@@ -42,6 +42,7 @@ SOFTWARE.
 
 #include <AdminClientEndpointData.hpp>
 #include <Configuration.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -62,7 +63,7 @@ std::string AdminClientEndpointData::asJsonString() const {
     });
 
     // Client endpoint configuration is shown as an array regardless if there is 1 item, N items or none ([]):
-    return (result.dump());
+    return (h2agent::model::dumpJson(result));
 }
 
 AdminClientEndpointData::LoadResult AdminClientEndpointData::loadSingle(const nlohmann::json &j, const common_resources_t &cr) {

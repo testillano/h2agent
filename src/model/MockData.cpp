@@ -38,6 +38,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <MockData.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -111,7 +112,7 @@ std::string MockData::asJsonString(const EventLocationKey &elkey, bool &validQue
 
     if (elkey.empty()) {
         validQuery = true;
-        return ((size() != 0) ? getJson().dump() : "[]"); // server data is shown as an array
+        return ((size() != 0) ? h2agent::model::dumpJson(getJson()) : "[]"); // server data is shown as an array
     }
 
     if (!elkey.checkSelection()) {
@@ -135,12 +136,12 @@ std::string MockData::asJsonString(const EventLocationKey &elkey, bool &validQue
 
         auto ptr = result->getEvent(elkey.getUNumber(), elkey.reverse());
         if (ptr) {
-            return ptr->getJson(elkey.getPath()).dump();
+            return h2agent::model::dumpJson(ptr->getJson(elkey.getPath()));
         }
         else return "[]";
     }
     else {
-        return result->getJson().dump();
+        return h2agent::model::dumpJson(result->getJson());
     }
 
     return "[]";
@@ -176,7 +177,7 @@ std::string MockData::summary(const std::string &maxKeys) const {
     if (displayedKeys > 0) result["displayedKeys"]["amount"] = (std::uint64_t)displayedKeys;
     result["totalEvents"] = (std::uint64_t)totalEvents;
 
-    return result.dump();
+    return h2agent::model::dumpJson(result);
 }
 
 std::shared_ptr<MockEvent> MockData::getEvent(const EventKey &ekey) const {

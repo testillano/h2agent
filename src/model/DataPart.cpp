@@ -39,6 +39,7 @@ SOFTWARE.
 #include <functions.hpp>
 
 #include <DataPart.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -166,7 +167,7 @@ void DataPart::decode(const nghttp2::asio_http2::header_map &headers) {
     LOGDEBUG(
         std::string msg;
     try {
-        msg = json_.dump();
+        msg = h2agent::model::dumpJson(json_);
     }
     catch (const std::exception& e)
     {

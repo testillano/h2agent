@@ -39,6 +39,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <MockServerData.hpp>
+#include <JsonDump.hpp>
 
 
 namespace h2agent
@@ -191,7 +192,7 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
         result.push_back(std::move(obj));
     }
 
-    return result.dump();
+    return h2agent::model::dumpJson(result);
 }
 
 }

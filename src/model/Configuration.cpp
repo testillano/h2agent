@@ -36,6 +36,7 @@ SOFTWARE.
 #include <ert/tracing/Logger.hpp>
 
 #include <Configuration.hpp>
+#include <JsonDump.hpp>
 
 namespace h2agent
 {
@@ -44,7 +45,7 @@ namespace model
 
 std::string Configuration::asJsonString() const {
 
-    return getJson().dump(); // server data is shown as an object
+    return h2agent::model::dumpJson(getJson()); // server data is shown as an object
 }
 
 nlohmann::json Configuration::getJson() const {
