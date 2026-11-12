@@ -531,6 +531,8 @@ We could optionally validate requests against a `json` schema. Schemas are ident
 
 An invalid request is answered with `400`, the transformations do not run, and the event state is `__core:failed:<inState>:requestSchemaId` instead of the provision `outState` (see [reserved states and failures](#reserved-states-and-failures)).
 
+The schema validates the **body** only. A headers counterpart (`requestHeadersSchemaId`, with the same `400` and failure semantics, over the headers as an object) is not implemented, although it could make sense for a headers contract shared by many provisions. Meanwhile, headers are validated in the transformations, with the `requestHeaders` source and a [`jsonConstraint` or `schemaId` filter](#header-validation) (one rule with `"not": true` and a `fail` target).
+
 #### responseHeaders
 
 Header fields for the response. For example:
@@ -1832,7 +1834,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   | `{"tags":["a","b","c"]}` | `{"tags":["a","b"]}` | SUCCEED (extras allowed) |
   | `{"tags":["a"]}` | `{"tags":["a","b"]}` | FAIL ("b" missing) |
 
-  For **arrays**, every element in the filter array must exist somewhere in the source array. When elements are objects, partial matching is used (same recursive constraint logic), so you only need to specify the fields you care about. This is especially useful with `request.headers` source to validate mandatory headers:
+  <a name="header-validation"></a>For **arrays**, every element in the filter array must exist somewhere in the source array. When elements are objects, partial matching is used (same recursive constraint logic), so you only need to specify the fields you care about. This is especially useful with the `requestHeaders` source (or `responseHeaders` in client response transformations) to validate mandatory headers:
 
   ```json
   {
@@ -1847,7 +1849,17 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   }
   ```
 
-  In this example, the request must contain a header `x-mandatory` with value `required-value` and a header `content-type` (any value). If validation fails, the report indicates which expected element index was not found.
+  In this example, the request must contain a header `x-mandatory` with value `required-value` and a header `content-type` (any value). If validation fails, the report indicates which expected element index was not found. A missing header and a different value both fail, so a headers check is one rule with [`not`](#validation-with-not) and a `fail` target (the report is the failure `detail`):
+
+  ```json
+  {
+    "from": {"source": "requestHeaders"},
+    "filter": [{"op": "jsonConstraint", "value": [{"name": "x-tenant", "value": "acme"}], "not": true}],
+    "to": {"target": "fail", "reason": "x-tenant"}
+  }
+  ```
+
+  In a server provision, place a rule with the same filter writing `responseStatusCode` (e.g. `400`) before it when the peer must see the error. A `schemaId` filter over the same source validates the headers against a registered schema instead (patterns, enumerations, absence).
 
   To understand better, imagine the source as the 'received' body, and the json constraint filter object as the 'expected' one, so the restriction is ruled by 'expected' acting as a subset which could miss/ignore nodes actually received without problem (less restrictive), but those ones specified there, must exist and be equal to the ones received.
 
@@ -2346,6 +2358,8 @@ Optional timeout for response in milliseconds. Defaults to 1000 ms (1 second) wh
 #### responseSchemaId
 
 We could optionally validate received responses against a `json` schema. When a referenced schema identifier is not yet registered, the provision processing will ignore it with a warning. This allows to enable schemas validation on the fly after traffic flow initiation, or disable them before termination.
+
+The schema validates the **body** only. A headers counterpart (`responseHeadersSchemaId`, failing as `responseSchemaId` does) is not implemented, although it could make sense; meanwhile, headers are validated in `onResponseTransform`, with the `responseHeaders` source and a [`jsonConstraint` or `schemaId` filter](#header-validation) (one rule with `"not": true` and a `fail` target).
 
 #### expectedResponseStatusCode
 
