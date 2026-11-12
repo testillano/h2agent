@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y \
     make cmake g++ \
     libtool pkg-config autoconf automake \
     libssl-dev zlib1g-dev libcurl4-openssl-dev \
+    libev-dev libc-ares-dev \
     doxygen graphviz \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -91,14 +92,24 @@ RUN set -x && \
     set +x
 
 # ===========================================================================
-# NGHTTP2 (tatsuhiro library)
+# NGHTTP2 (tatsuhiro library and its nghttpx proxy: same version, same patches)
 # ===========================================================================
+# --enable-app builds nghttpx (the HTTP/1 access of h2agent, launched by
+# starter.sh), so the proxy is pinned by nghttp2_ver as the library is, instead
+# of being the distribution package. libnghttp2 is linked statically
+# (--disable-shared); libev, c-ares and OpenSSL are shared (runtime packages).
+# The optional dependencies are disabled explicitly, so the binary does not
+# depend on what happens to be installed here. h2load/nghttp/nghttpd are also
+# built (deps image only: the runtime copies nghttpx).
 RUN set -x && \
     wget https://github.com/nghttp2/nghttp2/releases/download/v${nghttp2_ver}/nghttp2-${nghttp2_ver}.tar.bz2 && \
     tar xf nghttp2-${nghttp2_ver}.tar.bz2 && cd nghttp2-${nghttp2_ver}/ && \
     for patch in $(ls /patches/nghttp2/${nghttp2_ver}/*.patch 2>/dev/null); do patch -p1 < ${patch}; done && \
     CFLAGS="${OPT_CFLAGS}" CXXFLAGS="${OPT_CXXFLAGS}" LDFLAGS="${OPT_LDFLAGS}" \
-    ./configure --disable-shared --enable-python-bindings=no && make -j${make_procs} install && \
+    ./configure --disable-shared --enable-python-bindings=no --enable-app \
+      --without-jemalloc --without-systemd --without-libxml2 --without-mruby --without-neverbleed \
+      --without-libbpf --without-libbrotlienc --without-libbrotlidec && \
+    make -j${make_procs} install && \
     cd .. && rm -rf * && \
     set +x
 
@@ -256,6 +267,10 @@ RUN cmake -DCMAKE_BUILD_TYPE=${build_type} -DSTATIC_LINKING=${STATIC_LINKING} \
     ${sanitizer_link:+-DCMAKE_EXE_LINKER_FLAGS="${sanitizer_link}"} \
     . && make -j${make_procs}
 
+# The nghttpx proxy (built in deps from the pinned nghttp2) joins the project
+# binaries: stripped and with its debug info apart as every other one.
+RUN cp /usr/local/bin/nghttpx /code/build/${build_type}/bin/
+
 # Release: strip the binaries and keep their debug info apart, under
 # /code/debug/.build-id/<xx>/<rest>.debug, for the runtime-debug image (a core
 # of the stripped runtime is symbolized by the files of the SAME build: gdb
@@ -297,15 +312,15 @@ ARG build_type=Release
 ARG sanitizer=""
 
 # Runtime dependencies
-# nghttp2-proxy:  nghttpx reverse proxy (HTTP/1.x access, activated by starter.sh
-#                 when H2AGENT_*_PROXY_PORT is set). Was provided by the "nghttp2"
-#                 all-in-one package before the multi-stage refactor.
+# libev4t64, libc-ares2: shared libraries of nghttpx, the HTTP/1.x access proxy
+#   (activated by starter.sh when H2AGENT_*_PROXY_PORT is set). nghttpx itself is
+#   built from the pinned nghttp2 (deps stage) and copied below: the distribution
+#   package (nghttp2-proxy, another nghttp2 version) is not used.
 # curl: probes (HTTP/2 prior knowledge) and helpers; jq: helpers.
-# No editor nor h2load/nghttp (nghttp2-client pulls libxml2 and libicu, ~39 MB;
-# vim and its runtime ~42 MB). python3 (~22 MB) stays: nghttp2-proxy depends on
-# it.
+# No editor nor h2load/nghttp (vim and its runtime ~42 MB), nor python3 (no
+# helper uses it).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl jq nghttp2-proxy netcat-openbsd socat libjemalloc2 \
+    curl jq netcat-openbsd socat libjemalloc2 libev4t64 libc-ares2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Sanitizer runtime libraries (only when needed)
@@ -321,6 +336,7 @@ COPY --from=build /code/build/${build_type}/bin/udp-server /bin/
 COPY --from=build /code/build/${build_type}/bin/udp-server-h2client /bin/
 COPY --from=build /code/build/${build_type}/bin/udp-client /bin/
 COPY --from=build /code/build/${build_type}/bin/h2agent-migrate /bin/
+COPY --from=build /code/build/${build_type}/bin/nghttpx /bin/
 
 # Compatibility: binaries were under /opt up to 5.0.x
 RUN for b in h2agent h2client matching-helper arashpartow-helper udp-server udp-server-h2client udp-client h2agent-migrate; do ln -s /bin/${b} /opt/${b}; done

@@ -143,6 +143,7 @@ install_system_packages() {
     make cmake g++ \
     libtool pkg-config autoconf automake \
     libssl-dev zlib1g-dev libcurl4-openssl-dev \
+    libev-dev libc-ares-dev \
     doxygen graphviz
 }
 
@@ -175,7 +176,9 @@ install_nghttp2() {
     patch -p1 < ${patch}
   done
   CFLAGS="${OPT_CFLAGS}" CXXFLAGS="${OPT_CXXFLAGS}" LDFLAGS="${OPT_LDFLAGS}" \
-    ./configure --disable-shared --enable-python-bindings=no --prefix=${PREFIX}
+    ./configure --disable-shared --enable-python-bindings=no --enable-app \
+      --without-jemalloc --without-systemd --without-libxml2 --without-mruby --without-neverbleed \
+      --without-libbpf --without-libbrotlienc --without-libbrotlidec --prefix=${PREFIX}
   make -j${MAKE_PROCS} && sudo make install
   clean_tmp
 }

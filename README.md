@@ -256,6 +256,8 @@ This builds the <u>runtime image</u> and the <u>component test image</u>. Then y
 
   The proxy feature complements `nghttp2 tatsuhiro library` which only provides HTTP/2 protocol without upgrade support from HTTP/1).
 
+  The proxy is `nghttpx` built from the same pinned nghttp2 as the library (`nghttp2_ver` in the `Dockerfile`, with the same patches), not a distribution package: its HTTP/1 behaviour only changes with that version. It accepts HTTP/1.1 with `Content-Length`, chunked and `Expect: 100-continue` bodies, and the `Upgrade: h2c` requests (with or without a body, as libcurl sends them when asked for HTTP/2 on `http`); the component test `ct/src/http1_proxy` checks it.
+
   Note that:
   `H2AGENT_TRAFFIC_SERVER_PORT` **must be aligned with `--traffic-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
   `H2AGENT_ADMIN_SERVER_PORT` **must be aligned with `--admin-server-port` h2agent parameter**, or `502 Bad Gateway` error will be obtained.
