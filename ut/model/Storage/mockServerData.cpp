@@ -544,5 +544,5 @@ TEST_F(MockServerData_test, InvalidUtf8IsReplacedInDumps)
 
     std::string summary;
     EXPECT_NO_THROW(summary = data_.summary());
-    EXPECT_NO_THROW(nlohmann::json::parse(summary));
+    EXPECT_TRUE(nlohmann::json::accept(summary));
 }
