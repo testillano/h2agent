@@ -171,6 +171,9 @@ enum class FilterType {
     EqualTo,       // EqualTo: {"EqualTo":"<val>"} (admits @{var}). Transfer only if
     // source string == val, else skip the rule.
     DifferentFrom,  // DifferentFrom: inverse of EqualTo (transfer if source != val).
+    Select,          // Select: {"Select":<subset>[,"All":true]} (v2 only). Over an array, the
+    // first element (All: the array of every element) matching the subset with the
+    // JsonConstraint logic. No match, or a non array input, fails the filter.
     JsonConstraint,  // JsonConstraint: {"JsonConstraint":<obj|array>[,"Not":true]}. Validate
     // that the (json) source contains the given subset; on success the
     // value becomes "1", otherwise it becomes a fail-report string
@@ -304,7 +307,7 @@ struct Filter {
     bool flag{false};          // Split numeric / BaseConvert capital
     std::string filler{};      // Split filler
     int unit{0};               // Strptime/Strftime unit (0:s, 1:ms, 2:us, 3:ns)
-    nlohmann::json object{};   // JsonConstraint expected subset
+    nlohmann::json object{};   // JsonConstraint expected subset / Select predicate
     bool negated{false};       // JsonConstraint/SchemaId "Not": only an invalid document passes
 
     // Precompiled filter regex (RegexReplace/RegexCapture/RegexKey). Compiled

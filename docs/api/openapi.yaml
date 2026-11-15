@@ -1680,6 +1680,19 @@ components:
         type: object
       - additionalProperties: false
         properties:
+          all:
+            type: boolean
+          op:
+            enum:
+            - select
+            type: string
+          where: {}
+        required:
+        - op
+        - where
+        type: object
+      - additionalProperties: false
+        properties:
           not:
             type: boolean
           op:

@@ -3485,3 +3485,48 @@ TEST(Engine_test, IncrementNeedsAWholeGlobalSource) {
         EXPECT_NE(err.find("increment"), std::string::npos);
     }
 }
+
+// Select: the first array element (or every one, with All) matching the predicate
+// with the JsonConstraint subset logic; no match / non array input fail.
+namespace {
+nlohmann::json runSelect(const nlohmann::json &source, const nlohmann::json &filter) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "global.doc"}, {"target", "local.out"}, {"filter", filter},
+            {"onFilterFail", nlohmann::json::array({{{"source", "value.FAILED"}, {"target", "local.out"}}})}
+        }}), err);
+    EXPECT_NE(pipeline, nullptr) << err;
+    if (!pipeline) return "<parse error>";
+    MemStore store;
+    store.set(Store::Scope::Global, "doc", source);
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    return store.get(Store::Scope::Local, "out").value_or(nlohmann::json());
+}
+}  // namespace
+
+TEST(Engine_test, SelectArrayElements) {
+    const nlohmann::json crew = R"([
+      {"name": "Leia", "role": "pilot"},
+      {"name": "Han", "role": "captain"},
+      {"name": "Chewie", "role": "pilot"}
+    ])"_json;
+    EXPECT_EQ(runSelect(crew, {{"Select", {{"role", "captain"}}}}), crew[1]);
+    EXPECT_EQ(runSelect(crew, {{"Select", {{"role", "pilot"}}}}), crew[0]);  // the first one
+    EXPECT_EQ(runSelect(crew, {{"Select", {{"role", "pilot"}}}, {"All", true}}), nlohmann::json::array({crew[0], crew[2]}));
+    EXPECT_EQ(runSelect(crew, {{"Select", {{"role", "droid"}}}}), "FAILED");  // no match
+    EXPECT_EQ(runSelect(crew, {{"Select", {{"role", "droid"}}}, {"All", true}}), "FAILED");
+
+    // nested subset, scalars, empty array, non array input
+    const nlohmann::json cargo = R"([
+      {"item": "spice", "crate": {"size": "L", "seal": {"fragile": false}}},
+      {"item": "crystals", "crate": {"size": "M", "seal": {"fragile": true}}}
+    ])"_json;
+    EXPECT_EQ(runSelect(cargo, {{"Select", {{"crate", {{"seal", {{"fragile", true}}}}}}}}), cargo[1]);
+    EXPECT_EQ(runSelect(nlohmann::json::array({"rock", 2, "paper"}), {{"Select", 2}}), 2);
+    EXPECT_EQ(runSelect(nlohmann::json::array({1, {{"a", 1}}}), {{"Select", {{"a", 1}}}}), nlohmann::json({{"a", 1}}));  // scalars skipped
+    EXPECT_EQ(runSelect(nlohmann::json::array(), {{"Select", {{"a", 1}}}}), "FAILED");
+    EXPECT_EQ(runSelect(crew[0], {{"Select", {{"name", "Leia"}}}}), "FAILED");  // an object, not an array
+}

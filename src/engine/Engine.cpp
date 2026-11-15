@@ -1072,6 +1072,12 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     // JsonConstraint: {"JsonConstraint":<obj|array>[,"Not":true]}. Keep the expected subset.
     // Validation filters accept a sibling "Not" (grammar v2 'not', no v1 counterpart).
     const bool negated = filterNode.is_object() && filterNode.value("Not", false);
+    if (filterNode.contains("Select")) {
+        filter.raw = filterNode.value("All", false) ? "Select(all)" : "Select";
+        filter.object = filterNode["Select"];
+        filter.flag = filterNode.value("All", false);
+        return FilterType::Select;
+    }
     if (filterNode.contains("JsonConstraint") &&
             (filterNode["JsonConstraint"].is_object() || filterNode["JsonConstraint"].is_array())) {
         filter.raw = negated ? "JsonConstraint(not)" : "JsonConstraint";
@@ -1330,6 +1336,31 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
             return false;
         }
         // Pass: value stays as the resolved source string (h2agent parity).
+    } else if (f.type == FilterType::Select) {
+        // The array element(s) matching the predicate (jsonConstraint subset logic,
+        // so objects match partially and a scalar predicate matches equal scalars).
+        if (!value.is_array()) {
+            note = "Select filter requires an array source; rule skipped";
+            return false;
+        }
+        nlohmann::json all = nlohmann::json::array();
+        for (const auto &element : value) {
+            std::string dummy;
+            const bool match = (f.object.is_object() || f.object.is_array()) ? (element.is_object() || element.is_array()) && jsonConstraint(element, f.object, dummy)
+                               : element == f.object;
+            if (!match) continue;
+            if (!f.flag) {
+                nlohmann::json first = element;  // copy: element lives inside value
+                value = std::move(first);
+                return true;
+            }
+            all.push_back(element);
+        }
+        if (all.empty()) {
+            note = "Select filter: no array element matches; rule skipped";
+            return false;
+        }
+        value = std::move(all);
     } else if (f.type == FilterType::JsonConstraint) {
         // Validate the json source contains the expected subset. On success
         // value becomes "1"; otherwise it becomes the fail-report string

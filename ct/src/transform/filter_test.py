@@ -386,3 +386,27 @@ def test_028_encodingFilters(admin_server_provision, h2ac_traffic):
   responseBodyRef = {"foo": "bar-1", "uriPart": "host.realm%3B1%3B2", "context": {"site": 2}, "bad": "not base64 text"}
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
   assert response["headers"]["x-session-b64"] == [b"aG9zdC5yZWFsbTsxOzI="]
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_029_select(admin_server_provision, h2ac_traffic):
+
+  # Provision: array elements by content, whatever their order
+  admin_server_provision("filter_test.Select.provision.json")
+
+  # Traffic: the captain is not the first of the crew; two fragile crates out of three; no droid
+  requestBody = {
+    "crew": [
+      {"name": "Leia", "role": "pilot"},
+      {"name": "Han", "role": "captain", "ship": {"name": "Millennium Falcon"}}
+    ],
+    "cargo": [
+      {"item": "spice", "crate": {"size": "L", "fragile": True}},
+      {"item": "rations", "crate": {"size": "S", "fragile": False}},
+      {"item": "crystals", "crate": {"size": "M", "fragile": True}}
+    ]
+  }
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
+  responseBodyRef = {"foo": "bar-1", "captain": "Han", "fragileCrates": "2", "droid": "absent"}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

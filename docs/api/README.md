@@ -1609,6 +1609,67 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   ]
   ```
 
+
+- <a name="filter-select"></a>`select`: picks array elements **by their content**, whatever their position. `{"op": "select", "where": <predicate>[, "all": true]}` over an array gives the **first** element matching `where` (with `"all": true`, the array of **every** matching element, in order). The match is the [`jsonConstraint`](#filter-jsonconstraint) subset logic: an object predicate matches the elements holding at least those nodes with those values (nested, partial), and a scalar predicate matches the equal scalar elements. No matching element, or a source which is not an array, **fails the filter** (the target is not touched, `onFilterFail` runs). The predicate is static (no variables); for a dynamic one, compare the selected candidates with `equalTo` afterwards.
+
+  It is the way to read lists whose order is not guaranteed (the peer decides it): an index in a path (`/crew/1`) would depend on that order.
+
+  Given this request body:
+
+  ```json
+  {
+    "crew": [
+      {"name": "Leia", "role": "pilot"},
+      {"name": "Han", "role": "captain", "ship": {"name": "Millennium Falcon"}}
+    ],
+    "cargo": [
+      {"item": "spice", "crate": {"size": "L", "fragile": true}},
+      {"item": "rations", "crate": {"size": "S", "fragile": false}},
+      {"item": "crystals", "crate": {"size": "M", "fragile": true}}
+    ]
+  }
+  ```
+
+  | Rule | Value reaching the target |
+  |---|---|
+  | `"path": "/crew"`, `{"op": "select", "where": {"role": "captain"}}` | `{"name": "Han", "role": "captain", "ship": {...}}` (the second of the list) |
+  | `"path": "/cargo"`, `{"op": "select", "where": {"crate": {"fragile": true}}}` | `{"item": "spice", ...}` (the first one, partial and nested match) |
+  | same `where`, `"all": true` | `[{"item": "spice", ...}, {"item": "crystals", ...}]` |
+  | same, `"all": true`, then `{"op": "size"}` | `"2"` |
+  | `"path": "/crew"`, `{"op": "select", "where": {"role": "droid"}}` | none: the filter fails, `onFilterFail` runs |
+  | over `["rock", 2, "paper"]`, `{"op": "select", "where": 2}` | `2` (a scalar predicate matches equal scalars) |
+
+  Read a field of the selected element (the captain's name into the answer):
+
+  ```json
+  {
+    "from": {"source": "requestBody", "path": "/crew"},
+    "filter": [{"op": "select", "where": {"role": "captain"}}],
+    "to": {"target": "var", "name": "captain"}
+  },
+  {"from": {"source": "var", "name": "captain", "path": "/name"}, "to": {"target": "responseBody", "path": "/captain"}}
+  ```
+
+  (or `@{captain/name}` inside a text). Count the fragile crates:
+
+  ```json
+  {
+    "from": {"source": "requestBody", "path": "/cargo"},
+    "filter": [{"op": "select", "where": {"crate": {"fragile": true}}, "all": true}, {"op": "size"}],
+    "to": {"target": "var", "name": "fragileCrates"}
+  }
+  ```
+
+  Require an element (a check with a deposited verdict): a missing one goes to `onFilterFail`, which fails the event:
+
+  ```json
+  {
+    "from": {"source": "requestBody", "path": "/crew"},
+    "filter": [{"op": "select", "where": {"role": "pilot"}}],
+    "to": {"target": "var", "name": "pilot"},
+    "onFilterFail": [{"from": {"source": "literal", "value": "nobody to fly"}, "to": {"target": "fail", "reason": "pilot"}}]
+  }
+  ```
 - `size`: returns the number of elements in the source value as a numeric string. For JSON objects it returns the number of keys, for JSON arrays the number of elements, and for strings the number of characters. This filter takes no arguments: `{"op": "size"}`.
 
   ```json
@@ -1886,7 +1947,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
 
 
-- `jsonConstraint`: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
+- <a name="filter-jsonconstraint"></a>`jsonConstraint`: performs a `json` validation between the source (must be a valid document) and the provided filter `json` object.
 
   - If validation **succeed**, the string "1" is stored in selected target.
   - If validation **fails**, the validation report detail is stored in selected target. <u>If the target is a variable</u> (recommended use), the validation report is stored in `<varname>.fail` variable, and `<varname>` will be emptied. So we could use `!<varname>` or `<varname>.fail` as equivalent condition variables to detect the validation error.

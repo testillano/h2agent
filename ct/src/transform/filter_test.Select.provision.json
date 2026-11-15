@@ -1,0 +1,29 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "from": {"source": "requestBody", "path": "/crew"},
+      "filter": [{"op": "select", "where": {"role": "captain"}}],
+      "to": {"target": "var", "name": "captain"}
+    },
+    {
+      "from": {"source": "var", "name": "captain", "path": "/name"},
+      "to": {"target": "responseBody", "path": "/captain"}
+    },
+    {
+      "from": {"source": "requestBody", "path": "/cargo"},
+      "filter": [{"op": "select", "where": {"crate": {"fragile": true}}, "all": true}, {"op": "size"}],
+      "to": {"target": "responseBody", "path": "/fragileCrates"}
+    },
+    {
+      "from": {"source": "requestBody", "path": "/crew"},
+      "filter": [{"op": "select", "where": {"role": "droid"}}],
+      "to": {"target": "responseBody", "path": "/droid"},
+      "onFilterFail": [{"from": {"source": "literal", "value": "absent"}, "to": {"target": "responseBody", "path": "/droid"}}]
+    }
+  ]
+}
