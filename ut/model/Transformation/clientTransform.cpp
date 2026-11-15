@@ -1368,7 +1368,7 @@ TEST_F(ClientTransform_test, TransformResponseJsonConstraintNot)
       "onResponseTransform": [
         {
           "from": {"source": "responseBody"},
-          "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_NF_FAILURE"}, "not": true}],
+          "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_FAILURE"}, "not": true}],
           "to": {"target": "vault", "key": "createReport"},
           "onFilterFail": [{"from": {"source": "literal", "value": "ok"}, "to": {"target": "var", "name": "createChecked"}}]
         }
@@ -1385,7 +1385,7 @@ TEST_F(ClientTransform_test, TransformResponseJsonConstraintNot)
     nlohmann::json stored;
 
     // Valid document: the filter fails, onFilterFail runs, no report
-    fakeResponse.body = R"({"cause":"UNSPECIFIED_NF_FAILURE"})";
+    fakeResponse.body = R"({"cause":"UNSPECIFIED_FAILURE"})";
     provision->transformResponse("/test", reqHeaders, fakeResponse, 1, outState, variables_);
     EXPECT_EQ(variables_["createChecked"], "ok");
     EXPECT_FALSE(common_resources_.VaultPtr->tryGet("createReport", stored));

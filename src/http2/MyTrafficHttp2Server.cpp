@@ -371,13 +371,6 @@ ss << "TRAFFIC REQUEST RECEIVED"
         }
         );
 
-        // Trigger client provisions (fire-and-forget):
-        if (client_provision_trigger_) {
-            for (const auto &trigger : clientProvisionTriggers) {
-                client_provision_trigger_(trigger.first, trigger.second);
-            }
-        }
-
         // Special out-states (a failed event never purges):
         const bool failed = !failures.empty();
         if (purge_execution_ && outState == "purge" && !failed) {
@@ -428,6 +421,15 @@ ss << "TRAFFIC REQUEST RECEIVED"
                     foreignKey.setProvisionUri(provision->getRequestUri()); // additional context
                     getMockServerData()->loadEvent(foreignKey, inState, outState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, normalizedUri /* virtual uri origin */, nullptr, nullptr, provisionId);
                 }
+            }
+        }
+
+        // Trigger client provisions (fire-and-forget), once the event is stored: the triggered
+        // flow may read it (serverEvent source), and its first transformation runs right now
+        // (a requestDelayMs only delays the sending):
+        if (client_provision_trigger_) {
+            for (const auto &trigger : clientProvisionTriggers) {
+                client_provision_trigger_(trigger.first, trigger.second);
             }
         }
 

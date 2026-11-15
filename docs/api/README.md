@@ -54,6 +54,13 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
   - [Waiting for client data](#waiting-for-client-data)
   - [Client data summary](#client-data-summary)
   - [Deleting client data](#deleting-client-data)
+- [Recipes](#recipes)
+  - [Comparisons](#recipe-comparisons)
+  - [Fixed-length values and parts](#recipe-fixed-length)
+  - [Branch by content](#recipe-branch-by-content)
+  - [Deferred notification](#recipe-deferred-notification)
+  - [Reloading the configuration](#recipe-reload)
+  - [Admin interface security](#recipe-admin-security)
 
 ## Overview
 
@@ -1223,7 +1230,7 @@ The **target** of information is classified after parsing the following possible
 
   The same concurrency considerations as `serverEvent` apply. Use `sendseq` for reliable event removal under concurrency. This target **admits variables substitution**.
 
-- `{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `"id": "@{flowId}", "inState": "@{myState}"`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built, so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
+- `{"target": "clientProvision", "id": "<clientProvisionId>", "inState": "<inState>"}` *[string]*: triggers a client provision flow (fire-and-forget) from within a server transformation. Both the identifier and the `inState` **admit variables substitution** (e.g. `"id": "@{flowId}", "inState": "@{myState}"`). Multiple `clientProvision` targets can be specified in the same transformation list and all of them will be triggered. Triggers are collected during the transformation pipeline and executed asynchronously after the server response is fully built and its event stored (so the triggered flow can read it with the `serverEvent` source), so they do not block or delay the server response. This is the mechanism to connect server and client modes: when the server receives a request, it can trigger one or more outgoing client flows as a side effect.
 
   The source acts as a **conditional gate**: the trigger only fires on a **true** value (see [boolean criterion](#boolean-criterion)). A false or undefined source (e.g. a variable that does not exist) silently skips the trigger. This follows the same convention as the `break` target and the `conditionVar` filter.
 
@@ -1253,7 +1260,7 @@ The **target** of information is classified after parsing the following possible
 
   ```json
   {"from": {"source": "responseBody"},
-   "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_NF_FAILURE"}, "not": true}],
+   "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_FAILURE"}, "not": true}],
    "to": {"target": "fail", "reason": "create-not-terminated"}}
   ```
 
@@ -1981,7 +1988,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
 
 
-- `equalTo`: conditional transfer from source to target based in string comparison between the source (as text) and the provided value: the filter passes when they are equal, or when they differ with `"not": true` (`{"op": "equalTo", "value": "200", "not": true}`; v1 `DifferentFrom`). Otherwise the filter fails (target untouched, `onFilterFail` runs). The value **admits variables substitution**.
+- `equalTo` (see also [which comparison to use](#recipe-comparisons)): conditional transfer from source to target based in string comparison between the source (as text) and the provided value: the filter passes when they are equal, or when they differ with `"not": true` (`{"op": "equalTo", "value": "200", "not": true}`; v1 `DifferentFrom`). Otherwise the filter fails (target untouched, `onFilterFail` runs). The value **admits variables substitution**.
 
   ```json
   {
@@ -2229,7 +2236,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   ```json
   {
     "from": {"source": "responseBody"},
-    "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_NF_FAILURE"}, "not": true}],
+    "filter": [{"op": "jsonConstraint", "value": {"cause": "UNSPECIFIED_FAILURE"}, "not": true}],
     "to": {"target": "vault", "key": "createReport"},
     "onFilterFail": [{"from": {"source": "literal", "value": "ok"}, "to": {"target": "var", "name": "createChecked"}}]
   }
@@ -2606,7 +2613,7 @@ Request body. Currently supported: object (`json` and arrays), string, integer, 
 
 #### requestDelayMs
 
-Optional request delay simulation in milliseconds.
+Optional request delay simulation in milliseconds (a timer: no thread waits). It is the way to notify later from a server mock, see [deferred notification](#recipe-deferred-notification).
 
 #### timeoutMs
 
@@ -2912,7 +2919,7 @@ Client provisions can also be triggered from within server provision transformat
 }
 ```
 
-The triggers are executed asynchronously after the server response is fully built, so they do not affect server response latency. Multiple `clientProvision` targets can coexist in the same transformation list.
+The triggers are executed asynchronously after the server response is fully built and its event stored (the client provision can read it with `serverEvent`), so they do not affect server response latency. Multiple `clientProvision` targets can coexist in the same transformation list. With a `requestDelayMs` in the first step, it is a [deferred notification](#recipe-deferred-notification).
 
 ## Client data
 
@@ -3048,3 +3055,88 @@ Example:
 `/admin/v2/client-data?clientEndpointId=myClientEndpointId&requestMethod=GET&requestUri=/app/v1/foo/bar/5&eventNumber=3`
 
 Same restrictions apply here for deletion: query parameters could be omitted to remove everything, *clientEndpointId*, *method* and *URI* are provided together and *eventNumber* restricts optionally them.
+
+## Recipes
+
+Common needs solved with the existing items (no dedicated feature is needed for them).
+
+### <a name="recipe-comparisons"></a>Comparisons
+
+Choose the filter by what is compared:
+
+| To compare | Use | Example |
+|---|---|---|
+| a text with one value | `equalTo` (`"not": true` for different) | `{"op": "equalTo", "value": "paid"}` |
+| a text with a set of values, or a pattern | `regexCapture` (full match) | `{"op": "regexCapture", "rgx": "^(red\|green\|blue)$"}` |
+| a document (or a part) | `jsonConstraint` (subset) or `schemaId` (json schema) | `{"op": "jsonConstraint", "value": {"status": "active"}}` |
+| numbers: `>`, `<`, ranges, `and` / `or` | a `math` source into a variable, then `conditionVar` | below |
+
+The filters are conditions: when they do not pass, the rule is skipped and `onFilterFail` runs. Numbers are compared as numbers by `math` (`equalTo` compares texts, so `"7"` is not `"7.0"`):
+
+```json
+{"from": {"source": "requestBody", "path": "/age"}, "to": {"target": "var", "name": "age"}},
+{"from": {"source": "math", "expression": "@{age} >= 18 and @{age} < 65"}, "to": {"target": "var", "name": "adult"}},
+{"from": {"source": "literal", "value": "403"}, "filter": [{"op": "conditionVar", "name": "adult", "not": true}], "to": {"target": "responseStatusCode"}}
+```
+
+`math` gives `1` or `0` (numbers: `0` is false for `conditionVar`, see the [boolean criterion](#boolean-criterion)).
+
+### <a name="recipe-fixed-length"></a>Fixed-length values and parts
+
+A fixed-length number (an id with leading zeros) is a base plus a sum, without the first digit: `1000000 + 42` is `1000042`, and removing the `1` gives `000042` (six digits for any value below a million):
+
+```json
+{"from": {"source": "recvseq"}, "filter": [{"op": "sum", "value": 1000000}, {"op": "regexReplace", "rgx": "^1", "fmt": ""}], "to": {"target": "var", "name": "ticket"}}
+```
+
+A part of a text (a prefix, the last characters, a segment) is a `regexReplace` keeping a group, e.g. the last four characters: `{"op": "regexReplace", "rgx": "^.*(.{4})$", "fmt": "$1"}`. With several parts needed at once, a `regexCapture` into a variable gives each group as `<name>.<n>`.
+
+### <a name="recipe-branch-by-content"></a>Branch by content
+
+Requests on the same method and uri which must be answered differently by a field of their content (a header or a body node) do not need several provisions (matching uses the method, the uri and the state, not the content). One provision turns the field into condition variables, and each branch overrides what changes (status code, body, headers, `outState`):
+
+```json
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/orders",
+  "responseCode": 201,
+  "responseBody": {"result": "created"},
+  "transform": [
+    {
+      "from": {"source": "requestBody", "path": "/action"},
+      "filter": [{"op": "equalTo", "value": "cancel"}],
+      "to": {"target": "var", "name": "cancel"},
+      "onFilterFail": [{"from": {"source": "literal", "value": ""}, "to": {"target": "var", "name": "cancel"}}]
+    },
+    {"from": {"source": "literal", "value": "200"}, "filter": [{"op": "conditionVar", "name": "cancel"}], "to": {"target": "responseStatusCode"}},
+    {"from": {"source": "literal", "value": "cancelled"}, "filter": [{"op": "conditionVar", "name": "cancel"}], "to": {"target": "responseBody", "path": "/result"}},
+    {"from": {"source": "literal", "value": "cancelled"}, "filter": [{"op": "conditionVar", "name": "cancel"}], "to": {"target": "outState"}}
+  ]
+}
+```
+
+The `onFilterFail` writes a false value (`""`) on purpose: variables live along the `outState` chain of the key, so a variable set by a former request of the same key would still be there. More than two branches are an `equalTo` per value (or a nested `onFilterFail`, an if / else-if chain, see [`conditionVar`](#transformation-pipeline)).
+
+### <a name="recipe-deferred-notification"></a>Deferred notification
+
+A mock which answers at once and notifies later (a callback, a status update) is a [`clientProvision` target](#server-triggered-client-flows) whose first step has a `requestDelayMs`: the server response is not delayed, and the delay is a timer (no thread is blocked while it waits, so many notifications can be pending at once):
+
+```json
+{"id": "notifyDone", "endpoint": "callbacks", "requestMethod": "POST", "requestUri": "/app/v1/events", "requestDelayMs": 2000,
+ "transform": [{"from": {"source": "serverEvent", "requestMethod": "POST", "requestUri": "/app/v1/jobs", "eventNumber": -1, "eventPath": "/requestBody/id"},
+                "to": {"target": "requestBody", "path": "/job"}}]}
+```
+
+The delay may also be computed per message with the `requestDelayMs` target of the client provision. To hold the server **response** instead (answer only when something happens), use the [dynamic response delay](../../README.md#dynamic-response-delays).
+
+### <a name="recipe-reload"></a>Reloading the configuration
+
+The startup files (command line, or the chart values `h2agent_cl.*` from a config map) are loaded once. A changed config map is not reloaded: redeploy the pod, or load the new content through the REST API. A `POST` of provisions replaces those with the same key (`inState`, method and uri for the server; `id` and `inState` for the client) but keeps the other ones, so a provision removed from the file stays loaded: to get exactly the new content, `DELETE` and then `POST` (the same applies to vault entries, schemas and datasets, which have their own `DELETE`).
+
+### <a name="recipe-admin-security"></a>Admin interface security
+
+The admin interface (`/admin/v2`, port 8074 by default) has **no authentication**: anyone reaching the port can change the behavior of the mock, read its events and run what its provisions allow (e.g. `command` sources). It is meant for test environments. To restrict it:
+
+* `--secure-admin` serves it with TLS (the traffic key and certificate), which encrypts it but does not authenticate the clients;
+* `-b|--bind-address` chooses the listening address (e.g. a loopback address when only a local tool uses it);
+* in kubernetes, keep the service internal (no `NodePort` / ingress for the admin port) and limit who reaches it with the namespace and a `NetworkPolicy`.

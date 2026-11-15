@@ -1809,7 +1809,9 @@ The full API reference is documented using the [OpenAPI 3.1 specification](./doc
 
 **[https://testillano.github.io/h2agent/api/](https://testillano.github.io/h2agent/api/)**
 
-For detailed conceptual documentation (matching algorithms, state machines, transformation pipeline with sources/targets/filters, triggering, data querying), see the [API User Guide](./docs/api/README.md).
+For detailed conceptual documentation (matching algorithms, state machines, transformation pipeline with sources/targets/filters, triggering, data querying), see the [API User Guide](./docs/api/README.md), which ends with [recipes](./docs/api/README.md#recipes) for common needs (comparisons, branch by content, deferred notification, reload, admin security).
+
+The admin interface has no authentication: see [admin interface security](./docs/api/README.md#recipe-admin-security) before exposing it.
 
 The API is organized in the following groups:
 
