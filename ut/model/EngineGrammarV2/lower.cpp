@@ -130,6 +130,8 @@ TEST(EngineGrammarV2_test, FiltersUseTheEngineShape) {
         {R"({"op":"select","where":{"a":1}})", R"({"Select":{"a":1}})"},
         {R"({"op":"select","where":{"a":1},"all":true})", R"({"Select":{"a":1},"All":true})"},
         {R"({"op":"select","where":2,"all":false})", R"({"Select":2})"},
+        {R"({"op":"mergePatch","value":{"a":null}})", R"({"MergePatch":{"a":null}})"},
+        {R"({"op":"mergePatch","value":"@{patch}"})", R"({"MergePatch":"@{patch}"})"},
         {R"({"op":"schemaId","id":"s"})", R"({"SchemaId":"s"})"},
         {R"({"op":"schemaId","id":"s","not":true})", R"({"Not":true,"SchemaId":"s"})"},
         {R"({"op":"split","size":2})", R"({"Split":{"size":2}})"},

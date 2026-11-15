@@ -1150,6 +1150,17 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     // JsonConstraint: {"JsonConstraint":<obj|array>[,"Not":true]}. Keep the expected subset.
     // Validation filters accept a sibling "Not" (grammar v2 'not', no v1 counterpart).
     const bool negated = filterNode.is_object() && filterNode.value("Not", false);
+    if (filterNode.contains("MergePatch")) {
+        filter.raw = "MergePatch";
+        filter.object = filterNode["MergePatch"];
+        // "@{name[/pointer]}" as the whole text: the patch is that variable's value
+        if (filter.object.is_string()) {
+            const std::string &ref = filter.object.get_ref<const std::string &>();
+            if (ref.size() > 3 && ref.compare(0, 2, "@{") == 0 && ref.back() == '}' && ref.find('}') == ref.size() - 1)
+                filter.arg = ref.substr(2, ref.size() - 3);
+        }
+        return FilterType::MergePatch;
+    }
     if (filterNode.contains("Select")) {
         filter.raw = filterNode.value("All", false) ? "Select(all)" : "Select";
         filter.object = filterNode["Select"];
@@ -1414,6 +1425,23 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
             return false;
         }
         // Pass: value stays as the resolved source string (h2agent parity).
+    } else if (f.type == FilterType::MergePatch) {
+        nlohmann::json patch = f.object;
+        if (!f.arg.empty()) {
+            auto v = lookupVariable(f.arg, ports);
+            if (!v) {
+                note = "MergePatch filter: unknown variable '" + f.arg + "'; rule skipped";
+                return false;
+            }
+            patch = *v;
+        }
+        if (!patch.is_object()) {
+            note = "MergePatch filter requires an object patch; rule skipped";
+            return false;
+        }
+        // RFC 7386: a non object target is replaced by an object first
+        if (!value.is_object()) value = nlohmann::json::object();
+        value.merge_patch(patch);
     } else if (f.type == FilterType::Select) {
         // The array element(s) matching the predicate (jsonConstraint subset logic,
         // so objects match partially and a scalar predicate matches equal scalars).

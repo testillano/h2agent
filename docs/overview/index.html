@@ -654,6 +654,7 @@ curl --http2-prior-knowledge -XPOST \
     <div class="fbox fragment fade-up"><h4>regexReplace</h4><code>{"op":"regexReplace","rgx":"...","fmt":"$1"}</code></div>
     <div class="fbox fragment fade-up"><h4>regexKey</h4><code>{"op":"regexKey","rgx":"acct-[0-9]{10}"}</code> on object keys</div>
     <div class="fbox fragment fade-up"><h4>select</h4><code>{"op":"select","where":{"role":"captain"}}</code> array element by content (<code>"all":true</code>: every match)</div>
+    <div class="fbox fragment fade-up"><h4>mergePatch</h4><code>{"op":"mergePatch","value":"@{change}"}</code> RFC 7386 (<code>null</code> removes)</div>
     <div class="fbox fragment fade-up"><h4>urlDecode / urlEncode</h4><code>{"op":"urlEncode"}</code> one level: <code>alice;apples</code> &harr; <code>alice%3Bapples</code></div>
     <div class="fbox fragment fade-up"><h4>base64Encode / base64Decode</h4><code>{"op":"base64Decode"}</code> text: <code>Zm9v</code> &harr; <code>foo</code> (standard or url-safe)</div>
     <div class="fbox fragment fade-up"><h4>msgpackDecode / msgpackEncode</h4>MessagePack (base64 text) &harr; json; bin as <code>{"$bin": ...}</code></div>

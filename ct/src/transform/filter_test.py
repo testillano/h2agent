@@ -1,6 +1,6 @@
 import pytest
 import json
-from conftest import ADMIN_SERVER_PROVISION_URI, NLOHMANN_EXAMPLE_REQUEST, SCHEMA_EXAMPLE, SCHEMA_EXAMPLE_REQUEST_VALID, SCHEMA_EXAMPLE_REQUEST_INVALID, string2dict
+from conftest import ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, NLOHMANN_EXAMPLE_REQUEST, SCHEMA_EXAMPLE, SCHEMA_EXAMPLE_REQUEST_VALID, SCHEMA_EXAMPLE_REQUEST_INVALID, string2dict
 
 
 @pytest.mark.transform
@@ -426,4 +426,21 @@ def test_030_msgpack(admin_server_provision, h2ac_traffic):
   # {"hp":20,"player":"zelda"} packed with sorted keys
   responseBodyRef = {"foo": "bar-1", "player": "link", "inventory": {"level": 3, "items": ["sword", "shield"]},
                      "newSave": "gqJocBSmcGxheWVypXplbGRh"}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_031_mergePatch(admin_server_provision, h2ac_traffic):
+
+  # Provision: a stored resource (PUT), patched (POST .../patch, merge patch from the body), read (GET, one more field)
+  admin_server_provision("filter_test.MergePatch.provision.json", responseBodyRef = VALID_SERVER_PROVISIONS__RESPONSE_BODY)
+
+  # Traffic
+  response = h2ac_traffic.request("PUT", "/app/v1/pets/rex", json.dumps({"name": "Rex", "kind": "dog", "vet": {"name": "Dr. Who", "phone": "555"}}), {"content-type": "application/json"})
+  assert response["status"] == 201
+  response = h2ac_traffic.request("POST", "/app/v1/pets/rex/patch", json.dumps({"age": 3, "kind": None, "vet": {"phone": "556"}}), {"content-type": "application/merge-patch+json"})
+  assert response["status"] == 204
+  response = h2ac_traffic.get("/app/v1/pets/rex")
+  responseBodyRef = {"name": "Rex", "age": 3, "vet": {"name": "Dr. Who", "phone": "556"}, "seen": True}
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

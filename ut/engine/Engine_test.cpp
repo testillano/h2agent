@@ -3610,3 +3610,35 @@ TEST(Engine_test, MsgpackEncodeRoundTrip) {
     EXPECT_EQ(runFilters(R"({"c": {"$bin": "!!"}})"_json, "MsgpackEncode"), "FAILED");
 }
 
+// MergePatch (RFC 7386): replace, add, delete with null, nested; the patch inline or as
+// "@{var}" (its typed value); a non object patch fails; a non object value is replaced.
+TEST(Engine_test, MergePatch) {
+    const nlohmann::json pet = R"({"name": "Rex", "kind": "dog", "toys": ["ball"], "vet": {"name": "Dr. Who", "phone": "555"}})"_json;
+    EXPECT_EQ(runFilters(pet, {{"MergePatch", R"({"name": "Max", "age": 3, "kind": null, "vet": {"phone": "556"}, "toys": ["bone"]})"_json}}),
+    R"({"name": "Max", "age": 3, "toys": ["bone"], "vet": {"name": "Dr. Who", "phone": "556"}})"_json);
+    EXPECT_EQ(runFilters(pet, {{"MergePatch", nlohmann::json::object()}}), pet);
+    EXPECT_EQ(runFilters("text", {{"MergePatch", {{"a", 1}}}}), nlohmann::json({{"a", 1}}));  // non object value replaced
+    EXPECT_EQ(runFilters(pet, {{"MergePatch", "@{missing}"}}), "FAILED");                    // unknown variable
+
+    // patch from a variable (its json value)
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "global.pet"}, {"target", "local.out"}, {"filter", {{"MergePatch", "@{change}"}}}}}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Global, "pet", pet);
+    store.set(Store::Scope::Local, "change", R"({"name": "Max"})"_json);
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(store.get(Store::Scope::Local, "out").value()["name"], "Max");
+
+    // a variable holding a non object fails
+    store.set(Store::Scope::Local, "change", "Max");
+    store.erase(Store::Scope::Local, "out");
+    StandaloneContext ctx2;
+    engine.evaluate(pipeline, ctx2, ports);
+    EXPECT_FALSE(store.get(Store::Scope::Local, "out").has_value());
+}
+

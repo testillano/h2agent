@@ -106,6 +106,18 @@ inline nlohmann::json vaultSource() {
     return schema;
 }
 
+/** mergePatch value: an object, or a text which is only a variable reference "@{...}". */
+inline nlohmann::json mergePatchValue() {
+    nlohmann::json object = nlohmann::json::object();
+    object["type"] = "object";
+    nlohmann::json reference = nlohmann::json::object();
+    reference["type"] = "string";
+    reference["pattern"] = "^@\\{[^}]+\\}$";
+    nlohmann::json schema = nlohmann::json::object();
+    schema["oneOf"] = nlohmann::json::array({object, reference});
+    return schema;
+}
+
 /** Event address fields, per domain and role (source or purge target). */
 inline nlohmann::json eventFields(bool client, bool source) {
     nlohmann::json f = {
@@ -215,6 +227,8 @@ inline nlohmann::json filter(const nlohmann::json &conditionVarName) {
         kind("op", "multiply", {{"value", {{"type", "number"}}}}, {"value"}),
         kind("op", "conditionVar", {{"name", conditionVarName}, {"not", {{"type", "boolean"}}}}, {"name"}),
         kind("op", "equalTo", {{"value", anyText()}, {"not", {{"type", "boolean"}}}}, {"value"}),
+        // the patch: an object, or "@{var}" (the whole text: that variable's json value)
+        kind("op", "mergePatch", {{"value", mergePatchValue()}}, {"value"}),
         kind("op", "select", {{"where", nlohmann::json::object()}, {"all", {{"type", "boolean"}}}}, {"where"}),
         kind("op", "jsonConstraint", {{"value", {{"type", {"object", "array"}}}}, {"not", {{"type", "boolean"}}}}, {"value"}),
         kind("op", "schemaId", {{"id", anyText()}, {"not", {{"type", "boolean"}}}}, {"id"}),

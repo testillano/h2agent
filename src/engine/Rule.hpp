@@ -172,6 +172,9 @@ enum class FilterType {
     EqualTo,       // EqualTo: {"EqualTo":"<val>"} (admits @{var}). Transfer only if
     // source string == val, else skip the rule.
     DifferentFrom,  // DifferentFrom: inverse of EqualTo (transfer if source != val).
+    MergePatch,      // MergePatch: {"MergePatch":<object|"@{var}">} (v2 only). RFC 7386 merge
+    // patch of the incoming value; "@{var}" (the whole text) is the typed value of a
+    // variable/vault (an object). A non object patch fails the filter.
     Select,          // Select: {"Select":<subset>[,"All":true]} (v2 only). Over an array, the
     // first element (All: the array of every element) matching the subset with the
     // JsonConstraint logic. No match, or a non array input, fails the filter.
@@ -313,7 +316,7 @@ struct Filter {
     bool flag{false};          // Split numeric / BaseConvert capital
     std::string filler{};      // Split filler
     int unit{0};               // Strptime/Strftime unit (0:s, 1:ms, 2:us, 3:ns)
-    nlohmann::json object{};   // JsonConstraint expected subset / Select predicate
+    nlohmann::json object{};   // JsonConstraint expected subset / Select predicate / MergePatch patch
     bool negated{false};       // JsonConstraint/SchemaId "Not": only an invalid document passes
 
     // Precompiled filter regex (RegexReplace/RegexCapture/RegexKey). Compiled

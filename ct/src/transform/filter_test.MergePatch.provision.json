@@ -1,0 +1,28 @@
+[
+  {
+    "requestMethod": "PUT",
+    "requestUri": "/app/v1/pets/rex",
+    "responseCode": 201,
+    "transform": [
+      {"from": {"source": "requestBody"}, "to": {"target": "vault", "key": "pet-rex"}}
+    ]
+  },
+  {
+    "requestMethod": "POST",
+    "requestUri": "/app/v1/pets/rex/patch",
+    "responseCode": 204,
+    "transform": [
+      {"from": {"source": "requestBody"}, "to": {"target": "var", "name": "change"}},
+      {"from": {"source": "vault", "key": "pet-rex"}, "filter": [{"op": "mergePatch", "value": "@{change}"}], "to": {"target": "vault", "key": "pet-rex"}}
+    ]
+  },
+  {
+    "requestMethod": "GET",
+    "requestUri": "/app/v1/pets/rex",
+    "responseCode": 200,
+    "responseHeaders": {"content-type": "application/json"},
+    "transform": [
+      {"from": {"source": "vault", "key": "pet-rex"}, "filter": [{"op": "mergePatch", "value": {"seen": true}}], "to": {"target": "responseBody"}}
+    ]
+  }
+]

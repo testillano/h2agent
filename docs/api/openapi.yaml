@@ -1680,6 +1680,21 @@ components:
         type: object
       - additionalProperties: false
         properties:
+          op:
+            enum:
+            - mergePatch
+            type: string
+          value:
+            oneOf:
+            - type: object
+            - pattern: ^@\{[^}]+\}$
+              type: string
+        required:
+        - op
+        - value
+        type: object
+      - additionalProperties: false
+        properties:
           all:
             type: boolean
           op:

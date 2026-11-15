@@ -1633,6 +1633,17 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   ```
 
 
+- <a name="filter-mergepatch"></a>`mergePatch`: applies a [JSON merge patch](https://www.rfc-editor.org/rfc/rfc7386) to the value: `{"op": "mergePatch", "value": <patch>}`. The patch is an object written in the rule, or `"@{name}"` (the whole text: that variable or vault value, with its json type, e.g. a received body kept in a variable). The rules are those of the RFC: a key of the patch replaces the same key of the value (or adds it), a `null` removes it, a nested object is merged recursively, and arrays are **replaced**, not merged. A value which is not an object is replaced by the patch itself. A patch which is not an object (or an unknown variable) **fails the filter**.
+
+  It is meant to update documents: a stored resource changed by a request and returned later, or a received body adjusted before it is answered or stored:
+
+  ```json
+  {"from": {"source": "requestBody"}, "to": {"target": "var", "name": "change"}},
+  {"from": {"source": "vault", "key": "pet-rex"}, "filter": [{"op": "mergePatch", "value": "@{change}"}], "to": {"target": "vault", "key": "pet-rex"}}
+  ```
+
+  With the stored `{"name": "Rex", "kind": "dog", "vet": {"name": "Dr. Who", "phone": "555"}}` and the change `{"age": 3, "kind": null, "vet": {"phone": "556"}}`, the vault holds `{"name": "Rex", "age": 3, "vet": {"name": "Dr. Who", "phone": "556"}}`, which a later `GET` provision answers. It is not the way to share static parts between provisions: use [provision references and presets](#provision-references-key) for that.
+
 - <a name="filter-select"></a>`select`: picks array elements **by their content**, whatever their position. `{"op": "select", "where": <predicate>[, "all": true]}` over an array gives the **first** element matching `where` (with `"all": true`, the array of **every** matching element, in order). The match is the [`jsonConstraint`](#filter-jsonconstraint) subset logic: an object predicate matches the elements holding at least those nodes with those values (nested, partial), and a scalar predicate matches the equal scalar elements. No matching element, or a source which is not an array, **fails the filter** (the target is not touched, `onFilterFail` runs). The predicate is static (no variables); for a dynamic one, compare the selected candidates with `equalTo` afterwards.
 
   It is the way to read lists whose order is not guaranteed (the peer decides it): an index in a path (`/crew/1`) would depend on that order.

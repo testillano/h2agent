@@ -246,6 +246,7 @@ nlohmann::json lowerFilter(const nlohmann::json &f) {
         {"append", "Append"}, {"prepend", "Prepend"}, {"sum", "Sum"}, {"multiply", "Multiply"},
     };
     if (op == "jsonConstraint") return withNot({{"JsonConstraint", f["value"]}}, f);
+    if (op == "mergePatch") return {{"MergePatch", f["value"]}};
     if (op == "select") {
         nlohmann::json engineFilter = {{"Select", f["where"]}};
         if (f.value("all", false)) engineFilter["All"] = true;
