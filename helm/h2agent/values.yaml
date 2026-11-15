@@ -41,6 +41,8 @@ h2agent_cl:
   traffic_client_provision: ""
   schema: ""
   vault: ""
+  # datasets: one '--dataset' per entry, '<path>[:decode]' (e.g. a file of a mounted config map)
+  datasets: []
   data:
     enabled: true
   data_key_history:

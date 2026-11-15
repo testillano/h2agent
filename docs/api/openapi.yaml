@@ -24,6 +24,8 @@ tags:
     description: Validation schemas management
   - name: vault
     description: Vaults management
+  - name: dataset
+    description: Datasets (tables of rows read by the dataset source)
   - name: files
     description: Processed files information
   - name: logging
@@ -218,6 +220,100 @@ paths:
           description: No variables to delete
         '400':
           description: Bad request
+
+  /admin/v2/dataset:
+    put:
+      tags: [dataset]
+      summary: Load a dataset from a file
+      description: >
+        Loads (replaces) a dataset from a file the agent process can read
+        (e.g. a mounted config map). Text format: a header line with the
+        column names, then one row per line, fields separated by blanks;
+        '#' lines and empty lines are ignored. With `decode=true` every
+        value is percent-decoded (a blank as `%20`, a `%` as `%25`). The
+        rows are read by the `dataset` source (see the API guide).
+      parameters:
+        - name: file
+          in: query
+          required: true
+          description: File path in the agent filesystem
+          schema:
+            type: string
+        - name: id
+          in: query
+          description: Dataset id; defaults to the file basename without extension
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9_.-]+$'
+        - name: decode
+          in: query
+          description: Percent-decode every value at load time
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Dataset loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetSummary'
+        '400':
+          description: Bad parameters or format error (with the file line)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+        '404':
+          description: The file cannot be read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultResponse'
+    get:
+      tags: [dataset]
+      summary: Datasets summary
+      description: >
+        The summary of every dataset (or of one with `id`): never the
+        content.
+      parameters:
+        - name: id
+          in: query
+          description: Dataset id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Summary (an array, or one object with `id`)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/DatasetSummary'
+                  - $ref: '#/components/schemas/DatasetSummary'
+        '204':
+          description: No datasets (or unknown id)
+        '400':
+          description: Empty id
+    delete:
+      tags: [dataset]
+      summary: Delete datasets
+      description: Deletes every dataset, or one with `id`.
+      parameters:
+        - name: id
+          in: query
+          description: Dataset id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        '204':
+          description: Nothing to delete
+        '400':
+          description: Empty id
 
   /admin/v2/vault/wait:
     get:
@@ -1378,6 +1474,19 @@ components:
           type: object
           description: JSON Schema definition content
 
+    DatasetSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: integer
+          minimum: 0
+
     VaultMap:
       type: object
       description: Key-value pairs (keys must not contain dots)
@@ -2061,6 +2170,24 @@ components:
             type: string
         required:
         - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            type: string
+          row:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          source:
+            enum:
+            - dataset
+            type: string
+        required:
+        - source
+        - name
+        - row
         type: object
       - additionalProperties: false
         properties:
@@ -2778,6 +2905,24 @@ components:
         type: object
       - additionalProperties: false
         properties:
+          name:
+            type: string
+          row:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          source:
+            enum:
+            - dataset
+            type: string
+        required:
+        - source
+        - name
+        - row
+        type: object
+      - additionalProperties: false
+        properties:
           source:
             enum:
             - randomset
@@ -3439,6 +3584,24 @@ components:
             type: string
         required:
         - source
+        type: object
+      - additionalProperties: false
+        properties:
+          name:
+            type: string
+          row:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
+          source:
+            enum:
+            - dataset
+            type: string
+        required:
+        - source
+        - name
+        - row
         type: object
       - additionalProperties: false
         properties:

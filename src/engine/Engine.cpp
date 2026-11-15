@@ -248,7 +248,7 @@ bool toInteger(const nlohmann::json &v, std::int64_t &out) {
 }
 
 // Whole text as a base-10 integer (optional sign, digits only, no blanks, in range):
-// the vault increment delta.
+// the vault increment delta and the dataset row.
 bool parseStrictInteger(const std::string &text, long long &out) {
     if (text.empty()) return false;
     std::size_t i = (text[0] == '-' || text[0] == '+') ? 1 : 0;
@@ -851,6 +851,10 @@ SourceType classifySource(const std::string &expr, Rule &rule) {
     }
     if (expr == "inState") return SourceType::InState;
     if (expr == "uuid") return SourceType::Uuid;
+    if (startsWith(expr, "dataset.")) {
+        rule.sourceArg = expr.substr(8);  // dataset name (admits @{var})
+        return SourceType::Dataset;
+    }
     // Neutral v2 payload sources: input[./json-pointer] / output[./json-pointer].
     // Bare "input"/"output" means the whole document (ptr ""); a ".<pointer>"
     // suffix (e.g. input./a/b) navigates into it. The host maps its transport
@@ -1775,6 +1779,18 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
         rule.sourceIncrement = iit->is_string() ? iit->get<std::string>() : iit->dump();
         rule.sourceType = SourceType::StoreGlobalIncrement;
     }
+    // "datasetRow": mandatory for the dataset source (and only there).
+    auto rit = item.find("datasetRow");
+    if (rule.sourceType == SourceType::Dataset) {
+        if (rit == item.end() || rule.sourceArg.empty()) {
+            error = where + ": a dataset source needs a name and a 'datasetRow'";
+            return false;
+        }
+        rule.sourceRow = rit->is_string() ? rit->get<std::string>() : rit->dump();
+    } else if (rit != item.end()) {
+        error = where + ": 'datasetRow' needs a dataset source";
+        return false;
+    }
     if ((rule.sourceType == SourceType::Input || rule.sourceType == SourceType::Output) &&
             rule.sourcePtr.find("@{") == std::string::npos)
         rule.sourceCompiledStatic = CompiledPointer::compile(rule.sourcePtr, rule.sourceCompiled);
@@ -1805,6 +1821,7 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
     rule.sourceKeyTpl = Template::compile(rule.sourceKey);
     rule.sourcePtrTpl = Template::compile(rule.sourcePtr);
     rule.sourceIncrementTpl = Template::compile(rule.sourceIncrement);
+    rule.sourceRowTpl = Template::compile(rule.sourceRow);
     rule.targetPathTpl = Template::compile(rule.targetPath);
     rule.targetKeyTpl = Template::compile(rule.targetKey);
     rule.targetPtrTpl = Template::compile(rule.targetPtr);
@@ -2063,6 +2080,27 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             if (parseStrictInteger(deltaText, delta) && ports.store) result = ports.store->increment(key, delta);
             if (result) value = *result;
             else sourceResolved = false;  // non integer delta or stored value: skip the rule
+            break;
+        }
+        case SourceType::Dataset: {
+            if (!ports.datasets) {
+                sourceResolved = false;
+                if (trace) entry.note = "dataset source: no DatasetReader port; rule skipped";
+                break;
+            }
+            std::string nameBuf, rowBuf;
+            const std::string &name = render(rule.sourceArgTpl, rule.sourceArg, nameBuf, ports);
+            const std::string &rowText = render(rule.sourceRowTpl, rule.sourceRow, rowBuf, ports);
+            long long row = 0;
+            std::optional<nlohmann::json> result;
+            if (!parseStrictInteger(rowText, row)) {
+                if (trace) entry.note = "dataset source: row '" + rowText + "' is not an integer; rule skipped";
+            } else {
+                result = ports.datasets->row(name, row);
+                if (!result && trace) entry.note = "dataset source: unknown or empty dataset '" + name + "'; rule skipped";
+            }
+            if (result) value = std::move(*result);
+            else sourceResolved = false;
             break;
         }
         case SourceType::InState:

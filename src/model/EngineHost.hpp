@@ -136,6 +136,15 @@ public:
                                  std::string &failReport) const override;
 };
 
+/** dataset source over the AdminData datasets store. */
+class EngineDatasetReader : public h2agent::engine::DatasetReader {
+    AdminData *admin_data_;
+
+public:
+    explicit EngineDatasetReader(AdminData *adminData) : admin_data_(adminData) {}
+    std::optional<nlohmann::json> row(const std::string &name, long long index) const override;
+};
+
 /** clientProvision target: collects triggers executed by the caller after responding. */
 class EngineTrigger : public h2agent::engine::Trigger {
     std::vector<std::pair<std::string, std::string>> &triggers_;

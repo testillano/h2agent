@@ -409,6 +409,7 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"requestBody"},"filter":[{"op":"mergePatch","value":{"a":1}}],"to":{"target":"var","name":"x"}})", "filter 'mergePatch' has no v1 equivalent"},
         {R"({"from":{"source":"vault","key":"c","increment":1},"to":{"target":"var","name":"x"}})", "vault 'increment' has no v1 equivalent"},
         {R"({"from":{"source":"uuid"},"to":{"target":"var","name":"x"}})", "source 'uuid' has no v1 equivalent"},
+        {R"({"from":{"source":"dataset","name":"crew","row":"@{recvseq}"},"to":{"target":"var","name":"x"}})", "source 'dataset' has no v1 equivalent"},
         {R"({"source":"recvseq","target":"var.x"})", "rule is already v1"},
     };
     for (const auto &row : table) {

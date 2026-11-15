@@ -42,6 +42,7 @@ SOFTWARE.
 #include <AdminClientEndpointData.hpp>
 #include <AdminClientProvisionData.hpp>
 #include <AdminSchemaData.hpp>
+#include <Datasets.hpp>
 #include <common.hpp>
 
 namespace h2agent
@@ -56,6 +57,7 @@ class AdminData
     AdminClientEndpointData client_endpoint_data_{};
     AdminClientProvisionData client_provision_data_{};
     AdminSchemaData schema_data_{};
+    Datasets datasets_{};
 
 public:
 
@@ -189,6 +191,18 @@ public:
      */
     const AdminSchemaData& getSchemaData() const {
         return schema_data_;
+    }
+
+    /**
+     * Gets the datasets store (dataset source rows, admin dataset operations)
+     *
+     * @return Datasets store (thread safe)
+     */
+    Datasets& getDatasets() {
+        return datasets_;
+    }
+    const Datasets& getDatasets() const {
+        return datasets_;
     }
 };
 

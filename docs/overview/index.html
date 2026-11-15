@@ -244,8 +244,8 @@
   <div class="cols c3" style="font-size:.6em">
     <div class="fragment fade-up"><div class="label">Schema data</div><div class="box">JSON schemas referenced by provisions to validate incoming / outgoing traffic.</div>
       <div class="path"><b>/admin/v2/schema</b> POST, GET, DELETE</div></div>
-    <div class="fragment fade-up"><div class="label">Vault</div><div class="box">Global storage shared between provisions (native json values). <b>Blocking wait</b> (long-poll) and <b>SSE</b> stream of mutations.</div>
-      <div class="path"><b>/admin/v2/vault</b>, <b>/vault/wait?key=</b>, <b>/vault/events</b></div></div>
+    <div class="fragment fade-up"><div class="label">Vault</div><div class="box">Global storage shared between provisions (native json values). <b>Blocking wait</b> (long-poll) and <b>SSE</b> stream of mutations. <b>Datasets</b>: tables of rows loaded from files (<code>dataset</code> source).</div>
+      <div class="path"><b>/admin/v2/vault</b>, <b>/vault/wait?key=</b>, <b>/vault/events</b>, <b>/dataset</b></div></div>
     <div class="fragment fade-up"><div class="label">Process</div><div class="box">Logging level, files, general configuration, health probe and capabilities (API version, program version, grammar).</div>
       <div class="path"><b>/admin/v2/logging</b>, <b>/files</b>, <b>/configuration</b>, <b>/health</b>, <b>/capabilities</b></div></div>
   </div>
@@ -518,7 +518,7 @@ curl --http2-prior-knowledge -XPOST \
     <p><b>traffic server worker threads</b> (1: inline; more: queue dispatcher) / max workers / I/O threads</p>
     <p><b>congestion control</b>: queue dispatcher max size (503)</p>
     <p><b>TLS</b>: traffic server key, crt and password; secured admin</p>
-    <p><b>startup files</b>: schema, vault, server matching and provision, client endpoint and provision</p>
+    <p><b>startup files</b>: schema, vault, datasets, server matching and provision, client endpoint and provision</p>
     <p><b>data storage</b>: discard data / key history, disable purge</p>
     <p><b>request body</b>: ignore it, dynamic allocation</p>
     <p><b>client</b>: connections per endpoint, worker threads, pool max pending, lazy connection</p>
@@ -632,7 +632,7 @@ curl --http2-prior-knowledge -XPOST \
     <div class="fragment fade-in"><span class="sw" style="background:#21d4d6"></span><code>responseStatusCode</code><span class="chip c">C</span></div>
     <div class="fragment fade-in"><span class="sw" style="background:#fff"></span><code>eraser</code> (removes what the target points to)</div>
     <div class="fragment fade-in"><span class="sw" style="background:#ff5cb4"></span><code>math</code> (<code>expression</code>, exprtk)</div>
-    <div class="fragment fade-in"><span class="sw" style="background:#facc15"></span><code>random</code> (<code>min</code>, <code>max</code>) &middot; <code>randomset</code> (<code>values</code>) &middot; <code>uuid</code> (v4)</div>
+    <div class="fragment fade-in"><span class="sw" style="background:#facc15"></span><code>random</code> (<code>min</code>, <code>max</code>) &middot; <code>randomset</code> (<code>values</code>) &middot; <code>uuid</code> (v4) &middot; <code>dataset</code> (<code>name</code>, <code>row</code>)</div>
     <div class="fragment fade-in"><span class="sw" style="background:#5a2a0a"></span><code>timestamp</code> (<code>unit</code>: s, ms, us, ns)</div>
     <div class="fragment fade-in"><span class="sw" style="background:#8b4513"></span><code>strftime</code> (<code>fmt</code>)</div>
     <div class="fragment fade-in"><span class="sw" style="background:#ef4444"></span><code>recvseq</code><span class="chip s">S</span> &middot; <code>sendseq</code><span class="chip c">C</span></div>

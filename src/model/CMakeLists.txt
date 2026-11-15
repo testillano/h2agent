@@ -22,6 +22,7 @@ add_library (h2agent-model
     ${CMAKE_CURRENT_LIST_DIR}/AdminSchema.cpp
     ${CMAKE_CURRENT_LIST_DIR}/AdminSchemaData.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Vault.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/Datasets.cpp
     ${CMAKE_CURRENT_LIST_DIR}/WaitManager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/SseManager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Configuration.cpp

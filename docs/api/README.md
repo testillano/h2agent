@@ -12,6 +12,7 @@ or the [interactive documentation](https://testillano.github.io/h2agent/api/).
   - [Schemas](#schemas)
   - [Vault](#vaults)
     - [Blocking wait](#blocking-wait)
+  - [Datasets](#datasets)
   - [Files](#files)
   - [Logging](#logging)
   - [Health](#health)
@@ -179,6 +180,38 @@ Notes:
 - The gain applies to **distinct keys** (the common per-user case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` atomic: the [vault increment](#vault-increment) is).
 - Whole-vault admin operations (`GET /admin/v2/vault`, `DELETE /admin/v2/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
 - This is transparent to provisions and to the REST API; no configuration is needed. It is an internal property of the vault store (`src/model/Map.hpp`, opt-in via the `Shards` template parameter; only the vault uses `> 1`). A native benchmark is provided at `benchmark/native/vault_sharding/`.
+
+### Datasets
+
+A dataset is a table of text values loaded from a file: a header line with the column names, then one row per line. The [`dataset` source](#source-dataset) gives a row as an object, so data-driven flows (the users or items a test works with, values which follow no formula) read their data from a file instead of computing it with rules, and every field of a row stays consistent with the others.
+
+```
+# crew of the ship
+name    role       deck
+alice   captain    1
+bob     engineer   3
+carol   cook       2
+```
+
+* Fields are separated by one or more blanks (spaces or tabs); leading and trailing blanks are ignored, so columns may be aligned.
+* `#` lines and empty lines are ignored. The first remaining line is the header (unique column names).
+* Every row has as many fields as the header.
+* Values are text (use a `cast` filter for numbers). A value which needs a blank is written percent-encoded (`%20`, and a literal `%` as `%25`) and the file is loaded with `decode=true`, which decodes every value at load time.
+
+Operations (datasets are a store of their own: the vault operations do not list or delete them, and the `vault` source does not read them):
+
+* `PUT /admin/v2/dataset?file=<path>[&id=<id>][&decode=true]`: loads (or replaces) a dataset from a file the agent process can read, e.g. a config map mounted in its pod. The `id` defaults to the file basename without extension (`/config/crew.txt` gives `crew`); it admits letters, digits, `_`, `.` and `-`. The answer is `200` with the summary, `400` on bad parameters or a format error (with the file line, e.g. `line 3: expected 2 fields, found 1`) and `404` when the file cannot be read; a failed load keeps the former dataset.
+
+  ```json
+  {"id": "crew", "columns": ["name", "role", "deck"], "rows": 3}
+  ```
+
+* `GET /admin/v2/dataset[?id=<id>]`: the summaries (an array, or one with `id`), never the content; `204` when there is none.
+* `DELETE /admin/v2/dataset[?id=<id>]`: every dataset, or one; `200`, or `204` when there was nothing to delete.
+
+At startup, `--dataset <path>[:decode]` (repeatable) loads them with the vault, before the provisions; in the chart, the `h2agent_cl.datasets` list gives one per entry. The helper function `dataset` wraps the operations.
+
+The file is parsed once: each row is then read in constant time, as a new object on each read (rows are kept as text, not json, to save memory). A replaced dataset does not affect the rules already reading the former one.
 
 ### Files
 
@@ -450,7 +483,7 @@ Failed server provision '<method> <uri>' (inState '<s>') -> '__core:failed:<s>:<
 | target `fail` with `reason` | `__core:failed:<s>:<reason>` | `{"reason": "<reason>", "detail": <value>}` |
 | server [`requestSchemaId`](#requestschemaid) not met | `__core:failed:<s>:requestSchemaId` | `{"reason": "requestSchemaId", "id": "<schema id>", "error": "<report>"}` |
 
-For example, a `fail` with `"reason": "Result-Code"` in the provision with `inState` `update-2` gives `__core:failed:update-2:Result-Code`. As the stage is in the state, the `reason` only names the checked item (an AVP, a json node, a header), not the step.
+For example, a `fail` with `"reason": "code"` in the provision with `inState` `update-2` gives `__core:failed:update-2:code`. As the stage is in the state, the `reason` only names the checked item (a status code, a json node, a header), not the step.
 
 The event state is the **first** failure in this order (the later ones are still recorded in `failures`, which is present only when the event failed):
 
@@ -868,6 +901,19 @@ The **source** of information is classified after parsing the following possible
 
 - `{"source": "randomset", "values": ["<value1>", .., "<valueN>"]}`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**. Note that both leading and trailing pipes would add empty parts (`'|foo|bar'`, `'foo|bar|'` and `'foo||bar'` become three parts, `'foo'`, `'bar'` and empty string).
 
+- <a name="source-dataset"></a>`{"source": "dataset", "name": "<id>", "row": <row>}` *[object]*: a row of a loaded [dataset](#datasets), as an object with one text field per column. The `row` is an integer or a text with variables (`"@{sequence}"`), mandatory: the row index is `row` modulo the dataset rows, so a longer run starts again from the first row, and a negative `row` counts from the end (`-1` is the last row). An unknown or empty dataset, or a `row` which is not an integer, skips the rule. The `name` admits variables too.
+
+  ```json
+  {"from": {"source": "dataset", "name": "crew", "row": "@{sequence}"}, "to": {"target": "var", "name": "member"}},
+  {"from": {"source": "var", "name": "member", "path": "/name"}, "to": {"target": "requestBody", "path": "/name"}}
+  ```
+
+  With the dataset above, sequences `0`, `1`, `2`, `3` give `alice`, `bob`, `carol` and `alice` again; the other fields are read the same way (`@{member/role}`). The row index is stateless and deterministic, so choose it from the context:
+
+  * in a client provision, `@{sequence}`: aligned with the trigger `sequenceBegin` / `sequenceEnd`, so a range addresses a known set of rows;
+  * in a server provision, `@{recvseq}` (from the `recvseq` source, in a variable), when the order of arrival is enough;
+  * an own counter, the [vault increment](#vault-increment), when several provisions share a cursor or none of the above applies.
+
 - `{"source": "uuid"}`: a random UUID version 4 (RFC 9562) in its canonical lower case text, e.g. `"3f1c2a7e-9b4d-4c21-8f6a-0d5e7b2c9a14"`, different on every evaluation. For identifiers assigned by a mock (a resource id, a `location` header) or sent by a client (a correlation id):
 
   ```json
@@ -898,7 +944,7 @@ The **source** of information is classified after parsing the following possible
   {"from": {"source": "literal", "value": "503"}, "filter": [{"op": "conditionVar", "name": "third"}], "to": {"target": "responseStatusCode"}}
   ```
 
-  The third and later attempts get `503`. Reading the vault key itself again in the same provision (the `vault` source, or `@{attempts}` with no variable of that name) may already include other messages' increments: use the variable. Typical uses: attempts per key (a key per uri, e.g. `"key": "attempts:@{imsi}"`), load counters, an own sequence for any per-message numbering.
+  The third and later attempts get `503`. Reading the vault key itself again in the same provision (the `vault` source, or `@{attempts}` with no variable of that name) may already include other messages' increments: use the variable. Typical uses: attempts per key (a key per user, e.g. `"key": "attempts:@{user}"`, which gives `attempts:alice`), load counters, an own sequence for any per-message numbering.
 
 - `{"source": "literal", "value": "<value>"}`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string, see [boolean criterion](#boolean-criterion)), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 
@@ -1189,12 +1235,12 @@ The **target** of information is classified after parsing the following possible
   The `detail` is the value as it reaches the target, keeping its json type (a number, a text, an object: a whole body node). The common case is a received value through a filter which does not transform it:
 
   ```json
-  {"from": {"source": "var", "name": "rc"},
-   "filter": [{"op": "equalTo", "value": "2001", "not": true}],
-   "to": {"target": "fail", "reason": "Result-Code"}}
+  {"from": {"source": "var", "name": "code"},
+   "filter": [{"op": "equalTo", "value": "200", "not": true}],
+   "to": {"target": "fail", "reason": "code"}}
   ```
 
-  gives `"detail": "5012"` when the received code is `5012`. The `detail` is never a false value (`0`, `""`, `false`): `fail` only fires on a true one. To fail on a missing node or a zero value, feed `fail` with a descriptive literal and decide with the filter, e.g. `{"source": "literal", "value": "missing /cause"}` with a negated `conditionVar` on the node.
+  gives `"detail": "409"` when the received code is `409`. The `detail` is never a false value (`0`, `""`, `false`): `fail` only fires on a true one. To fail on a missing node or a zero value, feed `fail` with a descriptive literal and decide with the filter, e.g. `{"source": "literal", "value": "missing /cause"}` with a negated `conditionVar` on the node.
 
   In server provisions, the key stays in the failure state and the answer is sent as built so far, so set `responseStatusCode` / body before `fail` when the peer must see the error. A server cannot react to its own failure through `inState`: an immediate reaction is a foreign `outState` (another key) or a `clientProvision` target placed before `fail`, with the same condition. In client provisions (`onResponseTransform` only), it is the first failure of the event (before `expectedResponseStatusCode` and `responseSchemaId`).
 
@@ -1408,7 +1454,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   With source `"255"`, the result is `"FF"`. With `"capital": false` (default), it would be `"ff"`.
 
-- `hexToText`, `textToHex`, `hexToIp`: convert values holding bytes in hex (for example binary fields, as Diameter OctetString AVPs reach h2agent through its gateway). They take no arguments and know nothing about Diameter: they read bytes. Combined with `regexCapture` / `regexReplace` (cut a byte range, swap BCD nibbles) and `baseConvert` (numbers), any binary content in hex can be decoded piece by piece.
+- `hexToText`, `textToHex`, `hexToIp`: convert values holding bytes in hex (for example binary fields, as some devices or gateways deliver them). They take no arguments and know nothing about the protocol behind: they read bytes. Combined with `regexCapture` / `regexReplace` (cut a byte range, swap BCD nibbles) and `baseConvert` (numbers), any binary content in hex can be decoded piece by piece.
 
   | Filter | Source | Result | Example |
   |--------|--------|--------|---------|
@@ -1444,10 +1490,12 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   `textToHex` is there as the inverse of `hexToText` (filters can be chained both ways), but most needs have a more readable form:
 
   * comparing an inbound hex field with a known text: decode the field and compare the text (`[{"op": "hexToText"}, {"op": "equalTo", "value": "library.example"}]`), rather than encoding the constant and comparing hex;
-  * outbound Diameter AVPs: the gateway (h2diagent) already accepts their readable forms, no hex is needed;
+  * outbound binary fields: a peer (or a gateway in front of it) which accepts their readable forms needs no hex;
   * a text request/response body: the `requestBodyText` / `responseBodyText` targets, rather than a hex body target fed by `textToHex`.
 
   It remains useful when exact bytes matter, e.g. building a raw message from text pieces for negative testing.
+
+  When the peer (or a gateway in front of it) can deliver a field in readable form, prefer it for the structured values a suite reads often (a location, a time zone), so the transformation just reads a path. These filters fit a field read once, or hex which comes as it is.
 
 - <a name="filter-urldecode"></a>`urlDecode`: percent-decodes **one** level of the value (as text): each `%XX` (two hex digits, either case) becomes its byte; a `%` not followed by two hex digits is kept, and so is `+` (a space only in form-encoded query values, which `requestUriParam` already gives decoded). It takes no arguments. A result which is not UTF-8 text or holds a NUL, and an object, array or null source, **fail the filter**. Two levels (a double encoding) are two filters. The server uri is [the received one](#server-uri), so this is how a value taken from the path is decoded:
 
@@ -1461,17 +1509,17 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   `/baskets/alice%3Bapples%3B42` gives `"alice;apples;42"` (without the filter, `"alice%3Bapples%3B42"`).
 
-- <a name="filter-urlencode"></a>`urlEncode`: the inverse of `urlDecode`. Percent-encodes every byte outside the RFC 3986 *unreserved* set (`A-Z a-z 0-9 - . _ ~`), with upper-case hex; numbers and booleans as their text. It takes no arguments. An object, array or null source **fails the filter**. As server uris are [the received ones](#server-uri), it builds a uri part as a real client sends it, e.g. a Diameter Session-Id in a path (as the h2diagent gateway encodes it):
+- <a name="filter-urlencode"></a>`urlEncode`: the inverse of `urlDecode`. Percent-encodes every byte outside the RFC 3986 *unreserved* set (`A-Z a-z 0-9 - . _ ~`), with upper-case hex; numbers and booleans as their text. It takes no arguments. An object, array or null source **fails the filter**. As server uris are [the received ones](#server-uri), it builds a uri part as a real client sends it, e.g. a file name in a path:
 
   ```json
   {
-    "from": {"source": "var", "name": "sessionId"},
+    "from": {"source": "var", "name": "fileName"},
     "filter": [{"op": "urlEncode"}],
-    "to": {"target": "var", "name": "sidInUri"}
+    "to": {"target": "var", "name": "nameInUri"}
   }
   ```
 
-  `host.realm;1;2` gives `host.realm%3B1%3B2`, to be used as `"requestUri": "/diameter/rx/RAR/@{sidInUri}"` in a client provision. A text with spaces, `/`, `?`, `&`, `%` or `|` is encoded too (`a b` gives `a%20b`); a value already encoded is encoded again (`%3B` gives `%253B`: a double encoding, on purpose or not).
+  `report;v2 final.txt` gives `report%3Bv2%20final.txt`, to be used as `"requestUri": "/app/v1/files/@{nameInUri}"` in a client provision. A text with spaces, `/`, `?`, `&`, `%` or `|` is encoded too (`a b` gives `a%20b`); a value already encoded is encoded again (`%3B` gives `%253B`: a double encoding, on purpose or not).
 
 - <a name="filter-base64"></a>`base64Encode` / `base64Decode`: Base64 (RFC 4648) of a text. They take no arguments.
   - `base64Encode`: the value text (numbers and booleans as their text) in the standard alphabet, padded (`foo` gives `Zm9v`, `f` gives `Zg==`). An object, array or null source fails the filter (to encode a json document, encode its text: a `literal` with `@{doc}`).
@@ -1499,8 +1547,6 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   ```
 
   With `save` = `{"player": "link", "hp": 12, "inventory": {"$bin": "gqVsZXZl..."}}` and `inventory` = `{"level": 3, "items": ["sword", "shield"]}`, any rule checks or answers with them (`@{save/player}`, a `jsonConstraint` on `inventory`). The other way, a document built with rules (or a literal cast to `json`) and `msgpackEncode` gives the base64 to send.
-
-  Through the Diameter gateway, an alternative is to have `h2diagent` decode the AVP in readable form (`--decode-as <AVP>=<form>`, see its README): better for the structured values a suite reads often (a location, a time zone), so the transformation just reads a path. These filters fit a field read once, or hex which does not come through a gateway.
 
 - `strptime` (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `sum`) and later formatting back with `strftime`.
 
@@ -2344,8 +2390,8 @@ The information collected for a server event item is:
 
 ```json
 {"result": true,
- "key": {"requestMethod": "POST", "requestUri": "/app/v1/session/imsi-001019000040000"},
- "state": "reauth",
+ "key": {"requestMethod": "POST", "requestUri": "/app/v1/orders/order-0042"},
+ "state": "paid",
  "previousState": "initial",
  "eventNumber": 1,
  "event": { "...": "the full event, as in server-data" }}
@@ -2437,7 +2483,7 @@ The `outState` holds a reserved default value of `road-closed` for any provision
 
 A failed step (see [reserved states and failures](#reserved-states-and-failures)) stores its event with the state `__core:failed:<state>:<reason>`, and the chain goes on from that state as from any `outState`. The next step is looked up with the same `id`:
 
-1. `inState` = the exact failure state (e.g. `__core:failed:update-2:Result-Code`): that check of that step;
+1. `inState` = the exact failure state (e.g. `__core:failed:update-2:code`): that check of that step;
 2. else `inState` = `__core:failed:<state>` (e.g. `__core:failed:update-2`): any failure of that step;
 3. else `inState` = `__core:failed`: any failure;
 4. else the chain ends (no purge).

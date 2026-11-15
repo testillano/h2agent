@@ -185,6 +185,21 @@ TEST(EngineGrammarV2_test, FilterChainsAndCastsAreLowered) {
     }
 }
 
+// dataset: the name in the source, the row (number or @{} text) in "datasetRow".
+TEST(EngineGrammarV2_test, DatasetSourceCarriesTheRow) {
+    nlohmann::json r = nlohmann::json::parse(engineRule("dataset.crew", "local.member"));
+    r["datasetRow"] = "@{seq}";
+    EXPECT_EQ(lowered(R"({"from":{"source":"dataset","name":"crew","row":"@{seq}"},"to":{"target":"var","name":"member"}})", Mode::Server), r.dump());
+    r["datasetRow"] = "-1";
+    EXPECT_EQ(lowered(R"({"from":{"source":"dataset","name":"crew","row":-1},"to":{"target":"var","name":"member"}})", Mode::ClientRequest), r.dump());
+    // accepted by the engine
+    std::string error;
+    const nlohmann::json pipeline = EngineGrammarV2::lowerPipeline(nlohmann::json::parse(
+                                        R"([{"from":{"source":"dataset","name":"crew","row":"@{seq}"},"to":{"target":"var","name":"member"}}])"), Mode::Server, false, error);
+    ASSERT_FALSE(pipeline.is_null()) << error;
+    EXPECT_TRUE(h2agent::engine::Engine{}.parse(pipeline, error) != nullptr) << error;
+}
+
 TEST(EngineGrammarV2_test, FeaturesNotSupportedYetAreRejected) {
     const std::vector<std::pair<std::string, std::string>> table = {
         {R"({"from":{"source":"randomset","values":["a|b"]},"to":{"target":"var","name":"v"}})", "randomset value with '|'"},

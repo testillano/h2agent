@@ -43,6 +43,7 @@ SOFTWARE.
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <vector>
 
 // Project
 #include "version.hpp"
@@ -360,6 +361,11 @@ void usage(int rc, const std::string &errorMessage = "")
        << "[--vault <path file>]\n"
        << "  Path file for optional startup vault configuration.\n\n"
 
+       << "[--dataset <path file>[:decode]]\n"
+       << "  Path file for an optional startup dataset (rows read by the 'dataset' source),\n"
+       << "  with the id of its basename without extension. With ':decode', every value is\n"
+       << "  percent-decoded at load time. This parameter can occur multiple times.\n\n"
+
        << "[--traffic-server-matching <path file>]\n"
        << "  Path file for optional startup traffic server matching configuration.\n\n"
 
@@ -645,6 +651,7 @@ int main(int argc, char* argv[])
     std::string traffic_client_endpoint_file = "";
     std::string traffic_client_provision_file = "";
     std::string vault_file = "";
+    std::vector<std::string> dataset_files; // <path>[:decode]
     std::string prometheus_port = "8080";
     std::string prometheus_response_delay_seconds_histogram_boundaries = "";
     std::string prometheus_message_size_bytes_histogram_boundaries = "";
@@ -827,6 +834,12 @@ int main(int argc, char* argv[])
     if (readCmdLine(argv, argv + argc, "--vault", value))
     {
         vault_file = value;
+    }
+
+    for (int k = 1; k < argc; k++) { // --dataset is repeatable
+        if (std::string(argv[k]) != "--dataset") continue;
+        if (k + 1 == argc) usage(EXIT_FAILURE, "Missing mandatory value for '--dataset'");
+        dataset_files.emplace_back(argv[++k]);
     }
 
     if (readCmdLine(argv, argv + argc, "--traffic-server-ignore-request-body"))
@@ -1034,6 +1047,10 @@ Overview:       https://testillano.github.io/h2agent/overview/
               "<not provided>") << '\n';
     std::cout << "Vault configuration file: " << ((vault_file != "") ? vault_file :
               "<not provided>") << '\n';
+    std::cout << "Dataset files: ";
+    if (dataset_files.empty()) std::cout << "<not provided>";
+    for (std::size_t k = 0; k < dataset_files.size(); k++) std::cout << (k ? ", " : "") << dataset_files[k];
+    std::cout << '\n';
 
     std::cout << "Traffic server process request body: " << (!traffic_server_ignore_request_body ? "true":"false") << '\n';
     std::cout << "Traffic server pre reserve request body: " << (!traffic_server_dynamic_request_body_allocation ? "true":"false") << '\n';
@@ -1216,6 +1233,18 @@ Overview:       https://testillano.github.io/h2agent/overview/
 
         if (!success) {
             std::cerr << currentDateTime() << ": " << log << std::endl;
+        }
+    }
+
+    // Datasets: loaded with the vault, before the provisions (which read them at run time):
+for (const auto &entry : dataset_files) {
+    static const std::string decodeSuffix = ":decode";
+    const bool decode = (entry.size() > decodeSuffix.size() && entry.compare(entry.size() - decodeSuffix.size(), decodeSuffix.size(), decodeSuffix) == 0);
+        const std::string path = decode ? entry.substr(0, entry.size() - decodeSuffix.size()) : entry;
+        nlohmann::json summary;
+        std::string error;
+        if (myAdminHttp2Server->loadDataset("", path, decode, summary, error) != 200) {
+            std::cerr << currentDateTime() << ": Dataset load failed and will be ignored: " << error << std::endl;
         }
     }
 

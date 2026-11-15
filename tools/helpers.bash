@@ -119,6 +119,35 @@ vault() {
   fi
 }
 
+dataset() {
+  if [ "$1" = "-h" -o "$1" = "--help" ]
+  then
+    echo "Usage: dataset [-h|--help] [--clean [id]] [--id <id>] [<file in the agent> [id] [--decode]]; Gets/loads/cleans datasets ($(admin_url)/dataset)."
+    echo "       No arguments: summary of every dataset (never the content). '--id <id>': summary of one."
+    echo "       <file>: loads (replaces) a dataset from a file the agent process can read (path in the agent"
+    echo "       filesystem, e.g. a mounted config map), with the given id or its basename without extension."
+    echo "Examples:"
+    echo "    dataset /config/crew.txt          # loads dataset 'crew'"
+    echo "    dataset /config/crew.txt crew2 --decode"
+    echo "    dataset --clean crew              # removes 'crew'; '--clean' alone removes all of them"
+    return 0
+  fi
+  [ -z "$1" ] && do_curl "$(admin_url)/dataset" && return 0
+  # query values URL-encoded by curl (-G puts them in the query, -X keeps the method)
+  if [ "$1" = "--clean" ]
+  then
+    if [ -n "$2" ]; then do_curl -XDELETE -G --data-urlencode "id=$2" "$(admin_url)/dataset"; else do_curl -XDELETE "$(admin_url)/dataset"; fi
+  elif [ "$1" = "--id" ]
+  then
+    do_curl -G --data-urlencode "id=$2" "$(admin_url)/dataset"
+  else
+    local args=(--data-urlencode "file=$1")
+    [ -n "$2" -a "$2" != "--decode" ] && args+=(--data-urlencode "id=$2")
+    [ "$2" = "--decode" -o "$3" = "--decode" ] && args+=(--data-urlencode "decode=true")
+    do_curl -XPUT -G "${args[@]}" "$(admin_url)/dataset"
+  fi
+}
+
 files() {
   if [ "$1" = "-h" -o "$1" = "--help" ]
   then
@@ -1111,7 +1140,7 @@ wait_server_data() {
     echo "       No condition: the next new event. Default timeout: 30000 ms."
     echo
     echo "  Examples:"
-    echo "    wait_server_data POST /app/v1/foo --state reauth"
+    echo "    wait_server_data POST /app/v1/foo --state paid"
     echo "    wait_server_data POST /app/v1/foo --state-prefix __core:failed:"
     echo "    wait_server_data POST /app/v1/foo --state notify --event-number 2"
     return 0
@@ -1801,6 +1830,7 @@ snapshot() {
   configuration && pretty > ${dir}/general/configuration.json
   schema && pretty > ${dir}/general/schema.json
   vault && pretty > ${dir}/general/vault.json
+  dataset && pretty > ${dir}/general/dataset.json
   files && pretty > ${dir}/general/files.json
   files_configuration && pretty > ${dir}/general/files-configuration.json
   udp_sockets && pretty > ${dir}/general/udp-sockets.json
@@ -1956,7 +1986,7 @@ help() {
   export -f traffic_url admin_url metrics_url do_curl
   echo
   echo "=== General Resources' Functions ==="
-  for f in health schema vault files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
+  for f in health schema vault dataset files files_configuration udp_sockets configuration; do ${f} -h | head -n 1; export -f ${f} ; done
   echo
   echo "=== Traffic Server Functions === "
   for f in server_configuration server_data_configuration server_matching server_provision server_provision_unused server_data wait_server_data; do ${f} -h | head -n 1; export -f ${f} ; done

@@ -82,6 +82,8 @@ enum class SourceType {
     StoreGlobal,  // global.<key> -> Store(Scope::Global); host maps v1 'vault.'
     StoreGlobalIncrement,  // global.<key> + rule "increment": fetch-and-add on the
     // stored integer (Store::increment), the NEW value as source (v2 only).
+    Dataset,      // dataset.<name> + rule "datasetRow" (integer text, admits @{var}):
+    // that row (modulo) of a host dataset as an object (v2 only).
     InState,      // inState -> EvaluationContext::inState (data only; FSM lives in the
     // host)
     Input,        // input[./json-pointer] -> EvaluationContext::input; host maps v1
@@ -350,6 +352,7 @@ struct Rule {
     std::string sourceKey{};  // store key for local./global. sources (admits @{var})
     std::string sourcePtr{};  // json-pointer into a stored value ("" = whole value)
     std::string sourceIncrement{};  // StoreGlobalIncrement delta (integer text, admits @{var})
+    std::string sourceRow{};        // Dataset row (integer text, admits @{var})
     // sourcePtr of input/output sources compiled ONCE at parse when static (no @{}).
     CompiledPointer sourceCompiled{};
     bool sourceCompiledStatic{false};
@@ -394,7 +397,7 @@ struct Rule {
 
     // Fields admitting @{} split ONCE at parse (see Template); evaluation renders
     // them, or uses the plain field when static:
-    Template sourceArgTpl{}, sourceKeyTpl{}, sourcePtrTpl{}, sourceIncrementTpl{};
+    Template sourceArgTpl{}, sourceKeyTpl{}, sourcePtrTpl{}, sourceIncrementTpl{}, sourceRowTpl{};
     Template targetPathTpl{}, targetKeyTpl{}, targetPtrTpl{}, targetNameTpl{}, targetUriTpl{};
     Template targetFilePathTpl{}, targetSocketPathTpl{}, targetProvisionIdTpl{}, targetProvisionInStateTpl{};
     Template targetFailReasonTpl{};

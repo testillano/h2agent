@@ -358,6 +358,11 @@ h2agent::engine::Shell::Result EngineShell::run(const std::string &command) {
     return result;
 }
 
+std::optional<nlohmann::json> EngineDatasetReader::row(const std::string &name, long long index) const {
+    if (!admin_data_) return std::nullopt;
+    return admin_data_->getDatasets().row(name, index);
+}
+
 std::optional<bool> EngineSchemaValidator::validate(const std::string &schemaId, const nlohmann::json &doc,
         std::string &failReport) const {
     auto schema = admin_data_ ? admin_data_->getSchemaData().find(schemaId) : nullptr;

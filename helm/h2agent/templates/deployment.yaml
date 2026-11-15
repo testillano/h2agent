@@ -122,6 +122,10 @@ spec:
             - "--vault"
             - {{ .Values.h2agent_cl.vault | quote }}
             {{- end }}
+            {{- range .Values.h2agent_cl.datasets }}
+            - "--dataset"
+            - {{ . | quote }}
+            {{- end }}
             {{- if not .Values.h2agent_cl.data.enabled }}
             - "--discard-data"
             {{- end }}

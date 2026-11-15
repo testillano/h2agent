@@ -52,6 +52,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
 
   * Administrative interface (REST API with JSON): update, create and delete items:
     * Vault (with blocking wait / long-poll and SSE streaming support).
+    * Datasets (tables of rows loaded from files, for data-driven flows).
     * File manager configuration.
     * UDP events.
     * Schemas (Rx/Tx).
@@ -76,6 +77,7 @@ As a brief **summary**, we could <u>highlight the following features</u>:
     * Client worker pool (preparation threads, connections per endpoint, pool max pending).
     * Schema configuration json documents to be referred (traffic validation).
     * Vault json document.
+    * Dataset files.
     * File manager configuration.
     * Traffic server configuration (classification and provision).
     * Metrics interface: histogram buckets for server and client and for histogram types.
@@ -99,11 +101,12 @@ As a brief **summary**, we could <u>highlight the following features</u>:
   * User-defined machine state (FSM).
   * Internal events system (data extraction from past events).
   * Vault.
+  * Datasets.
   * File system operations.
   * UDP writing operations.
   * Response build (headers, body, status code, delay).
   * Transformation algorithms: thousands of combinations
-    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, atomic vault increments, shell commands, random generation (ranges, sets, UUIDs), unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
+    * Sources: uri, uri path, query parameters, bodies, request/responses bodies and paths, headers, eraser, math expressions, atomic vault increments, shell commands, random generation (ranges, sets, UUIDs), dataset rows, unix timestamps, strftime formats, sequences, dynamic variables, vaults, constant values, input state (working state), events, files (read).
     * Filters: regular expression captures and regex/replace, url decoding and encoding, base64 encoding and decoding, MessagePack decoding and encoding, array element selection by content, json merge patch, append, prepend, basic arithmetics (sum, multiply), equality, condition variables, differences, json constraints, schema id, date/time parsing (strptime) and formatting (strftime), regex key search, size.
     * Targets: dynamic variables, vaults (plain, typed object, json-string parsing), files (write), response body (as string, integer, unsigned, float, boolean, object and object from json string), UDP through unix socket (write), response body path (as string, integer, unsigned, float, boolean, object and object from json string), headers, status code, response delay, output state, events, stop conditions.
   * Provision references (`#{key}`, `#{<cast type>:key}`): vault values resolved once at provision load, as text (shared regular expressions, constants) or typed (shared object blocks, numbers...), and provision presets (`"#preset"`: an object built from vault objects, its own keys on top).
@@ -828,6 +831,11 @@ Options:
 
 [--vault <path file>]
   Path file for optional startup vault(s) configuration.
+
+[--dataset <path file>[:decode]]
+  Path file for an optional startup dataset (rows read by the 'dataset' source),
+  with the id of its basename without extension. With ':decode', every value is
+  percent-decoded at load time. This parameter can occur multiple times.
 
 [--traffic-server-matching <path file>]
   Path file for optional startup traffic server matching configuration.
@@ -1812,6 +1820,7 @@ The API is organized in the following groups:
 | **vault** | `POST` `GET` `DELETE` `/admin/v2/vault` | Shared variables between provisions |
 | | `GET` `/admin/v2/vault/wait?key=<key>` | Block until variable changes (long-poll) |
 | | `GET` `/admin/v2/vault/events[?key=...]` | SSE stream of vault mutations (real-time push) |
+| **dataset** | `PUT` `GET` `DELETE` `/admin/v2/dataset` | Tables of rows loaded from files (`dataset` source) |
 | **files** | `GET` `/admin/v2/files` | Processed files status |
 | **logging** | `GET` `PUT` `/admin/v2/logging` | Dynamic log level configuration |
 | **configuration** | `GET` `/admin/v2/configuration` | General process configuration |
@@ -2108,7 +2117,7 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 
 Some [command line](#Command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
 
-The chart passes them from the `h2agent_cl` values (paths inside the container, e.g. where the config map is mounted): `schema`, `vault`, `traffic_server_matching`, `traffic_server_provision`, `traffic_client_endpoint`, `traffic_client_provision`, plus `traffic_server_key` / `traffic_server_crt`. At startup they are loaded in this order: schemas, vault, server matching, server provisions, client endpoints, client provisions. So a `vault` given here is there before the provisions which hold load-time references to it (`#{key}`, `#{<type>:key}`, `"#preset"`), with no extra loading step.
+The chart passes them from the `h2agent_cl` values (paths inside the container, e.g. where the config map is mounted): `schema`, `vault`, `datasets` (a list: one `--dataset <path>[:decode]` per entry), `traffic_server_matching`, `traffic_server_provision`, `traffic_client_endpoint`, `traffic_client_provision`, plus `traffic_server_key` / `traffic_server_crt`. At startup they are loaded in this order: schemas, vault, datasets, server matching, server provisions, client endpoints, client provisions. So a `vault` given here is there before the provisions which hold load-time references to it (`#{key}`, `#{<type>:key}`, `"#preset"`), with no extra loading step.
 
 ## Troubleshooting
 

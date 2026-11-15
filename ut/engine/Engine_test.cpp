@@ -3642,3 +3642,73 @@ TEST(Engine_test, MergePatch) {
     EXPECT_FALSE(store.get(Store::Scope::Local, "out").has_value());
 }
 
+// dataset source: the row text rendered (@{}) and parsed as an integer, then asked to
+// the DatasetReader port (the host does the modulo); a non integer row, an unknown
+// dataset or no port skip the rule; "datasetRow" only goes with a dataset source.
+namespace {
+class FakeDatasets : public h2agent::engine::DatasetReader {
+public:
+    mutable std::vector<std::pair<std::string, long long>> asked;
+    std::optional<nlohmann::json> row(const std::string &name, long long index) const override {
+        asked.emplace_back(name, index);
+        if (name != "crew") return std::nullopt;
+        return nlohmann::json{{"name", "member-" + std::to_string(index)}};
+    }
+};
+}  // namespace
+
+TEST(Engine_test, DatasetSource) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({
+        {{"source", "dataset.@{set}"}, {"datasetRow", "@{n}"}, {"target", "local.member"}},
+        {{"source", "local.member./name"}, {"target", "local.name"}}
+    }), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+
+    FakeDatasets datasets;
+    MemStore store;
+    Ports ports;
+    ports.store = &store;
+    ports.datasets = &datasets;
+
+    store.set(Store::Scope::Local, "set", "crew");
+    store.set(Store::Scope::Local, "n", -7);
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    ASSERT_EQ(datasets.asked.size(), 1u);
+    EXPECT_EQ(datasets.asked[0], std::make_pair(std::string("crew"), -7LL));
+    EXPECT_EQ(store.get(Store::Scope::Local, "member").value(), nlohmann::json({{"name", "member--7"}}));
+    EXPECT_EQ(store.get(Store::Scope::Local, "name").value(), "member--7");
+
+    // unknown dataset, non integer rows: skipped (nothing written), the port not asked for bad rows
+    for (const auto &bad : std::vector<std::pair<nlohmann::json, nlohmann::json>> {
+    {"cargo", 1}, {"crew", "1x"}, {"crew", " 1"}, {"crew", ""}, {"crew", 1.5}
+}) {
+        SCOPED_TRACE(bad.first.dump() + " " + bad.second.dump());
+        store.erase(Store::Scope::Local, "member");
+        store.set(Store::Scope::Local, "set", bad.first);
+        store.set(Store::Scope::Local, "n", bad.second);
+        StandaloneContext c;
+        engine.evaluate(pipeline, c, ports);
+        EXPECT_FALSE(store.get(Store::Scope::Local, "member").has_value());
+    }
+    EXPECT_EQ(datasets.asked.size(), 2u);  // the first one and "cargo"
+
+    // no port: skipped
+    Ports noDatasets;
+    noDatasets.store = &store;
+    store.set(Store::Scope::Local, "set", "crew");
+    store.set(Store::Scope::Local, "n", 1);
+    StandaloneContext c2;
+    engine.evaluate(pipeline, c2, noDatasets);
+    EXPECT_FALSE(store.get(Store::Scope::Local, "member").has_value());
+
+    // parse errors
+    EXPECT_EQ(engine.parse(nlohmann::json::array({{{"source", "dataset.crew"}, {"target", "local.m"}}}), err), nullptr);
+    EXPECT_NE(err.find("datasetRow"), std::string::npos) << err;
+    EXPECT_EQ(engine.parse(nlohmann::json::array({{{"source", "dataset."}, {"datasetRow", "1"}, {"target", "local.m"}}}), err), nullptr);
+    EXPECT_EQ(engine.parse(nlohmann::json::array({{{"source", "value.x"}, {"datasetRow", "1"}, {"target", "local.m"}}}), err), nullptr);
+    EXPECT_NE(err.find("needs a dataset source"), std::string::npos) << err;
+}
+

@@ -267,6 +267,18 @@ public:
                                          std::string &failReport) const = 0;
 };
 
+/** Dataset rows (dataset source): host tables loaded from files. */
+class DatasetReader {
+public:
+    virtual ~DatasetReader() = default;
+    /**
+     * Row `index` of dataset `name`, modulo its rows (negative counts from the
+     * end), as an object {"<column>": "<value>", ...}; nullopt when the dataset
+     * is unknown or empty.
+     */
+    virtual std::optional<nlohmann::json> row(const std::string &name, long long index) const = 0;
+};
+
 /**
  * Aggregate of all ports handed to the engine. Any member may be null when the
  * corresponding capability is not needed (the engine skips rules that require a
@@ -281,6 +293,7 @@ struct Ports {
     Shell *shell{nullptr};
     Trigger *trigger{nullptr};
     SchemaValidator *schema{nullptr};
+    DatasetReader *datasets{nullptr};
 };
 
 }  // namespace engine

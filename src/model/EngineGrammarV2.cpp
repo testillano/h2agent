@@ -103,6 +103,7 @@ std::string lowerSource(const nlohmann::json &from, Mode mode, bool usesJsonBody
     if (kind == "eraser") return "eraser";
     if (kind == "math") return "math." + text(from, "expression");
     if (kind == "uuid") return "uuid";
+    if (kind == "dataset") return "dataset." + text(from, "name");  // the row goes in "datasetRow"
     if (kind == "random") return "random." + number(from["min"]) + "." + number(from["max"]);
     if (kind == "randomset") {
         std::string values;
@@ -295,6 +296,9 @@ nlohmann::json lowerRule(const nlohmann::json &rule, Mode mode, bool usesJsonBod
     out["source"] = lowerSource(rule["from"], mode, usesJsonBodyTarget);
     auto inc = rule["from"].find("increment");
     if (inc != rule["from"].end()) out["increment"] = inc->is_string() ? inc->get<std::string>() : inc->dump();  // vault fetch-and-add
+    auto row = rule["from"].find("row");
+    if (row != rule["from"].end() && text(rule["from"], "source") == "dataset")
+        out["datasetRow"] = row->is_string() ? row->get<std::string>() : row->dump();
     out["target"] = lowerTarget(rule["to"], castType, mode);
     if (filters.size() == 1) out["filter"] = filters.front();  // the engine single filter form
     else if (!filters.empty()) out["filter"] = filters;  // chain, in list order

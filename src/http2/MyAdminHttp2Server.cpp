@@ -530,6 +530,40 @@ int MyAdminHttp2Server::clientProvision(const nlohmann::json &configurationObjec
     return result;
 }
 
+int MyAdminHttp2Server::loadDataset(const std::string &queryParams, nlohmann::json &summary, std::string &error) const
+{
+    std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams); // values decoded
+    auto it = qmap.find("file");
+    const std::string file = (it != qmap.end()) ? it->second : "";
+    it = qmap.find("id");
+    const std::string id = (it != qmap.end()) ? it->second : "";
+    it = qmap.find("decode");
+    const std::string decode = (it != qmap.end()) ? it->second : "false";
+    if (file.empty()) {
+        error = "missing 'file' query parameter";
+        return ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+    }
+    if (decode != "true" && decode != "false") {
+        error = "'decode' must be true or false";
+        return ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+    }
+    if (qmap.count("id") && id.empty()) {
+        error = "empty 'id' query parameter";
+        return ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+    }
+    return loadDataset(id, file, (decode == "true"), summary, error);
+}
+
+int MyAdminHttp2Server::loadDataset(const std::string &id, const std::string &file, bool decode, nlohmann::json &summary, std::string &error) const
+{
+    const int result = getAdminData()->getDatasets().loadFile(id, file, decode, summary, error);
+    if (result == 200) {
+        LOGINFORMATIONAL(ert::tracing::Logger::informational(ert::tracing::Logger::asString("Dataset '%s' loaded from '%s' (%zu rows)",
+                         summary["id"].get<std::string>().c_str(), file.c_str(), summary["rows"].get<std::size_t>()), ERT_FILE_LOCATION));
+    }
+    return result; // 200, 400 or 404
+}
+
 int MyAdminHttp2Server::vault(const nlohmann::json &configurationObject, std::string& log) const
 {
     log = "vault operation; ";
@@ -764,6 +798,31 @@ void MyAdminHttp2Server::receiveGET(const std::string &uri, const std::string &p
                 if (exists) responseBody = h2agent::model::dumpJson(gvarValue);
                 statusCode = (exists ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // response body will be emptied by nghttp2 when status code is 204 (No Content)
             }
+        }
+    }
+    else if (pathSuffix == "dataset") { // dataset[?id=<id>]: summaries, never the content
+        std::string id;
+        bool hasId = false;
+        if (!queryParams.empty()) {
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("id");
+            if (it != qmap.end()) {
+                id = it->second;
+                hasId = true;
+            }
+        }
+        if (hasId && id.empty()) {
+            statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+        }
+        else if (hasId) {
+            auto summary = getAdminData()->getDatasets().summary(id);
+            if (summary) responseBody = h2agent::model::dumpJson(*summary);
+            statusCode = (summary ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // 200 or 204
+        }
+        else {
+            const nlohmann::json all = getAdminData()->getDatasets().summary();
+            if (!all.empty()) responseBody = h2agent::model::dumpJson(all);
+            statusCode = (all.empty() ? ert::http2comm::ResponseCode::NO_CONTENT:ert::http2comm::ResponseCode::OK); // 204 or 200
         }
     }
     else if (pathSuffix == "vault/wait") { // vault/wait?key=<key>
@@ -1236,6 +1295,23 @@ void MyAdminHttp2Server::receiveDELETE(const std::string &pathSuffix, const std:
 
         statusCode = (success ? (clientDataDeleted ? ert::http2comm::ResponseCode::OK /*200*/:ert::http2comm::ResponseCode::NO_CONTENT /*204*/):ert::http2comm::ResponseCode::BAD_REQUEST /*400*/);
     }
+    else if (pathSuffix == "dataset") { // dataset[?id=<id>]
+        std::string id;
+        bool hasId = false;
+        if (!queryParams.empty()) {
+            std::map<std::string, std::string> qmap = h2agent::model::extractQueryParameters(queryParams);
+            auto it = qmap.find("id");
+            if (it != qmap.end()) {
+                id = it->second;
+                hasId = true;
+            }
+        }
+        if (hasId && id.empty()) statusCode = ert::http2comm::ResponseCode::BAD_REQUEST; // 400
+        else {
+            const bool removed = hasId ? getAdminData()->getDatasets().remove(id) : getAdminData()->getDatasets().clear();
+            statusCode = (removed ? ert::http2comm::ResponseCode::OK:ert::http2comm::ResponseCode::NO_CONTENT); // 200 or 204
+        }
+    }
     else if (pathSuffix == "vault") {
         bool vaultDeleted = false;
         std::string name = "";
@@ -1414,6 +1490,14 @@ void MyAdminHttp2Server::receivePUT(const std::string &pathSuffix, const std::st
                 responseBody = buildJsonResponse(true, std::string(mode) + "-data configuration updated", warning);
             }
         }
+    }
+    else if (pathSuffix == "dataset") { // dataset?file=<path>[&id=<id>][&decode=true]
+        headers.emplace("content-type", nghttp2::asio_http2::header_value{"application/json"});
+        nlohmann::json summary;
+        std::string error;
+        statusCode = loadDataset(queryParams, summary, error);
+        responseBody = statusCodeOK(statusCode) ? h2agent::model::dumpJson(summary) : buildJsonResponse(false, "dataset operation; " + error);
+        return;
     }
     else if (pathSuffix == "files/configuration") {
         std::string readCache;

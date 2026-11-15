@@ -222,6 +222,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     EngineClock clock;
     EngineShell shell;
     EngineSchemaValidator schemas(admin_data_);
+    EngineDatasetReader datasets(admin_data_);
     h2agent::engine::Ports ports;
     ports.store = &store;
     ports.events = &events;
@@ -230,6 +231,7 @@ void AdminClientProvision::transform( std::string &requestMethod,
     ports.clock = &clock;
     ports.shell = &shell;
     ports.schema = &schemas;  // no trigger port: clientProvision is not applicable in client provisions
+    ports.datasets = &datasets;
 
     if (engine_pipeline_) {
         h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_pipeline_, ctx, ports, executionTrace != nullptr);
@@ -307,6 +309,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         EngineClock clock;
         EngineShell shell;
         EngineSchemaValidator schemas(admin_data_);
+        EngineDatasetReader datasets(admin_data_);
         h2agent::engine::Ports ports;
         ports.store = &store;
         ports.events = &events;
@@ -315,6 +318,7 @@ bool AdminClientProvision::transformResponse( const std::string &requestUri,
         ports.clock = &clock;
         ports.shell = &shell;
         ports.schema = &schemas;  // no trigger port: clientProvision is not applicable in client provisions
+        ports.datasets = &datasets;
 
         if (engine_response_pipeline_) {
             h2agent::engine::TransformResult result = h2agent::engine::Engine{}.evaluate(engine_response_pipeline_, ctx, ports, executionTrace != nullptr);

@@ -36,6 +36,7 @@ ADMIN_URI_PREFIX = '/admin/v2/'
 ADMIN_SCHEMA_URI = ADMIN_URI_PREFIX + 'schema'
 ADMIN_CONFIGURATION_URI = ADMIN_URI_PREFIX + 'configuration'
 ADMIN_VAULT_URI = ADMIN_URI_PREFIX + 'vault'
+ADMIN_DATASET_URI = ADMIN_URI_PREFIX + 'dataset'
 ADMIN_FILES_URI = ADMIN_URI_PREFIX + 'files'
 ADMIN_SOCKETS_URI = ADMIN_URI_PREFIX + 'udp-sockets'
 ADMIN_LOGGING_URI = ADMIN_URI_PREFIX + 'logging'
@@ -366,6 +367,7 @@ def admin_cleanup(h2ac_admin):
   def cleanup(matchingFile = None, matchingContent = { "algorithm": "FullMatching" }):
     response = h2ac_admin.delete(ADMIN_SCHEMA_URI)
     response = h2ac_admin.delete(ADMIN_VAULT_URI)
+    response = h2ac_admin.delete(ADMIN_DATASET_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_PROVISION_URI)
     response = h2ac_admin.delete(ADMIN_SERVER_DATA_URI)
     response = h2ac_admin.delete(ADMIN_CLIENT_ENDPOINT_URI)

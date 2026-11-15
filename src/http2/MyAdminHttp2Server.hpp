@@ -313,6 +313,16 @@ public:
     int serverProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const;
     int clientEndpoint(const nlohmann::json &configurationObject, std::string& log) const;
     int clientProvision(const nlohmann::json &configurationObject, std::string& log, std::string& warning) const;
+    /**
+     * Loads (replaces) a dataset from a file: query 'file=<path>[&id=<id>][&decode=true]'
+     * (PUT dataset, and --dataset at startup).
+     *
+     * @return 200 with the summary {id, columns, rows}, else 400/404 with the error
+     */
+    int loadDataset(const std::string &queryParams, nlohmann::json &summary, std::string &error) const;
+    /** Same, from its fields (empty id: the file basename without extension). */
+    int loadDataset(const std::string &id, const std::string &file, bool decode, nlohmann::json &summary, std::string &error) const;
+
     int vault(const nlohmann::json &configurationObject, std::string& log) const;
     int schema(const nlohmann::json &configurationObject, std::string& log) const;
 

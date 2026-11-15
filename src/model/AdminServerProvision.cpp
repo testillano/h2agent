@@ -223,6 +223,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     EngineClock clock;
     EngineShell shell;
     EngineSchemaValidator schemas(admin_data_);
+    EngineDatasetReader datasets(admin_data_);
     EngineTrigger trigger(clientProvisionTriggers);
     h2agent::engine::Ports ports;
     ports.store = &store;
@@ -232,6 +233,7 @@ void AdminServerProvision::transform( const std::string &requestUri,
     ports.clock = &clock;
     ports.shell = &shell;
     ports.schema = &schemas;
+    ports.datasets = &datasets;
     ports.trigger = &trigger;
 
     if (engine_pipeline_) {
