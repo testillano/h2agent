@@ -102,6 +102,7 @@ std::string lowerSource(const nlohmann::json &from, Mode mode, bool usesJsonBody
     if (kind == "vault") return withPath("global." + text(from, "key"), from);
     if (kind == "eraser") return "eraser";
     if (kind == "math") return "math." + text(from, "expression");
+    if (kind == "uuid") return "uuid";
     if (kind == "random") return "random." + number(from["min"]) + "." + number(from["max"]);
     if (kind == "randomset") {
         std::string values;

@@ -55,6 +55,7 @@ Every rule has the same three stages, executed in this order:
 | `math.<expression>` | `{"source": "math", "expression": "<expression>"}` | all |
 | `random.<min>.<max>` | `{"source": "random", "min": <min>, "max": <max>}` | all |
 | `randomset.<a>\|<b>\|<c>` | `{"source": "randomset", "values": ["<a>", "<b>", "<c>"]}` | all |
+| (none: v2 only) | `{"source": "uuid"}` (random UUID v4; `--reverse` rejects it) | all |
 | `timestamp.<unit>` | `{"source": "timestamp", "unit": "s\|ms\|us\|ns"}` | all |
 | `strftime.<format>` | `{"source": "strftime", "fmt": "<format>"}` | all |
 | `recvseq` / `sendseq` | `{"source": "recvseq"}` / `{"source": "sendseq"}` | server / client |

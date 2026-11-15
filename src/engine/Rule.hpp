@@ -65,6 +65,7 @@ enum class SourceType {
     // (admits @{var} substitution on the formatted result; parity
     // with h2agent Strftime source). Uses the real wall clock
     // (gmtime_r) independently of the Clock port.
+    Uuid,         // uuid -> a random UUID version 4 (RFC 9562), lower case, canonical text
     Random,       // random.<min>.<max> -> integer in [min,max]
     RandomSet,    // randomset.<v1|v2|..|vN> -> one pipe-separated token chosen at
     // random (the chosen token admits @{var} substitution). Result is

@@ -607,6 +607,7 @@ Json GrammarMigrator::sourceToV2(const std::string &v1, const std::string &where
 std::string GrammarMigrator::sourceToV1(const Json &v2, const std::string &where) {
     if (!v2.is_object() || !v2.contains("source") || !v2["source"].is_string()) fail(where, "must be an object with a 'source' kind");
     const std::string kind = v2["source"].get<std::string>();
+    if (kind == "uuid") fail(where, "source 'uuid' has no v1 equivalent");
 
     for (const auto &entry : plainSources()) {
         if (kind != entry.second) continue;

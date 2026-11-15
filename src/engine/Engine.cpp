@@ -43,6 +43,7 @@ SOFTWARE.
 #include <map>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <regex>
 #include <set>
 
@@ -439,6 +440,34 @@ std::string percentDecode(const std::string &in) {
     return out;
 }
 
+// Random UUID version 4 (RFC 9562): 122 random bits (a per-thread generator seeded
+// from std::random_device), version 4 and variant 10 bits, canonical lower case
+// 8-4-4-4-12 text.
+std::string uuidV4() {
+    thread_local std::mt19937_64 generator{[]() {
+        std::random_device device;
+        std::seed_seq seed{device(), device(), device(), device(), device(), device(), device(), device()};
+        return std::mt19937_64(seed);
+    }
+    ()};
+    std::uint64_t hi = generator(), lo = generator();
+    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;  // version 4
+    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;  // variant 10
+    static const char digits[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(36);
+    for (int i = 15; i >= 0; i--) {
+        out += digits[(hi >> (i * 4)) & 0xF];
+        if (i == 8 || i == 4) out += '-';
+    }
+    out += '-';
+    for (int i = 15; i >= 0; i--) {
+        out += digits[(lo >> (i * 4)) & 0xF];
+        if (i == 12) out += '-';
+    }
+    return out;
+}
+
 // Percent-encode every byte outside RFC 3986 unreserved (A-Z a-z 0-9 - . _ ~),
 // upper-case hex: the UrlEncode filter (inverse of percentDecode).
 std::string percentEncode(const std::string &in) {
@@ -774,6 +803,7 @@ SourceType classifySource(const std::string &expr, Rule &rule) {
         return SourceType::StoreGlobal;
     }
     if (expr == "inState") return SourceType::InState;
+    if (expr == "uuid") return SourceType::Uuid;
     // Neutral v2 payload sources: input[./json-pointer] / output[./json-pointer].
     // Bare "input"/"output" means the whole document (ptr ""); a ".<pointer>"
     // suffix (e.g. input./a/b) navigates into it. The host maps its transport
@@ -1843,6 +1873,9 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
             value = substituteVariables(std::string(buf, n), ports);
             break;
         }
+        case SourceType::Uuid:
+            value = uuidV4();
+            break;
         case SourceType::Random: {
             long long range = rule.sourceI2 - rule.sourceI1 + 1;
             value = rule.sourceI1 + (std::rand() % range);

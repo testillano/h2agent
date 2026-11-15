@@ -72,6 +72,7 @@ TEST(EngineGrammarV2_test, CommonSources) {
         {R"({"source":"timestamp","unit":"ms"})", "timestamp.ms"},
         {R"({"source":"strftime","fmt":"%Y"})", "strftime.%Y"},
         {R"({"source":"inState"})", "inState"},
+        {R"({"source":"uuid"})", "uuid"},
         {R"({"source":"txtFile","file":"/tmp/a"})", "txtFile./tmp/a"},
         {R"({"source":"command","command":"echo"})", "command.echo"},
         {   R"({"source":"clientEvent","clientEndpointId":"e","sendseq":"@{seq}","eventPath":"/responseBody"})",

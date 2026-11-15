@@ -1,6 +1,7 @@
 import pytest
 import json
 import os
+import re
 import time
 from conftest import BASIC_FOO_BAR_SERVER_PROVISION_TEMPLATE, string2dict, ADMIN_SERVER_PROVISION_URI, VALID_SERVER_PROVISIONS__RESPONSE_BODY, ADMIN_SERVER_DATA_URI, ADMIN_CLIENT_ENDPOINT_URI, ADMIN_CLIENT_PROVISION_URI, ADMIN_CLIENT_DATA_URI, ADMIN_VAULT_URI
 from conftest import NESTED_NODE1_NODE2_REQUEST, NESTED_VAR1_VAR2_REQUEST, TRANSFORM_FOO_BAR_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_AND_VAR1_VAR2_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_TWO_TRANSFERS_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_RESPONSE_BODY_DATA_SERVER_PROVISION_TEMPLATE, TRANSFORM_FOO_BAR_COMMAND_SERVER_PROVISION_TEMPLATE
@@ -1025,3 +1026,29 @@ def test_060_scopedVarNotInheritedWithoutChain(admin_cleanup, h2ac_admin, h2ac_t
   response = h2ac_traffic.postDict("/app/v1/foo/bar/scoped-var-reset", {"other": 1})
   assert response["status"] == 200
   assert "v" not in (response["body"] or {})
+
+
+@pytest.mark.transform
+def test_061_uuid(admin_cleanup, h2ac_admin, h2ac_traffic):
+
+  # A mock assigning a resource id: a random UUID v4 in the Location header and the body
+  admin_cleanup()
+  provision = {"requestMethod": "POST", "requestUri": "/app/v1/uuid/items", "responseCode": 201,
+               "responseHeaders": {"content-type": "application/json"}, "responseBody": {},
+               "transform": [
+                 {"from": {"source": "uuid"}, "to": {"target": "var", "name": "id"}},
+                 {"from": {"source": "var", "name": "id"}, "to": {"target": "responseBody", "path": "/id"}},
+                 {"from": {"source": "literal", "value": "/app/v1/uuid/items/@{id}"}, "to": {"target": "responseHeader", "name": "location"}}
+               ]}
+  response = h2ac_admin.postDict(ADMIN_SERVER_PROVISION_URI, provision)
+  assert response["status"] == 201
+
+  ids = set()
+  for _ in range(3):
+    response = h2ac_traffic.postDict("/app/v1/uuid/items", {"name": "box"})
+    assert response["status"] == 201
+    uuid = response["body"]["id"]
+    assert re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", uuid)
+    assert response["headers"]["location"] == [("/app/v1/uuid/items/" + uuid).encode()]
+    ids.add(uuid)
+  assert len(ids) == 3

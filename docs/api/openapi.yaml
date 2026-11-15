@@ -2024,6 +2024,15 @@ components:
         properties:
           source:
             enum:
+            - uuid
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
             - randomset
             type: string
           values:
@@ -2729,6 +2738,15 @@ components:
         properties:
           source:
             enum:
+            - uuid
+            type: string
+        required:
+        - source
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
             - randomset
             type: string
           values:
@@ -3379,6 +3397,15 @@ components:
         - source
         - min
         - max
+        type: object
+      - additionalProperties: false
+        properties:
+          source:
+            enum:
+            - uuid
+            type: string
+        required:
+        - source
         type: object
       - additionalProperties: false
         properties:

@@ -141,6 +141,7 @@ inline nlohmann::json sourceKind(const std::string &name) {
         {"eraser", kind("source", "eraser")},
         {"math", kind("source", "math", {{"expression", anyText()}}, {"expression"})},
         {"random", kind("source", "random", {{"min", {{"type", "integer"}}}, {"max", {{"type", "integer"}}}}, {"min", "max"})},
+        {"uuid", kind("source", "uuid")},
         {"randomset", kind("source", "randomset", {{"values", {{"type", "array"}, {"items", {{"type", "string"}}}, {"minItems", 1}}}}, {"values"})},
         {"timestamp", kind("source", "timestamp", {{"unit", enumOf({"s", "ms", "us", "ns"})}}, {"unit"})},
         {"strftime", kind("source", "strftime", {{"fmt", text()}}, {"fmt"})},
@@ -305,7 +306,7 @@ inline nlohmann::json rules(const std::string &ruleRef, bool nonEmpty) {
 inline const std::vector<std::string> &serverFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
-        "responseBody", "responseHeaders", "eraser", "math", "random", "randomset", "timestamp", "strftime",
+        "responseBody", "responseHeaders", "eraser", "math", "random", "randomset", "uuid", "timestamp", "strftime",
         "recvseq", "var", "vault", "serverEvent", "clientEvent", "literal", "inState", "txtFile", "binFile", "command"
     };
     return k;
@@ -321,7 +322,7 @@ inline const std::vector<std::string> &serverTo() {
 inline const std::vector<std::string> &clientFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestBody", "requestHeader", "requestHeaders", "responseHeaders", "eraser", "math",
-        "random", "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent",
+        "random", "randomset", "uuid", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent",
         "literal", "inState", "txtFile", "binFile", "command"
     };
     return k;
@@ -337,7 +338,7 @@ inline const std::vector<std::string> &clientResponseFrom() {
     static const std::vector<std::string> k = {
         "requestUri", "requestUriPath", "requestUriParam", "requestBody", "requestHeader", "requestHeaders",
         "responseBody", "responseHeader", "responseHeaders", "responseStatusCode", "eraser", "math", "random",
-        "randomset", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent", "literal",
+        "randomset", "uuid", "timestamp", "strftime", "sendseq", "var", "vault", "clientEvent", "serverEvent", "literal",
         "inState", "txtFile", "binFile", "command"
     };
     return k;

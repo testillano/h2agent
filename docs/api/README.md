@@ -868,6 +868,16 @@ The **source** of information is classified after parsing the following possible
 
 - `{"source": "randomset", "values": ["<value1>", .., "<valueN>"]}`: random string value between pipe-separated labels provided. This source specification **admits variables substitution**. Note that both leading and trailing pipes would add empty parts (`'|foo|bar'`, `'foo|bar|'` and `'foo||bar'` become three parts, `'foo'`, `'bar'` and empty string).
 
+- `{"source": "uuid"}`: a random UUID version 4 (RFC 9562) in its canonical lower case text, e.g. `"3f1c2a7e-9b4d-4c21-8f6a-0d5e7b2c9a14"`, different on every evaluation. For identifiers assigned by a mock (a resource id, a `location` header) or sent by a client (a correlation id):
+
+  ```json
+  {"from": {"source": "uuid"}, "to": {"target": "var", "name": "id"}},
+  {"from": {"source": "var", "name": "id"}, "to": {"target": "responseBody", "path": "/id"}},
+  {"from": {"source": "literal", "value": "/app/v1/items/@{id}"}, "to": {"target": "responseHeader", "name": "location"}}
+  ```
+
+  Store it in a variable when it is used more than once (every `uuid` source gives a new one). In functional tests, where an expected message order or a content check must name the value, an identifier derived from the test data (a sequence, a fixed identity) is easier to verify.
+
 - `{"source": "timestamp", "unit": "<unit>"}`: UNIX epoch time in `s` (seconds), `ms` (milliseconds), `us` (microseconds) or `ns` (nanoseconds).
 
 - `{"source": "strftime", "fmt": "<format>"}`: current date/time formatted by [strftime](https://www.cplusplus.com/reference/ctime/strftime/). This source format **admits variables substitution**.

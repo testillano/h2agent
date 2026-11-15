@@ -7,6 +7,7 @@
 #include <Rule.hpp>
 #include <atomic>
 #include <map>
+#include <regex>
 #include <set>
 #include <string>
 #include <thread>
@@ -3530,3 +3531,22 @@ TEST(Engine_test, SelectArrayElements) {
     EXPECT_EQ(runSelect(nlohmann::json::array(), {{"Select", {{"a", 1}}}}), "FAILED");
     EXPECT_EQ(runSelect(crew[0], {{"Select", {{"name", "Leia"}}}}), "FAILED");  // an object, not an array
 }
+
+// uuid: RFC 9562 version 4, canonical lower case text; every evaluation differs.
+TEST(Engine_test, UuidVersion4) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "uuid"}, {"target", "output.string"}}}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    const std::regex canonical("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
+    std::set<std::string> seen;
+    for (int i = 0; i < 1000; i++) {
+        StandaloneContext ctx;
+        Ports ports;
+        engine.evaluate(pipeline, ctx, ports);
+        ASSERT_TRUE(std::regex_match(ctx.outBody.raw, canonical)) << ctx.outBody.raw;
+        seen.insert(ctx.outBody.raw);
+    }
+    EXPECT_EQ(seen.size(), 1000u);
+}
+
