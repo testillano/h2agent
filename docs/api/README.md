@@ -1236,7 +1236,7 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
 
 
-- `regexReplace`: this is similar to the matching algorithm based in regular expressions and replace procedure (even the fact that it *falls back to source information when not matching is done*, something that differs from former `regexCapture` algorithm which builds an empty string when regular expression is not fully matched). We provide `rgx` and `fmt` to transform the source into the target:
+- `regexReplace`: this is the usual regular expression replace procedure (as `sed s/<rgx>/<fmt>/` or `std::regex_replace`). We provide `rgx` and `fmt` to transform the source into the target:
 
   ```json
   {
@@ -1252,6 +1252,53 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
   For example, if the source received is "*/ctrl/v2/id-555112233/ts-1615562841*", then we will replace/create a node "*data.timestamp*" within the response body, with the value formatted: *1615562841*.
 
   In this algorithm, the obtained value will be a string.
+
+  **It is a transformation, not a condition**: when `rgx` does not match, the source passes **unchanged** to the next filter (or to the target), and the rule is not skipped. This differs from `regexCapture`, which fails the filter when the regular expression is not fully matched (the target is not touched and `onFilterFail` runs). So, to act only when the source matches, put a condition before it (`equalTo`, `regexCapture`).
+
+  For example, a mock answering with a different status code depending on a request header. This rule looks like "if the header is `2`, answer `599`", but it is not:
+
+  ```json
+  {
+    "from": {"source": "requestHeader", "name": "x-site-id"},
+    "filter": [{"op": "regexReplace", "rgx": "^2$", "fmt": "599"}],
+    "to": {"target": "responseStatusCode"}
+  }
+  ```
+
+  | `x-site-id` | Value reaching the target | Response |
+  |---|---|---|
+  | `2` | `599` (replaced) | `599` |
+  | `404` | `404` (unchanged) | `404`: the header value leaks as status code |
+  | `3` | `3` (unchanged) | invalid status code |
+  | absent | (no source value) | provision `responseCode` |
+
+  A condition in front makes it a real "only if": `equalTo` fails the filter for any other value, so the rule is skipped and the provision `responseCode` is kept:
+
+  ```json
+  {
+    "from": {"source": "requestHeader", "name": "x-site-id"},
+    "filter": [
+      {"op": "equalTo", "value": "2"},
+      {"op": "regexReplace", "rgx": "^2$", "fmt": "599"}
+    ],
+    "to": {"target": "responseStatusCode"}
+  }
+  ```
+
+  Mapping a value to a constant this way works, but it is not obvious to read. An explicit condition says the same more clearly:
+
+  ```json
+  {
+    "from": {"source": "requestHeader", "name": "x-site-id"},
+    "filter": [{"op": "equalTo", "value": "2"}],
+    "to": {"target": "var", "name": "is_site2"}
+  },
+  {
+    "from": {"source": "literal", "value": "599"},
+    "filter": [{"op": "conditionVar", "name": "is_site2"}],
+    "to": {"target": "responseStatusCode"}
+  }
+  ```
 
 - `split`: splits the source string into fixed-size groups joined by a separator. The algorithm takes the last `size × count` characters from the source, pads on the left with `filler` if shorter, and optionally strips leading zeros per group when `numeric` is enabled.
 
