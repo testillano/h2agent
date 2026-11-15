@@ -1932,6 +1932,53 @@ TEST_F(Transform_test, JsonConstraintOnATextSourceSaysSo)
     EXPECT_EQ(response_body_, "JsonConstraint FAILED: validated source is not a json object (text: not a document)");
 }
 
+TEST_F(Transform_test, VaultIncrementTicket)
+{
+    // Fetch-and-add: the new value kept in a var with the same name (it shadows the vault)
+    server_provision_json_["responseBody"] = nlohmann::json::object();
+    server_provision_json_["transform"] = R"([
+      {"from": {"source": "vault", "key": "attempts", "increment": 1}, "to": {"target": "var", "name": "attempts"}},
+      {"from": {"source": "var", "name": "attempts"}, "to": {"target": "responseBody", "path": "/attempt"}},
+      {"from": {"source": "math", "expression": "@{attempts} >= 3"}, "filter": [{"op": "cast", "type": "integer"}],
+       "to": {"target": "var", "name": "third"}},
+      {"from": {"source": "literal", "value": "503"}, "filter": [{"op": "conditionVar", "name": "third"}], "to": {"target": "responseStatusCode"}}
+    ])"_json;
+    provisionAndTransform(request_body_.dump());
+    EXPECT_EQ(nlohmann::json::parse(response_body_)["attempt"], 1);
+    EXPECT_EQ(status_code_, 200);
+    for (int expected : {2, 3}) {
+        const auto provision = adata_.getServerProvisionData().find(in_state_, request_method_, request_uri_);
+        ASSERT_TRUE(provision);
+        variables_.clear();
+        provision->transform(request_uri_, request_uri_path_, qmap_, request_body_data_part_, request_headers_, general_unique_server_sequence_, status_code_, response_headers_, response_body_, response_delay_ms_, out_state_, out_state_method_, out_state_uri_, client_provision_triggers_, variables_);
+        EXPECT_EQ(nlohmann::json::parse(response_body_)["attempt"], expected);
+    }
+    EXPECT_EQ(status_code_, 503);  // third attempt
+    nlohmann::json stored;
+    ASSERT_TRUE(common_resources_.VaultPtr->tryGet("attempts", stored));
+    EXPECT_EQ(stored, nlohmann::json(3));
+}
+
+TEST_F(Transform_test, VaultIncrementSchema)
+{
+    // increment is the whole value: no path; integer or a text with @{}
+    for (const char *from : {R"({"source": "vault", "key": "c", "increment": 1, "path": "/a"})",
+                             R"({"source": "vault", "key": "c", "increment": "one"})",
+                             R"({"source": "vault", "key": "c", "increment": 1.5})"}) {
+        SCOPED_TRACE(from);
+        nlohmann::json provision = server_provision_json_;
+        provision["transform"] = nlohmann::json::array({{{"from", nlohmann::json::parse(from)}, {"to", {{"target", "var"}, {"name", "x"}}}}});
+        EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    }
+    for (const char *from : {R"({"source": "vault", "key": "c", "increment": -2})", R"({"source": "vault", "key": "c", "increment": "@{step}"})"}) {
+        SCOPED_TRACE(from);
+        adata_.clearServerProvisions();
+        nlohmann::json provision = server_provision_json_;
+        provision["transform"] = nlohmann::json::array({{{"from", nlohmann::json::parse(from)}, {"to", {{"target", "var"}, {"name", "x"}}}}});
+        EXPECT_EQ(adata_.loadServerProvision(provision, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    }
+}
+
 TEST_F(Transform_test, TargetStopIsRejected)
 {
     // 'stop' was the name of 'break' in h2agent 5.0-5.2: no alias is kept.

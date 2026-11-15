@@ -168,7 +168,7 @@ Individual vault operations (`load`, `loadAtPath`, `tryGet`) are thread-safe. Ho
 
 The variable read (`@{MY_COUNTER}`) and the write (vault key `MY_COUNTER`) are separate operations. When multiple worker threads execute this concurrently, increments can be lost. This only affects shared (global) vault keys accessed from multiple users simultaneously.
 
-Per-user vault keys (e.g., `flow_@{sequence}_status`) are naturally partitioned and safe. For global counters, consider aggregating per-user values after the test completes instead of incrementing a shared counter during execution.
+Per-user vault keys (e.g., `flow_@{sequence}_status`) are naturally partitioned and safe. For a shared counter, use the atomic [vault increment](#vault-increment) instead of the pattern above.
 
 #### Vault concurrency and sharding
 
@@ -176,7 +176,7 @@ The vault is written on the traffic hot path: every `vault` transformation targe
 
 Notes:
 
-- The gain applies to **distinct keys** (the common per-user case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` atomic).
+- The gain applies to **distinct keys** (the common per-user case): contention on the vault drops by roughly `1/N`. A single **shared** hot key still serializes on its one shard (and still has the read-modify-write race described above -- sharding does not make `{"source": "math", "expression": "@{K}+1"}` -> vault key `K` atomic: the [vault increment](#vault-increment) is).
 - Whole-vault admin operations (`GET /admin/v2/vault`, `DELETE /admin/v2/vault`) lock **all** shards (in a fixed order) to produce a consistent snapshot / clear. This is by design: those are administrative paths, not the traffic hot path.
 - This is transparent to provisions and to the REST API; no configuration is needed. It is an internal property of the vault store (`src/model/Map.hpp`, opt-in via the `Shards` template parameter; only the vault uses `> 1`). A native benchmark is provided at `benchmark/native/vault_sharding/`.
 
@@ -877,6 +877,18 @@ The **source** of information is classified after parsing the following possible
 - `{"source": "var", "name": "<id>"[, "path": "/<path>"]}`: general purpose variable (readable at transformation chain, scoped to the `outState` chain). Values can be strings, numbers, booleans, arrays or `json` objects; a `path` (json pointer) navigates into the stored value. This source variable identifier **admits variables substitution**. Variables set in one provision are automatically available in the next provision linked via `outState`, and destroyed when the chain ends.
 
 - `{"source": "vault", "key": "<key>"[, "path": "/<path>"]}`: general purpose vault (readable from anywhere, process-level scope). Values can be strings, numbers, booleans, arrays or `json` objects. When a `path` is provided (json pointer format), the source navigates into the stored `json` value (e.g. `{"source": "vault", "key": "TPL", "path": "/request/headers/auth"}` extracts the `auth` field). Without path, the whole value is used. For string values, the behavior is backward compatible with the former string-only storage. This source variable identifier **admits variables substitution** (on the key part). Vault are useful to store dynamic information to be used in a different provision instance. For example you could split a request `URI` in the form `/update/<id>/<timestamp>` and store a variable with the name `<id>` and value `<timestamp>`. That variable could be queried later just providing `<id>` which is probably enough in such context. Thus, we could parse other provisions (access to events addressed with dynamic elements), simulate advanced behaviors, or just parse mock invariant globals over configured provisions (although this seems to be less efficient than hard-coding them, it is true that it drives provisions adaptation "on the fly" if you update such globals when needed). **Note:** key names cannot contain dots.
+
+- <a name="vault-increment"></a>`{"source": "vault", "key": "<key>", "increment": <n>}`: **atomic increment** (fetch-and-add). Adds `n` (an integer, negative allowed, or a text with variables such as `"@{step}"`) to the value of the vault key, under its lock, and the **new value** is the source. A missing key starts at 0. The stored value must be an integer (or a text holding one, e.g. written from a `literal`): it is stored back as an integer. Any other stored value (a float, a non numeric text, an object...), a non integer `n` or an overflow skip the rule (the value is kept, `onFilterFail` runs). It takes the whole value: `path` is not allowed with `increment`.
+
+  Concurrent messages (several worker threads, the client pool) never lose an update, unlike reading the key and writing `@{key} + 1` back. Keep the new value in a variable, ideally with the same name: variables are searched before vaults, so `@{attempts}` is then **this message's** number in every later rule of the provision (and along a client chain), while the vault key keeps counting for the others:
+
+  ```json
+  {"from": {"source": "vault", "key": "attempts", "increment": 1}, "to": {"target": "var", "name": "attempts"}},
+  {"from": {"source": "math", "expression": "@{attempts} >= 3"}, "filter": [{"op": "cast", "type": "integer"}], "to": {"target": "var", "name": "third"}},
+  {"from": {"source": "literal", "value": "503"}, "filter": [{"op": "conditionVar", "name": "third"}], "to": {"target": "responseStatusCode"}}
+  ```
+
+  The third and later attempts get `503`. Reading the vault key itself again in the same provision (the `vault` source, or `@{attempts}` with no variable of that name) may already include other messages' increments: use the variable. Typical uses: attempts per key (a key per uri, e.g. `"key": "attempts:@{imsi}"`), load counters, an own sequence for any per-message numbering.
 
 - `{"source": "literal", "value": "<value>"}`: free string value. Even convertible types are allowed, for example: integer string, unsigned integer string, float number string, boolean string (true if non-empty string, see [boolean criterion](#boolean-criterion)), will be converted to the target type. Empty value is allowed, for example, to set an empty string, just type: `"value."`. This source value **admits variables substitution**. Also, special characters are allowed ('\n', '\t', etc.).
 

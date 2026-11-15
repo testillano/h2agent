@@ -281,6 +281,8 @@ nlohmann::json lowerRule(const nlohmann::json &rule, Mode mode, bool usesJsonBod
 
     nlohmann::json out = nlohmann::json::object();
     out["source"] = lowerSource(rule["from"], mode, usesJsonBodyTarget);
+    auto inc = rule["from"].find("increment");
+    if (inc != rule["from"].end()) out["increment"] = inc->is_string() ? inc->get<std::string>() : inc->dump();  // vault fetch-and-add
     out["target"] = lowerTarget(rule["to"], castType, mode);
     if (filters.size() == 1) out["filter"] = filters.front();  // the engine single filter form
     else if (!filters.empty()) out["filter"] = filters;  // chain, in list order

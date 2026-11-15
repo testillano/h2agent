@@ -163,6 +163,19 @@ public:
         set(scope, key, nlohmann::json(std::move(value)), "");
     }
     virtual void erase(Scope scope, const std::string &key) = 0;
+
+    /**
+     * Fetch-and-add on a GLOBAL integer (vault increment source): adds 'delta' to
+     * the stored integer under the key lock (a missing key counts as 0) and gives
+     * the NEW value. It must be atomic per key (no lost update under concurrency).
+     * Returns std::nullopt when the stored value is not an integer (nor a text
+     * holding one): the rule is skipped. Default: unsupported (std::nullopt).
+     */
+    virtual std::optional<long long> increment(const std::string &key, long long delta) {
+        (void)key;
+        (void)delta;
+        return std::nullopt;
+    }
 };
 
 /** Access to stored server/client event history for event-source addressing. */

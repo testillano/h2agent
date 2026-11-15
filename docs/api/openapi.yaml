@@ -2051,7 +2051,16 @@ components:
         - name
         type: object
       - additionalProperties: false
+        not:
+          required:
+          - path
+          - increment
         properties:
+          increment:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
           key:
             pattern: ^[^.]+$
             type: string
@@ -2747,7 +2756,16 @@ components:
         - name
         type: object
       - additionalProperties: false
+        not:
+          required:
+          - path
+          - increment
         properties:
+          increment:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
           key:
             pattern: ^[^.]+$
             type: string
@@ -3393,7 +3411,16 @@ components:
         - name
         type: object
       - additionalProperties: false
+        not:
+          required:
+          - path
+          - increment
         properties:
+          increment:
+            oneOf:
+            - type: integer
+            - pattern: '@\{'
+              type: string
           key:
             pattern: ^[^.]+$
             type: string

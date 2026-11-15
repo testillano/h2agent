@@ -60,6 +60,7 @@ Every rule has the same three stages, executed in this order:
 | `recvseq` / `sendseq` | `{"source": "recvseq"}` / `{"source": "sendseq"}` | server / client |
 | `var.<name>` | `{"source": "var", "name": "<name>"}` (v2 also admits `"path"`) | all |
 | `vault.<key>` / `vault.<key>./a` | `{"source": "vault", "key": "<key>"}` / `{..., "path": "/a"}` | all |
+| (none: v2 only) | `{"source": "vault", "key": "<key>", "increment": <n>}` (atomic fetch-and-add, the new value; `--reverse` rejects it) | all |
 | `value.<text>` | `{"source": "literal", "value": "<text>"}` | all |
 | `inState` | `{"source": "inState"}` | all |
 | `serverEvent.<query>` / `clientEvent.<query>` | `{"source": "serverEvent", <event fields>}` / `{"source": "clientEvent", <event fields>}` | all |

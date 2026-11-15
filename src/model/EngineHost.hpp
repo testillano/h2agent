@@ -79,6 +79,7 @@ public:
     void set(Scope scope, const std::string &key, const nlohmann::json &value, const std::string &pointer) override;
     void setString(Scope scope, const std::string &key, std::string &&value) override;
     void erase(Scope scope, const std::string &key) override;
+    std::optional<long long> increment(const std::string &key, long long delta) override;
 };
 
 /** serverEvent / clientEvent addressing over MockServerData / MockClientData. */

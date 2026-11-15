@@ -79,6 +79,8 @@ enum class SourceType {
     // evaluator approach taken in this batch.
     StoreLocal,   // local.<key> -> Store(Scope::Local); host maps v1 'var.'
     StoreGlobal,  // global.<key> -> Store(Scope::Global); host maps v1 'vault.'
+    StoreGlobalIncrement,  // global.<key> + rule "increment": fetch-and-add on the
+    // stored integer (Store::increment), the NEW value as source (v2 only).
     InState,      // inState -> EvaluationContext::inState (data only; FSM lives in the
     // host)
     Input,        // input[./json-pointer] -> EvaluationContext::input; host maps v1
@@ -327,6 +329,7 @@ struct Rule {
     long long sourceI2{0};    // random max
     std::string sourceKey{};  // store key for local./global. sources (admits @{var})
     std::string sourcePtr{};  // json-pointer into a stored value ("" = whole value)
+    std::string sourceIncrement{};  // StoreGlobalIncrement delta (integer text, admits @{var})
     // sourcePtr of input/output sources compiled ONCE at parse when static (no @{}).
     CompiledPointer sourceCompiled{};
     bool sourceCompiledStatic{false};
@@ -371,7 +374,7 @@ struct Rule {
 
     // Fields admitting @{} split ONCE at parse (see Template); evaluation renders
     // them, or uses the plain field when static:
-    Template sourceArgTpl{}, sourceKeyTpl{}, sourcePtrTpl{};
+    Template sourceArgTpl{}, sourceKeyTpl{}, sourcePtrTpl{}, sourceIncrementTpl{};
     Template targetPathTpl{}, targetKeyTpl{}, targetPtrTpl{}, targetNameTpl{}, targetUriTpl{};
     Template targetFilePathTpl{}, targetSocketPathTpl{}, targetProvisionIdTpl{}, targetProvisionInStateTpl{};
     Template targetFailReasonTpl{};

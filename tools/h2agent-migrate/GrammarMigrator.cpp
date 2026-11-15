@@ -646,6 +646,7 @@ std::string GrammarMigrator::sourceToV1(const Json &v2, const std::string &where
         return "timestamp." + unit;
     }
     if (kind == "vault") {
+        if (v2.contains("increment")) fail(where, "vault 'increment' has no v1 equivalent");
         checkFields(v2, "source", kind, {"key", "path"}, {"key"}, where);
         const std::string key = textField(v2, "key", where);
         checkVaultKey(key, where);

@@ -108,6 +108,20 @@ public:
     void loadAtPath(const std::string &variable, const std::string &path, const nlohmann::json &value);
 
     /**
+     * Atomic fetch-and-add on an integer value (under the key shard lock).
+     * A missing key counts as 0; an integer, or a text holding one (whole text),
+     * is incremented and stored as an integer.
+     *
+     * @param variable variable name
+     * @param delta amount to add (may be negative)
+     * @param result the new value (output)
+     *
+     * @return false when the stored value is not an integer nor such a text
+     * (left untouched), or the sum overflows
+     */
+    bool increment(const std::string &variable, long long delta, long long &result);
+
+    /**
      * Loads server data global operation data
      *
      * @param j Json document from operation body request

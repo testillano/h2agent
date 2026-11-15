@@ -196,6 +196,12 @@ void EngineStore::setString(Scope scope, const std::string &key, std::string &&v
     if (vault_) vault_->load(key, nlohmann::json(std::move(value)));
 }
 
+std::optional<long long> EngineStore::increment(const std::string &key, long long delta) {
+    long long result = 0;
+    if (!vault_ || !vault_->increment(key, delta, result)) return std::nullopt;
+    return result;
+}
+
 void EngineStore::erase(Scope scope, const std::string &key) {
     if (scope == Scope::Local) {
         variables_.erase(key);

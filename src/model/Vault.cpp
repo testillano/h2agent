@@ -33,6 +33,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <cctype>
+#include <limits>
 #include <string>
 
 #include <ert/tracing/Logger.hpp>
@@ -79,6 +81,42 @@ void Vault::loadAtPath(const std::string &variable, const std::string &path, con
         tryGet(variable, v);
         sse_manager_->notify(variable, v);
     }
+}
+
+bool Vault::increment(const std::string &variable, long long delta, long long &result) {
+    bool ok = false;
+    modifyOrInsert(variable, [&](nlohmann::json &current) {
+        long long base = 0;
+        if (current.is_null()) base = 0;  // missing key (inserted as null by the map), or a stored null
+        else if (current.is_number_integer()) base = current.get<long long>();
+        else if (current.is_number_unsigned()) {
+            const auto u = current.get<unsigned long long>();
+            if (u > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) return;
+            base = static_cast<long long>(u);
+        }
+        else if (current.is_string()) {
+            // the whole text, strictly: optional sign and digits (std::stoll alone
+            // would also take leading blanks)
+            const std::string &text = current.get_ref<const std::string &>();
+            const std::size_t first = (!text.empty() && (text[0] == '-' || text[0] == '+')) ? 1 : 0;
+            if (first == text.size()) return;
+            for (std::size_t k = first; k < text.size(); k++)
+                if (!std::isdigit(static_cast<unsigned char>(text[k]))) return;
+            try {
+                base = std::stoll(text);
+            } catch (...) {
+                return;  // out of range
+            }
+        }
+        else return;  // float, boolean, object, array: not a counter
+        if (__builtin_add_overflow(base, delta, &result)) return;
+        current = result;
+        ok = true;
+    });
+    if (!ok) return false;  // only an existing non counter value (kept) or an overflow: a missing key always succeeds
+    if (wait_manager_) wait_manager_->notify();
+    if (sse_manager_) sse_manager_->notify(variable, nlohmann::json(result));
+    return true;
 }
 
 bool Vault::loadJson(const nlohmann::json &j) {

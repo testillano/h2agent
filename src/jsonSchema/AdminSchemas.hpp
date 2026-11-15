@@ -99,6 +99,13 @@ inline nlohmann::json kind(const std::string &discriminator, const std::string &
     return {{"type", "object"}, {"additionalProperties", false}, {"required", req}, {"properties", properties}};
 }
 
+/** Vault source: plain read (key, optional path) or fetch-and-add (key, increment; no path). */
+inline nlohmann::json vaultSource() {
+    nlohmann::json schema = kind("source", "vault", {{"key", dotless()}, {"path", nodePath()}, {"increment", numberOrVariable(true)}}, {"key"});
+    schema["not"] = {{"required", {"path", "increment"}}};
+    return schema;
+}
+
 /** Event address fields, per domain and role (source or purge target). */
 inline nlohmann::json eventFields(bool client, bool source) {
     nlohmann::json f = {
@@ -140,7 +147,8 @@ inline nlohmann::json sourceKind(const std::string &name) {
         {"recvseq", kind("source", "recvseq")},
         {"sendseq", kind("source", "sendseq")},
         {"var", kind("source", "var", {{"name", text()}, {"path", nodePath()}}, {"name"})},
-        {"vault", kind("source", "vault", {{"key", dotless()}, {"path", nodePath()}}, {"key"})},
+        // "increment": atomic fetch-and-add of the whole value (the new value is the source), so no "path"
+        {"vault", vaultSource()},
         {"literal", kind("source", "literal", {{"value", anyText()}}, {"value"})},
         {"inState", kind("source", "inState")},
         {"serverEvent", kind("source", "serverEvent", eventFields(false, true))},

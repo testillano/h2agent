@@ -245,6 +245,22 @@ bool toInteger(const nlohmann::json &v, std::int64_t &out) {
     return false;  // object/array/null
 }
 
+// Whole text as a base-10 integer (optional sign, digits only, no blanks, in range):
+// the vault increment delta.
+bool parseStrictInteger(const std::string &text, long long &out) {
+    if (text.empty()) return false;
+    std::size_t i = (text[0] == '-' || text[0] == '+') ? 1 : 0;
+    if (i == text.size()) return false;
+    for (std::size_t k = i; k < text.size(); ++k)
+        if (!std::isdigit(static_cast<unsigned char>(text[k]))) return false;
+    try {
+        out = std::stoll(text);
+    } catch (...) {
+        return false;  // out of range
+    }
+    return true;
+}
+
 bool toUnsigned(const nlohmann::json &v, std::uint64_t &out) {
     if (v.is_number_unsigned()) {
         out = v.get<std::uint64_t>();
@@ -1488,6 +1504,16 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
     rule.rawTarget = item["target"].get<std::string>();
     rule.sourceType = classifySource(rule.rawSource, rule);
     rule.targetType = classifyTarget(rule.rawTarget, rule);
+    // "increment": the global store source becomes a fetch-and-add (whole value only).
+    auto iit = item.find("increment");
+    if (iit != item.end()) {
+        if (rule.sourceType != SourceType::StoreGlobal || !rule.sourcePtr.empty()) {
+            error = where + ": 'increment' needs a whole global store source (no path)";
+            return false;
+        }
+        rule.sourceIncrement = iit->is_string() ? iit->get<std::string>() : iit->dump();
+        rule.sourceType = SourceType::StoreGlobalIncrement;
+    }
     if ((rule.sourceType == SourceType::Input || rule.sourceType == SourceType::Output) &&
             rule.sourcePtr.find("@{") == std::string::npos)
         rule.sourceCompiledStatic = CompiledPointer::compile(rule.sourcePtr, rule.sourceCompiled);
@@ -1517,6 +1543,7 @@ static bool parseRule(const nlohmann::json &item, const std::string &where, Rule
     rule.sourceArgTpl = Template::compile(rule.sourceArg);
     rule.sourceKeyTpl = Template::compile(rule.sourceKey);
     rule.sourcePtrTpl = Template::compile(rule.sourcePtr);
+    rule.sourceIncrementTpl = Template::compile(rule.sourceIncrement);
     rule.targetPathTpl = Template::compile(rule.targetPath);
     rule.targetKeyTpl = Template::compile(rule.targetKey);
     rule.targetPtrTpl = Template::compile(rule.targetPtr);
@@ -1761,6 +1788,17 @@ static bool evalRules(const std::vector<Rule> &rules, EvaluationContext &ctx, co
                 // returns false and does not touch the target).
                 sourceResolved = false;
             }
+            break;
+        }
+        case SourceType::StoreGlobalIncrement: {
+            std::string keyBuf, deltaBuf;
+            const std::string &key = render(rule.sourceKeyTpl, rule.sourceKey, keyBuf, ports);
+            const std::string &deltaText = render(rule.sourceIncrementTpl, rule.sourceIncrement, deltaBuf, ports);
+            long long delta = 0;
+            std::optional<long long> result;
+            if (parseStrictInteger(deltaText, delta) && ports.store) result = ports.store->increment(key, delta);
+            if (result) value = *result;
+            else sourceResolved = false;  // non integer delta or stored value: skip the rule
             break;
         }
         case SourceType::InState:

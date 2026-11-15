@@ -44,6 +44,13 @@ public:
     void erase(Scope scope, const std::string &key) override {
         ((scope == Scope::Local) ? local_ : global_).erase(key);
     }
+    std::optional<long long> increment(const std::string &key, long long delta) override {
+        auto &v = global_[key];
+        if (v.is_null()) v = 0;
+        if (!v.is_number_integer()) return std::nullopt;
+        v = v.get<long long>() + delta;
+        return v.get<long long>();
+    }
 
 private:
     std::map<std::string, nlohmann::json> local_{};
@@ -3343,4 +3350,68 @@ TEST(Engine_test, TemplatesRenderEveryFieldKind) {
     EXPECT_EQ(ctx.headers[0].first, "h-7");
     EXPECT_EQ(ctx.outStateUri, "/items/7");
     EXPECT_EQ(store.get(Store::Scope::Local, "ev"), nlohmann::json("found"));
+}
+
+// Vault increment (fetch-and-add): the NEW value is the source; the delta admits @{var}.
+TEST(Engine_test, GlobalIncrementGivesTheNewValue) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "global.count"}, {"increment", "@{step}"}, {"target", "local.count"}}}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Local, "step", "2");
+    Ports ports;
+    ports.store = &store;
+    for (long long expected : {
+                2LL, 4LL, 6LL
+            }) {
+        StandaloneContext ctx;
+        engine.evaluate(pipeline, ctx, ports);
+        EXPECT_EQ(store.get(Store::Scope::Local, "count"), nlohmann::json(expected));
+    }
+    EXPECT_EQ(store.get(Store::Scope::Global, "count"), nlohmann::json(6));
+}
+
+TEST(Engine_test, GlobalIncrementSkipsOnNonIntegerDeltaOrValue) {
+    Engine engine;
+    std::string err;
+    for (const char *delta : {
+                "1.5", "x", "", "1 ", "@{missing}"
+            }) {
+        SCOPED_TRACE(delta);
+        auto pipeline = engine.parse(nlohmann::json::array({{{"source", "global.count"}, {"increment", delta}, {"target", "output.string"},
+                {"onFilterFail", nlohmann::json::array()}
+            }}), err);
+        ASSERT_NE(pipeline, nullptr) << err;
+        MemStore store;
+        Ports ports;
+        ports.store = &store;
+        StandaloneContext ctx;
+        engine.evaluate(pipeline, ctx, ports);
+        EXPECT_TRUE(ctx.outBody.raw.empty());
+        EXPECT_FALSE(store.get(Store::Scope::Global, "count").has_value());  // untouched
+    }
+    // a stored value which is not a counter
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "global.count"}, {"increment", "1"}, {"target", "output.string"}}}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    MemStore store;
+    store.set(Store::Scope::Global, "count", "abc");
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_TRUE(ctx.outBody.raw.empty());
+    EXPECT_EQ(store.get(Store::Scope::Global, "count"), nlohmann::json("abc"));
+}
+
+TEST(Engine_test, IncrementNeedsAWholeGlobalSource) {
+    Engine engine;
+    std::string err;
+    for (const char *source : {
+                "global.count./a", "local.count", "value.1"
+            }) {
+        SCOPED_TRACE(source);
+        EXPECT_EQ(engine.parse(nlohmann::json::array({{{"source", source}, {"increment", "1"}, {"target", "local.x"}}}), err), nullptr);
+        EXPECT_NE(err.find("increment"), std::string::npos);
+    }
 }
