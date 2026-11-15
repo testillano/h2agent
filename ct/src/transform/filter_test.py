@@ -371,3 +371,18 @@ def test_027_byteFilters(admin_server_provision, h2ac_traffic):
   responseBodyRef = {"foo": "bar-1", "title": "library.example", "ipv4": "10.129.54.165", "ipv6": "2001:db8::1",
                      "titleHex": "6c6962726172792e6578616d706c65", "bad": "not text"}
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_028_encodingFilters(admin_server_provision, h2ac_traffic):
+
+  # Provision: urlEncode (a uri part as a client sends it), base64Decode of a json header, base64Encode
+  admin_server_provision("filter_test.EncodingFilters.provision.json")
+
+  # Traffic: a Session-Id with ';', a base64 json context ({"site":2}) and an invalid base64 header
+  headers = {"content-type": "application/json", "x-context": "eyJzaXRlIjoyfQ==", "x-bad": "not*base64"}
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", {"sessionId": "host.realm;1;2"}, headers)
+  responseBodyRef = {"foo": "bar-1", "uriPart": "host.realm%3B1%3B2", "context": {"site": 2}, "bad": "not base64 text"}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+  assert response["headers"]["x-session-b64"] == [b"aG9zdC5yZWFsbTsxOzI="]

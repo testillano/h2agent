@@ -1451,6 +1451,32 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   `/baskets/alice%3Bapples%3B42` gives `"alice;apples;42"` (without the filter, `"alice%3Bapples%3B42"`).
 
+- <a name="filter-urlencode"></a>`urlEncode`: the inverse of `urlDecode`. Percent-encodes every byte outside the RFC 3986 *unreserved* set (`A-Z a-z 0-9 - . _ ~`), with upper-case hex; numbers and booleans as their text. It takes no arguments. An object, array or null source **fails the filter**. As server uris are [the received ones](#server-uri), it builds a uri part as a real client sends it, e.g. a Diameter Session-Id in a path (as the h2diagent gateway encodes it):
+
+  ```json
+  {
+    "from": {"source": "var", "name": "sessionId"},
+    "filter": [{"op": "urlEncode"}],
+    "to": {"target": "var", "name": "sidInUri"}
+  }
+  ```
+
+  `host.realm;1;2` gives `host.realm%3B1%3B2`, to be used as `"requestUri": "/diameter/rx/RAR/@{sidInUri}"` in a client provision. A text with spaces, `/`, `?`, `&`, `%` or `|` is encoded too (`a b` gives `a%20b`); a value already encoded is encoded again (`%3B` gives `%253B`: a double encoding, on purpose or not).
+
+- <a name="filter-base64"></a>`base64Encode` / `base64Decode`: Base64 (RFC 4648) of a text. They take no arguments.
+  - `base64Encode`: the value text (numbers and booleans as their text) in the standard alphabet, padded (`foo` gives `Zm9v`, `f` gives `Zg==`). An object, array or null source fails the filter (to encode a json document, encode its text: a `literal` with `@{doc}`).
+  - `base64Decode`: accepts the standard (`+`, `/`) and the url-safe (`-`, `_`) alphabets, with or without padding. Invalid characters, blanks, a wrong padding, or decoded bytes which are not UTF-8 text (or hold a NUL) **fail the filter** (as `hexToText`): binary content keeps its hex forms (`requestBodyHex`, `hexToText`...). A decoded json text becomes a document with a following `cast` to `json`:
+
+  ```json
+  {
+    "from": {"source": "requestHeader", "name": "x-context"},
+    "filter": [{"op": "base64Decode"}, {"op": "cast", "type": "json"}],
+    "to": {"target": "var", "name": "context"}
+  }
+  ```
+
+  A header `x-context: eyJzaXRlIjoyfQ==` gives the object `{"site": 2}` (`@{context/site}` is `2`).
+
   Through the Diameter gateway, an alternative is to have `h2diagent` decode the AVP in readable form (`--decode-as <AVP>=<form>`, see its README): better for the structured values a suite reads often (a location, a time zone), so the transformation just reads a path. These filters fit a field read once, or hex which does not come through a gateway.
 
 - `strptime` (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `sum`) and later formatting back with `strftime`.

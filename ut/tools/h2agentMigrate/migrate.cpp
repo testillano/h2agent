@@ -400,6 +400,9 @@ TEST(GrammarMigrator_test, V2WithoutV1EquivalentIsRejected) {
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"textToHex"}],"to":{"target":"var","name":"x"}})", "filter 'textToHex' has no v1 equivalent"},
         {R"({"from":{"source":"requestBody","path":"/a"},"filter":[{"op":"hexToIp"}],"to":{"target":"var","name":"x"}})", "filter 'hexToIp' has no v1 equivalent"},
         {R"({"from":{"source":"requestUriPath"},"filter":[{"op":"urlDecode"}],"to":{"target":"var","name":"x"}})", "filter 'urlDecode' has no v1 equivalent"},
+        {R"({"from":{"source":"requestUriPath"},"filter":[{"op":"urlEncode"}],"to":{"target":"var","name":"x"}})", "filter 'urlEncode' has no v1 equivalent"},
+        {R"({"from":{"source":"requestUriPath"},"filter":[{"op":"base64Encode"}],"to":{"target":"var","name":"x"}})", "filter 'base64Encode' has no v1 equivalent"},
+        {R"({"from":{"source":"requestUriPath"},"filter":[{"op":"base64Decode"}],"to":{"target":"var","name":"x"}})", "filter 'base64Decode' has no v1 equivalent"},
         {R"({"from":{"source":"vault","key":"c","increment":1},"to":{"target":"var","name":"x"}})", "vault 'increment' has no v1 equivalent"},
         {R"({"source":"recvseq","target":"var.x"})", "rule is already v1"},
     };

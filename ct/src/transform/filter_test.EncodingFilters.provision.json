@@ -1,0 +1,30 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "from": {"source": "requestBody", "path": "/sessionId"},
+      "filter": [{"op": "urlEncode"}],
+      "to": {"target": "responseBody", "path": "/uriPart"}
+    },
+    {
+      "from": {"source": "requestHeader", "name": "x-context"},
+      "filter": [{"op": "base64Decode"}, {"op": "cast", "type": "json"}],
+      "to": {"target": "responseBody", "path": "/context"}
+    },
+    {
+      "from": {"source": "requestBody", "path": "/sessionId"},
+      "filter": [{"op": "base64Encode"}],
+      "to": {"target": "responseHeader", "name": "x-session-b64"}
+    },
+    {
+      "from": {"source": "requestHeader", "name": "x-bad"},
+      "filter": [{"op": "base64Decode"}],
+      "to": {"target": "responseBody", "path": "/bad"},
+      "onFilterFail": [{"from": {"source": "literal", "value": "not base64 text"}, "to": {"target": "responseBody", "path": "/bad"}}]
+    }
+  ]
+}

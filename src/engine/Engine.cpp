@@ -40,6 +40,7 @@ SOFTWARE.
 #include <cstring>
 #include <cctype>
 #include <ctime>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <regex>
@@ -436,6 +437,84 @@ std::string percentDecode(const std::string &in) {
         }
     }
     return out;
+}
+
+// Percent-encode every byte outside RFC 3986 unreserved (A-Z a-z 0-9 - . _ ~),
+// upper-case hex: the UrlEncode filter (inverse of percentDecode).
+std::string percentEncode(const std::string &in) {
+    static const char digits[] = "0123456789ABCDEF";
+    std::string out;
+    out.reserve(in.size() * 3);
+    for (unsigned char c : in) {
+        if (std::isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~') {
+            out.push_back(static_cast<char>(c));
+        } else {
+            out.push_back('%');
+            out.push_back(digits[c >> 4]);
+            out.push_back(digits[c & 0x0F]);
+        }
+    }
+    return out;
+}
+
+// Base64 (RFC 4648), standard alphabet, padded: the Base64Encode filter.
+std::string base64Encode(const std::string &in) {
+    static const char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    out.reserve(((in.size() + 2) / 3) * 4);
+    std::size_t i = 0;
+    for (; i + 2 < in.size(); i += 3) {
+        const unsigned n = (static_cast<unsigned char>(in[i]) << 16) | (static_cast<unsigned char>(in[i + 1]) << 8) | static_cast<unsigned char>(in[i + 2]);
+        out += table[(n >> 18) & 63];
+        out += table[(n >> 12) & 63];
+        out += table[(n >> 6) & 63];
+        out += table[n & 63];
+    }
+    if (i < in.size()) {
+        unsigned n = static_cast<unsigned char>(in[i]) << 16;
+        if (i + 1 < in.size()) n |= static_cast<unsigned char>(in[i + 1]) << 8;
+        out += table[(n >> 18) & 63];
+        out += table[(n >> 12) & 63];
+        out += (i + 1 < in.size()) ? table[(n >> 6) & 63] : '=';
+        out += '=';
+    }
+    return out;
+}
+
+// Base64 decode (RFC 4648): standard ('+' '/') and url-safe ('-' '_') alphabets,
+// padding optional (but, if present, correct and only at the end). No blanks.
+bool base64Decode(const std::string &in, std::string &out) {
+    auto value = [](char c) -> int {
+        if (c >= 'A' && c <= 'Z') return c - 'A';
+        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+        if (c >= '0' && c <= '9') return c - '0' + 52;
+        if (c == '+' || c == '-') return 62;
+        if (c == '/' || c == '_') return 63;
+        return -1;
+    };
+    std::size_t len = in.size();
+    std::size_t pad = 0;
+    while (len > 0 && in[len - 1] == '=') {
+        len--;
+        pad++;
+    }
+    if (pad > 2 || (pad > 0 && (len + pad) % 4 != 0) || len % 4 == 1) return false;
+    out.clear();
+    out.reserve(len * 3 / 4);
+    unsigned buffer = 0;
+    int bits = 0;
+    for (std::size_t i = 0; i < len; i++) {
+        const int v = value(in[i]);
+        if (v < 0) return false;
+        buffer = (buffer << 6) | static_cast<unsigned>(v);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<char>((buffer >> bits) & 0xFF));
+        }
+    }
+    // trailing bits must be zero (canonical encoding)
+    return (buffer & ((1u << bits) - 1)) == 0;
 }
 
 // URL-decode (%XX and '+'), parity with ert::http2comm::URLFunctions::decode.
@@ -912,12 +991,15 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
     // Parameterless byte filters (grammar v2 only, no v1 counterpart).
     if (filterNode.is_string()) {
         const std::string &name = filterNode.get_ref<const std::string &>();
-        if (name == "HexToText" || name == "TextToHex" || name == "HexToIp" || name == "UrlDecode") {
+        static const std::map<std::string, FilterType> plain = {
+            {"HexToText", FilterType::HexToText}, {"TextToHex", FilterType::TextToHex}, {"HexToIp", FilterType::HexToIp},
+            {"UrlDecode", FilterType::UrlDecode}, {"UrlEncode", FilterType::UrlEncode},
+            {"Base64Encode", FilterType::Base64Encode}, {"Base64Decode", FilterType::Base64Decode}
+        };
+        auto it = plain.find(name);
+        if (it != plain.end()) {
             filter.raw = name;
-            return (name == "HexToText")   ? FilterType::HexToText
-                   : (name == "TextToHex") ? FilterType::TextToHex
-                   : (name == "UrlDecode") ? FilterType::UrlDecode
-                   : FilterType::HexToIp;
+            return it->second;
         }
     }
     if (!filterNode.is_object()) return FilterType::None;
@@ -1457,6 +1539,29 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
             return false;
         }
         value = decoded;
+    } else if (f.type == FilterType::UrlEncode) {
+        if (value.is_object() || value.is_array() || value.is_null()) {
+            note = "UrlEncode filter requires a scalar source; rule skipped";
+            return false;
+        }
+        value = percentEncode(asString(value));
+    } else if (f.type == FilterType::Base64Encode) {
+        if (value.is_object() || value.is_array() || value.is_null()) {
+            note = "Base64Encode filter requires a scalar source; rule skipped";
+            return false;
+        }
+        value = base64Encode(asString(value));
+    } else if (f.type == FilterType::Base64Decode) {
+        std::string bytes;
+        if (!value.is_string() || !base64Decode(value.get<std::string>(), bytes)) {
+            note = "Base64Decode filter requires a base64 text (standard or url-safe alphabet); rule skipped";
+            return false;
+        }
+        if (bytes.find('\0') != std::string::npos || !isValidUtf8(bytes)) {
+            note = "Base64Decode filter: decoded bytes are not UTF-8 text (or hold NUL); rule skipped";
+            return false;
+        }
+        value = bytes;
     } else if (f.type == FilterType::TextToHex) {
         if (value.is_object() || value.is_array() || value.is_null()) {
             note = "TextToHex filter requires a scalar source; rule skipped";

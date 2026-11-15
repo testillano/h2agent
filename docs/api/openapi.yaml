@@ -1819,6 +1819,33 @@ components:
         properties:
           op:
             enum:
+            - urlEncode
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - base64Encode
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - base64Decode
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
             - textToHex
             type: string
         required:

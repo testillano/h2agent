@@ -216,6 +216,14 @@ enum class FilterType {
     // level of the value text ('%XX', either case); a '%' not followed by two
     // hex digits and '+' are kept. The result must be UTF-8 without NUL, else
     // the filter fails. Objects, arrays and null fail it too.
+    UrlEncode,     // UrlEncode: plain string "UrlEncode" (v2 only). Percent-encode every
+    // byte outside RFC 3986 unreserved (A-Z a-z 0-9 - . _ ~), upper-case hex: the
+    // inverse of UrlDecode. Scalars as their text; objects, arrays and null fail.
+    Base64Encode,  // Base64Encode: plain string "Base64Encode" (v2 only). Standard
+    // alphabet, padded, of the value text. Objects, arrays and null fail.
+    Base64Decode,  // Base64Decode: plain string "Base64Decode" (v2 only). Standard and
+    // url-safe alphabets, padding optional; the bytes must be UTF-8 without NUL,
+    // else the filter fails (as HexToText).
 };
 
 /**

@@ -1966,6 +1966,76 @@ TEST(Engine_test, UrlDecodeDecodesOneLevel) {
     EXPECT_EQ(ctx.outBody.raw, "x;y");
 }
 
+// UrlEncode: every byte outside RFC 3986 unreserved, upper-case hex; inverse of UrlDecode.
+TEST(Engine_test, UrlEncodeEncodesReservedBytes) {
+    const std::vector<std::pair<std::string, std::string>> table = {
+        {"value.alice;apples;42", "alice%3Bapples%3B42"},
+        {"value.a/b?c=d&e", "a%2Fb%3Fc%3Dd%26e"},
+        {"value.A-z_0.9~", "A-z_0.9~"},                // unreserved kept
+        {"value.a b+c%d", "a%20b%2Bc%25d"},
+        {"value.foo|1", "foo%7C1"},
+        {"value.\xC3\xB1", "%C3%B1"},                  // UTF-8 byte-wise
+        {"value.", ""},
+    };
+    for (const auto &row : table) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(runByteFilter(row.first, "UrlEncode"), row.second);
+    }
+    // round trip with UrlDecode
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "value.x;y/z %|"}, {"target", "output.string"},
+            {"filter", nlohmann::json::array({"UrlEncode", "UrlDecode"})}
+        }}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    StandaloneContext ctx;
+    Ports ports;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "x;y/z %|");
+}
+
+// Base64: standard encode (padded); decode accepts standard and url-safe alphabets,
+// padding optional; invalid input or non UTF-8 bytes fail the filter.
+TEST(Engine_test, Base64EncodeAndDecode) {
+    const std::vector<std::pair<std::string, std::string>> encode = {
+        {"value.", ""}, {"value.f", "Zg=="}, {"value.fo", "Zm8="}, {"value.foo", "Zm9v"},
+        {"value.foobar", "Zm9vYmFy"}, {"value.{\"a\":1}", "eyJhIjoxfQ=="},
+    };
+    for (const auto &row : encode) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(runByteFilter(row.first, "Base64Encode"), row.second);
+    }
+    const std::vector<std::pair<std::string, std::string>> decode = {
+        {"value.Zm9vYmFy", "foobar"}, {"value.Zg==", "f"}, {"value.Zg", "f"},   // padding optional
+        {"value.Zm8=", "fo"}, {"value.Zm8", "fo"},
+        {"value.PD8-", "<?>"}, {"value.PD8+", "<?>"},                          // url-safe and standard
+        {"value.Pz8_", "???"}, {"value.Pz8/", "???"},
+    };
+    for (const auto &row : decode) {
+        SCOPED_TRACE(row.first);
+        EXPECT_EQ(runByteFilter(row.first, "Base64Decode"), row.second);
+    }
+    for (const char *bad : {
+                "value.Zm9v!", "value.Z", "value.Zm9v=", "value.Zg===", "value.Z=g=", "value.Zm 9v",
+                "value./w==",   // 0xFF: not UTF-8
+                "value.AA=="    // NUL
+            }) {
+        SCOPED_TRACE(bad);
+        EXPECT_EQ(runByteFilter(bad, "Base64Decode"), "FAILED");
+    }
+    // round trip
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "value.h\xC3\xA9llo w\xC3\xB6rld"}, {"target", "output.string"},
+            {"filter", nlohmann::json::array({"Base64Encode", "Base64Decode"})}
+        }}), err);
+    ASSERT_NE(pipeline, nullptr) << err;
+    StandaloneContext ctx;
+    Ports ports;
+    engine.evaluate(pipeline, ctx, ports);
+    EXPECT_EQ(ctx.outBody.raw, "h\xC3\xA9llo w\xC3\xB6rld");
+}
+
 TEST(Engine_test, UrlDecodeFailsOnInvalidResult) {
     for (const char *source : {
                 "value.a%FFb", "value.a%00b", "value.%C3"
