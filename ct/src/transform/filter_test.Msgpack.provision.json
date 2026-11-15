@@ -1,0 +1,28 @@
+{
+  "requestMethod": "POST",
+  "requestUri": "/app/v1/foo/bar/1",
+  "responseCode": 200,
+  "responseBody": {"foo": "bar-1"},
+  "responseHeaders": {"content-type": "application/json"},
+  "transform": [
+    {
+      "from": {"source": "requestBody", "path": "/save"},
+      "filter": [{"op": "msgpackDecode"}],
+      "to": {"target": "var", "name": "save"}
+    },
+    {
+      "from": {"source": "var", "name": "save", "path": "/player"},
+      "to": {"target": "responseBody", "path": "/player"}
+    },
+    {
+      "from": {"source": "var", "name": "save", "path": "/inventory/$bin"},
+      "filter": [{"op": "msgpackDecode"}],
+      "to": {"target": "responseBody", "path": "/inventory"}
+    },
+    {
+      "from": {"source": "literal", "value": "{\"player\": \"zelda\", \"hp\": 20}"},
+      "filter": [{"op": "cast", "type": "json"}, {"op": "msgpackEncode"}],
+      "to": {"target": "responseBody", "path": "/newSave"}
+    }
+  ]
+}

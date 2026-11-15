@@ -546,6 +546,53 @@ bool base64Decode(const std::string &in, std::string &out) {
     return (buffer & ((1u << bits) - 1)) == 0;
 }
 
+// MessagePack <-> json for the Msgpack filters. A bin value (json binary) is shown
+// as {"$bin": "<base64>"}, so a nested MessagePack in it is decoded with another
+// MsgpackDecode on that node, and the document round-trips. Ext types (binary with
+// a subtype) are not supported.
+bool binaryToTagged(nlohmann::json &node) {
+    if (node.is_binary()) {
+        if (node.get_binary().has_subtype()) return false;  // ext type
+        const auto &b = node.get_binary();
+        node = nlohmann::json{{"$bin", base64Encode(std::string(b.begin(), b.end()))}};
+        return true;
+    }
+    if (node.is_object() || node.is_array()) {
+        for (auto &child : node) if (!binaryToTagged(child)) return false;
+    }
+    return true;
+}
+
+bool taggedToBinary(nlohmann::json &node) {
+    if (node.is_object() && node.size() == 1 && node.contains("$bin")) {
+        std::string bytes;
+        if (!node["$bin"].is_string() || !base64Decode(node["$bin"].get<std::string>(), bytes)) return false;
+        node = nlohmann::json::binary(std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
+        return true;
+    }
+    if (node.is_object() || node.is_array()) {
+        for (auto &child : node) if (!taggedToBinary(child)) return false;
+    }
+    return true;
+}
+
+bool msgpackToJson(const std::string &bytes, nlohmann::json &out) {
+    try {
+        out = nlohmann::json::from_msgpack(bytes, true /* strict: the whole input */);
+    } catch (const std::exception &) {
+        return false;  // truncated, extra bytes, non text map key...
+    }
+    return binaryToTagged(out);
+}
+
+bool jsonToMsgpack(const nlohmann::json &in, std::string &bytes) {
+    nlohmann::json copy = in;
+    if (!taggedToBinary(copy)) return false;
+    const std::vector<std::uint8_t> packed = nlohmann::json::to_msgpack(copy);
+    bytes.assign(packed.begin(), packed.end());
+    return true;
+}
+
 // URL-decode (%XX and '+'), parity with ert::http2comm::URLFunctions::decode.
 std::string urlDecode(const std::string &in) {
     std::string out;
@@ -1024,7 +1071,8 @@ FilterType classifyFilter(const nlohmann::json &filterNode, Filter &filter, Rule
         static const std::map<std::string, FilterType> plain = {
             {"HexToText", FilterType::HexToText}, {"TextToHex", FilterType::TextToHex}, {"HexToIp", FilterType::HexToIp},
             {"UrlDecode", FilterType::UrlDecode}, {"UrlEncode", FilterType::UrlEncode},
-            {"Base64Encode", FilterType::Base64Encode}, {"Base64Decode", FilterType::Base64Decode}
+            {"Base64Encode", FilterType::Base64Encode}, {"Base64Decode", FilterType::Base64Decode},
+            {"MsgpackDecode", FilterType::MsgpackDecode}, {"MsgpackEncode", FilterType::MsgpackEncode}
         };
         auto it = plain.find(name);
         if (it != plain.end()) {
@@ -1623,6 +1671,25 @@ bool applyFilter(const Filter &f, bool last, const Rule &rule, nlohmann::json &v
             return false;
         }
         value = bytes;
+    } else if (f.type == FilterType::MsgpackDecode) {
+        std::string bytes;
+        if (!value.is_string() || !base64Decode(value.get<std::string>(), bytes)) {
+            note = "MsgpackDecode filter requires a base64 text; rule skipped";
+            return false;
+        }
+        nlohmann::json document;
+        if (!msgpackToJson(bytes, document)) {
+            note = "MsgpackDecode filter: not a MessagePack document (or an ext type / a non text map key); rule skipped";
+            return false;
+        }
+        value = std::move(document);
+    } else if (f.type == FilterType::MsgpackEncode) {
+        std::string bytes;
+        if (!jsonToMsgpack(value, bytes)) {
+            note = "MsgpackEncode filter: a {\"$bin\": ...} node holds no valid base64; rule skipped";
+            return false;
+        }
+        value = base64Encode(bytes);
     } else if (f.type == FilterType::TextToHex) {
         if (value.is_object() || value.is_array() || value.is_null()) {
             note = "TextToHex filter requires a scalar source; rule skipped";

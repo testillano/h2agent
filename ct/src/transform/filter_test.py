@@ -410,3 +410,20 @@ def test_029_select(admin_server_provision, h2ac_traffic):
   response = h2ac_traffic.postDict("/app/v1/foo/bar/1", requestBody)
   responseBodyRef = {"foo": "bar-1", "captain": "Han", "fragileCrates": "2", "droid": "absent"}
   h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)
+
+
+@pytest.mark.transform
+@pytest.mark.filter
+def test_030_msgpack(admin_server_provision, h2ac_traffic):
+
+  # Provision: a MessagePack save game (base64) decoded, a nested blob decoded from its $bin node, a new one encoded
+  admin_server_provision("filter_test.Msgpack.provision.json")
+
+  # Traffic: {"player":"link","hp":12,"ratio":0.5,"alive":true,"nothing":null,
+  #           "inventory":<bin: msgpack of {"level":3,"items":["sword","shield"]}>}
+  save = "hqZwbGF5ZXKkbGlua6JocAylcmF0aW/LP+AAAAAAAAClYWxpdmXDp25vdGhpbmfAqWludmVudG9yecQcgqVsZXZlbAOlaXRlbXOSpXN3b3JkpnNoaWVsZA=="
+  response = h2ac_traffic.postDict("/app/v1/foo/bar/1", {"save": save})
+  # {"hp":20,"player":"zelda"} packed with sorted keys
+  responseBodyRef = {"foo": "bar-1", "player": "link", "inventory": {"level": 3, "items": ["sword", "shield"]},
+                     "newSave": "gqJocBSmcGxheWVypXplbGRh"}
+  h2ac_traffic.assert_response__status_body_headers(response, 200, responseBodyRef)

@@ -235,6 +235,8 @@ nlohmann::json lowerFilter(const nlohmann::json &f) {
     if (op == "urlEncode") return "UrlEncode";
     if (op == "base64Encode") return "Base64Encode";
     if (op == "base64Decode") return "Base64Decode";
+    if (op == "msgpackDecode") return "MsgpackDecode";
+    if (op == "msgpackEncode") return "MsgpackEncode";
     if (op == "conditionVar") return {{"ConditionVar", (f.value("not", false) ? "!" : "") + text(f, "name")}};
     if (op == "regexCapture") return {{"RegexCapture", f["rgx"]}};
     if (op == "regexKey") return {{"RegexKey", f["rgx"]}};

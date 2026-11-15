@@ -3550,3 +3550,63 @@ TEST(Engine_test, UuidVersion4) {
     EXPECT_EQ(seen.size(), 1000u);
 }
 
+// MessagePack: base64 text <-> json; bin values as {"$bin": "<base64>"} (a nested
+// document is decoded with another MsgpackDecode); ext types and invalid input fail.
+namespace {
+nlohmann::json runFilters(const nlohmann::json &source, const nlohmann::json &filters) {
+    Engine engine;
+    std::string err;
+    auto pipeline = engine.parse(nlohmann::json::array({{{"source", "global.doc"}, {"target", "local.out"}, {"filter", filters},
+            {"onFilterFail", nlohmann::json::array({{{"source", "value.FAILED"}, {"target", "local.out"}}})}
+        }}), err);
+    EXPECT_NE(pipeline, nullptr) << err;
+    if (!pipeline) return "<parse error>";
+    MemStore store;
+    store.set(Store::Scope::Global, "doc", source);
+    Ports ports;
+    ports.store = &store;
+    StandaloneContext ctx;
+    engine.evaluate(pipeline, ctx, ports);
+    return store.get(Store::Scope::Local, "out").value_or(nlohmann::json());
+}
+// {"player":"link","hp":12,"ratio":0.5,"alive":true,"nothing":null,"inventory":<bin: msgpack of
+// {"level":3,"items":["sword","shield"]}>} (python msgpack, use_bin_type)
+const char *SaveGame = "hqZwbGF5ZXKkbGlua6JocAylcmF0aW/LP+AAAAAAAAClYWxpdmXDp25vdGhpbmfAqWludmVudG9yecQcgqVsZXZlbAOlaXRlbXOSpXN3b3JkpnNoaWVsZA==";
+const char *Inventory = "gqVsZXZlbAOlaXRlbXOSpXN3b3JkpnNoaWVsZA==";
+}  // namespace
+
+TEST(Engine_test, MsgpackDecode) {
+    const nlohmann::json game = runFilters(SaveGame, "MsgpackDecode");
+    EXPECT_EQ(game["player"], "link");
+    EXPECT_EQ(game["hp"], 12);
+    EXPECT_EQ(game["ratio"], 0.5);
+    EXPECT_EQ(game["alive"], true);
+    EXPECT_TRUE(game["nothing"].is_null());
+    EXPECT_EQ(game["inventory"], nlohmann::json({{"$bin", Inventory}}));
+    // the nested document, decoded from its node
+    EXPECT_EQ(runFilters(game["inventory"]["$bin"], "MsgpackDecode"), R"({"level":3,"items":["sword","shield"]})"_json);
+    // invalid inputs: not base64, not msgpack, truncated, extra bytes, ext type, non text key, non text source
+    for (const nlohmann::json &bad : {
+                nlohmann::json("not*base64"), nlohmann::json("wQ=="), nlohmann::json("gqVsZXZl"),
+                nlohmann::json("gqFhAaFik8PAoXgB"), nlohmann::json("1QUBAg=="), nlohmann::json("gQGheA=="),
+                nlohmann::json(12), nlohmann::json::object()
+            }) {
+        SCOPED_TRACE(bad.dump());
+        EXPECT_EQ(runFilters(bad, "MsgpackDecode"), "FAILED");
+    }
+}
+
+TEST(Engine_test, MsgpackEncodeRoundTrip) {
+    // decode -> encode -> decode gives the same document (not necessarily the same bytes:
+    // map keys come out sorted, and a lossless float may be packed as float32)
+    const nlohmann::json reencoded = runFilters(SaveGame, nlohmann::json::array({"MsgpackDecode", "MsgpackEncode"}));
+    ASSERT_TRUE(reencoded.is_string());
+    EXPECT_EQ(runFilters(reencoded, "MsgpackDecode"), runFilters(SaveGame, "MsgpackDecode"));
+    // json -> msgpack -> json
+    const nlohmann::json doc = R"({"a": 1, "b": [true, null, "x"], "c": {"$bin": "AAEC"}})"_json;
+    EXPECT_EQ(runFilters(doc, nlohmann::json::array({"MsgpackEncode", "MsgpackDecode"})), doc);
+    EXPECT_EQ(runFilters(R"({"a": 1, "b": [true, null, "x"]})"_json, "MsgpackEncode"), "gqFhAaFik8PAoXg=");
+    // a $bin node with invalid base64 fails
+    EXPECT_EQ(runFilters(R"({"c": {"$bin": "!!"}})"_json, "MsgpackEncode"), "FAILED");
+}
+

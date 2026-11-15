@@ -1859,6 +1859,24 @@ components:
         properties:
           op:
             enum:
+            - msgpackDecode
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
+            - msgpackEncode
+            type: string
+        required:
+        - op
+        type: object
+      - additionalProperties: false
+        properties:
+          op:
+            enum:
             - textToHex
             type: string
         required:

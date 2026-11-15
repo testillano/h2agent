@@ -228,6 +228,11 @@ enum class FilterType {
     Base64Decode,  // Base64Decode: plain string "Base64Decode" (v2 only). Standard and
     // url-safe alphabets, padding optional; the bytes must be UTF-8 without NUL,
     // else the filter fails (as HexToText).
+    MsgpackDecode, // MsgpackDecode: plain string "MsgpackDecode" (v2 only). Base64 text of a
+    // MessagePack document into json; a bin value becomes {"$bin": "<base64>"}.
+    // Invalid input, ext types or non text map keys fail the filter.
+    MsgpackEncode, // MsgpackEncode: plain string "MsgpackEncode" (v2 only). Json into the
+    // base64 text of its MessagePack; {"$bin": "<base64>"} becomes a bin value.
 };
 
 /**

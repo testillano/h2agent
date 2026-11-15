@@ -656,6 +656,7 @@ curl --http2-prior-knowledge -XPOST \
     <div class="fbox fragment fade-up"><h4>select</h4><code>{"op":"select","where":{"role":"captain"}}</code> array element by content (<code>"all":true</code>: every match)</div>
     <div class="fbox fragment fade-up"><h4>urlDecode / urlEncode</h4><code>{"op":"urlEncode"}</code> one level: <code>alice;apples</code> &harr; <code>alice%3Bapples</code></div>
     <div class="fbox fragment fade-up"><h4>base64Encode / base64Decode</h4><code>{"op":"base64Decode"}</code> text: <code>Zm9v</code> &harr; <code>foo</code> (standard or url-safe)</div>
+    <div class="fbox fragment fade-up"><h4>msgpackDecode / msgpackEncode</h4>MessagePack (base64 text) &harr; json; bin as <code>{"$bin": ...}</code></div>
     <div class="fbox fragment fade-up"><h4>append / prepend</h4><code>{"op":"append","value":".teslayout.com"}</code></div>
     <div class="fbox fragment fade-up"><h4>sum / multiply</h4><code>{"op":"sum","value":0.618033}</code></div>
     <div class="fbox fragment fade-up"><h4>equalTo</h4><code>{"op":"equalTo","value":"200","not":true}</code> <small>(v1 DifferentFrom)</small></div>

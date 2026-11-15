@@ -236,6 +236,8 @@ inline nlohmann::json filter(const nlohmann::json &conditionVarName) {
         kind("op", "urlEncode"),
         kind("op", "base64Encode"),
         kind("op", "base64Decode"),
+        kind("op", "msgpackDecode"),
+        kind("op", "msgpackEncode"),
         kind("op", "cast", {{"type", enumOf({"string", "integer", "unsigned", "float", "boolean", "object", "json"})}}, {"type"}),
     });
     return {{"oneOf", ops}};

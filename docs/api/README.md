@@ -1487,6 +1487,19 @@ The `cast` filter converts the value to `string`, `integer`, `unsigned`, `float`
 
   A header `x-context: eyJzaXRlIjoyfQ==` gives the object `{"site": 2}` (`@{context/site}` is `2`).
 
+- <a name="filter-msgpack"></a>`msgpackDecode` / `msgpackEncode`: [MessagePack](https://msgpack.org) (a binary json) carried as **base64 text**, as it usually travels inside json bodies. They take no arguments.
+  - `msgpackDecode`: the base64 text of a MessagePack document into its json (maps, arrays, strings, integers, floats, booleans, null). A MessagePack **bin** value has no json equivalent: it is given as `{"$bin": "<base64>"}`, so a MessagePack nested in it (a common way to embed one document in another) is decoded with another `msgpackDecode` on that node. Invalid base64, a truncated document or extra bytes, an ext type or a map key which is not a text **fail the filter**.
+  - `msgpackEncode`: a json value into the base64 text of its MessagePack; a `{"$bin": "<base64>"}` node becomes a bin value (an invalid base64 there fails the filter). The document round-trips with `msgpackDecode`, although not always byte by byte (map keys come out sorted, and a float which fits is packed in 32 bits), so compare decoded documents, not encoded texts.
+
+  For example, a save game kept by a peer as MessagePack, whose `inventory` is another MessagePack in a bin field:
+
+  ```json
+  {"from": {"source": "requestBody", "path": "/save"}, "filter": [{"op": "msgpackDecode"}], "to": {"target": "var", "name": "save"}},
+  {"from": {"source": "var", "name": "save", "path": "/inventory/$bin"}, "filter": [{"op": "msgpackDecode"}], "to": {"target": "var", "name": "inventory"}}
+  ```
+
+  With `save` = `{"player": "link", "hp": 12, "inventory": {"$bin": "gqVsZXZl..."}}` and `inventory` = `{"level": 3, "items": ["sword", "shield"]}`, any rule checks or answers with them (`@{save/player}`, a `jsonConstraint` on `inventory`). The other way, a document built with rules (or a literal cast to `json`) and `msgpackEncode` gives the base64 to send.
+
   Through the Diameter gateway, an alternative is to have `h2diagent` decode the AVP in readable form (`--decode-as <AVP>=<form>`, see its README): better for the structured values a suite reads often (a location, a time zone), so the transformation just reads a path. These filters fit a field read once, or hex which does not come through a gateway.
 
 - `strptime` (*str-p-time*: string **p**arse time): parses a date/time string into a numeric epoch timestamp. Uses the POSIX `strptime` function with `timegm` (UTC). The result is an integer suitable for arithmetic (e.g. `sum`) and later formatting back with `strftime`.
