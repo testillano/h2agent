@@ -438,13 +438,19 @@ TEST(GrammarMigrator_test, ScanReportsV1Leftovers) {
     write(dir / "sub" / "conftest.py", "RULE = '{\"source\": \"request.uri\", \"target\": \"var.u\"}'\n");
     // v2 literals ("source"/"target" discriminators with dotless kind names) are not v1 leftovers:
     write(dir / "sub" / "v2_test.py", "RULE = {\"from\": {\"source\": \"requestBody\"}, \"to\": {\"target\": \"vault\", \"key\": \"k\"}}\n");
+    // 'eraser' is a v2 source too (same literal): a v2 eraser rule is not a leftover, in a script
+    // nor in a provision file (the line scan also runs over v2 json files)...
+    write(dir / "sub" / "v2_eraser_test.py", "RULE = {\"from\": {\"source\": \"eraser\"}, \"to\": {\"target\": \"var\", \"name\": \"x\"}}\n");
+    write(dir / "sub" / "eraser.v2.json", "{\"transform\": [\n  {\"from\": {\"source\": \"eraser\"}, \"to\": {\"target\": \"vault\", \"key\": \"k\"}}\n]}\n");
+    // ... while a v1 one still is (by its dotted target):
+    write(dir / "sub" / "v1_eraser.sh", "echo '{\"source\": \"eraser\", \"target\": \"var.x\"}'\n");
     write(dir / ".git" / "config", "/admin/v1\n");
     write(dir / "binary.dat", std::string("/admin/v1\0", 10));
 
     const auto hits = GrammarMigrator::scan(dir.string());
     std::vector<std::string> found;
     for (const auto &h : hits) found.push_back(fs::path(h.file).filename().string() + ":" + std::to_string(h.line) + ":" + h.kind);
-    EXPECT_EQ(found, (std::vector<std::string> {"conftest.py:1:v1-rule-literal", "provision.json:0:v1-provision", "test.sh:1:admin-v1-path"}));
+    EXPECT_EQ(found, (std::vector<std::string> {"conftest.py:1:v1-rule-literal", "provision.json:0:v1-provision", "v1_eraser.sh:1:v1-rule-literal", "test.sh:1:admin-v1-path"}));
 
     EXPECT_TRUE(GrammarMigrator::scan((dir / "sub" / "provision.v2.json").string()).empty());
     EXPECT_NE(errorOf([&] { GrammarMigrator::scan((dir / "missing").string()); }).find("not a file or directory"), std::string::npos);

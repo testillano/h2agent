@@ -496,11 +496,12 @@ void scanFile(const std::filesystem::path &file, std::vector<GrammarMigrator::Sc
         }
     }
 
-    // v1 rule literals: a dotted (or v1-only) value right after "source"/"target". v2 kind names
-    // never contain dots, so '{"source": "requestBody"}' does not match ('break' is a kind of both
-    // grammars, so it is not a leftover).
+    // v1 rule literals: a dotted value right after "source"/"target". v2 kind names never contain
+    // dots, so '{"source": "requestBody"}' does not match. 'eraser' and 'break' are kinds of both
+    // grammars (same literal), so they are not leftovers by themselves: a v1 eraser rule is found
+    // by its dotted target (and a v1 provision file by the json check above).
     static const std::regex ruleLiteral(
-        R"rgx("source"\s*:\s*"(eraser"|(request|response|var|vault|value|math|random|randomset|timestamp|strftime|serverEvent|clientEvent|txtFile|binFile|command)\.)|"target"\s*:\s*"(response|request|var|vault|outState|txtFile|binFile|udpSocket|serverEvent|clientEvent|clientProvision)\.)rgx",
+        R"rgx("source"\s*:\s*"(request|response|var|vault|value|math|random|randomset|timestamp|strftime|serverEvent|clientEvent|txtFile|binFile|command)\.|"target"\s*:\s*"(response|request|var|vault|outState|txtFile|binFile|udpSocket|serverEvent|clientEvent|clientProvision)\.)rgx",
         std::regex::optimize);
     // h2agent 5.0-5.2 leftovers (removed in 5.3.0, docs/MigrationGuide.md section 21):
     static const std::regex stopTarget(R"rgx("target"\s*:\s*"stop")rgx", std::regex::optimize);
