@@ -118,6 +118,10 @@ spec:
             - "--schema"
             - {{ .Values.h2agent_cl.schema | quote }}
             {{- end }}
+            {{- if ne .Values.h2agent_cl.vault ""  }}
+            - "--vault"
+            - {{ .Values.h2agent_cl.vault | quote }}
+            {{- end }}
             {{- if not .Values.h2agent_cl.data.enabled }}
             - "--discard-data"
             {{- end }}

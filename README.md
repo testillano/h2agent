@@ -2108,6 +2108,8 @@ Take as example the component test chart `ct-h2agent` (`./helm/ct-h2agent`), whe
 
 Some [command line](#Command-line) arguments used by the `h2agent` process are files, so they could be added by mean a `config map` (key & certificate for secured connections and matching/provision configuration files).
 
+The chart passes them from the `h2agent_cl` values (paths inside the container, e.g. where the config map is mounted): `schema`, `vault`, `traffic_server_matching`, `traffic_server_provision`, `traffic_client_endpoint`, `traffic_client_provision`, plus `traffic_server_key` / `traffic_server_crt`. At startup they are loaded in this order: schemas, vault, server matching, server provisions, client endpoints, client provisions. So a `vault` given here is there before the provisions which hold load-time references to it (`#{key}`, `#{<type>:key}`, `"#preset"`), with no extra loading step.
+
 ## Troubleshooting
 
 ### Helper functions
