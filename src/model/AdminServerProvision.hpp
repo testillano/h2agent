@@ -92,6 +92,7 @@ class AdminServerProvision
     std::string in_state_{};
     std::string request_method_{};
     std::string request_uri_{};
+    std::string id_{}; // optional, informative (events, per-provision metrics): not part of the key
 
     std::string out_state_{};
     unsigned int response_code_{};
@@ -268,6 +269,16 @@ public:
      */
     const admin_server_provision_key_t &getRequestUri() const {
         return request_uri_;
+    }
+
+    /**
+     * Gets the provision id: optional, informative and non contractual (it may
+     * repeat, to group provisions); empty when not provided
+     *
+     * @return Provision id
+     */
+    const std::string &getId() const {
+        return id_;
     }
 
     /**

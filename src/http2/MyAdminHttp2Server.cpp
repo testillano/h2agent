@@ -1648,6 +1648,7 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
     std::string clientProvisionId = provision->getClientProvisionId();
     std::string clientEndpointId = provision->getClientEndpointId();
 
+    client->incrementProvisionRequest(clientProvisionId, inState);
     client->asyncSend(requestMethod, requestUri, requestBody, requestHeaders,
     [this, inState, outState, clientProvisionId, clientEndpointId, requestMethod, requestUri, requestBody, requestHeaders, requestDelayMs, requestTimeoutMs, sendSeq, provisionSeq, clientEndpoint, client, chainVariables, purgeKeys, executionTrace](ert::http2comm::Http2Client::response response) {
 
@@ -1664,6 +1665,9 @@ void MyAdminHttp2Server::sendClientRequest(std::shared_ptr<h2agent::model::Admin
         // Provisioned request counter
         if (response.statusCode > 0) client->incrementProvisionedRequestsSuccessful();
         else client->incrementProvisionedRequestsFailed();
+
+        // Per-provision metrics (a transport error has no response: only its request is counted):
+        if (response.statusCode > 0) client->incrementProvisionResponse(clientProvisionId, inState, response.statusCode, (response.receptionUs - response.sendingUs).count() / 1000000.0);
 
         // Transport errors (timeout, connection error, request unsent, etc.:
         // statusCode <= 0): there is no answer, so nothing else applies.

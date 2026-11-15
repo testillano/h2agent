@@ -546,3 +546,27 @@ TEST_F(MockServerData_test, InvalidUtf8IsReplacedInDumps)
     EXPECT_NO_THROW(summary = data_.summary());
     EXPECT_TRUE(nlohmann::json::accept(summary));
 }
+
+// serverProvisionId: in the event (when the provision has an id) and in its sequence entries
+TEST_F(MockServerData_test, ServerProvisionIdInEventAndSequence)
+{
+    h2agent::model::MockServerData data;
+    h2agent::model::DataKey withId("GET", "/app/v1/books");
+    h2agent::model::DataKey withoutId("GET", "/app/v1/films");
+    auto event = data.loadEvent(withId, previous_state_, state_, reception_timestamp_us_, 200, request_headers_, response_headers_, request_body_data_part_, response_body_, 1, 0, true, "", "", nullptr, nullptr, "books");
+    event->setSendingTimestampUs(reception_timestamp_us_ + std::chrono::microseconds(10));
+    auto other = data.loadEvent(withoutId, previous_state_, state_, reception_timestamp_us_ + std::chrono::microseconds(20), 200, request_headers_, response_headers_, request_body_data_part_, response_body_, 2, 0, true);
+
+    EXPECT_EQ(event->getServerProvisionId(), "books");
+    EXPECT_EQ(event->getJson("/serverProvisionId"), "books");
+    EXPECT_EQ(other->getServerProvisionId(), "");
+    EXPECT_TRUE(other->getJson("/serverProvisionId").is_null());
+
+    const nlohmann::json sequence = nlohmann::json::parse(data.getSequence(0, 0, "", nullptr));
+    ASSERT_EQ(sequence.size(), 3u);  // recv + send (books), recv (films, not sent)
+    EXPECT_EQ(sequence[0]["serverProvisionId"], "books");
+    EXPECT_EQ(sequence[0]["direction"], "recv");
+    EXPECT_EQ(sequence[1]["serverProvisionId"], "books");
+    EXPECT_EQ(sequence[1]["direction"], "send");
+    EXPECT_FALSE(sequence[2].contains("serverProvisionId"));
+}

@@ -481,6 +481,10 @@ const nlohmann::json server_provision = grammar::withServerGrammar(R"(
     "description":{
       "type": "string"
     },
+    "id":{
+      "type": "string",
+      "minLength": 1
+    },
     "inState":{
       "type": "string",
       "pattern": "^[^:#]*$"

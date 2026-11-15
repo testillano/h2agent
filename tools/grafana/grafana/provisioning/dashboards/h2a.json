@@ -2003,12 +2003,268 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 73
+      },
+      "id": 37,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(h2agent_traffic_client_provision_requests_counter{source=~\"$source\"}[$rate_interval]) > 0) by (source, provision, state)",
+          "instant": false,
+          "legendFormat": "client {{provision}} {{state}}",
+          "range": true,
+          "refId": "client"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(h2agent_traffic_server_provision_requests_counter{source=~\"$source\"}[$rate_interval]) > 0) by (source, provision, state)",
+          "instant": false,
+          "legendFormat": "server {{provision}} {{state}}",
+          "range": true,
+          "refId": "server"
+        }
+      ],
+      "title": "Requests per provision and stage [traffic client/server]",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 73
+      },
+      "id": 38,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(h2agent_traffic_client_provision_response_delay_seconds_sum{source=~\"$source\"}[$rate_interval])) by (source, provision, state) / sum(rate(h2agent_traffic_client_provision_response_delay_seconds_count{source=~\"$source\"}[$rate_interval])) by (source, provision, state)",
+          "instant": false,
+          "legendFormat": "client {{provision}} {{state}} avg",
+          "range": true,
+          "refId": "clientAvg"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, provision, state) (rate(h2agent_traffic_client_provision_response_delay_seconds_bucket{source=~\"$source\"}[$rate_interval])))",
+          "instant": false,
+          "legendFormat": "client {{provision}} {{state}} p$percentile",
+          "range": true,
+          "refId": "clientPct"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(h2agent_traffic_server_provision_response_delay_seconds_sum{source=~\"$source\"}[$rate_interval])) by (source, provision, state) / sum(rate(h2agent_traffic_server_provision_response_delay_seconds_count{source=~\"$source\"}[$rate_interval])) by (source, provision, state)",
+          "instant": false,
+          "legendFormat": "server {{provision}} {{state}} avg",
+          "range": true,
+          "refId": "serverAvg"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile($percentile/100, sum by(le, source, provision, state) (rate(h2agent_traffic_server_provision_response_delay_seconds_bucket{source=~\"$source\"}[$rate_interval])))",
+          "instant": false,
+          "legendFormat": "server {{provision}} {{state}} p$percentile",
+          "range": true,
+          "refId": "serverPct"
+        }
+      ],
+      "title": "Response delay per provision and stage [traffic client/server]",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 81
       },
       "id": 13,
       "panels": [],
@@ -2082,7 +2338,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 74
+        "y": 82
       },
       "id": 14,
       "options": {
@@ -2199,7 +2455,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 74
+        "y": 82
       },
       "id": 15,
       "options": {
@@ -2282,7 +2538,7 @@
         "h": 8,
         "w": 11,
         "x": 0,
-        "y": 82
+        "y": 90
       },
       "id": 17,
       "options": {
@@ -2387,7 +2643,7 @@
         "h": 8,
         "w": 13,
         "x": 11,
-        "y": 82
+        "y": 90
       },
       "id": 16,
       "options": {
@@ -2471,7 +2727,7 @@
         "h": 8,
         "w": 11,
         "x": 0,
-        "y": 90
+        "y": 98
       },
       "id": 18,
       "options": {
@@ -2590,7 +2846,7 @@
         "h": 8,
         "w": 13,
         "x": 11,
-        "y": 90
+        "y": 98
       },
       "id": 20,
       "options": {
@@ -2680,7 +2936,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 98
+        "y": 106
       },
       "id": 31,
       "panels": [],
@@ -2750,7 +3006,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 99
+        "y": 107
       },
       "id": 32,
       "options": {
@@ -2862,7 +3118,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 99
+        "y": 107
       },
       "id": 33,
       "options": {
@@ -2963,7 +3219,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 107
+        "y": 115
       },
       "id": 34,
       "options": {
@@ -3075,7 +3331,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 107
+        "y": 115
       },
       "id": 35,
       "options": {

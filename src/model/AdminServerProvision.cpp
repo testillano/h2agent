@@ -304,6 +304,11 @@ bool AdminServerProvision::load(const nlohmann::json &j, bool regexMatchingConfi
         request_uri_ = *it;
     }
 
+    it = j.find("id");
+    if (it != j.end() && it->is_string()) {
+        id_ = *it;
+    }
+
     it = j.find("inState");
     if (it != j.end() && it->is_string()) {
         in_state_ = *it;

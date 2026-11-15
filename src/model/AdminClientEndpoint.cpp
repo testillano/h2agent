@@ -72,7 +72,7 @@ void AdminClientEndpoint::connect(bool fromScratch, size_t numWorkers) {
             clients_[i] = std::make_shared<h2agent::http2::MyTrafficHttp2Client>("h2agent_traffic_client", host_, std::to_string(port_), secure_, nullptr);
             try {
                 clients_[i]->enableMetrics(metrics_, response_delay_seconds_histogram_bucket_boundaries_, message_size_bytes_histogram_bucket_boundaries_, application_name_ + "_" + h2agent::model::fixMetricsName(key_)/*source label*/);
-                clients_[i]->enableMyMetrics(metrics_, application_name_);
+                clients_[i]->enableMyMetrics(metrics_, application_name_, response_delay_seconds_histogram_bucket_boundaries_);
             }
             catch(std::exception &e)
             {

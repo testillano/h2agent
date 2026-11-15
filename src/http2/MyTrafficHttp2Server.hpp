@@ -53,6 +53,8 @@ SOFTWARE.
 
 #include <ert/http2comm/Http2Server.hpp>
 
+#include <ProvisionMetrics.hpp>
+
 namespace h2agent
 {
 namespace model
@@ -90,6 +92,16 @@ class MyTrafficHttp2Server: public ert::http2comm::Http2Server
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
     ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure stage and reason
     std::string metrics_source_{};
+    ProvisionMetrics provision_metrics_{};  // per provision (with an id) and stage
+
+    // Map receptionId -> per-provision response metrics, completed in streamClose (response sent):
+    struct PendingResponse {
+        ert::metrics::counter_t *responses{};
+        ert::metrics::histogram_t *delay{};
+        std::chrono::microseconds receptionTimestampUs{};
+    };
+    std::unordered_map<std::uint64_t, PendingResponse> pending_responses_{};
+    std::mutex pending_responses_mutex_{};
 
     std::atomic<int> max_busy_threads_{0};
     std::atomic<bool> receive_request_body_{true};
@@ -118,7 +130,7 @@ public:
     * - h2agent[_traffic_server]: optional endpoint category, as it would be deducted from family name
     * - h2agentB
     */
-    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "");
+    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "", const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries = {});
 
     bool checkMethodIsAllowed(
         const nghttp2::asio_http2::server::request& req,

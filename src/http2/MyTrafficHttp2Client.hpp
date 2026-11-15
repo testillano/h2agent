@@ -48,6 +48,8 @@ SOFTWARE.
 
 #include <ert/metrics/Metrics.hpp>
 #include <ert/http2comm/Http2Client.hpp>
+
+#include <ProvisionMetrics.hpp>
 #include <MockClientData.hpp>
 
 namespace h2agent
@@ -80,6 +82,7 @@ class MyTrafficHttp2Client : public ert::http2comm::Http2Client
     ert::metrics::counter_t *purged_contexts_failed_counter_{};
     ert::metrics::counter_family_t *failed_counter_family_{};  // one counter per failure stage and reason
     std::string metrics_source_{};
+    ProvisionMetrics provision_metrics_{};  // per provision and stage
 
 public:
 
@@ -101,7 +104,28 @@ public:
     *
     * @param metrics Optional metrics object to compute counters
     */
-    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "");
+    void enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source = "", const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries = {});
+
+    /**
+     * Counts a request of a client provision stage (per-provision metrics)
+     *
+     * @param provision Client provision id
+     * @param state Stage: inState of the provision
+     */
+    void incrementProvisionRequest(const std::string &provision, const std::string &state) {
+        provision_metrics_.request(provision, state);
+    }
+    /**
+     * Counts a response of a client provision stage and observes its delay (per-provision metrics)
+     *
+     * @param provision Client provision id
+     * @param state Stage: inState of the provision
+     * @param statusCode Response status code (positive: transport errors have no response)
+     * @param delaySeconds Response delay
+     */
+    void incrementProvisionResponse(const std::string &provision, const std::string &state, int statusCode, double delaySeconds) {
+        provision_metrics_.response(provision, state, statusCode, delaySeconds);
+    }
 
     void incrementProvisionedRequestsSuccessful() {
         if (provisioned_requests_successful_counter_) provisioned_requests_successful_counter_->Increment();

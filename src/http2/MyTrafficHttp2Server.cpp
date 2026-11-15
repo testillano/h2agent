@@ -72,7 +72,7 @@ MyTrafficHttp2Server::MyTrafficHttp2Server(const std::string &name, size_t worke
     purge_execution_ = true;
 }
 
-void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source) {
+void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries) {
 
     metrics_ = metrics;
 
@@ -97,6 +97,9 @@ void MyTrafficHttp2Server::enableMyMetrics(ert::metrics::Metrics *metrics, const
 
         failed_counter_family_ = &(metrics->addCounterFamily("h2agent_traffic_server_failed_counter", "Failed events counter in h2agent_traffic_server, by failure stage and reason", familyLabels));
         metrics_source_ = src;
+
+        // Per provision (only those with an id) and stage:
+        provision_metrics_.enable(metrics, "h2agent_traffic_server", src, responseDelaySecondsHistogramBucketBoundaries);
     }
 }
 
@@ -328,6 +331,10 @@ ss << "TRAFFIC REQUEST RECEIVED"
         LOGDEBUG(ert::tracing::Logger::debug("Provision successfully indentified !", ERT_FILE_LOCATION));
         provision->employ();
 
+        // Per-provision metrics (provisions with an id):
+        const std::string &provisionId = provision->getId();
+        const ProvisionMetrics::Stage *provisionStage = provisionId.empty() ? nullptr : provision_metrics_.request(provisionId, provision->getInState());
+
         std::string outState;
         std::string outStateMethod;
         std::string outStateUri;
@@ -349,11 +356,18 @@ ss << "TRAFFIC REQUEST RECEIVED"
             failed_counter_family_->Add({{"source", metrics_source_}, {"state", provision->getInState()}, {"reason", h2agent::model::metricReason(failures, failReasonTemplate)}}).Increment();
         }
 
+        // The response and its delay are counted when it is sent (streamClose), with the final status code:
+        if (provisionStage) {
+            std::lock_guard<std::mutex> guard(pending_responses_mutex_);
+            pending_responses_[receptionId] = {provision_metrics_.responseCounter(provisionId, provision->getInState(), statusCode), provisionStage->delay, receptionTimestampUs};
+        }
+
         // Failures (the event state is the first one, already set by the provision):
         LOGWARNING(
         for (const auto &failure : failures) {
         const std::string state = h2agent::model::failedState(provision->getInState(), failure.value("reason", std::string("")));
-            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed server provision '%s %s' (inState '%s') -> '%s': %s", method.c_str(), normalizedUri.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
+            const std::string idInfo = provisionId.empty() ? "" : (" id '" + provisionId + "'");
+            ert::tracing::Logger::warning(ert::tracing::Logger::asString("Failed server provision '%s %s'%s (inState '%s') -> '%s': %s", method.c_str(), normalizedUri.c_str(), idInfo.c_str(), inState.c_str(), state.c_str(), h2agent::model::failureDetail(failure).c_str()), ERT_FILE_LOCATION);
         }
         );
 
@@ -390,7 +404,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
             // Store event context information
             if (server_data_) {
                 normalizedKey.setProvisionUri(provision->getRequestUri()); // additional context
-                auto loadedEvent = getMockServerData()->loadEvent(normalizedKey, inState, currentState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr, &failures);
+                auto loadedEvent = getMockServerData()->loadEvent(normalizedKey, inState, currentState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, "", "", traced ? &executionTrace : nullptr, &failures, provisionId);
 
                 // Register for sendingTimestampUs capture in streamClose:
                 {
@@ -412,7 +426,7 @@ ss << "TRAFFIC REQUEST RECEIVED"
 
                     h2agent::model::DataKey foreignKey(outStateMethod /* foreign method */, outStateUri /* foreign uri */);
                     foreignKey.setProvisionUri(provision->getRequestUri()); // additional context
-                    getMockServerData()->loadEvent(foreignKey, inState, outState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, normalizedUri /* virtual uri origin */);
+                    getMockServerData()->loadEvent(foreignKey, inState, outState, receptionTimestampUs, statusCode, req.header(), headers, requestBodyDataPart, responseBody, receptionId, responseDelayMs, server_data_key_history_ /* history enabled */, method /* virtual method origin*/, normalizedUri /* virtual uri origin */, nullptr, nullptr, provisionId);
                 }
             }
         }
@@ -459,6 +473,26 @@ ss << "TRAFFIC REQUEST RECEIVED"
 }
 
 void MyTrafficHttp2Server::streamClose(const std::uint64_t &receptionId) {
+
+    // Per-provision response metrics (sent response):
+    if (provision_metrics_.enabled()) {
+        PendingResponse pending;
+        bool found = false;
+        {
+            std::lock_guard<std::mutex> guard(pending_responses_mutex_);
+            auto it = pending_responses_.find(receptionId);
+            if (it != pending_responses_.end()) {
+                pending = it->second;
+                pending_responses_.erase(it);
+                found = true;
+            }
+        }
+        if (found) {
+            const auto nowUs = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
+            pending.responses->Increment();
+            pending.delay->Observe((nowUs - pending.receptionTimestampUs).count() / 1000000.0);
+        }
+    }
 
     if (server_data_ && mock_server_events_data_) {
         std::shared_ptr<model::MockServerEvent> event;

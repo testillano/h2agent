@@ -1585,6 +1585,9 @@ components:
           clientProvisionId:
             type: string
             description: Present on client events triggered by a client provision
+          serverProvisionId:
+            type: string
+            description: Present on server events processed by a provision with an id
           state:
             type: string
             description: >
@@ -2736,6 +2739,14 @@ components:
       required: [requestMethod, responseCode]
       additionalProperties: false
       properties:
+        id:
+          type: string
+          minLength: 1
+          description: >
+            Optional, informative identifier (not part of the key; it may repeat to
+            group provisions): shown as 'serverProvisionId' in the events, their
+            sequence entries and the failure log, and enables the per-provision
+            metrics of the provision.
         inState:
           type: string
           pattern: '^[^:#]*$'

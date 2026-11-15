@@ -2199,7 +2199,9 @@ Counters provided by http2comm library and h2agent itself(*):
    h2agent_traffic_client_observed_responses_timedout_counter [source] [method]
    h2agent_traffic_client_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_client_purged_contexts_counter (*) [source] [result: successful/failed]
-   h2agent_traffic_client_failed_counter (*) [source] [reason]
+   h2agent_traffic_client_failed_counter (*) [source] [state] [reason]
+   h2agent_traffic_client_provision_requests_counter (*) [source] [provision] [state]
+   h2agent_traffic_client_provision_responses_counter (*) [source] [provision] [state] [status_code]
 
 Gauges provided by http2comm library:
 
@@ -2207,12 +2209,15 @@ Gauges provided by http2comm library:
    h2agent_traffic_client_sent_messages_size_bytes_gauge [source] [method]
    h2agent_traffic_client_received_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
-Histograms provided by http2comm library:
+Histograms provided by http2comm library and h2agent itself(*):
 
    h2agent_traffic_client_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_client_sent_messages_size_bytes [source] [method]
    h2agent_traffic_client_received_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
+   h2agent_traffic_client_provision_response_delay_seconds (*) [source] [provision] [state]
 ```
+
+The `provision` metrics (rate and latency per provision and stage) are described in the [API guide](./docs/api/README.md#provision-metrics): every client provision is measured, a server provision only when it has an `id`.
 
 
 
@@ -2271,7 +2276,9 @@ Counters provided by http2comm library and h2agent itself(*):
    h2agent_[traffic|admin]_server_observed_responses_counter [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_traffic_server_provisioned_requests_counter (*) [source] [result: successful/failed]
    h2agent_traffic_server_purged_contexts_counter (*) [source] [result: successful/failed]
-   h2agent_traffic_server_failed_counter (*) [source] [reason]
+   h2agent_traffic_server_failed_counter (*) [source] [state] [reason]
+   h2agent_traffic_server_provision_requests_counter (*) [source] [provision] [state]
+   h2agent_traffic_server_provision_responses_counter (*) [source] [provision] [state] [status_code]
 
 Gauges provided by http2comm library:
 
@@ -2279,11 +2286,12 @@ Gauges provided by http2comm library:
    h2agent_[traffic|admin]_server_received_messages_size_bytes_gauge [source] [method]
    h2agent_[traffic|admin]_server_sent_messages_size_bytes_gauge [source] [method] [status_code] [rst_stream_goaway_error_code]
 
-Histograms provided by http2comm library:
+Histograms provided by http2comm library and h2agent itself(*):
 
    h2agent_[traffic|admin]_server_responses_delay_seconds [source] [method] [status_code] [rst_stream_goaway_error_code]
    h2agent_[traffic|admin]_server_received_messages_size_bytes [source] [method]
    h2agent_[traffic|admin]_server_sent_messages_size_bytes [source] [method] [status_code] [rst_stream_goaway_error_code]
+   h2agent_traffic_server_provision_response_delay_seconds (*) [source] [provision] [state]
 ```
 
 For example:

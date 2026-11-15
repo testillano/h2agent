@@ -54,6 +54,7 @@ class MockServerEvent : public MockEvent
     std::string virtual_origin_coming_from_method_{};
     std::string virtual_origin_coming_from_uri_{};
     std::atomic<std::uint64_t> sending_timestamp_us_{}; // set when the response stream closes (after publication)
+    std::string server_provision_id_{}; // id of the provision which processed it (optional, informative)
 
 public:
 
@@ -89,6 +90,26 @@ public:
      */
     std::uint64_t getRecvSeq() const {
         return recv_seq_;
+    }
+
+    /**
+     * Sets the id of the provision which processed the event (before publishing it)
+     *
+     * @param id Server provision id (nothing is set when empty)
+     */
+    void setServerProvisionId(const std::string &id) {
+        if (id.empty()) return;
+        server_provision_id_ = id;
+        std::unique_lock<std::shared_mutex> lock(json_mutex_);
+        json_["serverProvisionId"] = id;
+    }
+
+    /** Server provision id
+     *
+     * @return Id of the provision which processed the event (empty when it had none)
+     */
+    const std::string &getServerProvisionId() const {
+        return server_provision_id_;
     }
 
     /** Request body

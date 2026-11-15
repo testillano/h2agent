@@ -50,10 +50,10 @@ std::shared_ptr<MockServerEvent> MockServerEventsHistory::loadEvent(const std::s
         DataPart &requestBodyDataPart, const std::string &responseBody,
         std::uint64_t serverSequence, unsigned int responseDelayMs,
         bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri,
-        const nlohmann::json *executionTrace, const nlohmann::json *failures) {
+        const nlohmann::json *executionTrace, const nlohmann::json *failures, const std::string &serverProvisionId) {
 
 
-    auto event = buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace, failures);
+    auto event = buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace, failures, serverProvisionId);
     MockEventsHistory::loadEvent(std::static_pointer_cast<MockEvent>(event), historyEnabled);
     return event;
 }
@@ -64,12 +64,13 @@ std::shared_ptr<MockServerEvent> MockServerEventsHistory::buildEvent(const std::
         DataPart &requestBodyDataPart, const std::string &responseBody,
         std::uint64_t serverSequence, unsigned int responseDelayMs,
         const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri,
-        const nlohmann::json *executionTrace, const nlohmann::json *failures) {
+        const nlohmann::json *executionTrace, const nlohmann::json *failures, const std::string &serverProvisionId) {
 
     auto event = std::make_shared<MockServerEvent>();
     event->load(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri);
     if (executionTrace) event->setExecutionTrace(*executionTrace);  // before publishing the event
     if (failures && !failures->empty()) event->setFailures(*failures);
+    event->setServerProvisionId(serverProvisionId);
     return event;
 }
 

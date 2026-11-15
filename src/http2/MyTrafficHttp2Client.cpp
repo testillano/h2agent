@@ -59,7 +59,7 @@ namespace h2agent
 namespace http2
 {
 
-void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source) {
+void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const std::string &source, const ert::metrics::bucket_boundaries_t &responseDelaySecondsHistogramBucketBoundaries) {
 
     metrics_ = metrics;
 
@@ -82,6 +82,9 @@ void MyTrafficHttp2Client::enableMyMetrics(ert::metrics::Metrics *metrics, const
 
         failed_counter_family_ = &(metrics->addCounterFamily("h2agent_traffic_client_failed_counter", "Failed events counter in h2agent_traffic_client, by failure stage and reason", familyLabels));
         metrics_source_ = src;
+
+        // Per provision and stage:
+        provision_metrics_.enable(metrics, "h2agent_traffic_client", src, responseDelaySecondsHistogramBucketBoundaries);
     }
 }
 

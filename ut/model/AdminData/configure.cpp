@@ -645,3 +645,24 @@ TEST_F(Configure_test, ValidateSchema)
 EXPECT_TRUE(error.empty());
 }
 
+
+// Server provision 'id': optional, informative (not part of the key: it may repeat), non empty
+TEST_F(Configure_test, ServerProvisionId)
+{
+    nlohmann::json withId = R"({"id": "books", "requestMethod": "GET", "requestUri": "/app/v1/books", "responseCode": 200})"_json;
+    nlohmann::json sameId = R"({"id": "books", "requestMethod": "GET", "requestUri": "/app/v1/books/1", "responseCode": 200})"_json;
+    nlohmann::json withoutId = R"({"requestMethod": "GET", "requestUri": "/app/v1/films", "responseCode": 200})"_json;
+    EXPECT_EQ(adata_.loadServerProvision(withId, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    EXPECT_EQ(adata_.loadServerProvision(sameId, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    EXPECT_EQ(adata_.loadServerProvision(withoutId, common_resources_), h2agent::model::AdminServerProvisionData::Success);
+    EXPECT_EQ(adata_.getServerProvisionData().find("initial", "GET", "/app/v1/books")->getId(), "books");
+    EXPECT_EQ(adata_.getServerProvisionData().find("initial", "GET", "/app/v1/books/1")->getId(), "books");
+    EXPECT_EQ(adata_.getServerProvisionData().find("initial", "GET", "/app/v1/films")->getId(), "");
+
+    nlohmann::json emptyId = withoutId;
+    emptyId["id"] = "";
+    EXPECT_EQ(adata_.loadServerProvision(emptyId, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    emptyId["id"] = 3;
+    EXPECT_EQ(adata_.loadServerProvision(emptyId, common_resources_), h2agent::model::AdminServerProvisionData::BadSchema);
+    EXPECT_TRUE(adata_.clearServerProvisions());
+}

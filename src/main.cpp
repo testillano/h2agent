@@ -1173,7 +1173,7 @@ Overview:       https://testillano.github.io/h2agent/overview/
     if (traffic_server_enabled) {
     myTrafficHttp2Server = new h2agent::http2::MyTrafficHttp2Server("h2agent_traffic_server", traffic_server_worker_threads, traffic_server_max_worker_threads, myTimersIoContext, queue_dispatcher_max_size);
         myTrafficHttp2Server->enableMetrics(myMetrics, responseDelaySecondsHistogramBucketBoundaries, messageSizeBytesHistogramBucketBoundaries, application_name/*source label*/);
-        myTrafficHttp2Server->enableMyMetrics(myMetrics, application_name/*source label*/);
+        myTrafficHttp2Server->enableMyMetrics(myMetrics, application_name/*source label*/, responseDelaySecondsHistogramBucketBoundaries);
         myTrafficHttp2Server->setApiName(traffic_server_api_name);
         myTrafficHttp2Server->setApiVersion(traffic_server_api_version);
 #ifdef H2COMM_MAX_CONCURRENT_STREAMS

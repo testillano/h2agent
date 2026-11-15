@@ -513,7 +513,7 @@ Where to read a failure:
 | Sequences | `GET /admin/v2/{client,server}-data/sequence`: every entry carries the `state` of its event and, when it failed, its `failures` (entries stay light: no bodies nor headers), so the order of the messages and the verdict come in one call |
 | Another provision | the `serverEvent` / `clientEvent` sources with a path, e.g. `"eventPath": "/failures/0/detail"` |
 | Log | one warning per failure (see above) |
-| Metrics | `*_failed_counter{state, reason}` (see below): the count, without details |
+| Metrics | `*_failed_counter{state, reason}` (see below): the count, without details; the [per-provision metrics](#provision-metrics) give the rate and latency of each stage |
 
 <a name="failure-metrics"></a>**Failure metrics**: every failed event increments one counter, with the stage and the reason of its state (the first failure), also when event storage is disabled (load tests), where they are the cheap verdict:
 
@@ -527,9 +527,28 @@ The `state` label is the stage (the `inState` of the failing provision, a litera
 | `reason` in the provision (`inState` `initial`) | Event state | Labels `state`, `reason` |
 |---|---|---|
 | `"create-not-terminated"` | `__core:failed:initial:create-not-terminated` | `initial`, `create-not-terminated` |
-| `"notify-@{uid}-missing"` | `__core:failed:initial:notify-001019000040000-missing` | `initial`, `notify-@{uid}-missing` |
+| `"notify-@{uid}-missing"` | `__core:failed:initial:notify-alice-missing` | `initial`, `notify-@{uid}-missing` |
 | none | `__core:failed:initial:unspecified` | `initial`, `unspecified` |
 | built-in | `__core:failed:initial:expectedResponseStatusCode` | `initial`, `expectedResponseStatusCode` |
+
+<a name="provision-metrics"></a>**Per-provision metrics**: the rate and the latency of every provision stage, for load tests (a dashboard panel per stage) where the events are not stored:
+
+```
+h2agent_traffic_client_provision_requests_counter{source="...", provision="...", state="..."}
+h2agent_traffic_client_provision_responses_counter{source="...", provision="...", state="...", status_code="..."}
+h2agent_traffic_client_provision_response_delay_seconds{source="...", provision="...", state="..."}   (histogram)
+h2agent_traffic_server_provision_requests_counter / _responses_counter / _response_delay_seconds   (same labels)
+```
+
+The `provision` label is the provision `id` and `state` its `inState`: literals of the loaded provisions, so the cardinality is bounded. Every client provision is measured (its `id` is mandatory); a server provision only when it has an [`id`](#id), which a load test gives to the provisions it wants to watch. The histogram buckets are the ones of `--prometheus-response-delay-seconds-histogram-boundaries`. In a client, the delay is the response time of the request and a transport error (timeout, connection error) has no response, so `requests - responses` counts them; in a server, the response and its delay (from the reception until the response is sent, response delays included) are counted when the response is sent, so a reset stream counts its request only.
+
+For example, the requests per second and the mean latency of the stage `pay` of the client provision `order` (PromQL):
+
+```
+rate(h2agent_traffic_client_provision_requests_counter{provision="order", state="pay"}[1m])
+rate(h2agent_traffic_client_provision_response_delay_seconds_sum{provision="order", state="pay"}[1m])
+  / rate(h2agent_traffic_client_provision_response_delay_seconds_count{provision="order", state="pay"}[1m])
+```
 
 ### Extra fields (description)
 
@@ -548,6 +567,14 @@ Provision objects accept an optional `description` field to annotate the purpose
 This field has no effect on matching or processing — it is purely informational. Unknown fields are rejected by the schema to catch typos early (e.g. `responseDelay` instead of `responseDelayMs`). See the [benchmark test profiles](../../benchmark/tests) for real-world examples using `description`.
 
 ### Server provision fields
+
+#### id
+
+Optional identifier of the provision (a non empty text). It is informative: it is not part of the provision key (`inState`, `requestMethod` and `requestUri`), it is not used by the matching nor by the waits, and it may repeat, to group several provisions under one name (e.g. every provision of a resource). It is shown in the events processed by the provision (`serverProvisionId`), in their [sequence](#server-data-sequence) entries and in the failure log, and it enables the [per-provision metrics](#provision-metrics) of the provision. There is no default: a provision without `id` is not measured, so the metrics series are the ones chosen by the user (one per literal uri of the many provisions of a functional suite would be useless).
+
+```json
+{"id": "books", "requestMethod": "GET", "requestUri": "/app/v1/books", "responseCode": 200}
+```
 
 #### requestMethod
 
@@ -2371,6 +2398,7 @@ The information collected for a server event item is:
 * `responseStatusCode`: status code which was sent.
 * `responseHeaders`: object containing the list of response headers which were sent.
 * `failures`: present only when the event failed: one entry per failure, in evaluation order (the first one gives the `state`), see [reserved states and failures](#reserved-states-and-failures).
+* `serverProvisionId`: present only when the provision which processed the event has an [`id`](#id) (also in the `server-data/sequence` entries).
 * `recvseq`: current server monotonically increased sequence for every reception (`1..N`). In case of a virtual register (if it contains the field `virtualOrigin`), this sequence is actually not increased for the server data entry shown, only for the original event which caused this one.
 
 ### Waiting for server data

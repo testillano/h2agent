@@ -92,7 +92,7 @@ public:
      *
      * @return The event loaded (thread-safe handle for the caller, e.g. to set its sending timestamp)
      */
-    std::shared_ptr<MockServerEvent> loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr, const nlohmann::json *failures = nullptr);
+    std::shared_ptr<MockServerEvent> loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod = "", const std::string &virtualOriginComingFromUri = "", const nlohmann::json *executionTrace = nullptr, const nlohmann::json *failures = nullptr, const std::string &serverProvisionId = "");
 
     /**
      * Removes event matching a given receive sequence within a data key

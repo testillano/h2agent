@@ -228,7 +228,7 @@
     <p class="fragment"><b>Management</b> port (8074 by default) serves the <i>REST API</i> <code>/admin/v2</code> which programs the agent behavior.</p>
     <p class="fragment"><b>Traffic server</b> port (8000 by default) serves the HTTP/2 mock (an optional nghttpx front-end adds HTTP/1).</p>
     <p class="fragment"><b>Traffic client</b> endpoints are created on demand (<i>REST API</i>).</p>
-    <p class="fragment"><b>Scrape</b> port (8080 by default) serves Prometheus metrics.</p>
+    <p class="fragment"><b>Scrape</b> port (8080 by default) serves Prometheus metrics, also <b>per provision and stage</b> (rate, status codes, latency histogram: every client provision, server provisions with an <code>id</code>).</p>
   </div>
   <div class="note fragment zoom-in" style="position:absolute;left:700px;top:20px;width:180px;height:110px">Server / client configuration &#9881;</div>
   <div class="note fragment zoom-in" style="position:absolute;left:720px;top:170px;width:140px;height:110px">Command line &#128187;</div>

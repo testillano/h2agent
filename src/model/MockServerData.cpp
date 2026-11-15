@@ -47,10 +47,10 @@ namespace h2agent
 namespace model
 {
 
-std::shared_ptr<MockServerEvent> MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace, const nlohmann::json *failures) {
+std::shared_ptr<MockServerEvent> MockServerData::loadEvent(const DataKey &dataKey, const std::string &previousState, const std::string &state, const std::chrono::microseconds &receptionTimestampUs, unsigned int responseStatusCode, const nghttp2::asio_http2::header_map &requestHeaders, const nghttp2::asio_http2::header_map &responseHeaders, DataPart &requestBodyDataPart, const std::string &responseBody, std::uint64_t serverSequence, unsigned int responseDelayMs, bool historyEnabled, const std::string &virtualOriginComingFromMethod, const std::string &virtualOriginComingFromUri, const nlohmann::json *executionTrace, const nlohmann::json *failures, const std::string &serverProvisionId) {
 
     // The event is built outside any lock (the costly part)...
-    auto event = MockServerEventsHistory::buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace, failures);
+    auto event = MockServerEventsHistory::buildEvent(previousState, state, receptionTimestampUs, responseStatusCode, requestHeaders, responseHeaders, requestBodyDataPart, responseBody, serverSequence, responseDelayMs, virtualOriginComingFromMethod, virtualOriginComingFromUri, executionTrace, failures, serverProvisionId);
 
     // ... and stored with an atomic get-or-create of the key history (as MockClientData
     // does), so a key is never published without events: the former get + add was not
@@ -146,6 +146,7 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
         std::string uri;
         std::string state;       // event state (both entries of the event; empty for unprovisioned ones)
         nlohmann::json failures; // null unless the event failed
+        std::string serverProvisionId; // empty when the provision had no id
     };
     std::vector<Entry> entries;
 
@@ -166,12 +167,13 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
             nlohmann::json failures = serverEv->getJson("/failures");  // null when absent
 
             // Recv entry:
+            const std::string &provisionId = serverEv->getServerProvisionId();
             if ((!fromTimestampUs || recTs >= fromTimestampUs) && (!toTimestampUs || recTs <= toTimestampUs)) {
-                entries.push_back({recTs, "recv", method, uri, state, failures});
+                entries.push_back({recTs, "recv", method, uri, state, failures, provisionId});
             }
             // Send entry:
             if (sendTs && (!fromTimestampUs || sendTs >= fromTimestampUs) && (!toTimestampUs || sendTs <= toTimestampUs)) {
-                entries.push_back({sendTs, "send", method, uri, state, failures});
+                entries.push_back({sendTs, "send", method, uri, state, failures, provisionId});
             }
         }
     });
@@ -189,6 +191,7 @@ std::string MockServerData::getSequence(std::uint64_t fromTimestampUs, std::uint
         obj["timestampUs"] = e.timestampUs;
         if (!e.state.empty()) obj["state"] = e.state;
         if (!e.failures.is_null()) obj["failures"] = e.failures;
+        if (!e.serverProvisionId.empty()) obj["serverProvisionId"] = e.serverProvisionId;
         result.push_back(std::move(obj));
     }
 
