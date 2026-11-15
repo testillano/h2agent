@@ -46,6 +46,14 @@ jobs:
       # and its '! docker run ... | grep' check passed silently when the pull failed.
       run: ./format.sh --check
 
+  # Doxygen html for the GitHub Pages site (doxygen/), formerly served by codedocs.xyz
+  doxygen:
+    uses: testillano/workflows/.github/workflows/doxygen.yml@v1
+    with:
+      doxyfile_dir: docs/doxygen
+      doxyfile_overrides: |
+        PROJECT_NUMBER=${{ github.ref_name }}
+
   build_and_push_docker_images_as_local:
     needs: format_style
     name: Build and push docker images as local
@@ -171,9 +179,6 @@ jobs:
     needs: build_coverage
     name: Run unit tests and upload coverage info
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     container:
       image: ghcr.io/testillano/h2agent:latest-cov
       options: "--entrypoint sh"
@@ -181,9 +186,6 @@ jobs:
     -
       name: Run coverage script
       run: /var/starter-coverage-ut.sh
-    -
-      name: Setup Pages
-      uses: actions/configure-pages@v3
     -
       name: Create badge json file
       run: |
@@ -198,26 +200,24 @@ jobs:
 
         echo '{"schemaVersion":1,"label":"coverage","message":"'${value}'%","color":"'${color}'"}' > /code/coverage/badge.json
     -
-      name: Assemble GitHub Pages site
-      run: |
-        mkdir -p /code/site
-        cp -r /code/coverage /code/site/coverage
-        cp -r /code/docs/api /code/site/api
-        cp -r /code/docs/overview /code/site/overview
-    -
-      name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+      name: Upload coverage artifact
+      uses: actions/upload-artifact@v4
       with:
-        path: /code/site
+        name: coverage-html
+        path: /code/coverage
+        if-no-files-found: error
+        # Consumed by 'deploy_pages' in the same run
+        retention-days: 1
 
-  # Deploy the Pages artifact in a dedicated job on a clean runner (NOT inside the
-  # coverage container). actions/deploy-pages@v4 requires the 'github-pages'
-  # environment to be declared on the job; running it inside a custom container
-  # (via docker exec) is fragile and was leaving the deployment stuck in
-  # 'updating_pages' until timeout. This job only consumes the artifact already
-  # uploaded by 'unit_tests_and_coverage' in the same run.
+  # Assemble and deploy the Pages site in a dedicated job on a clean runner (NOT
+  # inside the coverage container). actions/deploy-pages@v4 requires the
+  # 'github-pages' environment to be declared on the job; running it inside a
+  # custom container (via docker exec) is fragile and was leaving the deployment
+  # stuck in 'updating_pages' until timeout. The site is built here (not in
+  # 'unit_tests_and_coverage') so that a doxygen failure only skips Pages and
+  # never blocks the image publication, which depends on the coverage job only.
   deploy_pages:
-    needs: unit_tests_and_coverage
+    needs: [unit_tests_and_coverage, doxygen]
     name: Deploy GitHub Pages
     runs-on: ubuntu-latest
     # Do not fail the whole pipeline (image push, helm publish) if Pages hiccups:
@@ -229,6 +229,35 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+    -
+      name: Check out the repo
+      uses: actions/checkout@v4
+    -
+      name: Setup Pages
+      uses: actions/configure-pages@v3
+    -
+      name: Download coverage html
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-html
+        path: site/coverage
+    -
+      name: Download doxygen html
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.doxygen.outputs.artifact_name }}
+        path: site/doxygen
+    -
+      name: Assemble GitHub Pages site
+      run: |
+        cp docs/site/index.html site/index.html
+        cp -r docs/api site/api
+        cp -r docs/overview site/overview
+    -
+      name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: site
     -
       name: Deploy to GitHub Pages
       id: deployment

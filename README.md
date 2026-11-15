@@ -1,7 +1,8 @@
 # C++ HTTP/2 Mock Service
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://codedocs.xyz/testillano/h2agent.svg)](https://codedocs.xyz/testillano/h2agent/index.html)
+[![Pages](https://img.shields.io/github/deployments/testillano/h2agent/github-pages?label=pages)](https://testillano.github.io/h2agent/)
+[![Documentation](https://img.shields.io/badge/docs-doxygen-blue.svg)](https://testillano.github.io/h2agent/doxygen/)
 [![API](https://img.shields.io/badge/API-OpenAPI%203.1-6ba539.svg)](https://testillano.github.io/h2agent/api/)
 [![Coverage Status](https://img.shields.io/endpoint?url=https://testillano.github.io/h2agent/coverage/badge.json)](https://testillano.github.io/h2agent/coverage)
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)

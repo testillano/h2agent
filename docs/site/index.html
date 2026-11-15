@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!--
+  Landing page of the h2agent GitHub Pages site (copied to the site root by the
+  'deploy_pages' CI job). Each section is deployed by the same job.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="h2agent documentation: API reference, overview, doxygen and coverage">
+  <title>h2agent documentation</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      max-width: 48rem;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+    }
+    h1 { margin-bottom: 0.25rem; }
+    .brief { margin-top: 0; opacity: 0.8; }
+    ul.sections { list-style: none; padding: 0; display: grid; gap: 1rem; }
+    ul.sections a {
+      display: block;
+      padding: 1rem;
+      border: 1px solid currentColor;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    ul.sections a:hover, ul.sections a:focus-visible { outline: 3px solid #1abc9c; outline-offset: 2px; }
+    .title { font-weight: bold; font-size: 1.1rem; }
+    .desc { display: block; opacity: 0.8; }
+    footer { margin-top: 2rem; font-size: 0.9rem; opacity: 0.8; }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>h2agent</h1>
+    <p class="brief">HTTP/2 agent service for mocking network services (server and client).</p>
+  </header>
+
+  <main>
+    <h2>Documentation</h2>
+    <ul class="sections">
+      <li>
+        <a href="overview/">
+          <span class="title">Overview</span>
+          <span class="desc">Architecture and features presentation.</span>
+        </a>
+      </li>
+      <li>
+        <a href="api/">
+          <span class="title">Management API</span>
+          <span class="desc">OpenAPI 3.1 reference of the administrative interface.</span>
+        </a>
+      </li>
+      <li>
+        <a href="doxygen/">
+          <span class="title">Source code (doxygen)</span>
+          <span class="desc">Classes, namespaces and files of the C++ sources.</span>
+        </a>
+      </li>
+      <li>
+        <a href="coverage/">
+          <span class="title">Unit test coverage</span>
+          <span class="desc">Line coverage report (lcov)<span id="coverage-value"></span>.</span>
+        </a>
+      </li>
+    </ul>
+  </main>
+
+  <footer>
+    <p>
+      <a href="https://github.com/testillano/h2agent">Source repository</a> |
+      <a href="https://github.com/testillano/h2agent/blob/master/docs/api/README.md">API user guide</a> |
+      <a href="https://github.com/testillano/h2agent/releases">Releases</a>
+    </p>
+  </footer>
+
+  <script>
+    // Shows the coverage value published by CI (coverage/badge.json); the link
+    // works anyway if the file is missing.
+    fetch("coverage/badge.json")
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (badge) {
+        if (badge && badge.message) {
+          document.getElementById("coverage-value").textContent = ": " + badge.message;
+        }
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>
