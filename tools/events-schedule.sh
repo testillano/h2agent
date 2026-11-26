@@ -8,17 +8,19 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Helper functions this scheduler needs. They are normally provided by the caller
-# (e.g. sourcing tools/helpers.bash, or a '<role>_env' wrapper). We DECLARE the
-# dependency and assert it -- we do NOT force a particular way of loading it.
-# Only if the functions are missing do we try to source helpers.bash from the
-# known locations (standalone use, e.g. inside the container). This lets a caller
-# that already sourced the helpers use the scheduler with no extra setup.
-_ES_REQUIRED_FNS="client_provision_cps client_provision_trigger admin_url do_curl metrics_summary trace"
-_es_have_fns() { local f; for f in $_ES_REQUIRED_FNS; do command -v "$f" >/dev/null 2>&1 || return 1; done; return 0; }
+# Helper functions the built-in actions use (cps:, trigger:, vault:, trace,
+# metrics-snapshot). They are normally provided by the caller (e.g. sourcing
+# tools/helpers.bash, or a '<role>_env' wrapper); we do NOT force a particular way
+# of loading them. If they are missing we try to source helpers.bash from the known
+# locations (standalone use, e.g. inside the container), but they are NOT required
+# up front: a driver made only of 'call:' columns needs none of them. Every action
+# checks its own function when its row runs (_es_need), and a missing one aborts
+# the run there, naming it (the same for the arbitrary 'call:<func>' functions).
+_ES_HELPER_FNS="client_provision_cps client_provision_trigger admin_url do_curl metrics_summary trace"
+_es_have_fns() { local f; for f in $_ES_HELPER_FNS; do command -v "$f" >/dev/null 2>&1 || return 1; done; return 0; }
 
 if ! _es_have_fns; then
-  # not already available -> try the known helper locations
+  # not already available -> try the known helper locations (best effort)
   if [ -f "${SCRIPT_DIR}/helpers.bash" ]; then
     source "${SCRIPT_DIR}/helpers.bash" &>/dev/null
   elif [ -f "/opt/utils/helpers.bash" ]; then
@@ -26,13 +28,18 @@ if ! _es_have_fns; then
   fi
 fi
 
-# assert: whether provided by the caller or just sourced, the functions must exist
-if ! _es_have_fns; then
-  echo "ERROR: required h2agent helper functions not available." >&2
-  echo "       Source the helpers first (e.g. tools/helpers.bash, or a '<role>_env' wrapper)." >&2
-  echo "       Missing at least one of: ${_ES_REQUIRED_FNS}" >&2
-  exit 1
-fi
+# _es_need <label> <func>... -- abort the run if a function an action is about to
+# call is not available (not defined, not an executable in PATH, nor a path).
+_es_need() {
+  local label=$1 f; shift
+  for f in "$@"; do
+    type "${f}" &>/dev/null && continue
+    echo "ERROR: '${f}' is not available (column '${label}', timeline ${timeline:-?}s): aborting." >&2
+    echo "       Source the h2agent helpers first (e.g. tools/helpers.bash, or a '<role>_env'" >&2
+    echo "       wrapper), or define it in the driver preamble ('#@' lines)." >&2
+    exit 1
+  done
+}
 
 # ---------------------------------------------------------------------------
 # Internal: execute an action based on label pattern
@@ -58,6 +65,7 @@ _es_execute_action() {
       if [ "${mode}" = "dry" ]; then
         echo "client_provision_cps ${target} ${_cps_args[*]}"
       else
+        _es_need "${label}" client_provision_cps
         client_provision_cps "${target}" "${_cps_args[@]}"
       fi
       ;;
@@ -66,6 +74,7 @@ _es_execute_action() {
       if [ "${mode}" = "dry" ]; then
         echo "client_provision_trigger ${target} $*"
       else
+        _es_need "${label}" client_provision_trigger
         client_provision_trigger "${target}" "$@" >/dev/null 2>&1
       fi
       ;;
@@ -74,6 +83,7 @@ _es_execute_action() {
       if [ "${mode}" = "dry" ]; then
         echo "vault ${target}=${value}"
       else
+        _es_need "${label}" do_curl admin_url
         do_curl -XPOST -d'{"'"${target}"'":"'"${value}"'"}' \
           -H 'content-type:application/json' "$(admin_url)/vault" >/dev/null 2>&1
       fi
@@ -83,6 +93,7 @@ _es_execute_action() {
       if [ "${mode}" = "dry" ]; then
         echo "trace ${value}"
       else
+        _es_need "${label}" trace
         trace "${value}" >/dev/null 2>&1
       fi
       ;;
@@ -93,6 +104,7 @@ _es_execute_action() {
       if [ "${mode}" = "dry" ]; then
         echo "metrics_summary --save ${value}"
       else
+        _es_need "${label}" metrics_summary
         metrics_summary --save "${value}" >/dev/null 2>&1
       fi
       ;;
@@ -103,11 +115,8 @@ _es_execute_action() {
         if [ "${mode}" = "dry" ]; then
           echo "${target} $*"
         else
-          if type "${target}" &>/dev/null; then
-            "${target}" "$@"
-          else
-            echo "  WARNING: '${target}' not found in shell"
-          fi
+          _es_need "${label}" "${target}"
+          "${target}" "$@"
         fi
       else
         echo "  WARNING: unknown action '${action}' for label '${label}'"
@@ -123,8 +132,14 @@ usage() {
   cat << 'EOF'
 Usage: events-schedule.sh <driver> [--from <seconds>] [--dry-run]
 
-       Execute a timeline-driven event schedule using h2agent helpers (auto-loaded).
-       Extensible via 'call:<func>' labels for any available shell function.
+       Execute a timeline-driven event schedule using h2agent helpers (auto-loaded
+       when available). Extensible via 'call:<func>' labels for any available shell
+       function, executable in PATH or path.
+
+       FUNCTIONS: nothing is required up front. Each column checks the function it
+       calls when its row runs (a built-in shortcut, its h2agent helper; 'call:<func>',
+       <func>); a missing one aborts the run with an error naming it and the column.
+       So a driver made only of 'call:' columns needs no h2agent helpers at all.
 
        driver:   Text file with a 'Timeline(s)' header row and labeled columns.
 

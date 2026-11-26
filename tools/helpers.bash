@@ -1219,7 +1219,10 @@ metrics() {
 }
 
 metrics_summary() {
-  local snap_dir="/tmp/.h2agent_metrics_summaries"
+  # One directory per agent (PNAME): several agents snapshotted from the same host
+  # (e.g. one per pod of a mix) must not share labels nor counters.<unix_ts> files
+  # (two of them saved in the same second would overwrite each other).
+  local snap_dir="/tmp/.h2agent_metrics_summaries/${PNAME:-h2agent}"
 
   # Colors (disabled if not a terminal)
   local C_RST="" C_BLD="" C_GRN="" C_RED="" C_CYN="" C_YLW=""
@@ -1243,7 +1246,7 @@ metrics_summary() {
     echo "       <ref1> <ref2>      Delta between two refs (timestamp or label)."
     echo
     echo "       --show             List saved snapshots and their labels."
-    echo "       --clean            Remove all saved snapshots."
+    echo "       --clean            Remove all saved snapshots (of this agent, PNAME)."
     echo "       --json             JSON output (combinable with --now/--last/--delta)."
     echo
     echo "       References can be unix timestamps or labels (order does not matter)."
@@ -1252,6 +1255,7 @@ metrics_summary() {
     echo
     echo "       Snapshots: ${snap_dir}/counters.<unix_ts>"
     echo "       Labels:    ${snap_dir}/labels (label=timestamp mapping)"
+    echo "       (one directory per agent: PNAME='${PNAME:-h2agent}')"
     echo
     echo "       Use case 1: mark before/after a test"
     echo "         metrics_summary --save before"
