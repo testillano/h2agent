@@ -3373,7 +3373,10 @@
   "preload": false,
   "refresh": "10s",
   "schemaVersion": 42,
-  "tags": [],
+  "tags": [
+    "h2agent",
+    "http2"
+  ],
   "templating": {
     "list": [
       {
